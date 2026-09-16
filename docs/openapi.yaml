@@ -2125,6 +2125,322 @@ paths:
         '404':
           description: Not a vendor link of this vendor in this tenant
 
+  # ==================== VENDOR QUESTIONNAIRES (TPRM v1, #670) ====================
+  /vendor-questionnaire-templates:
+    get:
+      tags: [Vendors]
+      summary: List questionnaire templates, without their questions
+      operationId: listVendorQuestionnaireTemplates
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: include_archived
+          in: query
+          schema:
+            type: boolean
+            default: false
+      responses:
+        '200':
+          description: Templates
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/VendorQuestionnaireTemplate'
+        '402':
+          description: The plan does not include vendor risk
+    post:
+      tags: [Vendors]
+      summary: Author a questionnaire template (version 1)
+      operationId: createVendorQuestionnaireTemplate
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VendorQuestionnaireTemplateInput'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VendorQuestionnaireTemplate'
+        '400':
+          description: Invalid template or question
+        '402':
+          description: The plan does not include vendor risk
+
+  /vendor-questionnaire-templates/{id}:
+    get:
+      tags: [Vendors]
+      summary: Read a template with its questions
+      operationId: getVendorQuestionnaireTemplate
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/VendorPathId'
+      responses:
+        '200':
+          description: The template
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VendorQuestionnaireTemplate'
+        '404':
+          description: Not found in this tenant
+    put:
+      tags: [Vendors]
+      summary: Replace a template's fields and questions as a new version
+      description: Assessments already sent keep the questions they were sent with.
+      operationId: updateVendorQuestionnaireTemplate
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/VendorPathId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VendorQuestionnaireTemplateInput'
+      responses:
+        '200':
+          description: The new version
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VendorQuestionnaireTemplate'
+        '400':
+          description: Invalid template or question
+        '404':
+          description: Not found in this tenant
+        '409':
+          description: The template is archived
+
+  /vendor-questionnaire-templates/{id}/archive:
+    post:
+      tags: [Vendors]
+      summary: Archive a template (idempotent); it can no longer be sent or edited
+      operationId: archiveVendorQuestionnaireTemplate
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/VendorPathId'
+      responses:
+        '200':
+          description: The archived template
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VendorQuestionnaireTemplate'
+        '404':
+          description: Not found in this tenant
+
+  /vendors/{id}/assessments:
+    get:
+      tags: [Vendors]
+      summary: List a vendor's assessments, newest first, with their effective status
+      operationId: listVendorAssessments
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/VendorPathId'
+      responses:
+        '200':
+          description: Assessments, without items
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/VendorAssessment'
+        '404':
+          description: Vendor not found in this tenant
+    post:
+      tags: [Vendors]
+      summary: Send a questionnaire to the vendor
+      description: >-
+        Snapshots the template's questions, mints the public link and mails it.
+        questionnaire_url is returned ONLY when the email could not go out.
+      operationId: sendVendorAssessment
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/VendorPathId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SendVendorAssessmentInput'
+      responses:
+        '201':
+          description: Sent
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VendorAssessmentDelivery'
+        '400':
+          description: Invalid input, archived template, or no contact email
+        '404':
+          description: Vendor or template not found in this tenant
+
+  /vendor-assessments/{id}:
+    get:
+      tags: [Vendors]
+      summary: Read an assessment with its items and answers (reviewer view)
+      operationId: getVendorAssessment
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/VendorPathId'
+      responses:
+        '200':
+          description: The assessment
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VendorAssessment'
+        '404':
+          description: Not found in this tenant
+
+  /vendor-assessments/{id}/revoke:
+    post:
+      tags: [Vendors]
+      summary: Withdraw an open questionnaire; its link then answers 410
+      operationId: revokeVendorAssessment
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/VendorPathId'
+      responses:
+        '200':
+          description: Revoked
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VendorAssessment'
+        '404':
+          description: Not found in this tenant
+        '409':
+          description: Already submitted or revoked
+
+  /vendor-assessments/{id}/resend:
+    post:
+      tags: [Vendors]
+      summary: Issue and mail a new link; the previous link answers 410
+      operationId: resendVendorAssessment
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/VendorPathId'
+      responses:
+        '200':
+          description: Resent
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VendorAssessmentDelivery'
+        '404':
+          description: Not found in this tenant
+        '409':
+          description: Not open (submitted, revoked or expired)
+
+  /public/vendor-assessment:
+    get:
+      tags: [Vendors]
+      summary: The questionnaire, as the vendor contact sees it (no account)
+      description: >-
+        Authenticated by the opaque token in X-Vendor-Assessment-Token only. The
+        token must never be put in the URL. Weights, points and control
+        references are not exposed.
+      operationId: getPublicVendorAssessment
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/VendorAssessmentToken'
+      responses:
+        '200':
+          description: The questionnaire
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VendorAssessmentPublicView'
+        '404':
+          description: Missing, malformed or unknown link — identical in every case
+        '410':
+          description: Superseded by a newer link, revoked, expired, or no longer available
+        '429':
+          description: Rate limit
+
+  /public/vendor-assessment/answers:
+    put:
+      tags: [Vendors]
+      summary: Save draft answers
+      operationId: savePublicVendorAssessmentAnswers
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/VendorAssessmentToken'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [answers]
+              properties:
+                answers:
+                  type: array
+                  maxItems: 200
+                  items:
+                    $ref: '#/components/schemas/VendorAnswerInput'
+      responses:
+        '200':
+          description: Saved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VendorAssessmentPublicView'
+        '400':
+          description: Unknown question or invalid answer
+        '404':
+          description: Missing, malformed or unknown link
+        '409':
+          description: Already submitted
+        '410':
+          description: Superseded, revoked, expired, or no longer available
+        '429':
+          description: Rate limit
+
+  /public/vendor-assessment/submit:
+    post:
+      tags: [Vendors]
+      summary: Submit and lock the answers
+      operationId: submitPublicVendorAssessment
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/VendorAssessmentToken'
+      responses:
+        '200':
+          description: Submitted, now read-only
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VendorAssessmentPublicView'
+        '400':
+          description: Required questions still need an answer
+        '404':
+          description: Missing, malformed or unknown link
+        '409':
+          description: Already submitted
+        '410':
+          description: Superseded, revoked, expired, or no longer available
+        '429':
+          description: Rate limit
+
   # ==================== STATISTICS ====================
   /stats:
     get:
@@ -2658,6 +2974,24 @@ components:
       scheme: bearer
       bearerFormat: JWT
       description: JWT Bearer token. Obtain via /auth/login
+
+  parameters:
+    VendorPathId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    VendorAssessmentToken:
+      name: X-Vendor-Assessment-Token
+      in: header
+      required: true
+      description: >-
+        The opaque questionnaire token from the link's URL fragment (ADR 0004 D4).
+        Never send it in the path or the query string.
+      schema:
+        type: string
 
   schemas:
     # ========== ACTION CENTER (#429) ==========
@@ -4182,6 +4516,370 @@ components:
         updated_at:
           type: string
           format: date-time
+
+    VendorScoreContribution:
+      type: object
+      required: [item_id, weight, points, na, contribution]
+      properties:
+        item_id:
+          type: string
+          format: uuid
+        weight:
+          type: number
+        points:
+          type: number
+          description: The chosen option's points; 0 when unanswered
+        na:
+          type: boolean
+          description: Not applicable — excluded from both sums, contribution 0
+        contribution:
+          type: number
+          description: 100 × weight × (1 − points) / Σ weight
+
+    VendorQuestionOption:
+      type: object
+      required: [value, label, points]
+      properties:
+        value:
+          type: string
+        label:
+          type: string
+        points:
+          type: number
+          minimum: 0
+          maximum: 1
+          description: 1 is the fully favourable answer
+
+    VendorQuestionnaireQuestionInput:
+      type: object
+      required: [text, answer_type]
+      properties:
+        text:
+          type: string
+          maxLength: 2000
+        help:
+          type: string
+        answer_type:
+          type: string
+          enum: [choice, text]
+        options:
+          type: array
+          maxItems: 20
+          items:
+            $ref: '#/components/schemas/VendorQuestionOption'
+        weight:
+          type: number
+          minimum: 0
+          maximum: 10
+          description: Forced to 0 for a text question
+        required:
+          type: boolean
+        na_allowed:
+          type: boolean
+        control_ref:
+          type: string
+          description: Optional citation written by a person; never generated
+
+    VendorQuestionnaireQuestion:
+      allOf:
+        - $ref: '#/components/schemas/VendorQuestionnaireQuestionInput'
+        - type: object
+          required: [id, template_id, position]
+          properties:
+            id:
+              type: string
+              format: uuid
+            template_id:
+              type: string
+              format: uuid
+            position:
+              type: integer
+
+    VendorQuestionnaireTemplateInput:
+      type: object
+      required: [name, language, questions]
+      properties:
+        name:
+          type: string
+          maxLength: 200
+        description:
+          type: string
+        language:
+          type: string
+          enum: [fr, en]
+        questions:
+          type: array
+          minItems: 1
+          maxItems: 200
+          items:
+            $ref: '#/components/schemas/VendorQuestionnaireQuestionInput'
+
+    VendorQuestionnaireTemplate:
+      type: object
+      required: [id, name, language, version, archived_at, created_at, updated_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+        language:
+          type: string
+        version:
+          type: integer
+        archived_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        questions:
+          type: array
+          nullable: true
+          items:
+            $ref: '#/components/schemas/VendorQuestionnaireQuestion'
+
+    VendorAssessmentItem:
+      type: object
+      required: [id, position, text, answer_type, weight, required, na_allowed, answer_value, answer_na]
+      properties:
+        id:
+          type: string
+          format: uuid
+        position:
+          type: integer
+        text:
+          type: string
+        help:
+          type: string
+        answer_type:
+          type: string
+          enum: [choice, text]
+        options:
+          type: array
+          nullable: true
+          items:
+            $ref: '#/components/schemas/VendorQuestionOption'
+        weight:
+          type: number
+        required:
+          type: boolean
+        na_allowed:
+          type: boolean
+        control_ref:
+          type: string
+        answer_value:
+          type: string
+          nullable: true
+        answer_na:
+          type: boolean
+        answer_comment:
+          type: string
+        answered_at:
+          type: string
+          format: date-time
+          nullable: true
+
+    VendorAssessment:
+      type: object
+      required: [id, vendor_asset_id, template_id, template_version, status, contact_email, contact_language, due_at, sent_at, score, tier, confidence, source]
+      properties:
+        id:
+          type: string
+          format: uuid
+        vendor_asset_id:
+          type: string
+          format: uuid
+        template_id:
+          type: string
+          format: uuid
+        template_version:
+          type: integer
+        status:
+          type: string
+          enum: [sent, in_progress, submitted, revoked, expired]
+        owner_user_id:
+          type: string
+          format: uuid
+        contact_email:
+          type: string
+        contact_language:
+          type: string
+        due_at:
+          type: string
+          format: date-time
+        sent_at:
+          type: string
+          format: date-time
+        submitted_at:
+          type: string
+          format: date-time
+          nullable: true
+        revoked_at:
+          type: string
+          format: date-time
+          nullable: true
+        score:
+          type: number
+          nullable: true
+          minimum: 0
+          maximum: 100
+          description: >-
+            Vendor score, 0–100, higher is riskier (ADR 0004 D5). Written on
+            submission. Null until then, and null when nothing was scorable. Never an
+            input to a risk's score.
+        tier:
+          type: string
+          nullable: true
+          enum: [critical, high, medium, low, null]
+          description: critical ≥ 70 · high ≥ 40 · medium ≥ 20 · low < 20
+        score_breakdown:
+          type: array
+          nullable: true
+          description: The arithmetic of the score. Contributions sum to it.
+          items:
+            $ref: '#/components/schemas/VendorScoreContribution'
+        scoring_version:
+          type: string
+          nullable: true
+          description: The formula that produced the score, e.g. vendorscore/1
+        source:
+          type: string
+        source_id:
+          type: string
+        source_version:
+          type: string
+        observed_at:
+          type: string
+          format: date-time
+          nullable: true
+        confidence:
+          type: number
+          description: 0.50 — self-attested (ADR 0004 D3a)
+        provenance:
+          type: object
+          additionalProperties: true
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/VendorAssessmentItem'
+
+    SendVendorAssessmentInput:
+      type: object
+      required: [template_id, due_at]
+      properties:
+        template_id:
+          type: string
+          format: uuid
+        due_at:
+          type: string
+          format: date-time
+        contact_email:
+          type: string
+          description: Defaults to the vendor's contact_email attribute
+        contact_language:
+          type: string
+          enum: [fr, en]
+          description: Defaults to the template's language
+
+    VendorAssessmentDelivery:
+      type: object
+      required: [assessment, delivery]
+      properties:
+        assessment:
+          $ref: '#/components/schemas/VendorAssessment'
+        delivery:
+          type: string
+          enum: [sent, unavailable, failed]
+        delivery_detail:
+          type: string
+        questionnaire_url:
+          type: string
+          description: Present ONLY when the email did not go out. It carries the one-time token in its fragment.
+
+    VendorAnswerInput:
+      type: object
+      required: [item_id]
+      properties:
+        item_id:
+          type: string
+          format: uuid
+        answer_value:
+          type: string
+          nullable: true
+          description: An offered option's value, or free text. Empty clears a draft answer.
+        answer_na:
+          type: boolean
+        answer_comment:
+          type: string
+          maxLength: 2000
+
+    VendorPublicItem:
+      type: object
+      required: [id, position, text, answer_type, options, required, na_allowed, answer_value, answer_na]
+      properties:
+        id:
+          type: string
+          format: uuid
+        position:
+          type: integer
+        text:
+          type: string
+        help:
+          type: string
+        answer_type:
+          type: string
+          enum: [choice, text]
+        options:
+          type: array
+          items:
+            type: object
+            required: [value, label]
+            properties:
+              value:
+                type: string
+              label:
+                type: string
+        required:
+          type: boolean
+        na_allowed:
+          type: boolean
+        answer_value:
+          type: string
+          nullable: true
+        answer_na:
+          type: boolean
+        answer_comment:
+          type: string
+
+    VendorAssessmentPublicView:
+      type: object
+      required: [organization_name, vendor_name, language, due_at, status, read_only, items]
+      properties:
+        organization_name:
+          type: string
+        vendor_name:
+          type: string
+        language:
+          type: string
+        due_at:
+          type: string
+          format: date-time
+        status:
+          type: string
+          enum: [sent, in_progress, submitted]
+        read_only:
+          type: boolean
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/VendorPublicItem'
 
     VendorLatestAssessment:
       type: object
