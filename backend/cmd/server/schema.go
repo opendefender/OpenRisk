@@ -16,7 +16,8 @@ import (
 // It lives outside main() so it can be tested (#706). With the SQL migration
 // layer skipped unless DATABASE_URL is set (#611), this list IS the schema of a
 // default deployment: a model a repository reads but that is missing here has
-// no table, and every route that touches it answers 500.
+// no table, and every route that touches it answers 500. schema_test.go fails
+// when that happens.
 func schemaModels() []interface{} {
 	return []interface{}{
 		&domain.User{},
@@ -53,6 +54,13 @@ func schemaModels() []interface{} {
 		// domain.Risk above. Additive; the classic Score Engine is untouched.
 		&domain.RiskScoringWeights{},
 		&domain.Mitigation{},
+		// The mitigation plan's checklist (#706). Read by the transition stepper,
+		// progress recalculation and every /mitigations/:id/sub-actions route, yet
+		// never created: absent from this list, its only DDL archived. Every risk
+		// with a mitigation answered GET /risks/:id/transitions with a 500. No
+		// tenant_id column: isolation goes through the parent mitigation, enforced
+		// in GormMitigationSubActionRepository.
+		&domain.MitigationSubAction{},
 		&domain.Asset{},
 		&domain.AssetSnapshot{},
 		// Typed attributes by asset category (Attack Surface §1). One row per
