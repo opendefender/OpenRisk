@@ -137,6 +137,56 @@ describe('signing up', () => {
     expect(screen.queryByText(/création du compte a échoué/i)).not.toBeInTheDocument();
   });
 
+  // #687: the form used to derive a username from the address's local part, a
+  // field nobody saw. Two people who both write to contact@ collided, and the
+  // second was told their email was already registered.
+  it('sends no username, so people sharing an email local part can both sign up', async () => {
+    login.mockResolvedValue({ status: 'signed_in' });
+
+    renderSignup();
+    await fillAndSubmit();
+
+    await waitFor(() => expect(post).toHaveBeenCalled());
+    const [url, body] = post.mock.calls[0] as [string, Record<string, unknown>];
+    expect(url).toBe('/auth/register');
+    expect(body).not.toHaveProperty('username');
+    expect(body.email).toBe('alix@example.com');
+  });
+
+  it('never blames the email when the server refused the username', async () => {
+    post.mockRejectedValue({
+      isAxiosError: true,
+      response: {
+        status: 409,
+        data: { error: 'This username is already taken', code: 'USERNAME_TAKEN' },
+      },
+    });
+
+    renderSignup();
+    await fillAndSubmit();
+
+    expect(await screen.findByText(/username is already taken/i)).toBeInTheDocument();
+    expect(screen.queryByText(/compte existe déjà avec cet e-mail/i)).not.toBeInTheDocument();
+  });
+
+  it('says so plainly when the address already has an account', async () => {
+    post.mockRejectedValue({
+      isAxiosError: true,
+      response: {
+        status: 409,
+        data: {
+          error: 'An account already exists for this email address',
+          code: 'EMAIL_ALREADY_REGISTERED',
+        },
+      },
+    });
+
+    renderSignup();
+    await fillAndSubmit();
+
+    expect(await screen.findByText(/compte existe déjà avec cet e-mail/i)).toBeInTheDocument();
+  });
+
   it('still goes straight in when no second factor is demanded', async () => {
     login.mockResolvedValue({ status: 'signed_in' });
 
