@@ -66,6 +66,11 @@ const AcceptInvitationPage = lazy(() =>
     default: m.AcceptInvitationPage,
   })),
 );
+const VendorQuestionnairePage = lazy(() =>
+  import('./features/tprm/VendorQuestionnairePage').then((m) => ({
+    default: m.VendorQuestionnairePage,
+  })),
+);
 const ForgotPasswordScreen = lazy(() =>
   import('./features/auth/ForgotPasswordScreen').then((m) => ({ default: m.ForgotPasswordScreen })),
 );
@@ -535,6 +540,10 @@ function App() {
             the invitation before asking for anything, and the server binds it
             to the invited address. */}
           <Route path="/invitations/accept" element={<AcceptInvitationPage />} />
+          {/* Vendor questionnaire (#674). Public by necessity: the vendor contact
+            has no account. No ProtectedRoute and no app shell; the token is read
+            from the URL fragment and the page sends no session. */}
+          <Route path="/vendor-questionnaire" element={<VendorQuestionnairePage />} />
 
           {/* Signup wizard — authenticated but OUTSIDE the app shell: the point of
             these five screens is that nothing else competes for attention. The
