@@ -73,6 +73,11 @@ func IssueSessionCookies(c *fiber.Ctx, accessToken, refreshToken string, accessT
 	now := time.Now()
 	secure := secureCookies()
 
+	// The access cookie deliberately expires with the token it carries. Once it
+	// lapses the browser stops sending it and the auth middleware answers
+	// 401 UNAUTHORIZED, not TOKEN_EXPIRED. The SPA treats both codes as
+	// refreshable (frontend/src/lib/api.ts, #691), so the session continues on
+	// the refresh cookie below instead of signing the user out.
 	c.Cookie(&fiber.Cookie{
 		Name:     AccessTokenCookie,
 		Value:    accessToken,

@@ -30,11 +30,11 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-function expired(config: unknown) {
+function expired(config: unknown, code = 'TOKEN_EXPIRED') {
   const err = new Error('401') as Error & { response?: unknown; config?: unknown };
   err.response = {
     status: 401,
-    data: { code: 'TOKEN_EXPIRED' },
+    data: { code },
     headers: {},
     config,
     statusText: '',
@@ -99,6 +99,61 @@ describe('api interceptor — refresh & retry on TOKEN_EXPIRED', () => {
     api.defaults.adapter = adapter as never;
 
     await expect(api.get('/stats')).rejects.toBeTruthy();
+    expect(window.location.href).toBe('/login');
+  });
+});
+
+// #691: the access cookie expires with its token, so after 15 minutes the API
+// sees no credential and answers UNAUTHORIZED — never TOKEN_EXPIRED.
+describe('api interceptor — an expired access cookie (issue 691)', () => {
+  it('refreshes and replays when the API reports no credential (UNAUTHORIZED)', async () => {
+    const post = vi.spyOn(axios, 'post').mockResolvedValue({
+      status: 200,
+      data: { token_pair: { access_token: 'fresh-token' } },
+    } as never);
+
+    let calls = 0;
+    const adapter: MockCall = async (config) => {
+      calls += 1;
+      if (calls === 1) throw expired(config, 'UNAUTHORIZED');
+      return ok(config, { unread: 3 });
+    };
+    api.defaults.adapter = adapter as never;
+
+    const res = await api.get('/notifications/unread-count');
+
+    expect(post).toHaveBeenCalledTimes(1);
+    expect(calls).toBe(2);
+    expect((res.data as { unread: number }).unread).toBe(3);
+    expect(window.location.href).toBe('');
+  });
+
+  it('does not try to refresh a revoked token', async () => {
+    const post = vi.spyOn(axios, 'post');
+    const adapter: MockCall = async (config) => {
+      throw expired(config, 'TOKEN_REVOKED');
+    };
+    api.defaults.adapter = adapter as never;
+
+    await expect(api.get('/stats')).rejects.toBeTruthy();
+    expect(post).not.toHaveBeenCalled();
+    expect(window.location.href).toBe('/login');
+  });
+
+  it('sends the user to /login once, without looping, when the replay is still refused', async () => {
+    const post = vi
+      .spyOn(axios, 'post')
+      .mockResolvedValue({ status: 200, data: { token_pair: { access_token: 't' } } } as never);
+    let calls = 0;
+    const adapter: MockCall = async (config) => {
+      calls += 1;
+      throw expired(config, 'UNAUTHORIZED');
+    };
+    api.defaults.adapter = adapter as never;
+
+    await expect(api.get('/stats')).rejects.toBeTruthy();
+    expect(post).toHaveBeenCalledTimes(1);
+    expect(calls).toBe(2); // the original and one replay, nothing more
     expect(window.location.href).toBe('/login');
   });
 });
