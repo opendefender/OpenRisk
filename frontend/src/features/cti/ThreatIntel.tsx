@@ -173,8 +173,8 @@ export function ThreatIntel() {
             className="h-9 px-3 rounded-[10px] text-[12.5px] font-semibold transition-colors"
             style={
               sev === s
-                ? { background: 'var(--accent)', color: '#fff' }
-                : { background: 'var(--bg-hover)', color: 'var(--text-soft)' }
+                ? { background: 'var(--accent-solid)', color: 'var(--fg-on-solid)' }
+                : { background: 'var(--bg-hover)', color: 'var(--fg-secondary)' }
             }
           >
             {s === '' ? tr('Toutes', 'All') : s}

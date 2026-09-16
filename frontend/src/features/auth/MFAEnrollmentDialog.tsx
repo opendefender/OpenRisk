@@ -186,6 +186,9 @@ export function MFAEnrollmentDialog({
               {qrSrc && (
                 <div
                   className="flex justify-center p-3 rounded-[13px]"
+                  // A QR code needs a white quiet zone in BOTH themes or phone
+                  // scanners miss it: a scanner requirement, not a theme colour.
+                  // eslint-disable-next-line openrisk/no-raw-colors -- QR quiet zone
                   style={{ background: '#fff' }}
                 >
                   <img

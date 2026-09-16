@@ -557,8 +557,8 @@ export function RiskRegisterPage() {
                   onClick={() => setView(v)}
                   className="h-8 px-2.5 rounded-[8px] text-[12.5px] font-semibold inline-flex items-center gap-1.5 transition-colors"
                   style={{
-                    background: view === v ? 'var(--accent-hover)' : 'transparent',
-                    color: view === v ? '#fff' : 'var(--fg-secondary)',
+                    background: view === v ? 'var(--accent-solid)' : 'transparent',
+                    color: view === v ? 'var(--fg-on-solid)' : 'var(--fg-secondary)',
                   }}
                   title={lbl}
                 >
@@ -1380,7 +1380,10 @@ function RiskDrawer({
           <div className="flex items-start gap-3 mb-3">
             <div className="flex-1">
               <div className="mono text-[11px] text-ink-muted mb-[5px]">#{r.id.slice(0, 8)}</div>
-              <h2 id="risk-drawer-title" className="disp text-[18px] font-bold text-ink leading-snug">
+              <h2
+                id="risk-drawer-title"
+                className="disp text-[18px] font-bold text-ink leading-snug"
+              >
                 {r.name}
               </h2>
             </div>

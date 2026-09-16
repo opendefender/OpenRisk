@@ -165,12 +165,15 @@ export function Chip({
   active,
   onClick,
   color,
+  count,
   testId,
 }: {
   label: string;
   active?: boolean;
   onClick?: () => void;
   color?: string;
+  /** How many rows the filter would show. */
+  count?: number;
   /** Optional hook for the E2E gates. A filter nobody can address from a test
    *  is a filter whose behaviour nothing protects. */
   testId?: string;
@@ -188,6 +191,16 @@ export function Chip({
       }}
     >
       {label}
+      {typeof count === 'number' && (
+        <span
+          className="text-2xs font-bold px-1.5 rounded-full tabular-nums"
+          style={{
+            background: active ? softFill(color ?? 'var(--accent)', 20) : 'var(--surface-3)',
+          }}
+        >
+          {count}
+        </span>
+      )}
     </button>
   );
 }

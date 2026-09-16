@@ -209,7 +209,7 @@ function KanbanCard({ c, onOpen }: { c: UiMiti; onOpen: () => void }) {
       className="rounded-[11px] p-[13px] mb-2.5 cursor-pointer transition-all"
       style={{
         background: 'var(--bg-elevated)',
-        border: `1px solid ${c.overdue ? 'rgba(255,69,58,.4)' : 'var(--border)'}`,
+        border: `1px solid ${c.overdue ? 'color-mix(in srgb, var(--danger) 40%, transparent)' : 'var(--border)'}`,
         boxShadow: hover ? 'var(--shadow-md)' : 'var(--shadow-sm)',
         transform: hover ? 'translateY(-2px)' : 'none',
       }}

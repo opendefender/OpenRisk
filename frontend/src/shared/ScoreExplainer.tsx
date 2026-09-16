@@ -109,7 +109,7 @@ export function ScoreExplainer({
           : {
               background: 'var(--bg-elevated)',
               border: '1px solid var(--border-strong)',
-              boxShadow: '0 20px 50px rgba(0,0,0,.3)',
+              boxShadow: 'var(--elev-3)',
               animation: 'or-scalein .18s ease',
             }
       }
@@ -257,7 +257,10 @@ export function ScoreExplainer({
     <div className="fixed inset-0 z-80 flex items-center justify-center p-4">
       <div
         className="absolute inset-0"
-        style={{ background: 'var(--surface-overlay)', backdropFilter: 'blur(var(--overlay-blur))' }}
+        style={{
+          background: 'var(--surface-overlay)',
+          backdropFilter: 'blur(var(--overlay-blur))',
+        }}
         onClick={onClose}
       />
       {body}

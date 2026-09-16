@@ -275,9 +275,7 @@ export function RuleEditorModal({
                     className="text-left p-2.5 rounded-[10px] flex items-start gap-2"
                     style={{
                       border: `1px solid ${active ? 'var(--accent)' : 'var(--border-strong)'}`,
-                      background: active
-                        ? 'var(--accent-soft, rgba(90,106,207,.08))'
-                        : 'transparent',
+                      background: active ? 'var(--accent-soft)' : 'transparent',
                     }}
                   >
                     <Icon
@@ -427,9 +425,7 @@ export function RuleEditorModal({
                               style={{
                                 border: `1px solid ${on ? 'var(--accent)' : 'var(--border-strong)'}`,
                                 color: on ? 'var(--accent)' : 'var(--fg-secondary)',
-                                background: on
-                                  ? 'var(--accent-soft, rgba(90,106,207,.08))'
-                                  : 'transparent',
+                                background: on ? 'var(--accent-soft)' : 'transparent',
                               }}
                             >
                               {CHANNEL_META[ch].label}

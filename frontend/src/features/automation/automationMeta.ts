@@ -88,7 +88,7 @@ export const ACTION_META: Record<
   create_ticket: {
     label: { fr: 'Ouvrir un ticket', en: 'Open ticket' },
     icon: Ticket,
-    color: 'var(--iris, #5A6ACF)',
+    color: 'var(--chart-2)',
   },
   notify: { label: { fr: 'Notifier', en: 'Notify' }, icon: Bell, color: 'var(--accent-500)' },
   start_sla: {
