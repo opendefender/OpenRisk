@@ -54,5 +54,12 @@ func (s *Service) UpdateMyProfile(ctx context.Context, tenantID, userID uuid.UUI
 	if err != nil {
 		return nil, fmt.Errorf("profile.UpdateMyProfile: %w", err)
 	}
+	// The checklist's "complete your profile" step used to be ticked only by the
+	// onboarding wizard, so a person who filled in this screen never saw it done.
+	// Same bar as the wizard: a name.
+	if s.events != nil && fresh.FullName != "" && tenantID != uuid.Nil {
+		s.events.RecordFor(ctx, tenantID, u.ID, string(domain.ActivationProfileCompleted),
+			map[string]interface{}{"source": "profile_settings"})
+	}
 	return s.view(ctx, tenantID, fresh), nil
 }

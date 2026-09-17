@@ -53,6 +53,11 @@ type AuditSink interface {
 	Record(ctx context.Context, ev domain.AuditEvent)
 }
 
+// ActivationRecorder records a newcomer milestone. Optional and best-effort.
+type ActivationRecorder interface {
+	RecordFor(ctx context.Context, tenantID, userID uuid.UUID, key string, payload map[string]interface{})
+}
+
 // Effective is what the interface should actually use: the person's choice,
 // else the organization's default, else empty (the client's own fallback).
 type Effective struct {
@@ -93,6 +98,7 @@ type Service struct {
 	orgs    OrganizationReader
 	blobs   BlobStore
 	audit   AuditSink
+	events  ActivationRecorder
 }
 
 // NewService builds the service. orgs, blobs and audit are optional: without
@@ -105,6 +111,10 @@ func NewService(users UserStore, members MembershipReader) *Service {
 func (s *Service) WithOrganizations(o OrganizationReader) *Service { s.orgs = o; return s }
 func (s *Service) WithBlobStore(b BlobStore) *Service              { s.blobs = b; return s }
 func (s *Service) WithAudit(a AuditSink) *Service                  { s.audit = a; return s }
+
+// WithActivation ticks the "complete your profile" checklist step when the
+// profile screen, not only the onboarding wizard, gives the person a name.
+func (s *Service) WithActivation(r ActivationRecorder) *Service { s.events = r; return s }
 
 // loadSelf reads the caller's own row.
 func (s *Service) loadSelf(ctx context.Context, userID uuid.UUID) (*domain.User, error) {
