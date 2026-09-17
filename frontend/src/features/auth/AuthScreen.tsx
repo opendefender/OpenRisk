@@ -554,7 +554,11 @@ function RegisterForm({ onLogin }: { onLogin: () => void }) {
     setBusy(true);
     setError('');
     try {
-      const company = `${fullName.trim()}${lang === 'fr' ? ' — espace' : ' — workspace'}`;
+      // Sign-up asks for no company, so the organisation starts under the
+      // person's own name, and the tunnel's organisation step asks for the real
+      // one (#716). The "— espace" suffix this used to add became the name most
+      // people kept, and the one the danger zone made them type.
+      const company = fullName.trim();
 
       // No username is sent (#687). This screen used to derive one from the
       // address's local part, a field the user never saw. Everyone sharing a
