@@ -20,25 +20,28 @@ import (
 type AuditAction string
 
 const (
-	AuditActionLogin     AuditAction = "login"
-	AuditActionRefresh   AuditAction = "refresh"
+	AuditActionLogin   AuditAction = "login"
+	AuditActionRefresh AuditAction = "refresh"
 	// AuditActionRefreshReuse records a detected refresh-token reuse: a spent token
 	// replayed, or two requests racing to rotate one. It revokes the token family,
 	// so it is a genuine security event distinct from an ordinary failed refresh.
 	AuditActionRefreshReuse AuditAction = "refresh_reuse"
 	AuditActionLogout       AuditAction = "logout"
-	AuditActionMfaSetup  AuditAction = "mfa_setup"
-	AuditActionMfaVerify AuditAction = "mfa_verify"
-	AuditActionSwitchOrg AuditAction = "switch_org"
-	AuditActionPatCreate AuditAction = "pat_create"
-	AuditActionPatRevoke AuditAction = "pat_revoke"
-	AuditActionPatUse    AuditAction = "pat_use"
+	AuditActionMfaSetup     AuditAction = "mfa_setup"
+	AuditActionMfaVerify    AuditAction = "mfa_verify"
+	AuditActionSwitchOrg    AuditAction = "switch_org"
+	AuditActionPatCreate    AuditAction = "pat_create"
+	AuditActionPatRevoke    AuditAction = "pat_revoke"
+	AuditActionPatUse       AuditAction = "pat_use"
 
 	// Password reset. Both halves are recorded, and failures carry a reason
 	// ("rate_limited", "invalid_token", "weak_password"), because a burst of
 	// invalid-token attempts is what a reset-link brute force looks like.
 	AuditActionPasswordResetRequest AuditAction = "password_reset_request"
 	AuditActionPasswordResetConfirm AuditAction = "password_reset_confirm"
+	// In-session password change (#720). Failures carry a reason
+	// ("wrong_current_password", "weak_password", "no_local_password").
+	AuditActionPasswordChange AuditAction = "password_change"
 
 	// Session management.
 	AuditActionSessionRevoke    AuditAction = "session_revoke"

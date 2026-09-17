@@ -32,6 +32,7 @@ type ResetMailerLike interface {
 	SendResetLink(ctx context.Context, to, fullName, link, locale string) error
 	SendResetConfirmation(ctx context.Context, to, fullName, locale string) error
 	SendNewSignInAlert(ctx context.Context, to, fullName, ip, userAgent string, when time.Time, locale string) error
+	SendPasswordChanged(ctx context.Context, to, fullName, locale string) error
 }
 
 // NewAsync wraps a mailer so every send returns immediately.
@@ -48,6 +49,12 @@ func (a *Async) SendResetLink(_ context.Context, to, fullName, link, locale stri
 // SendResetConfirmation queues the confirmation notice.
 func (a *Async) SendResetConfirmation(_ context.Context, to, fullName, locale string) error {
 	a.dispatch(func(ctx context.Context) { _ = a.inner.SendResetConfirmation(ctx, to, fullName, locale) })
+	return nil
+}
+
+// SendPasswordChanged queues the in-session password change notice.
+func (a *Async) SendPasswordChanged(_ context.Context, to, fullName, locale string) error {
+	a.dispatch(func(ctx context.Context) { _ = a.inner.SendPasswordChanged(ctx, to, fullName, locale) })
 	return nil
 }
 

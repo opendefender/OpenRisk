@@ -168,6 +168,8 @@ var routesWithoutPermissionGuard = []string{
 	"PUT /users/me/avatar",
 	"POST /activation/celebrated",
 	"POST /auth/mfa/disable",
+	// #720 — changes the session's own password; the current password is the proof.
+	"POST /auth/password/change",
 	"POST /auth/pat",
 	"POST /auth/switch-org",
 	// D-034: deliberately open. Starting a trial spends nothing and sits on the
