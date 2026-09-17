@@ -1995,7 +1995,8 @@ func main() {
 	profileSvc := profileapp.NewService(userRepo, userRepo).
 		WithOrganizations(orgRepo).
 		WithBlobStore(fileStorage).
-		WithAudit(governance.NewAuditRecorder(auditChainRepo))
+		WithAudit(governance.NewAuditRecorder(auditChainRepo)).
+		WithActivation(activationRecorder)
 	profileHandler := handlers.NewProfileHandler(profileSvc)
 	protected.Get("/users/me", profileHandler.GetMe)
 	protected.Patch("/users/me", profileHandler.UpdateMe)

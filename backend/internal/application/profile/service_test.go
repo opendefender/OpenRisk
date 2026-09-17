@@ -397,3 +397,30 @@ func TestGetAvatar_CrossTenantIsIndistinguishableFromMissing(t *testing.T) {
 		t.Fatalf("missing: want 404, got %v", missing)
 	}
 }
+
+type recEvents struct{ keys []string }
+
+func (r *recEvents) RecordFor(_ context.Context, _, _ uuid.UUID, key string, _ map[string]interface{}) {
+	r.keys = append(r.keys, key)
+}
+
+func TestUpdateMyProfile_TicksTheProfileChecklistStep(t *testing.T) {
+	h := newHarness(t)
+	ev := &recEvents{}
+	h.svc.WithActivation(ev)
+	if _, err := h.svc.UpdateMyProfile(context.Background(), h.tenantA, h.alice,
+		domain.UserProfilePatch{JobTitle: str("RSSI")}); err != nil {
+		t.Fatal(err)
+	}
+	if len(ev.keys) != 1 || ev.keys[0] != string(domain.ActivationProfileCompleted) {
+		t.Fatalf("want profile.completed, got %v", ev.keys)
+	}
+	// A save that changes nothing records nothing.
+	if _, err := h.svc.UpdateMyProfile(context.Background(), h.tenantA, h.alice,
+		domain.UserProfilePatch{JobTitle: str("RSSI")}); err != nil {
+		t.Fatal(err)
+	}
+	if len(ev.keys) != 1 {
+		t.Fatalf("an unchanged save must not record again: %v", ev.keys)
+	}
+}
