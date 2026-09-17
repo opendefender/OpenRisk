@@ -131,6 +131,7 @@ function AvatarCard({ profile, tr }: { profile: MyProfile; tr: Tr }) {
               className="sr-only"
               id="avatar-file"
               data-testid="avatar-input"
+              aria-label={tr('Fichier de la photo de profil', 'Profile picture file')}
               onChange={(e) => onFile(e.target.files?.[0])}
             />
             <Button
