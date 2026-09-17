@@ -202,6 +202,67 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  # ==================== ORGANIZATION ====================
+  /organization:
+    get:
+      tags:
+        - Organization
+      summary: Get the caller's organization profile
+      description: Requires organization:read or organization:members:read. The organization is the session's tenant.
+      operationId: getOrganization
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Organization profile with live membership counts
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrganizationView'
+        '403':
+          description: Missing permission
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    put:
+      tags:
+        - Organization
+      summary: Update the caller's organization profile and regional settings
+      description: >
+        Requires organization:update. Partial update — an omitted field is left
+        unchanged, an empty string clears an optional field. The organization is
+        the session's tenant; there is no id to choose. Settings keys this
+        endpoint does not own (such as the display currency) are preserved.
+      operationId: updateOrganization
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrganizationProfilePatch'
+      responses:
+        '200':
+          description: Updated organization profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrganizationView'
+        '400':
+          description: Invalid field; the message names it
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Missing organization:update
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   # ==================== RISKS ====================
   /risks:
     get:
@@ -5431,6 +5492,42 @@ components:
         columns:
           $ref: '#/components/schemas/SavedViewColumns'
 
+    OrganizationView:
+      type: object
+      required: [id, name, slug, plan, is_active, owner_id, created_at, updated_at, counts, can_edit]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        slug: { type: string }
+        logo_url: { type: string }
+        industry: { type: string }
+        size: { type: string, enum: ['1-50', '51-200', '201-1000', '1000+'] }
+        plan: { type: string }
+        is_active: { type: boolean }
+        owner_id: { type: string, format: uuid }
+        owner_name: { type: string }
+        timezone: { type: string, description: IANA time zone }
+        website: { type: string, format: uri }
+        description: { type: string }
+        default_locale: { type: string, enum: [fr, en] }
+        date_format: { type: string, enum: [DD/MM/YYYY, MM/DD/YYYY, YYYY-MM-DD] }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        counts:
+          type: object
+          additionalProperties: { type: integer }
+        can_edit: { type: boolean }
+    OrganizationProfilePatch:
+      type: object
+      properties:
+        name: { type: string, minLength: 2, maxLength: 120 }
+        industry: { type: string, maxLength: 80 }
+        size: { type: string, enum: ['', '1-50', '51-200', '201-1000', '1000+'] }
+        website: { type: string, maxLength: 255, description: 'Absolute https:// URL, or empty to clear' }
+        description: { type: string, maxLength: 500 }
+        timezone: { type: string, description: 'IANA time zone, or empty to clear' }
+        default_locale: { type: string, enum: ['', fr, en] }
+        date_format: { type: string, enum: ['', DD/MM/YYYY, MM/DD/YYYY, YYYY-MM-DD] }
     ErrorResponse:
       type: object
       properties:
