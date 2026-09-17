@@ -152,7 +152,7 @@ export function PostMortemPanel({
     ]);
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end" style={{ background: 'rgba(0,0,0,.35)' }}>
+    <div className="fixed inset-0 z-50 flex justify-end" style={{ background: 'var(--surface-overlay)', backdropFilter: 'blur(var(--overlay-blur))' }}>
       {/* Announced as a dialog and named by its heading. */}
       <div
         role="dialog"

@@ -451,6 +451,9 @@ function MFAEnrollment({ token }: { token: string }) {
       {qr && (
         <div className="mb-4" style={cascade(1, reduced)}>
           <p className="text-[12.5px] text-ink-soft mb-2">{copy.mfaEnrolScan}</p>
+          {/* A QR code needs a white quiet zone in BOTH themes or phone scanners
+              miss it; this is a scanner requirement, not a theme colour. */}
+          {/* eslint-disable-next-line openrisk/no-raw-colors -- QR quiet zone, see above */}
           <div className="flex justify-center p-3 rounded-[13px]" style={{ background: '#fff' }}>
             {/* The backend returns raw base64 (a JPEG), not a data URI, so
                 assigning it straight to src made the browser treat it as a

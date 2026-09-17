@@ -357,7 +357,7 @@ export function GoalStep() {
                 style={{
                   border: `2px solid ${active ? 'var(--accent)' : 'var(--border-strong)'}`,
                   background: active ? 'var(--accent)' : 'transparent',
-                  color: '#fff',
+                  color: 'var(--fg-on-solid)',
                 }}
               >
                 {active && <Check size={12} strokeWidth={3} />}

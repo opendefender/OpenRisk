@@ -18,6 +18,7 @@ import {
   SkeletonRows,
   EmptyState,
   ErrorState,
+  Chip,
 } from '../../shared/ui';
 import { useUIStore } from '../../store/uiStore';
 import { useAuthStore } from '../../hooks/useAuthStore';
@@ -172,14 +173,14 @@ export function AuditsPage() {
       ) : (
         <>
           <div className="flex items-center gap-2 flex-wrap mb-4">
-            <FilterChip
+            <Chip
               label={tr('Tous', 'All')}
               active={filter === 'all'}
               onClick={() => setFilter('all')}
               count={counts.all}
             />
             {STATUS_ORDER.map((s) => (
-              <FilterChip
+              <Chip
                 key={s}
                 label={lang === 'fr' ? STATUS_META[s].fr : STATUS_META[s].en}
                 active={filter === s}
@@ -331,41 +332,5 @@ export function AuditsPage() {
 
       {showCreate && <CreateAuditDialog onClose={() => setShowCreate(false)} />}
     </PageFrame>
-  );
-}
-
-function FilterChip({
-  label,
-  active,
-  onClick,
-  count,
-  color,
-}: {
-  label: string;
-  active?: boolean;
-  onClick?: () => void;
-  count?: number;
-  color?: string;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className="inline-flex items-center gap-1.5 h-7 px-3 rounded-full text-[12px] font-semibold transition-colors"
-      style={{
-        border: '1px solid var(--border-strong)',
-        background: active ? (color ?? 'var(--accent)') : 'transparent',
-        color: active ? '#fff' : 'var(--text-soft)',
-      }}
-    >
-      {label}
-      {typeof count === 'number' && (
-        <span
-          className="text-[10.5px] font-bold px-1.5 rounded-full"
-          style={{ background: active ? 'rgba(255,255,255,.25)' : 'var(--hover)' }}
-        >
-          {count}
-        </span>
-      )}
-    </button>
   );
 }

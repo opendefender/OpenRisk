@@ -62,11 +62,7 @@ import { IngestModal } from './IngestModal';
 import { IntegrationsPanel } from './IntegrationsPanel';
 import { safeExternalUrl } from '../../shared/safeUrl';
 import type { LocaleCode } from '../../i18n/locales';
-import {
-  BulkPreviewDialog,
-  useGovernedBulk,
-  type BulkChangeInput,
-} from '../../shared/bulk';
+import { BulkPreviewDialog, useGovernedBulk, type BulkChangeInput } from '../../shared/bulk';
 
 const t = (lang: LocaleCode, fr: string, en: string) => (lang === 'fr' ? fr : en);
 
@@ -90,16 +86,18 @@ function patchVulnPage(
 
   if (change.action === 'delete') {
     const items = cached.items.filter((v) => !ids.has(v.id));
-    return { ...cached, items, total: Math.max(0, cached.total - (cached.items.length - items.length)) };
+    return {
+      ...cached,
+      items,
+      total: Math.max(0, cached.total - (cached.items.length - items.length)),
+    };
   }
 
   const status = change.status;
   if (status === undefined || !(status in STATUS_META)) return cached;
   return {
     ...cached,
-    items: cached.items.map((v) =>
-      ids.has(v.id) ? { ...v, status: status as VulnStatus } : v,
-    ),
+    items: cached.items.map((v) => (ids.has(v.id) ? { ...v, status: status as VulnStatus } : v)),
   };
 }
 
@@ -665,7 +663,7 @@ function VulnDrawer({
   return (
     <div
       className="fixed inset-0 z-70 flex justify-end"
-      style={{ background: 'rgba(0,0,0,.45)', backdropFilter: 'blur(3px)' }}
+      style={{ background: 'var(--surface-overlay)', backdropFilter: 'blur(var(--overlay-blur))' }}
       onClick={onClose}
     >
       <div
@@ -688,7 +686,10 @@ function VulnDrawer({
               <div className="mono text-[12px] text-ink-muted mb-1">
                 {v.cve_id || v.external_id || '—'}
               </div>
-              <h2 id="vuln-drawer-title" className="disp text-[17px] font-bold text-ink leading-snug">
+              <h2
+                id="vuln-drawer-title"
+                className="disp text-[17px] font-bold text-ink leading-snug"
+              >
                 {v.title}
               </h2>
             </div>
@@ -704,7 +705,10 @@ function VulnDrawer({
           <div className="flex items-center gap-2.5 flex-wrap">
             <span
               className="inline-flex items-center h-[24px] px-2.5 rounded-[7px] text-[12px] font-bold"
-              style={{ background: TIER_META[v.priority_tier]?.color, color: '#12151c' }}
+              style={{
+                color: TIER_META[v.priority_tier]?.color,
+                background: `color-mix(in srgb, ${TIER_META[v.priority_tier]?.color} 16%, transparent)`,
+              }}
             >
               {v.priority_tier} · {v.priority_score.toFixed(0)}
             </span>
