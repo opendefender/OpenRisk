@@ -2444,6 +2444,7 @@ func main() {
 	membershipSvc := membership.NewService(membershipRepo, userRepo).
 		WithOrganizations(orgRepo).
 		WithOrganizationWriter(orgRepo).
+		WithBlobStore(fileStorage).
 		// The recorder feeds the request collector, so a membership action lands
 		// as ONE chained trail entry carrying both its meaning and its
 		// before → after — not as a second entry beside the middleware's.
@@ -2478,6 +2479,15 @@ func main() {
 	// the organization:update check, so the guard is not the only gate.
 	protected.Put("/organization",
 		middleware.RequirePermission("organization:update"), memberHandler.UpdateOrganization)
+	// Branding (#718): writing the logo needs organization:update; reading the
+	// logo and the branding is open to every member, because every member's
+	// interface wears it. Both reads take no id — only the session's tenant.
+	protected.Put("/organization/logo",
+		middleware.RequirePermission("organization:update"), memberHandler.UploadOrganizationLogo)
+	protected.Delete("/organization/logo",
+		middleware.RequirePermission("organization:update"), memberHandler.DeleteOrganizationLogo)
+	protected.Get("/organization/logo", memberHandler.GetOrganizationLogo)
+	protected.Get("/organization/branding", memberHandler.GetBranding)
 	// Headline member counts for the org switcher; no member identities.
 	// Session-sufficient (#529).
 	protected.Get("/organization/counts", memberHandler.GetCounts)
