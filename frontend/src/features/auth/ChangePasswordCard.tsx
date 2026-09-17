@@ -168,6 +168,16 @@ export function ChangePasswordCard() {
         </p>
       ) : (
         <form onSubmit={handleSubmit(onSubmit)} noValidate className="grid gap-4 max-w-[440px]">
+          {/* Tells password managers which account this password belongs to,
+              so they update the right entry. Hidden, read-only, never sent. */}
+          <input
+            type="text"
+            name="username"
+            autoComplete="username"
+            value={user?.email ?? ''}
+            readOnly
+            hidden
+          />
           <Field
             label={tr('Mot de passe actuel', 'Current password')}
             required
