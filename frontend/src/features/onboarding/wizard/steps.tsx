@@ -20,6 +20,7 @@ import { useAdoptStarterRisks, useOnboardingSuggestions, useStarterRisks } from 
 import { useCatalogs, useImportCatalogAsFramework } from '../../compliance/useCompliance';
 import type { StarterRiskOffer } from '../../../services/activationService';
 import { Field, StepShell } from './stepPrimitives';
+import { initialOrgName } from './orgName';
 import { inputCls, inputStyle, str, useStepNav, useStoredAnswers } from './stepNav';
 import type { LocaleCode } from '../../../i18n/locales';
 
@@ -82,7 +83,9 @@ export function OrganizationStep() {
   // regression they would rightly report.
   const legacyProfile = useStoredAnswers('profile' as OnboardingStepKey);
   useEffect(() => {
-    setName(str(stored, 'name', orgName ?? ''));
+    // Sign-up names the organisation after the person (#716); that placeholder
+    // opens as an empty, required field instead of an answer to click through.
+    setName(str(stored, 'name', initialOrgName(orgName, user?.full_name)));
     setIndustry(str(stored, 'industry'));
     setSize(str(stored, 'size'));
     setCountry(str(stored, 'country'));
