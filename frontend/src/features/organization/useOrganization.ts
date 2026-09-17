@@ -69,6 +69,9 @@ export function useUpdateOrganization() {
     },
     onSuccess: (view) => {
       qc.setQueryData(ORG_KEY, view);
+      // The name and the accent are also the branding every member wears; without
+      // this the new accent only appeared on the next page load (#718).
+      void qc.invalidateQueries({ queryKey: BRANDING_KEY });
     },
   });
 }

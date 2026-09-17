@@ -10,7 +10,7 @@ import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import { OrganizationProfileForm } from '../OrganizationProfileForm';
-import { ORG_KEY } from '../../organization/useOrganization';
+import { BRANDING_KEY, ORG_KEY } from '../../organization/useOrganization';
 import type { OrganizationView } from '../../organization/organizationService';
 
 const updateOrganization = vi.fn();
@@ -100,7 +100,8 @@ describe('OrganizationProfileForm', () => {
 
   it('saves an accent chosen from the design-system presets only (#718)', async () => {
     updateOrganization.mockResolvedValue(org({ accent: 'iris' }));
-    renderForm(org());
+    const qc = renderForm(org());
+    qc.setQueryData(BRANDING_KEY, { name: 'Banque Atlantique', has_logo: false });
     const select = screen.getByTestId('org-accent');
     const offered = Array.from(select.querySelectorAll('option')).map((o) =>
       o.getAttribute('value'),
@@ -110,6 +111,8 @@ describe('OrganizationProfileForm', () => {
     await userEvent.click(screen.getByTestId('org-profile-save'));
     await waitFor(() => expect(updateOrganization).toHaveBeenCalledTimes(1));
     expect(updateOrganization.mock.calls[0][0]).toMatchObject({ accent: 'iris' });
+    // The branding every member wears is refetched, so the accent applies now.
+    await waitFor(() => expect(qc.getQueryState(BRANDING_KEY)?.isInvalidated).toBe(true));
   });
 
   it('refuses an insecure website before calling the API', async () => {
