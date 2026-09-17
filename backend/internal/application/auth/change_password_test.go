@@ -13,20 +13,32 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/opendefender/openrisk/internal/auth"
 	"github.com/opendefender/openrisk/internal/domain"
 	"github.com/opendefender/openrisk/pkg/pwpolicy"
 )
 
-type fakeSessionRevoker struct {
-	userID   uuid.UUID
-	keepHash string
-	calls    int
+type fakeReissuer struct {
+	revokedFor uuid.UUID
+	issuedFor  uuid.UUID
+	issuedOrg  uuid.UUID
+	calls      []string
+	issueErr   error
 }
 
-func (f *fakeSessionRevoker) RevokeAllExcept(_ context.Context, userID uuid.UUID, keepHash string) (int64, error) {
-	f.calls++
-	f.userID, f.keepHash = userID, keepHash
-	return 2, nil
+func (f *fakeReissuer) RevokeAllUserTokens(_ context.Context, userID uuid.UUID) error {
+	f.calls = append(f.calls, "revoke")
+	f.revokedFor = userID
+	return nil
+}
+
+func (f *fakeReissuer) IssueSessionForOrg(_ context.Context, userID, orgID uuid.UUID, _ auth.DeviceContext) (*auth.TokenPair, error) {
+	f.calls = append(f.calls, "issue")
+	if f.issueErr != nil {
+		return nil, f.issueErr
+	}
+	f.issuedFor, f.issuedOrg = userID, orgID
+	return &auth.TokenPair{AccessToken: "new-access", RefreshToken: "new-refresh"}, nil
 }
 
 type fakeChangedMailer struct{ to, locale string }
@@ -38,9 +50,9 @@ func (f *fakeChangedMailer) SendPasswordChanged(_ context.Context, to, _ string,
 
 const strongPassword = "Violet-Kilimanjaro-Anchor-2026!"
 
-func changeHarness(user *domain.User) (*ChangePasswordUseCase, *fakeResetUsers, *fakeSessionRevoker, *fakeChangedMailer) {
+func changeHarness(user *domain.User) (*ChangePasswordUseCase, *fakeResetUsers, *fakeReissuer, *fakeChangedMailer) {
 	users := newFakeResetUsers(user)
-	sessions := &fakeSessionRevoker{}
+	sessions := &fakeReissuer{}
 	mailer := &fakeChangedMailer{}
 	return NewChangePasswordUseCase(users, fakeHasher{}, pwpolicy.New(), sessions, mailer), users, sessions, mailer
 }
@@ -56,8 +68,8 @@ func TestChangePassword_Success(t *testing.T) {
 	uc, users, sessions, mailer := changeHarness(user)
 
 	out, err := uc.Execute(context.Background(), ChangePasswordInput{
-		UserID: user.ID, CurrentPassword: "Old-Password-Still-Long-1", NewPassword: strongPassword,
-		CurrentSessionHash: "hash-of-this-device", Locale: "en",
+		UserID: user.ID, TenantID: uuid.New(), CurrentPassword: "Old-Password-Still-Long-1", NewPassword: strongPassword,
+		Locale: "en",
 	})
 	if err != nil {
 		t.Fatalf("Execute: %v", err)
@@ -68,8 +80,8 @@ func TestChangePassword_Success(t *testing.T) {
 	if !(fakeHasher{}).Verify(user.Password, strongPassword) || (fakeHasher{}).Verify(user.Password, "Old-Password-Still-Long-1") {
 		t.Fatal("the new password must verify and the old one must not")
 	}
-	if out.OtherSessionsRevoked != 2 {
-		t.Fatalf("revoked: %d", out.OtherSessionsRevoked)
+	if out.TokenPair == nil || out.TokenPair.AccessToken != "new-access" {
+		t.Fatalf("the calling device must get a fresh session: %+v", out)
 	}
 	if mailer.to != "alice@opendefender.io" || mailer.locale != "en" {
 		t.Fatalf("notice: %+v", mailer)
@@ -80,14 +92,31 @@ func TestChangePassword_Success(t *testing.T) {
 func TestChangePassword_RevokesOtherSessions(t *testing.T) {
 	user := userWithPassword("Old-Password-Still-Long-1")
 	uc, _, sessions, _ := changeHarness(user)
+	org := uuid.New()
 	if _, err := uc.Execute(context.Background(), ChangePasswordInput{
-		UserID: user.ID, CurrentPassword: "Old-Password-Still-Long-1", NewPassword: strongPassword,
-		CurrentSessionHash: "hash-of-this-device",
+		UserID: user.ID, TenantID: org, CurrentPassword: "Old-Password-Still-Long-1", NewPassword: strongPassword,
 	}); err != nil {
 		t.Fatal(err)
 	}
-	if sessions.calls != 1 || sessions.userID != user.ID || sessions.keepHash != "hash-of-this-device" {
-		t.Fatalf("must revoke this user's other sessions and keep the current one: %+v", sessions)
+	// Every session ends FIRST, then exactly one new one is minted for this
+	// device in the same organization — so no pre-change session survives.
+	if len(sessions.calls) != 2 || sessions.calls[0] != "revoke" || sessions.calls[1] != "issue" {
+		t.Fatalf("want revoke then issue, got %v", sessions.calls)
+	}
+	if sessions.revokedFor != user.ID || sessions.issuedFor != user.ID || sessions.issuedOrg != org {
+		t.Fatalf("scope: %+v", sessions)
+	}
+}
+
+func TestChangePassword_ReissueFailureStillChangesThePassword(t *testing.T) {
+	user := userWithPassword("Old-Password-Still-Long-1")
+	uc, users, sessions, _ := changeHarness(user)
+	sessions.issueErr = errors.New("resolver down")
+	out, err := uc.Execute(context.Background(), ChangePasswordInput{
+		UserID: user.ID, TenantID: uuid.New(), CurrentPassword: "Old-Password-Still-Long-1", NewPassword: strongPassword,
+	})
+	if err != nil || out.TokenPair != nil || len(users.updated) != 1 {
+		t.Fatalf("the change stands and the caller signs in again: %+v, %v", out, err)
 	}
 }
 
@@ -119,7 +148,7 @@ func TestChangePassword_Unauthorized(t *testing.T) {
 			t.Fatalf("wrong current password %q: got %v", wrong, err)
 		}
 	}
-	if len(users.updated) != 0 || sessions.calls != 0 || mailer.to != "" {
+	if len(users.updated) != 0 || len(sessions.calls) != 0 || mailer.to != "" {
 		t.Fatal("a refused change must write, revoke and send nothing")
 	}
 }

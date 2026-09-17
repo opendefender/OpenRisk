@@ -15,10 +15,12 @@ import { isAxiosError } from 'axios';
 import { z } from 'zod';
 import { Eye, EyeOff } from 'lucide-react';
 import { toast } from 'sonner';
+import { useNavigate } from 'react-router';
 
 import { Button, Field, Input } from '../../shared/ds';
 import { useUIStore } from '../../store/uiStore';
 import { useAuthStore } from '../../hooks/useAuthStore';
+import { setAccessToken } from '../../lib/session';
 import { PasswordStrength } from './PasswordStrength';
 import {
   changePassword,
@@ -59,6 +61,8 @@ export function ChangePasswordCard() {
   const lang = useUIStore((s) => s.lang);
   const tr: Tr = (fr, en) => (lang === 'fr' ? fr : en);
   const user = useAuthStore((s) => s.user);
+  const logout = useAuthStore((s) => s.logout);
+  const navigate = useNavigate();
   const [visible, setVisible] = useState(false);
   const [acceptable, setAcceptable] = useState(false);
   const [assessment, setAssessment] = useState<PasswordAssessment | null>(null);
@@ -83,6 +87,14 @@ export function ChangePasswordCard() {
       const res = await changePassword(v.current, v.next, lang);
       reset();
       toast.success(res.message);
+      if (res.token_pair?.access_token) {
+        // The server ended every session, this one included, and minted a new
+        // one for this device; the cookies are already replaced.
+        setAccessToken(res.token_pair.access_token);
+      } else if (res.reauthenticate) {
+        logout();
+        navigate('/login', { replace: true });
+      }
     } catch (err) {
       const body = (isAxiosError(err) ? err.response?.data : undefined) as
         ChangePasswordErrorBody | undefined;

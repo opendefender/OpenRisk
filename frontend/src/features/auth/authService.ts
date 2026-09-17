@@ -110,9 +110,13 @@ export interface ResetPasswordErrorBody {
 // In-session password change (#720)
 // ---------------------------------------------------------------------------
 
+/** Every session ends; the calling device gets a fresh one in `token_pair`, or
+ *  `reauthenticate` is true when none could be minted. */
 export interface ChangePasswordResult {
   message: string;
-  other_sessions_revoked: number;
+  reauthenticate: boolean;
+  token_pair?: { access_token: string; refresh_token: string; expires_in: number };
+  csrf_token?: string;
 }
 
 export type ChangePasswordErrorCode =

@@ -46,11 +46,16 @@ func (h *PasswordHandler) ChangePassword(c *fiber.Ctx) error {
 	userID := mwCtx.UserID
 
 	out, err := h.change.Execute(c.UserContext(), appauth.ChangePasswordInput{
-		UserID:             userID,
-		CurrentPassword:    req.CurrentPassword,
-		NewPassword:        req.NewPassword,
-		CurrentSessionHash: currentSessionHash(c),
-		Locale:             locale,
+		UserID:          userID,
+		TenantID:        mwCtx.OrganizationID,
+		CurrentPassword: req.CurrentPassword,
+		NewPassword:     req.NewPassword,
+		Device: coreauth.DeviceContext{
+			Fingerprint: c.Get("X-Device-Fingerprint"),
+			IP:          c.IP(),
+			UserAgent:   c.Get("User-Agent"),
+		},
+		Locale: locale,
 	})
 
 	fail := func(status int, reason, code, message string, extra fiber.Map) error {
@@ -86,9 +91,29 @@ func (h *PasswordHandler) ChangePassword(c *fiber.Ctx) error {
 	}
 
 	h.logChange(c, userID, true, nil)
+	if out.TokenPair == nil {
+		// The password is changed and every session ended, but no new one could
+		// be minted: say so, and clear the cookies of the session that just died.
+		middleware.ClearSessionCookies(c)
+		return c.JSON(fiber.Map{
+			"message":        pick(locale, "Mot de passe modifié. Reconnectez-vous.", "Password changed. Please sign in again."),
+			"reauthenticate": true,
+		})
+	}
+	csrfToken, err := middleware.IssueSessionCookies(c, out.TokenPair.AccessToken, out.TokenPair.RefreshToken,
+		coreauth.AccessTokenTTL, coreauth.RefreshTokenTTL)
+	if err != nil {
+		middleware.ClearSessionCookies(c)
+		return c.JSON(fiber.Map{
+			"message":        pick(locale, "Mot de passe modifié. Reconnectez-vous.", "Password changed. Please sign in again."),
+			"reauthenticate": true,
+		})
+	}
 	return c.JSON(fiber.Map{
-		"message":                pick(locale, "Mot de passe modifié. Vos autres appareils ont été déconnectés.", "Password changed. Your other devices were signed out."),
-		"other_sessions_revoked": out.OtherSessionsRevoked,
+		"message":        pick(locale, "Mot de passe modifié. Vos autres appareils ont été déconnectés.", "Password changed. Your other devices were signed out."),
+		"reauthenticate": false,
+		"token_pair":     out.TokenPair,
+		"csrf_token":     csrfToken,
 	})
 }
 

@@ -1,11 +1,15 @@
 // #720 — Settings › Security › change password.
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render as rtlRender, screen, waitFor } from '@testing-library/react';
+import { MemoryRouter } from 'react-router';
 import userEvent from '@testing-library/user-event';
 
 import { ChangePasswordCard } from '../ChangePasswordCard';
 import { useUIStore } from '../../../store/uiStore';
+import { getAccessToken, setAccessToken } from '../../../lib/session';
+
+const render = (ui: React.ReactElement) => rtlRender(<MemoryRouter>{ui}</MemoryRouter>);
 
 const changePassword = vi.fn();
 vi.mock('../authService', async () => {
@@ -48,7 +52,12 @@ beforeEach(() => {
 
 describe('ChangePasswordCard', () => {
   it('changes the password and clears the form', async () => {
-    changePassword.mockResolvedValue({ message: 'Password changed.', other_sessions_revoked: 2 });
+    setAccessToken('old-access');
+    changePassword.mockResolvedValue({
+      message: 'Password changed.',
+      reauthenticate: false,
+      token_pair: { access_token: 'fresh-access', refresh_token: 'r', expires_in: 900 },
+    });
     render(<ChangePasswordCard />);
     await fill('Old-Password-1234', 'Violet-Kilimanjaro-Anchor-2026!');
     await waitFor(() =>
@@ -60,6 +69,7 @@ describe('ChangePasswordCard', () => {
     );
     expect(toastSuccess).toHaveBeenCalledWith('Password changed.');
     await waitFor(() => expect(screen.getByLabelText(/^Current password/)).toHaveValue(''));
+    expect(getAccessToken()).toBe('fresh-access');
   });
 
   it('refuses a mismatched confirmation before calling the API', async () => {

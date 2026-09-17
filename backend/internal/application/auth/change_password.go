@@ -12,6 +12,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/opendefender/openrisk/internal/auth"
 	"github.com/opendefender/openrisk/internal/domain"
 	"github.com/opendefender/openrisk/pkg/pwpolicy"
 )
@@ -29,10 +30,17 @@ var (
 	ErrSamePassword = errors.New("the new password must differ from the current one")
 )
 
-// OtherSessionsRevoker ends every session of a user but the one whose refresh
-// token hashes to keepHash. Satisfied by the session repository.
-type OtherSessionsRevoker interface {
-	RevokeAllExcept(ctx context.Context, userID uuid.UUID, keepHash string) (int64, error)
+// SessionReissuer ends every session of a user and mints a fresh one for the
+// device that made the change. Satisfied by *auth.TokenManager.
+//
+// Why not "revoke all but the current session": the refresh cookie is scoped to
+// /api/v1/auth/refresh, so no other route can tell which refresh row belongs to
+// the caller, and an empty keep-hash would silently sign the caller out too.
+// Re-issuing is also the stronger outcome: the device that proved the new
+// password starts a new session lineage, and every old one is gone.
+type SessionReissuer interface {
+	RevokeAllUserTokens(ctx context.Context, userID uuid.UUID) error
+	IssueSessionForOrg(ctx context.Context, userID, orgID uuid.UUID, device auth.DeviceContext) (*auth.TokenPair, error)
 }
 
 // PasswordChangedMailer sends the in-session change notice.
@@ -43,17 +51,20 @@ type PasswordChangedMailer interface {
 // ChangePasswordInput is the request. UserID and CurrentSessionHash come from
 // the session, never from the body.
 type ChangePasswordInput struct {
-	UserID             uuid.UUID
-	CurrentPassword    string
-	NewPassword        string
-	CurrentSessionHash string
-	Locale             string
+	UserID          uuid.UUID
+	TenantID        uuid.UUID
+	CurrentPassword string
+	NewPassword     string
+	Device          auth.DeviceContext
+	Locale          string
 }
 
-// ChangePasswordOutput reports the result; Assessment is set on a policy refusal.
+// ChangePasswordOutput reports the result. Assessment is set on a policy
+// refusal. TokenPair is the caller's new session; when it is nil after a
+// successful change, the caller must sign in again.
 type ChangePasswordOutput struct {
-	OtherSessionsRevoked int64
-	Assessment           *pwpolicy.Assessment
+	TokenPair  *auth.TokenPair
+	Assessment *pwpolicy.Assessment
 }
 
 // ChangePasswordUseCase changes the signed-in user's own password.
@@ -61,17 +72,17 @@ type ChangePasswordUseCase struct {
 	users    ResetUserRepository
 	hasher   PasswordHasher
 	policy   PasswordAssessor
-	sessions OtherSessionsRevoker
+	sessions SessionReissuer
 	mailer   PasswordChangedMailer
 }
 
 // NewChangePasswordUseCase builds the use case. sessions and mailer may be nil.
-func NewChangePasswordUseCase(users ResetUserRepository, hasher PasswordHasher, policy PasswordAssessor, sessions OtherSessionsRevoker, mailer PasswordChangedMailer) *ChangePasswordUseCase {
+func NewChangePasswordUseCase(users ResetUserRepository, hasher PasswordHasher, policy PasswordAssessor, sessions SessionReissuer, mailer PasswordChangedMailer) *ChangePasswordUseCase {
 	return &ChangePasswordUseCase{users: users, hasher: hasher, policy: policy, sessions: sessions, mailer: mailer}
 }
 
 // Execute verifies the current password, applies the policy to the new one,
-// stores it, and signs out every other device.
+// stores it, ends every session and re-issues one for the calling device.
 func (uc *ChangePasswordUseCase) Execute(ctx context.Context, in ChangePasswordInput) (*ChangePasswordOutput, error) {
 	if in.UserID == uuid.Nil {
 		return nil, domain.NewUnauthorizedError("authentication required")
@@ -108,15 +119,20 @@ func (uc *ChangePasswordUseCase) Execute(ctx context.Context, in ChangePasswordI
 	}
 
 	out := &ChangePasswordOutput{}
-	if uc.sessions != nil {
-		n, err := uc.sessions.RevokeAllExcept(ctx, user.ID, in.CurrentSessionHash)
-		if err != nil {
-			return out, fmt.Errorf("password changed but other sessions could not be revoked: %w", err)
-		}
-		out.OtherSessionsRevoked = n
-	}
 	if uc.mailer != nil {
 		_ = uc.mailer.SendPasswordChanged(ctx, user.Email, user.FullName, normaliseLocale(in.Locale))
+	}
+	if uc.sessions != nil {
+		if err := uc.sessions.RevokeAllUserTokens(ctx, user.ID); err != nil {
+			return out, fmt.Errorf("password changed but sessions could not be revoked: %w", err)
+		}
+		// A failure to mint the new session is not a failed change: the password
+		// is stored and every old session is gone. The caller signs in again.
+		if in.TenantID != uuid.Nil {
+			if pair, err := uc.sessions.IssueSessionForOrg(ctx, user.ID, in.TenantID, in.Device); err == nil {
+				out.TokenPair = pair
+			}
+		}
 	}
 	return out, nil
 }

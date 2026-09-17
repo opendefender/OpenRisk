@@ -682,7 +682,7 @@ func main() {
 	passwordHandler := authhandler.NewPasswordHandler(
 		requestResetUseCase, confirmResetUseCase, passwordPolicy, appBaseURL, authAudit,
 	).WithChangePassword(auth.NewChangePasswordUseCase(
-		userRepo, passwordHasher, passwordPolicy, sessionRepo, securityMailer,
+		userRepo, passwordHasher, passwordPolicy, tokenManager, securityMailer,
 	))
 
 	// Session (device) management use cases + handler.

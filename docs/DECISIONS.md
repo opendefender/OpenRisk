@@ -19,10 +19,14 @@ the reset flow. #720 adds `POST /auth/password/change`.
 - Mounted behind the existing `authRateLimit` (15 requests / 5 min / IP). A wrong current
   password answers 403 with a generic message and spends that budget. There is no per-account
   counter yet; that gap is already tracked by #688.
-- On success, **every other session is revoked** through `SessionRepository.RevokeAllExcept`
-  (the same call as "sign out other devices"); the current device stays signed in. Access
-  tokens already issued to other devices remain valid until they expire, as with the existing
-  "sign out other devices" action.
+- On success, **every session is revoked** (`TokenManager.RevokeAllUserTokens`, the reset
+  path's call) and the calling device is **re-issued a fresh session** in the same organization
+  (`IssueSessionForOrg`, the org-switch path's call), with new cookies. "Revoke all but the
+  current one" was the first design and was found broken during the live check: the refresh
+  cookie is scoped to `/api/v1/auth/refresh`, so no other route can identify the caller's
+  refresh row, and an empty keep-hash signs the caller out too. The same defect affects the
+  existing "sign out other devices" action (tracked separately). Access tokens already issued
+  to other devices remain valid until they expire (15 min).
 - An account with no local password (SAML/OAuth-provisioned) gets 409: its password belongs
   to the identity provider.
 - Audit `password_change` (success and failure with a reason, never a secret), plus a
@@ -31,8 +35,8 @@ the reset flow. #720 adds `POST /auth/password/change`.
 
 **Options**
 - **A — Keep as built.** Recommended: it adds no mechanism the product did not already trust.
-- **B — Also revoke the current session** and force a fresh sign-in. Stricter, at the cost of
-  interrupting the person who just proved their password.
+- **B — Revoke everything and force a fresh sign-in** on the calling device too. Simpler,
+  at the cost of interrupting the person who just proved their password.
 
 **Cost of delay** — none; the PR waits on review of #721 → #722 → #723 anyway.
 
