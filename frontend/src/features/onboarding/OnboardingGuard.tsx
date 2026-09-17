@@ -67,9 +67,16 @@ export function OnboardingGuard({ children }: { children: ReactNode }) {
  * `landing` is where they go FROM the reveal, and the reveal offers it.
  */
 export function OnboardingCompletedRedirect({ children }: { children: ReactNode }) {
-  const { data, isLoading } = useOnboardingState();
+  const { data, isLoading, errorUpdatedAt } = useOnboardingState();
 
-  if (isLoading && !data) return <GuardPlaceholder />;
+  // Only before the FIRST answer. Once a load has failed, the wizard owns the
+  // error screen and its retry. `isError` cannot gate this: TanStack Query v5
+  // resets a never-succeeded query to `pending` (error cleared) on every
+  // refetch, so the wizard's refetch-on-mount flipped this back to the
+  // placeholder, unmounted the wizard, failed, remounted it — an endless loop
+  // in which the retry button never stayed on screen. `errorUpdatedAt`
+  // survives that reset.
+  if (isLoading && !data && !errorUpdatedAt) return <GuardPlaceholder />;
   if (data?.completed) return <Navigate to="/posture" replace />;
   return <>{children}</>;
 }
