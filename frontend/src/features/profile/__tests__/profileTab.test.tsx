@@ -126,7 +126,7 @@ describe('ProfileTab', () => {
   it('refuses an SVG avatar in the browser without uploading it', async () => {
     getMe.mockResolvedValue(me());
     renderTab();
-    const input = await screen.findByTestId('avatar-input');
+    const input = await screen.findByLabelText('Profile picture file');
     const svg = new File(['<svg/>'], 'a.svg', { type: 'image/svg+xml' });
     await userEvent.upload(input, svg, { applyAccept: false });
     expect(toastError).toHaveBeenCalled();
