@@ -107,6 +107,37 @@ export interface ResetPasswordErrorBody {
 }
 
 // ---------------------------------------------------------------------------
+// In-session password change (#720)
+// ---------------------------------------------------------------------------
+
+export interface ChangePasswordResult {
+  message: string;
+  other_sessions_revoked: number;
+}
+
+export type ChangePasswordErrorCode =
+  'wrong_current_password' | 'weak_password' | 'same_password' | 'no_local_password';
+
+export interface ChangePasswordErrorBody {
+  error?: string;
+  code?: ChangePasswordErrorCode;
+  assessment?: PasswordAssessment;
+}
+
+export async function changePassword(
+  currentPassword: string,
+  newPassword: string,
+  locale: Lang,
+): Promise<ChangePasswordResult> {
+  const { data } = await api.post<ChangePasswordResult>('/auth/password/change', {
+    current_password: currentPassword,
+    new_password: newPassword,
+    locale,
+  });
+  return data;
+}
+
+// ---------------------------------------------------------------------------
 // Sessions
 // ---------------------------------------------------------------------------
 

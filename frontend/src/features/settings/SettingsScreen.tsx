@@ -44,6 +44,7 @@ import { useUIStrings } from '../../shared/uiStrings';
 import { useUIStore } from '../../store/uiStore';
 import { useAuthStore } from '../../hooks/useAuthStore';
 import { SessionsPanel } from '../auth/SessionsPanel';
+import { ChangePasswordCard } from '../auth/ChangePasswordCard';
 import { MembersView } from '../organization/MembersView';
 import { relTime } from '../risks/riskMap';
 import { api } from '../../lib/api';
@@ -1324,6 +1325,10 @@ function SecurityTab({ tr }: { tr: Tr }) {
           show only the current device and a "multi-device history will arrive"
           note; the sessions API now exists, so it lists every signed-in device
           and can revoke them. */}
+      {/* #720 — change the password without leaving the session. */}
+      <Card style={{ padding: '20px 22px', marginBottom: 16 }}>
+        <ChangePasswordCard />
+      </Card>
       <Card style={{ padding: '20px 22px' }}>
         <SessionsPanel />
       </Card>
