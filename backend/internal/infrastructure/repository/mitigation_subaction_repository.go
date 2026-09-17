@@ -25,22 +25,59 @@ type MitigationSubActionRepository interface {
 	Delete(ctx string, id uuid.UUID) error
 
 	// Validation & dependency checks
+	CheckDependency(ctx string, mitigationID uuid.UUID, subactionID *uuid.UUID, dependsOnID uuid.UUID) error
 	CanComplete(ctx string, subactionID uuid.UUID) (bool, error)
 	GetDependencies(ctx string, subactionID uuid.UUID) ([]domain.MitigationSubAction, error)
 	HasCycle(ctx string, subactionID, dependsOnID uuid.UUID) (bool, error)
 }
 
-// GormMitigationSubActionRepository implements MitigationSubActionRepository using GORM
+// GormMitigationSubActionRepository implements MitigationSubActionRepository using GORM.
+//
+// Tenant isolation (CLAUDE.md rule 2). mitigation_subactions has no tenant_id
+// column: a sub-action belongs to a tenant through its parent mitigation, so
+// every read and write here is gated on `mitigations.tenant_id`, either by a
+// preceding lookup of the parent or by joining it (inTenant). A dependency must
+// also sit in the SAME plan (CheckDependency), which is what keeps the
+// dependency walk in CanComplete and HasCycle inside one tenant.
+//
+// Until #706 the table did not exist, so the methods below that filtered on the
+// sub-action id alone were unreachable. Creating the table made them live; they
+// are scoped here in the same change.
 type GormMitigationSubActionRepository struct {
 	db *gorm.DB
+}
+
+// inTenant scopes a mitigation_subactions query to the tenant that owns the
+// parent mitigation.
+func (r *GormMitigationSubActionRepository) inTenant(tenantID string) *gorm.DB {
+	return r.db.Model(&domain.MitigationSubAction{}).
+		Joins("JOIN mitigations ON mitigations.id = mitigation_subactions.mitigation_id").
+		Where("mitigations.tenant_id = ? AND mitigations.deleted_at IS NULL", tenantID)
 }
 
 func NewGormMitigationSubActionRepository(db *gorm.DB) MitigationSubActionRepository {
 	return &GormMitigationSubActionRepository{db: db}
 }
 
-// Create inserts a new subaction
+// Create inserts a new subaction into a plan of the caller's tenant.
 func (r *GormMitigationSubActionRepository) Create(tenantID string, subaction *domain.MitigationSubAction) error {
+	var mitigation domain.Mitigation
+	if err := r.db.Where("id = ? AND tenant_id = ?", subaction.MitigationID, tenantID).First(&mitigation).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return domain.ErrForbidden
+		}
+		return fmt.Errorf("failed to verify mitigation: %w", err)
+	}
+	if subaction.DependsOn != nil {
+		var self *uuid.UUID
+		if subaction.ID != uuid.Nil {
+			self = &subaction.ID
+		}
+		if err := r.CheckDependency(tenantID, subaction.MitigationID, self, *subaction.DependsOn); err != nil {
+			return err
+		}
+	}
+
 	result := r.db.Create(subaction)
 	if result.Error != nil {
 		return fmt.Errorf("failed to create subaction: %w", result.Error)
@@ -178,11 +215,32 @@ func (r *GormMitigationSubActionRepository) Delete(tenantID string, id uuid.UUID
 	return nil
 }
 
+// CheckDependency validates that dependsOnID can be a dependency of a sub-action
+// of mitigationID: it must be a live sub-action of that same plan, in the
+// caller's tenant, and not the sub-action itself. A dependency outside the plan
+// is refused as ErrValidation without saying whether the id exists elsewhere.
+func (r *GormMitigationSubActionRepository) CheckDependency(tenantID string, mitigationID uuid.UUID, subactionID *uuid.UUID, dependsOnID uuid.UUID) error {
+	if subactionID != nil && *subactionID == dependsOnID {
+		return domain.NewValidationError("a sub-action cannot depend on itself")
+	}
+	var count int64
+	if err := r.inTenant(tenantID).
+		Where("mitigation_subactions.id = ? AND mitigation_subactions.mitigation_id = ? AND mitigation_subactions.deleted_at IS NULL", dependsOnID, mitigationID).
+		Count(&count).Error; err != nil {
+		return fmt.Errorf("failed to verify dependency: %w", err)
+	}
+	if count == 0 {
+		return domain.NewValidationError("depends_on must be a sub-action of the same mitigation plan")
+	}
+	return nil
+}
+
 // CanComplete checks if a subaction can be completed (dependencies met)
 func (r *GormMitigationSubActionRepository) CanComplete(tenantID string, subactionID uuid.UUID) (bool, error) {
 	var subaction domain.MitigationSubAction
 
-	if err := r.db.Where("id = ?", subactionID).First(&subaction).Error; err != nil {
+	if err := r.inTenant(tenantID).Where("mitigation_subactions.id = ?", subactionID).
+		Select("mitigation_subactions.*").First(&subaction).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return false, domain.ErrNotFound
 		}
@@ -195,8 +253,13 @@ func (r *GormMitigationSubActionRepository) CanComplete(tenantID string, subacti
 	}
 
 	// Check if dependency is completed
+	// The dependency is read from the SAME plan: a depends_on written before this
+	// check existed and pointing elsewhere reads as not found, never as another
+	// tenant's row (whose title the message below would otherwise disclose).
 	var depSubaction domain.MitigationSubAction
-	result := r.db.Where("id = ?", *subaction.DependsOn).First(&depSubaction)
+	result := r.inTenant(tenantID).
+		Where("mitigation_subactions.id = ? AND mitigation_subactions.mitigation_id = ?", *subaction.DependsOn, subaction.MitigationID).
+		Select("mitigation_subactions.*").First(&depSubaction)
 
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
@@ -216,7 +279,9 @@ func (r *GormMitigationSubActionRepository) CanComplete(tenantID string, subacti
 func (r *GormMitigationSubActionRepository) GetDependencies(tenantID string, subactionID uuid.UUID) ([]domain.MitigationSubAction, error) {
 	var dependents []domain.MitigationSubAction
 
-	result := r.db.Where("depends_on = ? AND deleted_at IS NULL", subactionID).Find(&dependents)
+	result := r.inTenant(tenantID).
+		Where("mitigation_subactions.depends_on = ? AND mitigation_subactions.deleted_at IS NULL", subactionID).
+		Select("mitigation_subactions.*").Find(&dependents)
 
 	if result.Error != nil {
 		return nil, fmt.Errorf("failed to get dependent subactions: %w", result.Error)
@@ -242,7 +307,8 @@ func (r *GormMitigationSubActionRepository) HasCycle(tenantID string, subactionI
 		visited[current] = true
 
 		var subaction domain.MitigationSubAction
-		if err := r.db.Where("id = ?", current).First(&subaction).Error; err != nil {
+		if err := r.inTenant(tenantID).Where("mitigation_subactions.id = ?", current).
+			Select("mitigation_subactions.*").First(&subaction).Error; err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
 				break
 			}
