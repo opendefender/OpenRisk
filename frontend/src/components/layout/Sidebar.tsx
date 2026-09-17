@@ -19,6 +19,7 @@ import { useUIStore } from '../../store/uiStore';
 import { useUIStrings } from '../../shared/uiStrings';
 import { useAuthStore } from '../../hooks/useAuthStore';
 import { usePermissions } from '../../hooks/usePermissions';
+import { SidebarRoleLabel } from './SidebarRoleLabel';
 import { OpenRiskLogo } from '../../shared/Logo';
 import { OrgPlanLabel } from './OrgPlanLabel';
 import {
@@ -43,28 +44,6 @@ function initials(name?: string, fallback = 'AD'): string {
   if (!name?.trim()) return fallback;
   const parts = name.trim().split(/\s+/);
   return ((parts[0]?.[0] ?? '') + (parts[1]?.[0] ?? '')).toUpperCase() || fallback;
-}
-
-// Human-readable role label: the GRC business role (RSSI, Risk Manager, …) when
-// set, otherwise the org role (Administrator / Member).
-const BUSINESS_ROLE_LABELS: Record<string, string> = {
-  rssi: 'RSSI / CISO',
-  dsi: 'DSI / CIO',
-  risk_manager: 'Risk Manager',
-  auditor: 'Auditeur',
-  compliance_officer: 'Responsable conformité',
-  internal_control: 'Contrôle interne',
-  asset_owner: "Propriétaire d'actif",
-  risk_owner: 'Propriétaire de risque',
-  security_analyst: 'Analyste sécurité',
-  executive: 'Direction',
-  viewer: 'Lecteur',
-};
-function roleLabel(user?: { role?: string; business_role?: string } | null): string {
-  if (user?.business_role && BUSINESS_ROLE_LABELS[user.business_role])
-    return BUSINESS_ROLE_LABELS[user.business_role];
-  if (user?.role === 'admin' || user?.role === 'root') return 'Administrateur';
-  return user?.role ? user.role : 'Membre';
 }
 
 export const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => {
@@ -429,7 +408,7 @@ export const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => 
                     <div className="text-[12px] font-semibold leading-tight text-ink truncate">
                       {user?.full_name || user?.username || 'Admin'}
                     </div>
-                    <div className="text-[10.5px] text-ink-soft truncate">{roleLabel(user)}</div>
+                    <SidebarRoleLabel />
                   </div>
                 )}
               </button>
