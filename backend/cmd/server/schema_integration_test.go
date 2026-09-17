@@ -132,3 +132,12 @@ func TestStartupSchema_Unauthorized(t *testing.T) {
 	_, err = repo.List(tenantA.String(), planB.ID)
 	assert.ErrorIs(t, err, domain.ErrForbidden)
 }
+
+// #719 — the profile preferences and the avatar key arrive through AutoMigrate,
+// the schema authority for additive columns, so a startup-built schema has them.
+func TestStartupSchema_UserPreferenceColumns(t *testing.T) {
+	db := startupSchemaDB(t)
+	for _, col := range []string{"locale", "date_format", "theme_mode", "avatar_key"} {
+		assert.True(t, db.Migrator().HasColumn(&domain.User{}, col), "users.%s must exist", col)
+	}
+}
