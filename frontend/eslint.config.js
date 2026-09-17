@@ -50,16 +50,16 @@ export default defineConfig([
     // Every overlay and every shared UI primitive is covered, which is what
     // matters — an overlay is where a hardcoded dark panel is most tempting and
     // where the reported bug lived.
-    files: [
-      'src/components/**/*.{ts,tsx}',
-      'src/pages/**/*.{ts,tsx}',
-      'src/shared/**/*.{ts,tsx}',
-      // features/ holds most of the modals, so leaving it out would have made
-      // the guard miss the very files the bug was reported against. Live
-      // verification found a governance modal reading var(--surface, #fff) —
-      // an undefined variable whose fallback rendered white in both themes.
-      'src/features/**/*.{ts,tsx}',
-    ],
+    //
+    // Scoped to all of src/. It once listed components/, pages/, shared/ and
+    // features/ only, so a hex added to App.tsx, hooks/ or lib/ passed CI.
+    // features/ is where it mattered first: live verification found a
+    // governance modal reading var(--surface, #fff) — an undefined variable
+    // whose fallback rendered white in both themes.
+    files: ['src/**/*.{ts,tsx}'],
+    // Tests render no theme, and their names cite issues: "(#338)" reads as a
+    // three-digit hex. This is not a screen exemption — no screen may be added.
+    ignores: ['src/**/__tests__/**', 'src/**/*.test.{ts,tsx}', 'src/**/*.spec.{ts,tsx}'],
     plugins: { openrisk },
     rules: {
       'openrisk/no-raw-colors': 'error',
