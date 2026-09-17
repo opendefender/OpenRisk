@@ -20,6 +20,7 @@ import { useUIStrings } from '../../shared/uiStrings';
 import { useAuthStore } from '../../hooks/useAuthStore';
 import { usePermissions } from '../../hooks/usePermissions';
 import { OpenRiskLogo } from '../../shared/Logo';
+import { OrgPlanLabel } from './OrgPlanLabel';
 import {
   visibleNavGroups,
   pinnedItems,
@@ -276,7 +277,7 @@ export const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => 
                   <div className="text-[12.5px] font-semibold leading-tight text-ink truncate">
                     {orgName}
                   </div>
-                  <div className="text-[10.5px] text-ink-soft">{L.enterprise}</div>
+                  <OrgPlanLabel />
                 </div>
                 <ChevronsUpDown size={13} className="text-ink-muted shrink-0" />
               </button>

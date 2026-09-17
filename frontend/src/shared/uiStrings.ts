@@ -10,7 +10,6 @@ import { useUIStore, type Lang } from '../store/uiStore';
 
 const fr = {
   brandShort: 'OpenRisk',
-  enterprise: 'Enterprise',
   ciso: 'RSSI',
   newRisk: 'Nouveau risque',
   search: 'Rechercher…',
@@ -233,7 +232,6 @@ const fr = {
 
 const en: typeof fr = {
   brandShort: 'OpenRisk',
-  enterprise: 'Enterprise',
   ciso: 'CISO',
   newRisk: 'New risk',
   search: 'Search…',
