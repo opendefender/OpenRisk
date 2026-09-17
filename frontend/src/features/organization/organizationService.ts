@@ -31,6 +31,8 @@ export interface MemberView {
   user_id: string;
   email: string;
   full_name: string;
+  /** An uploaded avatar exists; read it through GET /users/:id/avatar (#719). */
+  has_avatar: boolean;
   org_role: MemberRole;
   business_role: string;
   status: MembershipStatus;

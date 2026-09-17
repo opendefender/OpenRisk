@@ -12,7 +12,6 @@
 // functional that is not: an action the API would refuse is disabled here for
 // the same reason, read from the same fields.
 
-import { localeTag } from '../../i18n/locales';
 import { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { toast } from 'sonner';
@@ -58,6 +57,8 @@ import type {
   MembershipStatus,
   InviteResult,
 } from './organizationService';
+import { UserAvatar } from '../../shared/UserAvatar';
+import { usePreferredDate } from '../../hooks/useI18n';
 
 type Tab = 'members' | 'invitations' | 'history';
 type Tr = (fr: string, en: string) => string;
@@ -80,15 +81,10 @@ const INVITE_STATUS_STYLE: Record<string, { color: string; fr: string; en: strin
 
 const ADMIN_OPTION = '__admin__';
 
-function fmtDate(iso: string | undefined, lang: LocaleCode): string {
-  if (!iso) return '—';
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '—';
-  return d.toLocaleDateString(localeTag(lang), {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  });
+/** Joined and expiry dates, in the viewer's own time zone and date format (#719). */
+function useMemberDate(): (iso: string | undefined) => string {
+  const when = usePreferredDate();
+  return (iso) => (iso ? when.date(iso) : '—');
 }
 
 function TabBtn({
@@ -243,6 +239,7 @@ export function MembersView() {
 /* ------------------------------------------------------------------- members */
 
 function MembersTable({ tr, lang }: { tr: Tr; lang: LocaleCode }) {
+  const fmtDate = useMemberDate();
   const { can } = usePermissions();
   const canUpdate = can('organization:members:update');
   const canDeactivate = can('organization:members:deactivate');
@@ -417,6 +414,12 @@ function MembersTable({ tr, lang }: { tr: Tr; lang: LocaleCode }) {
                     >
                       <td className="px-4 py-3">
                         <div className="font-semibold text-ink flex items-center gap-2">
+                          <UserAvatar
+                            userId={m.user_id}
+                            name={m.full_name || m.email}
+                            hasAvatar={m.has_avatar}
+                            size={26}
+                          />
                           {m.full_name || m.email}
                           {m.is_owner && (
                             <span
@@ -486,7 +489,7 @@ function MembersTable({ tr, lang }: { tr: Tr; lang: LocaleCode }) {
                         )}
                       </td>
                       <td className="px-4 py-3 text-ink-soft text-[12px]">
-                        {fmtDate(m.joined_at, lang)}
+                        {fmtDate(m.joined_at)}
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-end gap-1.5">
@@ -574,7 +577,7 @@ function MembersTable({ tr, lang }: { tr: Tr; lang: LocaleCode }) {
                 { label: tr('Rôle', 'Role'), value: confirm.member.org_role },
                 {
                   label: tr('Membre depuis', 'Member since'),
-                  value: fmtDate(confirm.member.joined_at, lang),
+                  value: fmtDate(confirm.member.joined_at),
                 },
                 {
                   label: tr('Sessions', 'Sessions'),
@@ -612,7 +615,8 @@ function MembersTable({ tr, lang }: { tr: Tr; lang: LocaleCode }) {
 
 /* --------------------------------------------------------------- invitations */
 
-function InvitationsTable({ tr, lang }: { tr: Tr; lang: LocaleCode }) {
+function InvitationsTable({ tr }: { tr: Tr; lang: LocaleCode }) {
+  const fmtDate = useMemberDate();
   const { can } = usePermissions();
   const canInvite = can('organization:members:invite');
   const { data, isLoading, isError, refetch } = useInvitations();
@@ -734,7 +738,7 @@ function InvitationsTable({ tr, lang }: { tr: Tr; lang: LocaleCode }) {
                     <td className="px-4 py-3 text-ink-soft text-[12px]">
                       <span className="inline-flex items-center gap-1.5">
                         {inv.status === 'expired' && <Clock size={12} className="text-ink-muted" />}
-                        {fmtDate(inv.expires_at, lang)}
+                        {fmtDate(inv.expires_at)}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-ink-soft text-[12px]">{inv.send_count}</td>
@@ -830,7 +834,8 @@ function InvitationsTable({ tr, lang }: { tr: Tr; lang: LocaleCode }) {
 
 /* ------------------------------------------------------------------- history */
 
-function AccessHistory({ tr, lang }: { tr: Tr; lang: LocaleCode }) {
+function AccessHistory({ tr }: { tr: Tr; lang: LocaleCode }) {
+  const when = usePreferredDate();
   const { data, isLoading, isError, refetch } = useMembershipAudit(100);
 
   if (isLoading) return <SkeletonRows rows={6} />;
@@ -888,7 +893,7 @@ function AccessHistory({ tr, lang }: { tr: Tr; lang: LocaleCode }) {
                     attributing it to somebody would not be. */}
                 {e.actor_email || (e.actor_id ? e.actor_id.slice(0, 8) : tr('Système', 'System'))}
                 {' · '}
-                {new Date(e.at).toLocaleString(localeTag(lang))}
+                {when.dateTime(e.at)}
                 {e.ip_address ? ` · ${e.ip_address}` : ''}
               </div>
             </div>
