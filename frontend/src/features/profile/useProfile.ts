@@ -6,6 +6,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { profileService, type MyProfile, type UserProfilePatch } from './profileService';
+import { ACTIVATION_QUERY_KEY } from '../onboarding/useActivation';
 
 export const MY_PROFILE_KEY = ['profile', 'me'] as const;
 export const avatarKey = (userId: string) => ['profile', 'avatar', userId] as const;
@@ -39,6 +40,8 @@ export function useUpdateMyProfile() {
     },
     onSuccess: (profile) => {
       qc.setQueryData(MY_PROFILE_KEY, profile);
+      // Saving a name ticks the "complete your profile" checklist step.
+      void qc.invalidateQueries({ queryKey: ACTIVATION_QUERY_KEY });
     },
   });
 }
