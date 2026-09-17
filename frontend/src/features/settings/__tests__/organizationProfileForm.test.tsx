@@ -53,6 +53,7 @@ function org(over: Partial<OrganizationView> = {}): OrganizationView {
       pending_invitations: 0,
     },
     can_edit: true,
+    has_logo: false,
     ...over,
   };
 }
@@ -95,6 +96,20 @@ describe('OrganizationProfileForm', () => {
     await waitFor(() =>
       expect(qc.getQueryData<OrganizationView>(ORG_KEY)?.name).toBe('Banque Atlantique Cameroun'),
     );
+  });
+
+  it('saves an accent chosen from the design-system presets only (#718)', async () => {
+    updateOrganization.mockResolvedValue(org({ accent: 'iris' }));
+    renderForm(org());
+    const select = screen.getByTestId('org-accent');
+    const offered = Array.from(select.querySelectorAll('option')).map((o) =>
+      o.getAttribute('value'),
+    );
+    expect(offered).toEqual(['', 'azure', 'iris']);
+    await userEvent.selectOptions(select, 'iris');
+    await userEvent.click(screen.getByTestId('org-profile-save'));
+    await waitFor(() => expect(updateOrganization).toHaveBeenCalledTimes(1));
+    expect(updateOrganization.mock.calls[0][0]).toMatchObject({ accent: 'iris' });
   });
 
   it('refuses an insecure website before calling the API', async () => {
