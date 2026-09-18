@@ -16,7 +16,7 @@
 // on showing the previous organization's figures. A reload is the one boundary
 // no component survives.
 
-import { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { useNavigate } from 'react-router';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { Check, ChevronsUpDown, Settings } from 'lucide-react';
@@ -54,6 +54,10 @@ function initials(name: string): string {
 interface OrgSwitcherProps {
   /** The active organization's display name. */
   orgName: string;
+  /** Stands in for the initials on the block itself — the organization's logo
+   *  where one is set (#718). Rows keep initials: a member can only read their
+   *  CURRENT organization's logo. */
+  badge?: ReactNode;
   /** What happens once the session is in the new organization. Tests replace
    *  the reload. */
   onSwitched?: () => void;
@@ -61,6 +65,7 @@ interface OrgSwitcherProps {
 
 export function OrgSwitcher({
   orgName,
+  badge,
   onSwitched = () => window.location.assign('/'),
 }: OrgSwitcherProps) {
   const { t, locale } = useI18n();
@@ -171,13 +176,15 @@ export function OrgSwitcher({
         }}
         className="w-full flex items-center gap-2.5 px-2 py-1.5 rounded-[9px] hover:bg-hover focus-visible:bg-hover outline-none focus-visible:ring-2 focus-visible:ring-accent transition-colors"
       >
-        <div
-          className="w-[26px] h-[26px] rounded-[7px] flex items-center justify-center text-[11px] font-bold shrink-0 text-accent-strong"
-          style={{ background: 'var(--accent-soft)' }}
-          aria-hidden="true"
-        >
-          {initials(orgName)}
-        </div>
+        {badge ?? (
+          <div
+            className="w-[26px] h-[26px] rounded-[7px] flex items-center justify-center text-[11px] font-bold shrink-0 text-accent-strong"
+            style={{ background: 'var(--accent-soft)' }}
+            aria-hidden="true"
+          >
+            {initials(orgName)}
+          </div>
+        )}
         <div className="min-w-0 flex-1 text-left">
           <div className="text-[12.5px] font-semibold leading-tight text-ink truncate">
             {orgName}

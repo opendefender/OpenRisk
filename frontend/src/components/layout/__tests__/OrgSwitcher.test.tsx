@@ -201,3 +201,19 @@ describe('OrgSwitcher', () => {
     expect(trigger()).toHaveFocus();
   });
 });
+
+describe('OrgSwitcher — badge', () => {
+  it('shows the given badge instead of the initials', () => {
+    useUIStore.setState({ lang: 'en' });
+    const client = new QueryClient();
+    render(
+      <QueryClientProvider client={client}>
+        <MemoryRouter>
+          <OrgSwitcher orgName="Org A" badge={<img alt="Org A logo" src="data:," />} />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+    expect(screen.getByRole('img', { name: 'Org A logo' })).toBeInTheDocument();
+    expect(screen.queryByText('OA')).toBeNull();
+  });
+});
