@@ -892,5 +892,17 @@
       "closed": "List hidden. You will find it again in settings.",
       "reopen": "Show the getting-started list"
     }
+  },
+  "orgSwitcher": {
+    "trigger": "Switch organization — current organization: {name}",
+    "title": "Your organizations",
+    "loading": "Loading your organizations…",
+    "loadError": "Your organizations could not be loaded.",
+    "retry": "Retry",
+    "current": "Current organization",
+    "switching": "Switching…",
+    "switchError": "The switch failed. You are still in {name}.",
+    "onlyOne": "You belong to this organization only. An invitation from another organization will add it here.",
+    "settings": "Organization settings"
   }
 }
