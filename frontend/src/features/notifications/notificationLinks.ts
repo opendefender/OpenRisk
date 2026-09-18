@@ -17,6 +17,7 @@
 //   approval_request   /governance
 //   vendor_assessment  /vendors/{vendor}/assessments/{id}  (vendor looked up)
 //   organization       /settings
+//   scan               /infrastructure/scans/{job}   (no id → /infrastructure)
 //
 // A notification whose target is unknown resolves to null: the row still marks
 // itself read on click, it just does not pretend to go somewhere.
@@ -50,6 +51,8 @@ export function notificationHref(n: Target): string | null {
       return safeDeepLink('/governance');
     case 'organization':
       return safeDeepLink('/settings');
+    case 'scan':
+      return id ? safeDeepLink(`/infrastructure/scans/${id}`) : safeDeepLink('/infrastructure');
     default:
       return null;
   }

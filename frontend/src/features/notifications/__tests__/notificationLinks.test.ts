@@ -35,12 +35,14 @@ describe('notificationHref', () => {
     ['remediation_plan', `/compliance/remediation/${ID}`],
     ['approval_request', '/governance'],
     ['organization', '/settings'],
+    ['scan', `/infrastructure/scans/${ID}`],
   ])('routes %s to its exact page', (resource_type, href) => {
     expect(notificationHref({ resource_type, resource_id: ID })).toBe(href);
   });
 
   it('falls back to the list when the id is missing', () => {
     expect(notificationHref({ resource_type: 'incident' })).toBe('/incidents');
+    expect(notificationHref({ resource_type: 'scan' })).toBe('/infrastructure');
   });
 
   it('refuses to link a notification about nothing it knows', () => {
