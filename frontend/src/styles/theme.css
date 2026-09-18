@@ -178,10 +178,17 @@
 
   /* --------------------------------------------------------------- animation */
   /* The OpenRisk motion vocabulary. Keyframes live in index.css. */
-  /* Route transition — replaces framer-motion in App.tsx (#462). */
-  --animate-route: or-route var(--dur-base) var(--ease-out) both;
+  /* Route transition — replaces framer-motion in App.tsx (#462).
+     route and or-fadeup wrap whole pages (App.tsx, PageFrame), so they fill
+     BACKWARDS only. A forwards fill holds translateY(0) after the entrance,
+     and any transform other than none makes the element the containing block
+     of its position:fixed descendants: every page modal and drawer was then
+     anchored to the page instead of the viewport, its top hidden under the
+     header (#732). The end keyframe equals the natural style, so dropping the
+     forwards fill changes nothing on screen. */
+  --animate-route: or-route var(--dur-base) var(--ease-out) backwards;
   --animate-fade-in: or-fadein var(--dur-slow) var(--ease-out) both;
-  --animate-or-fadeup: or-fadeup var(--dur-slow) var(--ease-out) both;
+  --animate-or-fadeup: or-fadeup var(--dur-slow) var(--ease-out) backwards;
   --animate-or-fadein: or-fadein var(--dur-base) var(--ease-out) both;
   --animate-or-scalein: or-scalein var(--dur-base) var(--ease-out) both;
   --animate-or-rise: or-rise var(--dur-base) var(--ease-out) both;

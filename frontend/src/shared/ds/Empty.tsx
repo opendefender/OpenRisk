@@ -39,6 +39,8 @@
 import type { ReactNode } from 'react';
 import { Inbox, SearchX, AlertTriangle, Lock, ExternalLink, type LucideIcon } from 'lucide-react';
 
+import { cn } from './cn';
+
 export type EmptyVariant = 'first-use' | 'no-results' | 'error' | 'no-permission';
 
 /**
@@ -109,7 +111,13 @@ export function Empty({
       data-testid="empty-state"
       data-variant={variant}
       role="status"
-      className={`flex flex-col items-center justify-center text-center py-16 px-6 ${className}`}
+      // cn(), not string interpolation. The default py-16 is right for a
+      // full-page empty state and far too tall inside a dialog or a dashboard
+      // widget, so callers pass `py-8`. Concatenated, BOTH classes survived and
+      // the one that won was decided by Tailwind's source order — py-16 — so
+      // every caller's override was silently ignored and those surfaces rendered
+      // 64px of padding top and bottom instead of the 32px asked for.
+      className={cn('flex flex-col items-center justify-center text-center py-16 px-6', className)}
       style={{ animation: 'or-fadein .3s ease' }}
     >
       <div

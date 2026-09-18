@@ -4,6 +4,7 @@
 // the terms of the GNU Affero General Public License v3.0 (see LICENSE).
 
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -125,7 +126,10 @@ export const EditAssetModal = ({ asset, onClose, onShowHistory }: EditAssetModal
     }
   };
 
-  return (
+  // Portalled: see CreateAssetModal. <PageFrame>'s `animate-or-fadeup` holds a
+  // translateY, which makes it the containing block for these fixed layers and
+  // anchors them to the page content box instead of the viewport.
+  return createPortal(
     <>
       <AnimatePresence>
         {isOpen && (
@@ -356,6 +360,7 @@ export const EditAssetModal = ({ asset, onClose, onShowHistory }: EditAssetModal
         onConfirm={confirmDelete}
         onClose={() => setConfirmingDelete(false)}
       />
-    </>
+    </>,
+    document.body,
   );
 };
