@@ -15,6 +15,7 @@
 import { useFormat } from '../../hooks/useI18n';
 import { localeTag } from '../../i18n/locales';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -1352,7 +1353,14 @@ function RiskDrawer({
     ['cti', L.tab_cti],
     ['ai', L.tab_ai],
   ];
-  return (
+  // Portalled to document.body, for the reason shared/ds/Modal and Drawer state:
+  // no ancestor's transform may become this panel's containing block. The drawer
+  // is rendered inside <PageFrame>, which carries `animate-or-fadeup` — a
+  // translateY held by `fill-mode: both`. A transformed ancestor makes
+  // `position: fixed` resolve against THAT box instead of the viewport, so the
+  // drawer was anchored to the page content area: pushed below the header and
+  // sized to the content, which is what read as "the drawer is not straight".
+  return createPortal(
     <div
       className="fixed inset-0 z-70 flex justify-end"
       style={{
@@ -1448,7 +1456,8 @@ function RiskDrawer({
           {tab === 'cti' && <DrawerCTI r={r} />}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
