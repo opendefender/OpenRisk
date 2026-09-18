@@ -150,6 +150,9 @@ export function RiskRegisterPage() {
   const fetchRisks = useRiskStore((s) => s.fetchRisks);
   const deleteRisk = useRiskStore((s) => s.deleteRisk);
   const bulkDelete = useRiskStore((s) => s.bulkDelete);
+  // A read-only member is not offered creation: the server would refuse it
+  // (risks:create), after a form had been filled (#739).
+  const canCreate = useAuthStore((s) => s.hasPermission('risks:create'));
   const canUpdate = useAuthStore((s) => s.hasPermission('risks:update'));
   const { data: categories } = useRiskCategories();
   const canDelete = useAuthStore((s) => s.hasPermission('risks:delete'));
@@ -566,13 +569,17 @@ export function RiskRegisterPage() {
                 </button>
               ))}
             </div>
-            <Btn label={L.importCsv} icon={Upload} onClick={() => navigate('/risks/import')} />
-            <Btn
-              label={L.newRisk}
-              icon={Plus}
-              primary
-              onClick={() => window.dispatchEvent(new CustomEvent('openrisk:new-risk'))}
-            />
+            {canCreate && (
+              <>
+                <Btn label={L.importCsv} icon={Upload} onClick={() => navigate('/risks/import')} />
+                <Btn
+                  label={L.newRisk}
+                  icon={Plus}
+                  primary
+                  onClick={() => window.dispatchEvent(new CustomEvent('openrisk:new-risk'))}
+                />
+              </>
+            )}
           </>
         }
       />
@@ -585,17 +592,26 @@ export function RiskRegisterPage() {
             <EmptyState
               icon={ShieldAlert}
               title={tr('Aucun risque pour le moment', 'No risks yet')}
-              description={tr(
-                'Créez votre premier risque pour commencer à cartographier votre exposition.',
-                'Create your first risk to start mapping your exposure.',
-              )}
+              description={
+                canCreate
+                  ? tr(
+                      'Créez votre premier risque pour commencer à cartographier votre exposition.',
+                      'Create your first risk to start mapping your exposure.',
+                    )
+                  : tr(
+                      'Aucun risque n’est encore enregistré. Votre rôle permet de consulter le registre ; un administrateur peut vous donner le droit d’en créer.',
+                      'No risk has been recorded yet. Your role can view the register; an administrator can grant you the right to create risks.',
+                    )
+              }
               primaryAction={
-                <Btn
-                  label={L.newRisk}
-                  icon={Plus}
-                  primary
-                  onClick={() => window.dispatchEvent(new CustomEvent('openrisk:new-risk'))}
-                />
+                canCreate ? (
+                  <Btn
+                    label={L.newRisk}
+                    icon={Plus}
+                    primary
+                    onClick={() => window.dispatchEvent(new CustomEvent('openrisk:new-risk'))}
+                  />
+                ) : undefined
               }
             />
           ) : (
@@ -703,17 +719,26 @@ export function RiskRegisterPage() {
             <EmptyState
               icon={ShieldAlert}
               title={tr('Aucun risque pour le moment', 'No risks yet')}
-              description={tr(
-                'Créez votre premier risque pour commencer à cartographier votre exposition.',
-                'Create your first risk to start mapping your exposure.',
-              )}
+              description={
+                canCreate
+                  ? tr(
+                      'Créez votre premier risque pour commencer à cartographier votre exposition.',
+                      'Create your first risk to start mapping your exposure.',
+                    )
+                  : tr(
+                      'Aucun risque n’est encore enregistré. Votre rôle permet de consulter le registre ; un administrateur peut vous donner le droit d’en créer.',
+                      'No risk has been recorded yet. Your role can view the register; an administrator can grant you the right to create risks.',
+                    )
+              }
               primaryAction={
-                <Btn
-                  label={L.newRisk}
-                  icon={Plus}
-                  primary
-                  onClick={() => window.dispatchEvent(new CustomEvent('openrisk:new-risk'))}
-                />
+                canCreate ? (
+                  <Btn
+                    label={L.newRisk}
+                    icon={Plus}
+                    primary
+                    onClick={() => window.dispatchEvent(new CustomEvent('openrisk:new-risk'))}
+                  />
+                ) : undefined
               }
             />
           }

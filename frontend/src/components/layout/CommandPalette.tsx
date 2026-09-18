@@ -142,15 +142,20 @@ export const CommandPalette = () => {
       })),
     );
     const actions: CmdItem[] = [
-      {
-        label: L.newRisk,
-        icon: Plus,
-        shortcut: 'N',
-        run: () => {
-          window.dispatchEvent(new CustomEvent('openrisk:new-risk'));
-          close();
-        },
-      },
+      // Offered only to a member who may create a risk (#739).
+      ...(can('risks:create')
+        ? [
+            {
+              label: L.newRisk,
+              icon: Plus,
+              shortcut: 'N',
+              run: () => {
+                window.dispatchEvent(new CustomEvent('openrisk:new-risk'));
+                close();
+              },
+            },
+          ]
+        : []),
       {
         label: L.genReport,
         icon: FileText,
