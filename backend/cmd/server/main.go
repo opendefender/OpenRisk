@@ -2436,6 +2436,7 @@ func main() {
 	// =========================================================================
 	membershipSvc := membership.NewService(membershipRepo, userRepo).
 		WithOrganizations(orgRepo).
+		WithOrganizationWriter(orgRepo).
 		// The recorder feeds the request collector, so a membership action lands
 		// as ONE chained trail entry carrying both its meaning and its
 		// before → after — not as a second entry beside the middleware's.
@@ -2466,6 +2467,10 @@ func main() {
 	// for everyone who is not an administrator.
 	orgRead := middleware.RequirePermission("organization:read", "organization:members:read")
 	protected.Get("/organization", orgRead, memberHandler.GetOrganization)
+	// Editing the profile and regional settings (#299). The use case repeats
+	// the organization:update check, so the guard is not the only gate.
+	protected.Put("/organization",
+		middleware.RequirePermission("organization:update"), memberHandler.UpdateOrganization)
 	// Headline member counts for the org switcher; no member identities.
 	// Session-sufficient (#529).
 	protected.Get("/organization/counts", memberHandler.GetCounts)

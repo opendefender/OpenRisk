@@ -163,6 +163,7 @@ func newOrgFixture(t *testing.T) *orgFixture {
 	repo := repository.NewGormMembershipRepository(db)
 	f.svc = membership.NewService(repo, repository.NewGormUserRepository(db)).
 		WithOrganizations(orgs).
+		WithOrganizationWriter(mapOrgWriter{orgs: orgs.orgs}).
 		WithAudit(governance.NewAuditRecorder(f.chain)).
 		WithAuditReader(f.chain).
 		WithMailer(f.mailer).
@@ -271,6 +272,7 @@ func (f *orgFixture) buildApp(t *testing.T) *fiber.App {
 
 	orgRead := middleware.RequirePermission("organization:read", "organization:members:read")
 	protected.Get("/organization", orgRead, h.GetOrganization)
+	protected.Put("/organization", middleware.RequirePermission("organization:update"), h.UpdateOrganization)
 	protected.Get("/organization/counts", h.GetCounts)
 	protected.Get("/organization/members/audit", middleware.RequirePermission("organization:audit:read"), h.GetMembershipAudit)
 	protected.Get("/organization/members", middleware.RequirePermission("organization:members:read"), h.ListMembers)

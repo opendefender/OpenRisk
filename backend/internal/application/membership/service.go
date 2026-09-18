@@ -230,6 +230,7 @@ type Service struct {
 	repo       domain.MembershipRepository
 	users      UserDirectory
 	orgs       OrganizationReader
+	orgWriter  OrganizationProfileWriter
 	audit      AuditSink
 	reader     AuditReader
 	mailer     InvitationMailer

@@ -36,8 +36,14 @@ type OrganizationView struct {
 	OwnerID   uuid.UUID      `json:"owner_id"`
 	OwnerName string         `json:"owner_name,omitempty"`
 	Timezone  string         `json:"timezone,omitempty"`
-	CreatedAt time.Time      `json:"created_at"`
-	UpdatedAt time.Time      `json:"updated_at"`
+	// Website, Description, DefaultLocale and DateFormat live in the settings
+	// jsonb next to Timezone and are empty until an administrator sets them.
+	Website       string    `json:"website,omitempty"`
+	Description   string    `json:"description,omitempty"`
+	DefaultLocale string    `json:"default_locale,omitempty"`
+	DateFormat    string    `json:"date_format,omitempty"`
+	CreatedAt     time.Time `json:"created_at"`
+	UpdatedAt     time.Time `json:"updated_at"`
 	// Counts are the live membership numbers, so the profile and the members
 	// screen can never disagree about how many people are in the organization.
 	Counts domain.OrganizationCounts `json:"counts"`
@@ -74,9 +80,16 @@ func (s *Service) GetOrganization(ctx context.Context, tenantID uuid.UUID, canEd
 	// only when the organization actually set one — an empty value lets the UI
 	// say "not set" instead of presenting the viewer's own zone as the
 	// organization's.
-	if tz, ok := org.GetSettings()["timezone"].(string); ok {
-		view.Timezone = strings.TrimSpace(tz)
+	settings := org.GetSettings()
+	str := func(key string) string {
+		v, _ := settings[key].(string)
+		return strings.TrimSpace(v)
 	}
+	view.Timezone = str(domain.OrgSettingTimezone)
+	view.Website = str(domain.OrgSettingWebsite)
+	view.Description = str(domain.OrgSettingDescription)
+	view.DefaultLocale = str(domain.OrgSettingDefaultLocale)
+	view.DateFormat = str(domain.OrgSettingDateFormat)
 	if counts, err := s.repo.Counts(ctx, tenantID, s.clock()); err == nil {
 		view.Counts = counts
 	}
