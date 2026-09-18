@@ -13,6 +13,7 @@ import { toast } from 'sonner';
 import {
   Settings as SettingsIcon,
   Users,
+  UserRound,
   KeyRound,
   Building2,
   SlidersHorizontal,
@@ -68,11 +69,13 @@ import { DangerZonePanel } from '../billing/DangerZonePanel';
 import { useOrganization } from '../organization/useOrganization';
 import { MFAPolicyPanel, MFAAccountPanel } from './MFAPolicyPanel';
 import { OrganizationProfileForm } from './OrganizationProfileForm';
+import { ProfileTab } from '../profile/ProfileTab';
 import type { LocaleCode } from '../../i18n/locales';
 import { useI18n } from '../../hooks/useI18n';
 import { localeTag } from '../../i18n/locales';
 
 type TabKey =
+  | 'profile'
   | 'general'
   | 'members'
   | 'tokens'
@@ -257,6 +260,7 @@ function Unavailable({ tr }: { tr: Tr }) {
 }
 
 const TAB_KEYS: TabKey[] = [
+  'profile',
   'general',
   'members',
   'tokens',
@@ -281,7 +285,12 @@ export function SettingsScreen() {
   const { pathname } = useLocation();
   const [params] = useSearchParams();
   const paramTab = params.get('tab');
-  const routeTab: TabKey | null = pathname === '/settings/members' ? 'members' : null;
+  const routeTab: TabKey | null =
+    pathname === '/settings/members'
+      ? 'members'
+      : pathname === '/settings/profile'
+        ? 'profile'
+        : null;
   const [tab, setTab] = useState<TabKey>(
     routeTab ?? (TAB_KEYS.includes(paramTab as TabKey) ? (paramTab as TabKey) : 'general'),
   );
@@ -294,17 +303,20 @@ export function SettingsScreen() {
   }, [paramTab, routeTab]);
   const selectTab = (k: TabKey) => {
     setTab(k);
-    if (k === 'members') {
-      navigate('/settings/members');
+    if (k === 'members' || k === 'profile') {
+      navigate(`/settings/${k}`);
       return;
     }
-    // Leaving Members must leave its URL too, or the route would force the tab
-    // straight back on the next render.
-    const base = pathname === '/settings/members' ? '/settings' : pathname;
-    navigate(`${base}?tab=${k}`, { replace: pathname !== '/settings/members' });
+    // Leaving a routed tab must leave its URL too, or the route would force the
+    // tab straight back on the next render.
+    const routed = pathname === '/settings/members' || pathname === '/settings/profile';
+    const base = routed ? '/settings' : pathname;
+    navigate(`${base}?tab=${k}`, { replace: !routed });
   };
 
   const tabs: [TabKey, string, LucideIcon][] = [
+    // Your own profile first: it is the one tab every member can use (#719).
+    ['profile', tr('Mon profil', 'My profile'), UserRound],
     ['general', L.s_general, SettingsIcon],
     // Members owns invitations AND access. They are one job — "give this person
     // the right access" — and splitting them across two screens is why "Invite a
@@ -348,6 +360,7 @@ export function SettingsScreen() {
           ))}
         </div>
         <div className="flex-1 min-w-0 w-full">
+          {tab === 'profile' && <ProfileTab tr={tr} />}
           {tab === 'general' && <GeneralTab tr={tr} />}
           {tab === 'members' && <MembersView />}
           {tab === 'tokens' && <TokensTab tr={tr} lang={lang} />}

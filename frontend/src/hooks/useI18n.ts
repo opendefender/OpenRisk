@@ -7,12 +7,15 @@ import { useCallback, useMemo } from 'react';
 import {
   boundFormatters,
   catalogs,
+  formatPreferredDate,
   translate,
   type BoundFormatters,
+  type DateInput,
   type LocaleCode,
   type TranslateParams,
 } from '../i18n';
 import { useUIStore } from '../store/uiStore';
+import { usePreferenceStore } from '../shared/preferences/preferenceStore';
 
 /**
  * The component-facing i18n hook.
@@ -60,6 +63,32 @@ export function useI18n(): UseI18nReturn {
 }
 
 /** Formatters alone, for components that format but do not translate. */
+/**
+ * Dates written the way the signed-in person asked (#719): their time zone and
+ * their numeric pattern, falling back to the language's own style.
+ */
+export function usePreferredDate(): {
+  date: (value: DateInput) => string;
+  dateTime: (value: DateInput) => string;
+  /** A calendar day with no instant (a due date): pattern applied, no zone
+   *  shift, so "2026-10-01" never becomes 30 September west of Greenwich. */
+  calendarDate: (value: DateInput) => string;
+} {
+  const locale = useUIStore((s) => s.lang);
+  const timeZone = usePreferenceStore((s) => s.timeZone);
+  const pattern = usePreferenceStore((s) => s.pattern);
+  return useMemo(
+    () => ({
+      date: (value: DateInput) => formatPreferredDate(locale, value, { timeZone, pattern }),
+      dateTime: (value: DateInput) =>
+        formatPreferredDate(locale, value, { timeZone, pattern }, true),
+      calendarDate: (value: DateInput) =>
+        formatPreferredDate(locale, value, { timeZone: 'UTC', pattern }),
+    }),
+    [locale, timeZone, pattern],
+  );
+}
+
 export function useFormat(): BoundFormatters {
   const locale = useUIStore((s) => s.lang);
   return useMemo(() => boundFormatters(locale), [locale]);

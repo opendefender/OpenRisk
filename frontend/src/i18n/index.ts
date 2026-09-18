@@ -47,6 +47,7 @@ export {
 
 export {
   boundFormatters,
+  formatPreferredDate,
   formatCompact,
   formatCurrency,
   formatDate,
@@ -57,6 +58,8 @@ export {
   formatRelativeTime,
   formatTime,
   type BoundFormatters,
+  type DatePattern,
+  type DatePreferences,
   type CurrencyOptions,
   type DateInput,
 } from './format';
