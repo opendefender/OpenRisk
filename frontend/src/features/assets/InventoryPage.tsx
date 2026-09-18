@@ -404,7 +404,9 @@ export function InventoryPage() {
         selectable
         rowActions={rowActions}
         bulkActions={bulkActions}
-        onRowClick={(a) => setEditing(a)}
+        // A member who may not edit opens the asset's read-only history instead
+        // of an edit form the server would refuse (#739).
+        onRowClick={(a) => (canUpdate ? setEditing(a) : setHistoryAssetId(a.id as string))}
         exportFilename="inventaire-actifs"
         minWidth={780}
         empty={

@@ -1366,6 +1366,9 @@ function RiskDrawer({
   const lang = useUIStore((s) => s.lang);
   const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
   const [tab, setTab] = useState<DrawerTab>(initialTab ?? 'details');
+  // Editing is offered only to a member who may update the risk (#739); the
+  // ownership pickers below already follow the same permission.
+  const canUpdate = useAuthStore((s) => s.hasPermission('risks:update'));
   const tabDef: [typeof tab, string][] = [
     ['details', L.tab_details],
     ['lifecycle', tr('Cycle de vie', 'Lifecycle')],
@@ -1433,7 +1436,7 @@ function RiskDrawer({
             </span>
           </div>
           <div className="flex gap-2 mt-3.5">
-            <Btn label={L.edit} icon={Pencil} onClick={onEdit} />
+            {canUpdate && <Btn label={L.edit} icon={Pencil} onClick={onEdit} />}
             <Btn label={L.exportCsv} icon={FileText} onClick={onExport} />
           </div>
         </div>
