@@ -12,7 +12,7 @@ import { useUIStore } from '../../store/uiStore';
 import { useAnalyzeEvidence } from './useAi';
 
 const VERDICT: Record<string, { fr: string; en: string; color: string }> = {
-  satisfies: { fr: 'Satisfait', en: 'Satisfies', color: 'var(--success, #1f9d55)' },
+  satisfies: { fr: 'Satisfait', en: 'Satisfies', color: 'var(--success)' },
   partial: { fr: 'Partiel', en: 'Partial', color: 'var(--high)' },
   insufficient: { fr: 'Insuffisant', en: 'Insufficient', color: 'var(--critical)' },
   unrelated: { fr: 'Hors sujet', en: 'Unrelated', color: 'var(--ink-muted)' },

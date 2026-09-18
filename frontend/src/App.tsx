@@ -530,7 +530,7 @@ function RouteFallback() {
         className="h-8 w-8 rounded-full animate-spin"
         style={{
           border: '3px solid var(--border-subtle)',
-          borderTopColor: 'var(--accent, #2e6be6)',
+          borderTopColor: 'var(--accent)',
         }}
         role="status"
         aria-label="Chargement…"
@@ -703,7 +703,10 @@ function App() {
               element={<VendorAssessmentPage />}
             />
             <Route path="vendors/questionnaires" element={<QuestionnaireTemplatesPage />} />
-            <Route path="vendors/questionnaires/new" element={<QuestionnaireTemplateEditorPage />} />
+            <Route
+              path="vendors/questionnaires/new"
+              element={<QuestionnaireTemplateEditorPage />}
+            />
             <Route
               path="vendors/questionnaires/:templateId"
               element={<QuestionnaireTemplateEditorPage />}

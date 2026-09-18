@@ -10,8 +10,10 @@ import { Sun, Moon } from 'lucide-react';
 import { useUIStore, type Theme, type Variant } from '../../store/uiStore';
 
 const ACCENTS: { key: Variant; label: string; color: string }[] = [
-  { key: 'azure', label: 'Azure', color: '#0a84ff' },
-  { key: 'iris', label: 'Iris', color: '#7c6cff' },
+  // Per-theme tokens holding each variant's real accent, so the swatch shows
+  // the colour the product will actually turn — the old hex matched neither.
+  { key: 'azure', label: 'Azure', color: 'var(--swatch-azure)' },
+  { key: 'iris', label: 'Iris', color: 'var(--swatch-iris)' },
 ];
 
 export function PersonalizeCard({ compact }: { compact?: boolean }) {

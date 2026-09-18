@@ -197,7 +197,7 @@ function ServerToggleRow({
               top: 2,
               left: checked ? 20 : 2,
               transition: 'left .2s',
-              boxShadow: '0 1px 3px rgba(0,0,0,.3)',
+              boxShadow: 'var(--elev-1)',
             }}
           />
         </button>

@@ -284,7 +284,7 @@ export function FieldHelp({
           style={{
             background: 'var(--bg-elevated)',
             border: '1px solid var(--border-strong)',
-            boxShadow: '0 12px 32px rgba(0,0,0,.22)',
+            boxShadow: 'var(--elev-2)',
           }}
         >
           <span className="block text-[12.5px] font-bold text-ink mb-1">

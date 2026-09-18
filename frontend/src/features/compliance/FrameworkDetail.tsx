@@ -413,8 +413,8 @@ function EvidenceDrawer({ control, onClose }: { control: ComplianceControl; onCl
     <div
       className="fixed inset-0 z-70 flex justify-end"
       style={{
-        background: 'rgba(0,0,0,.45)',
-        backdropFilter: 'blur(3px)',
+        background: 'var(--surface-overlay)',
+        backdropFilter: 'blur(var(--overlay-blur))',
         animation: 'or-fadein .2s ease',
       }}
       onClick={onClose}

@@ -9,7 +9,7 @@
 import { useEffect, useRef, useState } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import { Clock } from 'lucide-react';
-import { critColor, softFill, type Criticality } from './riskColors';
+import { critColor, frameworkColor, softFill, type Criticality } from './riskColors';
 import { Button, type ButtonVariant } from './ds';
 import { useUIStrings } from './uiStrings';
 
@@ -165,12 +165,15 @@ export function Chip({
   active,
   onClick,
   color,
+  count,
   testId,
 }: {
   label: string;
   active?: boolean;
   onClick?: () => void;
   color?: string;
+  /** How many rows the filter would show. */
+  count?: number;
   /** Optional hook for the E2E gates. A filter nobody can address from a test
    *  is a filter whose behaviour nothing protects. */
   testId?: string;
@@ -188,6 +191,16 @@ export function Chip({
       }}
     >
       {label}
+      {typeof count === 'number' && (
+        <span
+          className="text-2xs font-bold px-1.5 rounded-full tabular-nums"
+          style={{
+            background: active ? softFill(color ?? 'var(--accent)', 20) : 'var(--surface-3)',
+          }}
+        >
+          {count}
+        </span>
+      )}
     </button>
   );
 }
@@ -287,16 +300,7 @@ export function Avatar({
 }
 
 export function FwBadge({ fw }: { fw: string }) {
-  const col =
-    {
-      ISO27001: '#7c6cff',
-      COBAC: '#30d158',
-      BCEAO: '#ff9f0a',
-      NIST: '#0a84ff',
-      DORA: '#ff2d92',
-      SOC2: '#64d2ff',
-      ANSSI: '#ff453a',
-    }[fw] ?? 'var(--fg-secondary)';
+  const col = frameworkColor[fw] ?? 'var(--fg-secondary)';
   return (
     <span
       className="text-2xs font-semibold px-2 py-0.5 rounded-sm"
