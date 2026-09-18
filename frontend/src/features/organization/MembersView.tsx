@@ -110,7 +110,10 @@ function TabBtn({
       aria-current={active ? 'page' : undefined}
       className="h-9 px-3.5 rounded-[9px] text-[12.5px] font-semibold inline-flex items-center gap-1.5"
       style={{
-        background: active ? 'var(--accent)' : 'transparent',
+        // --accent is the readable TEXT step and is too light to carry white
+        // text; --accent-solid is the fill step the design system pairs with
+        // --fg-on-solid (#724).
+        background: active ? 'var(--accent-solid)' : 'transparent',
         color: active ? 'var(--fg-on-solid)' : 'var(--fg-secondary)',
         border: active ? 'none' : '1px solid var(--border-strong)',
       }}
