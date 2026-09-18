@@ -81,6 +81,24 @@ export interface OrganizationCounts {
   pending_invitations: number;
 }
 
+export type OrgSize = '1-50' | '51-200' | '201-1000' | '1000+';
+export const ORG_SIZES: readonly OrgSize[] = ['1-50', '51-200', '201-1000', '1000+'];
+
+export type DateFormat = 'DD/MM/YYYY' | 'MM/DD/YYYY' | 'YYYY-MM-DD';
+export const DATE_FORMATS: readonly DateFormat[] = ['DD/MM/YYYY', 'MM/DD/YYYY', 'YYYY-MM-DD'];
+
+/** PUT /organization body. Omitted = unchanged; "" clears an optional field. */
+export interface OrganizationProfilePatch {
+  name?: string;
+  industry?: string;
+  size?: OrgSize | '';
+  website?: string;
+  description?: string;
+  timezone?: string;
+  default_locale?: string;
+  date_format?: DateFormat | '';
+}
+
 export interface OrganizationView {
   id: string;
   name: string;
@@ -93,6 +111,10 @@ export interface OrganizationView {
   owner_id: string;
   owner_name?: string;
   timezone?: string;
+  website?: string;
+  description?: string;
+  default_locale?: string;
+  date_format?: DateFormat;
   created_at: string;
   updated_at: string;
   counts: OrganizationCounts;
@@ -157,6 +179,12 @@ export const organizationService = {
   /** The tenant's own profile, with live membership counts. */
   async getOrganization(): Promise<OrganizationView> {
     const { data } = await api.get<OrganizationView>('/organization');
+    return data;
+  },
+
+  /** Edit the caller's own organization (needs organization:update). */
+  async updateOrganization(patch: OrganizationProfilePatch): Promise<OrganizationView> {
+    const { data } = await api.put<OrganizationView>('/organization', patch);
     return data;
   },
 

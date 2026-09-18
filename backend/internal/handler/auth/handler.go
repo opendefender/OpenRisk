@@ -284,8 +284,12 @@ func strptr(s string) *string { return &s }
 
 // RegisterRequest represents the registration request body
 type RegisterRequest struct {
-	Email       string `json:"email" validate:"required,email"`
-	Username    string `json:"username" validate:"required,min=3,max=50"`
+	Email string `json:"email" validate:"required,email"`
+	// Optional (#687). The sign-up screen does not ask for a username and no
+	// longer invents one from the address, because two people at different
+	// companies who both write to contact@ then collided. Left empty, the server
+	// derives one that is free.
+	Username    string `json:"username" validate:"omitempty,min=3,max=50"`
 	Password    string `json:"password" validate:"required,min=12"`
 	FullName    string `json:"full_name" validate:"required"`
 	CompanyName string `json:"company_name" validate:"required"`
@@ -326,6 +330,22 @@ func (h *Handler) Register(c *fiber.Ctx) error {
 	})
 
 	if err != nil {
+		// #687: the two conflicts are different problems for the person at the
+		// screen, and they used to share one message. A taken username was
+		// reported as "this email is already registered", which was false and
+		// left the user nowhere to go. The codes let the client tell them apart.
+		switch {
+		case errors.Is(err, auth.ErrEmailAlreadyRegistered):
+			return c.Status(fiber.StatusConflict).JSON(fiber.Map{
+				"error": "An account already exists for this email address",
+				"code":  "EMAIL_ALREADY_REGISTERED",
+			})
+		case errors.Is(err, auth.ErrUsernameTaken):
+			return c.Status(fiber.StatusConflict).JSON(fiber.Map{
+				"error": "This username is already taken",
+				"code":  "USERNAME_TAKEN",
+			})
+		}
 		if domainErr, ok := err.(*domain.AppError); ok {
 			switch domainErr.Err {
 			case domain.ErrValidation:

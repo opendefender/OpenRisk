@@ -128,6 +128,13 @@ func UpdateSubAction(c *fiber.Ctx) error {
 		if err != nil {
 			return c.Status(400).JSON(fiber.Map{"error": "Invalid depends_on UUID"})
 		}
+		// Same plan, same tenant, not itself (#706). Without this a sub-action
+		// could name another tenant's sub-action as its dependency, and
+		// completing it would read that row back.
+		selfID := uuid.MustParse(subactionID)
+		if err := subactionRepo.CheckDependency(ctx.OrganizationID.String(), subaction.MitigationID, &selfID, depID); err != nil {
+			return c.Status(400).JSON(fiber.Map{"error": err.Error()})
+		}
 		// Check for cycles
 		hasCycle, err := subactionRepo.HasCycle(ctx.OrganizationID.String(), uuid.MustParse(subactionID), depID)
 		if err != nil {

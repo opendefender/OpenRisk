@@ -67,6 +67,7 @@ import { BillingPanel } from '../billing/BillingPanel';
 import { DangerZonePanel } from '../billing/DangerZonePanel';
 import { useOrganization } from '../organization/useOrganization';
 import { MFAPolicyPanel, MFAAccountPanel } from './MFAPolicyPanel';
+import { OrganizationProfileForm } from './OrganizationProfileForm';
 import type { LocaleCode } from '../../i18n/locales';
 import { useI18n } from '../../hooks/useI18n';
 import { localeTag } from '../../i18n/locales';
@@ -193,7 +194,7 @@ function ServerToggleRow({
               top: 2,
               left: checked ? 20 : 2,
               transition: 'left .2s',
-              boxShadow: '0 1px 3px rgba(0,0,0,.3)',
+              boxShadow: 'var(--elev-1)',
             }}
           />
         </button>
@@ -745,11 +746,11 @@ function GeneralTab({ tr }: { tr: Tr }) {
             <div className="mono text-[12px] text-ink-muted">{org.slug}</div>
           </div>
         </div>
-        {/* Read-only, and honestly so: the backend serves this profile but has
-            no endpoint that writes it. An input that looks editable and saves
-            nothing is worse than a value that plainly is not. */}
+        {/* Plan, status, creation date and owner are not the administrator's
+            to edit here; the profile and regional settings are, when the
+            server says so (#299). */}
         <dl
-          className="grid gap-x-6 gap-y-[14px]"
+          className="grid gap-x-6 gap-y-[14px] mb-5"
           style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))' }}
         >
           <ReadOnly label={tr('Plan', 'Plan')} value={org.plan} />
@@ -759,21 +760,31 @@ function GeneralTab({ tr }: { tr: Tr }) {
           />
           <ReadOnly label={tr('Créée le', 'Created')} value={created} />
           <ReadOnly label={tr('Propriétaire', 'Owner')} value={org.owner_name || '—'} />
-          {org.industry && <ReadOnly label={tr('Secteur', 'Industry')} value={org.industry} />}
-          <ReadOnly
-            label={tr('Fuseau horaire', 'Time zone')}
-            value={org.timezone || tr('non défini', 'not set')}
-            muted={!org.timezone}
-          />
+          {!org.can_edit && (
+            <>
+              {org.industry && <ReadOnly label={tr('Secteur', 'Industry')} value={org.industry} />}
+              {org.website && <ReadOnly label={tr('Site web', 'Website')} value={org.website} />}
+              <ReadOnly
+                label={tr('Fuseau horaire', 'Time zone')}
+                value={org.timezone || tr('non défini', 'not set')}
+                muted={!org.timezone}
+              />
+              {org.default_locale && (
+                <ReadOnly
+                  label={tr('Langue par défaut', 'Default language')}
+                  value={org.default_locale}
+                />
+              )}
+              {org.date_format && (
+                <ReadOnly label={tr('Format de date', 'Date format')} value={org.date_format} />
+              )}
+            </>
+          )}
         </dl>
-        {org.can_edit && (
-          <p className="text-[11.5px] text-ink-muted mt-4 leading-snug">
-            {tr(
-              "Ces informations sont définies à la création de l'organisation. Leur modification depuis cet écran arrivera dans une prochaine version.",
-              'These details are set when the organization is created. Editing them from this screen is coming in a future release.',
-            )}
-          </p>
+        {!org.can_edit && org.description && (
+          <p className="text-[12.5px] text-ink-soft leading-relaxed mb-2">{org.description}</p>
         )}
+        {org.can_edit && <OrganizationProfileForm org={org} tr={tr} />}
       </Card>
 
       <Card style={{ padding: '20px 22px', marginBottom: 16 }}>

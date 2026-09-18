@@ -60,6 +60,11 @@ const BENEFITS: Record<string, { title: string; description: string }> = {
     description:
       'Authentification centralisée via votre annuaire d’entreprise. Disponible à partir du plan Business.',
   },
+  vendor_risk: {
+    title: 'Gestion des risques fournisseurs (TPRM)',
+    description:
+      'Registre fournisseurs, questionnaires envoyés par lien, score fournisseur et relances automatiques. Disponible à partir du plan Business.',
+  },
 };
 
 const PLAN_LABEL: Record<string, string> = {

@@ -38,8 +38,11 @@ type PermissionKey = string
 type PermissionGroup string
 
 const (
-	PermGroupRisks       PermissionGroup = "risks"
-	PermGroupAssets      PermissionGroup = "assets"
+	PermGroupRisks  PermissionGroup = "risks"
+	PermGroupAssets PermissionGroup = "assets"
+	// PermGroupVendors covers TPRM (ADR 0004 D7): the vendor register, vendor
+	// links, questionnaires and their review.
+	PermGroupVendors     PermissionGroup = "vendors"
 	PermGroupMitigations PermissionGroup = "mitigations"
 	PermGroupVulns       PermissionGroup = "vulnerabilities"
 	PermGroupIncidents   PermissionGroup = "incidents"
@@ -89,6 +92,13 @@ var PermissionCatalog = []PermissionDef{
 	{"assets:create", PermGroupAssets, "Créer des actifs", "Create assets"},
 	{"assets:update", PermGroupAssets, "Modifier les actifs", "Update assets"},
 	{"assets:delete", PermGroupAssets, "Supprimer des actifs", "Delete assets"},
+	// Vendors (TPRM v1, ADR 0004 D7). They mirror the asset keys on purpose: a
+	// vendor IS an asset, so whoever may read assets may read the vendor
+	// register, and whoever may update assets may link vendors and send their
+	// questionnaires. The presets below grant them exactly where the asset keys
+	// are granted, and TestBusinessRoles_VendorKeysMirrorAssetKeys pins that.
+	{"vendors:read", PermGroupVendors, "Lire le registre fournisseurs", "Read the vendor register"},
+	{"vendors:manage", PermGroupVendors, "Gérer les fournisseurs et leurs évaluations", "Manage vendors and their assessments"},
 	// Mitigations
 	{"mitigations:read", PermGroupMitigations, "Lire les plans de traitement", "Read mitigations"},
 	{"mitigations:create", PermGroupMitigations, "Créer des plans de traitement", "Create mitigations"},
@@ -219,7 +229,7 @@ var businessRoles = []BusinessRole{
 			"vulnerabilities:read", "vulnerabilities:update",
 			"incidents:read", "incidents:create", "incidents:update",
 			"mitigations:read", "mitigations:create", "mitigations:update",
-			"assets:read",
+			"assets:read", "vendors:read",
 			"compliance:read", "compliance:frameworks:read", "compliance:controls:read", "compliance:controls:update", "compliance:evidences:read",
 			"automation:read", "automation:write",
 			"scanner:read", "scanner:scan", "scanner:import",
@@ -235,7 +245,7 @@ var businessRoles = []BusinessRole{
 		DefaultLanding: "/assets",
 		Permissions: []PermissionKey{
 			"risks:read", "risks:create", "risks:update",
-			"assets:read", "assets:create", "assets:update", "assets:delete",
+			"assets:read", "assets:create", "assets:update", "assets:delete", "vendors:read", "vendors:manage",
 			"mitigations:read", "mitigations:create", "mitigations:update",
 			"vulnerabilities:read",
 			"incidents:read", "incidents:create", "incidents:update",
@@ -255,7 +265,7 @@ var businessRoles = []BusinessRole{
 		Permissions: []PermissionKey{
 			"risks:read", "risks:create", "risks:update", "risks:delete",
 			"mitigations:read", "mitigations:create", "mitigations:update", "mitigations:delete",
-			"assets:read",
+			"assets:read", "vendors:read",
 			"vulnerabilities:read",
 			"compliance:read", "compliance:frameworks:read", "compliance:controls:read",
 			"reports:board:read", "reports:board:create", "reports:board:update",
@@ -271,7 +281,7 @@ var businessRoles = []BusinessRole{
 		DefaultLanding: "/compliance",
 		Permissions: []PermissionKey{
 			"risks:read",
-			"assets:read",
+			"assets:read", "vendors:read",
 			"mitigations:read",
 			"vulnerabilities:read",
 			"incidents:read",
@@ -290,7 +300,7 @@ var businessRoles = []BusinessRole{
 		DefaultLanding: "/compliance",
 		Permissions: []PermissionKey{
 			"risks:read",
-			"assets:read",
+			"assets:read", "vendors:read",
 			"mitigations:read",
 			"compliance:read",
 			"compliance:frameworks:read", "compliance:frameworks:create",
@@ -310,7 +320,7 @@ var businessRoles = []BusinessRole{
 		DefaultLanding: "/compliance",
 		Permissions: []PermissionKey{
 			"risks:read",
-			"assets:read",
+			"assets:read", "vendors:read",
 			"mitigations:read", "mitigations:update",
 			"compliance:read",
 			"compliance:frameworks:read",
@@ -329,7 +339,7 @@ var businessRoles = []BusinessRole{
 		DescriptionEN:  "Asset owner: manages their asset scope and tracks associated risks.",
 		DefaultLanding: "/assets",
 		Permissions: []PermissionKey{
-			"assets:read", "assets:create", "assets:update",
+			"assets:read", "assets:create", "assets:update", "vendors:read", "vendors:manage",
 			"risks:read",
 			"mitigations:read", "mitigations:update",
 			"vulnerabilities:read",
@@ -346,7 +356,7 @@ var businessRoles = []BusinessRole{
 		Permissions: []PermissionKey{
 			"risks:read", "risks:update",
 			"mitigations:read", "mitigations:create", "mitigations:update",
-			"assets:read",
+			"assets:read", "vendors:read",
 			"vulnerabilities:read",
 			"compliance:read",
 		},
@@ -363,7 +373,7 @@ var businessRoles = []BusinessRole{
 			"vulnerabilities:read", "vulnerabilities:update", "vulnerabilities:delete",
 			"incidents:read", "incidents:create", "incidents:update", "incidents:delete",
 			"mitigations:read", "mitigations:create", "mitigations:update",
-			"assets:read",
+			"assets:read", "vendors:read",
 			"scanner:read", "scanner:create", "scanner:scan", "scanner:import", "scanner:delete",
 			"automation:read", "automation:write",
 			"compliance:read", "compliance:controls:read",
@@ -391,7 +401,7 @@ var businessRoles = []BusinessRole{
 		DefaultLanding: "/",
 		Permissions: []PermissionKey{
 			"risks:read",
-			"assets:read",
+			"assets:read", "vendors:read",
 			"mitigations:read",
 			"vulnerabilities:read",
 			"incidents:read",

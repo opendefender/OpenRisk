@@ -37,7 +37,7 @@ export function OnboardingWizard() {
   const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
   const navigate = useNavigate();
   const { pathname } = useLocation();
-  const { data: state, isLoading, isError } = useOnboardingState();
+  const { data: state, isLoading, errorUpdatedAt, isFetching, refetch } = useOnboardingState();
 
   // Criterion 3: the visible sequence is the server's, never the catalogue's.
   // The fallback applies only before the first response — showing an empty rail
@@ -199,20 +199,29 @@ export function OnboardingWizard() {
 
       <main className="flex-1 px-5 sm:px-8 py-6 flex justify-center">
         <div className="w-full max-w-[640px]" ref={headingAnchor}>
-          {isLoading && !state ? (
+          {isLoading && !state && !errorUpdatedAt ? (
             <WizardSkeleton label={t('onboarding.tunnel.loading')} />
-          ) : isError && !state ? (
+          ) : !state && errorUpdatedAt ? (
             // The tunnel blocks the app, so a failed load must say so rather
             // than render an empty frame the user cannot act on or leave.
+            // `errorUpdatedAt`, not `isError`: a refetch of a query that never
+            // succeeded clears `isError` (see OnboardingCompletedRedirect), and
+            // this screen must stay up while its own retry is in flight (#696).
             <div className="py-10" role="alert">
               <p className="text-[14px] text-ink m-0">{t('onboarding.tunnel.loadFailed')}</p>
+              {/* Refetch in place, never navigate(0): a full reload restarts
+                the whole auth + guard sequence just to land on this screen
+                again while the server is still failing. */}
               <button
                 type="button"
-                onClick={() => navigate(0)}
-                className="mt-4 px-4 py-2 rounded-lg text-[13px] font-semibold"
+                data-testid="wizard-load-retry"
+                onClick={() => void refetch()}
+                disabled={isFetching}
+                aria-busy={isFetching}
+                className="mt-4 px-4 py-2 rounded-lg text-[13px] font-semibold disabled:opacity-60 disabled:cursor-wait"
                 style={{ background: 'var(--accent-solid)', color: 'var(--fg-on-solid)' }}
               >
-                {t('onboarding.tunnel.retry')}
+                {isFetching ? t('onboarding.tunnel.loading') : t('onboarding.tunnel.retry')}
               </button>
             </div>
           ) : (

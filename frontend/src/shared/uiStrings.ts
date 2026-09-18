@@ -10,7 +10,6 @@ import { useUIStore, type Lang } from '../store/uiStore';
 
 const fr = {
   brandShort: 'OpenRisk',
-  enterprise: 'Enterprise',
   ciso: 'RSSI',
   newRisk: 'Nouveau risque',
   search: 'Rechercher…',
@@ -26,7 +25,6 @@ const fr = {
   g_report: 'Reporting & IA',
   g_admin: 'Admin',
   g_pilot: 'Piloter',
-  g_monitor: 'Surveiller',
   g_identify: 'Identifier',
   g_evaluate: 'Évaluer',
   g_treat: 'Traiter',
@@ -41,6 +39,7 @@ const fr = {
   n_cti: 'Threat Intel',
   n_assets: 'Inventaire',
   n_universe: 'Topologie',
+  n_vendors: 'Fournisseurs',
   n_assetSchemas: 'Attributs par catégorie',
   n_evidence: 'Preuves',
   n_reports: 'Rapports',
@@ -232,7 +231,6 @@ const fr = {
 
 const en: typeof fr = {
   brandShort: 'OpenRisk',
-  enterprise: 'Enterprise',
   ciso: 'CISO',
   newRisk: 'New risk',
   search: 'Search…',
@@ -248,7 +246,6 @@ const en: typeof fr = {
   g_report: 'Reporting & AI',
   g_admin: 'Admin',
   g_pilot: 'Pilot',
-  g_monitor: 'Monitor',
   g_identify: 'Identify',
   g_evaluate: 'Evaluate',
   g_treat: 'Treat',
@@ -263,6 +260,7 @@ const en: typeof fr = {
   n_cti: 'Threat Intel',
   n_assets: 'Inventory',
   n_universe: 'Topology',
+  n_vendors: 'Vendors',
   n_assetSchemas: 'Attributes by category',
   n_evidence: 'Evidence',
   n_reports: 'Reports',

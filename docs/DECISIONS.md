@@ -7,6 +7,120 @@ recommends, and surfaces these in the daily brief. Run `/decide` to clear them.
 
 ## Resolved
 
+### D-046 — ADR 0004 D6: the reminder worker's two departures are accepted as built · decided 2026-09-15
+**Decided (owner)** — **Keep both departures that PR #679 flagged, and amend D6 to match.** Both
+answers match the recommendation.
+
+**Context** — Building #672 (PR #679), two sentences of ADR 0004 D6 could not be honoured as
+written. The implementation departed from them and flagged both for confirmation instead of
+deciding alone:
+1. D6 says every reminder mints a new token that supersedes the previous one. On a server with
+   no mail transport, that token reaches nobody, and the vendor's working link would answer 410.
+2. D6 says minting the token, stamping the reminder and writing the audit event are one
+   transaction. The audit recorder writes to its own hash-chained store, which cannot join a
+   TPRM transaction.
+
+**Options put to the owner**
+- On 1:
+  - **A.** Keep the link: stamp the reminder, mint nothing, and tell the owner in-app
+    (`mail_unavailable`).
+  - **B.** Follow D6 literally: mint anyway, which strands the vendor until someone resends.
+  - **C.** Skip the reminder entirely without mail: no stamp and no owner notice.
+- On 2:
+  - **A.** Write the audit event best-effort immediately after the commit, as every other TPRM
+    audit event is.
+  - **B.** Guarantee it through an outbox in the TPRM transaction, relayed to the audit store:
+    an audit redesign, which needs its own ADR.
+
+**Decided** — 1 → **A**, 2 → **A**.
+
+**Rationale**
+- **On 1:** a reminder exists to get an answer, and superseding the one link the vendor can use
+  works against that. The owner still learns that a chase is needed.
+- **On 2:** it matches every other TPRM audit event and needs no change to the audit design. The
+  accepted cost, stated: a crash between the commit and the audit write loses that one
+  reminder's audit event. The reminder itself stays stamped, and the mail and the owner's
+  notice are unaffected.
+
+**Reversibility, stated** — both are reversible.
+- **On 1:** a later change only affects reminders sent after it.
+- **On 2:** an outbox can be added later without changing stored data.
+
+**Consequence**
+- ADR 0004 D6 is amended in place to describe the built behaviour.
+- No code change: PR #679 already implements both, and its tests pin them.
+- #672 is not blocked.
+
+**Unblocked** — nothing was blocked; this confirms PR #679 as reviewable against its ADR.
+
+### D-045 — ADR 0004 (Vendor and Assessment, TPRM v1) is accepted as written · decided 2026-09-15
+**Decided (owner)** — **A.** Accepted as written, with no amendment. Matches the recommendation.
+
+**Context** — D-030 forbids code on `Vendor` and `Assessment` before their ADR. ADR 0004 (#668,
+PR #675) specified both inside D-044's four answers. It also made choices of its own, which were
+put to the owner explicitly:
+- score thresholds 70 / 40 / 20;
+- an unanswered question counts as unfavourable, and N/A is excluded;
+- every reminder issues a new link, and the previous one answers 410;
+- 7 days of grace after the due date;
+- no IP address or user agent stored;
+- no pre-filled regulatory questionnaire in v1.
+
+All six stand as written.
+
+**Rationale** — every choice follows from D-044 or from a pattern already in the code: ADR 0001's
+vendor-as-asset, the invitation token, and `MitigationDueWorker`.
+
+**Reversibility, stated** — the ADR can still be amended cheaply until #670 merges. After that,
+two things are partly irreversible:
+- **mailed link format** — once the link format has been sent to vendors, links already in their mailboxes keep it;
+- **stored scores** — scores stored as `vendorscore/1` are never silently recomputed, so a formula change needs a new version.
+
+**Consequence**
+- ADR 0004 status becomes `accepted`.
+- #669 and #670 move to `status:ready`: their only block was this ADR.
+- #671, #672, #673 and #674 stay `status:blocked`, now only on sibling issues, as listed in epic #214.
+- Epic #214 moves to `status:in-progress`.
+
+**Unblocked** — #669 · #670.
+
+### D-044 — TPRM v1 is built, and its slice of the canonical model is specified first · decided 2026-09-15
+**Decided (owner)** — four answers, given together:
+1. **Order: ADR first.** `Vendor` and `Assessment` are specified in ADR 0004 (#668) before any
+   code. This respects D-030 without waiting for all 17 entities of #541.
+2. **Public link: an opaque token, and nothing else.** 256 random bits, **stored hashed
+   only**, bound to one assessment, with expiry, revocation and rate limiting. No vendor
+   accounts and no one-time code.
+3. **Scoring: a separate vendor score** from 0 to 100, from weighted answers. It is **never** an
+   input to `Risk.Score`, SmartScore or asset criticality, so the frozen Score Engine does not
+   change and needs no ADR.
+4. **Plan: Business and Enterprise.** Free and Pro do not get TPRM.
+
+Choices 1 to 3 match the recommendation. No recommendation was made on the plan: it is a
+pricing decision.
+
+**Context** — the request was "TPRM v1: registre fournisseurs, questionnaire envoyable par lien
+public, scoring, relances J-7/J-3/J-1, lien fournisseur→actif→risque". The spike meant to decide
+whether OpenRisk has TPRM at all (#495) was open with no answer. #214 already held this scope
+under a retired Wave milestone (D-029). `Vendor` and `Assessment` are canonical entities of
+#541, which D-030 forbids coding before its ADR.
+
+What exists was read, not assumed:
+- A vendor is already an asset of category `vendor`, with an attribute schema
+  (`backend/internal/domain/asset_schema_defaults.go`) and a drawer type (ADR 0001, D5b).
+- Asset-to-asset edges exist (`AssetDependency`), and risks link to assets through `risk_assets`.
+- **Nothing exists** for questionnaires, assessments, public links, vendor scores, reminders,
+  or plan gating of TPRM.
+
+**Consequence**
+- #495 is answered.
+- ADR 0004 is proposed on #668.
+- Six implementation issues are opened `status:blocked` on its acceptance, under epic #214.
+- #541 must adopt or explicitly supersede ADR 0004's shapes; it must not define competing ones.
+
+**Not decided here** — the content of ADR 0004. It needs its own acceptance.
+**Unblocked** — #668.
+
 ### D-043 — what the PR-blocking E2E gate should be, now that it can run · decided 2026-09-15
 **Decided (owner)** — **B.** Pull requests run a curated blocking set,
 `journey.members` included, within the 25-minute budget; the full suite runs nightly.

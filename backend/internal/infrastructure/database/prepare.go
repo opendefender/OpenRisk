@@ -39,6 +39,9 @@ func PrepareForAutoMigrate(db *gorm.DB) error {
 	if err := prepareMembershipIntegrity(db); err != nil {
 		return fmt.Errorf("organization_members: %w", err)
 	}
+	if err := prepareVendorAssessmentTokens(db); err != nil {
+		return fmt.Errorf("vendor_assessment_tokens: %w", err)
+	}
 	return nil
 }
 
@@ -92,6 +95,26 @@ func prepareMembershipIntegrity(db *gorm.DB) error {
 		}
 	}
 	return nil
+}
+
+// prepareVendorAssessmentTokens creates the partial unique index that keeps at
+// most one ACTIVE public link per vendor assessment (ADR 0004 D4). AutoMigrate
+// cannot express a partial index. It mirrors
+// migrations/0062_vendor_assessment_tokens_one_active.up.sql, so a deployment
+// whose migration chain is behind still boots with the constraint in place.
+//
+// Idempotent; a no-op outside Postgres, and on a fresh database where the table
+// does not exist yet — there, AutoMigrate builds the table and migration 0062
+// creates the index right after.
+func prepareVendorAssessmentTokens(db *gorm.DB) error {
+	if db.Dialector.Name() != "postgres" {
+		return nil
+	}
+	if !db.Migrator().HasTable("vendor_assessment_tokens") {
+		return nil
+	}
+	return db.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS idx_vendor_assessment_tokens_one_active
+	                    ON vendor_assessment_tokens (assessment_id) WHERE superseded_at IS NULL`).Error
 }
 
 // backfillRefreshTokenFamilies gives every pre-existing refresh token a family

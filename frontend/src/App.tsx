@@ -66,6 +66,11 @@ const AcceptInvitationPage = lazy(() =>
     default: m.AcceptInvitationPage,
   })),
 );
+const VendorQuestionnairePage = lazy(() =>
+  import('./features/tprm/VendorQuestionnairePage').then((m) => ({
+    default: m.VendorQuestionnairePage,
+  })),
+);
 const ForgotPasswordScreen = lazy(() =>
   import('./features/auth/ForgotPasswordScreen').then((m) => ({ default: m.ForgotPasswordScreen })),
 );
@@ -137,6 +142,27 @@ const RemediationPage = lazy(() =>
 );
 const InventoryPage = lazy(() =>
   import('./features/assets/InventoryPage').then((m) => ({ default: m.InventoryPage })),
+);
+const QuestionnaireTemplatesPage = lazy(() =>
+  import('./features/tprm/QuestionnaireTemplatesPage').then((m) => ({
+    default: m.QuestionnaireTemplatesPage,
+  })),
+);
+const QuestionnaireTemplateEditorPage = lazy(() =>
+  import('./features/tprm/QuestionnaireTemplateEditorPage').then((m) => ({
+    default: m.QuestionnaireTemplateEditorPage,
+  })),
+);
+const VendorsPage = lazy(() =>
+  import('./features/tprm/VendorsPage').then((m) => ({ default: m.VendorsPage })),
+);
+const VendorDetailPage = lazy(() =>
+  import('./features/tprm/VendorDetailPage').then((m) => ({ default: m.VendorDetailPage })),
+);
+const VendorAssessmentPage = lazy(() =>
+  import('./features/tprm/VendorAssessmentPage').then((m) => ({
+    default: m.VendorAssessmentPage,
+  })),
 );
 const AssetSchemaSettings = lazy(() => import('./features/attackSurface/AssetSchemaSettings'));
 const TopologyView = lazy(() => import('./features/attackSurface/TopologyView'));
@@ -501,7 +527,7 @@ function RouteFallback() {
         className="h-8 w-8 rounded-full animate-spin"
         style={{
           border: '3px solid var(--border-subtle)',
-          borderTopColor: 'var(--accent, #2e6be6)',
+          borderTopColor: 'var(--accent)',
         }}
         role="status"
         aria-label="Chargement…"
@@ -535,6 +561,10 @@ function App() {
             the invitation before asking for anything, and the server binds it
             to the invited address. */}
           <Route path="/invitations/accept" element={<AcceptInvitationPage />} />
+          {/* Vendor questionnaire (#674). Public by necessity: the vendor contact
+            has no account. No ProtectedRoute and no app shell; the token is read
+            from the URL fragment and the page sends no session. */}
+          <Route path="/vendor-questionnaire" element={<VendorQuestionnairePage />} />
 
           {/* Signup wizard — authenticated but OUTSIDE the app shell: the point of
             these five screens is that nothing else competes for attention. The
@@ -661,6 +691,23 @@ function App() {
               on its replacement rather than a 404. */}
             <Route path="assets/universe" element={<Navigate to="/assets/topology" replace />} />
             <Route path="assets/schemas" element={<AssetSchemaSettings />} />
+
+            {/* ---------------- Vendors (TPRM v1) ---------------- */}
+            <Route path="vendors" element={<VendorsPage />} />
+            <Route path="vendors/:vendorId" element={<VendorDetailPage />} />
+            <Route
+              path="vendors/:vendorId/assessments/:assessmentId"
+              element={<VendorAssessmentPage />}
+            />
+            <Route path="vendors/questionnaires" element={<QuestionnaireTemplatesPage />} />
+            <Route
+              path="vendors/questionnaires/new"
+              element={<QuestionnaireTemplateEditorPage />}
+            />
+            <Route
+              path="vendors/questionnaires/:templateId"
+              element={<QuestionnaireTemplateEditorPage />}
+            />
             <Route path="assets/topology" element={<TopologyView />} />
             <Route path="infrastructure" element={<InfrastructurePage />} />
             <Route path="infrastructure/scans/:jobId" element={<ScanPreviewPage />} />

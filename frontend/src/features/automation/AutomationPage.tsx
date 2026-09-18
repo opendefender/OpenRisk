@@ -129,8 +129,8 @@ export function AutomationPage() {
       onClick={() => setTab(id)}
       className="h-9 px-3.5 rounded-[9px] text-[12.5px] font-semibold inline-flex items-center gap-1.5"
       style={{
-        background: tab === id ? 'var(--accent)' : 'transparent',
-        color: tab === id ? '#fff' : 'var(--fg-secondary)',
+        background: tab === id ? 'var(--accent-solid)' : 'transparent',
+        color: tab === id ? 'var(--fg-on-solid)' : 'var(--fg-secondary)',
         border: tab === id ? 'none' : '1px solid var(--border-strong)',
       }}
     >
@@ -503,7 +503,7 @@ function TemplateGallery({ onClose }: { onClose: () => void }) {
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ background: 'rgba(0,0,0,.35)' }}
+      style={{ background: 'var(--surface-overlay)', backdropFilter: 'blur(var(--overlay-blur))' }}
     >
       <div
         role="dialog"

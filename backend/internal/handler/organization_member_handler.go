@@ -273,6 +273,22 @@ func (h *OrganizationMemberHandler) GetOrganization(c *fiber.Ctx) error {
 	return c.JSON(view)
 }
 
+// UpdateOrganization — PUT /organization (#299)
+//
+// Partial update of the caller's own organization profile. There is no id in
+// the path or the body: the organization is the session's tenant.
+func (h *OrganizationMemberHandler) UpdateOrganization(c *fiber.Ctx) error {
+	var patch domain.OrganizationProfilePatch
+	if err := c.BodyParser(&patch); err != nil {
+		return writeAppError(c, domain.NewValidationError("invalid request body"))
+	}
+	view, err := h.svc.UpdateOrganization(c.UserContext(), tenantID(c), userID(c), isOrgAdmin(c), patch)
+	if err != nil {
+		return writeAppError(c, err)
+	}
+	return c.JSON(view)
+}
+
 // GetCounts — GET /organization/counts
 //
 // What the sidebar reads. Available to any authenticated member: knowing how

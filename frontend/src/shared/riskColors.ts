@@ -13,16 +13,39 @@ export const critColor: Record<Criticality, string> = {
   low: 'var(--low)',
 };
 
-/** Framework badge colors (dc.html §11). */
+/**
+ * Framework identity colours.
+ *
+ * A framework is a CATEGORY, not a verdict, so it takes a chart series token
+ * and never a semantic one — BCEAO drawn in --danger would read as an alert.
+ * Series tokens are re-tuned per theme, which the hex literals that used to
+ * live here were not: #ff9f0a on the light canvas measured under 2:1.
+ *
+ * This is the only copy. complianceOverview.ts and FwBadge used to carry their
+ * own, and they disagreed (BCEAO was green on one screen, orange on the next).
+ */
 export const frameworkColor: Record<string, string> = {
-  ISO27001: '#7c6cff',
-  COBAC: '#30d158',
-  BCEAO: '#ff9f0a',
-  NIST: '#0a84ff',
-  DORA: '#ff2d92',
-  SOC2: '#64d2ff',
-  ANSSI: '#ff453a',
+  ISO27001: 'var(--chart-2)',
+  COBAC: 'var(--chart-3)',
+  BCEAO: 'var(--chart-4)',
+  NIST: 'var(--chart-1)',
+  DORA: 'var(--chart-7)',
+  SOC2: 'var(--chart-6)',
+  ANSSI: 'var(--chart-5)',
+  ANTIC: 'var(--chart-8)',
 };
+
+/** Fallback series for a framework with no assigned colour, in chart order. */
+export const SERIES = [
+  'var(--chart-1)',
+  'var(--chart-2)',
+  'var(--chart-3)',
+  'var(--chart-4)',
+  'var(--chart-5)',
+  'var(--chart-6)',
+  'var(--chart-7)',
+  'var(--chart-8)',
+];
 
 // scoreColor(number) and scoreToCriticality(number) USED TO LIVE HERE.
 //

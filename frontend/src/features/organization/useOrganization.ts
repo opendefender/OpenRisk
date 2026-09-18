@@ -14,6 +14,8 @@ import {
   type MemberRole,
   type MembershipStatus,
   type InvitationStatus,
+  type OrganizationProfilePatch,
+  type OrganizationView,
 } from './organizationService';
 
 export const ORG_KEY = ['organization'] as const;
@@ -38,6 +40,34 @@ export function useOrganization() {
   return useQuery({
     queryKey: ORG_KEY,
     queryFn: () => organizationService.getOrganization(),
+  });
+}
+
+/**
+ * Save the organization profile optimistically: the form's values show at once,
+ * and the previous profile is put back if the server refuses them.
+ */
+export function useUpdateOrganization() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (patch: OrganizationProfilePatch) => organizationService.updateOrganization(patch),
+    onMutate: async (patch) => {
+      await qc.cancelQueries({ queryKey: ORG_KEY, exact: true });
+      const previous = qc.getQueryData<OrganizationView>(ORG_KEY);
+      if (previous) {
+        const changes = Object.fromEntries(
+          Object.entries(patch).filter(([, v]) => v !== undefined),
+        );
+        qc.setQueryData<OrganizationView>(ORG_KEY, { ...previous, ...changes });
+      }
+      return { previous };
+    },
+    onError: (_err, _patch, ctx) => {
+      if (ctx?.previous) qc.setQueryData(ORG_KEY, ctx.previous);
+    },
+    onSuccess: (view) => {
+      qc.setQueryData(ORG_KEY, view);
+    },
   });
 }
 

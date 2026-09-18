@@ -25,6 +25,7 @@ frontend greys/explains from it.
 | Compliance       | Basic    | Standard  | Advanced     | Custom         |
 | Threat intel (CTI) | —      | —         | ✓            | Advanced       |
 | Governance / approvals | —  | —         | ✓            | Advanced       |
+| Vendor risk (TPRM) | —      | —         | ✓            | ✓              |
 | SSO / SAML       | —        | —         | ✓            | Advanced       |
 | Multi-tenant     | —        | —         | —            | ✓              |
 | On-premise       | —        | —         | —            | ✓              |

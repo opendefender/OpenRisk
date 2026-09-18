@@ -26,6 +26,7 @@ import {
   SkeletonRows,
   EmptyState,
   ErrorState,
+  Chip,
 } from '../../shared/ui';
 import { useUIStore } from '../../store/uiStore';
 import { useAuthStore } from '../../hooks/useAuthStore';
@@ -165,7 +166,7 @@ export function GapAnalysisPage() {
             <span className="inline-flex items-center gap-1.5 text-[12px] text-ink-muted mr-1">
               <Filter size={13} /> {tr('Filtrer', 'Filter')}
             </span>
-            <FilterChip
+            <Chip
               label={tr('Tous', 'All')}
               active={fwFilter === 'all'}
               onClick={() => setFwFilter('all')}
@@ -174,7 +175,7 @@ export function GapAnalysisPage() {
             {(data?.frameworks ?? [])
               .filter((f) => f.gaps > 0)
               .map((f) => (
-                <FilterChip
+                <Chip
                   key={f.framework_id}
                   label={f.framework_name}
                   active={fwFilter === f.framework_id}
@@ -302,39 +303,5 @@ export function GapAnalysisPage() {
         />
       )}
     </PageFrame>
-  );
-}
-
-function FilterChip({
-  label,
-  active,
-  onClick,
-  count,
-}: {
-  label: string;
-  active?: boolean;
-  onClick?: () => void;
-  count?: number;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className="inline-flex items-center gap-1.5 h-7 px-3 rounded-full text-[12px] font-semibold transition-colors"
-      style={{
-        border: '1px solid var(--border-strong)',
-        background: active ? 'var(--accent)' : 'transparent',
-        color: active ? '#fff' : 'var(--text-soft)',
-      }}
-    >
-      {label}
-      {typeof count === 'number' && (
-        <span
-          className="text-[10.5px] font-bold px-1.5 rounded-full"
-          style={{ background: active ? 'rgba(255,255,255,.25)' : 'var(--hover)' }}
-        >
-          {count}
-        </span>
-      )}
-    </button>
   );
 }

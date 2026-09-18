@@ -188,7 +188,7 @@ export function ProductTour() {
           ...style,
           background: 'var(--bg-elevated)',
           border: '1px solid var(--border-strong)',
-          boxShadow: '0 16px 40px rgba(0,0,0,.28)',
+          boxShadow: 'var(--elev-3)',
           animation: 'or-scalein .18s ease',
         }}
       >

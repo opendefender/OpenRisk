@@ -34,43 +34,46 @@ export interface ProviderMeta {
   category: 'cloud' | 'container' | 'identity' | 'forge' | 'onprem';
 }
 
+// Provider hues are chart series tokens, not brand colours: the card draws a
+// generic lucide glyph, not a logo, so a brand hex bought nothing but a value
+// that could not follow the theme. Hues stay distinct within each category.
 export const PROVIDERS: Record<ScannerProvider, ProviderMeta> = {
-  aws: { short: 'AWS', color: '#ff9f0a', icon: Cloud, cloud: true, category: 'cloud' },
-  azure: { short: 'Azure', color: '#0a84ff', icon: Cloud, cloud: true, category: 'cloud' },
-  gcp: { short: 'GCP', color: '#30d158', icon: Cloud, cloud: true, category: 'cloud' },
+  aws: { short: 'AWS', color: 'var(--chart-4)', icon: Cloud, cloud: true, category: 'cloud' },
+  azure: { short: 'Azure', color: 'var(--chart-1)', icon: Cloud, cloud: true, category: 'cloud' },
+  gcp: { short: 'GCP', color: 'var(--chart-3)', icon: Cloud, cloud: true, category: 'cloud' },
   kubernetes: {
     short: 'Kubernetes',
-    color: '#326ce5',
+    color: 'var(--chart-1)',
     icon: Boxes,
     cloud: true,
     category: 'container',
   },
   docker: {
     short: 'Docker',
-    color: '#2496ed',
+    color: 'var(--chart-6)',
     icon: Container,
     cloud: true,
     category: 'container',
   },
-  vmware: { short: 'VMware', color: '#8a9aa6', icon: Server, cloud: true, category: 'container' },
+  vmware: { short: 'VMware', color: 'var(--chart-8)', icon: Server, cloud: true, category: 'container' },
   active_directory: {
     short: 'Active Directory',
-    color: '#00a4ef',
+    color: 'var(--chart-6)',
     icon: Building2,
     cloud: true,
     category: 'identity',
   },
   m365: {
     short: 'Microsoft 365',
-    color: '#eb3c00',
+    color: 'var(--chart-5)',
     icon: Users,
     cloud: true,
     category: 'identity',
   },
-  github: { short: 'GitHub', color: '#8957e5', icon: GitBranch, cloud: true, category: 'forge' },
-  gitlab: { short: 'GitLab', color: '#fc6d26', icon: GitBranch, cloud: true, category: 'forge' },
-  nmap: { short: 'On-Premise', color: '#7c6cff', icon: Network, cloud: false, category: 'onprem' },
-  agent: { short: 'Agent', color: '#64d2ff', icon: Server, cloud: false, category: 'onprem' },
+  github: { short: 'GitHub', color: 'var(--chart-7)', icon: GitBranch, cloud: true, category: 'forge' },
+  gitlab: { short: 'GitLab', color: 'var(--chart-4)', icon: GitBranch, cloud: true, category: 'forge' },
+  nmap: { short: 'On-Premise', color: 'var(--chart-2)', icon: Network, cloud: false, category: 'onprem' },
+  agent: { short: 'Agent', color: 'var(--chart-6)', icon: Server, cloud: false, category: 'onprem' },
 };
 
 export interface CredField {

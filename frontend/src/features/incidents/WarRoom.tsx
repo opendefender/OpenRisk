@@ -451,8 +451,8 @@ export function WarRoom() {
         <div
           className="fixed inset-0 z-90 flex items-center justify-center"
           style={{
-            background: 'rgba(0,0,0,.5)',
-            backdropFilter: 'blur(6px)',
+            background: 'var(--surface-overlay)',
+            backdropFilter: 'blur(var(--overlay-blur))',
             animation: 'or-fadein .16s ease',
           }}
           onClick={() => setConfirmClose(false)}

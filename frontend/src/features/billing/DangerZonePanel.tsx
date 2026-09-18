@@ -62,7 +62,7 @@ export function DangerZonePanel() {
       <div
         className="rounded-[16px] p-[22px]"
         style={{
-          border: '1px solid rgba(255,69,58,.35)',
+          border: '1px solid color-mix(in srgb, var(--danger) 35%, transparent)',
           background: 'color-mix(in srgb,var(--critical) 6%,transparent)',
         }}
       >
@@ -74,12 +74,7 @@ export function DangerZonePanel() {
         </div>
         <div className="text-[13px] text-ink-soft mb-1">
           L'organisation <strong>{orgName}</strong> sera définitivement supprimée le{' '}
-          <strong>
-            {state.scheduled_purge_at
-              ? fmt.date(state.scheduled_purge_at)
-              : ''}
-          </strong>
-          .
+          <strong>{state.scheduled_purge_at ? fmt.date(state.scheduled_purge_at) : ''}</strong>.
         </div>
         <div className="text-[13px] text-ink-soft mb-4">
           Il reste <strong>{state.days_remaining ?? 0} jour(s)</strong> pour annuler. Un export
@@ -122,7 +117,7 @@ export function DangerZonePanel() {
       <div
         className="rounded-[16px] p-[22px]"
         style={{
-          border: '1px solid rgba(255,69,58,.35)',
+          border: '1px solid color-mix(in srgb, var(--danger) 35%, transparent)',
           background: 'color-mix(in srgb,var(--critical) 5%,transparent)',
         }}
       >
@@ -170,7 +165,7 @@ export function DangerZonePanel() {
           disabled={!nameOk || request.isPending}
           className="h-[38px] px-4 rounded-[10px] text-[13px] font-semibold disabled:opacity-50 disabled:pointer-events-none"
           style={{
-            border: '1px solid rgba(255,69,58,.5)',
+            border: '1px solid color-mix(in srgb, var(--danger) 50%, transparent)',
             color: 'var(--critical)',
             background: 'color-mix(in srgb,var(--critical) 8%,transparent)',
           }}

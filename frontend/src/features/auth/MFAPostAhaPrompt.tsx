@@ -84,7 +84,7 @@ export function MFAPostAhaPrompt() {
   return createPortal(
     <div
       className="fixed inset-0 z-75 flex items-center justify-center p-4"
-      style={{ background: 'rgba(0,0,0,.45)', backdropFilter: 'blur(3px)' }}
+      style={{ background: 'var(--surface-overlay)', backdropFilter: 'blur(var(--overlay-blur))' }}
       onClick={() => setOpen(false)}
     >
       <div

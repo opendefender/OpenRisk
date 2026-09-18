@@ -1165,6 +1165,262 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/vendors": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the vendor register
+         * @description A vendor is an asset of category vendor (ADR 0004 D1). Requires vendors:read and the vendor_risk entitlement, which Business and Enterprise include; other plans answer 402. latest_assessment is null until the assessment module (#670) is wired.
+         */
+        get: operations["listVendors"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/vendors/{id}/chain": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read the vendor→asset→risk chain, one hop deep */
+        get: operations["getVendorChain"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/vendors/{id}/assets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Link an asset to the vendor
+         * @description Creates an asset dependency edge. managed_by, hosted_by and depends_on are stored asset → vendor; processes_data_of is stored vendor → asset.
+         */
+        post: operations["linkVendorAsset"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/vendors/{id}/assets/{linkId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Remove a link of the vendor */
+        delete: operations["unlinkVendorAsset"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/vendor-questionnaire-templates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List questionnaire templates, without their questions */
+        get: operations["listVendorQuestionnaireTemplates"];
+        put?: never;
+        /** Author a questionnaire template (version 1) */
+        post: operations["createVendorQuestionnaireTemplate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/vendor-questionnaire-templates/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read a template with its questions */
+        get: operations["getVendorQuestionnaireTemplate"];
+        /**
+         * Replace a template's fields and questions as a new version
+         * @description Assessments already sent keep the questions they were sent with.
+         */
+        put: operations["updateVendorQuestionnaireTemplate"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/vendor-questionnaire-templates/{id}/archive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Archive a template (idempotent); it can no longer be sent or edited */
+        post: operations["archiveVendorQuestionnaireTemplate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/vendors/{id}/assessments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List a vendor's assessments, newest first, with their effective status */
+        get: operations["listVendorAssessments"];
+        put?: never;
+        /**
+         * Send a questionnaire to the vendor
+         * @description Snapshots the template's questions, mints the public link and mails it. questionnaire_url is returned ONLY when the email could not go out.
+         */
+        post: operations["sendVendorAssessment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/vendor-assessments/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read an assessment with its items and answers (reviewer view) */
+        get: operations["getVendorAssessment"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/vendor-assessments/{id}/revoke": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Withdraw an open questionnaire; its link then answers 410 */
+        post: operations["revokeVendorAssessment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/vendor-assessments/{id}/resend": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Issue and mail a new link; the previous link answers 410 */
+        post: operations["resendVendorAssessment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/public/vendor-assessment": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The questionnaire, as the vendor contact sees it (no account)
+         * @description Authenticated by the opaque token in X-Vendor-Assessment-Token only. The token must never be put in the URL. Weights, points and control references are not exposed.
+         */
+        get: operations["getPublicVendorAssessment"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/public/vendor-assessment/answers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Save draft answers */
+        put: operations["savePublicVendorAssessmentAnswers"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/public/vendor-assessment/submit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Submit and lock the answers */
+        post: operations["submitPublicVendorAssessment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/stats": {
         parameters: {
             query?: never;
@@ -2482,6 +2738,254 @@ export interface components {
             /** Format: date-time */
             updated_at?: string;
         };
+        VendorScoreContribution: {
+            /** Format: uuid */
+            item_id: string;
+            weight: number;
+            /** @description The chosen option's points; 0 when unanswered */
+            points: number;
+            /** @description Not applicable — excluded from both sums, contribution 0 */
+            na: boolean;
+            /** @description 100 × weight × (1 − points) / Σ weight */
+            contribution: number;
+        };
+        VendorQuestionOption: {
+            value: string;
+            label: string;
+            /** @description 1 is the fully favourable answer */
+            points: number;
+        };
+        VendorQuestionnaireQuestionInput: {
+            text: string;
+            help?: string;
+            /** @enum {string} */
+            answer_type: "choice" | "text";
+            options?: components["schemas"]["VendorQuestionOption"][];
+            /** @description Forced to 0 for a text question */
+            weight?: number;
+            required?: boolean;
+            na_allowed?: boolean;
+            /** @description Optional citation written by a person; never generated */
+            control_ref?: string;
+        };
+        VendorQuestionnaireQuestion: components["schemas"]["VendorQuestionnaireQuestionInput"] & {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            template_id: string;
+            position: number;
+        };
+        VendorQuestionnaireTemplateInput: {
+            name: string;
+            description?: string;
+            /** @enum {string} */
+            language: "fr" | "en";
+            questions: components["schemas"]["VendorQuestionnaireQuestionInput"][];
+        };
+        VendorQuestionnaireTemplate: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            description?: string;
+            language: string;
+            version: number;
+            /** Format: date-time */
+            archived_at: string | null;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+            questions?: components["schemas"]["VendorQuestionnaireQuestion"][] | null;
+        };
+        VendorAssessmentItem: {
+            /** Format: uuid */
+            id: string;
+            position: number;
+            text: string;
+            help?: string;
+            /** @enum {string} */
+            answer_type: "choice" | "text";
+            options?: components["schemas"]["VendorQuestionOption"][] | null;
+            weight: number;
+            required: boolean;
+            na_allowed: boolean;
+            control_ref?: string;
+            answer_value: string | null;
+            answer_na: boolean;
+            answer_comment?: string;
+            /** Format: date-time */
+            answered_at?: string | null;
+        };
+        VendorAssessment: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            vendor_asset_id: string;
+            /** Format: uuid */
+            template_id: string;
+            template_version: number;
+            /** @enum {string} */
+            status: "sent" | "in_progress" | "submitted" | "revoked" | "expired";
+            /** Format: uuid */
+            owner_user_id?: string;
+            contact_email: string;
+            contact_language: string;
+            /** Format: date-time */
+            due_at: string;
+            /** Format: date-time */
+            sent_at: string;
+            /** Format: date-time */
+            submitted_at?: string | null;
+            /** Format: date-time */
+            revoked_at?: string | null;
+            /** @description Vendor score, 0–100, higher is riskier (ADR 0004 D5). Written on submission. Null until then, and null when nothing was scorable. Never an input to a risk's score. */
+            score: number | null;
+            /**
+             * @description critical ≥ 70 · high ≥ 40 · medium ≥ 20 · low < 20
+             * @enum {string|null}
+             */
+            tier: "critical" | "high" | "medium" | "low" | null;
+            /** @description The arithmetic of the score. Contributions sum to it. */
+            score_breakdown?: components["schemas"]["VendorScoreContribution"][] | null;
+            /** @description The formula that produced the score, e.g. vendorscore/1 */
+            scoring_version?: string | null;
+            source: string;
+            source_id?: string;
+            source_version?: string;
+            /** Format: date-time */
+            observed_at?: string | null;
+            /** @description 0.50 — self-attested (ADR 0004 D3a) */
+            confidence: number;
+            provenance?: {
+                [key: string]: unknown;
+            };
+            items?: components["schemas"]["VendorAssessmentItem"][];
+        };
+        SendVendorAssessmentInput: {
+            /** Format: uuid */
+            template_id: string;
+            /** Format: date-time */
+            due_at: string;
+            /** @description Defaults to the vendor's contact_email attribute */
+            contact_email?: string;
+            /**
+             * @description Defaults to the template's language
+             * @enum {string}
+             */
+            contact_language?: "fr" | "en";
+        };
+        VendorAssessmentDelivery: {
+            assessment: components["schemas"]["VendorAssessment"];
+            /** @enum {string} */
+            delivery: "sent" | "unavailable" | "failed";
+            delivery_detail?: string;
+            /** @description Present ONLY when the email did not go out. It carries the one-time token in its fragment. */
+            questionnaire_url?: string;
+        };
+        VendorAnswerInput: {
+            /** Format: uuid */
+            item_id: string;
+            /** @description An offered option's value, or free text. Empty clears a draft answer. */
+            answer_value?: string | null;
+            answer_na?: boolean;
+            answer_comment?: string;
+        };
+        VendorPublicItem: {
+            /** Format: uuid */
+            id: string;
+            position: number;
+            text: string;
+            help?: string;
+            /** @enum {string} */
+            answer_type: "choice" | "text";
+            options: {
+                value: string;
+                label: string;
+            }[];
+            required: boolean;
+            na_allowed: boolean;
+            answer_value: string | null;
+            answer_na: boolean;
+            answer_comment?: string;
+        };
+        VendorAssessmentPublicView: {
+            organization_name: string;
+            vendor_name: string;
+            language: string;
+            /** Format: date-time */
+            due_at: string;
+            /** @enum {string} */
+            status: "sent" | "in_progress" | "submitted";
+            read_only: boolean;
+            items: components["schemas"]["VendorPublicItem"][];
+        };
+        VendorLatestAssessment: {
+            /** Format: uuid */
+            id: string;
+            status: string;
+            score: number | null;
+            tier: string | null;
+            /** Format: date-time */
+            due_at: string;
+        };
+        VendorRegisterEntry: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            legal_name: string;
+            country: string;
+            service_provided: string;
+            service_criticality: string;
+            contract_end: string;
+            criticality: string;
+            owner: string;
+            /** @description Distinct assets linked to the vendor */
+            linked_assets: number;
+            latest_assessment: components["schemas"]["VendorLatestAssessment"] | null;
+        };
+        VendorPage: {
+            items: components["schemas"]["VendorRegisterEntry"][];
+            total: number;
+            limit: number;
+            offset: number;
+        };
+        VendorChainRisk: {
+            /** Format: uuid */
+            id: string;
+            title: string;
+            score: number;
+            criticality: string;
+            status: string;
+        };
+        VendorChainAsset: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            type: string;
+            category: string;
+            criticality: string;
+        };
+        VendorChainLink: {
+            /** Format: uuid */
+            link_id: string;
+            /** @enum {string} */
+            verb: "managed_by" | "hosted_by" | "hosted_on" | "depends_on" | "processes_data_of" | "stores_data_in";
+            asset: components["schemas"]["VendorChainAsset"];
+            risks: components["schemas"]["VendorChainRisk"][];
+        };
+        VendorChain: {
+            /** Format: uuid */
+            vendor_id: string;
+            vendor_name: string;
+            links: components["schemas"]["VendorChainLink"][];
+        };
+        CreateVendorLinkInput: {
+            /** Format: uuid */
+            asset_id: string;
+            /** @enum {string} */
+            verb: "managed_by" | "hosted_by" | "processes_data_of" | "depends_on";
+            description?: string;
+        };
         CreateAssetDependencyInput: {
             /** Format: uuid */
             source_asset_id: string;
@@ -2689,7 +3193,11 @@ export interface components {
         };
     };
     responses: never;
-    parameters: never;
+    parameters: {
+        VendorPathId: string;
+        /** @description The opaque questionnaire token from the link's URL fragment (ADR 0004 D4). Never send it in the path or the query string. */
+        VendorAssessmentToken: string;
+    };
     requestBodies: never;
     headers: never;
     pathItems: never;
@@ -5051,6 +5559,687 @@ export interface operations {
             };
             /** @description Dependency not found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    listVendors: {
+        parameters: {
+            query?: {
+                /** @description Case-insensitive match on the name or the legal_name attribute */
+                search?: string;
+                /** @description Exact match on the service_criticality attribute */
+                service_criticality?: string;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One page of the register */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VendorPage"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The plan does not include vendor risk */
+            402: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing vendors:read */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getVendorChain: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The chain */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VendorChain"];
+                };
+            };
+            /** @description The plan does not include vendor risk */
+            402: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Vendor not found — unknown, malformed, another tenant's, or an asset that is not a vendor */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    linkVendorAsset: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateVendorLinkInput"];
+            };
+        };
+        responses: {
+            /** @description Link created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssetDependency"];
+                };
+            };
+            /** @description Invalid verb, or the asset is itself a vendor */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The plan does not include vendor risk */
+            402: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Vendor or asset not found in this tenant */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Identical link already exists */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    unlinkVendorAsset: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                linkId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Link removed */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The plan does not include vendor risk */
+            402: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not a vendor link of this vendor in this tenant */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    listVendorQuestionnaireTemplates: {
+        parameters: {
+            query?: {
+                include_archived?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Templates */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VendorQuestionnaireTemplate"][];
+                };
+            };
+            /** @description The plan does not include vendor risk */
+            402: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    createVendorQuestionnaireTemplate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VendorQuestionnaireTemplateInput"];
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VendorQuestionnaireTemplate"];
+                };
+            };
+            /** @description Invalid template or question */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The plan does not include vendor risk */
+            402: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getVendorQuestionnaireTemplate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["VendorPathId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The template */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VendorQuestionnaireTemplate"];
+                };
+            };
+            /** @description Not found in this tenant */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    updateVendorQuestionnaireTemplate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["VendorPathId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VendorQuestionnaireTemplateInput"];
+            };
+        };
+        responses: {
+            /** @description The new version */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VendorQuestionnaireTemplate"];
+                };
+            };
+            /** @description Invalid template or question */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not found in this tenant */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The template is archived */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    archiveVendorQuestionnaireTemplate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["VendorPathId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The archived template */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VendorQuestionnaireTemplate"];
+                };
+            };
+            /** @description Not found in this tenant */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    listVendorAssessments: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["VendorPathId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Assessments, without items */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VendorAssessment"][];
+                };
+            };
+            /** @description Vendor not found in this tenant */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    sendVendorAssessment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["VendorPathId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SendVendorAssessmentInput"];
+            };
+        };
+        responses: {
+            /** @description Sent */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VendorAssessmentDelivery"];
+                };
+            };
+            /** @description Invalid input, archived template, or no contact email */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Vendor or template not found in this tenant */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getVendorAssessment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["VendorPathId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The assessment */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VendorAssessment"];
+                };
+            };
+            /** @description Not found in this tenant */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    revokeVendorAssessment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["VendorPathId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Revoked */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VendorAssessment"];
+                };
+            };
+            /** @description Not found in this tenant */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Already submitted or revoked */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    resendVendorAssessment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: components["parameters"]["VendorPathId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Resent */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VendorAssessmentDelivery"];
+                };
+            };
+            /** @description Not found in this tenant */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not open (submitted, revoked or expired) */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getPublicVendorAssessment: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The opaque questionnaire token from the link's URL fragment (ADR 0004 D4). Never send it in the path or the query string. */
+                "X-Vendor-Assessment-Token": components["parameters"]["VendorAssessmentToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The questionnaire */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VendorAssessmentPublicView"];
+                };
+            };
+            /** @description Missing, malformed or unknown link — identical in every case */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Superseded by a newer link, revoked, expired, or no longer available */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Rate limit */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    savePublicVendorAssessmentAnswers: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The opaque questionnaire token from the link's URL fragment (ADR 0004 D4). Never send it in the path or the query string. */
+                "X-Vendor-Assessment-Token": components["parameters"]["VendorAssessmentToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    answers: components["schemas"]["VendorAnswerInput"][];
+                };
+            };
+        };
+        responses: {
+            /** @description Saved */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VendorAssessmentPublicView"];
+                };
+            };
+            /** @description Unknown question or invalid answer */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing, malformed or unknown link */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Already submitted */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Superseded, revoked, expired, or no longer available */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Rate limit */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    submitPublicVendorAssessment: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description The opaque questionnaire token from the link's URL fragment (ADR 0004 D4). Never send it in the path or the query string. */
+                "X-Vendor-Assessment-Token": components["parameters"]["VendorAssessmentToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Submitted, now read-only */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VendorAssessmentPublicView"];
+                };
+            };
+            /** @description Required questions still need an answer */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing, malformed or unknown link */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Already submitted */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Superseded, revoked, expired, or no longer available */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Rate limit */
+            429: {
                 headers: {
                     [name: string]: unknown;
                 };

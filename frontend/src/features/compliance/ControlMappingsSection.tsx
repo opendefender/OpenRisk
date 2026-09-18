@@ -148,7 +148,7 @@ export function ControlMappingsSection({ control }: { control: ComplianceControl
               onClick={submit}
               disabled={!targetControl || create.isPending}
               className="h-9 px-3.5 rounded-[9px] text-[12.5px] font-semibold inline-flex items-center gap-1.5 disabled:opacity-60"
-              style={{ background: 'var(--accent)', color: '#fff' }}
+              style={{ background: 'var(--accent-solid)', color: 'var(--fg-on-solid)' }}
             >
               <Link2 size={13} /> {tr('Lier', 'Link')}
             </button>

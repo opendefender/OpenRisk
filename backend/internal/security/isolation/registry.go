@@ -544,6 +544,35 @@ var decisions = []Decision{
 		"repository/gorm_saved_view_repository_test TestSavedViewRepo_ListVisible_IsTenantAndVisibilityScoped seeds views in two tenants and asserts the listing returns only the caller's tenant, and within it only the caller's own views plus the tenant's shared ones; the caller's tenant and user id come from the JWT (savedViewCaller), never from the query string, which carries only table_id"},
 	{"/api/v1/asset-dependencies", Covered,
 		"repository/gorm_asset_dependency_repository_test TestDepRepo_CreateAndListByTenant_Isolation"},
+	// TPRM v1 (#669, ADR 0004). A vendor is an asset of category vendor; the
+	// tenant comes from the JWT (handler.tenantID), never from the path, query or
+	// body.
+	{"/api/v1/vendors", Covered,
+		"repository/gorm_vendor_repository_test TestVendorRepo_ListVendors_ScopedToTenantAndCategory seeds vendors in two tenants plus a non-vendor asset and asserts each tenant reads only its own vendors; application/tprm TestListVendors_CrossTenant_SeesNeitherForeignVendorsNorForeignLinks proves a foreign edge cannot inflate a linked-asset count"},
+	{"/api/v1/vendors/{id}/chain", Covered,
+		"repository/gorm_vendor_repository_test TestVendorRepo_GetVendor_RefusesForeignAndNonVendorRows and TestVendorRepo_RisksByAssetIDs_GatedThroughTheParentRisk (risk_assets has no tenant_id: a join row pointing our asset at another tenant's risk returns nothing, through both risk_assets and the legacy risks.asset_id); application/tprm TestGetVendorChain_CrossTenant covers a foreign vendor, a link to a foreign asset, and a foreign risk"},
+	{"/api/v1/vendors/{id}/assets", Covered,
+		"application/tprm TestLinkVendorAsset_CrossTenant: another tenant's vendor or asset answers ErrNotFound and no edge is written. The edge is created by CreateAssetDependencyUseCase, whose own cross-tenant guard is covered on /asset-dependencies"},
+	{"/api/v1/vendors/{id}/assets/{id}", Covered,
+		"application/tprm TestUnlinkVendorAsset_CrossTenant_ForeignLinkIsNotFoundAndSurvives, plus TestUnlinkVendorAsset_NotFound: another vendor's link and a plain dependency edge are both not-found, so only a vendor link of the caller's own vendor can be deleted"},
+	// Questionnaires and assessments (#670, ADR 0004 D3/D4). Every TPRM table
+	// carries its own tenant_id; the tenant comes from the JWT.
+	{"/api/v1/vendor-questionnaire-templates", Covered,
+		"repository/gorm_vendor_assessment_repository_test TestVendorAssessmentRepo_Templates_AreTenantScopedAndVersioned asserts tenant B lists, reads, replaces and archives none of tenant A's templates; application/tprm TestQuestionnaireTemplates_CrossTenant repeats it at the use-case level and checks nothing changed"},
+	{"/api/v1/vendor-questionnaire-templates/{id}", Covered,
+		"application/tprm TestQuestionnaireTemplates_CrossTenant: get and update of another tenant's template answer ErrNotFound and leave its version untouched; the repository's ReplaceTemplate is conditional on (id, tenant_id, not archived)"},
+	{"/api/v1/vendor-questionnaire-templates/{id}/archive", Covered,
+		"application/tprm TestQuestionnaireTemplates_CrossTenant: archiving another tenant's template answers ErrNotFound and archives nothing"},
+	{"/api/v1/vendors/{id}/assessments", Covered,
+		"application/tprm TestVendorAssessments_CrossTenant: listing another tenant's vendor is ErrNotFound, and sending another tenant's template to one's own vendor is ErrNotFound with no assessment written; repository TestVendorAssessmentRepo_CreateAndGet_ScopedToTenant covers the listing query"},
+	{"/api/v1/vendor-assessments/{id}", Covered,
+		"application/tprm TestVendorAssessments_CrossTenant and repository TestVendorAssessmentRepo_CreateAndGet_ScopedToTenant: another tenant's assessment reads back as not found"},
+	{"/api/v1/vendor-assessments/{id}/revoke", Covered,
+		"application/tprm TestVendorAssessments_CrossTenant: revoking another tenant's assessment is ErrNotFound and its status stays sent; the repository's RevokeAssessment is conditional on (id, tenant_id, open status)"},
+	{"/api/v1/vendor-assessments/{id}/resend", Covered,
+		"application/tprm TestVendorAssessments_CrossTenant: resending another tenant's assessment is ErrNotFound and issues no token; repository IssueToken is conditional on (assessment, tenant_id, open status)"},
+	{"/api/v1/public/vendor-assessment", MachineAuthenticated,
+		"the vendor questionnaire (ADR 0004 D4), mounted before the JWT gate with no auth middleware. The opaque token in X-Vendor-Assessment-Token IS the credential: it is looked up by SHA-256 hash, and the tenant is the row's own — no header, body, cookie or session is read for it. application/tprm TestPublicAssessment_TenantComesFromTheTokenOnly proves tenant A's token cannot write tenant B's items by naming them; TestPublicAssessment_StatusContract pins 404/410/409; handler TestPublicVendorAssessmentHandler_TheTokenInTheQueryStringIsIgnored proves a token in the URL is not accepted. The PUT /answers and POST /submit siblings take no path id and are covered by the same tests"},
 	{"/api/v1/attack-surface/topology/edge-types", PublicByDesign,
 		"returns domain.TopologyEdgeTypes, a compiled-in vocabulary of edge kinds. No table is read"},
 	// Same shape as edge-types above: a compiled-in vocabulary, not tenant data.

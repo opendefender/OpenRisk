@@ -17,7 +17,9 @@ export type NotificationType =
   | 'scan_complete'
   | 'risk_review'
   | 'automation'
-  | 'sla_breach';
+  | 'sla_breach'
+  // A J-7 / J-3 / J-1 questionnaire reminder went to a vendor, or could not (#672).
+  | 'vendor_assessment_reminder';
 
 export interface Notification {
   id: string;

@@ -451,6 +451,9 @@ function MFAEnrollment({ token }: { token: string }) {
       {qr && (
         <div className="mb-4" style={cascade(1, reduced)}>
           <p className="text-[12.5px] text-ink-soft mb-2">{copy.mfaEnrolScan}</p>
+          {/* A QR code needs a white quiet zone in BOTH themes or phone scanners
+              miss it; this is a scanner requirement, not a theme colour. */}
+          {/* eslint-disable-next-line openrisk/no-raw-colors -- QR quiet zone, see above */}
           <div className="flex justify-center p-3 rounded-[13px]" style={{ background: '#fff' }}>
             {/* The backend returns raw base64 (a JPEG), not a data URI, so
                 assigning it straight to src made the browser treat it as a
@@ -551,14 +554,20 @@ function RegisterForm({ onLogin }: { onLogin: () => void }) {
     setBusy(true);
     setError('');
     try {
-      const local = (email.split('@')[0] || 'user').replace(/[^a-zA-Z0-9_.-]/g, '');
-      const username =
-        local.length >= 3 ? local : `${local || 'user'}${Date.now().toString().slice(-4)}`;
-      const company = `${fullName.trim()}${lang === 'fr' ? ' — espace' : ' — workspace'}`;
+      // Sign-up asks for no company, so the organisation starts under the
+      // person's own name, and the tunnel's organisation step asks for the real
+      // one (#716). The "— espace" suffix this used to add became the name most
+      // people kept, and the one the danger zone made them type.
+      const company = fullName.trim();
 
+      // No username is sent (#687). This screen used to derive one from the
+      // address's local part, a field the user never saw. Everyone sharing a
+      // local part — contact@, info@, admin@, a common first name — collided
+      // with the first account to take it, and the refusal came back as "this
+      // email is already registered", which was false. The server now derives
+      // one that is free.
       await api.post('/auth/register', {
         email: email.trim(),
-        username,
         password,
         full_name: fullName.trim(),
         company_name: company,
@@ -583,7 +592,14 @@ function RegisterForm({ onLogin }: { onLogin: () => void }) {
       navigate(landingForBusinessRole(useAuthStore.getState().user?.business_role));
     } catch (err) {
       const status = axios.isAxiosError(err) ? err.response?.status : undefined;
-      if (status === 409) {
+      const body = axios.isAxiosError(err)
+        ? (err.response?.data as { error?: string; code?: string } | undefined)
+        : undefined;
+      // Only an email conflict may be told as one (#687). Any other 409 — a
+      // username taken, say — shows what the server actually said.
+      if (status === 409 && body?.code && body.code !== 'EMAIL_ALREADY_REGISTERED') {
+        setError(body.error || copy.registerFailed);
+      } else if (status === 409) {
         setError(copy.registerEmailExists);
       } else if (status === 400) {
         const msg = axios.isAxiosError(err)
