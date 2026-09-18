@@ -357,3 +357,95 @@ describe('realtime client', () => {
     expect(seen).toEqual(['e1']);
   });
 });
+
+// #741 — EventSource reports a 403 exactly like a dropped network, so a member
+// the server refuses the stream to was retried forever. The client now asks the
+// server once why the stream failed, and stops on a refusal.
+describe('realtime client — a refused stream', () => {
+  let client: RealtimeClient;
+  const fetchMock = vi.fn();
+
+  beforeEach(() => {
+    FakeEventSource.instances = [];
+    vi.stubGlobal('EventSource', FakeEventSource as unknown as typeof EventSource);
+    vi.stubGlobal('fetch', fetchMock);
+    fetchMock.mockReset();
+    vi.useFakeTimers();
+    vi.spyOn(Math, 'random').mockReturnValue(0);
+    client = createRealtimeClientForTests();
+  });
+
+  afterEach(() => {
+    client.stop();
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  const answer = (status: number, body: unknown = {}) =>
+    Promise.resolve(new Response(JSON.stringify(body), { status }));
+
+  it('TestRealtime_Unauthorized — stops retrying and says FORBIDDEN on a 403', async () => {
+    fetchMock.mockReturnValue(
+      answer(403, { code: 'FORBIDDEN', message: 'Missing required permission: [events:read]' }),
+    );
+    client.start();
+    const opened = FakeEventSource.instances.length;
+    FakeEventSource.last().fail();
+
+    await vi.waitFor(() => expect(client.getStatus().state).toBe('FORBIDDEN'));
+    expect(client.getStatus().error).toBe('Missing required permission: [events:read]');
+    // The probe asks for the status line only: no cursor in its URL.
+    expect(String(fetchMock.mock.calls[0][0])).toBe('/api/v1/realtime/events');
+
+    // The backoff that was scheduled must not fire.
+    vi.advanceTimersByTime(60_000);
+    expect(FakeEventSource.instances.length).toBe(opened);
+  });
+
+  it('treats a 401 as a refusal too', async () => {
+    fetchMock.mockReturnValue(answer(401, { error: 'authentication required' }));
+    client.start();
+    FakeEventSource.last().fail();
+    await vi.waitFor(() => expect(client.getStatus().state).toBe('FORBIDDEN'));
+    expect(client.getStatus().error).toBe('authentication required');
+  });
+
+  it('TestRealtime_Success — keeps backing off when the failure is not a refusal', async () => {
+    fetchMock.mockReturnValue(answer(502));
+    connect(client);
+    const opened = FakeEventSource.instances.length;
+    FakeEventSource.last().fail();
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalled());
+    await Promise.resolve();
+
+    expect(client.getStatus().state).toBe('RECONNECTING');
+    vi.advanceTimersByTime(600);
+    expect(FakeEventSource.instances.length).toBe(opened + 1);
+  });
+
+  it('keeps backing off when the probe itself cannot reach the server', async () => {
+    fetchMock.mockRejectedValue(new TypeError('Failed to fetch'));
+    connect(client);
+    const opened = FakeEventSource.instances.length;
+    FakeEventSource.last().fail();
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalled());
+
+    vi.advanceTimersByTime(600);
+    expect(client.getStatus().state).not.toBe('FORBIDDEN');
+    expect(FakeEventSource.instances.length).toBe(opened + 1);
+  });
+
+  it('tries again after a tenant switch — the new organization may grant the stream', async () => {
+    fetchMock.mockReturnValue(answer(403));
+    client.start();
+    FakeEventSource.last().fail();
+    await vi.waitFor(() => expect(client.getStatus().state).toBe('FORBIDDEN'));
+
+    const opened = FakeEventSource.instances.length;
+    client.switchTenant();
+    expect(FakeEventSource.instances.length).toBe(opened + 1);
+    FakeEventSource.last().emit('stream.hello', { tenant_id: 'tenant-b' });
+    expect(client.getStatus().state).toBe('CONNECTED');
+  });
+});
