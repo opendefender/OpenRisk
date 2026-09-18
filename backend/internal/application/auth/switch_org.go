@@ -150,6 +150,30 @@ func (uc *SwitchOrganizationUseCase) Execute(ctx context.Context, input SwitchOr
 	}
 	if member.Organization != nil {
 		out.Organization = member.Organization
+	} else {
+		out.Organization = uc.organizationOf(ctx, input.UserID, input.TargetOrgID)
 	}
 	return out, nil
+}
+
+// organizationOf names the organization the session was just minted for.
+//
+// GetOrganizationMember does not preload the organization, and it should not:
+// it also resolves every session refresh, where the extra query would be paid
+// on each call. The switch answered `organization: null` as a result, and the
+// client had to fall back on its own list for the name. ListActiveMemberships
+// preloads it, and a switch is rare enough to afford it. Best-effort: the
+// session is already valid, so a failed lookup leaves the field empty rather
+// than failing the switch.
+func (uc *SwitchOrganizationUseCase) organizationOf(ctx context.Context, userID, orgID uuid.UUID) *domain.Organization {
+	memberships, err := uc.members.ListActiveMemberships(ctx, userID)
+	if err != nil {
+		return nil
+	}
+	for _, m := range memberships {
+		if m.OrganizationID == orgID && m.Organization != nil {
+			return m.Organization
+		}
+	}
+	return nil
 }
