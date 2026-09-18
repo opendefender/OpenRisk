@@ -19,6 +19,7 @@ import { useNavigate } from 'react-router';
 
 import { Button, Field, Input } from '../../shared/ds';
 import { useUIStore } from '../../store/uiStore';
+import { useI18n } from '../../hooks/useI18n';
 import { useAuthStore } from '../../hooks/useAuthStore';
 import { setAccessToken } from '../../lib/session';
 import { PasswordStrength } from './PasswordStrength';
@@ -28,30 +29,22 @@ import {
   type PasswordAssessment,
 } from './authService';
 
-type Tr = (fr: string, en: string) => string;
+type T = (key: string) => string;
 
-function schema(tr: Tr) {
+function schema(t: T) {
   return z
     .object({
-      current: z
-        .string()
-        .min(1, tr('Saisissez votre mot de passe actuel.', 'Enter your current password.')),
-      next: z.string().min(12, tr('12 caractères au moins.', 'At least 12 characters.')),
+      current: z.string().min(1, t('accountSecurity.currentRequired')),
+      next: z.string().min(12, t('accountSecurity.minLength')),
       confirm: z.string(),
     })
     .refine((v) => v.next === v.confirm, {
       path: ['confirm'],
-      message: tr(
-        'Les deux mots de passe ne correspondent pas.',
-        'The two passwords do not match.',
-      ),
+      message: t('accountSecurity.mismatch'),
     })
     .refine((v) => v.next !== v.current, {
       path: ['next'],
-      message: tr(
-        'Choisissez un mot de passe différent de l’actuel.',
-        'Choose a password different from the current one.',
-      ),
+      message: t('accountSecurity.sameAsCurrent'),
     });
 }
 
@@ -59,7 +52,7 @@ type Values = z.infer<ReturnType<typeof schema>>;
 
 export function ChangePasswordCard() {
   const lang = useUIStore((s) => s.lang);
-  const tr: Tr = (fr, en) => (lang === 'fr' ? fr : en);
+  const { t } = useI18n();
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
   const navigate = useNavigate();
@@ -76,7 +69,7 @@ export function ChangePasswordCard() {
     setError,
     formState: { errors, isSubmitting },
   } = useForm<Values>({
-    resolver: zodResolver(schema(tr)),
+    resolver: zodResolver(schema(t)),
     defaultValues: { current: '', next: '', confirm: '' },
   });
   const next = useWatch({ control, name: 'next' });
@@ -114,17 +107,10 @@ export function ChangePasswordCard() {
           return;
         default:
           if (isAxiosError(err) && err.response?.status === 429) {
-            toast.error(
-              tr(
-                'Trop de tentatives. Réessayez dans quelques minutes.',
-                'Too many attempts. Try again in a few minutes.',
-              ),
-            );
+            toast.error(t('accountSecurity.tooManyAttempts'));
             return;
           }
-          toast.error(
-            body?.error || tr('Modification impossible', 'Could not change the password'),
-          );
+          toast.error(body?.error || t('accountSecurity.failed'));
       }
     }
   };
@@ -135,11 +121,7 @@ export function ChangePasswordCard() {
       type="button"
       onClick={() => setVisible((x) => !x)}
       className="text-ink-muted hover:text-ink"
-      aria-label={
-        visible
-          ? tr('Masquer les mots de passe', 'Hide passwords')
-          : tr('Afficher les mots de passe', 'Show passwords')
-      }
+      aria-label={visible ? t('accountSecurity.hidePasswords') : t('accountSecurity.showPasswords')}
       aria-pressed={visible}
     >
       {visible ? <EyeOff size={15} /> : <Eye size={15} />}
@@ -150,7 +132,7 @@ export function ChangePasswordCard() {
     <section aria-labelledby="change-password-title" data-testid="change-password-card">
       <div className="flex items-center justify-between mb-3.5">
         <h3 id="change-password-title" className="text-[14px] font-semibold text-ink">
-          {tr('Changer le mot de passe', 'Change password')}
+          {t('accountSecurity.title')}
         </h3>
         {!managedByIdp && toggle}
       </div>
@@ -160,11 +142,7 @@ export function ChangePasswordCard() {
           className="text-[12.5px] text-ink-soft leading-relaxed"
           data-testid="password-managed-by-idp"
         >
-          {managedByIdp ||
-            tr(
-              'Ce compte se connecte via votre fournisseur d’identité : son mot de passe se change chez lui.',
-              'This account signs in through your identity provider: its password is changed there.',
-            )}
+          {managedByIdp || t('accountSecurity.managedByIdp')}
         </p>
       ) : (
         <form onSubmit={handleSubmit(onSubmit)} noValidate className="grid gap-4 max-w-[440px]">
@@ -179,7 +157,7 @@ export function ChangePasswordCard() {
             hidden
           />
           <Field
-            label={tr('Mot de passe actuel', 'Current password')}
+            label={t('accountSecurity.current')}
             required
             message={errors.current?.message}
             status={errors.current ? 'invalid' : 'default'}
@@ -187,7 +165,7 @@ export function ChangePasswordCard() {
             <Input {...register('current')} type={type} autoComplete="current-password" />
           </Field>
           <Field
-            label={tr('Nouveau mot de passe', 'New password')}
+            label={t('accountSecurity.new')}
             required
             message={errors.next?.message}
             status={errors.next ? 'invalid' : 'default'}
@@ -204,19 +182,14 @@ export function ChangePasswordCard() {
             />
           )}
           <Field
-            label={tr('Confirmer le nouveau mot de passe', 'Confirm the new password')}
+            label={t('accountSecurity.confirm')}
             required
             message={errors.confirm?.message}
             status={errors.confirm ? 'invalid' : 'default'}
           >
             <Input {...register('confirm')} type={type} autoComplete="new-password" />
           </Field>
-          <p className="text-[11.5px] text-ink-muted">
-            {tr(
-              'Vos autres appareils seront déconnectés. Celui-ci reste connecté.',
-              'Your other devices will be signed out. This one stays signed in.',
-            )}
-          </p>
+          <p className="text-[11.5px] text-ink-muted">{t('accountSecurity.note')}</p>
           <div>
             <Button
               type="submit"
@@ -224,9 +197,7 @@ export function ChangePasswordCard() {
               disabled={isSubmitting || (next.length > 0 && !acceptable)}
               data-testid="change-password-submit"
             >
-              {isSubmitting
-                ? tr('Modification…', 'Changing…')
-                : tr('Changer le mot de passe', 'Change password')}
+              {isSubmitting ? t('accountSecurity.submitting') : t('accountSecurity.title')}
             </Button>
           </div>
         </form>

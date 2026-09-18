@@ -889,5 +889,23 @@
       "closed": "Liste masquée. Vous la retrouverez dans les réglages.",
       "reopen": "Afficher la liste de démarrage"
     }
+  },
+  "accountSecurity": {
+    "title": "Changer le mot de passe",
+    "current": "Mot de passe actuel",
+    "new": "Nouveau mot de passe",
+    "confirm": "Confirmer le nouveau mot de passe",
+    "showPasswords": "Afficher les mots de passe",
+    "hidePasswords": "Masquer les mots de passe",
+    "note": "Vos autres appareils seront déconnectés. Celui-ci reste connecté.",
+    "submit": "Changer le mot de passe",
+    "submitting": "Modification…",
+    "currentRequired": "Saisissez votre mot de passe actuel.",
+    "minLength": "12 caractères au moins.",
+    "mismatch": "Les deux mots de passe ne correspondent pas.",
+    "sameAsCurrent": "Choisissez un mot de passe différent de l'actuel.",
+    "managedByIdp": "Ce compte se connecte via votre fournisseur d'identité : son mot de passe se change chez lui.",
+    "tooManyAttempts": "Trop de tentatives. Réessayez dans quelques minutes.",
+    "failed": "Modification impossible"
   }
 }
