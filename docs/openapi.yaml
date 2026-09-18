@@ -311,6 +311,60 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /auth/password/change:
+    post:
+      tags:
+        - Authentication
+      summary: Change the signed-in user's own password
+      description: >
+        Requires the current password; the new one must pass the password policy.
+        On success every session of the user ends and the calling device is
+        given a fresh one (new session cookies, and the pair in the body), and a
+        notice is emailed. If no new session can be minted, `reauthenticate` is
+        true. Rate limited with the other authentication routes. No password is
+        ever logged or echoed.
+      operationId: changePassword
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [current_password, new_password]
+              properties:
+                current_password: { type: string, format: password }
+                new_password: { type: string, format: password }
+                locale: { type: string, enum: [fr, en] }
+      responses:
+        '200':
+          description: Password changed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: { type: string }
+                  reauthenticate: { type: boolean }
+                  token_pair:
+                    type: object
+                    properties:
+                      access_token: { type: string }
+                      refresh_token: { type: string }
+                      expires_in: { type: integer }
+                  csrf_token: { type: string }
+        '400':
+          description: "`weak_password` (with `assessment`) or `same_password`"
+        '401':
+          description: No session
+        '403':
+          description: "`wrong_current_password`"
+        '409':
+          description: "`no_local_password`: the account signs in through an identity provider"
+        '429':
+          description: Rate limited
+
   # ==================== ORGANIZATION ====================
   /organization:
     get:

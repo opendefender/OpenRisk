@@ -5,6 +5,42 @@ recommends, and surfaces these in the daily brief. Run `/decide` to clear them.
 
 ## Open
 
+### D-047 — authenticated password change: built on the existing auth mechanisms · raised 2026-09-17
+**Status** — built and in review on #720 (PR stacked on #723). Escalated because it touches
+auth; it is a new capability assembled from existing parts, not a redesign. No action is
+needed unless the owner disagrees with one of the choices below.
+
+**Context** — A signed-in user could only change their password by signing out and using
+the reset flow. #720 adds `POST /auth/password/change`.
+
+**Choices made**
+- Requires the **current password** (argon2id `Verify`), and the new one must pass the same
+  `pwpolicy` the reset and registration paths use, including the HIBP check.
+- Mounted behind the existing `authRateLimit` (15 requests / 5 min / IP). A wrong current
+  password answers 403 with a generic message and spends that budget. There is no per-account
+  counter yet; that gap is already tracked by #688.
+- On success, **every session is revoked** (`TokenManager.RevokeAllUserTokens`, the reset
+  path's call) and the calling device is **re-issued a fresh session** in the same organization
+  (`IssueSessionForOrg`, the org-switch path's call), with new cookies. "Revoke all but the
+  current one" was the first design and was found broken during the live check: the refresh
+  cookie is scoped to `/api/v1/auth/refresh`, so no other route can identify the caller's
+  refresh row, and an empty keep-hash signs the caller out too. The same defect affects the
+  existing "sign out other devices" action (tracked separately). Access tokens already issued
+  to other devices remain valid until they expire (15 min).
+- An account with no local password (SAML/OAuth-provisioned) gets 409: its password belongs
+  to the identity provider.
+- Audit `password_change` (success and failure with a reason, never a secret), plus a
+  **dedicated** notification email. The reset confirmation email says every session was ended,
+  which would be false here.
+
+**Options**
+- **A — Keep as built.** Recommended: it adds no mechanism the product did not already trust.
+- **B — Revoke everything and force a fresh sign-in** on the calling device too. Simpler,
+  at the cost of interrupting the person who just proved their password.
+
+**Cost of delay** — none; the PR waits on review of #721 → #722 → #723 anyway.
+
+
 ## Resolved
 
 ### D-046 — ADR 0004 D6: the reminder worker's two departures are accepted as built · decided 2026-09-15

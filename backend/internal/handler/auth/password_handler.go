@@ -25,6 +25,7 @@ type PasswordHandler struct {
 	policy  *pwpolicy.Policy
 	baseURL string
 	audit   *coreauth.AuditService
+	change  *appauth.ChangePasswordUseCase
 }
 
 // NewPasswordHandler builds the handler.
