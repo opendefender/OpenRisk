@@ -655,6 +655,9 @@ function App() {
             <Route path="vulnerabilities/unassigned" element={<UnassignedVulnerabilitiesPage />} />
             <Route path="vulnerabilities/risk-rule" element={<RiskRulePage />} />
             <Route path="threat-map" element={<ThreatIntel />} />
+            {/* The page is called Threat Intel everywhere it is named, so that is the
+                URL people type and share; it 404'd (#737). */}
+            <Route path="threat-intel" element={<Navigate to="/threat-map" replace />} />
             <Route path="ai/emerging-risks" element={<EmergingRisksPage />} />
             <Route path="simulations" element={<SimulationsPage />} />
 
