@@ -35,10 +35,13 @@ const (
 
 // Organization represents a tenant/organization in the multi-tenant system
 type Organization struct {
-	ID       uuid.UUID `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
-	Name     string    `gorm:"not null" json:"name"`
-	Slug     string    `gorm:"uniqueIndex;not null" json:"slug"`
-	LogoURL  string    `json:"logo_url,omitempty"`
+	ID      uuid.UUID `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	Name    string    `gorm:"not null" json:"name"`
+	Slug    string    `gorm:"uniqueIndex;not null" json:"slug"`
+	LogoURL string    `json:"logo_url,omitempty"`
+	// LogoKey is the storage key of an uploaded logo (#718). Internal: the
+	// logo is read through GET /organization/logo, never by its key.
+	LogoKey  string    `gorm:"type:text" json:"-"`
 	Industry string    `json:"industry,omitempty"`
 	Size     OrgSize   `json:"size,omitempty"`
 	Plan     OrgPlan   `gorm:"default:'starter'" json:"plan"`

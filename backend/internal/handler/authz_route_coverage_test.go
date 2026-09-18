@@ -160,6 +160,9 @@ var routesWithoutPermissionGuard = []string{
 	// by tenant membership in the use case.
 	"DELETE /users/me/avatar",
 	"GET /users/:id/avatar",
+	// #718 — the tenant's own branding, worn by every member's interface; no id.
+	"GET /organization/branding",
+	"GET /organization/logo",
 	"GET /users/me",
 	"PATCH /users/me",
 	"PUT /users/me/avatar",

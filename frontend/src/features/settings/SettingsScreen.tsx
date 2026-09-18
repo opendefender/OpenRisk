@@ -69,6 +69,8 @@ import { DangerZonePanel } from '../billing/DangerZonePanel';
 import { useOrganization } from '../organization/useOrganization';
 import { MFAPolicyPanel, MFAAccountPanel } from './MFAPolicyPanel';
 import { OrganizationProfileForm } from './OrganizationProfileForm';
+import { OrganizationLogoField } from './OrganizationLogoField';
+import { OrgLogo } from '../organization/OrgLogo';
 import { ProfileTab } from '../profile/ProfileTab';
 import type { LocaleCode } from '../../i18n/locales';
 import { useI18n } from '../../hooks/useI18n';
@@ -727,12 +729,6 @@ function GeneralTab({ tr }: { tr: Tr }) {
     );
   }
 
-  const initials = (org.name || 'OR')
-    .split(/\s+/)
-    .map((w) => w[0])
-    .slice(0, 2)
-    .join('')
-    .toUpperCase();
   const created = new Date(org.created_at).toLocaleDateString(localeTag(lang), {
     day: 'numeric',
     month: 'long',
@@ -744,16 +740,7 @@ function GeneralTab({ tr }: { tr: Tr }) {
       <Card style={{ padding: '20px 22px', marginBottom: 16 }}>
         <Title>{tr('Profil de l’organisation', 'Organization profile')}</Title>
         <div className="flex items-center gap-4 mb-5">
-          <div
-            className="w-14 h-14 rounded-[14px] flex items-center justify-center text-[20px] font-bold overflow-hidden"
-            style={{ background: 'var(--accent-soft)', color: 'var(--accent-500)' }}
-          >
-            {org.logo_url ? (
-              <img src={org.logo_url} alt="" className="w-full h-full object-cover" />
-            ) : (
-              initials
-            )}
-          </div>
+          <OrgLogo name={org.name || 'OR'} hasLogo={org.has_logo} size={56} radius={14} />
           <div className="min-w-0">
             <div className="text-[16px] font-bold text-ink truncate">{org.name}</div>
             <div className="mono text-[12px] text-ink-muted">{org.slug}</div>
@@ -797,6 +784,7 @@ function GeneralTab({ tr }: { tr: Tr }) {
         {!org.can_edit && org.description && (
           <p className="text-[12.5px] text-ink-soft leading-relaxed mb-2">{org.description}</p>
         )}
+        {org.can_edit && <OrganizationLogoField org={org} tr={tr} />}
         {org.can_edit && <OrganizationProfileForm org={org} tr={tr} />}
       </Card>
 

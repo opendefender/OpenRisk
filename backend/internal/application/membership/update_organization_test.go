@@ -36,6 +36,10 @@ func (w *stubOrgWriter) UpdateOrganizationSettingsProfile(_ context.Context, org
 			org.Industry = v.(string)
 		case "size":
 			org.Size = domain.OrgSize(v.(string))
+		case "logo_key":
+			org.LogoKey = v.(string)
+		case "logo_url":
+			org.LogoURL = v.(string)
 		}
 	}
 	settings := org.GetSettings()
