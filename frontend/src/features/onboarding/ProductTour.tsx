@@ -107,7 +107,10 @@ export function ProductTour() {
   useEffect(() => {
     if (hasSeen()) return;
     const timer = window.setTimeout(() => {
-      if (document.querySelector(MARKS[0].anchor)) setStep(0);
+      // Any anchor, not the first: a read-only member has no "new risk"
+      // button (#739) and still benefits from the rest; a missing mark is
+      // skipped below.
+      if (MARKS.some((m) => document.querySelector(m.anchor))) setStep(0);
     }, 900);
     return () => window.clearTimeout(timer);
   }, []);

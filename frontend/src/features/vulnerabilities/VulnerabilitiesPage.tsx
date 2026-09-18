@@ -431,12 +431,16 @@ export function VulnerabilitiesPage() {
               icon={Plug}
               onClick={() => setConnectorsOpen(true)}
             />
-            <Btn
-              label={tr('Importer', 'Import')}
-              icon={Upload}
-              primary
-              onClick={() => setIngestOpen(true)}
-            />
+            {/* Import writes findings (POST /vulnerabilities/ingest needs
+                vulnerabilities:update), so a read-only member is not offered it (#739). */}
+            {canWrite && (
+              <Btn
+                label={tr('Importer', 'Import')}
+                icon={Upload}
+                primary
+                onClick={() => setIngestOpen(true)}
+              />
+            )}
           </>
         }
       />
@@ -474,17 +478,26 @@ export function VulnerabilitiesPage() {
           <EmptyState
             icon={Bug}
             title={tr('Aucune vulnérabilité', 'No vulnerabilities')}
-            description={tr(
-              'Importez des findings depuis Nessus, Qualys, Defender, Inspector, CrowdStrike…',
-              'Import findings from Nessus, Qualys, Defender, Inspector, CrowdStrike…',
-            )}
+            description={
+              canWrite
+                ? tr(
+                    'Importez des findings depuis Nessus, Qualys, Defender, Inspector, CrowdStrike…',
+                    'Import findings from Nessus, Qualys, Defender, Inspector, CrowdStrike…',
+                  )
+                : tr(
+                    'Aucune vulnérabilité n’est encore importée. Votre rôle permet de les consulter ; un administrateur peut vous donner le droit d’en importer.',
+                    'No vulnerability has been imported yet. Your role can view them; an administrator can grant you the right to import.',
+                  )
+            }
             primaryAction={
-              <Btn
-                label={tr('Importer', 'Import')}
-                icon={Upload}
-                primary
-                onClick={() => setIngestOpen(true)}
-              />
+              canWrite ? (
+                <Btn
+                  label={tr('Importer', 'Import')}
+                  icon={Upload}
+                  primary
+                  onClick={() => setIngestOpen(true)}
+                />
+              ) : undefined
             }
           />
         }
