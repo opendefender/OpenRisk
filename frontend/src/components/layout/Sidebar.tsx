@@ -5,15 +5,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router';
-import {
-  ChevronsUpDown,
-  PanelLeftClose,
-  PanelLeftOpen,
-  Plus,
-  Settings,
-  LogOut,
-  Star,
-} from 'lucide-react';
+import { PanelLeftClose, PanelLeftOpen, Plus, Settings, LogOut, Star } from 'lucide-react';
 import { cn } from '../../shared/ds';
 import { useUIStore } from '../../store/uiStore';
 import { useUIStrings } from '../../shared/uiStrings';
@@ -21,7 +13,7 @@ import { useAuthStore } from '../../hooks/useAuthStore';
 import { usePermissions } from '../../hooks/usePermissions';
 import { SidebarRoleLabel } from './SidebarRoleLabel';
 import { OpenRiskLogo } from '../../shared/Logo';
-import { OrgPlanLabel } from './OrgPlanLabel';
+import { OrgSwitcher } from './OrgSwitcher';
 import {
   visibleNavGroups,
   pinnedItems,
@@ -60,7 +52,6 @@ export const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => 
   const [menuOpen, setMenuOpen] = useState(false);
   // Real org identity + posture — replaces the former hardcoded fixtures.
   const orgName = user?.org_name?.trim() || tr('Mon organisation', 'My organization');
-  const orgInitials = initials(orgName, 'OR');
   // The canonical tenant score — the SAME query key the dashboard hero and the
   // dedicated page use, so all three render one object from one fetch. The
   // sidebar used to read cyber_score off the executive dashboard while the hero
@@ -241,26 +232,7 @@ export const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => 
               )}
             </div>
 
-            {!collapsed && (
-              <button
-                onClick={() => navigate('/settings')}
-                className="w-full flex items-center gap-2.5 px-2 py-1.5 rounded-[9px] hover:bg-hover transition-colors"
-              >
-                <div
-                  className="w-[26px] h-[26px] rounded-[7px] flex items-center justify-center text-[11px] font-bold shrink-0 text-accent-strong"
-                  style={{ background: 'var(--accent-soft)' }}
-                >
-                  {orgInitials}
-                </div>
-                <div className="min-w-0 flex-1 text-left">
-                  <div className="text-[12.5px] font-semibold leading-tight text-ink truncate">
-                    {orgName}
-                  </div>
-                  <OrgPlanLabel />
-                </div>
-                <ChevronsUpDown size={13} className="text-ink-muted shrink-0" />
-              </button>
-            )}
+            {!collapsed && <OrgSwitcher orgName={orgName} />}
           </div>
 
           {/* Quick action */}

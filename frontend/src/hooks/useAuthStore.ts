@@ -8,6 +8,7 @@ import { api } from '../lib/api';
 import { decodeAccessToken, permitted } from '../lib/jwt';
 import { setAccessToken } from '../lib/session';
 import { clearSessionScope } from '../lib/sessionScope';
+import { orgSwitchService } from '../features/organization/orgSwitchService';
 
 interface User {
   id: string;
@@ -68,6 +69,17 @@ interface AuthStore {
    * finishes the job login would otherwise have done.
    */
   adoptSession: (accessToken: string) => Promise<void>;
+  /**
+   * Moves the session to another organization the user is an active member of
+   * (#296). The server re-checks the membership and re-issues the session
+   * cookies; this replaces everything the previous organization scoped —
+   * permissions, business role, organization name, caches. On failure it throws
+   * and leaves the current session exactly as it was.
+   *
+   * `orgName` is the switcher row's name, used when the response omits the
+   * organization.
+   */
+  switchOrganization: (organizationId: string, orgName?: string) => Promise<void>;
   logout: () => void;
   refreshToken: () => Promise<void>;
   hasPermission: (permission: string) => boolean;
@@ -168,6 +180,37 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
 
     localStorage.setItem('auth_user', JSON.stringify(user));
     set({ token: accessToken, user, isAuthenticated: true });
+  },
+
+  switchOrganization: async (organizationId, orgName) => {
+    // The request comes first: a refusal throws here, before anything local is
+    // touched, so a failed switch leaves the user where they were.
+    const data = await orgSwitchService.switchTo(organizationId);
+
+    // A tenant boundary, exactly like a sign-in: nothing the previous
+    // organization cached may survive into this one.
+    clearSessionScope();
+    setAccessToken(data.token_pair.access_token);
+
+    const current = get().user;
+    const user = current
+      ? withTokenClaims(
+          { ...current, org_name: data.organization?.name ?? orgName ?? current.org_name },
+          data.token_pair.access_token,
+          // Not `undefined`: withTokenClaims would fall back to the previous
+          // organization's business role, and an owner switching out of an org
+          // where they are an auditor would keep the auditor's persona.
+          data.business_role ?? '',
+        )
+      : null;
+    if (user) localStorage.setItem('auth_user', JSON.stringify(user));
+
+    set({
+      token: data.token_pair.access_token,
+      user,
+      expiresIn: data.token_pair.expires_in,
+      isAuthenticated: true,
+    });
   },
 
   logout: () => {
