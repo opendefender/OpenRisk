@@ -8,6 +8,94 @@ Git tags use the `vMAJOR.MINOR.PATCH[-rc.N]` convention; see [docs/VERSIONING.md
 
 ## [Unreleased]
 
+### Planned
+- Board Report mensuel (IA, human-in-the-loop, FCFA) — the second half of M4
+- Multi-tenant support
+- Mobile app (React Native)
+- Slack/Teams notifications
+- Jira integration
+
+## [1.1.0-rc.4] - 2026-09-21
+
+> Ships the fix for [GHSA-cjh4-89ww-2jpr](https://github.com/opendefender/OpenRisk/security/advisories/GHSA-cjh4-89ww-2jpr)
+> to self-hosted operators, together with everything merged since `v1.1.0-rc.3`.
+> Still a release candidate: the release trains that follow Wave 0 remain open.
+
+### Security
+- **SSRF through integration URLs — GHSA-cjh4-89ww-2jpr, high (#743, #573).** Scanner
+  live-pull, Jira / ServiceNow ticketing and `POST /integrations/:id/test` fetched the
+  tenant-configured `base_url` with no restriction, and echoed the remote response back
+  through `last_pull_error`, ticket errors and the test endpoint. Changing only
+  `base_url` also sent the stored API credentials to the new host. Outbound requests
+  now go through `pkg/netguard`: https only; loopback, private, link-local (cloud
+  metadata), CGNAT, reserved and IPv4-embedding IPv6 ranges refused when the URL is
+  saved and again at connect time; redirects stay on the original host. Stored
+  credentials must be re-entered when `base_url` moves to another host, and remote
+  bodies are no longer echoed.
+  **Action for operators:** integrations whose `base_url` is `http://` or a private
+  address stop working until fixed. Tools on your own network can be opened with
+  `OUTBOUND_ALLOWED_CIDRS` (see `docs/SELF_HOSTING.md`); these requests no longer use
+  `HTTP(S)_PROXY`.
+- `audit_logs` scoped to the acting organisation — a P0 cross-tenant read (#534).
+- Audit of the 92 protected routes that had no permission guard; 17 were wrong (#577).
+- Isolation assessment of the 97 pending collection routes (#533).
+- Live permission-denial test matrix over all 52 guards, with a route ratchet (#530).
+- Session revocation enforced on live streams (#526); no session for a disabled or
+  deleted account (#525); MFA sign-in carries the current business role (#523).
+
+### Added
+- **Third-party risk (TPRM v1):** vendor register and the vendor → asset → risk chain on
+  Business and Enterprise (#676), questionnaire templates, assessments and a public
+  token link for vendors (#677, #682), J-7 / J-3 / J-1 reminders (#679). ADR 0004 (#675).
+- **Onboarding tunnel:** posture reveal and recognition (#628), residual score from
+  control coverage and a starter catalogue (#625), versioned Aha metric (#622), theme and
+  language switch inside the tunnel (#667).
+- **Organisation and profile:** editable organisation profile and regional settings
+  (#721), organisation logo and accent for every member (#723), self-service profile,
+  preferences and avatar (#722), switching between organisations (#734).
+- **Action Center:** aggregation API (#431) and the `/action-center` page (#434, #436).
+- Server-side saved table views that a tenant can share (#584); governed bulk
+  operations for risks, vulnerabilities and assets (#585, #586, #603).
+- Polymorphic entity contract, universal drawer and global timeline (#414).
+- Locale registry, CLDR pluralisation and locale-aware formatting (#604).
+- Tenant-safe response caching replacing the passthrough (#531).
+- One-command self-host: first admin and generated entitlement table (#610).
+- Design system: canonical token contract and theme foundation (#407, #423), form
+  primitives, Spinner, AlertDialog, Popover, Menu, Command, OtpField, Empty, TagInput,
+  RiskMatrix (#465–#477, #497, #642), in-house chart layer replacing Recharts (#498),
+  scoped SVG entry motion (#515).
+- Deferrable MFA enrolment before the Aha moment (#334).
+
+### Changed
+- Frontend migrated to Tailwind v4 (#449); Prettier adopted (#506); initial bundle
+  reduced from 245.8 KB to 179.7 KB (#466).
+- Licence references aligned on AGPL-3.0-only with a CLA and DCO check (#448, #516);
+  `frontend/design-system/` and `frontend/src/shared/ds/` relicensed to Apache-2.0 (#456).
+- Navigation regrouped into the five ratified intentions (#705).
+- Lint, test, build, performance-budget and E2E gates made blocking in CI (#500, #469,
+  #661).
+- The Helm chart exposes `OUTBOUND_ALLOWED_CIDRS` (#743).
+
+### Fixed
+- Auth: session refresh when the access cookie has expired (#692); registration is
+  atomic and duplicates nothing (#694); pasted one-time codes accepted (#478).
+- Onboarding: the tunnel completes from its last step (#693), keeps one state per
+  organisation (#736), stops its load-failure remount loop (#697), and five defects found
+  by walking it (#633, #635, #644, #717).
+- Transactions: mitigation creation (#518), risk bulk actions (#585), mitigation
+  sub-actions built at startup and scoped to the tenant (#708).
+- RBAC and UI truthfulness: the sidebar shows the real plan and role (#698, #699),
+  read-only members no longer get create controls the server refuses (#740), every
+  business role can hold the realtime stream (#742), `events:read` in the permission
+  catalogue (#618), notifications open their subject (#733), `/threat-intel` redirect
+  (#738).
+- Infrastructure: `docker-up` starts a stack you can sign up to (#648); the backend cache
+  reaches Redis in Docker (#729); no `record not found` error logs from a healthy backend
+  (#617).
+- Accessibility: unnamed selects and unreachable scroll regions (#646), tint contrast
+  pairs (#460).
+- Pending invitations counted against the caller's clock (#418).
+
 ### Deprecated
 - Three legacy SSE endpoints now carry RFC 8594 `Deprecation`, `Sunset` and `Link` headers and are
   **removed in 1.2.0** (sunset **2026-12-02**) — see
@@ -25,13 +113,6 @@ Git tags use the `vMAJOR.MINOR.PATCH[-rc.N]` convention; see [docs/VERSIONING.md
 ### Removed
 - `frontend/src/hooks/useSSE.ts`, a generic SSE hook with no consumers, superseded by
   `src/lib/realtime.ts`.
-
-### Planned
-- Board Report mensuel (IA, human-in-the-loop, FCFA) — the second half of M4
-- Multi-tenant support
-- Mobile app (React Native)
-- Slack/Teams notifications
-- Jira integration
 
 ## [1.1.0-rc.3] - 2026-08-25
 
@@ -322,7 +403,8 @@ this is a release candidate, not a GA.
 
 ---
 
-[Unreleased]: https://github.com/opendefender/OpenRisk/compare/v1.1.0-rc.3...HEAD
+[Unreleased]: https://github.com/opendefender/OpenRisk/compare/v1.1.0-rc.4...HEAD
+[1.1.0-rc.4]: https://github.com/opendefender/OpenRisk/compare/v1.1.0-rc.3...v1.1.0-rc.4
 [1.1.0-rc.3]: https://github.com/opendefender/OpenRisk/compare/v1.1.0-rc.1...v1.1.0-rc.3
 [1.1.0-rc.1]: https://github.com/opendefender/OpenRisk/compare/v1.0.8...v1.1.0-rc.1
 [1.0.4]: https://github.com/opendefender/OpenRisk/compare/v1.0.3...v1.0.4
