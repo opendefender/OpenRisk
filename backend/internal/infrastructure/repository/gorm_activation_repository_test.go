@@ -199,3 +199,55 @@ func TestOnboardingProgress_MissingAndIsolated(t *testing.T) {
 	assert.Error(t, repo.Save(ctx, nil))
 	assert.Error(t, repo.Save(ctx, &domain.OnboardingProgress{UserID: user}))
 }
+
+// #735 — an account belongs to every organization that invited it, and each
+// membership has its own wizard state. With a per-user key the single row moved
+// to whichever organization last wrote it: joining a second organization by
+// invitation took the row away from the first, and the first re-opened the
+// wizard on the next switch.
+func TestOnboardingProgress_PerOrganization_Success(t *testing.T) {
+	repo := setupActivationRepo(t)
+	ctx := context.Background()
+	orgB, orgA, user := uuid.New(), uuid.New(), uuid.New()
+
+	// Founded Org B and finished its wizard.
+	require.NoError(t, repo.MarkComplete(ctx, orgB, user))
+	// Then accepted an invitation into Org A.
+	require.NoError(t, repo.MarkComplete(ctx, orgA, user))
+
+	for _, org := range []uuid.UUID{orgB, orgA} {
+		got, err := repo.Get(ctx, org, user)
+		require.NoError(t, err)
+		require.NotNil(t, got, "each organization keeps its own row")
+		assert.True(t, got.Completed)
+		assert.Equal(t, org, got.TenantID)
+	}
+
+	var count int64
+	require.NoError(t, repo.db.Model(&domain.OnboardingProgress{}).Where("user_id = ?", user).Count(&count).Error)
+	assert.Equal(t, int64(2), count)
+}
+
+// Writing one organization's wizard never rewrites another's: Save upserts on
+// (tenant, user) and leaves tenant_id alone.
+func TestOnboardingProgress_SaveDoesNotMoveAnotherOrganization(t *testing.T) {
+	repo := setupActivationRepo(t)
+	ctx := context.Background()
+	orgA, orgB, user := uuid.New(), uuid.New(), uuid.New()
+
+	require.NoError(t, repo.MarkComplete(ctx, orgA, user))
+	require.NoError(t, repo.Save(ctx, &domain.OnboardingProgress{
+		TenantID: orgB, UserID: user, CurrentStep: domain.OnboardingStepGoal,
+	}))
+
+	a, err := repo.Get(ctx, orgA, user)
+	require.NoError(t, err)
+	require.NotNil(t, a)
+	assert.True(t, a.Completed, "Org A's finished wizard must stay finished")
+
+	b, err := repo.Get(ctx, orgB, user)
+	require.NoError(t, err)
+	require.NotNil(t, b)
+	assert.False(t, b.Completed)
+	assert.Equal(t, domain.OnboardingStepGoal, b.CurrentStep)
+}

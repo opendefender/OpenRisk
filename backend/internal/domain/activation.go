@@ -452,11 +452,17 @@ func (s OnboardingStepKey) Index() int {
 	return -1
 }
 
-// OnboardingProgress is one user's resumable wizard state.
+// OnboardingProgress is one user's resumable wizard state IN ONE ORGANIZATION.
+//
+// Unique per (tenant, user), not per user: an account belongs to every
+// organization that invited it, and each membership has its own wizard state.
+// A per-user key made the single row migrate to whichever organization last
+// wrote it, so a member of two organizations was sent back to the wizard on
+// every switch (#735).
 type OnboardingProgress struct {
 	ID       uuid.UUID `gorm:"type:uuid;primaryKey" json:"id"`
-	TenantID uuid.UUID `gorm:"type:uuid;not null;index" json:"tenant_id"`
-	UserID   uuid.UUID `gorm:"type:uuid;not null;uniqueIndex" json:"user_id"`
+	TenantID uuid.UUID `gorm:"type:uuid;not null;index;uniqueIndex:uq_onboarding_progress_tenant_user,priority:1" json:"tenant_id"`
+	UserID   uuid.UUID `gorm:"type:uuid;not null;uniqueIndex:uq_onboarding_progress_tenant_user,priority:2" json:"user_id"`
 
 	CurrentStep OnboardingStepKey `gorm:"type:varchar(32);not null;default:'organization'" json:"current_step"`
 	Completed   bool              `gorm:"not null;default:false" json:"completed"`
