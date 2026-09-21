@@ -44,7 +44,7 @@ export function EvidenceDrawer({
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+      <div className="absolute inset-0 bg-surface-overlay backdrop-blur-sm" onClick={onClose} />
       <aside
         role="dialog"
         aria-modal="true"

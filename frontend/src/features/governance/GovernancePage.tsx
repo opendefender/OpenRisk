@@ -81,25 +81,25 @@ const AUDIT_ENTITIES = [
 ];
 
 const ACTION_COLOR: Record<AuditAction, string> = {
-  create: 'var(--good, #16a34a)',
+  create: 'var(--success)',
   update: 'var(--accent)',
-  delete: 'var(--crit, #dc2626)',
+  delete: 'var(--danger)',
   submit: 'var(--accent)',
-  approve: 'var(--good, #16a34a)',
-  reject: 'var(--crit, #dc2626)',
-  delegate: 'var(--med, #d97706)',
-  revoke: 'var(--crit, #dc2626)',
+  approve: 'var(--success)',
+  reject: 'var(--danger)',
+  delegate: 'var(--warning)',
+  revoke: 'var(--danger)',
   login: 'var(--fg-secondary)',
   export: 'var(--fg-secondary)',
 };
 
 const STATUS_COLOR: Record<string, string> = {
-  pending: 'var(--med, #d97706)',
-  approved: 'var(--good, #16a34a)',
-  rejected: 'var(--crit, #dc2626)',
+  pending: 'var(--warning)',
+  approved: 'var(--success)',
+  rejected: 'var(--danger)',
   cancelled: 'var(--fg-secondary)',
-  active: 'var(--good, #16a34a)',
-  revoked: 'var(--crit, #dc2626)',
+  active: 'var(--success)',
+  revoked: 'var(--danger)',
   expired: 'var(--fg-secondary)',
 };
 
@@ -148,8 +148,8 @@ export function GovernancePage() {
       onClick={() => selectTab(id)}
       className="h-9 px-3.5 rounded-[9px] text-[12.5px] font-semibold inline-flex items-center gap-1.5"
       style={{
-        background: tab === id ? 'var(--accent)' : 'transparent',
-        color: tab === id ? '#fff' : 'var(--fg-secondary)',
+        background: tab === id ? 'var(--accent-solid)' : 'transparent',
+        color: tab === id ? 'var(--fg-on-solid)' : 'var(--fg-secondary)',
         border: tab === id ? 'none' : '1px solid var(--border-strong)',
       }}
     >
@@ -428,7 +428,7 @@ function AuditDetailDrawer({ e, onClose }: { e: AuditEvent; onClose: () => void 
   return (
     <div
       className="fixed inset-0 z-70 flex justify-end"
-      style={{ background: 'rgba(0,0,0,.45)', backdropFilter: 'blur(3px)' }}
+      style={{ background: 'var(--surface-overlay)', backdropFilter: 'blur(var(--overlay-blur))' }}
       onClick={onClose}
     >
       <div
@@ -673,7 +673,10 @@ function ApprovalCard({ req }: { req: ApprovalRequest }) {
           <div className="flex items-center gap-2 flex-wrap">
             <span
               className="text-[11px] font-bold uppercase px-2 py-0.5 rounded-md"
-              style={{ color: '#fff', background: STATUS_COLOR[req.status] }}
+              style={{
+                color: STATUS_COLOR[req.status],
+                background: `color-mix(in srgb, ${STATUS_COLOR[req.status]} 14%, transparent)`,
+              }}
             >
               {req.status}
             </span>
@@ -733,7 +736,7 @@ function ApprovalCard({ req }: { req: ApprovalRequest }) {
                   style={{
                     border: '1px solid var(--border-strong)',
                     background: p.satisfied
-                      ? 'color-mix(in srgb, var(--good, #16a34a) 16%, transparent)'
+                      ? 'color-mix(in srgb, var(--success) 16%, transparent)'
                       : p.open
                         ? 'color-mix(in srgb, var(--accent) 16%, transparent)'
                         : 'transparent',
@@ -830,7 +833,7 @@ function ApprovalCard({ req }: { req: ApprovalRequest }) {
             <div key={i} className="text-[12px]" style={{ color: 'var(--fg-secondary)' }}>
               <span
                 style={{
-                  color: d.decision === 'approve' ? 'var(--good, #16a34a)' : 'var(--crit, #dc2626)',
+                  color: d.decision === 'approve' ? 'var(--success)' : 'var(--danger)',
                   fontWeight: 700,
                 }}
               >
@@ -998,7 +1001,10 @@ function DelegationsView() {
             >
               <span
                 className="text-[11px] font-bold uppercase px-2 py-0.5 rounded-md"
-                style={{ color: '#fff', background: STATUS_COLOR[d.status] }}
+                style={{
+                  color: STATUS_COLOR[d.status],
+                  background: `color-mix(in srgb, ${STATUS_COLOR[d.status]} 14%, transparent)`,
+                }}
               >
                 {d.status}
               </span>
@@ -1428,7 +1434,7 @@ function CreateWorkflowModal({ onClose }: { onClose: () => void }) {
                 className="w-14 h-8 px-2 rounded-[8px] bg-transparent text-[12.5px]"
                 style={{ border: '1px solid var(--border-strong)' }}
               />
-              <button onClick={() => removeStep(i)} style={{ color: 'var(--crit, #dc2626)' }}>
+              <button onClick={() => removeStep(i)} style={{ color: 'var(--danger)' }}>
                 <X size={14} />
               </button>
             </div>

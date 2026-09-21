@@ -435,6 +435,19 @@
    contrast requirement of their own beyond what sits on top of them.
 */
 
+/* Preview swatches for the variant picker. They must show a variant's accent
+   while a DIFFERENT variant is active, so they cannot read --accent; they mirror
+   the values below, per theme. */
+:root {
+  --swatch-azure: #4f9bff;
+  --swatch-iris: #9d90ff;
+}
+
+:root[data-theme='light'] {
+  --swatch-azure: #0b60b9;
+  --swatch-iris: #5b46c9;
+}
+
 :root[data-variant='azure'] {
   --accent: #4f9bff;
   --accent-500: #4f9bff;

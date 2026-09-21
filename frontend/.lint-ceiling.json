@@ -1,7 +1,6 @@
 {
-  "total": 185,
+  "total": 132,
   "rules": {
-    "openrisk/no-raw-colors": 53,
     "@typescript-eslint/no-unused-vars": 39,
     "@typescript-eslint/no-explicit-any": 26,
     "react-hooks/set-state-in-effect": 16,

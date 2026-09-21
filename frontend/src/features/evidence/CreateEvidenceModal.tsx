@@ -69,7 +69,7 @@ export function CreateEvidenceModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
+      <div className="absolute inset-0 bg-surface-overlay backdrop-blur-sm" onClick={onClose} />
       {/* max-h + internal scroll: the submit button must never be pushed off
           screen on a short viewport, which is a bug this project has already had. */}
       {/* Announced as a dialog and named by its heading; the evidence library
