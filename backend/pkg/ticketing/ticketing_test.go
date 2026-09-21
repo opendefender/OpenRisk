@@ -13,6 +13,8 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/opendefender/openrisk/pkg/netguard"
 )
 
 func TestJiraProvider_CreatesIssue(t *testing.T) {
@@ -36,6 +38,7 @@ func TestJiraProvider_CreatesIssue(t *testing.T) {
 	defer srv.Close()
 
 	tk, err := (jiraProvider{}).Create(context.Background(), CreateRequest{
+		HTTP:           srv.Client(),
 		BaseURL:        srv.URL,
 		Credentials:    map[string]string{"email": "a@b.co", "api_token": "tok"},
 		ProjectOrTable: "SEC",
@@ -66,6 +69,7 @@ func TestServiceNowProvider_CreatesIncident(t *testing.T) {
 	defer srv.Close()
 
 	tk, err := (serviceNowProvider{}).Create(context.Background(), CreateRequest{
+		HTTP:        srv.Client(),
 		BaseURL:     srv.URL,
 		Credentials: map[string]string{"username": "u", "password": "p"},
 		Summary:     "[CVE-2021-44228] Log4Shell",
@@ -90,6 +94,7 @@ func TestProvider_AuthErrorNotFabricated(t *testing.T) {
 	defer srv.Close()
 
 	_, err := (jiraProvider{}).Create(context.Background(), CreateRequest{
+		HTTP:           srv.Client(),
 		BaseURL:        srv.URL,
 		Credentials:    map[string]string{"email": "a@b.co", "api_token": "bad"},
 		ProjectOrTable: "SEC",
@@ -118,5 +123,61 @@ func TestServiceNowPriorityMap(t *testing.T) {
 		if got := snPriority(in); got != want {
 			t.Errorf("snPriority(%q)=%q want %q", in, got, want)
 		}
+	}
+}
+
+// Without an injected client, a private instance URL is refused before any
+// request — the ticketing credentials never leave for an internal host.
+func TestProvider_RefusesPrivateBaseURL(t *testing.T) {
+	for _, p := range []Provider{jiraProvider{}, serviceNowProvider{}} {
+		for _, base := range []string{"https://169.254.169.254", "http://acme.atlassian.net", "https://10.0.0.8"} {
+			_, err := p.Create(context.Background(), CreateRequest{
+				BaseURL:        base,
+				Credentials:    map[string]string{"email": "a@b.co", "username": "u", "api_token": "t", "password": "p"},
+				ProjectOrTable: "SEC",
+				Summary:        "x",
+			})
+			if err == nil || !netguard.IsDenied(err) {
+				t.Errorf("%s %s: err = %v, want netguard.ErrDenied", p.Name(), base, err)
+			}
+		}
+	}
+}
+
+func TestProviders_DoNotEchoResponseBody(t *testing.T) {
+	const secret = "internal-admin-panel-token"
+	for _, status := range []int{http.StatusUnauthorized, http.StatusOK} {
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(status)
+			w.Write([]byte(`{"detail":"` + secret + `"}`))
+		}))
+		for _, p := range []Provider{jiraProvider{}, serviceNowProvider{}} {
+			_, err := p.Create(context.Background(), CreateRequest{
+				HTTP:           srv.Client(),
+				BaseURL:        srv.URL,
+				Credentials:    map[string]string{"email": "a@b.co", "username": "u", "api_token": "t", "password": "p"},
+				ProjectOrTable: "SEC",
+				Summary:        "x",
+			})
+			if err == nil {
+				t.Errorf("%s status %d: expected an error", p.Name(), status)
+			} else if strings.Contains(err.Error(), secret) {
+				t.Errorf("%s status %d: error echoes the remote body: %v", p.Name(), status, err)
+			}
+		}
+		srv.Close()
+	}
+}
+
+func TestServiceNowProvider_RejectsTablePath(t *testing.T) {
+	_, err := (serviceNowProvider{}).Create(context.Background(), CreateRequest{
+		HTTP:           http.DefaultClient,
+		BaseURL:        "https://acme.service-now.com",
+		Credentials:    map[string]string{"username": "u", "password": "p"},
+		ProjectOrTable: "../../../api/now/v1/users",
+		Summary:        "x",
+	})
+	if err == nil || !strings.Contains(err.Error(), "invalid table name") {
+		t.Fatalf("err = %v, want invalid table name", err)
 	}
 }
