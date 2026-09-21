@@ -5,7 +5,15 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router';
-import { PanelLeftClose, PanelLeftOpen, Plus, Settings, LogOut, Star } from 'lucide-react';
+import {
+  PanelLeftClose,
+  PanelLeftOpen,
+  Plus,
+  Settings,
+  LogOut,
+  Star,
+  UserRound,
+} from 'lucide-react';
 import { cn } from '../../shared/ds';
 import { useUIStore } from '../../store/uiStore';
 import { useUIStrings } from '../../shared/uiStrings';
@@ -59,7 +67,11 @@ export const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => 
   const { can, isAdmin } = usePermissions();
   const [menuOpen, setMenuOpen] = useState(false);
   // Real org identity + posture — replaces the former hardcoded fixtures.
-  const orgName = user?.org_name?.trim() || tr('Mon organisation', 'My organization');
+  // Branding (#718) is readable by every member; the login's org_name is the
+  // fallback while it loads.
+  const { data: branding } = useOrganizationBranding(Boolean(user));
+  const orgName =
+    branding?.name?.trim() || user?.org_name?.trim() || tr('Mon organisation', 'My organization');
   // The canonical tenant score — the SAME query key the dashboard hero and the
   // dedicated page use, so all three render one object from one fetch. The
   // sidebar used to read cyber_score off the executive dashboard while the hero
@@ -240,7 +252,19 @@ export const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => 
               )}
             </div>
 
-            {!collapsed && <OrgSwitcher orgName={orgName} />}
+            {!collapsed && (
+              <OrgSwitcher
+                orgName={orgName}
+                badge={
+                  <OrgLogo
+                    name={orgName}
+                    hasLogo={branding?.has_logo ?? false}
+                    size={26}
+                    radius={7}
+                  />
+                }
+              />
+            )}
           </div>
 
           {/* Quick action — only for a member who may create a risk (#739). */}
