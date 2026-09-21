@@ -41,6 +41,7 @@ import {
 import { critColor } from '../../shared/riskColors';
 import { useUIStrings } from '../../shared/uiStrings';
 import { useUIStore } from '../../store/uiStore';
+import { useAuthStore } from '../../hooks/useAuthStore';
 import { mitigationService, type BoardStatus } from '../../services/mitigationService';
 import { useMitigations, type Column, type UiMiti } from './useMitigations';
 import { useMitigationEvents } from './useMitigationEvents';
@@ -60,6 +61,8 @@ export function MitigationsBoard() {
   const lang = useUIStore((s) => s.lang);
   const navigate = useNavigate();
   const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
+  // Adding a plan is offered only to a member who may create one (#739).
+  const canCreate = useAuthStore((s) => s.hasPermission('mitigations:create'));
   const { columns, items, isLoading, isError, refetch } = useMitigations();
   const [view, setView] = useState<View>('kanban');
 
@@ -117,7 +120,9 @@ export function MitigationsBoard() {
                 </button>
               ))}
             </div>
-            <Btn label={L.addPlan} icon={Plus} primary onClick={() => navigate('/risks')} />
+            {canCreate && (
+              <Btn label={L.addPlan} icon={Plus} primary onClick={() => navigate('/risks')} />
+            )}
           </>
         }
       />
@@ -209,7 +214,7 @@ function KanbanCard({ c, onOpen }: { c: UiMiti; onOpen: () => void }) {
       className="rounded-[11px] p-[13px] mb-2.5 cursor-pointer transition-all"
       style={{
         background: 'var(--bg-elevated)',
-        border: `1px solid ${c.overdue ? 'rgba(255,69,58,.4)' : 'var(--border)'}`,
+        border: `1px solid ${c.overdue ? 'color-mix(in srgb, var(--danger) 40%, transparent)' : 'var(--border)'}`,
         boxShadow: hover ? 'var(--shadow-md)' : 'var(--shadow-sm)',
         transform: hover ? 'translateY(-2px)' : 'none',
       }}

@@ -272,6 +272,7 @@ export const ROUTES: RouteNode[] = [
   // person the right access"), and splitting them across two screens is why
   // "Invite a member" used to land on Roles & permissions.
   { path: '/settings/members', label: { fr: 'Membres', en: 'Members' }, parent: '/settings' },
+  { path: '/settings/profile', label: { fr: 'Mon profil', en: 'My profile' }, parent: '/settings' },
 ];
 
 /* ------------------------------------------------------------------ *

@@ -32,6 +32,8 @@ import {
 } from './features/onboarding/OnboardingGuard';
 
 // --- App shell ---
+import { PreferencesSync } from './features/profile/PreferencesSync';
+import { BrandingSync } from './features/organization/BrandingSync';
 import { Sidebar } from './components/layout/Sidebar';
 import { AppHeader } from './components/layout/AppHeader';
 // Command palette pulls @floating-ui + the search stack; it is only needed once
@@ -356,7 +358,7 @@ const DashboardLayout = () => {
   const location = useLocation();
   useEffect(() => {
     if (!new URLSearchParams(location.search).has('guided')) return;
-    setNewRiskOpen(true);
+    if (useAuthStore.getState().hasPermission('risks:create')) setNewRiskOpen(true);
     const next = new URLSearchParams(location.search);
     next.delete('guided');
     navigate({ pathname: location.pathname, search: next.toString() }, { replace: true });
@@ -365,7 +367,12 @@ const DashboardLayout = () => {
   // The sidebar quick action and command palette dispatch this to open the modal.
   // A header button dispatches openrisk:shortcuts to reveal the shortcuts overlay.
   useEffect(() => {
-    const openRisk = () => setNewRiskOpen(true);
+    // Every way into the create-risk dialog — buttons, the N shortcut, the
+    // command palette — arrives here, so this is where a member without
+    // risks:create is kept out of a form the server would refuse (#739).
+    const openRisk = () => {
+      if (useAuthStore.getState().hasPermission('risks:create')) setNewRiskOpen(true);
+    };
     const openShortcuts = () => setShowShortcuts(true);
     window.addEventListener('openrisk:new-risk', openRisk);
     window.addEventListener('openrisk:shortcuts', openShortcuts);
@@ -415,6 +422,10 @@ const DashboardLayout = () => {
       <a href="#main-content" className="skip-link">
         {lang === 'fr' ? 'Aller au contenu principal' : 'Skip to main content'}
       </a>
+      {/* Server-side profile preferences: theme, language, dates (#719). */}
+      <PreferencesSync />
+      {/* The organization's accent, worn by every member (#718). */}
+      <BrandingSync />
       <Sidebar mobileOpen={mobileNavOpen} onMobileClose={() => setMobileNavOpen(false)} />
       <div
         className="flex-1 flex flex-col h-screen overflow-hidden relative min-w-0"
@@ -527,7 +538,7 @@ function RouteFallback() {
         className="h-8 w-8 rounded-full animate-spin"
         style={{
           border: '3px solid var(--border-subtle)',
-          borderTopColor: 'var(--accent, #2e6be6)',
+          borderTopColor: 'var(--accent)',
         }}
         role="status"
         aria-label="Chargement…"
@@ -655,6 +666,9 @@ function App() {
             <Route path="vulnerabilities/unassigned" element={<UnassignedVulnerabilitiesPage />} />
             <Route path="vulnerabilities/risk-rule" element={<RiskRulePage />} />
             <Route path="threat-map" element={<ThreatIntel />} />
+            {/* The page is called Threat Intel everywhere it is named, so that is the
+                URL people type and share; it 404'd (#737). */}
+            <Route path="threat-intel" element={<Navigate to="/threat-map" replace />} />
             <Route path="ai/emerging-risks" element={<EmergingRisksPage />} />
             <Route path="simulations" element={<SimulationsPage />} />
 
@@ -700,7 +714,10 @@ function App() {
               element={<VendorAssessmentPage />}
             />
             <Route path="vendors/questionnaires" element={<QuestionnaireTemplatesPage />} />
-            <Route path="vendors/questionnaires/new" element={<QuestionnaireTemplateEditorPage />} />
+            <Route
+              path="vendors/questionnaires/new"
+              element={<QuestionnaireTemplateEditorPage />}
+            />
             <Route
               path="vendors/questionnaires/:templateId"
               element={<QuestionnaireTemplateEditorPage />}
@@ -745,6 +762,7 @@ function App() {
             {/* Members owns invitations AND role assignment — one job, one screen.
               Splitting them is why "Invite a member" landed on Roles. */}
             <Route path="settings/members" element={<SettingsScreen />} />
+            <Route path="settings/profile" element={<SettingsScreen />} />
 
             {/* ---------------- Moves and legacy deep links ----------------
               Permanent client-side redirects. `replace` keeps the old URL out of

@@ -12,9 +12,9 @@
 // view. The right-side drawer (Details / Lifecycle / Score / Financial / …)
 // is unchanged.
 
-import { useFormat } from '../../hooks/useI18n';
-import { localeTag } from '../../i18n/locales';
+import { useFormat, usePreferredDate } from '../../hooks/useI18n';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -150,6 +150,9 @@ export function RiskRegisterPage() {
   const fetchRisks = useRiskStore((s) => s.fetchRisks);
   const deleteRisk = useRiskStore((s) => s.deleteRisk);
   const bulkDelete = useRiskStore((s) => s.bulkDelete);
+  // A read-only member is not offered creation: the server would refuse it
+  // (risks:create), after a form had been filled (#739).
+  const canCreate = useAuthStore((s) => s.hasPermission('risks:create'));
   const canUpdate = useAuthStore((s) => s.hasPermission('risks:update'));
   const { data: categories } = useRiskCategories();
   const canDelete = useAuthStore((s) => s.hasPermission('risks:delete'));
@@ -557,8 +560,8 @@ export function RiskRegisterPage() {
                   onClick={() => setView(v)}
                   className="h-8 px-2.5 rounded-[8px] text-[12.5px] font-semibold inline-flex items-center gap-1.5 transition-colors"
                   style={{
-                    background: view === v ? 'var(--accent-hover)' : 'transparent',
-                    color: view === v ? '#fff' : 'var(--fg-secondary)',
+                    background: view === v ? 'var(--accent-solid)' : 'transparent',
+                    color: view === v ? 'var(--fg-on-solid)' : 'var(--fg-secondary)',
                   }}
                   title={lbl}
                 >
@@ -566,13 +569,17 @@ export function RiskRegisterPage() {
                 </button>
               ))}
             </div>
-            <Btn label={L.importCsv} icon={Upload} onClick={() => navigate('/risks/import')} />
-            <Btn
-              label={L.newRisk}
-              icon={Plus}
-              primary
-              onClick={() => window.dispatchEvent(new CustomEvent('openrisk:new-risk'))}
-            />
+            {canCreate && (
+              <>
+                <Btn label={L.importCsv} icon={Upload} onClick={() => navigate('/risks/import')} />
+                <Btn
+                  label={L.newRisk}
+                  icon={Plus}
+                  primary
+                  onClick={() => window.dispatchEvent(new CustomEvent('openrisk:new-risk'))}
+                />
+              </>
+            )}
           </>
         }
       />
@@ -585,17 +592,26 @@ export function RiskRegisterPage() {
             <EmptyState
               icon={ShieldAlert}
               title={tr('Aucun risque pour le moment', 'No risks yet')}
-              description={tr(
-                'Créez votre premier risque pour commencer à cartographier votre exposition.',
-                'Create your first risk to start mapping your exposure.',
-              )}
+              description={
+                canCreate
+                  ? tr(
+                      'Créez votre premier risque pour commencer à cartographier votre exposition.',
+                      'Create your first risk to start mapping your exposure.',
+                    )
+                  : tr(
+                      'Aucun risque n’est encore enregistré. Votre rôle permet de consulter le registre ; un administrateur peut vous donner le droit d’en créer.',
+                      'No risk has been recorded yet. Your role can view the register; an administrator can grant you the right to create risks.',
+                    )
+              }
               primaryAction={
-                <Btn
-                  label={L.newRisk}
-                  icon={Plus}
-                  primary
-                  onClick={() => window.dispatchEvent(new CustomEvent('openrisk:new-risk'))}
-                />
+                canCreate ? (
+                  <Btn
+                    label={L.newRisk}
+                    icon={Plus}
+                    primary
+                    onClick={() => window.dispatchEvent(new CustomEvent('openrisk:new-risk'))}
+                  />
+                ) : undefined
               }
             />
           ) : (
@@ -703,17 +719,26 @@ export function RiskRegisterPage() {
             <EmptyState
               icon={ShieldAlert}
               title={tr('Aucun risque pour le moment', 'No risks yet')}
-              description={tr(
-                'Créez votre premier risque pour commencer à cartographier votre exposition.',
-                'Create your first risk to start mapping your exposure.',
-              )}
+              description={
+                canCreate
+                  ? tr(
+                      'Créez votre premier risque pour commencer à cartographier votre exposition.',
+                      'Create your first risk to start mapping your exposure.',
+                    )
+                  : tr(
+                      'Aucun risque n’est encore enregistré. Votre rôle permet de consulter le registre ; un administrateur peut vous donner le droit d’en créer.',
+                      'No risk has been recorded yet. Your role can view the register; an administrator can grant you the right to create risks.',
+                    )
+              }
               primaryAction={
-                <Btn
-                  label={L.newRisk}
-                  icon={Plus}
-                  primary
-                  onClick={() => window.dispatchEvent(new CustomEvent('openrisk:new-risk'))}
-                />
+                canCreate ? (
+                  <Btn
+                    label={L.newRisk}
+                    icon={Plus}
+                    primary
+                    onClick={() => window.dispatchEvent(new CustomEvent('openrisk:new-risk'))}
+                  />
+                ) : undefined
               }
             />
           }
@@ -1022,6 +1047,7 @@ function DrawerTimeline({ r }: { r: UiRisk }) {
 //     instead of implying the whole tab is unbuilt.
 function DrawerCTI({ r }: { r: UiRisk }) {
   const lang = useUIStore((s) => s.lang);
+  const when = usePreferredDate();
   const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
   const navigate = useNavigate();
   const cve = r.raw.source_cve_id ?? '';
@@ -1110,7 +1136,7 @@ function DrawerCTI({ r }: { r: UiRisk }) {
       {data.cisa_known && data.cisa_due_date && (
         <Fact
           label={tr('Échéance CISA', 'CISA due date')}
-          value={new Date(data.cisa_due_date).toLocaleDateString(localeTag(lang))}
+          value={when.calendarDate(data.cisa_due_date)}
         />
       )}
       {!!data.mitre_tactics?.length && (
@@ -1341,6 +1367,9 @@ function RiskDrawer({
   const lang = useUIStore((s) => s.lang);
   const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
   const [tab, setTab] = useState<DrawerTab>(initialTab ?? 'details');
+  // Editing is offered only to a member who may update the risk (#739); the
+  // ownership pickers below already follow the same permission.
+  const canUpdate = useAuthStore((s) => s.hasPermission('risks:update'));
   const tabDef: [typeof tab, string][] = [
     ['details', L.tab_details],
     ['lifecycle', tr('Cycle de vie', 'Lifecycle')],
@@ -1352,12 +1381,19 @@ function RiskDrawer({
     ['cti', L.tab_cti],
     ['ai', L.tab_ai],
   ];
-  return (
+  // Portalled to document.body, for the reason shared/ds/Modal and Drawer state:
+  // no ancestor's transform may become this panel's containing block. The drawer
+  // is rendered inside <PageFrame>, which carries `animate-or-fadeup` — a
+  // translateY held by `fill-mode: both`. A transformed ancestor makes
+  // `position: fixed` resolve against THAT box instead of the viewport, so the
+  // drawer was anchored to the page content area: pushed below the header and
+  // sized to the content, which is what read as "the drawer is not straight".
+  return createPortal(
     <div
       className="fixed inset-0 z-70 flex justify-end"
       style={{
-        background: 'rgba(0,0,0,.45)',
-        backdropFilter: 'blur(3px)',
+        background: 'var(--surface-overlay)',
+        backdropFilter: 'blur(var(--overlay-blur))',
         animation: 'or-fadein .2s ease',
       }}
       onClick={onClose}
@@ -1380,7 +1416,10 @@ function RiskDrawer({
           <div className="flex items-start gap-3 mb-3">
             <div className="flex-1">
               <div className="mono text-[11px] text-ink-muted mb-[5px]">#{r.id.slice(0, 8)}</div>
-              <h2 id="risk-drawer-title" className="disp text-[18px] font-bold text-ink leading-snug">
+              <h2
+                id="risk-drawer-title"
+                className="disp text-[18px] font-bold text-ink leading-snug"
+              >
                 {r.name}
               </h2>
             </div>
@@ -1405,7 +1444,7 @@ function RiskDrawer({
             </span>
           </div>
           <div className="flex gap-2 mt-3.5">
-            <Btn label={L.edit} icon={Pencil} onClick={onEdit} />
+            {canUpdate && <Btn label={L.edit} icon={Pencil} onClick={onEdit} />}
             <Btn label={L.exportCsv} icon={FileText} onClick={onExport} />
           </div>
         </div>
@@ -1445,7 +1484,8 @@ function RiskDrawer({
           {tab === 'cti' && <DrawerCTI r={r} />}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 

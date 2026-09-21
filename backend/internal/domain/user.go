@@ -26,19 +26,26 @@ type Role struct {
 
 // User represents an authenticated system user with a role
 type User struct {
-	ID         uuid.UUID  `gorm:"type:uuid;default:gen_random_uuid();primaryKey" json:"id"`
-	Email      string     `gorm:"uniqueIndex;not null" json:"email"`
-	Username   string     `gorm:"uniqueIndex;not null" json:"username"`
-	Password   string     `json:"-"` // Never return in JSON
-	FullName   string     `json:"full_name"`
-	Bio        string     `json:"bio"`
-	Phone      string     `json:"phone"`
-	Department string     `json:"department"`
-	Timezone   string     `gorm:"default:'UTC'" json:"timezone"`
-	RoleID     uuid.UUID  `gorm:"index" json:"role_id"`
-	Role       *Role      `json:"role,omitempty"`
-	IsActive   bool       `gorm:"default:true;index" json:"is_active"`
-	AvatarURL  string     `json:"avatar_url"`
+	ID         uuid.UUID `gorm:"type:uuid;default:gen_random_uuid();primaryKey" json:"id"`
+	Email      string    `gorm:"uniqueIndex;not null" json:"email"`
+	Username   string    `gorm:"uniqueIndex;not null" json:"username"`
+	Password   string    `json:"-"` // Never return in JSON
+	FullName   string    `json:"full_name"`
+	Bio        string    `json:"bio"`
+	Phone      string    `json:"phone"`
+	Department string    `json:"department"`
+	Timezone   string    `gorm:"default:'UTC'" json:"timezone"`
+	RoleID     uuid.UUID `gorm:"index" json:"role_id"`
+	Role       *Role     `json:"role,omitempty"`
+	IsActive   bool      `gorm:"default:true;index" json:"is_active"`
+	AvatarURL  string    `json:"avatar_url"`
+	// AvatarKey is the storage key of an uploaded avatar. Internal: the client
+	// reads the image through GET /users/:id/avatar, never the key.
+	AvatarKey string `gorm:"type:text" json:"-"`
+	// Personal preferences (#719). Empty means "follow the organization".
+	Locale     string     `gorm:"type:text" json:"locale,omitempty"`
+	DateFormat string     `gorm:"type:text" json:"date_format,omitempty"`
+	ThemeMode  string     `gorm:"type:text" json:"theme_mode,omitempty"`
 	LastLogin  *time.Time `json:"last_login,omitempty"`
 
 	// RBAC Extensions (Phase 5 Priority #5)

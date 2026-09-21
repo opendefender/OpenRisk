@@ -14,6 +14,8 @@ import {
   type MemberRole,
   type MembershipStatus,
   type InvitationStatus,
+  type OrganizationProfilePatch,
+  type OrganizationView,
 } from './organizationService';
 
 export const ORG_KEY = ['organization'] as const;
@@ -21,6 +23,8 @@ export const ORG_COUNTS_KEY = ['organization', 'counts'] as const;
 export const MEMBERS_KEY = ['organization', 'members'] as const;
 export const INVITATIONS_KEY = ['organization', 'invitations'] as const;
 export const MEMBER_AUDIT_KEY = ['organization', 'member-audit'] as const;
+export const BRANDING_KEY = ['organization', 'branding'] as const;
+export const LOGO_KEY = ['organization', 'logo'] as const;
 
 /** Everything a membership change can move. Invalidated together so no view
  *  can lag behind another. */
@@ -39,6 +43,89 @@ export function useOrganization() {
     queryKey: ORG_KEY,
     queryFn: () => organizationService.getOrganization(),
   });
+}
+
+/**
+ * Save the organization profile optimistically: the form's values show at once,
+ * and the previous profile is put back if the server refuses them.
+ */
+export function useUpdateOrganization() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (patch: OrganizationProfilePatch) => organizationService.updateOrganization(patch),
+    onMutate: async (patch) => {
+      await qc.cancelQueries({ queryKey: ORG_KEY, exact: true });
+      const previous = qc.getQueryData<OrganizationView>(ORG_KEY);
+      if (previous) {
+        const changes = Object.fromEntries(
+          Object.entries(patch).filter(([, v]) => v !== undefined),
+        );
+        qc.setQueryData<OrganizationView>(ORG_KEY, { ...previous, ...changes });
+      }
+      return { previous };
+    },
+    onError: (_err, _patch, ctx) => {
+      if (ctx?.previous) qc.setQueryData(ORG_KEY, ctx.previous);
+    },
+    onSuccess: (view) => {
+      qc.setQueryData(ORG_KEY, view);
+      // The name and the accent are also the branding every member wears; without
+      // this the new accent only appeared on the next page load (#718).
+      void qc.invalidateQueries({ queryKey: BRANDING_KEY });
+    },
+  });
+}
+
+/** The tenant's name, logo presence and accent — readable by every member. */
+export function useOrganizationBranding(enabled = true) {
+  return useQuery({
+    queryKey: BRANDING_KEY,
+    queryFn: () => organizationService.getBranding(),
+    enabled,
+    staleTime: 5 * 60_000,
+    retry: 1,
+  });
+}
+
+function useLogoMutation<TVars>(fn: (vars: TVars) => Promise<OrganizationView>) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: fn,
+    onSuccess: (view) => {
+      qc.setQueryData(ORG_KEY, view);
+      void qc.invalidateQueries({ queryKey: BRANDING_KEY });
+      void qc.invalidateQueries({ queryKey: LOGO_KEY });
+    },
+  });
+}
+
+export function useUploadOrganizationLogo() {
+  return useLogoMutation((file: File) => organizationService.uploadLogo(file));
+}
+
+export function useDeleteOrganizationLogo() {
+  return useLogoMutation(() => organizationService.deleteLogo());
+}
+
+function blobToDataUrl(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(reader.error ?? new Error('logo unreadable'));
+    reader.readAsDataURL(blob);
+  });
+}
+
+/** The organization logo as a data URL, or null without one or while loading. */
+export function useOrganizationLogoUrl(hasLogo: boolean): string | null {
+  const { data } = useQuery({
+    queryKey: LOGO_KEY,
+    queryFn: async () => blobToDataUrl(await organizationService.getLogoBlob()),
+    enabled: hasLogo,
+    staleTime: 5 * 60_000,
+    retry: false,
+  });
+  return hasLogo ? (data ?? null) : null;
 }
 
 /** The sidebar badge. Open to any member, so it is safe to mount app-wide;

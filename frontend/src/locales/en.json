@@ -1,6 +1,11 @@
 {
   "common": {
     "loading": "Loading...",
+    "orgRole": {
+      "root": "Owner",
+      "admin": "Administrator",
+      "user": "Member"
+    },
     "error": "Error",
     "success": "Success",
     "cancel": "Cancel",
@@ -24,7 +29,8 @@
     "name": "Name",
     "description": "Description",
     "noResults": "No results found",
-    "emptyState": "Nothing to show here"
+    "emptyState": "Nothing to show here",
+    "planName": "{plan} plan"
   },
   "risks": {
     "title": "Risk Register",
@@ -794,6 +800,9 @@
       "answersKept": "Your answers are kept — try again, nothing is lost.",
       "loading": "Loading your setup…",
       "loadFailed": "Your setup could not be loaded.",
+      "switchToLight": "Switch to light theme",
+      "switchToDark": "Switch to dark theme",
+      "switchLanguage": "Switch to French",
       "organization": {
         "heading": "Your organisation",
         "lead": "Your sector and country decide which framework we propose.",
@@ -883,5 +892,17 @@
       "closed": "List hidden. You will find it again in settings.",
       "reopen": "Show the getting-started list"
     }
+  },
+  "orgSwitcher": {
+    "trigger": "Switch organization — current organization: {name}",
+    "title": "Your organizations",
+    "loading": "Loading your organizations…",
+    "loadError": "Your organizations could not be loaded.",
+    "retry": "Retry",
+    "current": "Current organization",
+    "switching": "Switching…",
+    "switchError": "The switch failed. You are still in {name}.",
+    "onlyOne": "You belong to this organization only. An invitation from another organization will add it here.",
+    "settings": "Organization settings"
   }
 }

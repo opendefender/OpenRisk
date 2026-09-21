@@ -7,6 +7,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../lib/api';
+import { frameworkColor, SERIES } from '../../shared/riskColors';
 import { OVERVIEW_QUERY_KEY } from './useCompliance';
 
 interface RawFramework {
@@ -28,21 +29,22 @@ export interface FrameworkWithProgress extends RawFramework {
   pct: number;
 }
 
-const PALETTE = ['#7c6cff', '#64d2ff', '#0a84ff', '#ff2d92', '#30d158', '#ff9f0a', '#ff453a'];
-const NAMED: Record<string, string> = {
-  ISO: '#7c6cff',
-  SOC: '#64d2ff',
-  NIST: '#0a84ff',
-  DORA: '#ff2d92',
-  BCEAO: '#30d158',
-  ANSSI: '#ff9f0a',
-  COBAC: '#30d158',
-  ANTIC: '#ff9f0a',
-};
+// Framework names arrive free-form ("ISO/IEC 27001:2022", "SOC 2 Type II"), so
+// match on a stem and resolve through the one shared map.
+const STEMS: [stem: string, key: string][] = [
+  ['ISO', 'ISO27001'],
+  ['SOC', 'SOC2'],
+  ['NIST', 'NIST'],
+  ['DORA', 'DORA'],
+  ['BCEAO', 'BCEAO'],
+  ['ANSSI', 'ANSSI'],
+  ['COBAC', 'COBAC'],
+  ['ANTIC', 'ANTIC'],
+];
 
 export function frameworkColorFor(name: string, index: number): string {
-  const key = Object.keys(NAMED).find((k) => name.toUpperCase().includes(k));
-  return key ? NAMED[key] : PALETTE[index % PALETTE.length];
+  const hit = STEMS.find(([stem]) => name.toUpperCase().includes(stem));
+  return hit ? frameworkColor[hit[1]] : SERIES[index % SERIES.length];
 }
 
 export function useComplianceOverview() {

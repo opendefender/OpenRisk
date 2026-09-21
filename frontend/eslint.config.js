@@ -50,94 +50,16 @@ export default defineConfig([
     // Every overlay and every shared UI primitive is covered, which is what
     // matters — an overlay is where a hardcoded dark panel is most tempting and
     // where the reported bug lived.
-    files: [
-      'src/components/**/*.{ts,tsx}',
-      'src/pages/**/*.{ts,tsx}',
-      'src/shared/**/*.{ts,tsx}',
-      // features/ holds most of the modals, so leaving it out would have made
-      // the guard miss the very files the bug was reported against. Live
-      // verification found a governance modal reading var(--surface, #fff) —
-      // an undefined variable whose fallback rendered white in both themes.
-      'src/features/**/*.{ts,tsx}',
-    ],
-    // Legacy screens not yet migrated. Their remaining colours are chart series
-    // hues and decorative gradients, which the colour codemod deliberately
-    // refuses to guess at because a wrong guess silently changes a design.
     //
-    // This list may only shrink. Listing them explicitly keeps the rule at
-    // error for everything else; the alternative — dropping the whole rule to
-    // 'warn' — would let new violations in everywhere to accommodate old ones
-    // here, which is how the 1600 got there in the first place.
-    ignores: [
-      'src/features/ai/AiAuditReportButton.tsx',
-      'src/features/ai/AiEvidenceAnalysis.tsx',
-      'src/features/ai/EmergingRisksPage.tsx',
-      'src/features/assets/AssetsPage.tsx',
-      'src/features/auth/AuthScreen.tsx',
-      'src/features/automation/AutomationPage.tsx',
-      'src/features/automation/RuleEditorModal.tsx',
-      'src/features/compliance/AuditsPage.tsx',
-      'src/features/compliance/ComplianceModals.tsx',
-      'src/features/compliance/CompliancePage.tsx',
-      'src/features/compliance/ControlMappingsSection.tsx',
-      'src/features/compliance/CreateControlModal.tsx',
-      'src/features/compliance/CreateFrameworkModal.tsx',
-      'src/features/compliance/FrameworkDetail.tsx',
-      'src/features/compliance/GapAnalysisPage.tsx',
-      'src/features/compliance/ImportCatalogModal.tsx',
-      'src/features/compliance/RemediationPage.tsx',
-      'src/features/cti/ThreatIntel.tsx',
-      'src/features/dashboard/DashboardPage.tsx',
-      'src/features/financial/FinancialDashboard.tsx',
-      'src/features/gamification/LeaderboardPage.tsx',
-      'src/features/gamification/UserLevelCard.tsx',
-      'src/features/governance/GovernancePage.tsx',
-      'src/features/incidents/IncidentDrawer.tsx',
-      'src/features/incidents/IncidentsScreen.tsx',
-      'src/features/incidents/WarRoom.tsx',
-      'src/features/infrastructure/AgentDeployModal.tsx',
-      'src/features/infrastructure/ScanConfigDrawer.tsx',
-      'src/features/mitigations/MitigationCard.tsx',
-      'src/features/mitigations/MitigationsBoard.tsx',
-      'src/features/notifications/NotificationCategoryPrefs.tsx',
-      'src/features/onboarding/OnboardingChecklist.tsx',
-      'src/features/onboarding/PersonalizeCard.tsx',
-      'src/features/risks/RiskRegisterPage.tsx',
-      'src/features/risks/components/RiskCard.tsx',
-      'src/features/settings/GeneralTab.tsx',
-      'src/features/settings/RBACTab.tsx',
-      'src/features/settings/SettingsScreen.tsx',
-      'src/features/settings/TeamTab.tsx',
-      'src/features/simulations/SimulationsPage.tsx',
-      'src/features/vulnerabilities/IngestModal.tsx',
-      'src/features/vulnerabilities/IntegrationsPanel.tsx',
-      'src/features/vulnerabilities/VulnerabilitiesPage.tsx',
-      'src/components/dashboard/RBACDashboardWidget.tsx',
-      'src/components/gamification/AchievementTrackingUI.tsx',
-      'src/components/gamification/EnhancedNotificationCenter.tsx',
-      'src/components/gamification/GamificationDashboard.tsx',
-      'src/components/layout/PageHeader.tsx',
-      'src/components/shared/FloatingBulkBar.tsx',
-      'src/components/shared/ScoreMeter.tsx',
-      'src/components/shared/StatusDot.tsx',
-      'src/components/shared/UserAvatar.tsx',
-      'src/pages/Analytics.tsx',
-      'src/pages/AnalyticsDashboard.tsx',
-      'src/pages/AuditLogs.tsx',
-      'src/pages/BulkOperations.tsx',
-      'src/pages/ComplianceReportDashboard.tsx',
-      'src/pages/CustomFields.tsx',
-      'src/pages/ImportRisks.tsx',
-      'src/pages/Login.tsx',
-      'src/pages/Marketplace.tsx',
-      'src/pages/Register.tsx',
-      'src/pages/Reports.tsx',
-      'src/pages/RoleManagement.tsx',
-      'src/pages/ThreatMap.tsx',
-      'src/pages/TokenManagement.tsx',
-      'src/pages/Users.tsx',
-      'src/shared/ui.tsx',
-    ],
+    // Scoped to all of src/. It once listed components/, pages/, shared/ and
+    // features/ only, so a hex added to App.tsx, hooks/ or lib/ passed CI.
+    // features/ is where it mattered first: live verification found a
+    // governance modal reading var(--surface, #fff) — an undefined variable
+    // whose fallback rendered white in both themes.
+    files: ['src/**/*.{ts,tsx}'],
+    // Tests render no theme, and their names cite issues: "(#338)" reads as a
+    // three-digit hex. This is not a screen exemption — no screen may be added.
+    ignores: ['src/**/__tests__/**', 'src/**/*.test.{ts,tsx}', 'src/**/*.spec.{ts,tsx}'],
     plugins: { openrisk },
     rules: {
       'openrisk/no-raw-colors': 'error',
@@ -208,9 +130,6 @@ export default defineConfig([
       'src/components/gamification/GamificationDashboard.tsx',
       'src/components/layout/NotificationCenter.tsx',
       'src/components/layout/PageHeader.tsx',
-      'src/components/shared/FloatingBulkBar.tsx',
-      'src/components/shared/ScoreMeter.tsx',
-      'src/components/shared/UserAvatar.tsx',
       'src/features/assets/AssetHistoryDrawer.tsx',
       'src/features/assets/AssetsPage.tsx',
       'src/features/attackSurface/AssetSchemaSettings.tsx',

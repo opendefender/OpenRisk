@@ -153,6 +153,19 @@ describe('signing up', () => {
     expect(body.email).toBe('alix@example.com');
   });
 
+  // #716: the organisation used to be created as "<name> — espace", a name
+  // nobody chose, which the danger zone then made the owner type to confirm.
+  it('names the organisation after the person, with no invented suffix', async () => {
+    login.mockResolvedValue({ status: 'signed_in' });
+
+    renderSignup();
+    await fillAndSubmit();
+
+    await waitFor(() => expect(post).toHaveBeenCalled());
+    const [, body] = post.mock.calls[0] as [string, Record<string, unknown>];
+    expect(body.company_name).toBe('Alix Mensah');
+  });
+
   it('never blames the email when the server refused the username', async () => {
     post.mockRejectedValue({
       isAxiosError: true,

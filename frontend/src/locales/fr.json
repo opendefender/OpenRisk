@@ -1,6 +1,11 @@
 {
   "common": {
     "loading": "Chargement...",
+    "orgRole": {
+      "root": "Propriétaire",
+      "admin": "Administrateur",
+      "user": "Membre"
+    },
     "error": "Erreur",
     "success": "Succès",
     "cancel": "Annuler",
@@ -24,7 +29,8 @@
     "name": "Nom",
     "description": "Description",
     "noResults": "Aucun résultat trouvé",
-    "emptyState": "Rien à afficher ici"
+    "emptyState": "Rien à afficher ici",
+    "planName": "Plan {plan}"
   },
   "risks": {
     "title": "Registre des Risques",
@@ -794,6 +800,9 @@
       "answersKept": "Vos réponses sont conservées — réessayez, rien n'est perdu.",
       "loading": "Chargement de votre configuration…",
       "loadFailed": "Impossible de charger votre configuration.",
+      "switchToLight": "Passer au thème clair",
+      "switchToDark": "Passer au thème sombre",
+      "switchLanguage": "Passer en anglais",
       "organization": {
         "heading": "Votre organisation",
         "lead": "Le secteur et le pays déterminent le référentiel que nous vous proposons.",
@@ -883,5 +892,17 @@
       "closed": "Liste masquée. Vous la retrouverez dans les réglages.",
       "reopen": "Afficher la liste de démarrage"
     }
+  },
+  "orgSwitcher": {
+    "trigger": "Changer d'organisation — organisation actuelle : {name}",
+    "title": "Vos organisations",
+    "loading": "Chargement de vos organisations…",
+    "loadError": "Impossible de charger vos organisations.",
+    "retry": "Réessayer",
+    "current": "Organisation actuelle",
+    "switching": "Changement en cours…",
+    "switchError": "Le changement d'organisation a échoué. Vous êtes toujours dans {name}.",
+    "onlyOne": "Vous n'appartenez qu'à cette organisation. Une invitation d'une autre organisation l'ajoutera ici.",
+    "settings": "Paramètres de l'organisation"
   }
 }

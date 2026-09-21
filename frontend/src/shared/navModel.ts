@@ -96,50 +96,22 @@ export interface NavGroup {
 }
 
 // Navigation grouped by INTENTION (what the user is trying to accomplish), not by
-// technical domain. Order reflects the natural GRC flow toward the core job. The
-// core intention — "Maîtriser les risques" (identify → score → treat → prove) — is
-// the product's reason to exist, so it leads and is visually emphasised (`core`).
+// technical domain, in the order of the work: Piloter → Identifier → Évaluer →
+// Traiter → Prouver, then the Administration utility group
+// (docs/IA_NAVIGATION_PROPOSAL.md). No entry lives in two groups.
 // Dashboard is `pinned`: it stays inside its group for routing/palette lookups but
 // the Sidebar hoists it to a standalone entry at the very top.
 export const NAV_GROUPS: NavGroup[] = [
   // 0 · Piloter — « Où en suis-je ? » (dashboard par rôle, exécutif, financier)
+  //
+  // One group, one home per entry (#270). The merge 91df861 left a second
+  // `g_pilot` group here carrying the pre-IA core entries (risks,
+  // vulnerabilities, mitigations, incidents, automation) and moved this content
+  // under `g_monitor`, so five entries rendered twice and the sidebar had seven
+  // groups instead of the ratified five intentions + utility. navModel.test.ts
+  // now fails on any duplicate.
   {
     groupKey: 'g_pilot',
-    items: [
-      { key: 'risks', labelKey: 'n_risks', icon: ShieldAlert, path: '/risks', perm: 'risks:read' },
-      {
-        key: 'vulnerabilities',
-        labelKey: 'n_vulns',
-        icon: Bug,
-        path: '/vulnerabilities',
-        perm: 'vulnerabilities:read',
-      },
-      {
-        key: 'mitigations',
-        labelKey: 'n_mitigations',
-        icon: ShieldCheck,
-        path: '/risks/mitigations',
-        perm: 'mitigations:read',
-      },
-      {
-        key: 'incidents',
-        labelKey: 'n_incidents',
-        icon: Siren,
-        path: '/incidents',
-        perm: 'incidents:read',
-      },
-      {
-        key: 'automation',
-        labelKey: 'n_automation',
-        icon: Workflow,
-        path: '/automation',
-        perm: 'automation:read',
-      },
-    ],
-  },
-  {
-    // Where do I stand? — the high-level read on posture and exposure.
-    groupKey: 'g_monitor',
     items: [
       { key: 'dashboard', labelKey: 'n_dashboard', icon: LayoutDashboard, path: '/', pinned: true },
       // No `perm`: the endpoint scopes itself to what the caller's business role

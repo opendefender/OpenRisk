@@ -33,6 +33,7 @@ import (
 	"github.com/opendefender/openrisk/internal/middleware"
 	"github.com/opendefender/openrisk/internal/testsupport/sqliteschema"
 	authpkg "github.com/opendefender/openrisk/pkg/auth"
+	"github.com/opendefender/openrisk/pkg/storage"
 )
 
 // ---------------------------------------------------------------------------
@@ -49,6 +50,7 @@ import (
 type orgFixture struct {
 	app    *fiber.App
 	db     *gorm.DB
+	blobs  *storage.LocalStorage
 	svc    *membership.Service
 	chain  *repository.GormAuditChainRepository
 	mailer *captureMailer
@@ -145,8 +147,12 @@ func newOrgFixture(t *testing.T) *orgFixture {
 		}
 	}
 
+	blobs, err := storage.NewLocalStorage(t.TempDir())
+	if err != nil {
+		t.Fatalf("storage: %v", err)
+	}
 	f := &orgFixture{
-		db: db, mailer: &captureMailer{},
+		db: db, mailer: &captureMailer{}, blobs: blobs,
 		tenantA: uuid.New(), tenantB: uuid.New(),
 		now: time.Date(2026, 8, 20, 9, 0, 0, 0, time.UTC),
 	}
@@ -163,6 +169,8 @@ func newOrgFixture(t *testing.T) *orgFixture {
 	repo := repository.NewGormMembershipRepository(db)
 	f.svc = membership.NewService(repo, repository.NewGormUserRepository(db)).
 		WithOrganizations(orgs).
+		WithOrganizationWriter(mapOrgWriter{orgs: orgs.orgs}).
+		WithBlobStore(f.blobs).
 		WithAudit(governance.NewAuditRecorder(f.chain)).
 		WithAuditReader(f.chain).
 		WithMailer(f.mailer).
@@ -271,6 +279,11 @@ func (f *orgFixture) buildApp(t *testing.T) *fiber.App {
 
 	orgRead := middleware.RequirePermission("organization:read", "organization:members:read")
 	protected.Get("/organization", orgRead, h.GetOrganization)
+	protected.Put("/organization", middleware.RequirePermission("organization:update"), h.UpdateOrganization)
+	protected.Put("/organization/logo", middleware.RequirePermission("organization:update"), h.UploadOrganizationLogo)
+	protected.Delete("/organization/logo", middleware.RequirePermission("organization:update"), h.DeleteOrganizationLogo)
+	protected.Get("/organization/logo", h.GetOrganizationLogo)
+	protected.Get("/organization/branding", h.GetBranding)
 	protected.Get("/organization/counts", h.GetCounts)
 	protected.Get("/organization/members/audit", middleware.RequirePermission("organization:audit:read"), h.GetMembershipAudit)
 	protected.Get("/organization/members", middleware.RequirePermission("organization:members:read"), h.ListMembers)

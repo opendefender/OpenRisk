@@ -4,6 +4,7 @@
 // the terms of the GNU Affero General Public License v3.0 (see LICENSE).
 
 import { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -106,7 +107,10 @@ export const CreateMitigationModal = ({
     }
   };
 
-  return (
+  // Portalled: see CreateAssetModal. Opened from the mitigations board and from
+  // the risk drawer, both of which sit inside a transformed ancestor, which
+  // would otherwise become this fixed layer's containing block.
+  return createPortal(
     <AnimatePresence>
       {isOpen && (
         <>
@@ -235,7 +239,8 @@ export const CreateMitigationModal = ({
           </motion.div>
         </>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body,
   );
 };
 

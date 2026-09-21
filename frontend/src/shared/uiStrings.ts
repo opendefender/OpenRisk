@@ -10,7 +10,6 @@ import { useUIStore, type Lang } from '../store/uiStore';
 
 const fr = {
   brandShort: 'OpenRisk',
-  enterprise: 'Enterprise',
   ciso: 'RSSI',
   newRisk: 'Nouveau risque',
   search: 'Rechercher…',
@@ -26,7 +25,6 @@ const fr = {
   g_report: 'Reporting & IA',
   g_admin: 'Admin',
   g_pilot: 'Piloter',
-  g_monitor: 'Surveiller',
   g_identify: 'Identifier',
   g_evaluate: 'Évaluer',
   g_treat: 'Traiter',
@@ -233,7 +231,6 @@ const fr = {
 
 const en: typeof fr = {
   brandShort: 'OpenRisk',
-  enterprise: 'Enterprise',
   ciso: 'CISO',
   newRisk: 'New risk',
   search: 'Search…',
@@ -249,7 +246,6 @@ const en: typeof fr = {
   g_report: 'Reporting & AI',
   g_admin: 'Admin',
   g_pilot: 'Pilot',
-  g_monitor: 'Monitor',
   g_identify: 'Identify',
   g_evaluate: 'Evaluate',
   g_treat: 'Treat',

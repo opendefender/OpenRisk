@@ -40,6 +40,10 @@ backend:
     LOG_LEVEL: "info"
     PORT: "8080"
     ENVIRONMENT: "production"
+    # Private ranges scanner/ITSM integrations may reach (on-prem Nessus,
+    # self-hosted Jira), comma-separated CIDRs. Empty = public addresses only.
+    # Loopback and link-local (cloud metadata) stay denied whatever this says.
+    OUTBOUND_ALLOWED_CIDRS: ""
   
   livenessProbe:
     httpGet:

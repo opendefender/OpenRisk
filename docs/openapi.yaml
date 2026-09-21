@@ -183,24 +183,293 @@ paths:
   /users/me:
     get:
       tags:
-        - Authentication
-      summary: Get current user profile
-      operationId: getCurrentUser
+        - Profile
+      summary: Get the caller's own profile and effective preferences
+      operationId: getMyProfile
       security:
         - bearerAuth: []
       responses:
         '200':
-          description: Current user profile
+          description: Own profile. `effective` resolves each preference as own choice, else the organization default.
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/User'
+                $ref: '#/components/schemas/MyProfile'
         '401':
           description: Unauthorized
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+    patch:
+      tags:
+        - Profile
+      summary: Update the caller's own profile and preferences
+      description: >
+        Partial update of the session's own user; no field selects another
+        account. An omitted field is unchanged, an empty string clears it
+        (full_name cannot be cleared). Email, username, role and status are
+        not writable here.
+      operationId: updateMyProfile
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserProfilePatch'
+      responses:
+        '200':
+          description: Updated profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MyProfile'
+        '400':
+          description: Invalid field; the message names it
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /users/me/avatar:
+    put:
+      tags:
+        - Profile
+      summary: Upload the caller's avatar
+      description: PNG, JPEG or WebP, at most 1 MB, decided by the file's bytes. Replaces and deletes any previous avatar.
+      operationId: uploadMyAvatar
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: Updated profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MyProfile'
+        '400':
+          description: Not an accepted image, or larger than 1 MB
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    delete:
+      tags:
+        - Profile
+      summary: Remove the caller's avatar
+      operationId: deleteMyAvatar
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Updated profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MyProfile'
+
+  /users/{id}/avatar:
+    get:
+      tags:
+        - Profile
+      summary: Read a user's avatar
+      description: Served only when the user is an active member of the caller's organization; otherwise 404, exactly as for a user that does not exist.
+      operationId: getUserAvatar
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: The image
+          content:
+            image/png: { schema: { type: string, format: binary } }
+            image/jpeg: { schema: { type: string, format: binary } }
+            image/webp: { schema: { type: string, format: binary } }
+        '404':
+          description: No avatar visible to the caller
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ==================== ORGANIZATION ====================
+  /organization:
+    get:
+      tags:
+        - Organization
+      summary: Get the caller's organization profile
+      description: Requires organization:read or organization:members:read. The organization is the session's tenant.
+      operationId: getOrganization
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Organization profile with live membership counts
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrganizationView'
+        '403':
+          description: Missing permission
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    put:
+      tags:
+        - Organization
+      summary: Update the caller's organization profile and regional settings
+      description: >
+        Requires organization:update. Partial update — an omitted field is left
+        unchanged, an empty string clears an optional field. The organization is
+        the session's tenant; there is no id to choose. Settings keys this
+        endpoint does not own (such as the display currency) are preserved.
+      operationId: updateOrganization
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OrganizationProfilePatch'
+      responses:
+        '200':
+          description: Updated organization profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrganizationView'
+        '400':
+          description: Invalid field; the message names it
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Missing organization:update
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /organization/logo:
+    put:
+      tags:
+        - Organization
+      summary: Upload the organization logo
+      description: Requires organization:update. PNG, JPEG or WebP, at most 1 MB, decided by the file's bytes. Replaces and deletes any previous logo.
+      operationId: uploadOrganizationLogo
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: Updated organization profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrganizationView'
+        '400':
+          description: Not an accepted image, or larger than 1 MB
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Missing organization:update
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    delete:
+      tags:
+        - Organization
+      summary: Remove the organization logo
+      description: Requires organization:update.
+      operationId: deleteOrganizationLogo
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Updated organization profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrganizationView'
+        '403':
+          description: Missing organization:update
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    get:
+      tags:
+        - Organization
+      summary: Read the caller's organization logo
+      description: Any member. There is no id; only the session's organization is readable.
+      operationId: getOrganizationLogo
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: The image
+          content:
+            image/png: { schema: { type: string, format: binary } }
+            image/jpeg: { schema: { type: string, format: binary } }
+            image/webp: { schema: { type: string, format: binary } }
+        '404':
+          description: No logo
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /organization/branding:
+    get:
+      tags:
+        - Organization
+      summary: Read the caller's organization branding
+      description: Any member — every member's interface wears the name, logo and accent.
+      operationId: getOrganizationBranding
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Branding
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrganizationBranding'
 
   # ==================== RISKS ====================
   /risks:
@@ -5431,6 +5700,87 @@ components:
         columns:
           $ref: '#/components/schemas/SavedViewColumns'
 
+    OrganizationView:
+      type: object
+      required: [id, name, slug, plan, is_active, owner_id, created_at, updated_at, counts, can_edit]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        slug: { type: string }
+        logo_url: { type: string }
+        industry: { type: string }
+        size: { type: string, enum: ['1-50', '51-200', '201-1000', '1000+'] }
+        plan: { type: string }
+        is_active: { type: boolean }
+        owner_id: { type: string, format: uuid }
+        owner_name: { type: string }
+        timezone: { type: string, description: IANA time zone }
+        website: { type: string, format: uri }
+        description: { type: string }
+        default_locale: { type: string, enum: [fr, en] }
+        date_format: { type: string, enum: [DD/MM/YYYY, MM/DD/YYYY, YYYY-MM-DD] }
+        has_logo: { type: boolean }
+        accent: { type: string, enum: [azure, iris] }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+        counts:
+          type: object
+          additionalProperties: { type: integer }
+        can_edit: { type: boolean }
+    OrganizationProfilePatch:
+      type: object
+      properties:
+        name: { type: string, minLength: 2, maxLength: 120 }
+        industry: { type: string, maxLength: 80 }
+        size: { type: string, enum: ['', '1-50', '51-200', '201-1000', '1000+'] }
+        website: { type: string, maxLength: 255, description: 'Absolute https:// URL, or empty to clear' }
+        description: { type: string, maxLength: 500 }
+        timezone: { type: string, description: 'IANA time zone, or empty to clear' }
+        default_locale: { type: string, enum: ['', fr, en] }
+        date_format: { type: string, enum: ['', DD/MM/YYYY, MM/DD/YYYY, YYYY-MM-DD] }
+        accent: { type: string, enum: ['', azure, iris], description: 'A design-system accent preset; free colours are refused' }
+    OrganizationBranding:
+      type: object
+      required: [name, has_logo]
+      properties:
+        name: { type: string }
+        has_logo: { type: boolean }
+        accent: { type: string, enum: [azure, iris] }
+    MyProfile:
+      type: object
+      required: [id, email, username, full_name, job_title, phone, bio, timezone, locale, date_format, theme_mode, has_avatar, effective, updated_at]
+      properties:
+        id: { type: string, format: uuid }
+        email: { type: string }
+        username: { type: string }
+        full_name: { type: string }
+        job_title: { type: string }
+        phone: { type: string }
+        bio: { type: string }
+        timezone: { type: string }
+        locale: { type: string }
+        date_format: { type: string }
+        theme_mode: { type: string }
+        has_avatar: { type: boolean }
+        avatar_url: { type: string }
+        effective:
+          type: object
+          properties:
+            timezone: { type: string }
+            locale: { type: string }
+            date_format: { type: string }
+        updated_at: { type: string, format: date-time }
+    UserProfilePatch:
+      type: object
+      properties:
+        full_name: { type: string, minLength: 1, maxLength: 120 }
+        job_title: { type: string, maxLength: 80 }
+        phone: { type: string, maxLength: 32 }
+        bio: { type: string, maxLength: 500 }
+        timezone: { type: string, description: 'IANA time zone, or empty to follow the organization' }
+        locale: { type: string, enum: ['', fr, en] }
+        date_format: { type: string, enum: ['', DD/MM/YYYY, MM/DD/YYYY, YYYY-MM-DD] }
+        theme_mode: { type: string, enum: ['', light, dark, system] }
     ErrorResponse:
       type: object
       properties:

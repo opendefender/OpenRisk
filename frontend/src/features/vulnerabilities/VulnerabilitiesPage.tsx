@@ -62,11 +62,7 @@ import { IngestModal } from './IngestModal';
 import { IntegrationsPanel } from './IntegrationsPanel';
 import { safeExternalUrl } from '../../shared/safeUrl';
 import type { LocaleCode } from '../../i18n/locales';
-import {
-  BulkPreviewDialog,
-  useGovernedBulk,
-  type BulkChangeInput,
-} from '../../shared/bulk';
+import { BulkPreviewDialog, useGovernedBulk, type BulkChangeInput } from '../../shared/bulk';
 
 const t = (lang: LocaleCode, fr: string, en: string) => (lang === 'fr' ? fr : en);
 
@@ -90,16 +86,18 @@ function patchVulnPage(
 
   if (change.action === 'delete') {
     const items = cached.items.filter((v) => !ids.has(v.id));
-    return { ...cached, items, total: Math.max(0, cached.total - (cached.items.length - items.length)) };
+    return {
+      ...cached,
+      items,
+      total: Math.max(0, cached.total - (cached.items.length - items.length)),
+    };
   }
 
   const status = change.status;
   if (status === undefined || !(status in STATUS_META)) return cached;
   return {
     ...cached,
-    items: cached.items.map((v) =>
-      ids.has(v.id) ? { ...v, status: status as VulnStatus } : v,
-    ),
+    items: cached.items.map((v) => (ids.has(v.id) ? { ...v, status: status as VulnStatus } : v)),
   };
 }
 
@@ -433,12 +431,16 @@ export function VulnerabilitiesPage() {
               icon={Plug}
               onClick={() => setConnectorsOpen(true)}
             />
-            <Btn
-              label={tr('Importer', 'Import')}
-              icon={Upload}
-              primary
-              onClick={() => setIngestOpen(true)}
-            />
+            {/* Import writes findings (POST /vulnerabilities/ingest needs
+                vulnerabilities:update), so a read-only member is not offered it (#739). */}
+            {canWrite && (
+              <Btn
+                label={tr('Importer', 'Import')}
+                icon={Upload}
+                primary
+                onClick={() => setIngestOpen(true)}
+              />
+            )}
           </>
         }
       />
@@ -476,17 +478,26 @@ export function VulnerabilitiesPage() {
           <EmptyState
             icon={Bug}
             title={tr('Aucune vulnérabilité', 'No vulnerabilities')}
-            description={tr(
-              'Importez des findings depuis Nessus, Qualys, Defender, Inspector, CrowdStrike…',
-              'Import findings from Nessus, Qualys, Defender, Inspector, CrowdStrike…',
-            )}
+            description={
+              canWrite
+                ? tr(
+                    'Importez des findings depuis Nessus, Qualys, Defender, Inspector, CrowdStrike…',
+                    'Import findings from Nessus, Qualys, Defender, Inspector, CrowdStrike…',
+                  )
+                : tr(
+                    'Aucune vulnérabilité n’est encore importée. Votre rôle permet de les consulter ; un administrateur peut vous donner le droit d’en importer.',
+                    'No vulnerability has been imported yet. Your role can view them; an administrator can grant you the right to import.',
+                  )
+            }
             primaryAction={
-              <Btn
-                label={tr('Importer', 'Import')}
-                icon={Upload}
-                primary
-                onClick={() => setIngestOpen(true)}
-              />
+              canWrite ? (
+                <Btn
+                  label={tr('Importer', 'Import')}
+                  icon={Upload}
+                  primary
+                  onClick={() => setIngestOpen(true)}
+                />
+              ) : undefined
             }
           />
         }
@@ -665,7 +676,7 @@ function VulnDrawer({
   return (
     <div
       className="fixed inset-0 z-70 flex justify-end"
-      style={{ background: 'rgba(0,0,0,.45)', backdropFilter: 'blur(3px)' }}
+      style={{ background: 'var(--surface-overlay)', backdropFilter: 'blur(var(--overlay-blur))' }}
       onClick={onClose}
     >
       <div
@@ -688,7 +699,10 @@ function VulnDrawer({
               <div className="mono text-[12px] text-ink-muted mb-1">
                 {v.cve_id || v.external_id || '—'}
               </div>
-              <h2 id="vuln-drawer-title" className="disp text-[17px] font-bold text-ink leading-snug">
+              <h2
+                id="vuln-drawer-title"
+                className="disp text-[17px] font-bold text-ink leading-snug"
+              >
                 {v.title}
               </h2>
             </div>
@@ -704,7 +718,10 @@ function VulnDrawer({
           <div className="flex items-center gap-2.5 flex-wrap">
             <span
               className="inline-flex items-center h-[24px] px-2.5 rounded-[7px] text-[12px] font-bold"
-              style={{ background: TIER_META[v.priority_tier]?.color, color: '#12151c' }}
+              style={{
+                color: TIER_META[v.priority_tier]?.color,
+                background: `color-mix(in srgb, ${TIER_META[v.priority_tier]?.color} 16%, transparent)`,
+              }}
             >
               {v.priority_tier} · {v.priority_score.toFixed(0)}
             </span>

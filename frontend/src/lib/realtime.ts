@@ -129,6 +129,8 @@ class RealtimeClient {
   /** The tenant this connection belongs to, as the SERVER reported it. */
   private tenantId: string | null = null;
   private started = false;
+  /** Identifies the latest refusal probe, so a stale answer is ignored. */
+  private probeSeq = 0;
 
   // -- public API ---------------------------------------------------------
 
@@ -221,20 +223,7 @@ class RealtimeClient {
     // makes it unnecessary. The bearer fallback below exists only for a
     // deployment that genuinely splits the SPA and API origins, where the
     // cookie cannot be attached.
-    const params = new URLSearchParams();
-    if (this.status.cursor > 0) {
-      // EventSource sends Last-Event-ID by itself on ITS OWN reconnects. This
-      // parameter covers the reconnects we drive, where the browser starts a
-      // fresh connection with no memory of the last id.
-      params.set('last_event_id', String(this.status.cursor));
-    }
-    const splitOriginToken = import.meta.env.VITE_API_URL ? getAccessToken() : null;
-    if (splitOriginToken) params.set('access_token', splitOriginToken);
-
-    const query = params.toString();
-    const url = `${API_BASE}/realtime/events${query ? `?${query}` : ''}`;
-
-    const source = new EventSource(url, { withCredentials: true });
+    const source = new EventSource(this.streamUrl(true), { withCredentials: true });
     this.source = source;
 
     source.addEventListener('stream.hello', (e) => this.handleHello(e as MessageEvent));
@@ -250,6 +239,25 @@ class RealtimeClient {
     }
 
     this.armLiveness();
+  }
+
+  /**
+   * The stream URL. `withCursor` resumes from the last applied event; the
+   * refusal probe leaves it out, since it only wants the status line.
+   */
+  private streamUrl(withCursor: boolean): string {
+    const params = new URLSearchParams();
+    if (withCursor && this.status.cursor > 0) {
+      // EventSource sends Last-Event-ID by itself on ITS OWN reconnects. This
+      // parameter covers the reconnects we drive, where the browser starts a
+      // fresh connection with no memory of the last id.
+      params.set('last_event_id', String(this.status.cursor));
+    }
+    const splitOriginToken = import.meta.env.VITE_API_URL ? getAccessToken() : null;
+    if (splitOriginToken) params.set('access_token', splitOriginToken);
+
+    const query = params.toString();
+    return `${API_BASE}/realtime/events${query ? `?${query}` : ''}`;
   }
 
   private handleHello(e: MessageEvent): void {
@@ -351,6 +359,54 @@ class RealtimeClient {
     const attempts = this.status.attempts + 1;
     this.setStatus({ state: 'RECONNECTING', attempts });
     this.scheduleReconnect(attempts);
+    void this.checkRefusal();
+  }
+
+  /**
+   * Finds out whether the server REFUSED the stream (#741).
+   *
+   * EventSource reports a 403 exactly like a dropped network, so a member
+   * without events:read was retried forever — backoff, 403, backoff — for as
+   * long as the tab stayed open. One plain request to the same URL reads the
+   * status line the EventSource hides. A 401/403 cannot succeed on a retry, so
+   * the scheduled reconnect is cancelled and the state becomes FORBIDDEN until
+   * the session or the tenant changes (switchTenant) or the page reloads. Any
+   * other answer, or no answer, leaves the backoff exactly as it was.
+   */
+  private async checkRefusal(): Promise<void> {
+    const probe = ++this.probeSeq;
+    const ctrl = new AbortController();
+    let status = 0;
+    let reason: string | undefined;
+    try {
+      const res = await fetch(this.streamUrl(false), {
+        credentials: 'include',
+        headers: { Accept: 'text/event-stream' },
+        signal: ctrl.signal,
+      });
+      status = res.status;
+      if (status === 401 || status === 403) {
+        try {
+          const body = (await res.json()) as { error?: string; message?: string };
+          reason = body.message ?? body.error;
+        } catch {
+          reason = undefined;
+        }
+      }
+    } catch {
+      // No answer is a network problem: the backoff already handles it.
+      return;
+    } finally {
+      // A 200 opened a real stream; this request only wanted its status.
+      ctrl.abort();
+    }
+
+    // Stale: a newer failure, a stop, or a connection that came back meanwhile.
+    if (probe !== this.probeSeq || !this.started || this.status.state !== 'RECONNECTING') return;
+    if (status !== 401 && status !== 403) return;
+
+    this.clearTimers();
+    this.setStatus({ state: 'FORBIDDEN', error: reason ?? `HTTP ${status}` });
   }
 
   private scheduleReconnect(attempts: number): void {

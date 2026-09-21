@@ -208,19 +208,15 @@ export const ImportRisksPage = () => {
         <div className="space-y-6">
           {/* Drag & Drop Zone */}
           <motion.div
-            animate={{
-              backgroundColor:
-                dragState === 'dragging' ? 'rgba(59, 130, 246, 0.1)' : 'rgba(0, 0, 0, 0)',
-              borderColor:
-                dragState === 'dragging' ? 'rgba(59, 130, 246, 0.5)' : 'rgba(255, 255, 255, 0.1)',
-            }}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
             className={cn(
               'relative border-2 border-dashed rounded-xl p-12 text-center',
               'transition-all duration-300 cursor-pointer',
-              dragState === 'dragging' && 'bg-accent-soft border-accent-line',
+              dragState === 'dragging'
+                ? 'bg-accent-soft border-accent-line'
+                : 'border-border-default',
             )}
             onClick={() => fileInputRef.current?.click()}
           >

@@ -9,6 +9,7 @@
 // creation or resend, and only when the email could not be delivered.
 
 import { api } from '../../lib/api';
+import type { AccentPreset } from '../../shared/accentPresets';
 
 /* ---------------------------------------------------------------- vocabulary */
 
@@ -31,6 +32,8 @@ export interface MemberView {
   user_id: string;
   email: string;
   full_name: string;
+  /** An uploaded avatar exists; read it through GET /users/:id/avatar (#719). */
+  has_avatar: boolean;
   org_role: MemberRole;
   business_role: string;
   status: MembershipStatus;
@@ -81,6 +84,32 @@ export interface OrganizationCounts {
   pending_invitations: number;
 }
 
+export type OrgSize = '1-50' | '51-200' | '201-1000' | '1000+';
+export const ORG_SIZES: readonly OrgSize[] = ['1-50', '51-200', '201-1000', '1000+'];
+
+export type DateFormat = 'DD/MM/YYYY' | 'MM/DD/YYYY' | 'YYYY-MM-DD';
+export const DATE_FORMATS: readonly DateFormat[] = ['DD/MM/YYYY', 'MM/DD/YYYY', 'YYYY-MM-DD'];
+
+/** PUT /organization body. Omitted = unchanged; "" clears an optional field. */
+export interface OrganizationProfilePatch {
+  name?: string;
+  industry?: string;
+  size?: OrgSize | '';
+  website?: string;
+  description?: string;
+  timezone?: string;
+  default_locale?: string;
+  date_format?: DateFormat | '';
+  accent?: AccentPreset | '';
+}
+
+/** What every member's interface wears (#718). */
+export interface OrganizationBranding {
+  name: string;
+  has_logo: boolean;
+  accent?: AccentPreset;
+}
+
 export interface OrganizationView {
   id: string;
   name: string;
@@ -93,6 +122,13 @@ export interface OrganizationView {
   owner_id: string;
   owner_name?: string;
   timezone?: string;
+  website?: string;
+  description?: string;
+  default_locale?: string;
+  date_format?: DateFormat;
+  /** An uploaded logo exists; read it through GET /organization/logo (#718). */
+  has_logo: boolean;
+  accent?: AccentPreset;
   created_at: string;
   updated_at: string;
   counts: OrganizationCounts;
@@ -157,6 +193,37 @@ export const organizationService = {
   /** The tenant's own profile, with live membership counts. */
   async getOrganization(): Promise<OrganizationView> {
     const { data } = await api.get<OrganizationView>('/organization');
+    return data;
+  },
+
+  /** Edit the caller's own organization (needs organization:update). */
+  async updateOrganization(patch: OrganizationProfilePatch): Promise<OrganizationView> {
+    const { data } = await api.put<OrganizationView>('/organization', patch);
+    return data;
+  },
+
+  async getBranding(): Promise<OrganizationBranding> {
+    const { data } = await api.get<OrganizationBranding>('/organization/branding');
+    return data;
+  },
+
+  async uploadLogo(file: File): Promise<OrganizationView> {
+    const body = new FormData();
+    body.append('file', file);
+    const { data } = await api.put<OrganizationView>('/organization/logo', body, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return data;
+  },
+
+  async deleteLogo(): Promise<OrganizationView> {
+    const { data } = await api.delete<OrganizationView>('/organization/logo');
+    return data;
+  },
+
+  /** Through the API client, so it carries the session in every deployment. */
+  async getLogoBlob(): Promise<Blob> {
+    const { data } = await api.get<Blob>('/organization/logo', { responseType: 'blob' });
     return data;
   },
 

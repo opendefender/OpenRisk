@@ -13,6 +13,7 @@ import { toast } from 'sonner';
 import {
   Settings as SettingsIcon,
   Users,
+  UserRound,
   KeyRound,
   Building2,
   SlidersHorizontal,
@@ -67,11 +68,16 @@ import { BillingPanel } from '../billing/BillingPanel';
 import { DangerZonePanel } from '../billing/DangerZonePanel';
 import { useOrganization } from '../organization/useOrganization';
 import { MFAPolicyPanel, MFAAccountPanel } from './MFAPolicyPanel';
+import { OrganizationProfileForm } from './OrganizationProfileForm';
+import { OrganizationLogoField } from './OrganizationLogoField';
+import { OrgLogo } from '../organization/OrgLogo';
+import { ProfileTab } from '../profile/ProfileTab';
 import type { LocaleCode } from '../../i18n/locales';
 import { useI18n } from '../../hooks/useI18n';
 import { localeTag } from '../../i18n/locales';
 
 type TabKey =
+  | 'profile'
   | 'general'
   | 'members'
   | 'tokens'
@@ -193,7 +199,7 @@ function ServerToggleRow({
               top: 2,
               left: checked ? 20 : 2,
               transition: 'left .2s',
-              boxShadow: '0 1px 3px rgba(0,0,0,.3)',
+              boxShadow: 'var(--elev-1)',
             }}
           />
         </button>
@@ -256,6 +262,7 @@ function Unavailable({ tr }: { tr: Tr }) {
 }
 
 const TAB_KEYS: TabKey[] = [
+  'profile',
   'general',
   'members',
   'tokens',
@@ -280,7 +287,12 @@ export function SettingsScreen() {
   const { pathname } = useLocation();
   const [params] = useSearchParams();
   const paramTab = params.get('tab');
-  const routeTab: TabKey | null = pathname === '/settings/members' ? 'members' : null;
+  const routeTab: TabKey | null =
+    pathname === '/settings/members'
+      ? 'members'
+      : pathname === '/settings/profile'
+        ? 'profile'
+        : null;
   const [tab, setTab] = useState<TabKey>(
     routeTab ?? (TAB_KEYS.includes(paramTab as TabKey) ? (paramTab as TabKey) : 'general'),
   );
@@ -293,17 +305,20 @@ export function SettingsScreen() {
   }, [paramTab, routeTab]);
   const selectTab = (k: TabKey) => {
     setTab(k);
-    if (k === 'members') {
-      navigate('/settings/members');
+    if (k === 'members' || k === 'profile') {
+      navigate(`/settings/${k}`);
       return;
     }
-    // Leaving Members must leave its URL too, or the route would force the tab
-    // straight back on the next render.
-    const base = pathname === '/settings/members' ? '/settings' : pathname;
-    navigate(`${base}?tab=${k}`, { replace: pathname !== '/settings/members' });
+    // Leaving a routed tab must leave its URL too, or the route would force the
+    // tab straight back on the next render.
+    const routed = pathname === '/settings/members' || pathname === '/settings/profile';
+    const base = routed ? '/settings' : pathname;
+    navigate(`${base}?tab=${k}`, { replace: !routed });
   };
 
   const tabs: [TabKey, string, LucideIcon][] = [
+    // Your own profile first: it is the one tab every member can use (#719).
+    ['profile', tr('Mon profil', 'My profile'), UserRound],
     ['general', L.s_general, SettingsIcon],
     // Members owns invitations AND access. They are one job — "give this person
     // the right access" — and splitting them across two screens is why "Invite a
@@ -347,6 +362,7 @@ export function SettingsScreen() {
           ))}
         </div>
         <div className="flex-1 min-w-0 w-full">
+          {tab === 'profile' && <ProfileTab tr={tr} />}
           {tab === 'general' && <GeneralTab tr={tr} />}
           {tab === 'members' && <MembersView />}
           {tab === 'tokens' && <TokensTab tr={tr} lang={lang} />}
@@ -713,12 +729,6 @@ function GeneralTab({ tr }: { tr: Tr }) {
     );
   }
 
-  const initials = (org.name || 'OR')
-    .split(/\s+/)
-    .map((w) => w[0])
-    .slice(0, 2)
-    .join('')
-    .toUpperCase();
   const created = new Date(org.created_at).toLocaleDateString(localeTag(lang), {
     day: 'numeric',
     month: 'long',
@@ -730,26 +740,17 @@ function GeneralTab({ tr }: { tr: Tr }) {
       <Card style={{ padding: '20px 22px', marginBottom: 16 }}>
         <Title>{tr('Profil de l’organisation', 'Organization profile')}</Title>
         <div className="flex items-center gap-4 mb-5">
-          <div
-            className="w-14 h-14 rounded-[14px] flex items-center justify-center text-[20px] font-bold overflow-hidden"
-            style={{ background: 'var(--accent-soft)', color: 'var(--accent-500)' }}
-          >
-            {org.logo_url ? (
-              <img src={org.logo_url} alt="" className="w-full h-full object-cover" />
-            ) : (
-              initials
-            )}
-          </div>
+          <OrgLogo name={org.name || 'OR'} hasLogo={org.has_logo} size={56} radius={14} />
           <div className="min-w-0">
             <div className="text-[16px] font-bold text-ink truncate">{org.name}</div>
             <div className="mono text-[12px] text-ink-muted">{org.slug}</div>
           </div>
         </div>
-        {/* Read-only, and honestly so: the backend serves this profile but has
-            no endpoint that writes it. An input that looks editable and saves
-            nothing is worse than a value that plainly is not. */}
+        {/* Plan, status, creation date and owner are not the administrator's
+            to edit here; the profile and regional settings are, when the
+            server says so (#299). */}
         <dl
-          className="grid gap-x-6 gap-y-[14px]"
+          className="grid gap-x-6 gap-y-[14px] mb-5"
           style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))' }}
         >
           <ReadOnly label={tr('Plan', 'Plan')} value={org.plan} />
@@ -759,21 +760,32 @@ function GeneralTab({ tr }: { tr: Tr }) {
           />
           <ReadOnly label={tr('Créée le', 'Created')} value={created} />
           <ReadOnly label={tr('Propriétaire', 'Owner')} value={org.owner_name || '—'} />
-          {org.industry && <ReadOnly label={tr('Secteur', 'Industry')} value={org.industry} />}
-          <ReadOnly
-            label={tr('Fuseau horaire', 'Time zone')}
-            value={org.timezone || tr('non défini', 'not set')}
-            muted={!org.timezone}
-          />
+          {!org.can_edit && (
+            <>
+              {org.industry && <ReadOnly label={tr('Secteur', 'Industry')} value={org.industry} />}
+              {org.website && <ReadOnly label={tr('Site web', 'Website')} value={org.website} />}
+              <ReadOnly
+                label={tr('Fuseau horaire', 'Time zone')}
+                value={org.timezone || tr('non défini', 'not set')}
+                muted={!org.timezone}
+              />
+              {org.default_locale && (
+                <ReadOnly
+                  label={tr('Langue par défaut', 'Default language')}
+                  value={org.default_locale}
+                />
+              )}
+              {org.date_format && (
+                <ReadOnly label={tr('Format de date', 'Date format')} value={org.date_format} />
+              )}
+            </>
+          )}
         </dl>
-        {org.can_edit && (
-          <p className="text-[11.5px] text-ink-muted mt-4 leading-snug">
-            {tr(
-              "Ces informations sont définies à la création de l'organisation. Leur modification depuis cet écran arrivera dans une prochaine version.",
-              'These details are set when the organization is created. Editing them from this screen is coming in a future release.',
-            )}
-          </p>
+        {!org.can_edit && org.description && (
+          <p className="text-[12.5px] text-ink-soft leading-relaxed mb-2">{org.description}</p>
         )}
+        {org.can_edit && <OrganizationLogoField org={org} tr={tr} />}
+        {org.can_edit && <OrganizationProfileForm org={org} tr={tr} />}
       </Card>
 
       <Card style={{ padding: '20px 22px', marginBottom: 16 }}>

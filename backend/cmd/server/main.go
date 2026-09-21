@@ -49,6 +49,7 @@ import (
 	notificationapp "github.com/opendefender/openrisk/internal/application/notification"
 	"github.com/opendefender/openrisk/internal/application/orgdeletion"
 	"github.com/opendefender/openrisk/internal/application/ownership"
+	profileapp "github.com/opendefender/openrisk/internal/application/profile"
 	apprealtime "github.com/opendefender/openrisk/internal/application/realtime"
 	appreport "github.com/opendefender/openrisk/internal/application/report"
 	"github.com/opendefender/openrisk/internal/application/reportjob"
@@ -94,6 +95,7 @@ import (
 	"github.com/opendefender/openrisk/pkg/cti"
 	ent "github.com/opendefender/openrisk/pkg/entitlements"
 	"github.com/opendefender/openrisk/pkg/hibp"
+	"github.com/opendefender/openrisk/pkg/netguard"
 	"github.com/opendefender/openrisk/pkg/notify"
 	"github.com/opendefender/openrisk/pkg/pwpolicy"
 	"github.com/opendefender/openrisk/pkg/scoring"
@@ -722,9 +724,6 @@ func main() {
 	oauthResolveUseCase := auth.NewResolveOAuthIdentityUseCase(userRepo, oauthLinkRepo)
 	handlers.ConfigureOAuth2Resolver(oauthResolveUseCase, appBaseURL)
 
-	// Initialize legacy auth handler (for backward compatibility)
-	authHandler := handlers.NewAuthHandler()
-
 	// Initialize OAuth2 and SAML2 configurations. Hand SSO the SAME token manager +
 	// audit service so OAuth/SAML issue RS256 access+refresh pairs identical to
 	// password login (previously they minted HS256 tokens the RS256 middleware
@@ -824,7 +823,7 @@ func main() {
 	// NOTE: the legacy HS256 login/refresh routes (/auth/legacy/*) were removed for
 	// RC1. They minted HS256 sessions signed with JWT_SECRET that the RS256 gate
 	// rejected anyway (dead but dangerous surface). /auth/login (RS256) is the sole
-	// session-issuing path. The legacy handler is retained only for /users/me below.
+	// session-issuing path. /users/me is served by the profile handler (#719).
 
 	// --- Password reset (public) ---
 	// Both legs sit behind the per-IP auth limiter on top of the per-address cap
@@ -1111,7 +1110,6 @@ func main() {
 
 	// Current user profile endpoint
 	api.Get("/auth/me", middleware.Protected(rsaKeys, jtiBlacklistChecker), cleanAuthHandler.Me)
-	api.Get("/users/me", authHandler.GetProfile)
 
 	// Dashboard & Analytics (Read-Only accessible à tous les connectés)
 	// Tenant-wide counters, no per-entity disclosure, and every business role
@@ -1837,6 +1835,11 @@ func main() {
 		log.Fatalf("failed to init vulnerability integration cipher: %v", vulnIntegCipherErr)
 	}
 	vulnIntegRepo := repository.NewGormVulnIntegrationRepository(database.DB)
+	// Outbound requests to tenant-configured URLs only reach public addresses
+	// unless the operator opens private ranges; a malformed list stops startup.
+	if err := netguard.DefaultPolicyError(); err != nil {
+		log.Fatalf("invalid outbound policy: %v", err)
+	}
 	// Auto-ticketing: the opener composes the tenant ITSM config + Jira/ServiceNow
 	// providers (pkg/ticketing). Wired into ingest (auto-open for P1/KEV) and into
 	// the manual "Open ticket" use case. Mutating vulnIngestUC here still affects the
@@ -1991,10 +1994,21 @@ func main() {
 	protected.Patch("/users/:id/status", adminRole, handlers.UpdateUserStatus)
 	protected.Patch("/users/:id/role", adminRole, handlers.UpdateUserRole)
 	protected.Delete("/users/:id", adminRole, handlers.DeleteUser)
-	// Despite the ":id", this edits the CALLER's own profile: the handler reads
-	// claims.Sub and ignores the parameter, so it cannot touch another account.
-	// Session-sufficient (#529); the misleading path is issue #574.
-	protected.Patch("/users/:id", handlers.UpdateUserProfile)
+	// Self-service profile, preferences and avatar (#719, replaces the
+	// misleading PATCH /users/:id of #574). Every verb acts on the session's
+	// own user, so the session is the authorization. The avatar read is gated
+	// in the use case by the target's membership in the caller's tenant.
+	profileSvc := profileapp.NewService(userRepo, userRepo).
+		WithOrganizations(orgRepo).
+		WithBlobStore(fileStorage).
+		WithAudit(governance.NewAuditRecorder(auditChainRepo)).
+		WithActivation(activationRecorder)
+	profileHandler := handlers.NewProfileHandler(profileSvc)
+	protected.Get("/users/me", profileHandler.GetMe)
+	protected.Patch("/users/me", profileHandler.UpdateMe)
+	protected.Put("/users/me/avatar", profileHandler.UploadMyAvatar)
+	protected.Delete("/users/me/avatar", profileHandler.DeleteMyAvatar)
+	protected.Get("/users/:id/avatar", profileHandler.GetAvatar)
 
 	// --- Team Management (Admin only) ---
 	protected.Post("/teams", adminRole, handlers.CreateTeam)
@@ -2006,10 +2020,11 @@ func main() {
 	protected.Delete("/teams/:id/members/:userId", adminRole, handlers.RemoveTeamMember)
 
 	// --- Integration Testing (Protected routes) ---
-	// Fetches a caller-supplied URL from the server and reports the result, so
-	// it must not be reachable by every member (#529). The guard narrows who can
-	// aim it; issue #573 removes the arbitrary-URL shape itself.
-	protected.Post("/integrations/:id/test", middleware.RequireRole("admin", "root"), handlers.TestIntegration)
+	// Probes the base_url stored on the tenant's integration :id. Admin/root only
+	// (#529); targets go through pkg/netguard, redirects are not followed and the
+	// remote body is never echoed (#573).
+	integTestHandler := handlers.NewIntegrationTestHandler(vulnapp.NewGetIntegrationUseCase(vulnIntegRepo))
+	protected.Post("/integrations/:id/test", middleware.RequireRole("admin", "root"), integTestHandler.TestIntegration)
 
 	// --- Audit Logs (Admin only) ---
 	auditHandler := handlers.NewAuditLogHandler()
@@ -2411,6 +2426,8 @@ func main() {
 	// =========================================================================
 	membershipSvc := membership.NewService(membershipRepo, userRepo).
 		WithOrganizations(orgRepo).
+		WithOrganizationWriter(orgRepo).
+		WithBlobStore(fileStorage).
 		// The recorder feeds the request collector, so a membership action lands
 		// as ONE chained trail entry carrying both its meaning and its
 		// before → after — not as a second entry beside the middleware's.
@@ -2441,6 +2458,19 @@ func main() {
 	// for everyone who is not an administrator.
 	orgRead := middleware.RequirePermission("organization:read", "organization:members:read")
 	protected.Get("/organization", orgRead, memberHandler.GetOrganization)
+	// Editing the profile and regional settings (#299). The use case repeats
+	// the organization:update check, so the guard is not the only gate.
+	protected.Put("/organization",
+		middleware.RequirePermission("organization:update"), memberHandler.UpdateOrganization)
+	// Branding (#718): writing the logo needs organization:update; reading the
+	// logo and the branding is open to every member, because every member's
+	// interface wears it. Both reads take no id — only the session's tenant.
+	protected.Put("/organization/logo",
+		middleware.RequirePermission("organization:update"), memberHandler.UploadOrganizationLogo)
+	protected.Delete("/organization/logo",
+		middleware.RequirePermission("organization:update"), memberHandler.DeleteOrganizationLogo)
+	protected.Get("/organization/logo", memberHandler.GetOrganizationLogo)
+	protected.Get("/organization/branding", memberHandler.GetBranding)
 	// Headline member counts for the org switcher; no member identities.
 	// Session-sufficient (#529).
 	protected.Get("/organization/counts", memberHandler.GetCounts)
@@ -2530,11 +2560,16 @@ func main() {
 	// In-app + e-mail sink: a completed scan raises a durable in-app notification
 	// for the user who triggered it and (best-effort) e-mails them. Failures never
 	// block the scan. A Nil user (e.g. a failed cloud scan) is skipped.
-	scanInApp := func(ctx context.Context, tenantID, userID uuid.UUID, title, message string) {
+	scanInApp := func(ctx context.Context, tenantID, userID, jobID uuid.UUID, title, message string) {
 		if userID == uuid.Nil {
 			return
 		}
-		if err := notificationUseCase.NotifyInApp(userID, tenantID, domain.NotificationTypeScanComplete, title, message, nil, "scan"); err != nil && !errors.Is(err, notificationapp.ErrSuppressed) {
+		// The job id lets the bell open this scan's preview (/infrastructure/scans/:jobId).
+		var resourceID *uuid.UUID
+		if jobID != uuid.Nil {
+			resourceID = &jobID
+		}
+		if err := notificationUseCase.NotifyInApp(userID, tenantID, domain.NotificationTypeScanComplete, title, message, resourceID, "scan"); err != nil && !errors.Is(err, notificationapp.ErrSuppressed) {
 			zeroLogger.Warn().Err(err).Msg("scanner: could not create in-app notification")
 		}
 		// The recipient's stored e-mail preference governs the e-mail half too.

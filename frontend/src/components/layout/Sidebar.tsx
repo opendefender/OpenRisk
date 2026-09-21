@@ -5,21 +5,15 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router';
-import {
-  ChevronsUpDown,
-  PanelLeftClose,
-  PanelLeftOpen,
-  Plus,
-  Settings,
-  LogOut,
-  Star,
-} from 'lucide-react';
+import { PanelLeftClose, PanelLeftOpen, Plus, Settings, LogOut, Star } from 'lucide-react';
 import { cn } from '../../shared/ds';
 import { useUIStore } from '../../store/uiStore';
 import { useUIStrings } from '../../shared/uiStrings';
 import { useAuthStore } from '../../hooks/useAuthStore';
 import { usePermissions } from '../../hooks/usePermissions';
+import { SidebarRoleLabel } from './SidebarRoleLabel';
 import { OpenRiskLogo } from '../../shared/Logo';
+import { OrgSwitcher } from './OrgSwitcher';
 import {
   visibleNavGroups,
   pinnedItems,
@@ -28,8 +22,14 @@ import {
   type NavCount,
 } from '../../shared/navModel';
 import { useScore } from '../../hooks/useScore';
-import { useOrganizationCounts } from '../../features/organization/useOrganization';
+import {
+  useOrganizationBranding,
+  useOrganizationCounts,
+} from '../../features/organization/useOrganization';
 import { bandColor, bandLabel, bandTextColor } from '../../services/scoreService';
+import { UserAvatar } from '../../shared/UserAvatar';
+import { useMyProfile } from '../../features/profile/useProfile';
+import { OrgLogo } from '../../features/organization/OrgLogo';
 
 interface SidebarProps {
   /** Off-canvas drawer open on mobile (< lg). Ignored on desktop, where the
@@ -44,28 +44,6 @@ function initials(name?: string, fallback = 'AD'): string {
   return ((parts[0]?.[0] ?? '') + (parts[1]?.[0] ?? '')).toUpperCase() || fallback;
 }
 
-// Human-readable role label: the GRC business role (RSSI, Risk Manager, …) when
-// set, otherwise the org role (Administrator / Member).
-const BUSINESS_ROLE_LABELS: Record<string, string> = {
-  rssi: 'RSSI / CISO',
-  dsi: 'DSI / CIO',
-  risk_manager: 'Risk Manager',
-  auditor: 'Auditeur',
-  compliance_officer: 'Responsable conformité',
-  internal_control: 'Contrôle interne',
-  asset_owner: "Propriétaire d'actif",
-  risk_owner: 'Propriétaire de risque',
-  security_analyst: 'Analyste sécurité',
-  executive: 'Direction',
-  viewer: 'Lecteur',
-};
-function roleLabel(user?: { role?: string; business_role?: string } | null): string {
-  if (user?.business_role && BUSINESS_ROLE_LABELS[user.business_role])
-    return BUSINESS_ROLE_LABELS[user.business_role];
-  if (user?.role === 'admin' || user?.role === 'root') return 'Administrateur';
-  return user?.role ? user.role : 'Membre';
-}
-
 export const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => {
   const collapsed = useUIStore((s) => s.sidebarCollapsed);
   const toggleCollapse = useUIStore((s) => s.toggleSidebar);
@@ -76,11 +54,12 @@ export const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => 
   const { pathname, search } = useLocation();
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
+  // The avatar comes from the profile, the same query PreferencesSync reads.
+  const { data: myProfile } = useMyProfile(Boolean(user));
   const { can, isAdmin } = usePermissions();
   const [menuOpen, setMenuOpen] = useState(false);
   // Real org identity + posture — replaces the former hardcoded fixtures.
   const orgName = user?.org_name?.trim() || tr('Mon organisation', 'My organization');
-  const orgInitials = initials(orgName, 'OR');
   // The canonical tenant score — the SAME query key the dashboard hero and the
   // dedicated page use, so all three render one object from one fetch. The
   // sidebar used to read cyber_score off the executive dashboard while the hero
@@ -261,47 +240,30 @@ export const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => 
               )}
             </div>
 
-            {!collapsed && (
-              <button
-                onClick={() => navigate('/settings')}
-                className="w-full flex items-center gap-2.5 px-2 py-1.5 rounded-[9px] hover:bg-hover transition-colors"
-              >
-                <div
-                  className="w-[26px] h-[26px] rounded-[7px] flex items-center justify-center text-[11px] font-bold shrink-0 text-accent-strong"
-                  style={{ background: 'var(--accent-soft)' }}
-                >
-                  {orgInitials}
-                </div>
-                <div className="min-w-0 flex-1 text-left">
-                  <div className="text-[12.5px] font-semibold leading-tight text-ink truncate">
-                    {orgName}
-                  </div>
-                  <div className="text-[10.5px] text-ink-soft">{L.enterprise}</div>
-                </div>
-                <ChevronsUpDown size={13} className="text-ink-muted shrink-0" />
-              </button>
-            )}
+            {!collapsed && <OrgSwitcher orgName={orgName} />}
           </div>
 
-          {/* Quick action */}
-          <div className={cn('px-[14px] pb-2.5', collapsed && 'px-2.5')}>
-            <button
-              data-tour="new-risk"
-              onClick={() => {
-                window.dispatchEvent(new CustomEvent('openrisk:new-risk'));
-                onMobileClose?.();
-              }}
-              className="w-full h-[38px] rounded-[10px] flex items-center justify-center gap-2 text-[13px] font-semibold text-fg-primary transition-[filter] hover:brightness-110"
-              style={{
-                background: 'var(--accent-solid)',
-                color: 'var(--fg-on-solid)',
-              }}
-              title={L.newRisk}
-            >
-              <Plus size={16} strokeWidth={2.2} />
-              {!collapsed && <span>{L.newRisk}</span>}
-            </button>
-          </div>
+          {/* Quick action — only for a member who may create a risk (#739). */}
+          {can('risks:create') && (
+            <div className={cn('px-[14px] pb-2.5', collapsed && 'px-2.5')}>
+              <button
+                data-tour="new-risk"
+                onClick={() => {
+                  window.dispatchEvent(new CustomEvent('openrisk:new-risk'));
+                  onMobileClose?.();
+                }}
+                className="w-full h-[38px] rounded-[10px] flex items-center justify-center gap-2 text-[13px] font-semibold text-fg-primary transition-[filter] hover:brightness-110"
+                style={{
+                  background: 'var(--accent-solid)',
+                  color: 'var(--fg-on-solid)',
+                }}
+                title={L.newRisk}
+              >
+                <Plus size={16} strokeWidth={2.2} />
+                {!collapsed && <span>{L.newRisk}</span>}
+              </button>
+            </div>
+          )}
 
           {/* Navigation */}
           <nav className="flex-1 overflow-y-auto px-2.5 pt-1.5 pb-2.5">
@@ -390,6 +352,15 @@ export const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => 
                   <button
                     onClick={() => {
                       setMenuOpen(false);
+                      navigate('/settings/profile');
+                    }}
+                    className="w-full flex items-center gap-2.5 px-3 py-2.5 text-[13px] font-medium text-ink hover:bg-hover transition-colors"
+                  >
+                    <UserRound size={16} strokeWidth={1.8} /> {tr('Mon profil', 'My profile')}
+                  </button>
+                  <button
+                    onClick={() => {
+                      setMenuOpen(false);
                       navigate('/settings');
                     }}
                     className="w-full flex items-center gap-2.5 px-3 py-2.5 text-[13px] font-medium text-ink hover:bg-hover transition-colors"
@@ -417,18 +388,19 @@ export const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => 
                   collapsed ? 'px-1' : 'flex-1 pl-1',
                 )}
               >
-                <div
-                  className="w-[30px] h-[30px] rounded-full flex items-center justify-center text-[11px] font-bold text-accent-strong shrink-0"
-                  style={{ background: 'var(--accent-soft)' }}
-                >
-                  {initials(user?.full_name)}
-                </div>
+                <UserAvatar
+                  userId={user?.id}
+                  name={user?.full_name}
+                  hasAvatar={myProfile?.has_avatar ?? false}
+                  fallback={initials(user?.full_name)}
+                  size={30}
+                />
                 {!collapsed && (
                   <div className="flex-1 min-w-0 text-left">
                     <div className="text-[12px] font-semibold leading-tight text-ink truncate">
                       {user?.full_name || user?.username || 'Admin'}
                     </div>
-                    <div className="text-[10.5px] text-ink-soft truncate">{roleLabel(user)}</div>
+                    <SidebarRoleLabel />
                   </div>
                 )}
               </button>

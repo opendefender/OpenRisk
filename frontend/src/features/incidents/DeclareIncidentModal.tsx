@@ -108,7 +108,7 @@ export function DeclareIncidentModal({
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ background: 'rgba(0,0,0,.4)' }}
+      style={{ background: 'var(--surface-overlay)', backdropFilter: 'blur(var(--overlay-blur))' }}
     >
       {/* Announced as a dialog and named by its heading; the incident list
           behind it stays in the accessibility tree otherwise. */}
