@@ -893,6 +893,24 @@
       "reopen": "Show the getting-started list"
     }
   },
+  "accountSecurity": {
+    "title": "Change password",
+    "current": "Current password",
+    "new": "New password",
+    "confirm": "Confirm the new password",
+    "showPasswords": "Show passwords",
+    "hidePasswords": "Hide passwords",
+    "note": "Your other devices will be signed out. This one stays signed in.",
+    "submit": "Change password",
+    "submitting": "Changing…",
+    "currentRequired": "Enter your current password.",
+    "minLength": "At least 12 characters.",
+    "mismatch": "The two passwords do not match.",
+    "sameAsCurrent": "Choose a password different from the current one.",
+    "managedByIdp": "This account signs in through your identity provider: its password is changed there.",
+    "tooManyAttempts": "Too many attempts. Try again in a few minutes.",
+    "failed": "Could not change the password"
+  },
   "orgSwitcher": {
     "trigger": "Switch organization — current organization: {name}",
     "title": "Your organizations",

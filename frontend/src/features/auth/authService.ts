@@ -107,6 +107,41 @@ export interface ResetPasswordErrorBody {
 }
 
 // ---------------------------------------------------------------------------
+// In-session password change (#720)
+// ---------------------------------------------------------------------------
+
+/** Every session ends; the calling device gets a fresh one in `token_pair`, or
+ *  `reauthenticate` is true when none could be minted. */
+export interface ChangePasswordResult {
+  message: string;
+  reauthenticate: boolean;
+  token_pair?: { access_token: string; refresh_token: string; expires_in: number };
+  csrf_token?: string;
+}
+
+export type ChangePasswordErrorCode =
+  'wrong_current_password' | 'weak_password' | 'same_password' | 'no_local_password';
+
+export interface ChangePasswordErrorBody {
+  error?: string;
+  code?: ChangePasswordErrorCode;
+  assessment?: PasswordAssessment;
+}
+
+export async function changePassword(
+  currentPassword: string,
+  newPassword: string,
+  locale: Lang,
+): Promise<ChangePasswordResult> {
+  const { data } = await api.post<ChangePasswordResult>('/auth/password/change', {
+    current_password: currentPassword,
+    new_password: newPassword,
+    locale,
+  });
+  return data;
+}
+
+// ---------------------------------------------------------------------------
 // Sessions
 // ---------------------------------------------------------------------------
 

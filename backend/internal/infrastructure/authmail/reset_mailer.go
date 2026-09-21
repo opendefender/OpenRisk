@@ -58,6 +58,18 @@ func (m *Mailer) SendResetConfirmation(ctx context.Context, to, fullName, locale
 	return m.sender.SendEmail(ctx, to, c.subject, m.render(c))
 }
 
+// SendPasswordChanged confirms a password changed from inside a session (#720).
+//
+// Distinct from the reset confirmation: here the device that made the change
+// stays signed in and only the OTHER sessions end, and the notice must say so.
+func (m *Mailer) SendPasswordChanged(ctx context.Context, to, fullName, locale string) error {
+	if m == nil || m.sender == nil {
+		return nil
+	}
+	c := passwordChangedCopy(locale, displayName(fullName, locale))
+	return m.sender.SendEmail(ctx, to, c.subject, m.render(c))
+}
+
 // SendNewSignInAlert warns about a sign-in from an unrecognised device.
 func (m *Mailer) SendNewSignInAlert(ctx context.Context, to, fullName, ip, userAgent string, when time.Time, locale string) error {
 	if m == nil || m.sender == nil {
@@ -132,6 +144,29 @@ func resetConfirmCopy(locale, name string) copyBlock {
 			"Le mot de passe de ce compte OpenRisk vient d'être modifié, et toutes les sessions actives ont été déconnectées. Vous devrez vous reconnecter sur chacun de vos appareils.",
 		},
 		footnote: "Si vous n'êtes pas à l'origine de ce changement, votre compte est compromis : réinitialisez immédiatement votre mot de passe et contactez votre administrateur OpenRisk.",
+	}
+}
+
+func passwordChangedCopy(locale, name string) copyBlock {
+	if locale == "en" {
+		return copyBlock{
+			subject: "Your OpenRisk password was changed",
+			heading: "Your password was changed",
+			paragraphs: []string{
+				fmt.Sprintf("Hello %s,", name),
+				"The password on this OpenRisk account was just changed from a signed-in session. That device stays signed in; every other device was signed out.",
+			},
+			footnote: "If this wasn't you, your account is at risk: reset your password immediately from the sign-in page and contact your OpenRisk administrator.",
+		}
+	}
+	return copyBlock{
+		subject: "Votre mot de passe OpenRisk a été modifié",
+		heading: "Votre mot de passe a été modifié",
+		paragraphs: []string{
+			fmt.Sprintf("Bonjour %s,", name),
+			"Le mot de passe de ce compte OpenRisk vient d'être modifié depuis une session ouverte. Cet appareil reste connecté ; tous les autres ont été déconnectés.",
+		},
+		footnote: "Si vous n'êtes pas à l'origine de ce changement, votre compte est compromis : réinitialisez immédiatement votre mot de passe depuis la page de connexion et contactez votre administrateur OpenRisk.",
 	}
 }
 

@@ -682,7 +682,9 @@ func main() {
 	)
 	passwordHandler := authhandler.NewPasswordHandler(
 		requestResetUseCase, confirmResetUseCase, passwordPolicy, appBaseURL, authAudit,
-	)
+	).WithChangePassword(auth.NewChangePasswordUseCase(
+		userRepo, passwordHasher, passwordPolicy, tokenManager, securityMailer,
+	))
 
 	// Session (device) management use cases + handler.
 	listSessionsUseCase := auth.NewListSessionsUseCase(sessionRepo)
@@ -1092,6 +1094,10 @@ func main() {
 	// --- Sessions / devices (L3) — full session required ---
 	protected.Get("/auth/sessions", sessionHandler.ListSessions)
 	protected.Delete("/auth/sessions/others", sessionHandler.RevokeOtherSessions)
+	// In-session password change (#720, D-047). Acts on the session's own user;
+	// behind the auth rate limiter so a wrong current password spends the same
+	// budget a failed sign-in does.
+	protected.Post("/auth/password/change", authRateLimit, passwordHandler.ChangePassword)
 	protected.Delete("/auth/sessions/:id", sessionHandler.RevokeSession)
 
 	// Organization switching — list the orgs the user may enter, and switch into
