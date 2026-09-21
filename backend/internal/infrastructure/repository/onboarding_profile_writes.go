@@ -177,3 +177,23 @@ func (r *GormOrganizationRepository) UpdateOrganizationSettingsProfile(ctx conte
 	}
 	return nil
 }
+
+// UpdateUserColumns applies a partial update to ONE user's own row (#719). The
+// caller's id comes from the session; the column set is decided by the use
+// case, never by a request body, so an empty value really clears a field.
+func (r *GormUserRepository) UpdateUserColumns(ctx context.Context, userID uuid.UUID, columns map[string]interface{}) error {
+	if userID == uuid.Nil {
+		return domain.NewUnauthorizedError("no user in session")
+	}
+	if len(columns) == 0 {
+		return nil
+	}
+	res := r.db.WithContext(ctx).Model(&domain.User{}).Where("id = ?", userID).Updates(columns)
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return domain.NewNotFoundError("user", userID)
+	}
+	return nil
+}

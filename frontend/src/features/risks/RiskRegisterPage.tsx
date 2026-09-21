@@ -12,8 +12,7 @@
 // view. The right-side drawer (Details / Lifecycle / Score / Financial / …)
 // is unchanged.
 
-import { useFormat } from '../../hooks/useI18n';
-import { localeTag } from '../../i18n/locales';
+import { useFormat, usePreferredDate } from '../../hooks/useI18n';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
@@ -1022,6 +1021,7 @@ function DrawerTimeline({ r }: { r: UiRisk }) {
 //     instead of implying the whole tab is unbuilt.
 function DrawerCTI({ r }: { r: UiRisk }) {
   const lang = useUIStore((s) => s.lang);
+  const when = usePreferredDate();
   const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
   const navigate = useNavigate();
   const cve = r.raw.source_cve_id ?? '';
@@ -1110,7 +1110,7 @@ function DrawerCTI({ r }: { r: UiRisk }) {
       {data.cisa_known && data.cisa_due_date && (
         <Fact
           label={tr('Échéance CISA', 'CISA due date')}
-          value={new Date(data.cisa_due_date).toLocaleDateString(localeTag(lang))}
+          value={when.calendarDate(data.cisa_due_date)}
         />
       )}
       {!!data.mitre_tactics?.length && (

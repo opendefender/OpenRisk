@@ -107,3 +107,61 @@ func TestUpdateOrganizationSettingsProfile_Postgres(t *testing.T) {
 		t.Fatalf("transaction: %v", err)
 	}
 }
+
+// UpdateUserColumns must be able to CLEAR a field (the legacy handler could
+// not) and must touch only the caller's row.
+func TestUpdateUserColumns_Postgres(t *testing.T) {
+	dsn := os.Getenv("DATABASE_URL")
+	if dsn == "" {
+		t.Skip("DATABASE_URL not set")
+	}
+	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
+	if err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	ctx := context.Background()
+	err = db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Exec(`CREATE TEMP TABLE users (
+			id uuid PRIMARY KEY, email text, username text, full_name text, phone text,
+			locale text, theme_mode text, updated_at timestamptz, deleted_at timestamptz
+		) ON COMMIT DROP`).Error; err != nil {
+			t.Fatalf("create: %v", err)
+		}
+		me, other := uuid.New(), uuid.New()
+		for _, id := range []uuid.UUID{me, other} {
+			if err := tx.Exec(`INSERT INTO users (id, email, username, full_name, phone) VALUES (?, ?, ?, 'Name', '+237 600')`, id, id.String(), id.String()).Error; err != nil {
+				t.Fatalf("insert: %v", err)
+			}
+		}
+		repo := NewGormUserRepository(tx)
+		if err := repo.UpdateUserColumns(ctx, me, map[string]interface{}{"phone": "", "locale": "en", "theme_mode": "dark"}); err != nil {
+			t.Fatalf("update: %v", err)
+		}
+		var rows []struct {
+			ID        uuid.UUID
+			Phone     string
+			Locale    *string
+			ThemeMode *string
+		}
+		if err := tx.Raw(`SELECT id, phone, locale, theme_mode FROM users`).Scan(&rows).Error; err != nil {
+			t.Fatalf("read: %v", err)
+		}
+		for _, r := range rows {
+			if r.ID == me && (r.Phone != "" || r.Locale == nil || *r.Locale != "en" || *r.ThemeMode != "dark") {
+				t.Errorf("caller row not updated: %+v", r)
+			}
+			if r.ID == other && (r.Phone != "+237 600" || r.Locale != nil) {
+				t.Errorf("another user's row changed: %+v", r)
+			}
+		}
+		err := repo.UpdateUserColumns(ctx, uuid.New(), map[string]interface{}{"phone": ""})
+		var appErr *domain.AppError
+		if !errors.As(err, &appErr) || appErr.Code != 404 {
+			t.Errorf("unknown user: want not found, got %v", err)
+		}
+		return errRollback
+	})
+	if !errors.Is(err, errRollback) {
+		t.Fatalf("transaction: %v", err)
+	}
+}

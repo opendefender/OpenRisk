@@ -232,3 +232,69 @@ export function boundFormatters(locale: LocaleCode): BoundFormatters {
     list: (items, type) => formatList(locale, items, type),
   };
 }
+
+/* ------------------------- preference-aware dates ------------------------ */
+
+/** A person's effective date preferences (#719): own choice, else the org's. */
+export type DatePattern = 'DD/MM/YYYY' | 'MM/DD/YYYY' | 'YYYY-MM-DD';
+
+export interface DatePreferences {
+  /** IANA zone. Absent = the browser's zone. */
+  readonly timeZone?: string;
+  /** Absent = the language's own medium style ("17 sept. 2026"). */
+  readonly pattern?: DatePattern;
+}
+
+/** A zone the running `Intl` does not know is dropped, never thrown. */
+function safeZone(timeZone: string | undefined): string | undefined {
+  if (!timeZone) return undefined;
+  try {
+    dateFormat('en-US', { timeZone });
+    return timeZone;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * The one place a date is written the way the person asked: in their time zone
+ * and, when they chose one, in their numeric pattern. `withTime` appends the
+ * language's short time in the same zone.
+ */
+export function formatPreferredDate(
+  locale: LocaleCode,
+  value: DateInput,
+  prefs: DatePreferences = {},
+  withTime = false,
+): string {
+  const date = toDate(value);
+  if (!date) return '—';
+  const timeZone = safeZone(prefs.timeZone);
+  const tag = localeTag(locale);
+  const zone = timeZone ? { timeZone } : {};
+
+  let day: string;
+  switch (prefs.pattern) {
+    case 'DD/MM/YYYY':
+    case 'MM/DD/YYYY':
+    case 'YYYY-MM-DD': {
+      const parts = dateFormat(tag, { year: 'numeric', month: '2-digit', day: '2-digit', ...zone })
+        .formatToParts(date)
+        .reduce<Record<string, string>>((acc, p) => ({ ...acc, [p.type]: p.value }), {});
+      const d = parts.day ?? '';
+      const m = parts.month ?? '';
+      const y = parts.year ?? '';
+      day =
+        prefs.pattern === 'DD/MM/YYYY'
+          ? `${d}/${m}/${y}`
+          : prefs.pattern === 'MM/DD/YYYY'
+            ? `${m}/${d}/${y}`
+            : `${y}-${m}-${d}`;
+      break;
+    }
+    default:
+      day = dateFormat(tag, { dateStyle: 'medium', ...zone }).format(date);
+  }
+  if (!withTime) return day;
+  return `${day} ${dateFormat(tag, { timeStyle: 'short', ...zone }).format(date)}`;
+}

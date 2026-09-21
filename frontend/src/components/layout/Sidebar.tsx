@@ -12,6 +12,7 @@ import {
   Plus,
   Settings,
   LogOut,
+  UserRound,
   Star,
 } from 'lucide-react';
 import { cn } from '../../shared/ds';
@@ -32,6 +33,8 @@ import {
 import { useScore } from '../../hooks/useScore';
 import { useOrganizationCounts } from '../../features/organization/useOrganization';
 import { bandColor, bandLabel, bandTextColor } from '../../services/scoreService';
+import { UserAvatar } from '../../shared/UserAvatar';
+import { useMyProfile } from '../../features/profile/useProfile';
 
 interface SidebarProps {
   /** Off-canvas drawer open on mobile (< lg). Ignored on desktop, where the
@@ -56,6 +59,8 @@ export const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => 
   const { pathname, search } = useLocation();
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
+  // The avatar comes from the profile, the same query PreferencesSync reads.
+  const { data: myProfile } = useMyProfile(Boolean(user));
   const { can, isAdmin } = usePermissions();
   const [menuOpen, setMenuOpen] = useState(false);
   // Real org identity + posture — replaces the former hardcoded fixtures.
@@ -370,6 +375,15 @@ export const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => 
                   <button
                     onClick={() => {
                       setMenuOpen(false);
+                      navigate('/settings/profile');
+                    }}
+                    className="w-full flex items-center gap-2.5 px-3 py-2.5 text-[13px] font-medium text-ink hover:bg-hover transition-colors"
+                  >
+                    <UserRound size={16} strokeWidth={1.8} /> {tr('Mon profil', 'My profile')}
+                  </button>
+                  <button
+                    onClick={() => {
+                      setMenuOpen(false);
                       navigate('/settings');
                     }}
                     className="w-full flex items-center gap-2.5 px-3 py-2.5 text-[13px] font-medium text-ink hover:bg-hover transition-colors"
@@ -397,12 +411,13 @@ export const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => 
                   collapsed ? 'px-1' : 'flex-1 pl-1',
                 )}
               >
-                <div
-                  className="w-[30px] h-[30px] rounded-full flex items-center justify-center text-[11px] font-bold text-accent-strong shrink-0"
-                  style={{ background: 'var(--accent-soft)' }}
-                >
-                  {initials(user?.full_name)}
-                </div>
+                <UserAvatar
+                  userId={user?.id}
+                  name={user?.full_name}
+                  hasAvatar={myProfile?.has_avatar ?? false}
+                  fallback={initials(user?.full_name)}
+                  size={30}
+                />
                 {!collapsed && (
                   <div className="flex-1 min-w-0 text-left">
                     <div className="text-[12px] font-semibold leading-tight text-ink truncate">
