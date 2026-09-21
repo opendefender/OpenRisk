@@ -6,10 +6,12 @@
 package netguard
 
 import (
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/netip"
 	"net/url"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -189,5 +191,64 @@ func TestClient_IgnoresEnvironmentProxy(t *testing.T) {
 	}
 	if !strings.Contains(ErrDenied.Error(), "not allowed") {
 		t.Fatal("ErrDenied text changed; callers surface it to users")
+	}
+}
+
+func TestValidateEndpoint(t *testing.T) {
+	var p Policy
+	ok := map[string][]string{
+		"ldaps://dc.example.com:636":    {"ldap", "ldaps"},
+		"tcp://docker.example.com:2376": {"tcp", "https"},
+		"https://k8s.example.com:6443":  {"https"},
+	}
+	for u, schemes := range ok {
+		if err := p.ValidateEndpoint(u, schemes...); err != nil {
+			t.Errorf("ValidateEndpoint(%q, %v) = %v, want nil", u, schemes, err)
+		}
+	}
+	bad := map[string][]string{
+		"ldapi:///var/run/slapd/ldapi":     {"ldap", "ldaps"},
+		"ldap://127.0.0.1:389":             {"ldap", "ldaps"},
+		"ldaps://localhost:636":            {"ldap", "ldaps"},
+		"tcp://169.254.169.254:80":         {"tcp", "https"},
+		"tcp://0x7f.1:2375":                {"tcp", "https"},
+		"unix:///var/run/docker.sock":      {"tcp", "https"},
+		"http://k8s.example.com:6443":      {"https"},
+		"https://[::1]:6443":               {"https"},
+		"tcp://user:pw@docker.example.com": {"tcp"},
+	}
+	for u, schemes := range bad {
+		if err := p.ValidateEndpoint(u, schemes...); err == nil || !IsDenied(err) {
+			t.Errorf("ValidateEndpoint(%q, %v) = %v, want ErrDenied", u, schemes, err)
+		}
+	}
+}
+
+// The exported dialer is what non-HTTP SDKs get: it must refuse loopback and
+// unix sockets, which have no IP address to check.
+func TestDialer_RefusesLoopbackAndUnixSockets(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+	if c, err := (Policy{}).Dialer().Dial("tcp", ln.Addr().String()); err == nil || !IsDenied(err) {
+		if c != nil {
+			c.Close()
+		}
+		t.Fatalf("Dial(loopback) err = %v, want ErrDenied", err)
+	}
+
+	sock := filepath.Join(t.TempDir(), "d.sock")
+	ul, err := net.Listen("unix", sock)
+	if err != nil {
+		t.Skipf("unix sockets unavailable: %v", err)
+	}
+	defer ul.Close()
+	if c, err := (Policy{}).Dialer().Dial("unix", sock); err == nil || !IsDenied(err) {
+		if c != nil {
+			c.Close()
+		}
+		t.Fatalf("Dial(unix) err = %v, want ErrDenied", err)
 	}
 }

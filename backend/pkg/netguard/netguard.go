@@ -149,14 +149,19 @@ func (p Policy) AddrAllowed(ip netip.Addr) bool {
 // ValidateURL checks a URL before it is stored or requested. It does not
 // resolve DNS — the dialer does that check at connect time, where it cannot be
 // raced. The returned error wraps ErrDenied and names the rejected target.
-func (p Policy) ValidateURL(raw string) error {
+func (p Policy) ValidateURL(raw string) error { return p.ValidateEndpoint(raw, "https") }
+
+// ValidateEndpoint is ValidateURL for endpoints that are not plain https: a
+// Docker daemon (tcp://), a directory (ldaps://), a cluster API server. schemes
+// is the allow-list; the host checks are the same as ValidateURL's (#750).
+func (p Policy) ValidateEndpoint(raw string, schemes ...string) error {
 	raw = strings.TrimSpace(raw)
 	u, err := url.Parse(raw)
 	if err != nil || u.Host == "" {
 		return fmt.Errorf("%w: %q is not an absolute URL", ErrDenied, raw)
 	}
-	if !strings.EqualFold(u.Scheme, "https") {
-		return fmt.Errorf("%w: %q must use https", ErrDenied, u.Redacted())
+	if !schemeAllowed(u.Scheme, schemes) {
+		return fmt.Errorf("%w: %q must use %s", ErrDenied, u.Redacted(), strings.Join(schemes, " or "))
 	}
 	if u.User != nil {
 		return fmt.Errorf("%w: %q must not carry credentials", ErrDenied, u.Redacted())
@@ -195,8 +200,22 @@ func numericHost(host string) bool {
 	return last != "" && strings.Trim(last, "0123456789") == ""
 }
 
+func schemeAllowed(scheme string, allowed []string) bool {
+	for _, a := range allowed {
+		if strings.EqualFold(scheme, a) {
+			return true
+		}
+	}
+	return false
+}
+
 // ValidateURL checks raw against the default (environment) policy.
 func ValidateURL(raw string) error { return defaultPolicy.ValidateURL(raw) }
+
+// ValidateEndpoint checks raw against the default (environment) policy.
+func ValidateEndpoint(raw string, schemes ...string) error {
+	return defaultPolicy.ValidateEndpoint(raw, schemes...)
+}
 
 // control runs after the socket is created and before it connects, with the
 // resolved address. It is the check DNS rebinding cannot get past.
@@ -211,6 +230,16 @@ func (p Policy) control(_, address string, _ syscall.RawConn) error {
 	}
 	return nil
 }
+
+// Dialer returns a *net.Dialer that can only connect to addresses p allows, for
+// SDKs that take a dialer rather than an *http.Client (client-go, go-ldap,
+// govmomi). A unix socket has no IP to check, so it is always refused.
+func (p Policy) Dialer() *net.Dialer {
+	return &net.Dialer{Timeout: 10 * time.Second, KeepAlive: 30 * time.Second, Control: p.control}
+}
+
+// Dialer returns a guarded dialer under the default (environment) policy.
+func Dialer() *net.Dialer { return defaultPolicy.Dialer() }
 
 // Options tunes a guarded client.
 type Options struct {
@@ -229,7 +258,7 @@ func (p Policy) Client(o Options) *http.Client {
 	if o.Timeout <= 0 {
 		o.Timeout = 30 * time.Second
 	}
-	dialer := &net.Dialer{Timeout: 10 * time.Second, KeepAlive: 30 * time.Second, Control: p.control}
+	dialer := p.Dialer()
 	transport := &http.Transport{
 		Proxy:                 nil,
 		DialContext:           dialer.DialContext,
