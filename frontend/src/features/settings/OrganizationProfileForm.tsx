@@ -17,6 +17,7 @@ import { toast } from 'sonner';
 import { Button, Field, Input, Select, Textarea } from '../../shared/ds';
 import { apiErrorMessage } from '../../lib/apiError';
 import { ENABLED_LOCALES, LOCALES } from '../../i18n/locales';
+import { ACCENT_LABELS, ACCENT_PRESETS } from '../../shared/accentPresets';
 import {
   DATE_FORMATS,
   ORG_SIZES,
@@ -57,6 +58,7 @@ function valuesOf(org: OrganizationView): OrganizationProfileValues {
     timezone: org.timezone ?? '',
     default_locale: org.default_locale ?? '',
     date_format: org.date_format ?? '',
+    accent: org.accent ?? '',
   };
 }
 
@@ -201,6 +203,31 @@ export function OrganizationProfileForm({ org, tr }: { org: OrganizationView; tr
             {DATE_FORMATS.map((f) => (
               <option key={f} value={f}>
                 {f}
+              </option>
+            ))}
+          </Select>
+        </Field>
+      </fieldset>
+
+      <fieldset
+        className="grid gap-4"
+        style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))' }}
+      >
+        <legend className="text-[12px] font-semibold uppercase tracking-wide text-ink-muted mb-3">
+          {tr('Identité visuelle', 'Branding')}
+        </legend>
+        <Field
+          label={tr('Couleur d’accent', 'Accent color')}
+          description={tr(
+            'Appliquée à l’interface de tous les membres. Chacun peut la changer sur son appareil.',
+            'Applied to every member’s interface. Anyone can change it on their own device.',
+          )}
+        >
+          <Select {...register('accent')} data-testid="org-accent">
+            <option value="">{tr('Par défaut', 'Default')}</option>
+            {ACCENT_PRESETS.map((a) => (
+              <option key={a} value={a}>
+                {ACCENT_LABELS[a]}
               </option>
             ))}
           </Select>

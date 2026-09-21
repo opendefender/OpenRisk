@@ -7,6 +7,7 @@
 import { z } from 'zod';
 
 import { DATE_FORMATS, ORG_SIZES } from '../organization/organizationService';
+import { ACCENT_PRESETS } from '../../shared/accentPresets';
 
 type Tr = (fr: string, en: string) => string;
 
@@ -40,6 +41,7 @@ export function organizationProfileSchema(tr: Tr) {
     timezone: z.string(),
     default_locale: z.string(),
     date_format: z.union([z.enum(DATE_FORMATS as [string, ...string[]]), z.literal('')]),
+    accent: z.union([z.enum(ACCENT_PRESETS), z.literal('')]),
   });
 }
 

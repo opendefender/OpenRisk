@@ -38,12 +38,15 @@ type OrganizationView struct {
 	Timezone  string         `json:"timezone,omitempty"`
 	// Website, Description, DefaultLocale and DateFormat live in the settings
 	// jsonb next to Timezone and are empty until an administrator sets them.
-	Website       string    `json:"website,omitempty"`
-	Description   string    `json:"description,omitempty"`
-	DefaultLocale string    `json:"default_locale,omitempty"`
-	DateFormat    string    `json:"date_format,omitempty"`
-	CreatedAt     time.Time `json:"created_at"`
-	UpdatedAt     time.Time `json:"updated_at"`
+	Website       string `json:"website,omitempty"`
+	Description   string `json:"description,omitempty"`
+	DefaultLocale string `json:"default_locale,omitempty"`
+	DateFormat    string `json:"date_format,omitempty"`
+	// HasLogo and Accent are the organization's branding (#718).
+	HasLogo   bool      `json:"has_logo"`
+	Accent    string    `json:"accent,omitempty"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 	// Counts are the live membership numbers, so the profile and the members
 	// screen can never disagree about how many people are in the organization.
 	Counts domain.OrganizationCounts `json:"counts"`
@@ -90,6 +93,13 @@ func (s *Service) GetOrganization(ctx context.Context, tenantID uuid.UUID, canEd
 	view.Description = str(domain.OrgSettingDescription)
 	view.DefaultLocale = str(domain.OrgSettingDefaultLocale)
 	view.DateFormat = str(domain.OrgSettingDateFormat)
+	view.Accent = str(domain.OrgSettingAccent)
+	view.HasLogo = org.LogoKey != ""
+	if !view.HasLogo {
+		// logo_url may hold an address written before uploads existed; only a
+		// logo this API serves is ever rendered.
+		view.LogoURL = ""
+	}
 	if counts, err := s.repo.Counts(ctx, tenantID, s.clock()); err == nil {
 		view.Counts = counts
 	}

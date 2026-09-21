@@ -23,7 +23,28 @@ const (
 	OrgSettingDescription   = "description"
 	OrgSettingDefaultLocale = "default_locale"
 	OrgSettingDateFormat    = "date_format"
+	OrgSettingAccent        = "accent"
 )
+
+// accentPresets are the accent variants the design system declares and has
+// contrast-checked in both themes (frontend/src/styles/tokens.css,
+// `:root[data-variant=…]`, verified by scripts/check-contrast.mjs). A tenant
+// picks one of these, never a free colour: a free colour would bypass the
+// WCAG AA check. TestAccentPresets_MatchDesignTokens keeps the two in step.
+var accentPresets = []string{"azure", "iris"}
+
+// AccentPresets returns the accepted accent keys, in display order.
+func AccentPresets() []string { return append([]string(nil), accentPresets...) }
+
+// IsAccentPreset reports whether key is a declared accent variant.
+func IsAccentPreset(key string) bool {
+	for _, p := range accentPresets {
+		if p == key {
+			return true
+		}
+	}
+	return false
+}
 
 // DateFormat is how a date is written for a person or an organization.
 type DateFormat string
@@ -85,6 +106,7 @@ type OrganizationProfilePatch struct {
 	Timezone      *string `json:"timezone,omitempty"`
 	DefaultLocale *string `json:"default_locale,omitempty"`
 	DateFormat    *string `json:"date_format,omitempty"`
+	Accent        *string `json:"accent,omitempty"`
 }
 
 // Normalize trims every provided field and validates it. It returns the first
@@ -95,7 +117,7 @@ func (p *OrganizationProfilePatch) Normalize() error {
 			*s = strings.TrimSpace(*s)
 		}
 	}
-	for _, f := range []*string{p.Name, p.Industry, p.Size, p.Website, p.Description, p.Timezone, p.DefaultLocale, p.DateFormat} {
+	for _, f := range []*string{p.Name, p.Industry, p.Size, p.Website, p.Description, p.Timezone, p.DefaultLocale, p.DateFormat, p.Accent} {
 		trim(f)
 	}
 
@@ -125,13 +147,17 @@ func (p *OrganizationProfilePatch) Normalize() error {
 	if p.DateFormat != nil && *p.DateFormat != "" && !IsDateFormat(*p.DateFormat) {
 		return NewValidationError("date_format: must be one of DD/MM/YYYY, MM/DD/YYYY, YYYY-MM-DD")
 	}
+	if p.Accent != nil && *p.Accent != "" && !IsAccentPreset(*p.Accent) {
+		return NewValidationError("accent: must be one of " + strings.Join(accentPresets, ", "))
+	}
 	return nil
 }
 
 // IsEmpty reports whether the patch changes nothing.
 func (p *OrganizationProfilePatch) IsEmpty() bool {
 	return p.Name == nil && p.Industry == nil && p.Size == nil && p.Website == nil &&
-		p.Description == nil && p.Timezone == nil && p.DefaultLocale == nil && p.DateFormat == nil
+		p.Description == nil && p.Timezone == nil && p.DefaultLocale == nil && p.DateFormat == nil &&
+		p.Accent == nil
 }
 
 func isHTTPSURL(raw string) bool {

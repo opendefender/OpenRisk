@@ -33,6 +33,7 @@ import {
 
 // --- App shell ---
 import { PreferencesSync } from './features/profile/PreferencesSync';
+import { BrandingSync } from './features/organization/BrandingSync';
 import { Sidebar } from './components/layout/Sidebar';
 import { AppHeader } from './components/layout/AppHeader';
 // Command palette pulls @floating-ui + the search stack; it is only needed once
@@ -418,6 +419,8 @@ const DashboardLayout = () => {
       </a>
       {/* Server-side profile preferences: theme, language, dates (#719). */}
       <PreferencesSync />
+      {/* The organization's accent, worn by every member (#718). */}
+      <BrandingSync />
       <Sidebar mobileOpen={mobileNavOpen} onMobileClose={() => setMobileNavOpen(false)} />
       <div
         className="flex-1 flex flex-col h-screen overflow-hidden relative min-w-0"

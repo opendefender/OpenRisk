@@ -235,6 +235,7 @@ type Service struct {
 	users      UserDirectory
 	orgs       OrganizationReader
 	orgWriter  OrganizationProfileWriter
+	blobs      BlobStore
 	audit      AuditSink
 	reader     AuditReader
 	mailer     InvitationMailer
