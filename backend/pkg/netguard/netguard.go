@@ -61,6 +61,11 @@ var deniedPrefixes = mustPrefixes(
 	"2001:db8::/32",   // documentation
 	"2002::/16",       // 6to4: embeds an IPv4 address
 	"fec0::/10",       // deprecated site-local
+	"::/96",           // IPv4-compatible (deprecated): embeds an IPv4 address
+	"::ffff:0:0:0/96", // SIIT IPv4-translated: embeds an IPv4 address
+	"2001::/32",       // Teredo: embeds an IPv4 address
+	"100::/64",        // discard-only
+	"192.88.99.0/24",  // retired 6to4 relay anycast
 )
 
 func mustPrefixes(ss ...string) []netip.Prefix {
@@ -112,7 +117,9 @@ func DefaultPolicyError() error { return defaultPolicyErr }
 
 // AddrAllowed reports whether ip may be connected to.
 func (p Policy) AddrAllowed(ip netip.Addr) bool {
-	ip = ip.Unmap()
+	// Drop the zone: netip.Prefix.Contains is always false for a zoned address,
+	// so "64:ff9b::a00:1%1" would otherwise slip past every IPv6 prefix.
+	ip = ip.Unmap().WithZone("")
 	if !ip.IsValid() {
 		return false
 	}
@@ -161,10 +168,31 @@ func (p Policy) ValidateURL(raw string) error {
 	if host == "localhost" || strings.HasSuffix(host, ".localhost") {
 		return fmt.Errorf("%w: host %q", ErrDenied, host)
 	}
-	if ip, err := netip.ParseAddr(host); err == nil && !p.AddrAllowed(ip) {
+	if strings.Contains(host, "%") {
+		return fmt.Errorf("%w: host %q carries an IPv6 zone", ErrDenied, host)
+	}
+	ip, err := netip.ParseAddr(host)
+	if err == nil && !p.AddrAllowed(ip) {
 		return fmt.Errorf("%w: address %s", ErrDenied, ip)
 	}
+	if err != nil && numericHost(host) {
+		// 2130706433, 0x7f.1, 0177.0.0.1, 127.1: not a DNS name, but some
+		// resolvers turn them into an address. Refuse them outright.
+		return fmt.Errorf("%w: host %q is an encoded address", ErrDenied, host)
+	}
 	return nil
+}
+
+// numericHost reports whether the last label of host is a number (decimal,
+// octal or 0x-hex). No real top-level domain is numeric, so such a host can only
+// be an encoded IP address.
+func numericHost(host string) bool {
+	last := host[strings.LastIndex(host, ".")+1:]
+	if strings.HasPrefix(last, "0x") {
+		last = last[2:]
+		return last == "" || strings.Trim(last, "0123456789abcdef") == ""
+	}
+	return last != "" && strings.Trim(last, "0123456789") == ""
 }
 
 // ValidateURL checks raw against the default (environment) policy.
@@ -218,6 +246,12 @@ func (p Policy) Client(o Options) *http.Client {
 		c.CheckRedirect = func(req *http.Request, via []*http.Request) error {
 			if len(via) >= 5 {
 				return errors.New("stopped after 5 redirects")
+			}
+			// Stay on the host the request was aimed at. Go drops Authorization
+			// on a cross-host redirect but keeps custom credential headers
+			// (X-ApiKeys) and re-sends a 307/308 body (an OAuth client secret).
+			if len(via) > 0 && via[0].URL != nil && !strings.EqualFold(req.URL.Host, via[0].URL.Host) {
+				return fmt.Errorf("%w: redirect to another host %q", ErrDenied, req.URL.Host)
 			}
 			// The dialer re-checks the address; this keeps a redirect from
 			// downgrading to http or smuggling credentials in the URL.

@@ -37,6 +37,14 @@ func TestAddrAllowed(t *testing.T) {
 		"2002:a9fe:a9fe::":       false, // 6to4 of 169.254.169.254
 		"255.255.255.255":        false,
 		"224.0.0.1":              false,
+		"64:ff9b::a00:1%1":       false, // a zone must not hide NAT64
+		"2002:a00:1::%eth0":      false, // nor 6to4
+		"fd00::1%1":              false,
+		"::7f00:1":               false, // IPv4-compatible
+		"::ffff:0:7f00:1":        false, // SIIT
+		"2001::1":                false, // Teredo
+		"100::1":                 false,
+		"192.88.99.1":            false,
 	}
 	var p Policy
 	for s, want := range cases {
@@ -106,6 +114,15 @@ func TestValidateURL(t *testing.T) {
 		"https://api.localhost",
 		"https://10.0.0.5",
 		"https://[fd00:ec2::254]/",
+		"https://[64:ff9b::a00:1%251]/",
+		"https://[2002:a00:1::%251]/",
+		"https://[2001::1]/",
+		"https://2130706433/",
+		"https://2852039166/",
+		"https://0x7f.1/",
+		"https://0177.0.0.1/",
+		"https://127.1/",
+		"https://a.0xa9fea9fe/",
 	}
 	for _, u := range bad {
 		err := p.ValidateURL(u)
@@ -144,9 +161,15 @@ func TestClient_RedirectIsRevalidated(t *testing.T) {
 			t.Errorf("redirect to %s: err = %v, want ErrDenied", to, err)
 		}
 	}
+	first, _ := http.NewRequest(http.MethodGet, "https://example.com/start", nil)
 	req, _ := http.NewRequest(http.MethodGet, "https://example.com/next", nil)
-	if err := c.CheckRedirect(req, []*http.Request{{}}); err != nil {
-		t.Errorf("redirect to a public https URL: err = %v, want nil", err)
+	if err := c.CheckRedirect(req, []*http.Request{first}); err != nil {
+		t.Errorf("same-host https redirect: err = %v, want nil", err)
+	}
+	// Credential headers must not follow a redirect to another host.
+	req, _ = http.NewRequest(http.MethodGet, "https://collector.example.net/", nil)
+	if err := c.CheckRedirect(req, []*http.Request{first}); err == nil || !IsDenied(err) {
+		t.Errorf("cross-host redirect: err = %v, want ErrDenied", err)
 	}
 }
 
