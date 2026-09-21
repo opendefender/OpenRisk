@@ -96,3 +96,23 @@ func TestListBusinessRolesIsCopy(t *testing.T) {
 		t.Fatal("ListBusinessRoles must return a defensive copy")
 	}
 }
+
+// TestEveryBusinessRoleCanHoldTheRealtimeStream guards #741. events:read was
+// removed from every preset while the stream stayed gated on it, so no
+// business-role member received a single live update and their browser retried
+// the 403 forever. Holding the stream widens nothing: the handler filters each
+// event by the read permission of its own aggregate.
+func TestEveryBusinessRoleCanHoldTheRealtimeStream(t *testing.T) {
+	for _, r := range ListBusinessRoles() {
+		found := false
+		for _, p := range r.Permissions {
+			if p == "events:read" {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Errorf("business role %q cannot open /realtime/events: events:read is missing", r.Key)
+		}
+	}
+}
