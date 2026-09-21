@@ -800,6 +800,9 @@
       "answersKept": "Your answers are kept — try again, nothing is lost.",
       "loading": "Loading your setup…",
       "loadFailed": "Your setup could not be loaded.",
+      "switchToLight": "Switch to light theme",
+      "switchToDark": "Switch to dark theme",
+      "switchLanguage": "Switch to French",
       "organization": {
         "heading": "Your organisation",
         "lead": "Your sector and country decide which framework we propose.",
@@ -907,5 +910,17 @@
     "managedByIdp": "This account signs in through your identity provider: its password is changed there.",
     "tooManyAttempts": "Too many attempts. Try again in a few minutes.",
     "failed": "Could not change the password"
+  },
+  "orgSwitcher": {
+    "trigger": "Switch organization — current organization: {name}",
+    "title": "Your organizations",
+    "loading": "Loading your organizations…",
+    "loadError": "Your organizations could not be loaded.",
+    "retry": "Retry",
+    "current": "Current organization",
+    "switching": "Switching…",
+    "switchError": "The switch failed. You are still in {name}.",
+    "onlyOne": "You belong to this organization only. An invitation from another organization will add it here.",
+    "settings": "Organization settings"
   }
 }

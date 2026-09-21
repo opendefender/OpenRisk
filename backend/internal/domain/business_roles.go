@@ -225,6 +225,7 @@ var businessRoles = []BusinessRole{
 		DescriptionEN:  "Chief information security officer: cyber risks, vulnerabilities, incidents, security controls and KPIs.",
 		DefaultLanding: "/",
 		Permissions: []PermissionKey{
+			"events:read",
 			"risks:read", "risks:create", "risks:update",
 			"vulnerabilities:read", "vulnerabilities:update",
 			"incidents:read", "incidents:create", "incidents:update",
@@ -244,6 +245,7 @@ var businessRoles = []BusinessRole{
 		DescriptionEN:  "IT director: global IT view, assets, availability and IT risks.",
 		DefaultLanding: "/assets",
 		Permissions: []PermissionKey{
+			"events:read",
 			"risks:read", "risks:create", "risks:update",
 			"assets:read", "assets:create", "assets:update", "assets:delete", "vendors:read", "vendors:manage",
 			"mitigations:read", "mitigations:create", "mitigations:update",
@@ -263,6 +265,7 @@ var businessRoles = []BusinessRole{
 		DescriptionEN:  "Risk management: register, assessments, treatments, heatmaps and reporting.",
 		DefaultLanding: "/risks",
 		Permissions: []PermissionKey{
+			"events:read",
 			"risks:read", "risks:create", "risks:update", "risks:delete",
 			"mitigations:read", "mitigations:create", "mitigations:update", "mitigations:delete",
 			"assets:read", "vendors:read",
@@ -280,6 +283,7 @@ var businessRoles = []BusinessRole{
 		DescriptionEN:  "Audit: audit campaigns, findings, evidences, action plans and history (broad read + audit management).",
 		DefaultLanding: "/compliance",
 		Permissions: []PermissionKey{
+			"events:read",
 			"risks:read",
 			"assets:read", "vendors:read",
 			"mitigations:read",
@@ -299,6 +303,7 @@ var businessRoles = []BusinessRole{
 		DescriptionEN:  "Compliance: frameworks, controls, evidences, remediation plans and regulatory obligations.",
 		DefaultLanding: "/compliance",
 		Permissions: []PermissionKey{
+			"events:read",
 			"risks:read",
 			"assets:read", "vendors:read",
 			"mitigations:read",
@@ -319,6 +324,7 @@ var businessRoles = []BusinessRole{
 		DescriptionEN:  "Internal control: control testing, evidences, audits and remediation plans.",
 		DefaultLanding: "/compliance",
 		Permissions: []PermissionKey{
+			"events:read",
 			"risks:read",
 			"assets:read", "vendors:read",
 			"mitigations:read", "mitigations:update",
@@ -339,6 +345,7 @@ var businessRoles = []BusinessRole{
 		DescriptionEN:  "Asset owner: manages their asset scope and tracks associated risks.",
 		DefaultLanding: "/assets",
 		Permissions: []PermissionKey{
+			"events:read",
 			"assets:read", "assets:create", "assets:update", "vendors:read", "vendors:manage",
 			"risks:read",
 			"mitigations:read", "mitigations:update",
@@ -354,6 +361,7 @@ var businessRoles = []BusinessRole{
 		DescriptionEN:  "Risk owner: treats the risks they own and their mitigation plans.",
 		DefaultLanding: "/risks",
 		Permissions: []PermissionKey{
+			"events:read",
 			"risks:read", "risks:update",
 			"mitigations:read", "mitigations:create", "mitigations:update",
 			"assets:read", "vendors:read",
@@ -369,6 +377,7 @@ var businessRoles = []BusinessRole{
 		DescriptionEN:  "SOC analyst: vulnerabilities, incidents, scans, automation and risk treatment.",
 		DefaultLanding: "/vulnerabilities",
 		Permissions: []PermissionKey{
+			"events:read",
 			"risks:read", "risks:create", "risks:update",
 			"vulnerabilities:read", "vulnerabilities:update", "vulnerabilities:delete",
 			"incidents:read", "incidents:create", "incidents:update", "incidents:delete",
@@ -387,6 +396,7 @@ var businessRoles = []BusinessRole{
 		DescriptionEN:  "Executive / board: strategic dashboard, financial exposure and reports — no technical detail.",
 		DefaultLanding: "/analytics",
 		Permissions: []PermissionKey{
+			"events:read",
 			"risks:read",
 			"compliance:read",
 			"reports:board:read",
@@ -400,6 +410,7 @@ var businessRoles = []BusinessRole{
 		DescriptionEN:  "Read-only access to the whole GRC posture.",
 		DefaultLanding: "/",
 		Permissions: []PermissionKey{
+			"events:read",
 			"risks:read",
 			"assets:read", "vendors:read",
 			"mitigations:read",

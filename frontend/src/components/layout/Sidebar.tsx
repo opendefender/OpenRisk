@@ -5,16 +5,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router';
-import {
-  ChevronsUpDown,
-  PanelLeftClose,
-  PanelLeftOpen,
-  Plus,
-  Settings,
-  LogOut,
-  UserRound,
-  Star,
-} from 'lucide-react';
+import { PanelLeftClose, PanelLeftOpen, Plus, Settings, LogOut, Star } from 'lucide-react';
 import { cn } from '../../shared/ds';
 import { useUIStore } from '../../store/uiStore';
 import { useUIStrings } from '../../shared/uiStrings';
@@ -22,7 +13,7 @@ import { useAuthStore } from '../../hooks/useAuthStore';
 import { usePermissions } from '../../hooks/usePermissions';
 import { SidebarRoleLabel } from './SidebarRoleLabel';
 import { OpenRiskLogo } from '../../shared/Logo';
-import { OrgPlanLabel } from './OrgPlanLabel';
+import { OrgSwitcher } from './OrgSwitcher';
 import {
   visibleNavGroups,
   pinnedItems,
@@ -68,11 +59,7 @@ export const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => 
   const { can, isAdmin } = usePermissions();
   const [menuOpen, setMenuOpen] = useState(false);
   // Real org identity + posture — replaces the former hardcoded fixtures.
-  // Branding (#718) is readable by every member; the login's org_name is the
-  // fallback while it loads.
-  const { data: branding } = useOrganizationBranding(Boolean(user));
-  const orgName =
-    branding?.name?.trim() || user?.org_name?.trim() || tr('Mon organisation', 'My organization');
+  const orgName = user?.org_name?.trim() || tr('Mon organisation', 'My organization');
   // The canonical tenant score — the SAME query key the dashboard hero and the
   // dedicated page use, so all three render one object from one fetch. The
   // sidebar used to read cyber_score off the executive dashboard while the hero
@@ -253,47 +240,30 @@ export const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => 
               )}
             </div>
 
-            {!collapsed && (
-              <button
-                onClick={() => navigate('/settings')}
-                className="w-full flex items-center gap-2.5 px-2 py-1.5 rounded-[9px] hover:bg-hover transition-colors"
-              >
-                <OrgLogo
-                  name={orgName}
-                  hasLogo={branding?.has_logo ?? false}
-                  size={26}
-                  radius={7}
-                />
-                <div className="min-w-0 flex-1 text-left">
-                  <div className="text-[12.5px] font-semibold leading-tight text-ink truncate">
-                    {orgName}
-                  </div>
-                  <OrgPlanLabel />
-                </div>
-                <ChevronsUpDown size={13} className="text-ink-muted shrink-0" />
-              </button>
-            )}
+            {!collapsed && <OrgSwitcher orgName={orgName} />}
           </div>
 
-          {/* Quick action */}
-          <div className={cn('px-[14px] pb-2.5', collapsed && 'px-2.5')}>
-            <button
-              data-tour="new-risk"
-              onClick={() => {
-                window.dispatchEvent(new CustomEvent('openrisk:new-risk'));
-                onMobileClose?.();
-              }}
-              className="w-full h-[38px] rounded-[10px] flex items-center justify-center gap-2 text-[13px] font-semibold text-fg-primary transition-[filter] hover:brightness-110"
-              style={{
-                background: 'var(--accent-solid)',
-                color: 'var(--fg-on-solid)',
-              }}
-              title={L.newRisk}
-            >
-              <Plus size={16} strokeWidth={2.2} />
-              {!collapsed && <span>{L.newRisk}</span>}
-            </button>
-          </div>
+          {/* Quick action — only for a member who may create a risk (#739). */}
+          {can('risks:create') && (
+            <div className={cn('px-[14px] pb-2.5', collapsed && 'px-2.5')}>
+              <button
+                data-tour="new-risk"
+                onClick={() => {
+                  window.dispatchEvent(new CustomEvent('openrisk:new-risk'));
+                  onMobileClose?.();
+                }}
+                className="w-full h-[38px] rounded-[10px] flex items-center justify-center gap-2 text-[13px] font-semibold text-fg-primary transition-[filter] hover:brightness-110"
+                style={{
+                  background: 'var(--accent-solid)',
+                  color: 'var(--fg-on-solid)',
+                }}
+                title={L.newRisk}
+              >
+                <Plus size={16} strokeWidth={2.2} />
+                {!collapsed && <span>{L.newRisk}</span>}
+              </button>
+            </div>
+          )}
 
           {/* Navigation */}
           <nav className="flex-1 overflow-y-auto px-2.5 pt-1.5 pb-2.5">

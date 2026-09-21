@@ -25,6 +25,9 @@ func (jiraProvider) Create(ctx context.Context, req CreateRequest) (Ticket, erro
 	if req.BaseURL == "" {
 		return Ticket{}, fmt.Errorf("jira: base_url is required")
 	}
+	if err := req.checkBaseURL("jira"); err != nil {
+		return Ticket{}, err
+	}
 	email := req.cred("email", "username", "user")
 	token := req.cred("api_token", "token", "password")
 	if email == "" || token == "" {
@@ -65,14 +68,14 @@ func (jiraProvider) Create(ctx context.Context, req CreateRequest) (Ticket, erro
 	defer resp.Body.Close()
 	body, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return Ticket{}, fmt.Errorf("jira: create issue returned %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
+		return Ticket{}, statusError("jira", "create issue", resp.StatusCode)
 	}
 
 	var out struct {
 		Key string `json:"key"`
 	}
 	if err := json.Unmarshal(body, &out); err != nil || out.Key == "" {
-		return Ticket{}, fmt.Errorf("jira: unexpected response: %s", strings.TrimSpace(string(body)))
+		return Ticket{}, fmt.Errorf("jira: unexpected response: no issue key")
 	}
 	return Ticket{
 		Provider: ProviderJira,

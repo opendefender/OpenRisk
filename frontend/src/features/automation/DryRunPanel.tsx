@@ -233,7 +233,7 @@ export function DryRunPanel({ rule, onClose }: { rule: AutomationRule; onClose: 
   const running = dryRun.isPending;
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end" style={{ background: 'rgba(0,0,0,.35)' }}>
+    <div className="fixed inset-0 z-50 flex justify-end" style={{ background: 'var(--surface-overlay)', backdropFilter: 'blur(var(--overlay-blur))' }}>
       <div
         role="dialog"
         aria-modal="true"

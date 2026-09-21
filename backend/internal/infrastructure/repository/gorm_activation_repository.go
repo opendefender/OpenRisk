@@ -231,7 +231,7 @@ func (r *GormActivationRepository) BackfillExistingMembers(ctx context.Context) 
 		INSERT INTO onboarding_progress (id, tenant_id, user_id, current_step, completed, completed_at)
 		SELECT gen_random_uuid(), om.organization_id, om.user_id, 'team', true, now()
 		FROM organization_members om
-		ON CONFLICT (user_id) DO NOTHING
+		ON CONFLICT (tenant_id, user_id) DO NOTHING
 	`).Error; err != nil {
 		return fmt.Errorf("backfill onboarding progress: %w", err)
 	}
@@ -258,8 +258,8 @@ func (r *GormActivationRepository) BackfillExistingMembers(ctx context.Context) 
 // =============================================================================
 
 // Get returns the user's wizard state, or (nil, nil) when they have none yet.
-// The tenant filter is part of the lookup, so a user rehomed to another tenant
-// starts a fresh wizard there instead of inheriting foreign answers.
+// The tenant filter is part of the lookup: a member of several organizations
+// has one wizard state per organization, and never reads another's answers.
 func (r *GormActivationRepository) Get(ctx context.Context, tenantID, userID uuid.UUID) (*domain.OnboardingProgress, error) {
 	if tenantID == uuid.Nil || userID == uuid.Nil {
 		return nil, nil
@@ -314,8 +314,9 @@ func (r *GormActivationRepository) MarkComplete(ctx context.Context, tenantID, u
 	return r.Save(ctx, existing)
 }
 
-// Save inserts or updates the user's wizard state. The row is keyed by user_id
-// (unique), so a resumed wizard always writes back to the same row.
+// Save inserts or updates the user's wizard state in one organization. The row
+// is keyed by (tenant_id, user_id), so a resumed wizard always writes back to
+// the same row, and a row never moves to another organization (#735).
 func (r *GormActivationRepository) Save(ctx context.Context, p *domain.OnboardingProgress) error {
 	if p == nil {
 		return fmt.Errorf("onboarding progress is nil")
@@ -332,9 +333,9 @@ func (r *GormActivationRepository) Save(ctx context.Context, p *domain.Onboardin
 
 	return r.db.WithContext(ctx).
 		Clauses(clause.OnConflict{
-			Columns: []clause.Column{{Name: "user_id"}},
+			Columns: []clause.Column{{Name: "tenant_id"}, {Name: "user_id"}},
 			DoUpdates: clause.AssignmentColumns([]string{
-				"tenant_id", "current_step", "completed", "completed_at",
+				"current_step", "completed", "completed_at",
 				"industry", "country", "goal", "answers", "updated_at",
 			}),
 		}).

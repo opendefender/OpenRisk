@@ -38,6 +38,8 @@ import {
 } from './useVulnIntegrations';
 import type { VulnIntegration, VulnTicketProvider } from './vulnIntegrationsService';
 import { INTEGRATION_META, TICKETING_META, type SourceMeta } from './vulnIntegrationMeta';
+import { baseUrlSchema, credentialsMustBeReentered } from './vulnIntegrationSchema';
+import { apiErrorMessage } from '../../lib/apiError';
 import type { VulnSource } from './vulnerabilityService';
 
 type ConfigurableSource = keyof typeof INTEGRATION_META;
@@ -79,7 +81,7 @@ export function IntegrationsPanel({
   return (
     <div
       className="fixed inset-0 z-80 flex items-center justify-center p-4"
-      style={{ background: 'rgba(0,0,0,.5)', backdropFilter: 'blur(3px)' }}
+      style={{ background: 'var(--surface-overlay)', backdropFilter: 'blur(var(--overlay-blur))' }}
       onClick={onClose}
     >
       <div
@@ -285,6 +287,7 @@ function IntegrationForm({
 
   const [name, setName] = useState(existing?.name ?? meta.label);
   const [baseUrl, setBaseUrl] = useState(existing?.base_url ?? '');
+  const [urlError, setUrlError] = useState('');
   const [creds, setCreds] = useState<Record<string, string>>({});
   const [enabled, setEnabled] = useState(existing?.enabled ?? true);
   const [livePull, setLivePull] = useState(existing?.live_pull_enabled ?? false);
@@ -301,6 +304,16 @@ function IntegrationForm({
     const enteredCreds = Object.fromEntries(
       Object.entries(creds).filter(([, v]) => v.trim() !== ''),
     );
+    const urlProblem = checkBaseUrl(
+      tr,
+      baseUrl,
+      source === 'openvas',
+      existing?.base_url ?? '',
+      existing?.has_credentials ?? false,
+      Object.keys(enteredCreds).length > 0,
+    );
+    setUrlError(urlProblem);
+    if (urlProblem) return;
     try {
       await save.mutateAsync({
         source: source as VulnSource,
@@ -318,8 +331,8 @@ function IntegrationForm({
       toast.success(tr('Intégration enregistrée', 'Integration saved'));
       setCreds({});
       onDone();
-    } catch {
-      toast.error(tr('Échec de l’enregistrement', 'Save failed'));
+    } catch (e) {
+      toast.error(apiErrorMessage(e) || tr('Échec de l’enregistrement', 'Save failed'));
     }
   };
 
@@ -394,13 +407,24 @@ function IntegrationForm({
               {meta.baseUrl.required && ' *'}
             </label>
             <input
-              className={inputCls + ' mb-3'}
+              className={inputCls + (urlError ? ' mb-1' : ' mb-3')}
               style={inputStyle}
               placeholder={meta.baseUrl.placeholder}
               value={baseUrl}
               onChange={(e) => setBaseUrl(e.target.value)}
               disabled={!canWrite}
+              aria-invalid={urlError !== ''}
+              aria-describedby={urlError ? 'integration-base-url-error' : undefined}
             />
+            {urlError && (
+              <p
+                id="integration-base-url-error"
+                role="alert"
+                className="text-[11.5px] text-danger-text mb-3"
+              >
+                {urlError}
+              </p>
+            )}
           </>
         )}
 
@@ -567,6 +591,29 @@ function IntegrationForm({
   );
 }
 
+/**
+ * The message to show under the base URL field, or '' when it can be saved.
+ * Mirrors the server rules (#573); the server still has the last word.
+ */
+function checkBaseUrl(
+  tr: (fr: string, en: string) => string,
+  next: string,
+  gmpHost: boolean,
+  saved: string,
+  hasSavedCredentials: boolean,
+  enteredCredentials: boolean,
+): string {
+  const parsed = baseUrlSchema(tr, { gmpHost }).safeParse(next);
+  if (!parsed.success) return parsed.error.issues[0]?.message ?? '';
+  if (credentialsMustBeReentered(saved, next, hasSavedCredentials, enteredCredentials)) {
+    return tr(
+      'Ressaisissez les identifiants : ils ne sont envoyés qu’à l’hôte pour lequel ils ont été saisis.',
+      'Re-enter the credentials: they are only sent to the host they were entered for.',
+    );
+  }
+  return '';
+}
+
 /* ---------- ticketing (ITSM) config ---------- */
 function TicketingForm({ canWrite }: { canWrite: boolean }) {
   const lang = useUIStore((s) => s.lang);
@@ -578,6 +625,7 @@ function TicketingForm({ canWrite }: { canWrite: boolean }) {
   const [provider, setProvider] = useState<VulnTicketProvider>(cfg?.provider ?? '');
   const [enabled, setEnabled] = useState(cfg?.enabled ?? false);
   const [baseUrl, setBaseUrl] = useState(cfg?.base_url ?? '');
+  const [urlError, setUrlError] = useState('');
   const [project, setProject] = useState(cfg?.project_or_table ?? '');
   const [issueType, setIssueType] = useState(cfg?.default_issue_type ?? 'Bug');
   const [creds, setCreds] = useState<Record<string, string>>({});
@@ -593,6 +641,16 @@ function TicketingForm({ canWrite }: { canWrite: boolean }) {
     const enteredCreds = Object.fromEntries(
       Object.entries(creds).filter(([, v]) => v.trim() !== ''),
     );
+    const urlProblem = checkBaseUrl(
+      tr,
+      baseUrl,
+      false,
+      cfg?.base_url ?? '',
+      cfg?.has_credentials ?? false,
+      Object.keys(enteredCreds).length > 0,
+    );
+    setUrlError(urlProblem);
+    if (urlProblem) return;
     try {
       await save.mutateAsync({
         provider,
@@ -604,8 +662,8 @@ function TicketingForm({ canWrite }: { canWrite: boolean }) {
       });
       toast.success(tr('Ticketing enregistré', 'Ticketing saved'));
       setCreds({});
-    } catch {
-      toast.error(tr('Échec de l’enregistrement', 'Save failed'));
+    } catch (e) {
+      toast.error(apiErrorMessage(e) || tr('Échec de l’enregistrement', 'Save failed'));
     }
   };
 
@@ -642,13 +700,24 @@ function TicketingForm({ canWrite }: { canWrite: boolean }) {
               {pick(meta.baseUrl.label)}
             </label>
             <input
-              className={inputCls + ' mb-3'}
+              className={inputCls + (urlError ? ' mb-1' : ' mb-3')}
               style={inputStyle}
               placeholder={meta.baseUrl.placeholder}
               value={baseUrl}
               onChange={(e) => setBaseUrl(e.target.value)}
               disabled={!canWrite}
+              aria-invalid={urlError !== ''}
+              aria-describedby={urlError ? 'ticketing-base-url-error' : undefined}
             />
+            {urlError && (
+              <p
+                id="ticketing-base-url-error"
+                role="alert"
+                className="text-[11.5px] text-danger-text mb-3"
+              >
+                {urlError}
+              </p>
+            )}
 
             <label className="block text-[11px] font-semibold uppercase tracking-[.04em] text-ink-muted mb-1">
               {pick(meta.projectLabel)}

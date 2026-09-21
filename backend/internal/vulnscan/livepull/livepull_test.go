@@ -13,6 +13,7 @@ import (
 	"testing"
 
 	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/pkg/netguard"
 )
 
 func TestMSDefenderPuller_RealFlow(t *testing.T) {
@@ -36,6 +37,7 @@ func TestMSDefenderPuller_RealFlow(t *testing.T) {
 	defer srv.Close()
 
 	got, err := (msDefenderPuller{}).Pull(context.Background(), PullConfig{
+		HTTP:    srv.Client(),
 		BaseURL: srv.URL,
 		Credentials: map[string]string{
 			"tenant_id": "t", "client_id": "c", "client_secret": "s", "token_url": srv.URL + "/token",
@@ -69,6 +71,7 @@ func TestCrowdStrikePuller_RealFlow(t *testing.T) {
 	defer srv.Close()
 
 	got, err := (crowdStrikePuller{}).Pull(context.Background(), PullConfig{
+		HTTP:        srv.Client(),
 		BaseURL:     srv.URL,
 		Credentials: map[string]string{"client_id": "c", "client_secret": "s"},
 	})
@@ -90,6 +93,7 @@ func TestNessusPuller_APIKeyHeader(t *testing.T) {
 	defer srv.Close()
 
 	got, err := (nessusPuller{}).Pull(context.Background(), PullConfig{
+		HTTP:        srv.Client(),
 		BaseURL:     srv.URL,
 		Credentials: map[string]string{"access_key": "ak", "secret_key": "sk"},
 	})
@@ -118,6 +122,7 @@ func TestQualysPuller_ParsesXML(t *testing.T) {
 	defer srv.Close()
 
 	got, err := (qualysPuller{}).Pull(context.Background(), PullConfig{
+		HTTP:        srv.Client(),
 		BaseURL:     srv.URL,
 		Credentials: map[string]string{"username": "u", "password": "p"},
 	})
@@ -152,5 +157,47 @@ func TestSeamPuller_HonestSeam(t *testing.T) {
 	}
 	if !LivePullSupported(domain.VulnSourceMSDefender) {
 		t.Error("MS Defender should report live pull supported")
+	}
+}
+
+// The default client must refuse a private address: a tenant-set BaseURL
+// pointing at the pod's own network is never fetched, whatever the source.
+func TestPullConfig_DefaultClientRefusesPrivateAddress(t *testing.T) {
+	hit := false
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hit = true
+	}))
+	defer srv.Close()
+
+	_, err := (nessusPuller{}).Pull(context.Background(), PullConfig{
+		BaseURL:     srv.URL,
+		Credentials: map[string]string{"access_key": "a", "secret_key": "s"},
+	})
+	if err == nil || !netguard.IsDenied(err) {
+		t.Fatalf("err = %v, want netguard.ErrDenied", err)
+	}
+	if hit {
+		t.Fatal("a private address must never be reached")
+	}
+}
+
+// A non-2xx answer is reported by status only: the error is persisted as
+// last_pull_error and readable by every vulnerabilities:read holder.
+func TestGetJSON_DoesNotEchoResponseBody(t *testing.T) {
+	const secret = "ami-id=i-0abc; AccessKeyId=ASIAEXAMPLE"
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, secret, http.StatusForbidden)
+	}))
+	defer srv.Close()
+
+	_, err := getJSON(context.Background(), srv.Client(), srv.URL, nil)
+	if err == nil {
+		t.Fatal("expected an error on 403")
+	}
+	if strings.Contains(err.Error(), "ASIAEXAMPLE") {
+		t.Fatalf("error echoes the remote body: %v", err)
+	}
+	if !strings.Contains(err.Error(), "403") {
+		t.Fatalf("error should still carry the status: %v", err)
 	}
 }

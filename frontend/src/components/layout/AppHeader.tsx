@@ -37,6 +37,10 @@ import {
   useUnreadCount,
   useNotificationActions,
 } from '../../features/notifications/useNotifications';
+import {
+  hasNotificationTarget,
+  resolveNotificationHref,
+} from '../../features/notifications/notificationLinks';
 import { EmptyState } from '../../shared/EmptyState';
 import { Btn, SkeletonRows } from '../../shared/ui';
 import type { LocaleCode } from '../../i18n/locales';
@@ -231,9 +235,22 @@ function NotifPanel({ onClose }: { onClose: () => void }) {
       body: n.subject ? n.message : (n.description ?? ''),
       time: relativeTime(n.created_at, lang),
       unread: !n.read_at,
+      linkable: hasNotificationTarget(n),
+      target: { resource_type: n.resource_type, resource_id: n.resource_id },
     };
   });
   const shown = filter === 'all' ? items : items.filter((it) => it.category === filter);
+
+  // A click marks the notification read and, when it is about something, takes
+  // the user to that exact thing (features/notifications/notificationLinks.ts).
+  const openItem = (it: (typeof items)[number]) => {
+    if (it.unread) markRead.mutate(it.id);
+    if (!it.linkable) return;
+    onClose();
+    void resolveNotificationHref(it.target).then((href) => {
+      if (href) navigate(href);
+    });
+  };
   const cats: (NotifCategory | 'all')[] = [
     'all',
     ...Array.from(new Set(items.map((it) => it.category))),
@@ -325,10 +342,16 @@ function NotifPanel({ onClose }: { onClose: () => void }) {
               return (
                 <div
                   key={it.id}
-                  onClick={() => {
-                    if (it.unread) markRead.mutate(it.id);
+                  role={it.linkable ? 'link' : 'button'}
+                  tabIndex={0}
+                  onClick={() => openItem(it)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      openItem(it);
+                    }
                   }}
-                  className="flex gap-3 px-[17px] py-[13px] border-b border-border cursor-pointer hover:bg-hover transition-colors"
+                  className="w-full text-left flex gap-3 px-[17px] py-[13px] border-b border-border cursor-pointer hover:bg-hover focus-visible:bg-hover outline-none transition-colors"
                   style={{
                     background: it.unread
                       ? 'color-mix(in srgb,var(--accent) 4%,transparent)'

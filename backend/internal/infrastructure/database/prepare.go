@@ -42,6 +42,39 @@ func PrepareForAutoMigrate(db *gorm.DB) error {
 	if err := prepareVendorAssessmentTokens(db); err != nil {
 		return fmt.Errorf("vendor_assessment_tokens: %w", err)
 	}
+	if err := prepareOnboardingProgressPerOrg(db); err != nil {
+		return fmt.Errorf("onboarding_progress: %w", err)
+	}
+	return nil
+}
+
+// prepareOnboardingProgressPerOrg moves onboarding_progress from one row per
+// user to one row per (organization, user) (#735). The old unique index on
+// user_id made a member of two organizations share a single row, which moved
+// to whichever organization last wrote it. AutoMigrate adds the composite index
+// from the model tag but never drops the old one, so it is dropped here.
+// Mirrors migrations/0063_onboarding_progress_per_org.up.sql.
+//
+// No data is rewritten: every existing row already names one organization, and
+// the composite key cannot be violated by rows that were unique on user_id.
+// Idempotent; a no-op outside Postgres and on a fresh database.
+func prepareOnboardingProgressPerOrg(db *gorm.DB) error {
+	if db.Dialector.Name() != "postgres" {
+		return nil
+	}
+	if !db.Migrator().HasTable("onboarding_progress") {
+		return nil
+	}
+	stmts := []string{
+		`DROP INDEX IF EXISTS idx_onboarding_progress_user_id`,
+		`CREATE UNIQUE INDEX IF NOT EXISTS uq_onboarding_progress_tenant_user
+		     ON onboarding_progress (tenant_id, user_id)`,
+	}
+	for _, s := range stmts {
+		if err := db.Exec(s).Error; err != nil {
+			return err
+		}
+	}
 	return nil
 }
 

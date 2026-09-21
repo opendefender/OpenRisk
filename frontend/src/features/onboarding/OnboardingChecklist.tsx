@@ -241,7 +241,7 @@ function StepRow({
           {isCurrent && !step.completed && (
             <span
               className="text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full"
-              style={{ background: 'var(--accent)', color: '#fff' }}
+              style={{ background: 'var(--accent-solid)', color: 'var(--fg-on-solid)' }}
             >
               {nowLabel}
             </span>

@@ -27,6 +27,7 @@ import (
 	"time"
 
 	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/pkg/netguard"
 )
 
 // HTTPDoer is the seam used for real requests (satisfied by *http.Client) and for
@@ -35,7 +36,8 @@ type HTTPDoer interface {
 	Do(req *http.Request) (*http.Response, error)
 }
 
-// PullConfig is everything a puller needs. HTTP defaults to a 30s client.
+// PullConfig is everything a puller needs. HTTP defaults to a 30s client that
+// can only reach public addresses (pkg/netguard).
 type PullConfig struct {
 	Source      domain.VulnSource
 	BaseURL     string
@@ -43,11 +45,15 @@ type PullConfig struct {
 	HTTP        HTTPDoer
 }
 
+// guardedClient is shared so pulls reuse keep-alive connections instead of
+// building a transport per request.
+var guardedClient = netguard.Client(netguard.Options{Timeout: 30 * time.Second})
+
 func (c PullConfig) http() HTTPDoer {
 	if c.HTTP != nil {
 		return c.HTTP
 	}
-	return &http.Client{Timeout: 30 * time.Second}
+	return guardedClient
 }
 
 func (c PullConfig) cred(keys ...string) string {
@@ -116,7 +122,7 @@ func oauthClientCredentials(ctx context.Context, doer HTTPDoer, tokenURL string,
 	defer resp.Body.Close()
 	body, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return "", fmt.Errorf("token endpoint returned %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
+		return "", fmt.Errorf("token endpoint returned %d %s", resp.StatusCode, http.StatusText(resp.StatusCode))
 	}
 	var tok struct {
 		AccessToken string `json:"access_token"`
@@ -128,6 +134,13 @@ func oauthClientCredentials(ctx context.Context, doer HTTPDoer, tokenURL string,
 		return "", fmt.Errorf("token endpoint returned no access_token")
 	}
 	return tok.AccessToken, nil
+}
+
+// apiStatusError reports a non-2xx answer by status only. The body is never
+// echoed: the error is persisted as last_pull_error and shown to every reader
+// of the integration, so it must not carry whatever the remote host returned.
+func apiStatusError(code int) error {
+	return fmt.Errorf("API returned %d %s", code, http.StatusText(code))
 }
 
 // getJSON issues a GET with the provided headers and decodes the JSON body.
@@ -147,7 +160,7 @@ func getJSON(ctx context.Context, doer HTTPDoer, endpoint string, headers map[st
 	defer resp.Body.Close()
 	body, _ := io.ReadAll(io.LimitReader(resp.Body, 16<<20))
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return nil, fmt.Errorf("API returned %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
+		return nil, apiStatusError(resp.StatusCode)
 	}
 	var out map[string]any
 	if err := json.Unmarshal(body, &out); err != nil {
@@ -172,7 +185,7 @@ func getRaw(ctx context.Context, doer HTTPDoer, endpoint string, headers map[str
 	defer resp.Body.Close()
 	body, _ := io.ReadAll(io.LimitReader(resp.Body, 16<<20))
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return nil, fmt.Errorf("API returned %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
+		return nil, apiStatusError(resp.StatusCode)
 	}
 	return body, nil
 }

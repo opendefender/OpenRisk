@@ -95,6 +95,7 @@ import (
 	"github.com/opendefender/openrisk/pkg/cti"
 	ent "github.com/opendefender/openrisk/pkg/entitlements"
 	"github.com/opendefender/openrisk/pkg/hibp"
+	"github.com/opendefender/openrisk/pkg/netguard"
 	"github.com/opendefender/openrisk/pkg/notify"
 	"github.com/opendefender/openrisk/pkg/pwpolicy"
 	"github.com/opendefender/openrisk/pkg/scoring"
@@ -1840,6 +1841,11 @@ func main() {
 		log.Fatalf("failed to init vulnerability integration cipher: %v", vulnIntegCipherErr)
 	}
 	vulnIntegRepo := repository.NewGormVulnIntegrationRepository(database.DB)
+	// Outbound requests to tenant-configured URLs only reach public addresses
+	// unless the operator opens private ranges; a malformed list stops startup.
+	if err := netguard.DefaultPolicyError(); err != nil {
+		log.Fatalf("invalid outbound policy: %v", err)
+	}
 	// Auto-ticketing: the opener composes the tenant ITSM config + Jira/ServiceNow
 	// providers (pkg/ticketing). Wired into ingest (auto-open for P1/KEV) and into
 	// the manual "Open ticket" use case. Mutating vulnIngestUC here still affects the
@@ -2020,10 +2026,11 @@ func main() {
 	protected.Delete("/teams/:id/members/:userId", adminRole, handlers.RemoveTeamMember)
 
 	// --- Integration Testing (Protected routes) ---
-	// Fetches a caller-supplied URL from the server and reports the result, so
-	// it must not be reachable by every member (#529). The guard narrows who can
-	// aim it; issue #573 removes the arbitrary-URL shape itself.
-	protected.Post("/integrations/:id/test", middleware.RequireRole("admin", "root"), handlers.TestIntegration)
+	// Probes the base_url stored on the tenant's integration :id. Admin/root only
+	// (#529); targets go through pkg/netguard, redirects are not followed and the
+	// remote body is never echoed (#573).
+	integTestHandler := handlers.NewIntegrationTestHandler(vulnapp.NewGetIntegrationUseCase(vulnIntegRepo))
+	protected.Post("/integrations/:id/test", middleware.RequireRole("admin", "root"), integTestHandler.TestIntegration)
 
 	// --- Audit Logs (Admin only) ---
 	auditHandler := handlers.NewAuditLogHandler()
@@ -2584,11 +2591,16 @@ func main() {
 	// In-app + e-mail sink: a completed scan raises a durable in-app notification
 	// for the user who triggered it and (best-effort) e-mails them. Failures never
 	// block the scan. A Nil user (e.g. a failed cloud scan) is skipped.
-	scanInApp := func(ctx context.Context, tenantID, userID uuid.UUID, title, message string) {
+	scanInApp := func(ctx context.Context, tenantID, userID, jobID uuid.UUID, title, message string) {
 		if userID == uuid.Nil {
 			return
 		}
-		if err := notificationUseCase.NotifyInApp(userID, tenantID, domain.NotificationTypeScanComplete, title, message, nil, "scan"); err != nil && !errors.Is(err, notificationapp.ErrSuppressed) {
+		// The job id lets the bell open this scan's preview (/infrastructure/scans/:jobId).
+		var resourceID *uuid.UUID
+		if jobID != uuid.Nil {
+			resourceID = &jobID
+		}
+		if err := notificationUseCase.NotifyInApp(userID, tenantID, domain.NotificationTypeScanComplete, title, message, resourceID, "scan"); err != nil && !errors.Is(err, notificationapp.ErrSuppressed) {
 			zeroLogger.Warn().Err(err).Msg("scanner: could not create in-app notification")
 		}
 		// The recipient's stored e-mail preference governs the e-mail half too.

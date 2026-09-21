@@ -72,6 +72,7 @@ describe('placeholder routes', () => {
       'assets/universe',
       'compliance/gap-analysis',
       'compliance/remediations',
+      'threat-intel',
     ];
     for (const path of legacy) {
       const route = new RegExp(

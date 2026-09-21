@@ -39,6 +39,9 @@ func (serviceNowProvider) Create(ctx context.Context, req CreateRequest) (Ticket
 	if req.BaseURL == "" {
 		return Ticket{}, fmt.Errorf("servicenow: base_url is required")
 	}
+	if err := req.checkBaseURL("servicenow"); err != nil {
+		return Ticket{}, err
+	}
 	user := req.cred("username", "user", "email")
 	pass := req.cred("password", "api_token", "token")
 	if user == "" || pass == "" {
@@ -47,6 +50,9 @@ func (serviceNowProvider) Create(ctx context.Context, req CreateRequest) (Ticket
 	table := req.ProjectOrTable
 	if table == "" {
 		table = "incident"
+	}
+	if !validTable(table) {
+		return Ticket{}, fmt.Errorf("servicenow: invalid table name %q", table)
 	}
 
 	payload, _ := json.Marshal(map[string]any{
@@ -73,7 +79,7 @@ func (serviceNowProvider) Create(ctx context.Context, req CreateRequest) (Ticket
 	defer resp.Body.Close()
 	body, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return Ticket{}, fmt.Errorf("servicenow: create record returned %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
+		return Ticket{}, statusError("servicenow", "create record", resp.StatusCode)
 	}
 
 	var out struct {
@@ -83,11 +89,22 @@ func (serviceNowProvider) Create(ctx context.Context, req CreateRequest) (Ticket
 		} `json:"result"`
 	}
 	if err := json.Unmarshal(body, &out); err != nil || out.Result.Number == "" {
-		return Ticket{}, fmt.Errorf("servicenow: unexpected response: %s", strings.TrimSpace(string(body)))
+		return Ticket{}, fmt.Errorf("servicenow: unexpected response: no record number")
 	}
 	url := strings.TrimRight(req.BaseURL, "/")
 	if out.Result.SysID != "" {
 		url += fmt.Sprintf("/nav_to.do?uri=%s.do?sys_id=%s", table, out.Result.SysID)
 	}
 	return Ticket{Provider: ProviderServiceNow, Key: out.Result.Number, URL: url}, nil
+}
+
+// validTable keeps the table name a single path segment: ServiceNow table names
+// are letters, digits and underscores.
+func validTable(t string) bool {
+	for _, r := range t {
+		if !(r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9' || r == '_') {
+			return false
+		}
+	}
+	return t != ""
 }

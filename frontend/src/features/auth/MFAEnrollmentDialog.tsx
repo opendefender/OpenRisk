@@ -115,7 +115,7 @@ export function MFAEnrollmentDialog({
   return createPortal(
     <div
       className="fixed inset-0 z-80 flex items-center justify-center p-4"
-      style={{ background: 'rgba(0,0,0,.45)', backdropFilter: 'blur(3px)' }}
+      style={{ background: 'var(--surface-overlay)', backdropFilter: 'blur(var(--overlay-blur))' }}
       onClick={onClose}
     >
       <form
@@ -186,6 +186,9 @@ export function MFAEnrollmentDialog({
               {qrSrc && (
                 <div
                   className="flex justify-center p-3 rounded-[13px]"
+                  // A QR code needs a white quiet zone in BOTH themes or phone
+                  // scanners miss it: a scanner requirement, not a theme colour.
+                  // eslint-disable-next-line openrisk/no-raw-colors -- QR quiet zone
                   style={{ background: '#fff' }}
                 >
                   <img

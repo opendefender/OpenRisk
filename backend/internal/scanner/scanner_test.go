@@ -291,3 +291,23 @@ func TestHMACPushSignature(t *testing.T) {
 	assert.False(t, VerifyPushSignature(secret, body, "deadbeef"))
 	assert.False(t, VerifyPushSignature("other", body, sig))
 }
+
+// --- Notifier --------------------------------------------------------------
+
+// The in-app notice for a finished scan names its job, so the bell can open
+// that scan's preview; a failed scan stored no preview and names none.
+func TestRedisNotifier_InAppCarriesJobID(t *testing.T) {
+	type call struct{ tenant, user, job uuid.UUID }
+	var got []call
+	n := NewRedisNotifier(newFakeKV(), func(_ context.Context, tenantID, userID, jobID uuid.UUID, _, _ string) {
+		got = append(got, call{tenantID, userID, jobID})
+	})
+	tenant, user, job := uuid.New(), uuid.New(), uuid.New()
+
+	n.ScanCompleted(context.Background(), &ScanPreview{JobID: job, TenantID: tenant, TriggeredBy: user})
+	n.ScanFailed(context.Background(), tenant, job, uuid.New(), "aws", "", "boom")
+
+	require.Len(t, got, 2)
+	assert.Equal(t, call{tenant, user, job}, got[0])
+	assert.Equal(t, call{tenant, uuid.Nil, uuid.Nil}, got[1])
+}

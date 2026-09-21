@@ -16,7 +16,7 @@ import type { EmergingRisk } from './aiService';
 const SEV_COLOR: Record<string, string> = {
   critical: 'var(--critical)',
   high: 'var(--high)',
-  medium: 'var(--medium, #d19a24)',
+  medium: 'var(--medium)',
   low: 'var(--accent)',
 };
 
