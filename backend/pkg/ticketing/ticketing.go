@@ -12,8 +12,11 @@ package ticketing
 import (
 	"context"
 	"encoding/base64"
+	"fmt"
 	"net/http"
 	"time"
+
+	"github.com/opendefender/openrisk/pkg/netguard"
 )
 
 // Provider names (kept as plain constants; the caller maps its own enum).
@@ -44,7 +47,27 @@ func (r CreateRequest) http() HTTPDoer {
 	if r.HTTP != nil {
 		return r.HTTP
 	}
-	return &http.Client{Timeout: 20 * time.Second}
+	return netguard.Client(netguard.Options{Timeout: 20 * time.Second})
+}
+
+// checkBaseURL re-validates the instance URL at request time, so a config saved
+// before the guard existed cannot aim the server at a private address. An
+// injected HTTPDoer (tests) brings its own transport and skips the URL check;
+// the production client is guarded at dial time as well.
+func (r CreateRequest) checkBaseURL(provider string) error {
+	if r.HTTP != nil {
+		return nil
+	}
+	if err := netguard.ValidateURL(r.BaseURL); err != nil {
+		return fmt.Errorf("%s: %w", provider, err)
+	}
+	return nil
+}
+
+// statusError reports a non-2xx answer by status only. The remote body is never
+// echoed back to the caller.
+func statusError(provider, what string, code int) error {
+	return fmt.Errorf("%s: %s returned %d %s", provider, what, code, http.StatusText(code))
 }
 
 func (r CreateRequest) cred(keys ...string) string {
