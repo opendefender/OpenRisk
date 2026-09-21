@@ -94,6 +94,7 @@ import (
 	"github.com/opendefender/openrisk/pkg/cti"
 	ent "github.com/opendefender/openrisk/pkg/entitlements"
 	"github.com/opendefender/openrisk/pkg/hibp"
+	"github.com/opendefender/openrisk/pkg/netguard"
 	"github.com/opendefender/openrisk/pkg/notify"
 	"github.com/opendefender/openrisk/pkg/pwpolicy"
 	"github.com/opendefender/openrisk/pkg/scoring"
@@ -1837,6 +1838,11 @@ func main() {
 		log.Fatalf("failed to init vulnerability integration cipher: %v", vulnIntegCipherErr)
 	}
 	vulnIntegRepo := repository.NewGormVulnIntegrationRepository(database.DB)
+	// Outbound requests to tenant-configured URLs only reach public addresses
+	// unless the operator opens private ranges; a malformed list stops startup.
+	if err := netguard.DefaultPolicyError(); err != nil {
+		log.Fatalf("invalid outbound policy: %v", err)
+	}
 	// Auto-ticketing: the opener composes the tenant ITSM config + Jira/ServiceNow
 	// providers (pkg/ticketing). Wired into ingest (auto-open for P1/KEV) and into
 	// the manual "Open ticket" use case. Mutating vulnIngestUC here still affects the
@@ -2006,10 +2012,11 @@ func main() {
 	protected.Delete("/teams/:id/members/:userId", adminRole, handlers.RemoveTeamMember)
 
 	// --- Integration Testing (Protected routes) ---
-	// Fetches a caller-supplied URL from the server and reports the result, so
-	// it must not be reachable by every member (#529). The guard narrows who can
-	// aim it; issue #573 removes the arbitrary-URL shape itself.
-	protected.Post("/integrations/:id/test", middleware.RequireRole("admin", "root"), handlers.TestIntegration)
+	// Probes the base_url stored on the tenant's integration :id. Admin/root only
+	// (#529); targets go through pkg/netguard, redirects are not followed and the
+	// remote body is never echoed (#573).
+	integTestHandler := handlers.NewIntegrationTestHandler(vulnapp.NewGetIntegrationUseCase(vulnIntegRepo))
+	protected.Post("/integrations/:id/test", middleware.RequireRole("admin", "root"), integTestHandler.TestIntegration)
 
 	// --- Audit Logs (Admin only) ---
 	auditHandler := handlers.NewAuditLogHandler()
