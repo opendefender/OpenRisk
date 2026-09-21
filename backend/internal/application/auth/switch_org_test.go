@@ -135,3 +135,26 @@ func TestListOrganizations_MarksDefault(t *testing.T) {
 	require.True(t, byID[orgB].IsDefault)
 	require.Equal(t, "Org A", byID[orgA].Name)
 }
+
+// The membership lookup does not preload the organization (it also resolves
+// every session refresh), so the switch answered `organization: null`. It now
+// names the organization from the user's active memberships.
+func TestSwitchOrganization_NamesTheOrganization(t *testing.T) {
+	userID, orgB := uuid.New(), uuid.New()
+	stub := &memberStub{
+		// The row as GetOrganizationMember returns it: no Organization.
+		byOrg: map[uuid.UUID]*domain.OrganizationMember{
+			orgB: {UserID: userID, OrganizationID: orgB, Role: domain.RoleUser, IsActive: true},
+		},
+		active: []*domain.OrganizationMember{
+			{UserID: userID, OrganizationID: orgB, Role: domain.RoleUser, IsActive: true,
+				Organization: &domain.Organization{ID: orgB, Name: "Org B", Slug: "org-b"}},
+		},
+	}
+
+	uc := NewSwitchOrganizationUseCase(stub, newSwitchTokenManager(t))
+	out, err := uc.Execute(context.Background(), SwitchOrganizationInput{UserID: userID, TargetOrgID: orgB})
+	require.NoError(t, err)
+	require.NotNil(t, out.Organization)
+	require.Equal(t, "Org B", out.Organization.Name)
+}

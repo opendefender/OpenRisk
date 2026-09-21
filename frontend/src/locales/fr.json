@@ -892,5 +892,17 @@
       "closed": "Liste masquée. Vous la retrouverez dans les réglages.",
       "reopen": "Afficher la liste de démarrage"
     }
+  },
+  "orgSwitcher": {
+    "trigger": "Changer d'organisation — organisation actuelle : {name}",
+    "title": "Vos organisations",
+    "loading": "Chargement de vos organisations…",
+    "loadError": "Impossible de charger vos organisations.",
+    "retry": "Réessayer",
+    "current": "Organisation actuelle",
+    "switching": "Changement en cours…",
+    "switchError": "Le changement d'organisation a échoué. Vous êtes toujours dans {name}.",
+    "onlyOne": "Vous n'appartenez qu'à cette organisation. Une invitation d'une autre organisation l'ajoutera ici.",
+    "settings": "Paramètres de l'organisation"
   }
 }
