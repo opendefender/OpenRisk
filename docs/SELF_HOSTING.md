@@ -262,6 +262,23 @@ Do not add the NAT64 prefix (`64:ff9b::/96`) to the list: it embeds IPv4, so
 opening it re-opens every IPv4 address behind the translator, loopback and
 metadata included.
 
+The same rule covers the discovery connectors that run inside the backend:
+Kubernetes (`api_server`), Docker (`host`), VMware vCenter (`url`), Active
+Directory (`url`, `ldap://` or `ldaps://` only) and GitHub / GitLab (`base_url`).
+A cluster, vCenter or domain controller on your own network needs its range in
+`OUTBOUND_ALLOWED_CIDRS`.
+
+A Docker `host` that names a unix socket (`unix:///var/run/docker.sock`, or a
+bare path) is refused unless you set:
+
+```bash
+SCANNER_DOCKER_SOCKET_ENABLED=true
+```
+
+Turn it on only if you mount a Docker socket into the backend on purpose. Any
+organisation that can create scan configs can then read that daemon's
+containers and images.
+
 ## Troubleshooting
 
 - **Backend restarts / "RSA keys required":** the `secrets/` keypair is missing —

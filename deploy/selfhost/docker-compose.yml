@@ -77,6 +77,9 @@ services:
       # Private ranges integrations may reach (on-prem Nessus, self-hosted Jira).
       # Empty ⇒ public addresses only. Loopback and link-local stay denied.
       OUTBOUND_ALLOWED_CIDRS: ${OUTBOUND_ALLOWED_CIDRS:-}
+      # "true" lets Docker scan configs name a unix socket mounted into this
+      # container. Any tenant that can create scans can then read it. Default off.
+      SCANNER_DOCKER_SOCKET_ENABLED: ${SCANNER_DOCKER_SOCKET_ENABLED:-false}
       # --- Open-core commercialisation (all optional) ---
       # Payment gateways. Empty ⇒ Free plan + manual upgrades (honest, no fake URL).
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
