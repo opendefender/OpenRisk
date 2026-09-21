@@ -255,7 +255,12 @@ OUTBOUND_ALLOWED_CIDRS=10.20.0.0/16,192.168.50.0/24
 
 Loopback (`127.0.0.0/8`, `::1`) and link-local (`169.254.0.0/16`, `fe80::/10`)
 stay denied whatever the list says. A malformed entry stops the backend at
-startup. These requests do not go through `HTTP(S)_PROXY`.
+startup. These requests do not go through `HTTP(S)_PROXY`, and redirects are
+only followed on the same host.
+
+Do not add the NAT64 prefix (`64:ff9b::/96`) to the list: it embeds IPv4, so
+opening it re-opens every IPv4 address behind the translator, loopback and
+metadata included.
 
 ## Troubleshooting
 
