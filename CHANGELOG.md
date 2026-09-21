@@ -15,6 +15,44 @@ Git tags use the `vMAJOR.MINOR.PATCH[-rc.N]` convention; see [docs/VERSIONING.md
 - Slack/Teams notifications
 - Jira integration
 
+## [1.1.0-rc.5] - 2026-09-21
+
+> Supersedes `v1.1.0-rc.4`, which was tagged but never published: the release
+> workflow failed to build the frontend, because a conflict resolution in the
+> organization-switcher merge (#734) had dropped an import from the sidebar
+> (#746). The tag `v1.1.0-rc.4` is left in place with no release attached — a
+> pushed tag is never moved or deleted (see [docs/VERSIONING.md](docs/VERSIONING.md) §4).
+> Everything listed under `[1.1.0-rc.4]` below ships in this release, including
+> the fix for [GHSA-cjh4-89ww-2jpr](https://github.com/opendefender/OpenRisk/security/advisories/GHSA-cjh4-89ww-2jpr).
+> The full list of changes since `v1.1.0-rc.3` is in
+> [CHANGELOG.md](https://github.com/opendefender/OpenRisk/blob/v1.1.0-rc.5/CHANGELOG.md).
+
+### Security
+- **SSRF through integration URLs — GHSA-cjh4-89ww-2jpr, high (#743).** Scanner
+  live-pull, Jira / ServiceNow ticketing and `POST /integrations/:id/test` could be
+  pointed at loopback, private networks or cloud metadata, and could send stored
+  credentials to another host. Outbound requests to tenant-configured URLs now only
+  reach public https addresses, and credentials must be re-entered when `base_url`
+  changes host.
+  **Action for operators:** integrations whose `base_url` is `http://` or a private
+  address stop working until fixed. Tools on your own network can be opened with
+  `OUTBOUND_ALLOWED_CIDRS` (see `docs/SELF_HOSTING.md`); these requests no longer use
+  `HTTP(S)_PROXY`.
+
+### Added
+- Change your password while signed in, from the settings screen. Your other devices
+  are signed out and this one stays signed in; accounts that sign in through an
+  identity provider are sent to it (#726, #720).
+
+### Fixed
+- The frontend builds again: the sidebar's "My profile" icon import was restored, and
+  so were the organization's branded name and logo in the sidebar, which the #734 merge
+  had replaced with the login name and initials (#747, #746).
+- Every table production code uses is checked against the tables startup builds; the
+  marketplace routes, whose tables are never built and which answered 500, are no
+  longer mounted (#711, #707).
+- The release workflow builds the frontend on Node 20, which Vite 7 requires (#748).
+
 ## [1.1.0-rc.4] - 2026-09-21
 
 > Ships the fix for [GHSA-cjh4-89ww-2jpr](https://github.com/opendefender/OpenRisk/security/advisories/GHSA-cjh4-89ww-2jpr)
@@ -403,7 +441,8 @@ this is a release candidate, not a GA.
 
 ---
 
-[Unreleased]: https://github.com/opendefender/OpenRisk/compare/v1.1.0-rc.4...HEAD
+[Unreleased]: https://github.com/opendefender/OpenRisk/compare/v1.1.0-rc.5...HEAD
+[1.1.0-rc.5]: https://github.com/opendefender/OpenRisk/compare/v1.1.0-rc.4...v1.1.0-rc.5
 [1.1.0-rc.4]: https://github.com/opendefender/OpenRisk/compare/v1.1.0-rc.3...v1.1.0-rc.4
 [1.1.0-rc.3]: https://github.com/opendefender/OpenRisk/compare/v1.1.0-rc.1...v1.1.0-rc.3
 [1.1.0-rc.1]: https://github.com/opendefender/OpenRisk/compare/v1.0.8...v1.1.0-rc.1
