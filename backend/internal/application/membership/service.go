@@ -118,11 +118,14 @@ type OrganizationReader interface {
 // MemberView is one row of the member list. It carries identity, access and
 // timestamps, and nothing else: no password hash, no MFA state, no tokens.
 type MemberView struct {
-	MemberID uuid.UUID         `json:"member_id"`
-	UserID   uuid.UUID         `json:"user_id"`
-	Email    string            `json:"email"`
-	FullName string            `json:"full_name"`
-	OrgRole  domain.MemberRole `json:"org_role"`
+	MemberID uuid.UUID `json:"member_id"`
+	UserID   uuid.UUID `json:"user_id"`
+	Email    string    `json:"email"`
+	FullName string    `json:"full_name"`
+	// HasAvatar says an uploaded avatar exists (#719). The image itself is
+	// served by GET /users/:id/avatar, never by a URL in this row.
+	HasAvatar bool              `json:"has_avatar"`
+	OrgRole   domain.MemberRole `json:"org_role"`
 	// Always emitted, never omitempty: a client has to be able to tell "this
 	// member has no preset" from "the server did not say", and the members
 	// screen renders one of those as an empty dropdown and the other as stale.
@@ -190,6 +193,7 @@ func toMemberView(m *domain.OrganizationMember) MemberView {
 	if m.User != nil {
 		v.Email = m.User.Email
 		v.FullName = m.User.FullName
+		v.HasAvatar = m.User.AvatarKey != ""
 		v.LastLogin = m.User.LastLogin
 	}
 	return v
@@ -231,6 +235,7 @@ type Service struct {
 	users      UserDirectory
 	orgs       OrganizationReader
 	orgWriter  OrganizationProfileWriter
+	blobs      BlobStore
 	audit      AuditSink
 	reader     AuditReader
 	mailer     InvitationMailer

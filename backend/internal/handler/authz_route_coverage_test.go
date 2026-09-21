@@ -156,7 +156,16 @@ var routesWithoutPermissionGuard = []string{
 	"GET /timeline",
 	"GET /tokens",
 	"GET /tokens/:id",
-	"PATCH /users/:id",
+	// #719 — self-service on the session's own user; the avatar read is gated
+	// by tenant membership in the use case.
+	"DELETE /users/me/avatar",
+	"GET /users/:id/avatar",
+	// #718 — the tenant's own branding, worn by every member's interface; no id.
+	"GET /organization/branding",
+	"GET /organization/logo",
+	"GET /users/me",
+	"PATCH /users/me",
+	"PUT /users/me/avatar",
 	"POST /activation/celebrated",
 	"POST /auth/mfa/disable",
 	"POST /auth/pat",

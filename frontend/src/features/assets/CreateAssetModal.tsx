@@ -4,6 +4,7 @@
 // the terms of the GNU Affero General Public License v3.0 (see LICENSE).
 
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -116,7 +117,12 @@ export const CreateAssetModal = ({ isOpen, onClose, initialType }: CreateAssetMo
     }
   };
 
-  return (
+  // Portalled for the reason shared/ds/Modal states: a transformed ancestor
+  // becomes the containing block of a `position: fixed` child. The inventory
+  // renders this modal inside <PageFrame>, whose `animate-or-fadeup` holds a
+  // translateY (`fill-mode: both`), so the scrim and the panel were anchored to
+  // the page content box rather than the viewport — the modal sat off-centre.
+  return createPortal(
     <AnimatePresence>
       {isOpen && (
         <>
@@ -279,6 +285,7 @@ export const CreateAssetModal = ({ isOpen, onClose, initialType }: CreateAssetMo
           </motion.div>
         </>
       )}
-    </AnimatePresence>
+    </AnimatePresence>,
+    document.body,
   );
 };

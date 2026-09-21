@@ -32,6 +32,8 @@ import {
 } from './features/onboarding/OnboardingGuard';
 
 // --- App shell ---
+import { PreferencesSync } from './features/profile/PreferencesSync';
+import { BrandingSync } from './features/organization/BrandingSync';
 import { Sidebar } from './components/layout/Sidebar';
 import { AppHeader } from './components/layout/AppHeader';
 // Command palette pulls @floating-ui + the search stack; it is only needed once
@@ -415,6 +417,10 @@ const DashboardLayout = () => {
       <a href="#main-content" className="skip-link">
         {lang === 'fr' ? 'Aller au contenu principal' : 'Skip to main content'}
       </a>
+      {/* Server-side profile preferences: theme, language, dates (#719). */}
+      <PreferencesSync />
+      {/* The organization's accent, worn by every member (#718). */}
+      <BrandingSync />
       <Sidebar mobileOpen={mobileNavOpen} onMobileClose={() => setMobileNavOpen(false)} />
       <div
         className="flex-1 flex flex-col h-screen overflow-hidden relative min-w-0"
@@ -748,6 +754,7 @@ function App() {
             {/* Members owns invitations AND role assignment — one job, one screen.
               Splitting them is why "Invite a member" landed on Roles. */}
             <Route path="settings/members" element={<SettingsScreen />} />
+            <Route path="settings/profile" element={<SettingsScreen />} />
 
             {/* ---------------- Moves and legacy deep links ----------------
               Permanent client-side redirects. `replace` keeps the old URL out of

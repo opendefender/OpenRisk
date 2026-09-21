@@ -8,13 +8,18 @@
 
 import { Sun, Moon } from 'lucide-react';
 import { useUIStore, type Theme, type Variant } from '../../store/uiStore';
+import { ACCENT_LABELS, ACCENT_PRESETS } from '../../shared/accentPresets';
 
-const ACCENTS: { key: Variant; label: string; color: string }[] = [
-  // Per-theme tokens holding each variant's real accent, so the swatch shows
-  // the colour the product will actually turn — the old hex matched neither.
-  { key: 'azure', label: 'Azure', color: 'var(--swatch-azure)' },
-  { key: 'iris', label: 'Iris', color: 'var(--swatch-iris)' },
-];
+// Swatch colours only; the list of accents comes from shared/accentPresets.
+const SWATCH: Record<Variant, string> = {
+  azure: '#0a84ff',
+  iris: '#7c6cff',
+};
+const ACCENTS = ACCENT_PRESETS.map((key) => ({
+  key,
+  label: ACCENT_LABELS[key],
+  color: SWATCH[key],
+}));
 
 export function PersonalizeCard({ compact }: { compact?: boolean }) {
   const theme = useUIStore((s) => s.theme);

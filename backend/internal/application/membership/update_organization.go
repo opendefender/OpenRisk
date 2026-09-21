@@ -98,6 +98,7 @@ func (s *Service) UpdateOrganization(ctx context.Context, tenantID, actorID uuid
 	setting(domain.OrgSettingTimezone, patch.Timezone)
 	setting(domain.OrgSettingDefaultLocale, patch.DefaultLocale)
 	setting(domain.OrgSettingDateFormat, patch.DateFormat)
+	setting(domain.OrgSettingAccent, patch.Accent)
 
 	if len(after) == 0 {
 		return s.GetOrganization(ctx, tenantID, canEdit)

@@ -93,8 +93,14 @@ services:
       JWT_SECRET: ${JWT_SECRET:-your-secret-key-change-in-production}
       # CORS
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173,http://localhost:3000}
-      # Redis
+      # Redis. BOTH spellings, because the product reads both: REDIS_URL feeds
+      # the events client, the JWT blacklist and the rate limiter, while
+      # pkg/cache and the cache bootstrap read REDIS_HOST/REDIS_PORT. With only
+      # one of them set, the other half silently falls back to localhost inside
+      # the container — an in-memory cache that nothing shares (#728).
       REDIS_URL: redis://redis:6379/0
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
       # Environment
       APP_ENV: ${APP_ENV:-development}
     ports:

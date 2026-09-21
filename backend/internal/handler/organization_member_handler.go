@@ -289,6 +289,56 @@ func (h *OrganizationMemberHandler) UpdateOrganization(c *fiber.Ctx) error {
 	return c.JSON(view)
 }
 
+// UploadOrganizationLogo — PUT /organization/logo (multipart field "file", #718)
+func (h *OrganizationMemberHandler) UploadOrganizationLogo(c *fiber.Ctx) error {
+	fh, err := c.FormFile("file")
+	if err != nil {
+		return writeAppError(c, domain.NewValidationError("logo: a file field is required"))
+	}
+	f, err := fh.Open()
+	if err != nil {
+		return writeAppError(c, domain.NewValidationError("logo: unreadable upload"))
+	}
+	defer f.Close()
+	view, err := h.svc.UploadOrganizationLogo(c.UserContext(), tenantID(c), userID(c), isOrgAdmin(c), f)
+	if err != nil {
+		return writeAppError(c, err)
+	}
+	return c.JSON(view)
+}
+
+// DeleteOrganizationLogo — DELETE /organization/logo
+func (h *OrganizationMemberHandler) DeleteOrganizationLogo(c *fiber.Ctx) error {
+	view, err := h.svc.DeleteOrganizationLogo(c.UserContext(), tenantID(c), userID(c), isOrgAdmin(c))
+	if err != nil {
+		return writeAppError(c, err)
+	}
+	return c.JSON(view)
+}
+
+// GetOrganizationLogo — GET /organization/logo. Any member of the tenant.
+func (h *OrganizationMemberHandler) GetOrganizationLogo(c *fiber.Ctx) error {
+	logo, err := h.svc.GetOrganizationLogo(c.UserContext(), tenantID(c))
+	if err != nil {
+		return writeAppError(c, err)
+	}
+	c.Set(fiber.HeaderContentType, logo.ContentType)
+	c.Set("X-Content-Type-Options", "nosniff")
+	c.Set(fiber.HeaderCacheControl, "private, max-age=300")
+	c.Set("Content-Security-Policy", "default-src 'none'; sandbox")
+	return c.Send(logo.Data)
+}
+
+// GetBranding — GET /organization/branding. Any member of the tenant: every
+// member's interface wears the organization's name, logo and accent.
+func (h *OrganizationMemberHandler) GetBranding(c *fiber.Ctx) error {
+	b, err := h.svc.GetBranding(c.UserContext(), tenantID(c))
+	if err != nil {
+		return writeAppError(c, err)
+	}
+	return c.JSON(b)
+}
+
 // GetCounts — GET /organization/counts
 //
 // What the sidebar reads. Available to any authenticated member: knowing how
