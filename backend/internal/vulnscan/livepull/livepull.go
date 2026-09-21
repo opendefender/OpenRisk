@@ -45,11 +45,15 @@ type PullConfig struct {
 	HTTP        HTTPDoer
 }
 
+// guardedClient is shared so pulls reuse keep-alive connections instead of
+// building a transport per request.
+var guardedClient = netguard.Client(netguard.Options{Timeout: 30 * time.Second})
+
 func (c PullConfig) http() HTTPDoer {
 	if c.HTTP != nil {
 		return c.HTTP
 	}
-	return netguard.Client(netguard.Options{Timeout: 30 * time.Second})
+	return guardedClient
 }
 
 func (c PullConfig) cred(keys ...string) string {

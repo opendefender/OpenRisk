@@ -43,11 +43,14 @@ type CreateRequest struct {
 	HTTP           HTTPDoer
 }
 
+// guardedClient is shared so ticket calls reuse keep-alive connections.
+var guardedClient = netguard.Client(netguard.Options{Timeout: 20 * time.Second})
+
 func (r CreateRequest) http() HTTPDoer {
 	if r.HTTP != nil {
 		return r.HTTP
 	}
-	return netguard.Client(netguard.Options{Timeout: 20 * time.Second})
+	return guardedClient
 }
 
 // checkBaseURL re-validates the instance URL at request time, so a config saved
