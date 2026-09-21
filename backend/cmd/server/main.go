@@ -2326,39 +2326,14 @@ func main() {
 	protected.Get("/dashboard/mitigation-progress", enhancedDashboardHandler.GetMitigationProgress)
 	protected.Get("/dashboard/complete", enhancedDashboardHandler.GetCompleteDashboard)
 
-	// --- Marketplace Management (Protected routes) ---
-	// Marketplace can be browsed by all authenticated users
-	// Installation requires analyst or admin role
-	marketplaceService := service.NewMarketplaceService(database.DB, log.New(os.Stderr, "[Marketplace] ", log.LstdFlags))
-	marketplaceHandler := handlers.NewMarketplaceHandler(marketplaceService)
-
-	// Public marketplace endpoints (all authenticated users can browse)
-	protected.Get("/marketplace/connectors", marketplaceHandler.ListConnectors)
-	protected.Get("/marketplace/connectors/:id", marketplaceHandler.GetConnector)
-	protected.Get("/marketplace/connectors/search", marketplaceHandler.SearchConnectors)
-
-	// Protected marketplace endpoints (analysts and admins only).
-	// NOTE: this MUST be a per-route guard, not `protected.Use(...)`. In Fiber,
-	// group.Use() appends the middleware to the group itself, so every route
-	// registered on `protected` AFTER this line (automation, CTI, scanner,
-	// vulnerabilities, governance, the RBAC business-role endpoints, …) would
-	// silently inherit this RequireRole gate and 403 any non-admin — which is
-	// exactly why business-role 'user' members were locked out of everything
-	// below this point. Scope it to the marketplace app routes only.
-	marketplaceManage := middleware.RequireRole("admin", "analyst")
-	protected.Post("/marketplace/apps", marketplaceManage, marketplaceHandler.InstallApp)
-	protected.Get("/marketplace/apps", marketplaceManage, marketplaceHandler.ListApps)
-	protected.Get("/marketplace/apps/:id", marketplaceManage, marketplaceHandler.GetApp)
-	protected.Put("/marketplace/apps/:id", marketplaceManage, marketplaceHandler.UpdateApp)
-	protected.Post("/marketplace/apps/:id/enable", marketplaceManage, marketplaceHandler.EnableApp)
-	protected.Post("/marketplace/apps/:id/disable", marketplaceManage, marketplaceHandler.DisableApp)
-	protected.Delete("/marketplace/apps/:id", marketplaceManage, marketplaceHandler.UninstallApp)
-	protected.Put("/marketplace/apps/:id/sync", marketplaceManage, marketplaceHandler.UpdateAppSync)
-	protected.Post("/marketplace/apps/:id/sync", marketplaceManage, marketplaceHandler.TriggerSync)
-	protected.Get("/marketplace/apps/:id/logs", marketplaceManage, marketplaceHandler.GetAppLogs)
-
-	// Connector reviews (all authenticated users can review)
-	protected.Post("/marketplace/connectors/:id/reviews", marketplaceHandler.AddConnectorReview)
+	// --- Marketplace: not mounted (#707) ---
+	// The marketplace is not built (#392, ROADMAP 14.18). Its models carry no
+	// gorm tags, so schemaModels() cannot build their tables, and every route
+	// answered a signed-in caller with a 500 that echoed GORM internals. The
+	// service also carries a latent IDOR the isolation registry recorded while
+	// the routes could not work. Mount them again only once #392 gives the
+	// models tables and a tenant-scoped service, with an isolation decision in
+	// internal/security/isolation/registry.go.
 
 	// =========================================================================
 	// 5.5 RBAC MANAGEMENT ENDPOINTS

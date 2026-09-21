@@ -164,10 +164,6 @@ var decisions = []Decision{
 	{"/api/v1/onboarding/steps/{id}", Covered,
 		"the :step param is a wizard step NAME from a closed vocabulary (domain.ParseOnboardingStep rejects anything else), never an entity id — there is no id in this path to forge. The row it writes is keyed by the caller's own (tenant, user) from the request context: gorm_activation_repository_test TestOnboardingProgress_MissingAndIsolated asserts a cross-tenant Get reads back nil, and application/activation TestWizard_OrganizationWriteRequiresPermission asserts a non-admin cannot write the organization through it"},
 
-	// --- Unreachable ------------------------------------------------------
-	{"/api/v1/marketplace/*", Unreachable,
-		"Connector/MarketplaceApp carry no gorm tags and are excluded from AutoMigrate (main.go), so the tables do not exist and every call fails before querying. Documented latent IDOR — must be resolved before the module is revived"},
-
 	// --- Known gaps -------------------------------------------------------
 	// These execute against real tenant data and rely on repository-level
 	// scoping that no test currently pins end to end.
