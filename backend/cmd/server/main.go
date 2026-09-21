@@ -2578,11 +2578,16 @@ func main() {
 	// In-app + e-mail sink: a completed scan raises a durable in-app notification
 	// for the user who triggered it and (best-effort) e-mails them. Failures never
 	// block the scan. A Nil user (e.g. a failed cloud scan) is skipped.
-	scanInApp := func(ctx context.Context, tenantID, userID uuid.UUID, title, message string) {
+	scanInApp := func(ctx context.Context, tenantID, userID, jobID uuid.UUID, title, message string) {
 		if userID == uuid.Nil {
 			return
 		}
-		if err := notificationUseCase.NotifyInApp(userID, tenantID, domain.NotificationTypeScanComplete, title, message, nil, "scan"); err != nil && !errors.Is(err, notificationapp.ErrSuppressed) {
+		// The job id lets the bell open this scan's preview (/infrastructure/scans/:jobId).
+		var resourceID *uuid.UUID
+		if jobID != uuid.Nil {
+			resourceID = &jobID
+		}
+		if err := notificationUseCase.NotifyInApp(userID, tenantID, domain.NotificationTypeScanComplete, title, message, resourceID, "scan"); err != nil && !errors.Is(err, notificationapp.ErrSuppressed) {
 			zeroLogger.Warn().Err(err).Msg("scanner: could not create in-app notification")
 		}
 		// The recipient's stored e-mail preference governs the e-mail half too.
