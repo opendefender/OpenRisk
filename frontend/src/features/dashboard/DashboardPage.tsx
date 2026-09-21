@@ -471,6 +471,7 @@ function HeatmapCard({
   const lang = useUIStore((s) => s.lang);
   const navigate = useNavigate();
   const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
+  const canCreate = useAuthStore((s) => s.hasPermission('risks:create'));
 
   const counts: Record<string, number> = {};
   for (const cell of matrix ?? []) counts[`${cell.impact}-${cell.probability}`] = cell.count;
@@ -538,15 +539,17 @@ function HeatmapCard({
           'The matrix plots every risk by probability and impact to show where your exposure concentrates. It fills in with your first risk.',
         )}
         emptyAction={
-          <div className="flex gap-2">
-            <Btn
-              label={tr('Créer un risque', 'Create a risk')}
-              icon={Plus}
-              primary
-              onClick={() => window.dispatchEvent(new CustomEvent('openrisk:new-risk'))}
-            />
-            <Btn label={tr('Importer', 'Import')} onClick={() => navigate('/risks/import')} />
-          </div>
+          canCreate ? (
+            <div className="flex gap-2">
+              <Btn
+                label={tr('Créer un risque', 'Create a risk')}
+                icon={Plus}
+                primary
+                onClick={() => window.dispatchEvent(new CustomEvent('openrisk:new-risk'))}
+              />
+              <Btn label={tr('Importer', 'Import')} onClick={() => navigate('/risks/import')} />
+            </div>
+          ) : undefined
         }
       >
         <div className="flex gap-2.5">
@@ -759,6 +762,7 @@ function RecentActivityCard({ risks }: { risks: RecentRisk[] }) {
   const lang = useUIStore((s) => s.lang);
   const navigate = useNavigate();
   const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
+  const canCreate = useAuthStore((s) => s.hasPermission('risks:create'));
   return (
     <Card style={{ padding: '18px 14px' }}>
       <div className="flex items-center justify-between mb-2 px-2">
@@ -781,12 +785,14 @@ function RecentActivityCard({ risks }: { risks: RecentRisk[] }) {
               'The most recently added or updated risks appear here, most critical first.',
             )}
             primaryAction={
-              <Btn
-                label={tr('Créer un risque', 'Create a risk')}
-                icon={Plus}
-                primary
-                onClick={() => window.dispatchEvent(new CustomEvent('openrisk:new-risk'))}
-              />
+              canCreate ? (
+                <Btn
+                  label={tr('Créer un risque', 'Create a risk')}
+                  icon={Plus}
+                  primary
+                  onClick={() => window.dispatchEvent(new CustomEvent('openrisk:new-risk'))}
+                />
+              ) : undefined
             }
             className="py-10"
           />

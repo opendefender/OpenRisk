@@ -20,6 +20,7 @@ import { useMemo } from 'react';
 import { useNavigate } from 'react-router';
 import { Database, ShieldAlert, AlertTriangle, Boxes } from 'lucide-react';
 import { useUIStore } from '../../store/uiStore';
+import { useAuthStore } from '../../hooks/useAuthStore';
 import { useAssets } from '../assets/useAssets';
 import { useAssetStatistics } from './useCommandCenter';
 import { useDashboardPeriod, periodLabel } from './period';
@@ -38,6 +39,7 @@ const CRIT_ORDER = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'];
 
 export function EstateDashboard() {
   const navigate = useNavigate();
+  const canCreateAsset = useAuthStore((s) => s.hasPermission('assets:create'));
   const lang = useUIStore((s) => s.lang);
   const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
   const { selection, setSelection } = useDashboardPeriod();
@@ -191,13 +193,15 @@ export function EstateDashboard() {
               'Assets rated critical or high appear here, most critical first.',
             )}
             emptyAction={
-              <button
-                onClick={() => navigate('/assets')}
-                className="h-[34px] px-4 rounded-[9px] text-[12.5px] font-semibold text-fg-primary"
-                style={{ background: 'var(--accent)' }}
-              >
-                {tr('Nouvel actif', 'New asset')}
-              </button>
+              canCreateAsset ? (
+                <button
+                  onClick={() => navigate('/assets')}
+                  className="h-[34px] px-4 rounded-[9px] text-[12.5px] font-semibold text-fg-primary"
+                  style={{ background: 'var(--accent)' }}
+                >
+                  {tr('Nouvel actif', 'New asset')}
+                </button>
+              ) : undefined
             }
           >
             <>

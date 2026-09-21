@@ -94,13 +94,19 @@ const CRIT_LABEL_EN: Record<string, string> = {
  * of assets; anything that is not the inventory is handed back untouched.
  * Assets support delete alone, so there is no second branch to write.
  */
-function patchInventory(cached: unknown, ids: ReadonlySet<string>, change: BulkChangeInput): unknown {
+function patchInventory(
+  cached: unknown,
+  ids: ReadonlySet<string>,
+  change: BulkChangeInput,
+): unknown {
   if (change.action !== 'delete' || !isAssetList(cached)) return cached;
   return cached.filter((a) => !ids.has(a.id as string));
 }
 
 function isAssetList(cached: unknown): cached is Asset[] {
-  return Array.isArray(cached) && cached.every((a) => typeof a === 'object' && a !== null && 'id' in a);
+  return (
+    Array.isArray(cached) && cached.every((a) => typeof a === 'object' && a !== null && 'id' in a)
+  );
 }
 
 const t = (lang: LocaleCode, fr: string, en: string) => (lang === 'fr' ? fr : en);
@@ -120,6 +126,8 @@ export function InventoryPage() {
     category: attrFilter.category || undefined,
     attributes: attrFilter.attributes,
   });
+  // Creation is offered only to a member who may create an asset (#739).
+  const canCreate = useAuthStore((s) => s.hasPermission('assets:create'));
   const canUpdate = useAuthStore((s) => s.hasPermission('assets:update'));
   const canDelete = useAuthStore((s) => s.hasPermission('assets:delete'));
   const [creating, setCreating] = useState(false);
@@ -356,12 +364,14 @@ export function InventoryPage() {
               icon={Atom}
               onClick={() => navigate('/assets/topology')}
             />
-            <Btn
-              label={tr('Nouvel actif', 'New asset')}
-              icon={Plus}
-              primary
-              onClick={() => setCreating(true)}
-            />
+            {canCreate && (
+              <Btn
+                label={tr('Nouvel actif', 'New asset')}
+                icon={Plus}
+                primary
+                onClick={() => setCreating(true)}
+              />
+            )}
           </>
         }
       />
@@ -394,24 +404,35 @@ export function InventoryPage() {
         selectable
         rowActions={rowActions}
         bulkActions={bulkActions}
-        onRowClick={(a) => setEditing(a)}
+        // A member who may not edit opens the asset's read-only history instead
+        // of an edit form the server would refuse (#739).
+        onRowClick={(a) => (canUpdate ? setEditing(a) : setHistoryAssetId(a.id as string))}
         exportFilename="inventaire-actifs"
         minWidth={780}
         empty={
           <EmptyState
             icon={Boxes}
             title={tr('Aucun actif inventorié', 'No assets yet')}
-            description={tr(
-              'Ajoutez vos serveurs, bases de données et services pour cartographier votre surface d’attaque.',
-              'Add your servers, databases and services to map your attack surface.',
-            )}
+            description={
+              canCreate
+                ? tr(
+                    'Ajoutez vos serveurs, bases de données et services pour cartographier votre surface d’attaque.',
+                    'Add your servers, databases and services to map your attack surface.',
+                  )
+                : tr(
+                    'Aucun actif n’est encore inventorié. Votre rôle permet de consulter l’inventaire ; un administrateur peut vous donner le droit d’en ajouter.',
+                    'No asset has been inventoried yet. Your role can view the inventory; an administrator can grant you the right to add assets.',
+                  )
+            }
             primaryAction={
-              <Btn
-                label={tr('Nouvel actif', 'New asset')}
-                icon={Plus}
-                primary
-                onClick={() => setCreating(true)}
-              />
+              canCreate ? (
+                <Btn
+                  label={tr('Nouvel actif', 'New asset')}
+                  icon={Plus}
+                  primary
+                  onClick={() => setCreating(true)}
+                />
+              ) : undefined
             }
           />
         }

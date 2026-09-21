@@ -243,25 +243,27 @@ export const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => 
             {!collapsed && <OrgSwitcher orgName={orgName} />}
           </div>
 
-          {/* Quick action */}
-          <div className={cn('px-[14px] pb-2.5', collapsed && 'px-2.5')}>
-            <button
-              data-tour="new-risk"
-              onClick={() => {
-                window.dispatchEvent(new CustomEvent('openrisk:new-risk'));
-                onMobileClose?.();
-              }}
-              className="w-full h-[38px] rounded-[10px] flex items-center justify-center gap-2 text-[13px] font-semibold text-fg-primary transition-[filter] hover:brightness-110"
-              style={{
-                background: 'var(--accent-solid)',
-                color: 'var(--fg-on-solid)',
-              }}
-              title={L.newRisk}
-            >
-              <Plus size={16} strokeWidth={2.2} />
-              {!collapsed && <span>{L.newRisk}</span>}
-            </button>
-          </div>
+          {/* Quick action — only for a member who may create a risk (#739). */}
+          {can('risks:create') && (
+            <div className={cn('px-[14px] pb-2.5', collapsed && 'px-2.5')}>
+              <button
+                data-tour="new-risk"
+                onClick={() => {
+                  window.dispatchEvent(new CustomEvent('openrisk:new-risk'));
+                  onMobileClose?.();
+                }}
+                className="w-full h-[38px] rounded-[10px] flex items-center justify-center gap-2 text-[13px] font-semibold text-fg-primary transition-[filter] hover:brightness-110"
+                style={{
+                  background: 'var(--accent-solid)',
+                  color: 'var(--fg-on-solid)',
+                }}
+                title={L.newRisk}
+              >
+                <Plus size={16} strokeWidth={2.2} />
+                {!collapsed && <span>{L.newRisk}</span>}
+              </button>
+            </div>
+          )}
 
           {/* Navigation */}
           <nav className="flex-1 overflow-y-auto px-2.5 pt-1.5 pb-2.5">

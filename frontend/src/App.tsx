@@ -358,7 +358,7 @@ const DashboardLayout = () => {
   const location = useLocation();
   useEffect(() => {
     if (!new URLSearchParams(location.search).has('guided')) return;
-    setNewRiskOpen(true);
+    if (useAuthStore.getState().hasPermission('risks:create')) setNewRiskOpen(true);
     const next = new URLSearchParams(location.search);
     next.delete('guided');
     navigate({ pathname: location.pathname, search: next.toString() }, { replace: true });
@@ -367,7 +367,12 @@ const DashboardLayout = () => {
   // The sidebar quick action and command palette dispatch this to open the modal.
   // A header button dispatches openrisk:shortcuts to reveal the shortcuts overlay.
   useEffect(() => {
-    const openRisk = () => setNewRiskOpen(true);
+    // Every way into the create-risk dialog — buttons, the N shortcut, the
+    // command palette — arrives here, so this is where a member without
+    // risks:create is kept out of a form the server would refuse (#739).
+    const openRisk = () => {
+      if (useAuthStore.getState().hasPermission('risks:create')) setNewRiskOpen(true);
+    };
     const openShortcuts = () => setShowShortcuts(true);
     window.addEventListener('openrisk:new-risk', openRisk);
     window.addEventListener('openrisk:shortcuts', openShortcuts);

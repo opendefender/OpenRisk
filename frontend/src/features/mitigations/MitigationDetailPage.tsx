@@ -23,6 +23,7 @@ import { critColor, softFill } from '../../shared/riskColors';
 import { mitigationService } from '../../services/mitigationService';
 import { useMitigations, type Column } from './useMitigations';
 import type { BoardStatus } from '../../services/mitigationService';
+import { useAuthStore } from '../../hooks/useAuthStore';
 
 const COL_TO_STATUS: Record<Column, BoardStatus> = {
   todo: 'PLANNED',
@@ -44,6 +45,9 @@ export function MitigationDetailPage() {
   const lang = useUIStore((s) => s.lang);
   const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
   const qc = useQueryClient();
+  // PATCH /mitigations/:id needs mitigations:update; without it the status is
+  // shown, not offered (#739).
+  const canUpdate = useAuthStore((s) => s.hasPermission('mitigations:update'));
 
   const { items, isLoading } = useMitigations();
   const miti = useMemo(() => items.find((m) => m.id === mitigationId), [items, mitigationId]);
@@ -112,7 +116,8 @@ export function MitigationDetailPage() {
                 return (
                   <button
                     key={col}
-                    disabled={setStatus.isPending}
+                    disabled={setStatus.isPending || !canUpdate}
+                    aria-pressed={active}
                     onClick={() => !active && setStatus.mutate(COL_TO_STATUS[col])}
                     className="flex-1 h-9 rounded-[8px] text-[12px] font-semibold transition-colors disabled:opacity-60"
                     style={{
