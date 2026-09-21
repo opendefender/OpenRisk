@@ -238,6 +238,25 @@ ARM64 nodes when you provide ARM64 images (above). Provide the same secrets
 (`RSA_*`, `MFA_ENCRYPTION_KEY`, `SCANNER_CREDENTIAL_KEY`, `AUDIT_EXPORT_KEY`) and
 optional payment/telemetry env via the chart's `values` / a `Secret`.
 
+## Integrations on a private network
+
+Scanner connectors (Nessus, Qualys, Defender…) and ITSM ticketing (Jira,
+ServiceNow) call the `base_url` a tenant configures. By default those calls only
+reach **public** addresses over **https**: private (RFC 1918, ULA), carrier-grade
+NAT, loopback and link-local addresses — which include the cloud metadata
+endpoints — are refused, both when the URL is saved and again when the
+connection is opened.
+
+If your tools run on your own network, open their ranges explicitly:
+
+```bash
+OUTBOUND_ALLOWED_CIDRS=10.20.0.0/16,192.168.50.0/24
+```
+
+Loopback (`127.0.0.0/8`, `::1`) and link-local (`169.254.0.0/16`, `fe80::/10`)
+stay denied whatever the list says. A malformed entry stops the backend at
+startup. These requests do not go through `HTTP(S)_PROXY`.
+
 ## Troubleshooting
 
 - **Backend restarts / "RSA keys required":** the `secrets/` keypair is missing —
