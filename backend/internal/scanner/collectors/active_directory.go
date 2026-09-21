@@ -8,6 +8,7 @@ package collectors
 import (
 	"context"
 	"fmt"
+	"net/url"
 	"strconv"
 	"strings"
 
@@ -49,7 +50,14 @@ type ActiveDirectory struct{}
 func NewActiveDirectory() scanner.CloudCollector { return ActiveDirectory{} }
 
 func (ActiveDirectory) Collect(ctx context.Context, cfg scanner.ScanConfig, assets chan<- scanner.AssetDiscovery, findings chan<- scanner.FindingDiscovery, errs chan<- error) {
-	conn, err := ldap.DialURL(cfg.Credentials["url"])
+	// ldap.DialURL also speaks ldapi:// (a local unix socket) and cldap://.
+	// Only a directory reached over the network is a valid target (#750).
+	u, err := url.Parse(strings.TrimSpace(cfg.Credentials["url"]))
+	if err != nil || (u.Scheme != "ldap" && u.Scheme != "ldaps") {
+		errs <- fmt.Errorf("active_directory: url must use ldap:// or ldaps://")
+		return
+	}
+	conn, err := ldap.DialURL(u.String(), ldap.DialWithDialer(egress.dialer()))
 	if err != nil {
 		errs <- fmt.Errorf("active_directory: dial: %w", err)
 		return

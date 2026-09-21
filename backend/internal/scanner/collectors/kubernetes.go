@@ -8,6 +8,8 @@ package collectors
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"net/url"
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
@@ -31,6 +33,10 @@ func (Kubernetes) Collect(ctx context.Context, cfg scanner.ScanConfig, assets ch
 	restCfg := &rest.Config{
 		Host:        cfg.Credentials["api_server"],
 		BearerToken: cfg.Credentials["token"],
+		// api_server comes from the tenant: dial through the guard and never
+		// through HTTP(S)_PROXY, which would fetch a denied target for us (#750).
+		Dial:  egress.dialer().DialContext,
+		Proxy: func(*http.Request) (*url.URL, error) { return nil, nil },
 	}
 	if ca := cfg.Credentials["ca_cert"]; ca != "" {
 		restCfg.TLSClientConfig.CAData = []byte(ca)
