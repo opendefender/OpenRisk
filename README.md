@@ -47,7 +47,6 @@ OpenRisk allows every organization to:
 
 - ⚡ **Automated Risk Assessment** - Reduce manual evaluation time
 - 📊 **Interactive Dashboards** - Real-time risk visualization
-- 🔌 **Native Integrations** - Elastic, Splunk, TheHive, OpenCTI, AWS
 - 🐳 **Easy Deployment** - Docker & Kubernetes ready
 - 🔐 **Enterprise Security** - RBAC, SSO, audit logging
 - 📈 **Scalable Architecture** - Microservices-ready
@@ -55,11 +54,10 @@ OpenRisk allows every organization to:
 ### Key Capabilities
 - 🎲 **Risk Assessment** - Comprehensive risk identification and scoring
 - 🛡️ **Mitigation Tracking** - Monitor and track risk mitigations in real-time
-- 📊 **Advanced Analytics** - Real-time dashboards and trend analysis
 - 🔐 **Enterprise Security** - RBAC, audit logging, OAuth2/SAML2 SSO
-- 🔌 **Integration Ready** - TheHive, OpenCTI, Splunk, Elastic connectors
-- ⚙️ **Custom Fields** - Flexible schema for organizational needs
-- 📈 **Gamification** - Engagement and incentive system
+- 🗂️ **Asset Inventory** - Track assets, their criticality and dependencies
+- 📋 **Compliance Management** - Manage controls, evidence and compliance reports
+- 💶 **Financial Risk Quantification** - Quantify exposure using SLE, ARO, ALE and ROSI
 
 ### 💶 Financial Risk Quantification (CRQ)
 
@@ -192,74 +190,19 @@ different setup: see **[docs/LOCAL_DEVELOPMENT.md](docs/LOCAL_DEVELOPMENT.md)**.
 
 ## 📋 Features
 
-### Phase 1: Core Risk Management ✅
-- ✅ Risk CRUD operations (Create, Read, Update, Delete, List)
-- ✅ Risk scoring engine with weighted calculations
-- ✅ Mitigation tracking with checklist sub-actions
-- ✅ Asset management and relationships
-- ✅ Soft-delete support with audit trails
+The following capabilities are available in the product today:
 
-### Phase 2: Security & Authentication ✅
-- ✅ JWT-based authentication
-- ✅ API Token management (create, revoke, rotate)
-- ✅ Role-Based Access Control (RBAC) - Backend (37+ endpoints, 11 domain models)
-- ✅ Permission matrices (resource-level granularity)
-- ✅ Comprehensive audit logging
-- ✅ OAuth2/SAML2 SSO (Google, GitHub, Azure AD)
+- Risk register, scoring and mitigation tracking
+- Asset inventory, criticality and dependency mapping
+- Compliance frameworks, controls, evidence and PDF reporting
+- Incident register and incident timeline
+- Vulnerability management and asset discovery
+- Financial risk quantification (FAIR-style SLE, ARO, ALE and ROSI)
+- Governance workflows, immutable audit records and automation rules
 
-### Phase 3: Infrastructure & Deployment ✅
-- ✅ Docker Compose local development
-- ✅ GitHub Actions CI/CD pipeline
-- ✅ Integration test suite
-- ✅ Kubernetes Helm charts
-- ✅ Staging & production runbooks
-
-### Phase 3.5: RBAC Frontend Implementation ✅
-- ✅ Permission gate components (7 reusable wrappers)
-- ✅ Route-level permission guards (4 types)
-- ✅ Role & Tenant management pages (admin interfaces)
-- ✅ Advanced RBAC utilities (35+ functions)
-- ✅ Audit logging system (compliance tracking)
-- ✅ Permission caching (performance optimization)
-- ✅ Custom React hooks (usePermissions, useAuditLog)
-- ✅ Comprehensive documentation (2,000+ lines)
-
-### Phase 4: Enterprise Features ✅
-- ✅ Custom fields framework (5 types)
-- ✅ Bulk operations with validation
-- ✅ Risk timeline (audit trail)
-- ✅ Advanced reporting & export
-- ✅ SSO integration (OAuth2/SAML2)
-
-### Phase 5: Performance Optimization & Comprehensive Testing ✅
-**Performance Optimization:**
-- ✅ Redis caching layer (generic CacheService, TTL management)
-- ✅ Query optimization (7 GORM patterns, N+1 elimination)
-- ✅ Database indexing (70+ strategic indexes, 100x+ faster)
-- ✅ Load testing framework (k6 baseline, 50+ concurrent users)
-
-**Testing & Validation:**
-- ✅ Integration tests (8 test cases, 312 lines, CRUD + concurrency)
-- ✅ E2E tests with Playwright (12+ scenarios, 5 browsers/viewports)
-- ✅ Security testing (11 categories, SQL injection/XSS/CSRF/auth)
-- ✅ Performance benchmarks (9 benchmarks, all targets met)
-- ✅ Docker Compose testing infrastructure (9 services, isolated env)
-- ✅ Comprehensive testing guide (529 lines, CI/CD examples)
-
-**Performance Targets Met:**
-- Risk creation > 100 ops/sec ✅
-- Risk retrieval > 500 ops/sec ✅
-- Cache operations > 1000 ops/sec ✅
-- Dashboard load < 3 seconds ✅
-- Risk list (100 items) < 5 seconds ✅
-
-### Phase 6: Advanced Analytics & Monitoring 🚀
-- 🚀 Analytics dashboard with real-time data
-- 🚀 Risk heatmaps and trend analysis
-- 🚀 Incident management system
-- 🚀 Threat tracking and mapping
-- 🚀 Gamification & engagement system
-- 🚀 Performance monitoring & alerting
+The detailed delivery status and its supporting evidence are maintained in
+[`ROADMAP.md`](ROADMAP.md). A capability is listed here only when it is available to a
+user; planned work belongs in the roadmap below.
 
 ---
 
@@ -577,36 +520,25 @@ For commercial licensing: **licensing@opendefender.io**
 
 ## 🌟 Roadmap
 
-### Q1 2026 - Phase 5: Performance Optimization & Testing ✅ COMPLETE
-- ✅ Redis caching layer implementation
-- ✅ Query optimization (N+1 elimination)
-- ✅ Database indexing (70+ indexes)
-- ✅ Integration test suite (8 tests)
-- ✅ E2E tests with Playwright (12+ scenarios)
-- ✅ Security testing suite (11 categories)
-- ✅ Performance benchmarking (9 benchmarks)
-- ✅ Docker Compose testing infrastructure
-- ✅ Comprehensive testing documentation
-- ✅ All performance targets met (100-1000 ops/sec)
+The items below are **not available in the product today**. Quarters are planning
+targets, not commitments; the authoritative status remains
+[`ROADMAP.md`](ROADMAP.md).
 
-### Q2 2026 - Phase 6: Advanced Analytics & Monitoring
-- 🚀 Real-time analytics dashboard
-- 🚀 Risk trend analysis
-- 🚀 Incident management
-- 🚀 Performance monitoring & alerting
-- 🚀 Gamification system
+### Q1 2027 — planned
 
-### Q3 2026
-- [ ] Advanced RBAC enhancements
-- [ ] Additional connector integrations
-- [ ] Machine learning risk predictions
-- [ ] API webhook support
+- [ ] Vendor Risk Management
+- [ ] Policy Management
+- [ ] Public Trust Center
+- [ ] Business Continuity (BCP/PCA-PRA)
+- [ ] Security Awareness Training
 
-### Q4 2026
-- [ ] Enterprise audit compliance
-- [ ] Custom dashboard builder
-- [ ] Workflow automation
-- [ ] Multi-tenant advanced features
+### Q2 2027 — planned
+
+- [ ] Access Review & Certification
+- [ ] Sensitive Data Discovery
+- [ ] Risk Digital Twin (simulation)
+- [ ] Collaborative War Room
+- [ ] Attack Path Graph
 
 ---
 
