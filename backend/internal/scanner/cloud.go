@@ -8,8 +8,11 @@ package scanner
 import (
 	"context"
 	"fmt"
+	"os"
+	"strings"
 
 	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/pkg/netguard"
 )
 
 // CloudCollector performs the provider-specific API enumeration for a cloud
@@ -29,9 +32,12 @@ type CloudCollector interface {
 // provider differs only in its human name, required credential keys, and the
 // CloudCollector that does the enumeration.
 type cloudScanner struct {
-	name      string
-	provider  domain.ScannerProvider
-	required  []string // credential keys that must be present & non-empty
+	name     string
+	provider domain.ScannerProvider
+	required []string // credential keys that must be present & non-empty
+	// endpoints checks the credential keys that name an address the API
+	// process will connect to (#750). Nil for providers whose hosts are fixed.
+	endpoints func(creds map[string]string) error
 	collector CloudCollector
 }
 
@@ -50,7 +56,64 @@ func (s *cloudScanner) Validate(_ context.Context, cfg ScanConfig) error {
 			return domain.NewValidationError(fmt.Sprintf("%s scanner: missing required credential %q", s.provider, k))
 		}
 	}
+	if s.endpoints != nil {
+		if err := s.endpoints(cfg.Credentials); err != nil {
+			return domain.NewValidationError(fmt.Sprintf("%s scanner: %v", s.provider, err))
+		}
+	}
 	return nil
+}
+
+// DockerSocketEnv lets an operator allow Docker scan configs that name a unix
+// socket. Off by default: the socket is the host's Docker daemon, and a tenant
+// must not be able to read it through the API pod (#750).
+const DockerSocketEnv = "SCANNER_DOCKER_SOCKET_ENABLED"
+
+// DockerSocketEnabled reports whether the operator opted in to unix sockets.
+func DockerSocketEnabled() bool { return os.Getenv(DockerSocketEnv) == "true" }
+
+// IsDockerSocket reports whether a Docker host credential names a unix socket:
+// unix://, or a bare path, which the Docker CLI treats as one.
+func IsDockerSocket(host string) bool {
+	host = strings.TrimSpace(host)
+	return !strings.Contains(host, "://") || strings.HasPrefix(strings.ToLower(host), "unix://")
+}
+
+// endpoint checks one credential key against netguard. optional keys may be
+// empty (the SDK then uses its public default, e.g. api.github.com).
+func endpoint(key string, optional bool, schemes ...string) func(map[string]string) error {
+	return func(creds map[string]string) error {
+		v := strings.TrimSpace(creds[key])
+		if v == "" && optional {
+			return nil
+		}
+		if err := netguard.ValidateEndpoint(v, schemes...); err != nil {
+			return fmt.Errorf("credential %q: %w", key, err)
+		}
+		return nil
+	}
+}
+
+// httpsEndpoint checks a key whose SDK reads a bare host as https (client-go,
+// govmomi's soap.ParseURL), so "vcenter.corp" is checked as "https://vcenter.corp".
+func httpsEndpoint(key string) func(map[string]string) error {
+	return func(creds map[string]string) error {
+		v := strings.TrimSpace(creds[key])
+		if v != "" && !strings.Contains(v, "://") {
+			v = "https://" + v
+		}
+		return endpoint(key, false, "https")(map[string]string{key: v})
+	}
+}
+
+func validateDockerHost(creds map[string]string) error {
+	if IsDockerSocket(creds["host"]) {
+		if DockerSocketEnabled() {
+			return nil
+		}
+		return fmt.Errorf("credential \"host\": unix sockets are disabled on this deployment (operator setting %s)", DockerSocketEnv)
+	}
+	return endpoint("host", false, "tcp", "http", "https")(creds)
 }
 
 // Scan spins the collector on a goroutine and owns the three channels' lifecycle
@@ -158,6 +221,7 @@ func NewKubernetesScanner(collector CloudCollector) Scanner {
 		name:      "Kubernetes Scanner",
 		provider:  domain.ProviderKubernetes,
 		required:  []string{"api_server", "token"},
+		endpoints: httpsEndpoint("api_server"),
 		collector: collector,
 	}
 }
@@ -172,6 +236,7 @@ func NewDockerScanner(collector CloudCollector) Scanner {
 		name:      "Docker Scanner",
 		provider:  domain.ProviderDocker,
 		required:  []string{"host"},
+		endpoints: validateDockerHost,
 		collector: collector,
 	}
 }
@@ -185,6 +250,7 @@ func NewVMwareScanner(collector CloudCollector) Scanner {
 		name:      "VMware vCenter Scanner",
 		provider:  domain.ProviderVMware,
 		required:  []string{"url", "username", "password"},
+		endpoints: httpsEndpoint("url"),
 		collector: collector,
 	}
 }
@@ -198,6 +264,7 @@ func NewActiveDirectoryScanner(collector CloudCollector) Scanner {
 		name:      "Active Directory Scanner",
 		provider:  domain.ProviderActiveDirectory,
 		required:  []string{"url", "bind_dn", "password", "base_dn"},
+		endpoints: endpoint("url", false, "ldap", "ldaps"),
 		collector: collector,
 	}
 }
@@ -226,6 +293,7 @@ func NewGitHubScanner(collector CloudCollector) Scanner {
 		name:      "GitHub Scanner",
 		provider:  domain.ProviderGitHub,
 		required:  []string{"token"},
+		endpoints: endpoint("base_url", true, "https"),
 		collector: collector,
 	}
 }
@@ -240,6 +308,7 @@ func NewGitLabScanner(collector CloudCollector) Scanner {
 		name:      "GitLab Scanner",
 		provider:  domain.ProviderGitLab,
 		required:  []string{"token"},
+		endpoints: endpoint("base_url", true, "https"),
 		collector: collector,
 	}
 }

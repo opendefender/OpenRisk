@@ -20,6 +20,7 @@ import (
 // standing in for a self-managed GitLab, asserting projects → assets and public
 // projects → exposure findings.
 func TestGitLabCollect(t *testing.T) {
+	unguardedEgress(t)
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "/api/v4/projects", r.URL.Path)
 		assert.Equal(t, "glpat_test", r.Header.Get("Private-Token"))

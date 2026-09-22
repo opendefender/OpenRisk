@@ -8,6 +8,20 @@ Git tags use the `vMAJOR.MINOR.PATCH[-rc.N]` convention; see [docs/VERSIONING.md
 
 ## [Unreleased]
 
+### Security
+- **SSRF through discovery connectors — GHSA-98hp-4h7m-v45m, high (#750).** The
+  Kubernetes, Docker, VMware, Active Directory, GitHub and GitLab connectors run
+  inside the backend and connected to whatever address a scan config named:
+  loopback, the cluster network, cloud metadata, or the host's Docker socket. They
+  now go through the same outbound guard as integrations. The address is checked
+  when the config is saved and again when each connection opens.
+  **Action for operators:** a scan config aimed at a private address fails until
+  its range is added to `OUTBOUND_ALLOWED_CIDRS`. Docker configs that use a unix
+  socket need `SCANNER_DOCKER_SOCKET_ENABLED=true`. Active Directory accepts only
+  `ldap://` and `ldaps://`. Kubernetes, vCenter, GitHub and GitLab endpoints must
+  use https. These connections no longer go through `HTTP(S)_PROXY` (see
+  `docs/SELF_HOSTING.md`).
+
 ### Planned
 - Board Report mensuel (IA, human-in-the-loop, FCFA) — the second half of M4
 - Multi-tenant support
