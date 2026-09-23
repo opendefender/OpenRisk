@@ -95,6 +95,7 @@ import (
 	"github.com/opendefender/openrisk/pkg/cti"
 	ent "github.com/opendefender/openrisk/pkg/entitlements"
 	"github.com/opendefender/openrisk/pkg/hibp"
+	"github.com/opendefender/openrisk/pkg/monitoring"
 	"github.com/opendefender/openrisk/pkg/netguard"
 	"github.com/opendefender/openrisk/pkg/notify"
 	"github.com/opendefender/openrisk/pkg/pwpolicy"
@@ -536,8 +537,41 @@ func main() {
 	emailTransport := buildEmailTransport()
 	notificationService := notify.NewEmailService(emailTransport, emailFromAddr, appBaseURL)
 
-	// Initialize password hasher (Argon2id, OWASP recommended — matches handlers.SeedAdminUser)
-	passwordHasher := coreauth.NewArgon2idPasswordHasher()
+	// Password hashing (#484). Argon2id with explicit, documented parameters
+	// (ARGON2ID_* overrides, floors enforced), and a hard deadline for the
+	// SHA-256 digests the first release wrote. Both are refused at boot when
+	// malformed: a silently weakened hasher or a silently moved deadline is
+	// worse than a server that does not start.
+	argon2Params, err := coreauth.Argon2idParamsFromEnv()
+	if err != nil {
+		log.Fatalf("password hashing: %v", err)
+	}
+	passwordHasher := coreauth.NewArgon2idPasswordHasherWithParams(argon2Params)
+	legacyHashCutoff, err := coreauth.LegacyHashCutoff()
+	if err != nil {
+		log.Fatalf("password hashing: %v", err)
+	}
+	monitoring.SetPasswordHashLegacyCutoff(legacyHashCutoff)
+	log.Printf("password hashing: argon2id m=%dKiB t=%d p=%d; legacy SHA-256 hashes refused after %s",
+		argon2Params.Memory, argon2Params.Time, argon2Params.Threads, legacyHashCutoff.Format(time.RFC3339))
+
+	// Legacy-hash census: refreshes openrisk_password_hash_accounts so the
+	// migration's progress is visible without database access. Hourly is ample
+	// for a number that moves one sign-in at a time. Cross-tenant by design and
+	// counts only — see repository.PasswordHashCensus.
+	passwordHashCensus := repository.NewPasswordHashCensus(database.DB, coreauth.HashAlgorithm)
+	go func() {
+		ticker := time.NewTicker(time.Hour)
+		defer ticker.Stop()
+		for {
+			if counts, err := passwordHashCensus.Count(context.Background()); err != nil {
+				log.Printf("password hash census error: %v", err)
+			} else {
+				monitoring.RecordPasswordHashCensus(counts)
+			}
+			<-ticker.C
+		}
+	}()
 
 	// Initialize token manager (access/refresh JWT pairs, backed by the DB).
 	// There is now a SINGLE RSA key set + JWT implementation (pkg/auth): the exact
