@@ -19,7 +19,10 @@ Every gate runs. Any failure stops the release. Report the table at the end.
 7. **Security** — `devsecops` full pass. CRITICAL or HIGH blocks.
 8. **UX** — `/audit-ux` on every screen changed in this milestone.
 9. **Truth** — `product-verifier`. `NO-GO` blocks. Update `ROADMAP.md` module
-   statuses to match reality.
+   statuses to match reality. Every capability the `README.md` Features section
+   claims must name a passing end-to-end test that exercises it through the
+   product, and any plan gate on it must be stated there. A claim without such a
+   test is removed from the README or the release does not go out.
 10. **Infra** — `devops-sre`: rollback command documented, migration job present.
 11. **Release notes** — `copywriter`, FR and EN, every claim verified.
 

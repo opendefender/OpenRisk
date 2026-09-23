@@ -192,13 +192,21 @@ different setup: see **[docs/LOCAL_DEVELOPMENT.md](docs/LOCAL_DEVELOPMENT.md)**.
 
 The following capabilities are available in the product today:
 
-- Risk register, scoring and mitigation tracking
+- Authentication, role-based access control and API token management
+- Risk register, scoring, lifecycle management and mitigation tracking
 - Asset inventory, criticality and dependency mapping
 - Compliance frameworks, controls, evidence and PDF reporting
-- Incident register and incident timeline
+- Incident register, incident timeline and source ingestion
 - Vulnerability management and asset discovery
-- Financial risk quantification (FAIR-style SLE, ARO, ALE and ROSI)
-- Governance workflows, immutable audit records and automation rules
+- Financial risk quantification (FAIR-style SLE, ARO, ALE and ROSI) †
+- Vendor risk management: vendor register, questionnaires, assessments and reminders †
+- Governance workflows, immutable audit records, delegations and approvals
+- Security automation rules, SLA tracking and notification workflows
+
+† Gated by plan. A self-hosted install starts on the **Free** plan, which does not
+unlock these. The plans and what each one grants are described in
+[`docs/PRICING.md`](docs/PRICING.md); the enforced matrix lives in
+[`backend/pkg/entitlements/entitlements.go`](backend/pkg/entitlements/entitlements.go).
 
 The detailed delivery status and its supporting evidence are maintained in
 [`ROADMAP.md`](ROADMAP.md). A capability is listed here only when it is available to a
@@ -526,19 +534,20 @@ targets, not commitments; the authoritative status remains
 
 ### Q1 2027 — planned
 
-- [ ] Vendor Risk Management
 - [ ] Policy Management
 - [ ] Public Trust Center
 - [ ] Business Continuity (BCP/PCA-PRA)
 - [ ] Security Awareness Training
+- [ ] Access Review & Certification
 
 ### Q2 2027 — planned
 
-- [ ] Access Review & Certification
 - [ ] Sensitive Data Discovery
 - [ ] Risk Digital Twin (simulation)
-- [ ] Collaborative War Room
 - [ ] Attack Path Graph
+- [ ] Collaborative War Room — live collaboration. The incident War Room screen
+      exists and shows a real incident's timeline; the roster, tasks and chat are
+      not backed by a collaboration service yet.
 
 ---
 
