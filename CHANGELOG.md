@@ -21,6 +21,15 @@ Git tags use the `vMAJOR.MINOR.PATCH[-rc.N]` convention; see [docs/VERSIONING.md
   `ldap://` and `ldaps://`. Kubernetes, vCenter, GitHub and GitLab endpoints must
   use https. These connections no longer go through `HTTP(S)_PROXY` (see
   `docs/SELF_HOSTING.md`).
+- **Kubernetes scans no longer skip TLS verification on their own (#770).** A
+  Kubernetes scan config with no `ca_cert` connected to the cluster's API server
+  with verification disabled, and sent the tenant's ServiceAccount token over
+  that connection. Verification is now on by default, and skipping it takes the
+  explicit credential `insecure: "true"`, the same opt-in the vCenter connector
+  requires.
+  **Action for operators:** a self-signed cluster scanned without a `ca_cert`
+  now fails with a certificate error until you supply the cluster's CA in
+  `ca_cert` (preferred) or set `insecure` to `true` on that scan config.
 
 ### Planned
 - Board Report mensuel (IA, human-in-the-loop, FCFA) — the second half of M4
