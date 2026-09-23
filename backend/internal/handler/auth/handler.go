@@ -187,6 +187,19 @@ func (h *Handler) Login(c *fiber.Ctx) error {
 	})
 
 	if err != nil {
+		// One error gets its own answer: the password was right, but it is held
+		// under the retired SHA-256 hasher and the migration cutoff has passed.
+		// "Authentication failed" would be a lie to somebody typing the correct
+		// password, and would hide the one action that resolves it.
+		if errors.Is(err, auth.ErrPasswordResetRequired) {
+			reason := "password_reset_required"
+			h.logAudit(c, nil, nil, coreauth.AuditActionLogin, false, &reason)
+			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+				"error": "Your password must be reset before you can sign in.",
+				"code":  "password_reset_required",
+			})
+		}
+
 		reason := "authentication failed"
 		h.logAudit(c, nil, nil, coreauth.AuditActionLogin, false, &reason)
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
