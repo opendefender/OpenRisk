@@ -8,6 +8,19 @@ Git tags use the `vMAJOR.MINOR.PATCH[-rc.N]` convention; see [docs/VERSIONING.md
 
 ## [Unreleased]
 
+### Security
+- **A revoked token family can no longer leave one token behind (#775).** When
+  two requests refreshed the same single-use token at once, the loser detected
+  the reuse and deleted the family, but the winner's brand-new token was written
+  after that sweep and survived it. The lineage was reported as revoked while a
+  usable refresh token stayed in the database. The rotation now re-checks, after
+  storing the new token, that the row it consumed is still there; if the family
+  was swept meanwhile, it drops what it issued and answers reuse.
+  **Behaviour change:** a client that fires two refreshes of the same token
+  concurrently is now logged out entirely, instead of one of the two keeping a
+  session. That was already the intent of reuse detection — it just did not hold
+  for the winner.
+
 ### Planned
 - Board Report mensuel (IA, human-in-the-loop, FCFA) — the second half of M4
 - Multi-tenant support

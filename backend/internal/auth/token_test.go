@@ -181,14 +181,15 @@ func TestRefresh_ConcurrentRotation_OneWinner(t *testing.T) {
 	const n = 8
 	var wg sync.WaitGroup
 	results := make([]error, n)
+	issued := make([]*TokenPair, n)
 	start := make(chan struct{})
 	for i := 0; i < n; i++ {
 		wg.Add(1)
 		go func(i int) {
 			defer wg.Done()
 			<-start
-			_, e := tm.RefreshTokenPair(ctx, pair.RefreshToken, DeviceContext{})
-			results[i] = e
+			p, e := tm.RefreshTokenPair(ctx, pair.RefreshToken, DeviceContext{})
+			issued[i], results[i] = p, e
 		}(i)
 	}
 	close(start)
@@ -203,9 +204,22 @@ func TestRefresh_ConcurrentRotation_OneWinner(t *testing.T) {
 			reuse++
 		}
 	}
-	require.Equal(t, 1, success, "a single-use token may rotate at most once")
+	require.LessOrEqual(t, success, 1, "a single-use token may rotate at most once")
 	require.GreaterOrEqual(t, reuse, 1, "concurrent losers must be flagged as reuse")
 	require.Equal(t, int64(0), countTokens(t, db), "concurrent reuse revokes the family")
+
+	// The winner is not guaranteed a session, and that is the point (#775). If
+	// the revocation lands before it re-checks, it is refused like the losers;
+	// if it lands after, it is handed a pair whose refresh token has already
+	// been swept. Either way nothing usable survives, which the empty table
+	// above states — and the assertion below proves from the client's side.
+	for i, p := range issued {
+		if results[i] != nil {
+			continue
+		}
+		_, err = tm.RefreshTokenPair(ctx, p.RefreshToken, DeviceContext{})
+		require.Error(t, err, "the token minted by the winning rotation must not outlive the revocation")
+	}
 }
 
 // --- Org context is preserved across refresh (not reset to default) --------
@@ -272,4 +286,33 @@ func TestIssueSessionForOrg_UsesResolver(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, pair.AccessToken)
 	require.Equal(t, orgID, spy.lastOrg)
+}
+
+// --- A revocation landing mid-rotation takes the new token with it ---------
+
+// TestRefresh_FamilyRevokedDuringRotation drives the exact interleaving that
+// made TestRefresh_ConcurrentRotation_OneWinner flaky (#775): the family is
+// revoked after the presented token has been claimed but before the new one is
+// stored. The rotation must not hand back a token that outlives the revocation.
+func TestRefresh_FamilyRevokedDuringRotation(t *testing.T) {
+	tm, db, _ := newTokenHarness(t)
+	ctx := context.Background()
+	userID, orgID := uuid.New(), uuid.New()
+
+	pair, err := tm.GenerateTokenPair(ctx, userID, orgID, nil, []string{"*"}, nil, DeviceContext{})
+	require.NoError(t, err)
+
+	var family uuid.UUID
+	require.NoError(t, db.Model(&RefreshToken{}).Select("family_id").Row().Scan(&family))
+
+	// The org resolver runs between the claim and the insert, which is where a
+	// concurrent reuse detection would sweep the family.
+	tm.SetOrgSessionResolver(func(_ context.Context, _ uuid.UUID, org uuid.UUID) (*SessionClaims, error) {
+		require.NoError(t, db.Where("family_id = ?", family).Delete(&RefreshToken{}).Error)
+		return &SessionClaims{TenantID: org, Permissions: []string{"*"}}, nil
+	})
+
+	_, err = tm.RefreshTokenPair(ctx, pair.RefreshToken, DeviceContext{})
+	require.ErrorIs(t, err, ErrRefreshTokenReuse, "a rotation that raced a revocation must refuse")
+	require.Equal(t, int64(0), countTokens(t, db), "no token may survive the revocation it raced")
 }

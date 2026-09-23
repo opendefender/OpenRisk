@@ -366,7 +366,36 @@ func (tm *TokenManager) RefreshTokenPair(ctx context.Context, refreshTokenValue 
 	if next.UserAgent == "" {
 		next.UserAgent = refreshToken.UserAgent
 	}
-	return tm.generatePair(ctx, refreshToken.UserID, tenantID, orgRoles, permissions, featureFlags, next, refreshToken.FamilyID)
+	pair, err := tm.generatePair(ctx, refreshToken.UserID, tenantID, orgRoles, permissions, featureFlags, next, refreshToken.FamilyID)
+	if err != nil {
+		return nil, err
+	}
+
+	// A concurrent request may have revoked this family while we were resolving
+	// claims. Its DELETE could not carry away a row that did not exist yet, so
+	// the token we have just minted would outlive the revocation it raced (#775).
+	//
+	// The row we claimed above is the family's witness: rotation keeps it, and
+	// only a revocation (or an explicit logout) takes it away. If it is gone, the
+	// lineage was declared compromised — drop what we issued and refuse, the same
+	// answer the losing request got.
+	if !tm.tokenExists(ctx, refreshToken.ID) {
+		tm.revokeFamily(ctx, refreshToken.FamilyID)
+		return nil, ErrRefreshTokenReuse
+	}
+	return pair, nil
+}
+
+// tokenExists reports whether a refresh token row is still stored, by primary
+// key. Used to re-check a revocation that may have landed mid-rotation.
+func (tm *TokenManager) tokenExists(ctx context.Context, id uuid.UUID) bool {
+	var n int64
+	if err := tm.db.WithContext(ctx).Model(&RefreshToken{}).Where("id = ?", id).Count(&n).Error; err != nil {
+		// Treat an unreadable state as revoked: refusing a refresh costs a
+		// re-authentication, keeping one alive costs a live session.
+		return false
+	}
+	return n > 0
 }
 
 // revokeFamily deletes every refresh token in a lineage. Best-effort: a failure
