@@ -8,6 +8,7 @@ package workers
 import (
 	"context"
 	"fmt"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -21,22 +22,27 @@ const testOrgID = "550e8400-e29b-41d4-a716-446655440000"
 
 // MockIncidentProvider implements IncidentProvider for testing
 type MockIncidentProvider struct {
-	incidents    []domain.Incident
-	callCount    int
+	incidents []domain.Incident
+	// callCount is written by the engine's goroutine and read by tests while it
+	// still runs, so it is atomic (#779). Read it with calls().
+	callCount    atomic.Int64
 	shouldFail   bool
 	failureCount int
 }
 
 func (m *MockIncidentProvider) FetchRecentIncidents(organizationID string) ([]domain.Incident, error) {
-	m.callCount++
+	n := m.callCount.Add(1)
 
 	if m.shouldFail && m.failureCount > 0 {
 		m.failureCount--
-		return nil, fmt.Errorf("mock API error on call %d", m.callCount)
+		return nil, fmt.Errorf("mock API error on call %d", n)
 	}
 
 	return m.incidents, nil
 }
+
+// calls reports how many times the engine has fetched, safely at any moment.
+func (m *MockIncidentProvider) calls() int { return int(m.callCount.Load()) }
 
 // TestNewSyncEngine verifies sync engine initialization
 func TestNewSyncEngine(t *testing.T) {
@@ -113,7 +119,7 @@ func TestSyncEngineRetryLogic(t *testing.T) {
 	duration := time.Since(startTime)
 
 	// Should have called 3 times (2 failures + 1 success)
-	assert.Equal(t, 3, mockProvider.callCount)
+	assert.Equal(t, 3, mockProvider.calls())
 
 	// Should have spent at least 3 seconds (1s + 2s backoff)
 	assert.True(t, duration >= 3*time.Second,
@@ -138,7 +144,7 @@ func TestSyncEngineFailureExhaustion(t *testing.T) {
 	engine.syncWithRetry(context.Background())
 
 	// Should have called maxRetries + 1 times
-	assert.Equal(t, engine.maxRetries+1, mockProvider.callCount)
+	assert.Equal(t, engine.maxRetries+1, mockProvider.calls())
 
 	// Should have recorded failure in metrics
 	metrics := engine.GetMetrics()
@@ -191,7 +197,7 @@ func TestStartAndStop(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 
 	// Verify initial sync was called
-	assert.True(t, mockProvider.callCount > 0)
+	assert.True(t, mockProvider.calls() > 0)
 
 	// Cancel context (graceful shutdown)
 	cancel()
