@@ -214,8 +214,10 @@ func NewGCPScanner(collector CloudCollector) Scanner {
 // NewKubernetesScanner builds the Kubernetes cluster scanner.
 //
 // Required credentials: api_server (https URL), token (ServiceAccount bearer).
-// Optional: ca_cert (PEM; omitted → TLS verification is skipped for self-signed
-// clusters). The collector enumerates Nodes and Pods via the Kubernetes REST API.
+// Optional: ca_cert (PEM; pins the API server's certificate) and insecure
+// ("true" skips certificate verification — the explicit opt-in a self-signed
+// cluster needs when no ca_cert is given, #770). The collector enumerates Nodes
+// and Pods via the Kubernetes REST API.
 func NewKubernetesScanner(collector CloudCollector) Scanner {
 	return &cloudScanner{
 		name:      "Kubernetes Scanner",

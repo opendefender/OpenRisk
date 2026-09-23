@@ -279,6 +279,18 @@ Turn it on only if you mount a Docker socket into the backend on purpose. Any
 organisation that can create scan configs can then read that daemon's
 containers and images.
 
+### Kubernetes: the cluster's certificate
+
+A Kubernetes scan config verifies the API server's certificate. Put the
+cluster's CA in the config's `ca_cert` credential (PEM) — this is the right
+answer for a self-signed cluster, and it pins the scan to that cluster.
+
+Without a `ca_cert`, the certificate is checked against the system roots. A
+self-signed cluster then fails with a certificate error. Setting the credential
+`insecure` to `true` skips the check, exactly as the vCenter connector's
+`insecure` does. Avoid it: the scan carries the ServiceAccount token, and
+anything on the path between the backend and the API server can take it.
+
 ## Troubleshooting
 
 - **Backend restarts / "RSA keys required":** the `secrets/` keypair is missing —

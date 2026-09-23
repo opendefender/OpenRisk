@@ -78,3 +78,30 @@ func TestKubernetesCollect(t *testing.T) {
 	assert.Equal(t, "k8s:pod:p2", gotFindings[0].AssetExternalID)
 	assert.Equal(t, scanner.SeverityHigh, gotFindings[0].Severity)
 }
+
+// TestKubernetesTLSConfig covers how a scan config's credentials decide whether
+// the cluster's certificate is checked (#770). Verification is on unless the
+// config explicitly opts out.
+func TestKubernetesTLSConfig(t *testing.T) {
+	const ca = "-----BEGIN CERTIFICATE-----\nMIIB\n-----END CERTIFICATE-----"
+
+	t.Run("verifies by default", func(t *testing.T) {
+		got := k8sTLSConfig(map[string]string{"api_server": "https://k8s.corp", "token": "t"})
+		assert.False(t, got.Insecure, "no ca_cert must not disable verification")
+		assert.Empty(t, got.CAData)
+	})
+
+	t.Run("skips only on explicit opt-in", func(t *testing.T) {
+		assert.True(t, k8sTLSConfig(map[string]string{"insecure": "true"}).Insecure)
+		for _, v := range []string{"", "false", "TRUE", "1", "yes"} {
+			assert.False(t, k8sTLSConfig(map[string]string{"insecure": v}).Insecure,
+				"only the exact value \"true\" opts out, got %q", v)
+		}
+	})
+
+	t.Run("ca_cert pins and wins over insecure", func(t *testing.T) {
+		got := k8sTLSConfig(map[string]string{"ca_cert": ca, "insecure": "true"})
+		assert.Equal(t, []byte(ca), got.CAData)
+		assert.False(t, got.Insecure, "client-go rejects a pinned CA combined with Insecure")
+	})
+}
