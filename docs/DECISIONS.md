@@ -43,6 +43,33 @@ the reset flow. #720 adds `POST /auth/password/change`.
 
 ## Resolved
 
+### D-048 — refresh rotation gets a grace window · decided 2026-09-23
+**Decided (owner)** — **Add the window.** Escalated because it changes what reuse detection
+means, which is auth design and not a fix.
+
+**Context** — #775 showed a family revocation could leave behind the token the winning
+rotation was about to insert. Fixing that (#776) made the outcome consistent: a concurrent
+refresh of one token now signs the client out entirely, winner included. That is faithful to
+reuse detection as written, and wrong in practice — two tabs waking together, a retry after a
+timeout or an app resuming from background produce exactly that pattern, and none of them is
+a theft.
+
+**What changes** — A token rotated less than `RotationGracePeriod` (20s) ago and presented
+again mints another token in the same family instead of revoking it. Past the window, or when
+the device fingerprints disagree, reuse detection applies unchanged and takes every token
+minted during the window with it. The window is a server constant, never read from the
+request. Implemented in #777.
+
+**Why not the alternative** — A `refresh_token_families` row carrying `revoked_at`, checked at
+insert, closes the same race and lets the winner keep its session. It costs a migration and
+still revokes the family on every concurrent refresh, so the user is signed out just the same.
+It becomes worth doing the day a lineage must record *why* it died, or be revoked from outside
+the refresh path.
+
+**Cost of the window** — A thief replaying a stolen token within 20 seconds of its rotation is
+served, as they already were through the race #775 described. After that, the family dies.
+
+
 ### D-046 — ADR 0004 D6: the reminder worker's two departures are accepted as built · decided 2026-09-15
 **Decided (owner)** — **Keep both departures that PR #679 flagged, and amend D6 to match.** Both
 answers match the recommendation.
