@@ -21,10 +21,11 @@ Git tags use the `vMAJOR.MINOR.PATCH[-rc.N]` convention; see [docs/VERSIONING.md
 - **A concurrent refresh no longer signs the user out (#777).** Reuse detection
   read "this token was already rotated" as proof of theft, so two browser tabs
   refreshing together, or a retry after a timeout, killed the whole session. A
-  token rotated less than 20 seconds ago now mints another token in the same
-  family instead. Past that window, and whenever the device fingerprints
-  disagree, reuse detection is unchanged — and it takes every token minted
-  during the window with it.
+  token rotated less than 10 seconds ago is now served the token that first
+  rotation already issued — the same one, so a session still has exactly one
+  live refresh token and the lineage cannot fork. Past that window, when the
+  device fingerprints disagree, or once the chain has moved past that step,
+  reuse detection is unchanged and still revokes the whole family.
 
 ### Planned
 - Board Report mensuel (IA, human-in-the-loop, FCFA) — the second half of M4
