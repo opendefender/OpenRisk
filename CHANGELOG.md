@@ -8,6 +8,18 @@ Git tags use the `vMAJOR.MINOR.PATCH[-rc.N]` convention; see [docs/VERSIONING.md
 
 ## [Unreleased]
 
+### Planned
+- Board Report mensuel (IA, human-in-the-loop, FCFA) — the second half of M4
+- Multi-tenant support
+- Mobile app (React Native)
+- Slack/Teams notifications
+- Jira integration
+
+## [1.1.0-rc.6] - 2026-09-23
+
+> A security release. Both fixes below change how an existing scan config
+> behaves, so read the operator actions before upgrading.
+
 ### Security
 - **SSRF through discovery connectors — GHSA-98hp-4h7m-v45m, high (#750).** The
   Kubernetes, Docker, VMware, Active Directory, GitHub and GitLab connectors run
@@ -30,13 +42,6 @@ Git tags use the `vMAJOR.MINOR.PATCH[-rc.N]` convention; see [docs/VERSIONING.md
   **Action for operators:** a self-signed cluster scanned without a `ca_cert`
   now fails with a certificate error until you supply the cluster's CA in
   `ca_cert` (preferred) or set `insecure` to `true` on that scan config.
-
-### Planned
-- Board Report mensuel (IA, human-in-the-loop, FCFA) — the second half of M4
-- Multi-tenant support
-- Mobile app (React Native)
-- Slack/Teams notifications
-- Jira integration
 
 ## [1.1.0-rc.5] - 2026-09-21
 
@@ -464,7 +469,8 @@ this is a release candidate, not a GA.
 
 ---
 
-[Unreleased]: https://github.com/opendefender/OpenRisk/compare/v1.1.0-rc.5...HEAD
+[Unreleased]: https://github.com/opendefender/OpenRisk/compare/v1.1.0-rc.6...HEAD
+[1.1.0-rc.6]: https://github.com/opendefender/OpenRisk/compare/v1.1.0-rc.5...v1.1.0-rc.6
 [1.1.0-rc.5]: https://github.com/opendefender/OpenRisk/compare/v1.1.0-rc.4...v1.1.0-rc.5
 [1.1.0-rc.4]: https://github.com/opendefender/OpenRisk/compare/v1.1.0-rc.3...v1.1.0-rc.4
 [1.1.0-rc.3]: https://github.com/opendefender/OpenRisk/compare/v1.1.0-rc.1...v1.1.0-rc.3
