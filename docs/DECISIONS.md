@@ -5,6 +5,39 @@ recommends, and surfaces these in the daily brief. Run `/decide` to clear them.
 
 ## Open
 
+### D-048 — Argon2id migration: legacy SHA-256 accepted until a cutoff, and the cost vs. the Helm limit · raised 2026-09-23
+**Status** — built and in review on #484. Two points need the owner: one design choice to
+confirm, one sizing decision to take.
+
+**1. Legacy SHA-256 hashes are verified again, until a cutoff (confirm).**
+On `master`, Verify only accepts Argon2id, so an account that still holds the unsalted
+SHA-256 digest from the first release (written before fc72c5f, 2026-06-11) cannot sign in
+at all. #484 asks for transparent migration, so the hasher recognises that digest again,
+**only to replace it**: a correct password rewrites the hash to Argon2id at that sign-in.
+After `PASSWORD_LEGACY_HASH_CUTOFF` (default `2026-12-31T23:59:59Z`), a legacy hash gets
+403 `password_reset_required` instead of a session; a wrong password still gets the generic
+401, so the distinct answer reveals nothing without the password. Nothing can write SHA-256
+(tests pin it). *Recommendation: keep it.* The alternative is a forced reset for those
+accounts today, which is what they already get in practice.
+
+**2. The default cost does not fit the default pod (decide).**
+Defaults are m=64 MiB, t=3, p=4 (unchanged from `master`). Measured on 2026-09-23 on an
+i7-11850H: ~107 ms and 64 MiB per hash on one full core. The chart's API limit is
+500m CPU / 512 MiB (`helm/openrisk/values.yaml`). So a hash takes ~200 ms there, and
+about 6 concurrent sign-ins can reach the memory limit and get the pod OOM-killed.
+Options:
+- **A. Raise the chart's API limit** to 1 CPU / 1 GiB. Keeps the cost; more money per pod.
+- **B. Lower the default** to m=19 MiB, t=2, p=1 (an OWASP configuration). Fits the pod;
+  weaker against offline cracking. Existing hashes upgrade or stay valid on their own
+  either way (the parameters are stored in each hash).
+- **C. Keep both and cap concurrent hashes** with a semaphore in the hasher. A small
+  change, but it means sign-ins queue during a burst.
+
+*Recommendation: A, plus C as a guard.* Operators can already lower the cost today with
+`ARGON2ID_MEMORY_KIB` / `ARGON2ID_TIME` / `ARGON2ID_PARALLELISM`.
+**Cost of delay** — no regression: this risk is already on `master`. It is a sizing debt
+for any buyer who load-tests sign-in.
+
 ### D-047 — authenticated password change: built on the existing auth mechanisms · raised 2026-09-17
 **Status** — built and in review on #720 (PR stacked on #723). Escalated because it touches
 auth; it is a new capability assembled from existing parts, not a redesign. No action is
