@@ -91,6 +91,15 @@ func (s *resolverSpy) resolve(_ context.Context, _ uuid.UUID, orgID uuid.UUID) (
 	}, nil
 }
 
+// ageRotations pushes every rotation in the table past RotationGracePeriod, so a
+// replay is judged as reuse instead of as the same client asking twice (#777).
+func ageRotations(t *testing.T, db *gorm.DB) {
+	t.Helper()
+	require.NoError(t, db.Model(&RefreshToken{}).
+		Where("rotated_at IS NOT NULL").
+		Update("rotated_at", time.Now().Add(-RotationGracePeriod-time.Minute)).Error)
+}
+
 func countTokens(t *testing.T, db *gorm.DB) int64 {
 	t.Helper()
 	var n int64
@@ -129,7 +138,8 @@ func TestRefresh_Reuse_RevokesFamily(t *testing.T) {
 	pair2, err := tm.RefreshTokenPair(ctx, pair1.RefreshToken, DeviceContext{}) // R1 spent, R2 issued
 	require.NoError(t, err)
 
-	// Replay the spent R1: reuse detected.
+	// Replay the spent R1 once the grace window has passed: reuse detected.
+	ageRotations(t, db)
 	_, err = tm.RefreshTokenPair(ctx, pair1.RefreshToken, DeviceContext{})
 	require.ErrorIs(t, err, ErrRefreshTokenReuse)
 
@@ -168,9 +178,13 @@ func TestRefresh_Invalid(t *testing.T) {
 	require.ErrorIs(t, err, ErrRefreshTokenInvalid)
 }
 
-// --- Concurrent rotation of one token: exactly one winner ------------------
+// --- Concurrent rotation inside the grace window ---------------------------
 
-func TestRefresh_ConcurrentRotation_OneWinner(t *testing.T) {
+// TestRefresh_ConcurrentRotation_WithinGraceAllSucceed covers the burst a real
+// client produces — several tabs refreshing the same token at once (#777).
+// Every request is served, nothing is revoked, and all the tokens minted belong
+// to the one family, so a later replay still takes them all.
+func TestRefresh_ConcurrentRotation_WithinGraceAllSucceed(t *testing.T) {
 	tm, db, _ := newTokenHarness(t)
 	ctx := context.Background()
 	userID, orgID := uuid.New(), uuid.New()
@@ -195,31 +209,96 @@ func TestRefresh_ConcurrentRotation_OneWinner(t *testing.T) {
 	close(start)
 	wg.Wait()
 
-	success, reuse := 0, 0
-	for _, e := range results {
-		switch {
-		case e == nil:
-			success++
-		case errors.Is(e, ErrRefreshTokenReuse):
-			reuse++
-		}
+	for i, e := range results {
+		require.NoError(t, e, "request %d: a burst on one token is not a compromise", i)
+		require.Equal(t, issued[0].RefreshToken, issued[i].RefreshToken,
+			"request %d got a token of its own: the lineage forked", i)
 	}
-	require.LessOrEqual(t, success, 1, "a single-use token may rotate at most once")
-	require.GreaterOrEqual(t, reuse, 1, "concurrent losers must be flagged as reuse")
-	require.Equal(t, int64(0), countTokens(t, db), "concurrent reuse revokes the family")
+	// The spent original and the single successor they all share.
+	require.Equal(t, int64(2), countTokens(t, db), "a burst must mint one successor, not one per request")
 
-	// The winner is not guaranteed a session, and that is the point (#775). If
-	// the revocation lands before it re-checks, it is refused like the losers;
-	// if it lands after, it is handed a pair whose refresh token has already
-	// been swept. Either way nothing usable survives, which the empty table
-	// above states — and the assertion below proves from the client's side.
-	for i, p := range issued {
-		if results[i] != nil {
-			continue
-		}
-		_, err = tm.RefreshTokenPair(ctx, p.RefreshToken, DeviceContext{})
-		require.Error(t, err, "the token minted by the winning rotation must not outlive the revocation")
-	}
+	var families int64
+	require.NoError(t, db.Model(&RefreshToken{}).Distinct("family_id").Count(&families).Error)
+	require.Equal(t, int64(1), families, "the burst must not fork the lineage")
+
+	// That shared successor is live and rotates normally.
+	_, err = tm.RefreshTokenPair(ctx, issued[0].RefreshToken, DeviceContext{})
+	require.NoError(t, err)
+
+	// Past the window, the original reads as a replay again and takes the whole
+	// lineage with it.
+	ageRotations(t, db)
+	_, err = tm.RefreshTokenPair(ctx, pair.RefreshToken, DeviceContext{})
+	require.ErrorIs(t, err, ErrRefreshTokenReuse)
+	require.Equal(t, int64(0), countTokens(t, db), "reuse revokes the whole lineage")
+}
+
+// TestRefresh_ReplayAfterChainMovedOn covers the replay the window must still
+// refuse: the successor minted for this step has itself been spent, so a copy of
+// the earlier token is turning up after the chain moved past it (#777).
+func TestRefresh_ReplayAfterChainMovedOn(t *testing.T) {
+	tm, db, _ := newTokenHarness(t)
+	ctx := context.Background()
+	userID, orgID := uuid.New(), uuid.New()
+
+	pair1, err := tm.GenerateTokenPair(ctx, userID, orgID, nil, []string{"*"}, nil, DeviceContext{})
+	require.NoError(t, err)
+	pair2, err := tm.RefreshTokenPair(ctx, pair1.RefreshToken, DeviceContext{})
+	require.NoError(t, err)
+	_, err = tm.RefreshTokenPair(ctx, pair2.RefreshToken, DeviceContext{}) // the chain moves on
+	require.NoError(t, err)
+
+	// Still inside the window, but the successor of pair1 is spent.
+	_, err = tm.RefreshTokenPair(ctx, pair1.RefreshToken, DeviceContext{})
+	require.ErrorIs(t, err, ErrRefreshTokenReuse, "the window does not cover a step the chain has left")
+	require.Equal(t, int64(0), countTokens(t, db), "the family is revoked")
+}
+
+// --- Replay inside the window -----------------------------------------------
+
+// TestRefresh_ReplayWithinGrace_ReturnsTheSameSuccessor is the retry case: the
+// same client presents a token it has already spent, seconds later, because the
+// first response never arrived. It must get that first response's token back —
+// not one of its own, which would leave two live tokens in the family (#777).
+func TestRefresh_ReplayWithinGrace_ReturnsTheSameSuccessor(t *testing.T) {
+	tm, db, _ := newTokenHarness(t)
+	ctx := context.Background()
+	userID, orgID := uuid.New(), uuid.New()
+
+	pair1, err := tm.GenerateTokenPair(ctx, userID, orgID, nil, []string{"*"}, nil, DeviceContext{})
+	require.NoError(t, err)
+	pair2, err := tm.RefreshTokenPair(ctx, pair1.RefreshToken, DeviceContext{})
+	require.NoError(t, err)
+
+	pair3, err := tm.RefreshTokenPair(ctx, pair1.RefreshToken, DeviceContext{})
+	require.NoError(t, err, "a replay inside the window is served, not punished")
+	require.Equal(t, pair2.RefreshToken, pair3.RefreshToken, "a replay must not mint a second live token")
+	require.NotEqual(t, pair2.AccessToken, pair3.AccessToken, "each replay still gets a fresh access token")
+	require.Equal(t, int64(2), countTokens(t, db), "the spent original and one successor")
+
+	// The successor everyone shares still rotates normally.
+	_, err = tm.RefreshTokenPair(ctx, pair2.RefreshToken, DeviceContext{})
+	require.NoError(t, err)
+}
+
+// TestRefresh_ReplayWithinGrace_DeviceMismatch shows the window is not a hole:
+// tolerance applies to the client that owns the token, not to another device
+// holding a copy of it.
+func TestRefresh_ReplayWithinGrace_DeviceMismatch(t *testing.T) {
+	tm, db, _ := newTokenHarness(t)
+	ctx := context.Background()
+	userID, orgID := uuid.New(), uuid.New()
+
+	owner := DeviceContext{Fingerprint: "device-a"}
+	pair1, err := tm.GenerateTokenPair(ctx, userID, orgID, nil, []string{"*"}, nil, owner)
+	require.NoError(t, err)
+	_, err = tm.RefreshTokenPair(ctx, pair1.RefreshToken, owner)
+	require.NoError(t, err)
+
+	before := countTokens(t, db)
+	_, err = tm.RefreshTokenPair(ctx, pair1.RefreshToken, DeviceContext{Fingerprint: "device-b"})
+	require.ErrorIs(t, err, ErrDeviceMismatch, "the window never covers another device")
+	require.Equal(t, before, countTokens(t, db), "a refused replay mints nothing")
 }
 
 // --- Org context is preserved across refresh (not reset to default) --------
@@ -315,4 +394,26 @@ func TestRefresh_FamilyRevokedDuringRotation(t *testing.T) {
 	_, err = tm.RefreshTokenPair(ctx, pair.RefreshToken, DeviceContext{})
 	require.ErrorIs(t, err, ErrRefreshTokenReuse, "a rotation that raced a revocation must refuse")
 	require.Equal(t, int64(0), countTokens(t, db), "no token may survive the revocation it raced")
+}
+
+// TestSuccessorSecret_IsKeyedAndBound proves the successor is not a pure
+// function of the token: without the server's key material, holding one token
+// tells you nothing about the next step of the chain (#777). If it were
+// derivable, a single captured token would let someone follow every later
+// rotation in silence, without ever presenting a spent token.
+func TestSuccessorSecret_IsKeyedAndBound(t *testing.T) {
+	a, _, _ := newTokenHarness(t)
+	b, _, _ := newTokenHarness(t) // a different signing key
+	presented, family := "the-same-presented-token", uuid.New()
+
+	require.Equal(t, a.successorSecret(presented, family), a.successorSecret(presented, family),
+		"the derivation must be deterministic, or a burst would fork")
+	require.NotEqual(t, a.successorSecret(presented, family), b.successorSecret(presented, family),
+		"another server must not be able to compute this chain")
+	require.NotEqual(t, a.successorSecret(presented, family), a.successorSecret(presented, uuid.New()),
+		"the successor is bound to its family")
+	require.NotEqual(t, a.successorSecret(presented, family), a.successorSecret("another-token", family),
+		"the successor is bound to the token it follows")
+	require.NotEqual(t, presented, a.successorSecret(presented, family))
+	require.Len(t, a.successorSecret(presented, family), 64, "same shape as a random token")
 }

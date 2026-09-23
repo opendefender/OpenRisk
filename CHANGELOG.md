@@ -15,11 +15,17 @@ Git tags use the `vMAJOR.MINOR.PATCH[-rc.N]` convention; see [docs/VERSIONING.md
   after that sweep and survived it. The lineage was reported as revoked while a
   usable refresh token stayed in the database. The rotation now re-checks, after
   storing the new token, that the row it consumed is still there; if the family
-  was swept meanwhile, it drops what it issued and answers reuse.
-  **Behaviour change:** a client that fires two refreshes of the same token
-  concurrently is now logged out entirely, instead of one of the two keeping a
-  session. That was already the intent of reuse detection — it just did not hold
-  for the winner.
+  was swept meanwhile, it drops what it issued and answers reuse. When a
+  revocation is warranted, nothing of the lineage survives it — and the entry
+  below decides when it is warranted.
+- **A concurrent refresh no longer signs the user out (#777).** Reuse detection
+  read "this token was already rotated" as proof of theft, so two browser tabs
+  refreshing together, or a retry after a timeout, killed the whole session. A
+  token rotated less than 10 seconds ago is now served the token that first
+  rotation already issued — the same one, so a session still has exactly one
+  live refresh token and the lineage cannot fork. Past that window, when the
+  device fingerprints disagree, or once the chain has moved past that step,
+  reuse detection is unchanged and still revokes the whole family.
 
 ### Planned
 - Board Report mensuel (IA, human-in-the-loop, FCFA) — the second half of M4
