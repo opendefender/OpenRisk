@@ -118,7 +118,7 @@ secret, starts PostgreSQL, Redis, the API and the frontend, waits for health, an
 [openrisk]    • API:  http://localhost:8080/api/v1
 [openrisk] Sign in with:
 [openrisk]    • Email:    admin@opendefender.io
-[openrisk]    • Password: ccsc7TRz2AbdkFwN9BRDAWAVmPagWARV
+[openrisk]    • Password: <32 random characters, different on every install>
 ```
 
 No file is edited by hand at any point. Re-running the installer keeps your
@@ -137,15 +137,18 @@ backups: **[docs/SELF_HOSTING.md](docs/SELF_HOSTING.md)**.
 Working on OpenRisk itself (hot reload, test databases, seeded fixtures) is a
 different setup: see **[docs/LOCAL_DEVELOPMENT.md](docs/LOCAL_DEVELOPMENT.md)**.
 
-### ⚠️ Security: Default Credentials
+### ⚠️ Security: no default credentials
 
-**NEVER use default/hardcoded credentials in production!**
+OpenRisk ships no default password. The first administrator gets the
+`INITIAL_ADMIN_PASSWORD` you set, or one generated on first boot and written
+to a `0600` file, never to the logs (see [docs/SELF_HOSTING.md](docs/SELF_HOSTING.md#the-first-administrator)).
+The compose files refuse to start without their database and cache passwords.
 
-1. Always create strong, unique passwords
-2. Use environment variables (`.env` files) - never commit them to Git
-3. Add `.env.local` to your `.gitignore`
-4. Rotate credentials regularly in production
-5. Use a secrets management solution (Vault, AWS Secrets Manager, etc.)
+An instance first started before this change may still have `admin123` on
+`admin@opendefender.io`: the backend logs a `SECURITY WARNING` at boot until
+the password is changed.
+
+To report a vulnerability, see [SECURITY.md](SECURITY.md).
 
 **Password Requirements** (enforced server-side at registration):
 - Minimum 12 characters

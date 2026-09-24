@@ -198,8 +198,8 @@ const loginResponse = await fetch('https://openrisk-api.onrender.com/api/auth/lo
   method: 'POST',
   headers: { 'Content-Type': 'application/json' },
   body: JSON.stringify({
-    email: 'admin@openrisk.local',
-    password: 'admin123'
+    email: process.env.OPENRISK_EMAIL,
+    password: process.env.OPENRISK_PASSWORD, // never hard-code it
   })
 })
 

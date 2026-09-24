@@ -42,7 +42,9 @@ k6 version
 ### 1. Basic Load Test
 ```bash
 cd load_tests
-k6 run cache_test.js
+# The script signs in first. There is no default account password:
+# pass the one of the instance you are testing.
+k6 run --env ADMIN_EMAIL=admin@opendefender.io --env ADMIN_PASSWORD="$ADMIN_PASSWORD" cache_test.js
 ```
 
 ### 2. Custom Configuration
@@ -339,12 +341,12 @@ During test execution:
 
 **Solution**:
 1. Verify test account exists in database
-2. Check credentials in cache_test.js setup() function
+2. Check the credentials passed with `--env ADMIN_EMAIL=... --env ADMIN_PASSWORD=...`
 3. Run manual login test:
 ```bash
 curl -X POST http://localhost:3000/api/v1/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"email":"admin@openrisk.local","password":"admin123"}'
+  -d "{\"email\":\"admin@opendefender.io\",\"password\":\"$ADMIN_PASSWORD\"}"
 ```
 
 ### Slow Response Times (No Improvement)

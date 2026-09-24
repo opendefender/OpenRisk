@@ -127,8 +127,10 @@ RÉSULTAT FINAL:
 ACCÈS DE DÉMO:
 ═══════════════════════════════════════════════════════════════════════════
 
-Email: admin@openrisk.local
-Password: admin123
+Email: admin@opendefender.io
+Mot de passe: celui de INITIAL_ADMIN_PASSWORD, ou celui généré au premier
+démarrage dans /app/secrets/initial_admin_password. Aucun mot de passe par
+défaut n'existe.
 
 
 DOCUMENTATION FOURNIE:
@@ -269,8 +271,9 @@ Expected: Login page loads
 TEST 3: Authentication
 ──────────────────────
 1. Open: https://openrisk-xxxx.vercel.app
-2. Email: admin@openrisk.local
-3. Password: admin123
+2. Email: admin@opendefender.io
+3. Password: INITIAL_ADMIN_PASSWORD, or the one generated in
+   /app/secrets/initial_admin_password on first boot
 4. Expected: Dashboard loads
 
 TEST 4: API Integration

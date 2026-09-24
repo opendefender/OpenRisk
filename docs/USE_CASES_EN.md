@@ -22,7 +22,7 @@ docker compose up -d
 
 # Access the interface
 # → http://localhost:5173
-# Email: admin@openrisk.local | Password: admin123
+# Email: admin@opendefender.io | Password: see docs/QUICK_ONBOARDING_EN.md (there is no default)
 ```
 
 #### 2️⃣ Create Risk Categories

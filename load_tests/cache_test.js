@@ -35,10 +35,14 @@ export const options = {
 const BASE_URL = __ENV.BASE_URL || 'http://localhost:3000/api/v1';
 
 export function setup() {
-  // Setup - runs once at the beginning
+  // Setup - runs once at the beginning. No default credentials (#485):
+  // k6 run --env ADMIN_EMAIL=... --env ADMIN_PASSWORD=... cache_test.js
+  if (!__ENV.ADMIN_PASSWORD) {
+    throw new Error('ADMIN_PASSWORD is not set: pass --env ADMIN_PASSWORD=...');
+  }
   const res = http.post(`${BASE_URL}/auth/login`, {
-    email: 'admin@openrisk.local',
-    password: 'admin123'
+    email: __ENV.ADMIN_EMAIL || 'admin@opendefender.io',
+    password: __ENV.ADMIN_PASSWORD
   });
 
   check(res, {

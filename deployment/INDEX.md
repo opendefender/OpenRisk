@@ -148,10 +148,11 @@ Total Cost: $0.00/month
 
 ## 🔑 Quick Reference
 
-### Default Credentials
+### First sign-in
 ```
-Email: admin@openrisk.local
-Password: admin123
+Email:    admin@opendefender.io
+Password: INITIAL_ADMIN_PASSWORD, or the one generated on first boot
+          in /app/secrets/initial_admin_password (never logged)
 ```
 
 ### Result URLs

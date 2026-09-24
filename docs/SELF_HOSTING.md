@@ -58,7 +58,7 @@ The installer ends with something like:
 ```
 [openrisk] Sign in with:
 [openrisk]    • Email:    admin@opendefender.io
-[openrisk]    • Password: ccsc7TRz2AbdkFwN9BRDAWAVmPagWARV
+[openrisk]    • Password: <32 random characters, different on every install>
 [openrisk] Change this password on first login. It is stored in deploy/selfhost/.env (0600).
 ```
 
@@ -77,9 +77,17 @@ ephemeral — it has to persist, because the backend reads it from the environme
 at boot. Change it on first login; after that the value in `.env` is stale and
 the app is authoritative.
 
-`APP_ENV` is `production` in this compose file, and in production the backend
-**refuses to boot** rather than seed a publicly-known default password. That is
-why the installer must generate this value before the stack starts.
+This compose file requires `INITIAL_ADMIN_PASSWORD` and refuses to start
+without it. Outside it (Helm, a hand-written compose file, a bare binary), a
+backend started without the variable generates a password itself and writes it
+to `INITIAL_ADMIN_PASSWORD_FILE` (default `secrets/initial_admin_password`
+under its working directory, mode `0600`); only the path is logged. If that
+file cannot be written, the backend stops before creating any account. There
+is no default password in any configuration (#485).
+
+An instance first started before that change may still have `admin123` on
+this account. The backend logs a `SECURITY WARNING` at every boot while it
+does: change the password from the app.
 
 ## What a self-hosted instance includes
 

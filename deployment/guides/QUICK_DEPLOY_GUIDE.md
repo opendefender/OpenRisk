@@ -75,8 +75,8 @@ Pour obtenir un lien de démo en 30 minutes avec **zéro frais**, voici les 4 é
 2. **Testez le frontend**:
    ```
    https://openrisk-xxxx.vercel.app
-   Email: admin@openrisk.local
-   Password: admin123
+   Email: admin@opendefender.io
+   Mot de passe: INITIAL_ADMIN_PASSWORD, ou /app/secrets/initial_admin_password
    ```
 
 3. **Docs API Swagger**:
@@ -86,10 +86,11 @@ Pour obtenir un lien de démo en 30 minutes avec **zéro frais**, voici les 4 é
 
 ---
 
-## 🔑 Clés d'accès par défaut
+## 🔑 Premier accès
 
-**Email**: `admin@openrisk.local`  
-**Password**: `admin123`
+Il n'existe aucun identifiant par défaut. Le premier démarrage crée
+`admin@opendefender.io` avec le mot de passe défini dans `INITIAL_ADMIN_PASSWORD`, ou celui généré au premier démarrage dans `/app/secrets/initial_admin_password` (mode 0600, jamais écrit
+dans les logs). Changez-le après la première connexion, puis supprimez ce fichier.
 
 ---
 
