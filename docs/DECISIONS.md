@@ -40,6 +40,43 @@ existing `authRateLimit`, revokes every session and re-issues one for the callin
 already relied on, and the caller is not signed out after proving their password.
 The missing per-account counter stays tracked by #688.
 
+### D-048 — refresh rotation gets a grace window, and a derived successor · decided 2026-09-23
+**Decided (owner)** — **Add the window, with an idempotent replay.** Escalated because it
+changes what reuse detection means, which is auth design and not a fix.
+
+**Context** — #775 showed a family revocation could leave behind the token the winning
+rotation was about to insert. Fixing that (#776) made the outcome consistent: a concurrent
+refresh of one token signed the client out entirely, winner included. That is faithful to
+reuse detection as written, and wrong in practice — two tabs waking together, a retry after a
+timeout or an app resuming from background produce exactly that pattern, and none of them is
+a theft.
+
+**What changes** — A token rotated less than `RotationGracePeriod` (10s) ago and presented
+again is served the successor the first rotation already minted, rather than a sibling of its
+own. The successor is `HMAC(server key, family_id || presented token)`: deterministic, so
+every request in a burst converges on it; keyed, so holding a token does not let anyone
+compute the rest of the chain offline. Past the window, when the device fingerprints
+disagree, or when the successor has itself been spent, reuse detection applies unchanged and
+takes every token of the family. Implemented in #777.
+
+**Why not a sibling per replay** — It was the first design, and it trades a visible failure
+for an invisible one. Two live tokens under one `family_id` both rotate happily, neither ever
+replays a spent token, and reuse detection never fires again: a thief runs alongside the owner
+indefinitely. One live token per family is what keeps the lineage detectable.
+
+**Why not a `refresh_token_families` table** — A row carrying `revoked_at`, checked at insert,
+closes the #775 race too, but it still revokes on every concurrent refresh, so the user is
+signed out just the same. It costs a migration for no change to what the user sees. It becomes
+worth doing the day a lineage must record *why* it died, or be revoked from outside the
+refresh path.
+
+**Cost of the window** — A thief replaying a stolen token within 10 seconds of its rotation is
+served the same token the owner holds. They share one live token, so the next rotation by
+either side spends it and the other's use is caught as reuse. Nothing durable is gained.
+
+**No new secret** — The HMAC key is derived from the RSA signing key the token manager already
+holds. Rotating that key at worst makes a replay in flight at that instant mint a sibling.
+
 ### D-046 — ADR 0004 D6: the reminder worker's two departures are accepted as built · decided 2026-09-15
 **Decided (owner)** — **Keep both departures that PR #679 flagged, and amend D6 to match.** Both
 answers match the recommendation.

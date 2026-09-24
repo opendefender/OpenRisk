@@ -50,6 +50,13 @@ export function AuthScreen({ initialView = 'login' }: { initialView?: View }) {
 // Sign in
 // ---------------------------------------------------------------------------
 
+/** True for the 403 the backend sends when a legacy password hash has expired. */
+function isPasswordResetRequired(err: unknown): boolean {
+  if (!axios.isAxiosError(err) || err.response?.status !== 403) return false;
+  const body = err.response.data as { code?: unknown } | undefined;
+  return body?.code === 'password_reset_required';
+}
+
 function LoginForm({ onRegister }: { onRegister: () => void }) {
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
@@ -66,6 +73,9 @@ function LoginForm({ onRegister }: { onRegister: () => void }) {
   // Bumped on every failure so the shake fires again even for an identical
   // message — otherwise retyping the same wrong password gives no feedback.
   const [errorNonce, setErrorNonce] = useState(0);
+  // Set when the password was right but is held under the retired SHA-256
+  // hasher past its cutoff (#484). The fix is a reset, so the banner offers one.
+  const [resetRequired, setResetRequired] = useState(false);
 
   // Second-factor state, when login stops short of a session.
   const [mfa, setMfa] = useState<{ token: string; enrolling: boolean } | null>(null);
@@ -107,6 +117,7 @@ function LoginForm({ onRegister }: { onRegister: () => void }) {
     e.preventDefault();
     setBusy(true);
     setError('');
+    setResetRequired(false);
     try {
       const result = await login(email, password);
 
@@ -123,8 +134,15 @@ function LoginForm({ onRegister }: { onRegister: () => void }) {
 
       toast.success(copy.signInTitle);
       navigate(landingForBusinessRole(useAuthStore.getState().user?.business_role));
-    } catch {
-      fail(copy.signInFailed);
+    } catch (err) {
+      // The server only says password_reset_required to someone who typed the
+      // right password; everything else keeps the one generic message.
+      if (isPasswordResetRequired(err)) {
+        setResetRequired(true);
+        fail(copy.signInResetRequired);
+      } else {
+        fail(copy.signInFailed);
+      }
     } finally {
       setBusy(false);
     }
@@ -153,6 +171,18 @@ function LoginForm({ onRegister }: { onRegister: () => void }) {
       </div>
 
       <ErrorBanner>{error}</ErrorBanner>
+      {resetRequired && (
+        // The address travels in router state, not the query string, so it
+        // stays out of the URL, the history and any access log.
+        <Link
+          to="/forgot-password"
+          state={{ email }}
+          data-testid="reset-required-link"
+          className="block -mt-2 mb-4 text-[12.5px] font-medium"
+        >
+          {copy.signInResetRequiredAction}
+        </Link>
+      )}
 
       <div className="mb-[15px]" style={cascade(1, reduced)}>
         <Label htmlFor="login-email">{copy.email}</Label>

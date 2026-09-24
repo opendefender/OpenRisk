@@ -20,9 +20,13 @@ backend:
     requests:
       cpu: 100m
       memory: 256Mi
+    # Sized for password hashing (D-048): each sign-in runs Argon2id at 64 MiB
+    # for ~100 ms of a full core, and the backend allows ARGON2ID_MAX_CONCURRENT
+    # (default 4) at once, so hashing alone can hold 256 MiB. 512Mi left too
+    # little room for a burst of sign-ins.
     limits:
-      cpu: 500m
-      memory: 512Mi
+      cpu: 1000m
+      memory: 1Gi
   
   service:
     type: ClusterIP
@@ -44,6 +48,9 @@ backend:
     # self-hosted Jira), comma-separated CIDRs. Empty = public addresses only.
     # Loopback and link-local (cloud metadata) stay denied whatever this says.
     OUTBOUND_ALLOWED_CIDRS: ""
+    # "true" lets Docker scan configs use a unix socket mounted into the pod.
+    # Any tenant with scanner:create can then read that daemon. Default off.
+    SCANNER_DOCKER_SOCKET_ENABLED: "false"
   
   livenessProbe:
     httpGet:

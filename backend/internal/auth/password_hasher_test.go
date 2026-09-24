@@ -71,7 +71,9 @@ func TestArgon2id_SaltIsRandomPerHash(t *testing.T) {
 //
 // The fixture below was produced by the pre-change hasher.
 func TestArgon2id_VerifiesLegacyIterationCount(t *testing.T) {
-	legacy := &Argon2idPasswordHasher{time: 2, memory: 65536, threads: 4, keyLen: 32, saltLen: 16}
+	legacy := NewArgon2idPasswordHasherWithParams(Argon2idParams{
+		Time: 2, Memory: 65536, Threads: 4, KeyLen: 32, SaltLen: 16,
+	})
 	const password = "legacy-account-password-1"
 
 	legacyHash, err := legacy.Hash(password)

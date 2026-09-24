@@ -83,12 +83,18 @@ func (f *fakeResetTokens) Create(_ context.Context, tok *domain.PasswordResetTok
 	return nil
 }
 
+// FindByTokenHash returns a COPY of the stored row, the way the real repository
+// does when it scans a database row into a fresh struct. Handing out the stored
+// pointer would let a caller read UsedAt through IsUsable while another
+// goroutine claims the token — a race in the double, not in the use case, but
+// one the race detector rightly reports (#779).
 func (f *fakeResetTokens) FindByTokenHash(_ context.Context, hash string) (*domain.PasswordResetToken, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	for _, r := range f.rows {
 		if r.TokenHash != nil && *r.TokenHash == hash {
-			return r, nil
+			row := *r
+			return &row, nil
 		}
 	}
 	return nil, nil

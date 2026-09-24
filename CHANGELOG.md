@@ -8,12 +8,59 @@ Git tags use the `vMAJOR.MINOR.PATCH[-rc.N]` convention; see [docs/VERSIONING.md
 
 ## [Unreleased]
 
+### Security
+- **A revoked token family can no longer leave one token behind (#775).** When
+  two requests refreshed the same single-use token at once, the loser detected
+  the reuse and deleted the family, but the winner's brand-new token was written
+  after that sweep and survived it. The lineage was reported as revoked while a
+  usable refresh token stayed in the database. The rotation now re-checks, after
+  storing the new token, that the row it consumed is still there; if the family
+  was swept meanwhile, it drops what it issued and answers reuse. When a
+  revocation is warranted, nothing of the lineage survives it — and the entry
+  below decides when it is warranted.
+- **A concurrent refresh no longer signs the user out (#777).** Reuse detection
+  read "this token was already rotated" as proof of theft, so two browser tabs
+  refreshing together, or a retry after a timeout, killed the whole session. A
+  token rotated less than 10 seconds ago is now served the token that first
+  rotation already issued — the same one, so a session still has exactly one
+  live refresh token and the lineage cannot fork. Past that window, when the
+  device fingerprints disagree, or once the chain has moved past that step,
+  reuse detection is unchanged and still revokes the whole family.
+
 ### Planned
 - Board Report mensuel (IA, human-in-the-loop, FCFA) — the second half of M4
 - Multi-tenant support
 - Mobile app (React Native)
 - Slack/Teams notifications
 - Jira integration
+
+## [1.1.0-rc.6] - 2026-09-23
+
+> A security release. Both fixes below change how an existing scan config
+> behaves, so read the operator actions before upgrading.
+
+### Security
+- **SSRF through discovery connectors — GHSA-98hp-4h7m-v45m, high (#750).** The
+  Kubernetes, Docker, VMware, Active Directory, GitHub and GitLab connectors run
+  inside the backend and connected to whatever address a scan config named:
+  loopback, the cluster network, cloud metadata, or the host's Docker socket. They
+  now go through the same outbound guard as integrations. The address is checked
+  when the config is saved and again when each connection opens.
+  **Action for operators:** a scan config aimed at a private address fails until
+  its range is added to `OUTBOUND_ALLOWED_CIDRS`. Docker configs that use a unix
+  socket need `SCANNER_DOCKER_SOCKET_ENABLED=true`. Active Directory accepts only
+  `ldap://` and `ldaps://`. Kubernetes, vCenter, GitHub and GitLab endpoints must
+  use https. These connections no longer go through `HTTP(S)_PROXY` (see
+  `docs/SELF_HOSTING.md`).
+- **Kubernetes scans no longer skip TLS verification on their own (#770).** A
+  Kubernetes scan config with no `ca_cert` connected to the cluster's API server
+  with verification disabled, and sent the tenant's ServiceAccount token over
+  that connection. Verification is now on by default, and skipping it takes the
+  explicit credential `insecure: "true"`, the same opt-in the vCenter connector
+  requires.
+  **Action for operators:** a self-signed cluster scanned without a `ca_cert`
+  now fails with a certificate error until you supply the cluster's CA in
+  `ca_cert` (preferred) or set `insecure` to `true` on that scan config.
 
 ## [1.1.0-rc.5] - 2026-09-21
 
@@ -441,7 +488,8 @@ this is a release candidate, not a GA.
 
 ---
 
-[Unreleased]: https://github.com/opendefender/OpenRisk/compare/v1.1.0-rc.5...HEAD
+[Unreleased]: https://github.com/opendefender/OpenRisk/compare/v1.1.0-rc.6...HEAD
+[1.1.0-rc.6]: https://github.com/opendefender/OpenRisk/compare/v1.1.0-rc.5...v1.1.0-rc.6
 [1.1.0-rc.5]: https://github.com/opendefender/OpenRisk/compare/v1.1.0-rc.4...v1.1.0-rc.5
 [1.1.0-rc.4]: https://github.com/opendefender/OpenRisk/compare/v1.1.0-rc.3...v1.1.0-rc.4
 [1.1.0-rc.3]: https://github.com/opendefender/OpenRisk/compare/v1.1.0-rc.1...v1.1.0-rc.3

@@ -206,6 +206,39 @@ docker compose up -d --build        # rebuild + restart; migrations run on boot
 Schema migrations (GORM AutoMigrate + SQL migrations) run automatically on
 backend start. Your `.env` and `secrets/` are preserved across upgrades.
 
+### Password hashing
+
+Passwords are stored with Argon2id. The defaults are 64 MiB of memory,
+3 iterations and 4 lanes. Each sign-in holds that memory while it runs, and
+at most `ARGON2ID_MAX_CONCURRENT` hashes run at the same time; the others
+wait their turn. On a small machine you may want to lower the cost:
+
+```bash
+ARGON2ID_MEMORY_KIB=65536    # minimum 19456
+ARGON2ID_TIME=3              # minimum 2
+ARGON2ID_PARALLELISM=4       # 1 to 255
+ARGON2ID_MAX_CONCURRENT=4    # minimum 1
+```
+
+The backend refuses to start if a value is not a number or is below its
+minimum. Every hash stores its own parameters, so changing them never breaks
+an existing password. When you raise them, each account is rehashed with the
+new values at its next sign-in. The Helm chart gives the API 1 CPU and 1 GiB
+for this reason.
+
+Instances installed before June 2026 may still hold passwords stored as
+unsalted SHA-256. Those accounts cannot sign in, even with the right
+password: their owners have to use "Forgot password?", which stores the new
+one with Argon2id.
+
+To see how many are left, watch
+`openrisk_password_hash_accounts{algorithm="sha256_legacy"}` in Prometheus,
+refreshed every hour. `state="active"` counts accounts that still have to
+reset. `state="deleted"` counts soft-deleted accounts, which will never reset
+and keep their old hash until the row is purged.
+`openrisk_password_hash_upgrades_total` counts passwords rehashed at sign-in
+after a cost increase.
+
 ## Backup & restore
 
 ```bash
@@ -261,6 +294,35 @@ only followed on the same host.
 Do not add the NAT64 prefix (`64:ff9b::/96`) to the list: it embeds IPv4, so
 opening it re-opens every IPv4 address behind the translator, loopback and
 metadata included.
+
+The same rule covers the discovery connectors that run inside the backend:
+Kubernetes (`api_server`), Docker (`host`), VMware vCenter (`url`), Active
+Directory (`url`, `ldap://` or `ldaps://` only) and GitHub / GitLab (`base_url`).
+A cluster, vCenter or domain controller on your own network needs its range in
+`OUTBOUND_ALLOWED_CIDRS`.
+
+A Docker `host` that names a unix socket (`unix:///var/run/docker.sock`, or a
+bare path) is refused unless you set:
+
+```bash
+SCANNER_DOCKER_SOCKET_ENABLED=true
+```
+
+Turn it on only if you mount a Docker socket into the backend on purpose. Any
+organisation that can create scan configs can then read that daemon's
+containers and images.
+
+### Kubernetes: the cluster's certificate
+
+A Kubernetes scan config verifies the API server's certificate. Put the
+cluster's CA in the config's `ca_cert` credential (PEM) — this is the right
+answer for a self-signed cluster, and it pins the scan to that cluster.
+
+Without a `ca_cert`, the certificate is checked against the system roots. A
+self-signed cluster then fails with a certificate error. Setting the credential
+`insecure` to `true` skips the check, exactly as the vCenter connector's
+`insecure` does. Avoid it: the scan carries the ServiceAccount token, and
+anything on the path between the backend and the API server can take it.
 
 ## Troubleshooting
 

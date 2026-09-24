@@ -7,11 +7,14 @@ package collectors
 
 import (
 	"context"
+	"crypto/tls"
 	"fmt"
+	"net/http"
 	"net/url"
 	"strings"
 
 	"github.com/vmware/govmomi"
+	"github.com/vmware/govmomi/session"
 	"github.com/vmware/govmomi/view"
 	"github.com/vmware/govmomi/vim25"
 	"github.com/vmware/govmomi/vim25/mo"
@@ -38,14 +41,33 @@ func (VMware) Collect(ctx context.Context, cfg scanner.ScanConfig, assets chan<-
 	u.User = url.UserPassword(cfg.Credentials["username"], cfg.Credentials["password"])
 	insecure := cfg.Credentials["insecure"] == "true"
 
-	c, err := govmomi.NewClient(ctx, u, insecure)
+	// govmomi.NewClient, unrolled so the SOAP transport can be guarded first.
+	sc := soap.NewClient(u, insecure)
+	guardSOAPTransport(sc.DefaultTransport())
+	vc, err := vim25.NewClient(ctx, sc)
 	if err != nil {
+		errs <- fmt.Errorf("vmware: connect: %w", err)
+		return
+	}
+	c := &govmomi.Client{Client: vc, SessionManager: session.NewManager(vc)}
+	if err := c.Login(ctx, u.User); err != nil {
 		errs <- fmt.Errorf("vmware: connect: %w", err)
 		return
 	}
 	defer func() { _ = c.Logout(context.Background()) }()
 
 	collectVMs(ctx, c.Client, assets, findings, errs)
+}
+
+// guardSOAPTransport routes govmomi's transport through the guarded dialer
+// (#750). soap.NewClient dials https with tls.Dial, bypassing DialContext, so
+// DialTLSContext is replaced too; the proxy is dropped for the same reason
+// netguard.Client drops it.
+func guardSOAPTransport(t *http.Transport) {
+	d := egress.dialer()
+	t.Proxy = nil
+	t.DialContext = d.DialContext
+	t.DialTLSContext = (&tls.Dialer{NetDialer: d, Config: t.TLSClientConfig}).DialContext
 }
 
 // collectVMs enumerates VirtualMachine objects from a vim25 client. Split out so

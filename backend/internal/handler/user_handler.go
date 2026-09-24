@@ -125,7 +125,7 @@ func SeedAdminUser() {
 		}
 
 		// Hash password using Argon2id (OWASP recommended)
-		passwordHasher := auth.NewArgon2idPasswordHasher()
+		passwordHasher := auth.NewConfiguredArgon2idPasswordHasher()
 		hash, _ := passwordHasher.Hash(adminPassword)
 		admin := domain.User{
 			Email:    "admin@opendefender.io",
@@ -447,7 +447,7 @@ func CreateUser(c *fiber.Ctx) error {
 	}
 
 	// Hash password using Argon2id (OWASP recommended)
-	passwordHasher := auth.NewArgon2idPasswordHasher()
+	passwordHasher := auth.NewConfiguredArgon2idPasswordHasher()
 	hashedPassword, err := passwordHasher.Hash(input.Password)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to process password"})

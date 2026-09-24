@@ -27,7 +27,8 @@ func NewGitHub() scanner.CloudCollector { return GitHub{} }
 
 func (GitHub) Collect(ctx context.Context, cfg scanner.ScanConfig, assets chan<- scanner.AssetDiscovery, findings chan<- scanner.FindingDiscovery, errs chan<- error) {
 	token := cfg.Credentials["token"]
-	client := github.NewClient(nil).WithAuthToken(token)
+	// base_url comes from the tenant and receives its token: guarded client (#750).
+	client := github.NewClient(egress.client(scanHTTPTimeout)).WithAuthToken(token)
 	if base := strings.TrimSpace(cfg.Credentials["base_url"]); base != "" {
 		ec, err := client.WithEnterpriseURLs(base, base)
 		if err != nil {

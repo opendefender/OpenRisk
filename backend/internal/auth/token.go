@@ -7,13 +7,16 @@ package auth
 
 import (
 	"context"
+	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha256"
+	"crypto/x509"
 	"database/sql/driver"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -51,6 +54,21 @@ const (
 	// MFA. Longer than a challenge because enrolling means installing an app,
 	// scanning a QR code and saving recovery codes, not typing six digits.
 	MFAEnrollmentTTL = 15 * time.Minute
+	// RotationGracePeriod — how long a token stays acceptable after it has been
+	// rotated (#777).
+	//
+	// A legitimate client replays a refresh token all the time: two tabs waking
+	// together, a retry after a timeout, a mobile app resuming. That is
+	// indistinguishable from a stolen token being replayed, and answering both
+	// by killing the session punishes the honest case, which is the common one.
+	// Inside this window a replay is served the successor the first rotation
+	// already minted; outside it, reuse detection applies unchanged.
+	//
+	// It covers a burst of parallel requests and one retry, nothing more, and is
+	// never read from the request. It is deliberately short: what makes the
+	// window safe is that a replay inside it yields no token of its own (see
+	// successorSecret), not its length.
+	RotationGracePeriod = 10 * time.Second
 )
 
 // RefreshToken represents a refresh token stored in database.
@@ -144,6 +162,9 @@ type TokenManager struct {
 	rsaKeys     *authpkg.RSAKeys
 	resolver    SessionResolver
 	orgResolver OrgSessionResolver
+
+	successorKeyOnce sync.Once
+	successorKey     []byte
 }
 
 // NewTokenManager creates a new token manager
@@ -268,12 +289,15 @@ func (tm *TokenManager) GenerateMFAEnrollmentToken(userID, tenantID uuid.UUID) (
 // detection (RFC 9700 §4.14.2):
 //
 //   - The presented token is looked up. Unknown → ErrRefreshTokenInvalid.
-//   - If it was ALREADY rotated (spent), presenting it again means the lineage is
-//     in more than one party's hands: the entire family is revoked and
-//     ErrRefreshTokenReuse is returned so the client is forced to re-authenticate.
+//   - If it was ALREADY rotated (spent) more than RotationGracePeriod ago,
+//     presenting it again means the lineage is in more than one party's hands:
+//     the entire family is revoked and ErrRefreshTokenReuse is returned so the
+//     client is forced to re-authenticate. Inside that window the replay is read
+//     as the same client asking twice, and is served the successor the first
+//     rotation already minted — never a second live token.
 //   - Otherwise it is claimed ATOMICALLY (UPDATE ... WHERE rotated_at IS NULL). If
-//     two requests race, exactly one flips the flag; the loser is treated as reuse
-//     and the family is revoked.
+//     two requests race, exactly one flips the flag; the losers fall under the
+//     same window rule, dated by the winner's rotation.
 //   - Claims are re-resolved for the session's OWN organization (via the org
 //     resolver) so a refresh keeps the user on the org they switched to, and
 //     revoked permissions take effect on the next refresh.
@@ -296,8 +320,10 @@ func (tm *TokenManager) RefreshTokenPair(ctx context.Context, refreshTokenValue 
 	}
 
 	// REUSE DETECTION: a token already consumed by a rotation is being replayed.
-	// The lineage is compromised — revoke the whole family and refuse.
-	if refreshToken.RotatedAt != nil {
+	// Past the grace window the lineage is in more than one party's hands —
+	// revoke the whole family and refuse. Inside it, this is the same client
+	// asking twice, and we mint another token in the family below (#777).
+	if refreshToken.RotatedAt != nil && !rotatedWithinGrace(refreshToken.RotatedAt) {
 		tm.revokeFamily(ctx, refreshToken.FamilyID)
 		return nil, ErrRefreshTokenReuse
 	}
@@ -310,18 +336,28 @@ func (tm *TokenManager) RefreshTokenPair(ctx context.Context, refreshTokenValue 
 
 	// ATOMIC CLAIM: only the winner of a concurrent rotation flips rotated_at from
 	// NULL. The row is kept (not deleted) so a replay is recognisable as reuse.
-	now := time.Now()
-	res := tm.db.WithContext(ctx).Model(&RefreshToken{}).
-		Where("id = ? AND rotated_at IS NULL", refreshToken.ID).
-		Update("rotated_at", now)
-	if res.Error != nil {
-		return nil, fmt.Errorf("failed to rotate refresh token: %w", res.Error)
-	}
-	if res.RowsAffected != 1 {
-		// A concurrent request already rotated this exact single-use token. Two
-		// live holders of one token is a compromise signal → revoke the family.
-		tm.revokeFamily(ctx, refreshToken.FamilyID)
-		return nil, ErrRefreshTokenReuse
+	// A token already spent when we read it skips the claim: it is a replay we
+	// decided to honour above, and the winner's rotated_at is the one that dates
+	// the window.
+	if refreshToken.RotatedAt == nil {
+		res := tm.db.WithContext(ctx).Model(&RefreshToken{}).
+			Where("id = ? AND rotated_at IS NULL", refreshToken.ID).
+			Update("rotated_at", time.Now())
+		if res.Error != nil {
+			return nil, fmt.Errorf("failed to rotate refresh token: %w", res.Error)
+		}
+		if res.RowsAffected != 1 {
+			// Someone claimed this token between our read and our update. Re-read
+			// the row to date their rotation: within the window it is the same
+			// burst as ours, past it — or if the row is gone, swept by a
+			// revocation — the lineage is compromised (#777).
+			var claimed RefreshToken
+			if err := tm.db.WithContext(ctx).First(&claimed, "id = ?", refreshToken.ID).Error; err != nil ||
+				!rotatedWithinGrace(claimed.RotatedAt) {
+				tm.revokeFamily(ctx, refreshToken.FamilyID)
+				return nil, ErrRefreshTokenReuse
+			}
+		}
 	}
 
 	// Preserve (and freshen) claims for the session's OWN organization so a refresh
@@ -366,7 +402,128 @@ func (tm *TokenManager) RefreshTokenPair(ctx context.Context, refreshTokenValue 
 	if next.UserAgent == "" {
 		next.UserAgent = refreshToken.UserAgent
 	}
-	return tm.generatePair(ctx, refreshToken.UserID, tenantID, orgRoles, permissions, featureFlags, next, refreshToken.FamilyID)
+	// The successor is derived from the presented token, not drawn at random, so
+	// a replay inside the window is served the token the first rotation already
+	// minted rather than one of its own (#777).
+	pair, err := tm.issueSuccessor(ctx, refreshToken, tm.successorSecret(refreshTokenValue, refreshToken.FamilyID),
+		tenantID, orgRoles, permissions, featureFlags, next)
+	if errors.Is(err, ErrRefreshTokenReuse) {
+		// The successor was itself spent: the chain moved on while this step was
+		// being replayed.
+		tm.revokeFamily(ctx, refreshToken.FamilyID)
+		return nil, err
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	// A concurrent request may have revoked this family while we were resolving
+	// claims. Its DELETE could not carry away a row that did not exist yet, so
+	// the token we have just minted would outlive the revocation it raced (#775).
+	//
+	// The row we claimed above is the family's witness: rotation keeps it, and
+	// only a revocation (or an explicit logout) takes it away. If it is gone, the
+	// lineage was declared compromised — drop what we issued and refuse, the same
+	// answer the losing request got.
+	if !tm.tokenExists(ctx, refreshToken.ID) {
+		tm.revokeFamily(ctx, refreshToken.FamilyID)
+		return nil, ErrRefreshTokenReuse
+	}
+	return pair, nil
+}
+
+// successorSecret derives the refresh token that rotating `presented` mints.
+//
+// Deterministic on purpose (#777). Every request replaying one token inside the
+// grace window therefore lands on the SAME successor instead of minting a
+// sibling of its own. One live token per family, so the lineage cannot fork —
+// and a fork is not a small thing: two live chains under one family_id would
+// both rotate happily, never replay a spent token, and never trip reuse
+// detection again. A thief would simply run alongside the owner, unseen.
+//
+// Keyed by server-side material, so holding a token does not let anyone compute
+// the rest of the chain offline. Without the key the next value is unguessable;
+// obtaining it means asking the server, which spends the presented token and
+// puts the conflict where reuse detection can see it.
+func (tm *TokenManager) successorSecret(presented string, familyID uuid.UUID) string {
+	mac := hmac.New(sha256.New, tm.derivationKey())
+	mac.Write([]byte("openrisk/refresh-successor/v1\x00"))
+	mac.Write([]byte(familyID.String()))
+	mac.Write([]byte{0})
+	mac.Write([]byte(presented))
+	return hex.EncodeToString(mac.Sum(nil))
+}
+
+// derivationKey is the HMAC key behind successorSecret, derived from the signing
+// key the manager already holds so operators have no new secret to provision.
+// Rotating the signing key changes it, which at worst makes a replay in flight
+// at that exact moment mint a sibling instead of finding its successor.
+func (tm *TokenManager) derivationKey() []byte {
+	tm.successorKeyOnce.Do(func() {
+		h := sha256.New()
+		h.Write([]byte("openrisk/refresh-successor-key/v1\x00"))
+		if tm.rsaKeys != nil && tm.rsaKeys.PrivateKey != nil {
+			h.Write(x509.MarshalPKCS1PrivateKey(tm.rsaKeys.PrivateKey))
+		}
+		tm.successorKey = h.Sum(nil)
+	})
+	return tm.successorKey
+}
+
+// issueSuccessor stores the successor row for a rotation — or finds the one that
+// is already there — and mints the pair for it.
+//
+// Concurrent requests deriving the same successor collide on the token_hash
+// unique index. The loser reads the row the winner wrote and returns the very
+// same token, which is what keeps a burst from forking the family. A successor
+// that has itself been rotated means the chain moved on while someone kept a
+// copy of an older step: that is reuse, and the caller revokes.
+func (tm *TokenManager) issueSuccessor(ctx context.Context, prev RefreshToken, secret string, tenantID uuid.UUID, orgRoles map[uuid.UUID]string, permissions, featureFlags []string, device DeviceContext) (*TokenPair, error) {
+	row := &RefreshToken{
+		UserID:            prev.UserID,
+		TenantID:          tenantID,
+		FamilyID:          prev.FamilyID,
+		TokenHash:         hashToken(secret),
+		DeviceFingerprint: device.Fingerprint,
+		IPAddress:         device.IP,
+		UserAgent:         truncateUA(device.UserAgent),
+		ExpiresAt:         time.Now().Add(RefreshTokenTTL),
+	}
+	if createErr := tm.db.WithContext(ctx).Create(row).Error; createErr != nil {
+		var existing RefreshToken
+		if err := tm.db.WithContext(ctx).First(&existing, "token_hash = ?", row.TokenHash).Error; err != nil {
+			return nil, fmt.Errorf("failed to store refresh token: %w", createErr)
+		}
+		if existing.RotatedAt != nil {
+			return nil, ErrRefreshTokenReuse
+		}
+	}
+
+	accessToken, _, err := authpkg.GenerateAccessToken(tm.rsaKeys, prev.UserID, tenantID, orgRoles, permissions, featureFlags, AccessTokenTTL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate access token: %w", err)
+	}
+	return authpkg.NewTokenPair(accessToken, secret, int64(AccessTokenTTL.Seconds())), nil
+}
+
+// rotatedWithinGrace reports whether a spent token is being presented inside the
+// window where a replay is still read as the same client asking twice, rather
+// than as a compromised lineage (#777). A token that was never rotated is not
+// within it: that case belongs to the atomic claim, not here.
+func rotatedWithinGrace(rotatedAt *time.Time) bool {
+	return rotatedAt != nil && time.Since(*rotatedAt) <= RotationGracePeriod
+}
+
+// tokenExists reports whether a refresh token row is still stored, by primary
+// key. Used to re-check a revocation that may have landed mid-rotation.
+func (tm *TokenManager) tokenExists(ctx context.Context, id uuid.UUID) bool {
+	var n int64
+	if err := tm.db.WithContext(ctx).Model(&RefreshToken{}).Where("id = ?", id).Count(&n).Error; err != nil {
+		// Treat an unreadable state as revoked: refusing a refresh costs a
+		// re-authentication, keeping one alive costs a live session.
+		return false
+	}
+	return n > 0
 }
 
 // revokeFamily deletes every refresh token in a lineage. Best-effort: a failure

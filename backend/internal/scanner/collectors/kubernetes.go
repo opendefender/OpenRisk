@@ -8,6 +8,8 @@ package collectors
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"net/url"
 	"strings"
 
 	corev1 "k8s.io/api/core/v1"
@@ -31,20 +33,35 @@ func (Kubernetes) Collect(ctx context.Context, cfg scanner.ScanConfig, assets ch
 	restCfg := &rest.Config{
 		Host:        cfg.Credentials["api_server"],
 		BearerToken: cfg.Credentials["token"],
+		// api_server comes from the tenant: dial through the guard and never
+		// through HTTP(S)_PROXY, which would fetch a denied target for us (#750).
+		Dial:  egress.dialer().DialContext,
+		Proxy: func(*http.Request) (*url.URL, error) { return nil, nil },
 	}
-	if ca := cfg.Credentials["ca_cert"]; ca != "" {
-		restCfg.TLSClientConfig.CAData = []byte(ca)
-	} else {
-		// No CA provided → skip verification (self-signed clusters). Documented
-		// on the connector; production configs should supply ca_cert.
-		restCfg.TLSClientConfig.Insecure = true
-	}
+	restCfg.TLSClientConfig = k8sTLSConfig(cfg.Credentials)
 	clientset, err := kubernetes.NewForConfig(restCfg)
 	if err != nil {
 		errs <- fmt.Errorf("kubernetes: client: %w", err)
 		return
 	}
 	collectK8s(ctx, clientset, assets, findings, errs)
+}
+
+// k8sTLSConfig decides how the cluster's certificate is checked (#770).
+//
+// ca_cert pins the connection to that CA. Without one, verification stays on
+// against the system roots; it is skipped only when the config asks for it with
+// insecure="true", the same explicit opt-in the VMware connector requires. The
+// scan carries the tenant's ServiceAccount token, so a silent downgrade would
+// hand that token to whoever answers the connection.
+//
+// The two are never combined: client-go rejects a config that pins a CA and
+// skips verification at the same time, and ca_cert is the stricter intent.
+func k8sTLSConfig(creds map[string]string) rest.TLSClientConfig {
+	if ca := strings.TrimSpace(creds["ca_cert"]); ca != "" {
+		return rest.TLSClientConfig{CAData: []byte(ca)}
+	}
+	return rest.TLSClientConfig{Insecure: creds["insecure"] == "true"}
 }
 
 // collectK8s enumerates nodes and pods from any kubernetes.Interface, so it can

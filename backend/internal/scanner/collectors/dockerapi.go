@@ -16,6 +16,8 @@ import (
 	"net/url"
 	"strings"
 	"time"
+
+	scanner "github.com/opendefender/openrisk/internal/scanner"
 )
 
 // This file speaks the Docker Engine REST API directly instead of importing
@@ -81,6 +83,11 @@ func newDockerAPI(creds map[string]string) (*dockerAPI, error) {
 
 	switch scheme {
 	case "unix":
+		// The socket is the Docker daemon of whatever host runs the API pod.
+		// Only an operator can open it (#750).
+		if !scanner.DockerSocketEnabled() {
+			return nil, fmt.Errorf("unix sockets are disabled on this deployment (operator setting %s)", scanner.DockerSocketEnv)
+		}
 		// The URL host is ignored by the dialer but must be present and stable,
 		// otherwise net/http cannot build a request.
 		return &dockerAPI{
@@ -109,8 +116,9 @@ func newDockerAPI(creds map[string]string) (*dockerAPI, error) {
 		return &dockerAPI{
 			base: urlScheme + "://" + addr,
 			http: &http.Client{
-				Timeout:   dockerRequestTimeout,
-				Transport: &http.Transport{TLSClientConfig: tlsConf},
+				Timeout: dockerRequestTimeout,
+				// Guarded dialer: the daemon address comes from the tenant (#750).
+				Transport: &http.Transport{TLSClientConfig: tlsConf, DialContext: egress.dialer().DialContext},
 			},
 		}, nil
 

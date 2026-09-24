@@ -20,6 +20,7 @@ import (
 // standing in for a GitHub Enterprise API, and asserts repos become assets and
 // public repos become exposure findings.
 func TestGitHubCollect(t *testing.T) {
+	unguardedEgress(t)
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "/api/v3/user/repos", r.URL.Path)
 		assert.Equal(t, "Bearer ghp_test", r.Header.Get("Authorization"))
