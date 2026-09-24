@@ -5,6 +5,99 @@ recommends, and surfaces these in the daily brief. Run `/decide` to clear them.
 
 ## Open
 
+### D-049 — force a password change at the first administrator's first sign-in · raised 2026-09-24
+**Raised by** — #485. The issue asks that "le premier démarrage génère un mot de passe aléatoire
+et impose son changement". The first half is implemented; the second is auth design, so it
+comes here instead of into the PR.
+
+**Context** — Since #485 the first boot never seeds `admin123`. The backend uses
+`INITIAL_ADMIN_PASSWORD`, or generates 32 random characters (about 190 bits) into a `0600`
+file and logs only the path (`backend/internal/handler/seed_admin.go`). Nothing yet stops that
+administrator from keeping the generated password forever, and the file stays on disk until
+someone deletes it. The only existing mechanism, `password_reset_required` (#784), goes through
+the emailed reset flow, which a fresh self-hosted instance often cannot use (no SMTP).
+
+**Options**
+- **A — `password_change_required` flag on the user.** Set by the seed. Sign-in succeeds, but
+  the session is restricted to `POST /auth/password/change` (#720) and `/auth/me` by a
+  middleware until the password changes. The frontend sends the user to the change-password
+  screen. Changing the password clears the flag and deletes the generated file. Needs a
+  migration (one column added, nothing dropped), a middleware and a guarded route. The
+  restriction must be enforced server-side, or the flag is cosmetic.
+- **B — the generated password expires.** It is valid for N hours, after which only the reset
+  flow works. Simpler, but it depends on SMTP and does not force anything within those N hours.
+- **C — stay as built.** A strong random password plus the documentation telling people to
+  change it. The warning at boot covers only the old `admin123`.
+
+**Recommendation** — **A.** It is the only option that actually forces the change, and it
+reuses the password-change endpoint decided in D-047. B fails exactly where self-hosters are,
+without mail.
+
+**Cost of delay** — Low to medium. The generated password is strong and never logged. The
+exposure is a readable file left in the secrets volume and an administrator password that
+may never be rotated.
+
+**Blocks** — #485 task 1, second half ("impose son changement").
+
+### D-050 — no history rewrite for the old default credentials; rotate instead · raised 2026-09-24
+**Raised by** — #485 task 2 ("décider si une réécriture d'historique est nécessaire").
+A rewrite is irreversible, so it is not an agent's call.
+
+**What `git log -S` and a full gitleaks scan found** (gitleaks 8.21.2 over 1 496 commits, 2026-09-24)
+- `admin123`: present since 2025-11-24 (`df7ab12b`) in the seed, the E2E workflow, and about
+  fifteen guides. It is a default, not a secret: anyone who has read the source knows it. It is
+  gone from every live path since #485; only a detection constant and the history still hold it.
+- Two 32-character example passwords in README.md and docs/SELF_HOSTING.md (`8xKq2m…`,
+  `e7733bb5`/`16d60194`, then `ccsc7T…`, `95695f79`, 2026-09-09). The second was added the
+  day the self-host install was "verified by hand on a clean stack", so it may be a password an
+  installer actually printed. Replaced with a placeholder in #485.
+- 33 other hits, all checked by hand: documentation placeholders (`YOUR_TOKEN`, truncated JWTs,
+  `opnrsk_abcd1234…`), test fixtures, a `k8s/secret.yaml` whose value decodes to the text
+  `base64encodedvalue`, and a local invitation token in a `.playwright-mcp/` snapshot
+  (localhost, test domain, expired after 72 h). No live key, token or cloud credential.
+
+**Options**
+- **A — no rewrite, rotate.** Change the administrator password on every instance seeded before
+  #485, and on any instance that ever used the `ccsc7T…` password. The backend now logs a
+  `SECURITY WARNING` at every boot while `admin@opendefender.io` still accepts `admin123`.
+- **B — rewrite history** (`git filter-repo`) to drop those values. It does not unpublish them
+  (forks, clones, caches and archives keep them), it invalidates every clone, fork and open PR,
+  and it breaks the commit references in `docs/JOURNAL.md`, the CHANGELOG and the issues.
+
+**Recommendation** — **A.** Once published, a credential is neutralised by rotating it, not
+by editing history. B has a certain cost and no security benefit.
+
+**Owner action needed either way** — rotate the administrator password of every instance you
+run that was first started before #485 (staging, demo, the 2026-09-09 manual install).
+
+### D-051 — external penetration test before the first pilots? · raised 2026-09-24
+**Raised by** — #485 task 6, linked to #494 (recruiting three pilot organisations: a bank under
+COBAC supervision, a microfinance institution, a GRC consultancy). It costs money, so it is
+the owner's call.
+
+**Context** — No external penetration test has ever been run; SECURITY.md now says so
+openly. The internal audit (`docs/security/AUDIT_2026-07.md`) is not independent, and it marked
+finding F-08 (example credentials in the guides) as fixed while about fifteen guides still
+showed `admin123` until #485. A supervised bank will almost certainly ask for a recent
+third-party report during procurement.
+
+**Options**
+- **A — budget a scoped test before the first pilot handles real data.** Scope: authentication
+  and sessions, tenant isolation, the file and import endpoints, the Helm and self-host
+  deployments. Quotes need to be collected; no amount is assumed here.
+- **B — start the pilots on synthetic or non-sensitive data, and test before any production
+  data.** Keeps the calendar of #494, and moves the cost a few months later.
+- **C — no test for now.** Rely on the disclosure policy and the internal audits. Likely to block
+  the banking pilot at procurement.
+
+**Recommendation** — **B, with A's scope fixed now.** It keeps #494 moving without putting
+real customer data on an untested platform, and gives time to collect quotes.
+
+**Cost of delay** — The bank pilot in #494 may stall at the security questionnaire; the other
+two are less likely to ask.
+
+**Blocks** — #485 task 6; possibly the banking pilot in #494.
+
 ## Resolved
 
 ### D-047 — authenticated password change: kept as built · decided 2026-09-24
