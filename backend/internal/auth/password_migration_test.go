@@ -273,3 +273,30 @@ func TestNewConfiguredArgon2idPasswordHasher_MalformedFallsBackToDefaults(t *tes
 		t.Errorf("a refused value must fall back to the defaults, never to itself: %+v", got)
 	}
 }
+
+// A failed check against a legacy digest must cost about what a failed Argon2id
+// check costs; otherwise response time alone tells an attacker which accounts
+// exist and have not migrated. Without the fix the gap is four orders of
+// magnitude, so a loose bound is enough and keeps the test stable.
+func TestVerify_LegacySHA256_CostsAsMuchAsArgon2id(t *testing.T) {
+	h := fastHasher()
+	current, err := h.Hash("the-real-password")
+	if err != nil {
+		t.Fatal(err)
+	}
+	legacy := legacyDigest("the-real-password")
+
+	measure := func(stored string) time.Duration {
+		start := time.Now()
+		for i := 0; i < 3; i++ {
+			h.Verify(stored, "a-wrong-guess")
+		}
+		return time.Since(start)
+	}
+	argon := measure(current)
+	old := measure(legacy)
+
+	if old < argon*3/10 {
+		t.Errorf("legacy check took %s against %s for Argon2id; the difference reveals the account", old, argon)
+	}
+}

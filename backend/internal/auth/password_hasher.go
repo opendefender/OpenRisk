@@ -225,10 +225,25 @@ func (h *Argon2idPasswordHasher) Verify(hashedPassword, plainPassword string) bo
 	case AlgorithmArgon2id:
 		return h.verifyArgon2id(hashedPassword, plainPassword)
 	case AlgorithmLegacySHA256:
+		// A SHA-256 check takes microseconds where Argon2id takes ~100 ms, so
+		// a fast 401 would tell anyone, password or not, that this account
+		// exists and has not migrated. Pay the Argon2id cost regardless.
+		h.spendArgon2idCost(plainPassword)
 		return verifyLegacySHA256(hashedPassword, plainPassword)
 	default:
 		return false
 	}
+}
+
+// legacyTimingSalt is a fixed salt for the throwaway derivation in
+// spendArgon2idCost. Its output is discarded, so a constant salt is fine.
+var legacyTimingSalt = make([]byte, 16)
+
+// spendArgon2idCost runs one derivation at this hasher's parameters and throws
+// the result away, so the legacy path costs the same as a normal check.
+func (h *Argon2idPasswordHasher) spendArgon2idCost(plainPassword string) {
+	_ = argon2.IDKey([]byte(plainPassword), legacyTimingSalt,
+		h.params.Time, h.params.Memory, h.params.Threads, h.params.KeyLen)
 }
 
 func (h *Argon2idPasswordHasher) verifyArgon2id(hashedPassword, plainPassword string) bool {
