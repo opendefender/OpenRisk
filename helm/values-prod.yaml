@@ -197,6 +197,5 @@ secrets:
   
   inline:
     databaseUrl: ""      # Use external secrets in production
-    jwtSecret: ""
     oauth2ClientId: ""
     oauth2ClientSecret: ""

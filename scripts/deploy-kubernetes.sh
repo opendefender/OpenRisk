@@ -101,8 +101,6 @@ create_secrets() {
     echo
     read -sp "Redis password: " REDIS_PASSWORD
     echo
-    read -sp "JWT secret: " JWT_SECRET
-    echo
     read -sp "OAuth2 Client ID: " OAUTH2_CLIENT_ID
     echo
     read -sp "OAuth2 Client Secret: " OAUTH2_CLIENT_SECRET
@@ -112,7 +110,6 @@ create_secrets() {
     kubectl create secret generic openrisk-secrets \
         --from-literal=database-url="postgresql://openrisk:${DB_PASSWORD}@postgres:5432/openrisk?sslmode=require" \
         --from-literal=redis-url="redis://:${REDIS_PASSWORD}@redis:6379/0" \
-        --from-literal=jwt-secret="$JWT_SECRET" \
         --from-literal=oauth2-client-id="$OAUTH2_CLIENT_ID" \
         --from-literal=oauth2-client-secret="$OAUTH2_CLIENT_SECRET" \
         -n "$NAMESPACE"

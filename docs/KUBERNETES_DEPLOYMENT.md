@@ -96,7 +96,6 @@ kubectl label namespace openrisk name=openrisk
 kubectl create secret generic openrisk-secrets \
   --from-literal=database-url='postgresql://openrisk:password@postgres:5432/openrisk' \
   --from-literal=redis-url='redis://:password@redis:6379/0' \
-  --from-literal=jwt-secret='your-secret-key-here' \
   --from-literal=oauth2-client-id='your-client-id' \
   --from-literal=oauth2-client-secret='your-client-secret' \
   -n openrisk
