@@ -26,7 +26,7 @@ RUN npm run build
 # Stage 3: Runtime
 # alpine:3.18 reached end of life in May 2025 and no longer gets fixes.
 FROM alpine:3.24
-RUN apk add --no-cache ca-certificates curl
+RUN apk upgrade --no-cache && apk add --no-cache ca-certificates curl
 
 WORKDIR /app
 
