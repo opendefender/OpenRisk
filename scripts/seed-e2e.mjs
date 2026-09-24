@@ -24,10 +24,17 @@ const SEED_IDS_FILE = path.resolve(HERE, '../tests/e2e/.seed-ids.json');
 const DATASET_FILE = path.resolve(HERE, '../dev/fixtures/e2e-dataset.json');
 
 const API_URL = process.env.E2E_API_URL || process.env.API_URL || 'http://localhost:8080/api/v1';
+// No default password (#485): it must match the backend's INITIAL_ADMIN_PASSWORD.
 const ADMIN = {
   email: process.env.E2E_ADMIN_EMAIL || 'admin@opendefender.io',
-  password: process.env.E2E_ADMIN_PASSWORD || 'admin123',
+  password: process.env.E2E_ADMIN_PASSWORD || '',
 };
+if (!ADMIN.password) {
+  console.error(
+    '[seed] E2E_ADMIN_PASSWORD is not set. Export the INITIAL_ADMIN_PASSWORD the backend was started with.',
+  );
+  process.exit(1);
+}
 
 const dataset = JSON.parse(fs.readFileSync(DATASET_FILE, 'utf8'));
 

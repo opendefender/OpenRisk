@@ -63,7 +63,6 @@ jobs:
       PORT: '8080'
       JWT_SECRET: e2e-secret-key-not-for-production
       CORS_ORIGINS: http://localhost:5173
-      INITIAL_ADMIN_PASSWORD: admin123
       # The backend starts from backend/, and MIGRATIONS_DIR defaults to
       # "migrations" relative to its working directory
       # (internal/migrations/migrator.go). The SQL migrations live at the
@@ -75,10 +74,18 @@ jobs:
       E2E_BASE_URL: http://localhost:5173
       E2E_API_URL: http://localhost:8080/api/v1
       E2E_ADMIN_EMAIL: admin@opendefender.io
-      E2E_ADMIN_PASSWORD: admin123
 
     steps:
       - uses: actions/checkout@v4
+
+      # A fresh admin password per run, shared by the backend (first-boot seed)
+      # and the harness. Never a fixed value in the repository (#485).
+      - name: Generate the admin password for this run
+        run: |
+          pw="$(openssl rand -hex 24)"
+          echo "::add-mask::$pw"
+          echo "INITIAL_ADMIN_PASSWORD=$pw" >> "$GITHUB_ENV"
+          echo "E2E_ADMIN_PASSWORD=$pw" >> "$GITHUB_ENV"
 
       - uses: actions/setup-go@v5
         with:
@@ -208,7 +215,6 @@ jobs:
       PORT: '8080'
       JWT_SECRET: e2e-secret-key-not-for-production
       CORS_ORIGINS: http://localhost:5173
-      INITIAL_ADMIN_PASSWORD: admin123
       # The backend starts from backend/, and MIGRATIONS_DIR defaults to
       # "migrations" relative to its working directory
       # (internal/migrations/migrator.go). The SQL migrations live at the
@@ -220,10 +226,18 @@ jobs:
       E2E_BASE_URL: http://localhost:5173
       E2E_API_URL: http://localhost:8080/api/v1
       E2E_ADMIN_EMAIL: admin@opendefender.io
-      E2E_ADMIN_PASSWORD: admin123
 
     steps:
       - uses: actions/checkout@v4
+
+      # A fresh admin password per run, shared by the backend (first-boot seed)
+      # and the harness. Never a fixed value in the repository (#485).
+      - name: Generate the admin password for this run
+        run: |
+          pw="$(openssl rand -hex 24)"
+          echo "::add-mask::$pw"
+          echo "INITIAL_ADMIN_PASSWORD=$pw" >> "$GITHUB_ENV"
+          echo "E2E_ADMIN_PASSWORD=$pw" >> "$GITHUB_ENV"
       - uses: actions/setup-go@v5
         with:
           go-version: '1.25'

@@ -147,6 +147,10 @@ docker run -d --name or-e2e-pg -e POSTGRES_USER=openrisk -e POSTGRES_PASSWORD=op
   -e POSTGRES_DB=openrisk_e2e -p 55432:5432 postgres:16-alpine
 docker run -d --name or-e2e-redis -p 56379:6379 redis:7-alpine
 
+# One admin password for this session, shared by the backend and the harness.
+# There is no default (#485).
+export OR_E2E_ADMIN_PASSWORD="$(openssl rand -hex 24)"
+
 # Throwaway key pair, outside the repository
 mkdir -p /tmp/or-e2e-keys
 ( umask 077 && openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out /tmp/or-e2e-keys/private.pem )
@@ -157,7 +161,7 @@ export DATABASE_URL="postgres://openrisk:openrisk@localhost:55432/openrisk_e2e?s
   DB_HOST=localhost DB_PORT=55432 DB_USER=openrisk DB_PASSWORD=openrisk DB_NAME=openrisk_e2e \
   REDIS_HOST=localhost REDIS_PORT=56379 APP_ENV=test PORT=8080 \
   JWT_SECRET=e2e-secret-key-not-for-production CORS_ORIGINS=http://localhost:5173 \
-  INITIAL_ADMIN_PASSWORD=admin123 MIGRATIONS_DIR=../migrations \
+  INITIAL_ADMIN_PASSWORD="$OR_E2E_ADMIN_PASSWORD" MIGRATIONS_DIR=../migrations \
   RSA_PRIVATE_KEY_PATH=/tmp/or-e2e-keys/private.pem RSA_PUBLIC_KEY_PATH=/tmp/or-e2e-keys/public.pem
 go build -o /tmp/or-e2e-openrisk ./cmd/server && /tmp/or-e2e-openrisk &
 
@@ -166,7 +170,7 @@ npm --prefix frontend run dev -- --port 5173 --strictPort &
 
 # One spec, both PR projects, one worker, as CI
 export E2E_NO_WEBSERVER=1 E2E_BASE_URL=http://localhost:5173 E2E_API_URL=http://localhost:8080/api/v1 \
-  E2E_ADMIN_EMAIL=admin@opendefender.io E2E_ADMIN_PASSWORD=admin123
+  E2E_ADMIN_EMAIL=admin@opendefender.io E2E_ADMIN_PASSWORD="$OR_E2E_ADMIN_PASSWORD"
 npx playwright test tests/e2e/journey.members.spec.ts --project=chromium --project="Mobile Chrome" --workers=1
 
 # The whole PR blocking set, as the PR job selects it
