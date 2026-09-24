@@ -64,7 +64,6 @@ services:
       # PANICS at boot, so the backend never starts (#728).
       REDIS_URL: redis://test_redis:6379/0
       ENVIRONMENT: test
-      JWT_SECRET: test-secret-key
       API_PORT: 8081
     ports:
       - "8081:8081"

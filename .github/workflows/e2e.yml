@@ -61,7 +61,6 @@ jobs:
       REDIS_PORT: '6379'
       APP_ENV: test
       PORT: '8080'
-      JWT_SECRET: e2e-secret-key-not-for-production
       CORS_ORIGINS: http://localhost:5173
       # The backend starts from backend/, and MIGRATIONS_DIR defaults to
       # "migrations" relative to its working directory
@@ -213,7 +212,6 @@ jobs:
       REDIS_PORT: '6379'
       APP_ENV: test
       PORT: '8080'
-      JWT_SECRET: e2e-secret-key-not-for-production
       CORS_ORIGINS: http://localhost:5173
       # The backend starts from backend/, and MIGRATIONS_DIR defaults to
       # "migrations" relative to its working directory
