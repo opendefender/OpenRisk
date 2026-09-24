@@ -4,7 +4,7 @@
 // "I forgot my password" — the request half of the reset flow.
 
 import { useState } from 'react';
-import { Link } from 'react-router';
+import { Link, useLocation } from 'react-router';
 import axios from 'axios';
 import { ArrowLeft, MailCheck } from 'lucide-react';
 
@@ -20,8 +20,11 @@ export function ForgotPasswordScreen() {
   const lang = useUIStore((s) => s.lang);
   const copy = authCopy(lang);
   const reduced = usePrefersReducedMotion();
+  const location = useLocation();
 
-  const [email, setEmail] = useState('');
+  // Prefilled when the sign-in screen sent someone here because their password
+  // must be reset (#484); it arrives in router state, never in the URL.
+  const [email, setEmail] = useState(() => prefilledEmail(location.state));
   const [sent, setSent] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -136,3 +139,9 @@ export function ForgotPasswordScreen() {
 }
 
 export default ForgotPasswordScreen;
+
+function prefilledEmail(state: unknown): string {
+  if (typeof state !== 'object' || state === null || !('email' in state)) return '';
+  const { email } = state as { email: unknown };
+  return typeof email === 'string' ? email : '';
+}
