@@ -92,3 +92,21 @@ func TestCreateScanConfig_Validation(t *testing.T) {
 		})
 	}
 }
+
+// #750: a config aimed at the API pod's own network is refused before it is
+// encrypted or stored.
+func TestCreateScanConfig_RejectsInternalEndpoint(t *testing.T) {
+	stored := false
+	repo := &mockConfigRepo{createFunc: func(context.Context, *domain.ScanConfig) error { stored = true; return nil }}
+	reg := testRegistry()
+	reg.Register(scanpkg.NewKubernetesScanner(nil))
+	uc := NewCreateScanConfigUseCase(repo, reg, testCipher())
+
+	_, err := uc.Execute(context.Background(), uuid.New(), uuid.New(), CreateScanConfigInput{
+		Name: "metadata", Provider: domain.ProviderKubernetes,
+		Credentials: map[string]string{"api_server": "https://169.254.169.254", "token": "t"},
+	})
+	require.Error(t, err)
+	assert.ErrorIs(t, err, domain.ErrValidation)
+	assert.False(t, stored, "a refused config must not be stored")
+}

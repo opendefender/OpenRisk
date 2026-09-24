@@ -26,7 +26,8 @@ type GitLab struct{}
 func NewGitLab() scanner.CloudCollector { return GitLab{} }
 
 func (GitLab) Collect(ctx context.Context, cfg scanner.ScanConfig, assets chan<- scanner.AssetDiscovery, findings chan<- scanner.FindingDiscovery, errs chan<- error) {
-	opts := []gitlab.ClientOptionFunc{}
+	// base_url comes from the tenant and receives its token: guarded client (#750).
+	opts := []gitlab.ClientOptionFunc{gitlab.WithHTTPClient(egress.client(scanHTTPTimeout))}
 	if base := strings.TrimSpace(cfg.Credentials["base_url"]); base != "" {
 		opts = append(opts, gitlab.WithBaseURL(base))
 	}

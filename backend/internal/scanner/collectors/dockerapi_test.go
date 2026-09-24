@@ -11,6 +11,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	scanner "github.com/opendefender/openrisk/internal/scanner"
 )
 
 // newTestDockerAPI points the client at a stub Engine.
@@ -126,7 +128,17 @@ func TestNewDockerAPI(t *testing.T) {
 		assert.Contains(t, err.Error(), "host")
 	})
 
+	t.Run("unix socket is refused unless the operator opts in", func(t *testing.T) {
+		t.Setenv(scanner.DockerSocketEnv, "")
+		for _, host := range []string{"unix:///var/run/docker.sock", "/var/run/docker.sock"} {
+			_, err := newDockerAPI(map[string]string{"host": host})
+			require.Error(t, err, host)
+			assert.Contains(t, err.Error(), scanner.DockerSocketEnv)
+		}
+	})
+
 	t.Run("unix socket", func(t *testing.T) {
+		t.Setenv(scanner.DockerSocketEnv, "true")
 		api, err := newDockerAPI(map[string]string{"host": "unix:///var/run/docker.sock"})
 		require.NoError(t, err)
 		// The URL host is a placeholder: the socket path lives in the dialer.

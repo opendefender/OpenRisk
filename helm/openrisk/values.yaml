@@ -48,6 +48,9 @@ backend:
     # self-hosted Jira), comma-separated CIDRs. Empty = public addresses only.
     # Loopback and link-local (cloud metadata) stay denied whatever this says.
     OUTBOUND_ALLOWED_CIDRS: ""
+    # "true" lets Docker scan configs use a unix socket mounted into the pod.
+    # Any tenant with scanner:create can then read that daemon. Default off.
+    SCANNER_DOCKER_SOCKET_ENABLED: "false"
   
   livenessProbe:
     httpGet:
