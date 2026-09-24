@@ -9,7 +9,7 @@ services:
     environment:
       POSTGRES_DB: openrisk_staging
       POSTGRES_USER: openrisk_user
-      POSTGRES_PASSWORD: ${STAGING_DB_PASSWORD:-staging_password_change_me}
+      POSTGRES_PASSWORD: ${STAGING_DB_PASSWORD:?set STAGING_DB_PASSWORD}
     volumes:
       - postgres_staging_data:/var/lib/postgresql/data
       - ./database/migrations:/docker-entrypoint-initdb.d
@@ -25,7 +25,7 @@ services:
 
   redis-staging:
     image: redis:7-alpine
-    command: redis-server --appendonly yes --requirepass ${STAGING_REDIS_PASSWORD:-staging_redis_change_me}
+    command: redis-server --appendonly yes --requirepass ${STAGING_REDIS_PASSWORD:?set STAGING_REDIS_PASSWORD}
     volumes:
       - redis_staging_data:/data
     ports:
@@ -47,16 +47,16 @@ services:
       DB_HOST: postgres-staging
       DB_PORT: 5432
       DB_USER: openrisk_user
-      DB_PASSWORD: ${STAGING_DB_PASSWORD:-staging_password_change_me}
+      DB_PASSWORD: ${STAGING_DB_PASSWORD:?set STAGING_DB_PASSWORD}
       DB_NAME: openrisk_staging
       DB_SSLMODE: disable
       REDIS_HOST: redis-staging
       REDIS_PORT: 6379
-      REDIS_PASSWORD: ${STAGING_REDIS_PASSWORD:-staging_redis_change_me}
+      REDIS_PASSWORD: ${STAGING_REDIS_PASSWORD:?set STAGING_REDIS_PASSWORD}
       # Same reason as the test stack (#728). The password belongs in the URL
       # too: this Redis requires one, and ParseURL is what the client uses.
-      REDIS_URL: redis://:${STAGING_REDIS_PASSWORD:-staging_redis_change_me}@redis-staging:6379/0
-      JWT_SECRET: ${STAGING_JWT_SECRET:-staging_jwt_secret_change_me}
+      REDIS_URL: redis://:${STAGING_REDIS_PASSWORD:?set STAGING_REDIS_PASSWORD}@redis-staging:6379/0
+      JWT_SECRET: ${STAGING_JWT_SECRET:?set STAGING_JWT_SECRET}
       LOG_LEVEL: debug
       CORS_ORIGINS: ${STAGING_CORS_ORIGINS:-http://localhost:3000,http://localhost:3001}
       API_PORT: 8080

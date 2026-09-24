@@ -9,7 +9,7 @@ services:
     container_name: openrisk_db
     environment:
       POSTGRES_USER: ${DB_USER:-openrisk}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-openrisk}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env, see .env.example}
       POSTGRES_DB: ${DB_NAME:-openrisk}
     ports:
       - "5434:5432"
@@ -86,11 +86,10 @@ services:
       DB_HOST: db
       DB_PORT: 5432
       DB_USER: ${DB_USER:-openrisk}
-      DB_PASSWORD: ${DB_PASSWORD:-openrisk}
+      DB_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env, see .env.example}
       DB_NAME: ${DB_NAME:-openrisk}
       # Server
       PORT: ${PORT:-8080}
-      JWT_SECRET: ${JWT_SECRET:-your-secret-key-change-in-production}
       # CORS
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173,http://localhost:3000}
       # Redis. BOTH spellings, because the product reads both: REDIS_URL feeds
