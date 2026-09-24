@@ -59,7 +59,7 @@ func NewAuthHandler() *AuthHandler {
 	authService := service.NewAuthService(jwtSecret, 24*time.Hour)
 	auditService := service.NewAuditService()
 	// Use Argon2id for secure password hashing (OWASP recommended)
-	passwordHasher := auth.NewArgon2idPasswordHasher()
+	passwordHasher := auth.NewConfiguredArgon2idPasswordHasher()
 	return &AuthHandler{
 		authService:    authService,
 		auditService:   auditService,

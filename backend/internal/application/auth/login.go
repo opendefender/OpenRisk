@@ -8,12 +8,14 @@ package auth
 import (
 	"context"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/opendefender/openrisk/internal/auth"
 	"github.com/opendefender/openrisk/internal/domain"
 	"github.com/opendefender/openrisk/internal/infrastructure/repository"
+	"github.com/opendefender/openrisk/pkg/monitoring"
 )
 
 // LoginInput represents the input for user login
@@ -71,6 +73,19 @@ type LoginUseCase struct {
 	mfaPolicies MFAPolicyReader
 	// now is injectable so the grace arithmetic is testable without sleeping.
 	now func() time.Time
+}
+
+// PasswordUpgrader is the half of the hasher that knows whether a stored hash
+// still meets today's policy.
+//
+// Kept separate from auth.PasswordHasher on purpose: that interface is
+// implemented by test doubles all over the suite, and widening it would force
+// every one of them to answer a question they have no opinion on. The login use
+// case asks for this one by type assertion and simply skips the upgrade when
+// the hasher cannot answer.
+type PasswordUpgrader interface {
+	NeedsRehash(hashed string) bool
+	Hash(password string) (string, error)
 }
 
 // MFAPolicyReader resolves one tenant's MFA grace policy.
@@ -172,6 +187,11 @@ func (uc *LoginUseCase) Execute(ctx context.Context, input LoginInput) (*LoginOu
 	if !uc.passwordHasher.Verify(user.Password, input.Password) {
 		return nil, domain.NewValidationError("invalid credentials")
 	}
+
+	// The password is correct and the plaintext is in hand: if the stored hash
+	// was written with a lower Argon2id cost than today's, rewrite it now.
+	// Nobody is asked to do anything when the cost goes up.
+	uc.upgradePasswordHash(ctx, user, input.Password)
 
 	// Get user's default organization
 	org, err := uc.userRepo.GetUserDefaultOrganization(ctx, user.ID)
@@ -294,6 +314,42 @@ func (uc *LoginUseCase) Execute(ctx context.Context, input LoginInput) (*LoginOu
 		BusinessRole: businessRole,
 		MFAStatus:    mfaStatus,
 	}, nil
+}
+
+// upgradePasswordHash rewrites the stored hash with current parameters when the
+// one on file was written before a cost increase. Called only with a verified
+// plaintext in hand.
+//
+// Best-effort by design. A write that fails costs the account one more login
+// before it migrates; failing the sign-in instead would turn a database hiccup
+// into a lockout, which is a worse outcome than a hash that stays old for
+// another day.
+func (uc *LoginUseCase) upgradePasswordHash(ctx context.Context, user *domain.User, plaintext string) {
+	upgrader, ok := uc.passwordHasher.(PasswordUpgrader)
+	if !ok || !upgrader.NeedsRehash(user.Password) {
+		return
+	}
+
+	stored := user.Password
+	previous := auth.HashAlgorithm(stored)
+
+	rehashed, err := upgrader.Hash(plaintext)
+	if err != nil {
+		log.Printf("password rehash skipped for user %s: %v", user.ID, err)
+		return
+	}
+
+	user.Password = rehashed
+	if err := uc.userRepo.Update(ctx, user); err != nil {
+		// Put the in-memory record back where it was, so it keeps matching the
+		// database: Execute writes this same row again for LastLogin, and a hash
+		// whose write we have already reported as failed must not ride along on
+		// that one and be counted by nothing.
+		user.Password = stored
+		log.Printf("password rehash not persisted for user %s: %v", user.ID, err)
+		return
+	}
+	monitoring.RecordPasswordHashUpgrade(previous)
 }
 
 // decideMFA resolves the requirement for one member against the tenant policy.

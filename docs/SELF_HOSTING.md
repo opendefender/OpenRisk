@@ -206,6 +206,39 @@ docker compose up -d --build        # rebuild + restart; migrations run on boot
 Schema migrations (GORM AutoMigrate + SQL migrations) run automatically on
 backend start. Your `.env` and `secrets/` are preserved across upgrades.
 
+### Password hashing
+
+Passwords are stored with Argon2id. The defaults are 64 MiB of memory,
+3 iterations and 4 lanes. Each sign-in holds that memory while it runs, and
+at most `ARGON2ID_MAX_CONCURRENT` hashes run at the same time; the others
+wait their turn. On a small machine you may want to lower the cost:
+
+```bash
+ARGON2ID_MEMORY_KIB=65536    # minimum 19456
+ARGON2ID_TIME=3              # minimum 2
+ARGON2ID_PARALLELISM=4       # 1 to 255
+ARGON2ID_MAX_CONCURRENT=4    # minimum 1
+```
+
+The backend refuses to start if a value is not a number or is below its
+minimum. Every hash stores its own parameters, so changing them never breaks
+an existing password. When you raise them, each account is rehashed with the
+new values at its next sign-in. The Helm chart gives the API 1 CPU and 1 GiB
+for this reason.
+
+Instances installed before June 2026 may still hold passwords stored as
+unsalted SHA-256. Those accounts cannot sign in, even with the right
+password: their owners have to use "Forgot password?", which stores the new
+one with Argon2id.
+
+To see how many are left, watch
+`openrisk_password_hash_accounts{algorithm="sha256_legacy"}` in Prometheus,
+refreshed every hour. `state="active"` counts accounts that still have to
+reset. `state="deleted"` counts soft-deleted accounts, which will never reset
+and keep their old hash until the row is purged.
+`openrisk_password_hash_upgrades_total` counts passwords rehashed at sign-in
+after a cost increase.
+
 ## Backup & restore
 
 ```bash
