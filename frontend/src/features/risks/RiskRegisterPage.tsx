@@ -52,7 +52,6 @@ import {
   StatusPill,
   Avatar,
   FwBadge,
-  arcPath,
   SkeletonRows,
   EmptyState,
   ErrorState,
@@ -82,6 +81,7 @@ import { useAuthStore } from '../../hooks/useAuthStore';
 import { isMissingRows } from '../../services/bulkService';
 import { mapRisk, relTime, type UiRisk } from './riskMap';
 import { EditRiskModal } from './components/EditRiskModal';
+import { ScoreWorking } from './components/ScoreWorking';
 import { CreateMitigationModal } from '../mitigations/CreateMitigationModal';
 import { useRiskFinancial } from '../financial/useFinancial';
 import { useRiskSmartScore } from './useSmartScore';
@@ -1668,67 +1668,13 @@ function DrawerDetails({ r, onCreateMiti }: { r: UiRisk; onCreateMiti: () => voi
 }
 
 function DrawerScore({ r }: { r: UiRisk }) {
-  const L = useUIStrings();
-  const lang = useUIStore((s) => s.lang);
-  const gauge = (val: number, max: number, lbl: string, col: string) => {
-    const pct = Math.max(0, Math.min(1, val / max)),
-      cx = 52,
-      cy = 52,
-      rr = 42;
-    const track = arcPath(cx, cy, rr, -130, 130);
-    const prog = arcPath(cx, cy, rr, -130, -130 + 260 * pct);
-    return (
-      <div className="text-center">
-        <div className="relative mx-auto" style={{ width: 104, height: 92 }}>
-          <svg viewBox="0 0 104 96" width={104} height={96}>
-            <path
-              d={track}
-              fill="none"
-              stroke="var(--bg-hover)"
-              strokeWidth={9}
-              strokeLinecap="round"
-            />
-            <path d={prog} fill="none" stroke={col} strokeWidth={9} strokeLinecap="round" />
-          </svg>
-          <div
-            className="mono absolute left-0 right-0 text-center text-[20px] font-bold text-ink"
-            style={{ top: 30 }}
-          >
-            {val.toFixed(1)}
-          </div>
-        </div>
-        <div className="text-[11.5px] text-ink-soft font-medium">{lbl}</div>
-      </div>
-    );
-  };
+  // The working comes from the server (#486). The three gauges that stood here
+  // were computed client-side from the mapped row, and the asset-criticality one
+  // could contradict the factor the Score Engine actually used — directly above
+  // the verified working. The terms and their ranges are in the working itself.
   return (
     <div className="p-[22px]">
-      <div className="flex justify-around mb-[22px]">
-        {gauge(r.prob * 10, 10, L.proba, 'var(--accent)')}
-        {gauge(r.impact, 10, L.impact, 'var(--high)')}
-        {gauge(r.ac, 3, lang === 'fr' ? 'Criticité actif' : 'Asset criticality', 'var(--info)')}
-      </div>
-      <div
-        className="text-center p-[18px] rounded-[14px]"
-        style={{ background: 'var(--bg-hover)' }}
-      >
-        <div className="mono text-[15px] text-ink-soft">
-          <span>{r.prob.toFixed(1)}</span>
-          <span className="mx-2 text-ink-muted">×</span>
-          <span>{r.impact.toFixed(1)}</span>
-          <span className="mx-2 text-ink-muted">×</span>
-          <span>{r.ac.toFixed(1)}</span>
-          <span className="mx-2.5 text-ink-muted">=</span>
-          <span className="text-[22px] font-bold" style={{ color: critColor[r.crit] }}>
-            {r.score.toFixed(1)}
-          </span>
-        </div>
-        <div className="text-[12px] text-ink-muted mt-2">
-          {lang === 'fr'
-            ? 'Probabilité × Impact × Criticité de l’actif'
-            : 'Probability × Impact × Asset criticality'}
-        </div>
-      </div>
+      <ScoreWorking riskId={r.id} storedScore={r.score} />
     </div>
   );
 }
