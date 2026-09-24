@@ -209,39 +209,35 @@ backend start. Your `.env` and `secrets/` are preserved across upgrades.
 ### Password hashing
 
 Passwords are stored with Argon2id. The defaults are 64 MiB of memory,
-3 iterations and 4 lanes. Each sign-in holds that memory while it runs, so on
-a small pod you may want to lower it:
+3 iterations and 4 lanes. Each sign-in holds that memory while it runs, and
+at most `ARGON2ID_MAX_CONCURRENT` hashes run at the same time; the others
+wait their turn. On a small machine you may want to lower the cost:
 
 ```bash
 ARGON2ID_MEMORY_KIB=65536    # minimum 19456
 ARGON2ID_TIME=3              # minimum 2
 ARGON2ID_PARALLELISM=4       # 1 to 255
+ARGON2ID_MAX_CONCURRENT=4    # minimum 1
 ```
 
 The backend refuses to start if a value is not a number or is below its
 minimum. Every hash stores its own parameters, so changing them never breaks
 an existing password. When you raise them, each account is rehashed with the
-new values at its next sign-in.
+new values at its next sign-in. The Helm chart gives the API 1 CPU and 1 GiB
+for this reason.
 
 Instances installed before June 2026 may still hold passwords stored as
-unsalted SHA-256. Each one is replaced with Argon2id when its owner next signs
-in. After the cutoff, a sign-in with such a password is refused with
-`password_reset_required`, and the user has to reset it:
+unsalted SHA-256. Those accounts cannot sign in, even with the right
+password: their owners have to use "Forgot password?", which stores the new
+one with Argon2id.
 
-```bash
-PASSWORD_LEGACY_HASH_CUTOFF=2026-12-31T23:59:59Z   # RFC 3339, this is the default
-```
-
-Track the migration in Prometheus:
-
-- `openrisk_password_hash_accounts{algorithm="sha256_legacy",state="active"}`:
-  accounts still waiting to migrate, refreshed every hour. The migration is
-  done when this reads 0. `state="deleted"` counts soft-deleted accounts, which
-  never sign in again and still hold their old hash.
-- `openrisk_password_hash_upgrades_total`: passwords rehashed at sign-in.
-- `openrisk_password_hash_expired_logins_total`: sign-ins refused after the
-  cutoff.
-- `openrisk_password_hash_legacy_cutoff_timestamp_seconds`: the cutoff in use.
+To see how many are left, watch
+`openrisk_password_hash_accounts{algorithm="sha256_legacy"}` in Prometheus,
+refreshed every hour. `state="active"` counts accounts that still have to
+reset. `state="deleted"` counts soft-deleted accounts, which will never reset
+and keep their old hash until the row is purged.
+`openrisk_password_hash_upgrades_total` counts passwords rehashed at sign-in
+after a cost increase.
 
 ## Backup & restore
 

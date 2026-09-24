@@ -5,39 +5,6 @@ recommends, and surfaces these in the daily brief. Run `/decide` to clear them.
 
 ## Open
 
-### D-048 — Argon2id migration: legacy SHA-256 accepted until a cutoff, and the cost vs. the Helm limit · raised 2026-09-23
-**Status** — built and in review on #484. Two points need the owner: one design choice to
-confirm, one sizing decision to take.
-
-**1. Legacy SHA-256 hashes are verified again, until a cutoff (confirm).**
-On `master`, Verify only accepts Argon2id, so an account that still holds the unsalted
-SHA-256 digest from the first release (written before fc72c5f, 2026-06-11) cannot sign in
-at all. #484 asks for transparent migration, so the hasher recognises that digest again,
-**only to replace it**: a correct password rewrites the hash to Argon2id at that sign-in.
-After `PASSWORD_LEGACY_HASH_CUTOFF` (default `2026-12-31T23:59:59Z`), a legacy hash gets
-403 `password_reset_required` instead of a session; a wrong password still gets the generic
-401, so the distinct answer reveals nothing without the password. Nothing can write SHA-256
-(tests pin it). *Recommendation: keep it.* The alternative is a forced reset for those
-accounts today, which is what they already get in practice.
-
-**2. The default cost does not fit the default pod (decide).**
-Defaults are m=64 MiB, t=3, p=4 (unchanged from `master`). Measured on 2026-09-23 on an
-i7-11850H: ~107 ms and 64 MiB per hash on one full core. The chart's API limit is
-500m CPU / 512 MiB (`helm/openrisk/values.yaml`). So a hash takes ~200 ms there, and
-about 6 concurrent sign-ins can reach the memory limit and get the pod OOM-killed.
-Options:
-- **A. Raise the chart's API limit** to 1 CPU / 1 GiB. Keeps the cost; more money per pod.
-- **B. Lower the default** to m=19 MiB, t=2, p=1 (an OWASP configuration). Fits the pod;
-  weaker against offline cracking. Existing hashes upgrade or stay valid on their own
-  either way (the parameters are stored in each hash).
-- **C. Keep both and cap concurrent hashes** with a semaphore in the hasher. A small
-  change, but it means sign-ins queue during a burst.
-
-*Recommendation: A, plus C as a guard.* Operators can already lower the cost today with
-`ARGON2ID_MEMORY_KIB` / `ARGON2ID_TIME` / `ARGON2ID_PARALLELISM`.
-**Cost of delay** — no regression: this risk is already on `master`. It is a sizing debt
-for any buyer who load-tests sign-in.
-
 ### D-047 — authenticated password change: built on the existing auth mechanisms · raised 2026-09-17
 **Status** — built and in review on #720 (PR stacked on #723). Escalated because it touches
 auth; it is a new capability assembled from existing parts, not a redesign. No action is
@@ -75,6 +42,45 @@ the reset flow. #720 adds `POST /auth/password/change`.
 
 
 ## Resolved
+
+### D-048 — Argon2id migration: no transparent migration; larger pod plus a concurrency cap · decided 2026-09-24
+**Decided (owner)** — **Point 1: refused.** SHA-256 hashes are not accepted again, not even
+once for a transparent migration. **Point 2: A + C.** The recommendation was followed on
+point 2, not on point 1.
+
+**Context** — #484. On `master`, only Argon2id is written, and a first-release SHA-256 digest
+(written before fc72c5f, 2026-06-11) already verifies nothing. PR #785 proposed accepting those
+digests again until a cutoff (2026-12-31), only to rewrite them as Argon2id at sign-in. It also
+found that the default cost (~107 ms and 64 MiB per hash on one core, measured on an
+i7-11850H) did not fit the chart's API limit of 500m / 512 MiB: about 6 concurrent sign-ins
+could get the pod OOM-killed.
+
+**Options put to the owner**
+- On 1: confirm the temporary acceptance until the cutoff, refuse it, or move the date.
+- On 2: **A.** raise the API limit to 1 CPU / 1 GiB · **B.** lower the default to
+  m=19 MiB, t=2, p=1 · **C.** cap concurrent derivations in code · or A + C.
+
+**Decided** — 1 → **refused**, 2 → **A + C**.
+
+**Consequences**
+- PR #785 no longer verifies SHA-256 at all, and the cutoff (`PASSWORD_LEGACY_HASH_CUTOFF`),
+  the 403 `password_reset_required` and their metrics are removed. A SHA-256 account gets the
+  generic 401 and recovers through "Forgot password?"; the reset flow never reads the old hash.
+  A refused SHA-256 check still pays one Argon2id derivation, so response time does not reveal
+  those accounts.
+- `openrisk_password_hash_accounts{algorithm="sha256_legacy"}` stays: it now counts the accounts
+  that still have to reset.
+- #784 / PR #786 (the sign-in message for `password_reset_required`) no longer has a purpose:
+  that response is never sent.
+- Chart: API limit raised to `cpu: 1000m`, `memory: 1Gi` (`helm/openrisk/values.yaml`); the
+  requests are unchanged, so the scheduling footprint is the same, and only the ceiling costs
+  more.
+- Code: every Argon2id derivation goes through a process-wide cap, `ARGON2ID_MAX_CONCURRENT`
+  (default 4, i.e. 256 MiB at the default cost). Past it, sign-ins wait instead of the pod
+  dying.
+
+**Reversible** — yes. Transparent migration could be reintroduced from the history of PR #785;
+the Helm limit and the cap are configuration.
 
 ### D-046 — ADR 0004 D6: the reminder worker's two departures are accepted as built · decided 2026-09-15
 **Decided (owner)** — **Keep both departures that PR #679 flagged, and amend D6 to match.** Both
