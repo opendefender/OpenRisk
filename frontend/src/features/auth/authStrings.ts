@@ -156,6 +156,9 @@ export interface AuthCopy {
   noAccount: string;
   createAccount: string;
   signInFailed: string;
+  /** The password was right but is stored under a retired algorithm (#484). */
+  signInResetRequired: string;
+  signInResetRequiredAction: string;
 
   // Register
   registerTitle: string;
@@ -261,6 +264,9 @@ const fr: AuthCopy = {
   noAccount: 'Pas encore de compte ?',
   createAccount: 'Créer un compte',
   signInFailed: 'E-mail ou mot de passe incorrect. Vérifiez et réessayez.',
+  signInResetRequired:
+    'Votre mot de passe est correct, mais il est enregistré dans un ancien format qui n’est plus accepté. Choisissez-en un nouveau pour vous connecter.',
+  signInResetRequiredAction: 'Réinitialiser mon mot de passe',
 
   registerTitle: 'Créer votre espace',
   registerSubtitle: 'Trois champs, et vous y êtes.',
@@ -372,6 +378,9 @@ const en: AuthCopy = {
   noAccount: 'No account yet?',
   createAccount: 'Create an account',
   signInFailed: 'Incorrect email or password. Please check and try again.',
+  signInResetRequired:
+    'Your password is correct, but it is stored in an old format that is no longer accepted. Choose a new one to sign in.',
+  signInResetRequiredAction: 'Reset my password',
 
   registerTitle: 'Create your workspace',
   registerSubtitle: 'Three fields and you’re in.',
