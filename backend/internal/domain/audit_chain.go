@@ -116,7 +116,12 @@ func (e *AuditEvent) SealChain(sequence int64, prevHash string) {
 	if e.CreatedAt.IsZero() {
 		e.CreatedAt = time.Now().UTC()
 	}
-	e.CreatedAt = e.CreatedAt.UTC()
+	// Postgres stores timestamptz to the microsecond. Hashing the nanoseconds
+	// Go carries meant the stored row could never re-hash to its sealed value:
+	// on Postgres every entry failed verification as "altered" (#486). The
+	// sqlite tests keep nanoseconds, which is how it went unseen. Truncate
+	// BEFORE hashing, so what is hashed is exactly what is stored.
+	e.CreatedAt = e.CreatedAt.UTC().Truncate(time.Microsecond)
 	e.Sequence = sequence
 	e.PrevHash = prevHash
 	e.Hash = e.ComputeHash()

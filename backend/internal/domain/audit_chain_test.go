@@ -225,3 +225,24 @@ func TestAuditRetentionPolicy_Validate(t *testing.T) {
 		}
 	}
 }
+
+// #486: Postgres keeps microseconds. A hash over nanoseconds could never be
+// recomputed from the stored row, so every entry verified as altered.
+func TestSealChain_HashSurvivesMicrosecondStorage(t *testing.T) {
+	ev := AuditEvent{
+		ID:        uuid.New(),
+		TenantID:  uuid.New(),
+		Action:    AuditActionUpdate,
+		CreatedAt: time.Date(2026, 9, 24, 12, 24, 7, 566768123, time.UTC),
+	}
+	ev.SealChain(1, GenesisHash)
+
+	stored := ev
+	stored.CreatedAt = ev.CreatedAt.Truncate(time.Microsecond) // what timestamptz keeps
+	if !stored.VerifyHash() {
+		t.Fatal("an entry read back from a microsecond store must still verify")
+	}
+	if ev.CreatedAt.Nanosecond()%1000 != 0 {
+		t.Fatalf("SealChain must hash a microsecond timestamp, got %v", ev.CreatedAt)
+	}
+}
