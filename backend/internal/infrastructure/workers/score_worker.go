@@ -42,6 +42,21 @@ type ScoreWorker struct {
 	engine   scoring.Engine
 	riskRepo RiskRepository
 	logger   zerolog.Logger
+	// audit journals every score the engine changes (#486). Optional: nil
+	// keeps the worker running without a trail, as before.
+	audit ScoreAuditAppender
+}
+
+// ScoreAuditAppender is the chained audit store (GormAuditChainRepository).
+type ScoreAuditAppender interface {
+	Append(ctx context.Context, e *domain.AuditEvent) error
+}
+
+// WithAudit attaches the audit trail. The engine rewrites a risk's score outside
+// any request, so without this the score an auditor sees has no recorded origin.
+func (w *ScoreWorker) WithAudit(a ScoreAuditAppender) *ScoreWorker {
+	w.audit = a
+	return w
 }
 
 // RiskRepository est l'interface minimale requise par le worker.
@@ -161,6 +176,18 @@ func (w *ScoreWorker) handleRiskUpdatedEvent(ctx context.Context, payload string
 		return
 	}
 
+	// Read the score being replaced BEFORE replacing it. It used to be read
+	// after the write, so the published old_score was always the new score and
+	// every delta was zero.
+	oldScore, oldErr := w.riskRepo.GetRiskScore(ctx, riskID, tenantID)
+	if oldErr != nil {
+		w.logger.Warn().
+			Err(oldErr).
+			Str("risk_id", event.RiskID).
+			Msg("failed to retrieve old risk score")
+		oldScore = 0
+	}
+
 	// Update database with retry logic
 	if err := w.retryUpdateScore(ctx, riskID, tenantID, breakdown); err != nil {
 		w.logger.Error().
@@ -171,16 +198,11 @@ func (w *ScoreWorker) handleRiskUpdatedEvent(ctx context.Context, payload string
 		return
 	}
 
-	// Publish risk.score_updated event
-	oldScore, err := w.riskRepo.GetRiskScore(ctx, riskID, tenantID)
-	if err != nil {
-		w.logger.Warn().
-			Err(err).
-			Str("risk_id", event.RiskID).
-			Msg("failed to retrieve old risk score")
-		oldScore = 0
+	if oldErr == nil {
+		w.journalScoreChange(ctx, riskID, tenantID, oldScore, event, breakdown)
 	}
 
+	// Publish risk.score_updated event
 	scoreUpdatedEvent := events.RiskScoreUpdatedEvent{
 		RiskID:       event.RiskID,
 		TenantID:     event.TenantID,
@@ -279,6 +301,44 @@ func (w *ScoreWorker) handleAssetCriticalityChangedEvent(ctx context.Context, pa
 		Str("asset_id", event.AssetID).
 		Int("affected_risks", len(risks)).
 		Msg("asset criticality change triggered risk recalculations")
+}
+
+// scoreEpsilon is half the stored precision (numeric(8,3)): below it the
+// score did not change as far as anyone reading it can tell.
+const scoreEpsilon = 0.0005
+
+// journalScoreChange appends one chained audit entry for a score the engine
+// actually moved, attributed to the job by name and carrying the exact terms
+// it multiplied — so the entry alone lets a reader redo the arithmetic.
+// Best-effort, like every audit write: the score is already stored.
+func (w *ScoreWorker) journalScoreChange(
+	ctx context.Context,
+	riskID, tenantID uuid.UUID,
+	oldScore float64,
+	event events.RiskUpdatedEvent,
+	breakdown scoring.ScoreBreakdown,
+) {
+	if w.audit == nil {
+		return
+	}
+	if d := breakdown.Score - oldScore; d < scoreEpsilon && d > -scoreEpsilon {
+		return
+	}
+	ev := domain.ScoreEngineAuditEvent(tenantID, riskID, oldScore, domain.ScoreEngineTerms{
+		Probability:      breakdown.Probability,
+		Impact:           breakdown.Impact,
+		AssetCriticality: breakdown.AssetCriticality,
+		Score:            breakdown.Score,
+		Criticality:      string(breakdown.Criticality),
+		Explanation:      breakdown.Explanation,
+		TriggeredBy:      event.TriggeredBy,
+	})
+	if err := w.audit.Append(ctx, ev); err != nil {
+		w.logger.Error().
+			Err(err).
+			Str("risk_id", riskID.String()).
+			Msg("failed to journal score change")
+	}
 }
 
 // retryUpdateScore met à jour le risque avec logique de retry.
