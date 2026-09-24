@@ -11,7 +11,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -39,34 +38,39 @@ func (r *rehashUsers) Update(_ context.Context, u *domain.User) error {
 
 const rehashPassword = "Ancre-Vitrail7-Cobalt"
 
-func newRehashHarness(t *testing.T, cutoff time.Time) (*LoginUseCase, *rehashUsers) {
+// newRehashHarness stores the password as Argon2id at t=2 and signs in through
+// a hasher that now writes t=3: the situation after an operator raises the cost.
+func newRehashHarness(t *testing.T) (*LoginUseCase, *rehashUsers) {
 	t.Helper()
 	uc, users, _, _ := newLoginHarness(t, domain.RoleUser)
-	sum := sha256.Sum256([]byte(rehashPassword))
-	users.user.Password = hex.EncodeToString(sum[:])
+	older := coreauth.NewArgon2idPasswordHasherWithParams(coreauth.Argon2idParams{
+		Time: 2, Memory: 19456, Threads: 1,
+	})
+	stored, err := older.Hash(rehashPassword)
+	require.NoError(t, err)
+	users.user.Password = stored
 
 	repo := &rehashUsers{loginUsers: users}
 	uc.userRepo = repo
 	uc.passwordHasher = coreauth.NewArgon2idPasswordHasherWithParams(coreauth.Argon2idParams{
-		Time: 2, Memory: 19456, Threads: 1,
+		Time: 3, Memory: 19456, Threads: 1,
 	})
-	uc.WithLegacyHashCutoff(cutoff)
 	return uc, repo
 }
 
 func TestLoginRehash_Success(t *testing.T) {
-	uc, repo := newRehashHarness(t, loginNow.Add(24*time.Hour))
+	uc, repo := newRehashHarness(t)
 
 	out, err := uc.Execute(context.Background(), LoginInput{Email: "admin@opendefender.io", Password: rehashPassword})
 	require.NoError(t, err)
 	require.NotNil(t, out)
 
 	require.NotEmpty(t, repo.written)
-	assert.Equal(t, coreauth.AlgorithmArgon2id, coreauth.HashAlgorithm(repo.written[0]), "the first write is the Argon2id rehash")
+	assert.Contains(t, repo.written[0], "$argon2id$v=19$m=19456,t=3,p=1$", "the first write is the rehash at today's cost")
 }
 
 func TestLoginRehash_NotFound(t *testing.T) {
-	uc, repo := newRehashHarness(t, loginNow.Add(24*time.Hour))
+	uc, repo := newRehashHarness(t)
 
 	_, err := uc.Execute(context.Background(), LoginInput{Email: "nobody@opendefender.io", Password: rehashPassword})
 	require.Error(t, err)
@@ -74,19 +78,22 @@ func TestLoginRehash_NotFound(t *testing.T) {
 }
 
 func TestLoginRehash_Unauthorized(t *testing.T) {
-	uc, repo := newRehashHarness(t, loginNow.Add(24*time.Hour))
+	uc, repo := newRehashHarness(t)
 
 	_, err := uc.Execute(context.Background(), LoginInput{Email: "admin@opendefender.io", Password: "wrong-password"})
 	require.Error(t, err)
-	assert.False(t, errors.Is(err, ErrPasswordResetRequired))
 	assert.Empty(t, repo.written, "no rehash without the password")
 }
 
-func TestLoginRehash_ExpiredLegacyHashIsRefused(t *testing.T) {
-	uc, repo := newRehashHarness(t, loginNow.Add(-time.Second))
+// D-048: a first-release SHA-256 digest no longer buys a session, even with
+// the right password, and nothing is written for it. The account resets.
+func TestLogin_LegacySHA256IsRefused(t *testing.T) {
+	uc, repo := newRehashHarness(t)
+	sum := sha256.Sum256([]byte(rehashPassword))
+	repo.user.Password = hex.EncodeToString(sum[:])
 
 	_, err := uc.Execute(context.Background(), LoginInput{Email: "admin@opendefender.io", Password: rehashPassword})
-	assert.ErrorIs(t, err, ErrPasswordResetRequired)
+	require.Error(t, err)
 	assert.Empty(t, repo.written)
 }
 
@@ -94,7 +101,7 @@ func TestLoginRehash_ExpiredLegacyHashIsRefused(t *testing.T) {
 // the in-memory row must go back to the stored hash, so the LastLogin write
 // that follows cannot smuggle the new hash in behind a failure already logged.
 func TestLoginRehash_FailedWriteDoesNotBlockSignIn(t *testing.T) {
-	uc, repo := newRehashHarness(t, loginNow.Add(24*time.Hour))
+	uc, repo := newRehashHarness(t)
 	repo.failFirstUpdate = true
 	legacy := repo.user.Password
 

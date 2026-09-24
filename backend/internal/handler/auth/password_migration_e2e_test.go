@@ -5,10 +5,12 @@
 
 package auth_test
 
-// End-to-end proof of the Argon2id migration (#484), through the real login
-// route, the real GORM user repository and the real hasher: an account still
-// holding the SHA-256 digest the first release wrote signs in once and leaves
-// with an Argon2id hash; after the cutoff it is sent to password reset instead.
+// End-to-end proof of the password hashing rules (#484, D-048), through the
+// real login route, the real GORM user repository and the real hasher:
+//   - an account still holding the SHA-256 digest the first release wrote is
+//     refused, even with the right password, and stays counted until it resets;
+//   - an Argon2id hash written at a lower cost is rewritten at today's cost on
+//     the next successful sign-in.
 
 import (
 	"context"
@@ -54,10 +56,9 @@ type migrationFixture struct {
 	census *repository.PasswordHashCensus
 }
 
-// newMigrationFixture seeds one account whose stored password is the unsalted
-// hex SHA-256 digest the pre-Argon2id hasher wrote, and mounts the login route
-// with the given cutoff.
-func newMigrationFixture(t *testing.T, cutoff time.Time) *migrationFixture {
+// newMigrationFixture seeds one account with the given stored hash and mounts
+// the login route over a hasher writing Argon2id at t=3.
+func newMigrationFixture(t *testing.T, stored string) *migrationFixture {
 	t.Helper()
 
 	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
@@ -93,11 +94,10 @@ func newMigrationFixture(t *testing.T, cutoff time.Time) *migrationFixture {
 		ID: orgID, Name: "Banque Atlantique", Slug: "banque-atlantique", IsActive: true, Plan: domain.PlanStarter,
 	}).Error)
 
-	digest := sha256.Sum256([]byte(migrationPassword))
 	user := &domain.User{
 		ID: uuid.New(), Email: "legacy@a.io", Username: "legacy",
 		FullName: "Legacy Account", IsActive: true,
-		Password: hex.EncodeToString(digest[:]), DefaultOrgID: &orgID,
+		Password: stored, DefaultOrgID: &orgID,
 	}
 	require.NoError(t, db.Create(user).Error)
 	require.NoError(t, db.Create(&domain.OrganizationMember{
@@ -112,11 +112,10 @@ func newMigrationFixture(t *testing.T, cutoff time.Time) *migrationFixture {
 	// The product's real hasher, at its floor cost so the suite stays fast. The
 	// cost is irrelevant to what is proven here; the algorithm is not.
 	hasher := coreauth.NewArgon2idPasswordHasherWithParams(coreauth.Argon2idParams{
-		Time: 2, Memory: 19456, Threads: 1,
+		Time: 3, Memory: 19456, Threads: 1,
 	})
 	userRepo := repository.NewGormUserRepository(db)
 	loginUC := appauth.NewLoginUseCase(userRepo, coreauth.NewTokenManager(db, keys), hasher).
-		WithLegacyHashCutoff(cutoff).
 		WithClock(func() time.Time { return migrationNow })
 
 	app := fiber.New()
@@ -151,68 +150,63 @@ func (f *migrationFixture) storedHash(t *testing.T) string {
 	return u.Password
 }
 
-func TestPasswordMigration_LegacyHashIsUpgradedOnSignIn(t *testing.T) {
-	f := newMigrationFixture(t, migrationNow.Add(90*24*time.Hour))
-	before := testutil.ToFloat64(monitoring.PasswordHashUpgradesTotal.WithLabelValues(coreauth.AlgorithmLegacySHA256))
+func legacyDigest(password string) string {
+	sum := sha256.Sum256([]byte(password))
+	return hex.EncodeToString(sum[:])
+}
+
+// D-048: no transparent migration. The right password on a SHA-256 account
+// gets the same 401 as a wrong one, nothing is rewritten, and the account stays
+// in the census until it resets its password.
+func TestPasswordMigration_LegacyHashIsRefused(t *testing.T) {
+	f := newMigrationFixture(t, legacyDigest(migrationPassword))
+	legacy := f.user.Password
+
+	status, body := f.login(t, migrationPassword)
+	assert.Equal(t, http.StatusUnauthorized, status, "a legacy digest must not buy a session: %v", body)
+	assert.Nil(t, body["token_pair"])
+	assert.Equal(t, legacy, f.storedHash(t), "nothing is rewritten for a hash that cannot verify")
 
 	counts, err := f.census.Count(context.Background())
 	require.NoError(t, err)
-	assert.Equal(t, int64(1), counts["active"][coreauth.AlgorithmLegacySHA256], "census must see the legacy account")
+	assert.Equal(t, int64(1), counts["active"][coreauth.AlgorithmLegacySHA256], "the account still has to reset")
+}
+
+func TestPasswordMigration_LowerCostArgon2idIsUpgradedOnSignIn(t *testing.T) {
+	older := coreauth.NewArgon2idPasswordHasherWithParams(coreauth.Argon2idParams{
+		Time: 2, Memory: 19456, Threads: 1,
+	})
+	stored, err := older.Hash(migrationPassword)
+	require.NoError(t, err)
+	f := newMigrationFixture(t, stored)
+	before := testutil.ToFloat64(monitoring.PasswordHashUpgradesTotal.WithLabelValues(coreauth.AlgorithmArgon2id))
 
 	status, body := f.login(t, migrationPassword)
-	require.Equal(t, http.StatusOK, status, "a legacy account signs in before the cutoff: %v", body)
+	require.Equal(t, http.StatusOK, status, "%v", body)
 
-	stored := f.storedHash(t)
-	assert.Equal(t, coreauth.AlgorithmArgon2id, coreauth.HashAlgorithm(stored), "the stored hash must now be Argon2id")
-	assert.True(t, coreauth.NewArgon2idPasswordHasher().Verify(stored, migrationPassword), "the new hash must verify the same password")
-	assert.Equal(t, before+1, testutil.ToFloat64(monitoring.PasswordHashUpgradesTotal.WithLabelValues(coreauth.AlgorithmLegacySHA256)))
+	upgraded := f.storedHash(t)
+	assert.True(t, strings.HasPrefix(upgraded, "$argon2id$v=19$m=19456,t=3,p=1$"), "rewritten at today's cost: %q", upgraded)
+	assert.Equal(t, before+1, testutil.ToFloat64(monitoring.PasswordHashUpgradesTotal.WithLabelValues(coreauth.AlgorithmArgon2id)))
 
-	// The metric the migration is judged by goes down by one.
-	counts, err = f.census.Count(context.Background())
-	require.NoError(t, err)
-	assert.Equal(t, int64(0), counts["active"][coreauth.AlgorithmLegacySHA256])
-	assert.Equal(t, int64(1), counts["active"][coreauth.AlgorithmArgon2id])
-
-	// And the account keeps working under its new hash.
 	status, _ = f.login(t, migrationPassword)
-	assert.Equal(t, http.StatusOK, status)
+	assert.Equal(t, http.StatusOK, status, "the account keeps working under its new hash")
 }
 
 func TestPasswordMigration_WrongPasswordUpgradesNothing(t *testing.T) {
-	f := newMigrationFixture(t, migrationNow.Add(90*24*time.Hour))
-	legacy := f.user.Password
+	older := coreauth.NewArgon2idPasswordHasherWithParams(coreauth.Argon2idParams{
+		Time: 2, Memory: 19456, Threads: 1,
+	})
+	stored, err := older.Hash(migrationPassword)
+	require.NoError(t, err)
+	f := newMigrationFixture(t, stored)
 
 	status, _ := f.login(t, migrationPassword+"x")
 	assert.Equal(t, http.StatusUnauthorized, status)
-	assert.Equal(t, legacy, f.storedHash(t), "no rehash without proof of the password")
-}
-
-func TestPasswordMigration_AfterCutoffTheAccountIsSentToReset(t *testing.T) {
-	f := newMigrationFixture(t, migrationNow.Add(-time.Hour))
-	legacy := f.user.Password
-	before := testutil.ToFloat64(monitoring.PasswordHashExpiredLoginsTotal)
-
-	status, body := f.login(t, migrationPassword)
-	assert.Equal(t, http.StatusForbidden, status)
-	assert.Equal(t, "password_reset_required", body["code"])
-	assert.Nil(t, body["token_pair"], "no session past the cutoff")
-	assert.Equal(t, legacy, f.storedHash(t), "a refused login must not upgrade the hash")
-	assert.Equal(t, before+1, testutil.ToFloat64(monitoring.PasswordHashExpiredLoginsTotal))
-}
-
-// The reset-required answer is only ever given to someone who knows the
-// password. A wrong guess past the cutoff gets the ordinary 401, so the
-// distinct answer is no oracle for "this account is on the old algorithm".
-func TestPasswordMigration_AfterCutoffAWrongPasswordLearnsNothing(t *testing.T) {
-	f := newMigrationFixture(t, migrationNow.Add(-time.Hour))
-
-	status, body := f.login(t, "not-the-password")
-	assert.Equal(t, http.StatusUnauthorized, status)
-	assert.NotEqual(t, "password_reset_required", body["code"])
+	assert.Equal(t, stored, f.storedHash(t), "no rehash without proof of the password")
 }
 
 func TestPasswordHashCensus_CountsDeletedAccountsSeparately(t *testing.T) {
-	f := newMigrationFixture(t, migrationNow.Add(90*24*time.Hour))
+	f := newMigrationFixture(t, legacyDigest(migrationPassword))
 	require.NoError(t, f.db.Delete(&domain.User{}, "id = ?", f.user.ID).Error)
 
 	counts, err := f.census.Count(context.Background())

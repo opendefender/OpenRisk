@@ -28,22 +28,18 @@ func fastHasher() *Argon2idPasswordHasher {
 	return NewArgon2idPasswordHasherWithParams(Argon2idParams{Time: 2, Memory: 19456, Threads: 1})
 }
 
-func TestVerify_LegacySHA256_Success(t *testing.T) {
+// D-048: the owner refused the transparent migration. A SHA-256 digest from the
+// first release verifies nothing, even with the right password; the account
+// signs in again after a password reset.
+func TestVerify_LegacySHA256_IsRefusedEvenWithTheRightPassword(t *testing.T) {
 	h := fastHasher()
 	stored := legacyDigest("legacy-password-1")
 
-	if !h.Verify(stored, "legacy-password-1") {
-		t.Error("a legacy digest must verify its own password so the account can migrate")
+	if h.Verify(stored, "legacy-password-1") {
+		t.Error("a legacy digest verified; D-048 requires a reset instead")
 	}
-	if !h.Verify(strings.ToUpper(stored), "legacy-password-1") {
-		t.Error("hex case must not matter")
-	}
-}
-
-func TestVerify_LegacySHA256_WrongPassword(t *testing.T) {
-	h := fastHasher()
-	if h.Verify(legacyDigest("legacy-password-1"), "legacy-password-2") {
-		t.Error("a wrong password verified against a legacy digest")
+	if h.Verify(strings.ToUpper(stored), "legacy-password-1") {
+		t.Error("an upper-case legacy digest verified")
 	}
 }
 
@@ -94,8 +90,8 @@ func TestNeedsRehash(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if !current.NeedsRehash(legacyDigest("p")) {
-		t.Error("a legacy digest must be scheduled for rehash")
+	if current.NeedsRehash(legacyDigest("p")) {
+		t.Error("a legacy digest cannot verify, so it can never be rehashed at sign-in")
 	}
 	if !current.NeedsRehash(stale) {
 		t.Error("an Argon2id hash below today's cost must be scheduled for rehash")
@@ -120,17 +116,13 @@ func TestHash_NeverWritesALegacyHash(t *testing.T) {
 		if HashAlgorithm(stored) != AlgorithmArgon2id {
 			t.Errorf("Hash(%q) produced %q (%s); only Argon2id may be written", password, stored, HashAlgorithm(stored))
 		}
-		if IsLegacyHash(stored) {
-			t.Errorf("Hash(%q) produced a legacy digest", password)
-		}
 	}
 }
 
-// TestNoSHA256WritePathInThePasswordHasher pins the second half of the guard:
-// SHA-256 appears in the password hasher only inside verifyLegacySHA256, which
-// reads and never writes. Reintroducing a SHA-256 hasher, or computing a digest
-// anywhere else in this file, fails here before it can reach a database.
-func TestNoSHA256WritePathInThePasswordHasher(t *testing.T) {
+// TestNoSHA256InThePasswordHasher pins the second half of the guard: the
+// password hasher does not use SHA-256 at all, to write or to check.
+// Reintroducing a SHA-256 hasher, or a SHA-256 check, fails here.
+func TestNoSHA256InThePasswordHasher(t *testing.T) {
 	fset := token.NewFileSet()
 	file, err := parser.ParseFile(fset, "password_hasher.go", nil, 0)
 	if err != nil {
@@ -146,8 +138,8 @@ func TestNoSHA256WritePathInThePasswordHasher(t *testing.T) {
 			if !ok {
 				return true
 			}
-			if pkg, ok := sel.X.(*ast.Ident); ok && pkg.Name == "sha256" && fn.Name.Name != "verifyLegacySHA256" {
-				t.Errorf("%s: sha256.%s used in %s; SHA-256 may only be read, in verifyLegacySHA256",
+			if pkg, ok := sel.X.(*ast.Ident); ok && pkg.Name == "sha256" {
+				t.Errorf("%s: sha256.%s used in %s; the password hasher must not use SHA-256",
 					fset.Position(sel.Pos()), sel.Sel.Name, fn.Name.Name)
 			}
 			return true
@@ -207,52 +199,6 @@ func TestArgon2idParamsFromEnv_RefusesWeakOrGarbage(t *testing.T) {
 	}
 }
 
-func TestLegacyHashCutoff_DefaultAndOverride(t *testing.T) {
-	t.Setenv("PASSWORD_LEGACY_HASH_CUTOFF", "")
-	got, err := LegacyHashCutoff()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if want := time.Date(2026, 12, 31, 23, 59, 59, 0, time.UTC); !got.Equal(want) {
-		t.Errorf("default cutoff = %s, want %s", got, want)
-	}
-
-	t.Setenv("PASSWORD_LEGACY_HASH_CUTOFF", "2027-03-31T00:00:00+01:00")
-	got, err = LegacyHashCutoff()
-	if err != nil {
-		t.Fatal(err)
-	}
-	if want := time.Date(2027, 3, 30, 23, 0, 0, 0, time.UTC); !got.Equal(want) {
-		t.Errorf("override cutoff = %s, want %s", got, want)
-	}
-}
-
-func TestLegacyHashCutoff_Malformed(t *testing.T) {
-	t.Setenv("PASSWORD_LEGACY_HASH_CUTOFF", "31/12/2026")
-	if _, err := LegacyHashCutoff(); err == nil {
-		t.Error("a malformed cutoff must be an error, not a silent default")
-	}
-	if LegacyHashCutoffOrDefault().IsZero() {
-		t.Error("the use-case fallback must never leave the migration without a deadline")
-	}
-}
-
-func TestLegacyHashExpired(t *testing.T) {
-	cutoff := time.Date(2026, 12, 31, 23, 59, 59, 0, time.UTC)
-	legacy := legacyDigest("p")
-	current, _ := fastHasher().Hash("p")
-
-	if LegacyHashExpired(legacy, cutoff.Add(-time.Second), cutoff) {
-		t.Error("a legacy hash is still accepted before the cutoff")
-	}
-	if !LegacyHashExpired(legacy, cutoff.Add(time.Second), cutoff) {
-		t.Error("a legacy hash must be refused after the cutoff")
-	}
-	if LegacyHashExpired(current, cutoff.Add(time.Hour), cutoff) {
-		t.Error("the cutoff only ever applies to legacy hashes")
-	}
-}
-
 func TestNewConfiguredArgon2idPasswordHasher_AppliesEnvironment(t *testing.T) {
 	t.Setenv("ARGON2ID_MEMORY_KIB", "19456")
 	t.Setenv("ARGON2ID_TIME", "2")
@@ -274,9 +220,9 @@ func TestNewConfiguredArgon2idPasswordHasher_MalformedFallsBackToDefaults(t *tes
 	}
 }
 
-// A failed check against a legacy digest must cost about what a failed Argon2id
-// check costs; otherwise response time alone tells an attacker which accounts
-// exist and have not migrated. Without the fix the gap is four orders of
+// A refused legacy digest must cost about what a failed Argon2id check costs;
+// otherwise response time alone tells an attacker which accounts exist and
+// still hold an old hash. Without the fix the gap is four orders of
 // magnitude, so a loose bound is enough and keeps the test stable.
 func TestVerify_LegacySHA256_CostsAsMuchAsArgon2id(t *testing.T) {
 	h := fastHasher()
@@ -298,5 +244,60 @@ func TestVerify_LegacySHA256_CostsAsMuchAsArgon2id(t *testing.T) {
 
 	if old < argon*3/10 {
 		t.Errorf("legacy check took %s against %s for Argon2id; the difference reveals the account", old, argon)
+	}
+}
+
+func TestArgon2idMaxConcurrentFromEnv(t *testing.T) {
+	t.Setenv("ARGON2ID_MAX_CONCURRENT", "8")
+	if n, err := Argon2idMaxConcurrentFromEnv(); err != nil || n != 8 {
+		t.Errorf("got %d, %v; want 8", n, err)
+	}
+	for _, bad := range []string{"0", "-1", "lots", ""} {
+		t.Setenv("ARGON2ID_MAX_CONCURRENT", bad)
+		if _, err := Argon2idMaxConcurrentFromEnv(); err == nil {
+			t.Errorf("ARGON2ID_MAX_CONCURRENT=%q accepted", bad)
+		}
+	}
+	t.Setenv("ARGON2ID_MAX_CONCURRENT", "")
+	if err := os.Unsetenv("ARGON2ID_MAX_CONCURRENT"); err != nil {
+		t.Fatal(err)
+	}
+	if n, err := Argon2idMaxConcurrentFromEnv(); err != nil || n != DefaultArgon2idMaxConcurrent {
+		t.Errorf("unset: got %d, %v; want the default", n, err)
+	}
+}
+
+// D-048, option C: no more than the cap run at once, however many sign-ins
+// arrive together. The slots are filled by hand so the test does not depend on
+// how fast this machine derives a key.
+func TestDeriveArgon2id_WaitsForAFreeSlot(t *testing.T) {
+	h := fastHasher()
+	if _, err := h.Hash("warm-up"); err != nil { // initialises the process-wide cap
+		t.Fatal(err)
+	}
+	for i := 0; i < cap(argon2Slots); i++ {
+		argon2Slots <- struct{}{}
+	}
+
+	done := make(chan struct{})
+	go func() {
+		_, _ = h.Hash("blocked")
+		close(done)
+	}()
+
+	select {
+	case <-done:
+		t.Fatal("a derivation ran while every slot was taken")
+	case <-time.After(200 * time.Millisecond):
+	}
+
+	<-argon2Slots // free one slot
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("the waiting derivation never ran after a slot was freed")
+	}
+	for i := 0; i < cap(argon2Slots)-1; i++ {
+		<-argon2Slots
 	}
 }

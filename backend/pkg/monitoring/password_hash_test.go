@@ -10,7 +10,6 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
@@ -23,7 +22,6 @@ func TestPasswordHashCensus_IsExposedOnMetrics(t *testing.T) {
 		PasswordHashStateActive:  {"argon2id": 40, "sha256_legacy": 2},
 		PasswordHashStateDeleted: {"sha256_legacy": 1},
 	})
-	SetPasswordHashLegacyCutoff(time.Date(2026, 12, 31, 23, 59, 59, 0, time.UTC))
 
 	rec := httptest.NewRecorder()
 	promhttp.Handler().ServeHTTP(rec, httptest.NewRequest("GET", "/metrics", nil))
@@ -40,7 +38,6 @@ func TestPasswordHashCensus_IsExposedOnMetrics(t *testing.T) {
 		// Absent pairs are published as zero, so "none left" reads as 0 rather
 		// than as a stale last value.
 		`openrisk_password_hash_accounts{algorithm="unknown",state="active"} 0`,
-		`openrisk_password_hash_legacy_cutoff_timestamp_seconds 1.798761599e+09`,
 	} {
 		if !strings.Contains(out, want) {
 			t.Errorf("/metrics is missing %q", want)

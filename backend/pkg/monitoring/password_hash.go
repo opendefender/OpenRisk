@@ -6,8 +6,6 @@
 package monitoring
 
 import (
-	"time"
-
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 )
@@ -23,15 +21,13 @@ var (
 	// argon2id / sha256_legacy / unknown, state is active / deleted — and
 	// neither is ever a tenant or a user.
 	//
-	// The state label exists because the two populations migrate differently. An
-	// active account upgrades itself the next time somebody signs in. A
-	// soft-deleted one never signs in, so its hash sits in the table until the
-	// row is erased for good — invisible to a gauge that filtered it out, and
-	// still in any dump of that table.
+	// sha256_legacy counts accounts still holding a digest from the first
+	// release. They cannot sign in (D-048) and leave the count by resetting
+	// their password. The state label separates soft-deleted rows: they will
+	// never reset, so their hash sits in the table, and in any dump of it,
+	// until the row is erased for good.
 	//
-	// The migration is done when sha256_legacy reads zero on active and stays
-	// there; the deleted series is what tells you whether purge, not sign-in, is
-	// the remaining work.
+	// Done when sha256_legacy reads zero on both states.
 	PasswordHashAccounts = promauto.NewGaugeVec(prometheus.GaugeOpts{
 		Namespace: "openrisk",
 		Name:      "password_hash_accounts",
@@ -39,31 +35,12 @@ var (
 	}, []string{"algorithm", "state"})
 
 	// PasswordHashUpgradesTotal counts passwords rewritten to current Argon2id
-	// parameters during a successful sign-in. Its rate is the migration's speed.
+	// parameters during a successful sign-in, after a cost increase.
 	PasswordHashUpgradesTotal = promauto.NewCounterVec(prometheus.CounterOpts{
 		Namespace: "openrisk",
 		Name:      "password_hash_upgrades_total",
 		Help:      "Passwords rehashed to current Argon2id parameters on sign-in, by the algorithm replaced.",
 	}, []string{"from"})
-
-	// PasswordHashExpiredLoginsTotal counts sign-ins refused because the account
-	// still held a legacy hash after the cutoff. Any value above zero means real
-	// people are being sent to password reset — expected after the deadline,
-	// worth an alert before it.
-	PasswordHashExpiredLoginsTotal = promauto.NewCounter(prometheus.CounterOpts{
-		Namespace: "openrisk",
-		Name:      "password_hash_expired_logins_total",
-		Help:      "Sign-ins refused because the stored hash was legacy and the migration cutoff had passed.",
-	})
-
-	// PasswordHashLegacyCutoff is the cutoff as a Unix timestamp, so a dashboard
-	// can plot "days left" next to the legacy count instead of hard-coding a
-	// date that drifts from the deployment's own configuration.
-	PasswordHashLegacyCutoff = promauto.NewGauge(prometheus.GaugeOpts{
-		Namespace: "openrisk",
-		Name:      "password_hash_legacy_cutoff_timestamp_seconds",
-		Help:      "Instant after which a legacy password hash is refused at sign-in.",
-	})
 )
 
 // Account states used as the state label of PasswordHashAccounts.
@@ -92,12 +69,4 @@ func RecordPasswordHashUpgrade(from string) {
 		from = "unknown"
 	}
 	PasswordHashUpgradesTotal.WithLabelValues(from).Inc()
-}
-
-// RecordPasswordHashExpiredLogin counts one sign-in refused past the cutoff.
-func RecordPasswordHashExpiredLogin() { PasswordHashExpiredLoginsTotal.Inc() }
-
-// SetPasswordHashLegacyCutoff publishes the configured cutoff.
-func SetPasswordHashLegacyCutoff(at time.Time) {
-	PasswordHashLegacyCutoff.Set(float64(at.Unix()))
 }

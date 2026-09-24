@@ -538,25 +538,24 @@ func main() {
 	notificationService := notify.NewEmailService(emailTransport, emailFromAddr, appBaseURL)
 
 	// Password hashing (#484). Argon2id with explicit, documented parameters
-	// (ARGON2ID_* overrides, floors enforced), and a hard deadline for the
-	// SHA-256 digests the first release wrote. Both are refused at boot when
-	// malformed: a silently weakened hasher or a silently moved deadline is
-	// worse than a server that does not start.
+	// (ARGON2ID_* overrides, floors enforced) and a process-wide cap on
+	// concurrent derivations (D-048). Refused at boot when malformed: a
+	// silently weakened hasher is worse than a server that does not start.
 	argon2Params, err := coreauth.Argon2idParamsFromEnv()
 	if err != nil {
 		log.Fatalf("password hashing: %v", err)
 	}
-	passwordHasher := coreauth.NewArgon2idPasswordHasherWithParams(argon2Params)
-	legacyHashCutoff, err := coreauth.LegacyHashCutoff()
+	argon2MaxConcurrent, err := coreauth.Argon2idMaxConcurrentFromEnv()
 	if err != nil {
 		log.Fatalf("password hashing: %v", err)
 	}
-	monitoring.SetPasswordHashLegacyCutoff(legacyHashCutoff)
-	log.Printf("password hashing: argon2id m=%dKiB t=%d p=%d; legacy SHA-256 hashes refused after %s",
-		argon2Params.Memory, argon2Params.Time, argon2Params.Threads, legacyHashCutoff.Format(time.RFC3339))
+	passwordHasher := coreauth.NewArgon2idPasswordHasherWithParams(argon2Params)
+	log.Printf("password hashing: argon2id m=%dKiB t=%d p=%d, at most %d at once",
+		argon2Params.Memory, argon2Params.Time, argon2Params.Threads, argon2MaxConcurrent)
 
-	// Legacy-hash census: refreshes openrisk_password_hash_accounts so the
-	// migration's progress is visible without database access. Hourly is ample
+	// Legacy-hash census: refreshes openrisk_password_hash_accounts, which
+	// counts the accounts still holding a first-release SHA-256 digest (they
+	// must reset their password, D-048), without database access. Hourly is ample
 	// for a number that moves one sign-in at a time. Cross-tenant by design and
 	// counts only — see repository.PasswordHashCensus.
 	passwordHashCensus := repository.NewPasswordHashCensus(database.DB, coreauth.HashAlgorithm)

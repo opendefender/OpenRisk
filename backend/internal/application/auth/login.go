@@ -7,7 +7,6 @@ package auth
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log"
 	"time"
@@ -74,11 +73,6 @@ type LoginUseCase struct {
 	mfaPolicies MFAPolicyReader
 	// now is injectable so the grace arithmetic is testable without sleeping.
 	now func() time.Time
-	// legacyCutoff is the instant after which a password stored under the
-	// retired SHA-256 hasher stops being accepted. Never zero: NewLoginUseCase
-	// resolves it from the environment or the shipped default, so no wiring
-	// mistake can leave the migration without a deadline.
-	legacyCutoff time.Time
 }
 
 // PasswordUpgrader is the half of the hasher that knows whether a stored hash
@@ -119,16 +113,7 @@ func NewLoginUseCase(userRepo UserRepository, tokenManager *auth.TokenManager, p
 		userRepo:       userRepo,
 		tokenManager:   tokenManager,
 		passwordHasher: passwordHasher,
-		legacyCutoff:   auth.LegacyHashCutoffOrDefault(),
 	}
-}
-
-// WithLegacyHashCutoff overrides the instant after which a legacy password hash
-// is refused. Exists for the tests, which have no intention of waiting for the
-// real date to arrive.
-func (uc *LoginUseCase) WithLegacyHashCutoff(at time.Time) *LoginUseCase {
-	uc.legacyCutoff = at
-	return uc
 }
 
 // RequireMFAForRoles makes MFA mandatory for the named org roles and business
@@ -203,20 +188,9 @@ func (uc *LoginUseCase) Execute(ctx context.Context, input LoginInput) (*LoginOu
 		return nil, domain.NewValidationError("invalid credentials")
 	}
 
-	// The password is correct. Two things follow from the FORM the stored hash
-	// took, and both are decided here — after verification, so that neither
-	// answer can be obtained without the password.
-	//
-	// 1. Past the cutoff, a legacy hash no longer buys a session. The account
-	//    goes through password reset, which writes Argon2id like every other
-	//    write path.
-	// 2. Otherwise, the hash is rewritten with today's parameters now, while the
-	//    plaintext is in hand. This is the whole migration: nobody is asked to
-	//    do anything, and the legacy count falls by one per sign-in.
-	if auth.LegacyHashExpired(user.Password, uc.clock(), uc.legacyCutoff) {
-		monitoring.RecordPasswordHashExpiredLogin()
-		return nil, ErrPasswordResetRequired
-	}
+	// The password is correct and the plaintext is in hand: if the stored hash
+	// was written with a lower Argon2id cost than today's, rewrite it now.
+	// Nobody is asked to do anything when the cost goes up.
 	uc.upgradePasswordHash(ctx, user, input.Password)
 
 	// Get user's default organization
@@ -342,23 +316,14 @@ func (uc *LoginUseCase) Execute(ctx context.Context, input LoginInput) (*LoginOu
 	}, nil
 }
 
-// ErrPasswordResetRequired marks a sign-in refused for one reason only: the
-// password was right, but it was stored under the retired SHA-256 hasher and
-// the migration cutoff has passed.
-//
-// A distinct error because the handler must say something distinct. Collapsing
-// it into "authentication failed" would leave a person typing a password they
-// know is correct, with no way to learn that the fix is a reset link.
-var ErrPasswordResetRequired = errors.New("password must be reset: it is stored under a retired hashing algorithm")
-
 // upgradePasswordHash rewrites the stored hash with current parameters when the
-// one on file is behind — a legacy digest, or Argon2id written before a cost
-// increase. Called only with a verified plaintext in hand.
+// one on file was written before a cost increase. Called only with a verified
+// plaintext in hand.
 //
 // Best-effort by design. A write that fails costs the account one more login
 // before it migrates; failing the sign-in instead would turn a database hiccup
 // into a lockout, which is a worse outcome than a hash that stays old for
-// another day. The cutoff is what guarantees the migration ends, not this call.
+// another day.
 func (uc *LoginUseCase) upgradePasswordHash(ctx context.Context, user *domain.User, plaintext string) {
 	upgrader, ok := uc.passwordHasher.(PasswordUpgrader)
 	if !ok || !upgrader.NeedsRehash(user.Password) {

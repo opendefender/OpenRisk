@@ -7,14 +7,13 @@ package auth
 
 import (
 	"crypto/rand"
-	"crypto/sha256"
 	"crypto/subtle"
 	"encoding/base64"
-	"encoding/hex"
 	"fmt"
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 
 	"golang.org/x/crypto/argon2"
 )
@@ -22,11 +21,10 @@ import (
 // Password hashing. One algorithm — Argon2id — and one place that decides its
 // parameters.
 //
-// The historical SHA-256 hasher is gone from the write path, but hashes it
-// wrote may still sit in a long-lived database, so Verify still recognises
-// them. Recognising is not accepting: a legacy hash is upgraded the moment its
-// owner proves the password, and refused outright once the cutoff has passed.
-// See LegacyHashCutoff and NeedsRehash.
+// The SHA-256 hasher of the first release is gone, and so is any way to sign in
+// with a digest it wrote: the owner chose a reset over a transparent migration
+// (D-048). HashAlgorithm still recognises those digests so the census can count
+// the accounts that have to reset; Verify accepts nothing but Argon2id.
 
 // Password hash algorithm identifiers, as reported by HashAlgorithm and used as
 // the metric label. Bounded set — three values, never a tenant or a user.
@@ -194,7 +192,7 @@ func (h *Argon2idPasswordHasher) Hash(password string) (string, error) {
 		return "", fmt.Errorf("failed to generate salt: %w", err)
 	}
 
-	hash := argon2.IDKey(
+	hash := deriveArgon2id(
 		[]byte(password),
 		salt,
 		h.params.Time,
@@ -213,37 +211,73 @@ func (h *Argon2idPasswordHasher) Hash(password string) (string, error) {
 	), nil
 }
 
-// Verify checks a password against a stored hash.
-//
-// It accepts two formats: the Argon2id PHC string this product writes, and the
-// unsalted hex SHA-256 digest its first release wrote. The second is accepted
-// so that an account created back then can still sign in once — and be upgraded
-// on the spot by the caller — rather than being locked out by a migration it
-// had no part in. The login use case refuses it after the cutoff.
+// Verify checks a password against a stored Argon2id hash. Any other stored
+// format — a SHA-256 digest from the first release, an empty column, garbage —
+// verifies nothing; a SHA-256 account signs in again after a password reset.
 func (h *Argon2idPasswordHasher) Verify(hashedPassword, plainPassword string) bool {
-	switch HashAlgorithm(hashedPassword) {
-	case AlgorithmArgon2id:
+	if HashAlgorithm(hashedPassword) == AlgorithmArgon2id {
 		return h.verifyArgon2id(hashedPassword, plainPassword)
-	case AlgorithmLegacySHA256:
-		// A SHA-256 check takes microseconds where Argon2id takes ~100 ms, so
-		// a fast 401 would tell anyone, password or not, that this account
-		// exists and has not migrated. Pay the Argon2id cost regardless.
-		h.spendArgon2idCost(plainPassword)
-		return verifyLegacySHA256(hashedPassword, plainPassword)
-	default:
-		return false
 	}
+	// Refusing takes microseconds where an Argon2id check takes ~100 ms, so a
+	// fast 401 would tell anyone, password or not, that this account holds an
+	// old hash. Pay the Argon2id cost regardless.
+	h.spendArgon2idCost(plainPassword)
+	return false
 }
 
-// legacyTimingSalt is a fixed salt for the throwaway derivation in
-// spendArgon2idCost. Its output is discarded, so a constant salt is fine.
-var legacyTimingSalt = make([]byte, 16)
+// timingSalt is a fixed salt for the throwaway derivation in spendArgon2idCost.
+// Its output is discarded, so a constant salt is fine.
+var timingSalt = make([]byte, 16)
 
 // spendArgon2idCost runs one derivation at this hasher's parameters and throws
-// the result away, so the legacy path costs the same as a normal check.
+// the result away, so a refused format costs the same as a normal check.
 func (h *Argon2idPasswordHasher) spendArgon2idCost(plainPassword string) {
-	_ = argon2.IDKey([]byte(plainPassword), legacyTimingSalt,
+	_ = deriveArgon2id([]byte(plainPassword), timingSalt,
 		h.params.Time, h.params.Memory, h.params.Threads, h.params.KeyLen)
+}
+
+// Concurrency cap (D-048, option C). Each derivation holds its full memory
+// cost — 64 MiB by default — for its whole duration, so a burst of sign-ins
+// could otherwise push the pod past its memory limit and get it OOM-killed.
+// Past the cap, derivations wait their turn: a sign-in gets slower in a burst
+// instead of taking the pod down for everyone.
+//
+// The cap is process-wide, not per hasher: several call sites build their own
+// hasher, and a per-instance cap would multiply rather than bound the total.
+var (
+	argon2SlotsOnce sync.Once
+	argon2Slots     chan struct{}
+)
+
+// DefaultArgon2idMaxConcurrent bounds concurrent derivations: four at 64 MiB is
+// 256 MiB, a quarter of the chart's 1 GiB API limit.
+const DefaultArgon2idMaxConcurrent = 4
+
+// Argon2idMaxConcurrentFromEnv reads ARGON2ID_MAX_CONCURRENT (default 4,
+// floor 1). Like the cost parameters, a malformed value is an error that main
+// turns into a refusal to boot.
+func Argon2idMaxConcurrentFromEnv() (int, error) {
+	v, ok := os.LookupEnv("ARGON2ID_MAX_CONCURRENT")
+	if !ok {
+		return DefaultArgon2idMaxConcurrent, nil
+	}
+	n, err := strconv.Atoi(strings.TrimSpace(v))
+	if err != nil || n < 1 {
+		return DefaultArgon2idMaxConcurrent, fmt.Errorf("ARGON2ID_MAX_CONCURRENT: %q is not a whole number of at least 1", v)
+	}
+	return n, nil
+}
+
+// deriveArgon2id is argon2.IDKey behind the process-wide concurrency cap. Every
+// derivation in this file goes through it.
+func deriveArgon2id(password, salt []byte, time, memory uint32, threads uint8, keyLen uint32) []byte {
+	argon2SlotsOnce.Do(func() {
+		n, _ := Argon2idMaxConcurrentFromEnv() // falls back to the default; main validated it
+		argon2Slots = make(chan struct{}, n)
+	})
+	argon2Slots <- struct{}{}
+	defer func() { <-argon2Slots }()
+	return argon2.IDKey(password, salt, time, memory, threads, keyLen)
 }
 
 func (h *Argon2idPasswordHasher) verifyArgon2id(hashedPassword, plainPassword string) bool {
@@ -255,7 +289,7 @@ func (h *Argon2idPasswordHasher) verifyArgon2id(hashedPassword, plainPassword st
 	// Derive with the STORED parameters and the stored key length, not the
 	// hasher's current ones: a hash written before a cost increase must still
 	// verify, and its digest length is whatever it was written with.
-	rehashed := argon2.IDKey(
+	rehashed := deriveArgon2id(
 		[]byte(plainPassword),
 		parsed.salt,
 		parsed.time,
@@ -267,25 +301,10 @@ func (h *Argon2idPasswordHasher) verifyArgon2id(hashedPassword, plainPassword st
 	return subtle.ConstantTimeCompare(rehashed, parsed.digest) == 1
 }
 
-// verifyLegacySHA256 compares against an unsalted hex SHA-256 digest.
-//
-// The comparison is constant-time for form's sake; the format's real weakness
-// is that it is unsalted and fast, which no comparison fixes. That is why the
-// only thing the product does with a match is replace it.
-func verifyLegacySHA256(hashedPassword, plainPassword string) bool {
-	stored, err := hex.DecodeString(strings.ToLower(hashedPassword))
-	if err != nil {
-		return false
-	}
-	sum := sha256.Sum256([]byte(plainPassword))
-	return subtle.ConstantTimeCompare(sum[:], stored) == 1
-}
-
 // HashAlgorithm classifies a stored hash without verifying it.
 //
-// Backs the legacy-account metric and the login decision, so it must never
-// guess: anything it does not positively recognise is AlgorithmUnknown, and an
-// unknown hash verifies against nothing.
+// Backs the legacy-account metric, so it must never guess: anything it does not
+// positively recognise is AlgorithmUnknown. Only AlgorithmArgon2id verifies.
 func HashAlgorithm(hashed string) string {
 	switch {
 	case strings.HasPrefix(hashed, "$argon2id$"):
@@ -297,18 +316,13 @@ func HashAlgorithm(hashed string) string {
 	}
 }
 
-// IsLegacyHash reports whether a stored hash was written by an algorithm this
-// product no longer writes and will stop accepting at the cutoff.
-func IsLegacyHash(hashed string) bool {
-	return HashAlgorithm(hashed) == AlgorithmLegacySHA256
-}
-
 // NeedsRehash reports whether a stored hash should be rewritten the next time
 // its owner proves the password.
 //
-// True for a legacy hash, and true for an Argon2id hash written with parameters
-// weaker than the ones this hasher writes today — which is how a cost increase
-// reaches existing accounts without asking anyone to do anything.
+// True for an Argon2id hash written with parameters weaker than the ones this
+// hasher writes today — which is how a cost increase reaches existing accounts
+// without asking anyone to do anything. False for everything else: a hash that
+// cannot verify can never be rehashed from a sign-in.
 func (h *Argon2idPasswordHasher) NeedsRehash(hashed string) bool {
 	switch HashAlgorithm(hashed) {
 	case AlgorithmArgon2id:
@@ -322,8 +336,6 @@ func (h *Argon2idPasswordHasher) NeedsRehash(hashed string) bool {
 		return parsed.memory < h.params.Memory ||
 			parsed.time < h.params.Time ||
 			uint32(len(parsed.digest)) < h.params.KeyLen
-	case AlgorithmLegacySHA256:
-		return true
 	default:
 		return false
 	}
