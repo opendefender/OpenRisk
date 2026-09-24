@@ -6,10 +6,7 @@
 package handler
 
 import (
-	"log"
 	"net"
-	"os"
-	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
@@ -92,76 +89,6 @@ func GetMe(c *fiber.Ctx) error {
 		response.LastLogin = &lastLoginStr
 	}
 	return c.JSON(response)
-}
-
-// SeedAdminUser : Crée un admin par défaut si la base est vide
-// À appeler au démarrage dans main.go
-func SeedAdminUser() {
-	var count int64
-	database.DB.Model(&domain.User{}).Count(&count)
-	if count == 0 {
-		// Find or create admin role
-		var adminRole domain.Role
-		if err := database.DB.Where("name = ?", "admin").First(&adminRole).Error; err != nil {
-			// Create admin role if it doesn't exist
-			adminRole = domain.Role{
-				Name:        "admin",
-				Description: "Full system access",
-				Permissions: []string{domain.PermissionAll},
-			}
-			database.DB.Create(&adminRole)
-		}
-
-		adminPassword := os.Getenv("INITIAL_ADMIN_PASSWORD")
-		if adminPassword == "" {
-			// SECURITY (RC1): never seed a weak, publicly-known default password in a
-			// production deployment. Fail fast so the operator is forced to provision a
-			// strong INITIAL_ADMIN_PASSWORD. Dev keeps the convenient fallback.
-			if os.Getenv("APP_ENV") == "production" {
-				log.Fatal("FATAL: INITIAL_ADMIN_PASSWORD must be set to seed the initial admin in production — refusing to boot with a default password")
-			}
-			adminPassword = "admin123" // Dev-only fallback
-			log.Println("WARNING: INITIAL_ADMIN_PASSWORD not set, using default dev password 'admin123' (blocked in production)")
-		}
-
-		// Hash password using Argon2id (OWASP recommended)
-		passwordHasher := auth.NewConfiguredArgon2idPasswordHasher()
-		hash, _ := passwordHasher.Hash(adminPassword)
-		admin := domain.User{
-			Email:    "admin@opendefender.io",
-			Username: "admin",
-			Password: hash,
-			FullName: "System Administrator",
-			RoleID:   adminRole.ID,
-			IsActive: true,
-		}
-		database.DB.Create(&admin)
-
-		// The multi-tenant LoginUseCase requires a default organization + membership
-		// to authenticate (see application/auth/login.go GetUserDefaultOrganization).
-		// Mirror what the register flow does so the seeded admin can actually log in.
-		org := domain.Organization{
-			Name:     "OpenDefender",
-			Slug:     "opendefender",
-			OwnerID:  admin.ID,
-			IsActive: true,
-		}
-		database.DB.Create(&org)
-
-		admin.DefaultOrgID = &org.ID
-		database.DB.Save(&admin)
-
-		database.DB.Create(&domain.OrganizationMember{
-			OrganizationID: org.ID,
-			UserID:         admin.ID,
-			Role:           domain.RoleRoot,
-			IsActive:       true,
-			JoinedAt:       time.Now(),
-		})
-
-		// Note: admin seeded — credentials should be changed on first login
-		log.Println("Default admin user seeded (change password on first login)")
-	}
 }
 
 // userInTenant reports whether the target user is a member of the caller's
