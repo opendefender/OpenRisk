@@ -91,6 +91,7 @@ const (
 	AuditActionRevoke   AuditAction = "revoke"   // delegation revoked / access revoked
 	AuditActionLogin    AuditAction = "login"
 	AuditActionExport   AuditAction = "export"
+	AuditActionTransfer AuditAction = "transfer" // ownership handed to another member
 )
 
 // AuditEvent is one immutable row in the audit trail. There is intentionally no
@@ -154,15 +155,15 @@ type AuditEventFilter struct {
 	// Ignored when empty; EntityType still applies on its own.
 	EntityTypes []string
 	EntityID    string
-	Action     string
-	ActorID    *uuid.UUID
-	RequestID  string
-	Source     string
-	From       *time.Time
-	To         *time.Time
-	Search     string // free-text over summary / entity_type / entity_id / path
-	Limit      int
-	Offset     int
+	Action      string
+	ActorID     *uuid.UUID
+	RequestID   string
+	Source      string
+	From        *time.Time
+	To          *time.Time
+	Search      string // free-text over summary / entity_type / entity_id / path
+	Limit       int
+	Offset      int
 }
 
 // AuditEventRepository is the append-only store for the audit trail.
