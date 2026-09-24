@@ -30,7 +30,12 @@
       "Bash(gh pr merge:*)", "Bash(gh issue delete:*)", "Bash(gh repo delete:*)",
       "Bash(gh release create:*)",
       "Bash(rm -rf /:*)", "Bash(kubectl delete:*)", "Bash(terraform apply:*)",
-      "Read(./.env)", "Read(./.env.*)", "Read(./**/*.pem)", "Read(./**/*.key)"
+      "Read(./.env)", "Read(./**/.env)",
+      "Read(./.env.local)", "Read(./**/.env.local)", "Read(./.env.*.local)",
+      "Read(./.env.development)", "Read(./.env.dev)", "Read(./.env.test)",
+      "Read(./.env.staging)", "Read(./.env.production)", "Read(./.env.prod)",
+      "Read(./.env.backup)", "Read(./.env.bak)",
+      "Read(./**/*.pem)", "Read(./**/*.key)"
     ]
   },
   "hooks": {
