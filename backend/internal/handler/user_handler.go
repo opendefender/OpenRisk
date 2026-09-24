@@ -62,35 +62,6 @@ func auditTenant(c *fiber.Ctx) *uuid.UUID {
 	return nil
 }
 
-// GetMe : Récupère les infos de l'utilisateur connecté
-func GetMe(c *fiber.Ctx) error {
-	claims := middleware.GetUserClaims(c)
-	if claims == nil {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized"})
-	}
-
-	var user domain.User
-	if err := database.DB.Preload("Role").First(&user, "id = ?", claims.Sub).Error; err != nil {
-		return c.Status(404).JSON(fiber.Map{"error": "User not found"})
-	}
-
-	// Return DTO — never expose password hash (Claude.md rule #6)
-	response := UserResponseDTO{
-		ID:        user.ID.String(),
-		Email:     user.Email,
-		Username:  user.Username,
-		FullName:  user.FullName,
-		Role:      user.Role.Name,
-		IsActive:  user.IsActive,
-		CreatedAt: user.CreatedAt.Format("2006-01-02T15:04:05Z"),
-	}
-	if user.LastLogin != nil {
-		lastLoginStr := user.LastLogin.Format("2006-01-02T15:04:05Z")
-		response.LastLogin = &lastLoginStr
-	}
-	return c.JSON(response)
-}
-
 // userInTenant reports whether the target user is a member of the caller's
 // organization. domain.User is many-to-many with organizations via
 // OrganizationMember, so the legacy /users management endpoints must scope every
