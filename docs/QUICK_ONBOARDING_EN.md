@@ -42,11 +42,13 @@ curl http://localhost:8080/health
 
 ## 🔐 Step 2: Login (1 min)
 
-### Default Credentials
+### First sign-in
 ```
-📧 Email: admin@openrisk.local
-🔑 Password: admin123
+📧 Email: admin@opendefender.io
+🔑 Password: the one install.sh printed, or INITIAL_ADMIN_PASSWORD
 ```
+There is no default password. Without `INITIAL_ADMIN_PASSWORD`, the backend
+generates one on first boot and writes it to `/app/secrets/initial_admin_password`.
 
 ### First Login
 
@@ -328,10 +330,12 @@ docker compose down -v
 docker compose up -d
 ```
 
-### "Can't login with admin@openrisk.local"
+### "Can't log in as admin@opendefender.io"
 
 ```bash
-# Default credentials not working
+# The first admin password is rejected
+# (it is INITIAL_ADMIN_PASSWORD, or the file below; there is no default)
+docker compose exec backend cat /app/secrets/initial_admin_password
 # Solution:
 # 1. Verify backend is running
 docker compose ps | grep backend

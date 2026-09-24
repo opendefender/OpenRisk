@@ -25,9 +25,14 @@ cd openrisk
 # Copy the example environment file
 cp .env.example .env
 
-# Edit the .env file if needed (default values work for local development)
-# The defaults are configured to work with docker-compose out of the box
+# Give the database a password: docker-compose refuses to start without one
+# (-i.bak works with both GNU and BSD sed)
+sed -i.bak "s/^DB_PASSWORD=.*/DB_PASSWORD=$(openssl rand -hex 24)/" .env && rm .env.bak
 ```
+
+There is no default password anywhere in the stack (#485). Leave
+`INITIAL_ADMIN_PASSWORD` empty and the backend generates the first
+administrator's password on its first boot.
 
 ### 3. Start All Services
 
@@ -60,6 +65,15 @@ docker-compose ps
 - **Backend API**: http://localhost:8080/api/v1
 - **Health Check**: http://localhost:8080/api/v1/health
 
+Sign in as `admin@opendefender.io`. If you did not set `INITIAL_ADMIN_PASSWORD`,
+the generated password is in the backend's secrets volume, never in the logs:
+
+```bash
+docker-compose exec backend cat /app/secrets/initial_admin_password
+```
+
+Change it after the first sign-in, then delete the file.
+
 ## Service Breakdown
 
 ### Database Services
@@ -68,9 +82,9 @@ docker-compose ps
 - Type: PostgreSQL 15
 - Host: localhost
 - Port: 5434
-- Credentials: openrisk / openrisk
+- Credentials: `openrisk` / the `DB_PASSWORD` from your `.env`
 - Database: openrisk
-- Connection: `postgres://openrisk:openrisk@localhost:5434/openrisk`
+- Connection: `postgres://openrisk:<DB_PASSWORD>@localhost:5434/openrisk`
 
 **Test Database** (openrisk_test_db)
 - Type: PostgreSQL 15
@@ -341,12 +355,14 @@ See `.env.example` for all available configuration options:
 DB_HOST=db
 DB_PORT=5432
 DB_USER=openrisk
-DB_PASSWORD=openrisk
+DB_PASSWORD=<openssl rand -hex 24>
 DB_NAME=openrisk
+
+# First administrator (empty = generated on first boot)
+INITIAL_ADMIN_PASSWORD=
 
 # Server
 PORT=8080
-JWT_SECRET=your-secret-key-change-in-production
 
 # CORS
 CORS_ORIGINS=http://localhost:5173,http://localhost:3000

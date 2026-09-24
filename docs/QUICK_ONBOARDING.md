@@ -42,11 +42,14 @@ curl http://localhost:8080/health
 
 ## 🔐 Étape 2: Se Connecter (1 min)
 
-### Identifiants par défaut
+### Premier accès
 ```
-📧 Email: admin@openrisk.local
-🔑 Mot de passe: admin123
+📧 Email: admin@opendefender.io
+🔑 Mot de passe: celui affiché par install.sh, ou INITIAL_ADMIN_PASSWORD
 ```
+Il n'existe aucun mot de passe par défaut. Sans `INITIAL_ADMIN_PASSWORD`, le
+backend en génère un au premier démarrage et l'écrit dans
+`/app/secrets/initial_admin_password`.
 
 ### Première Connexion
 
@@ -328,10 +331,12 @@ docker compose down -v
 docker compose up -d
 ```
 
-### "Can't login with admin@openrisk.local"
+### "Impossible de se connecter en admin@opendefender.io"
 
 ```bash
-# Les credentials par défaut ne fonctionnent pas
+# Le mot de passe du premier admin est refusé
+# (c'est INITIAL_ADMIN_PASSWORD, ou le fichier ci-dessous ; il n'y a pas de défaut)
+docker compose exec backend cat /app/secrets/initial_admin_password
 # Solution:
 # 1. Vérifier que le backend est bien démarré
 docker compose ps | grep backend

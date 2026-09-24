@@ -33,6 +33,11 @@ async function waitFor(url: string, label: string, tries = 60) {
 }
 
 export default async function globalSetup(_config: FullConfig) {
+  if (!ADMIN.password) {
+    throw new Error(
+      '[global-setup] E2E_ADMIN_PASSWORD is not set. Export the INITIAL_ADMIN_PASSWORD the backend was started with (see docs/CI_CD.md).',
+    );
+  }
   await waitFor(`${API_URL}/health`, 'backend');
   await waitFor(FRONTEND_URL, 'frontend');
 

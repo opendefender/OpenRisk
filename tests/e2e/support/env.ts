@@ -32,10 +32,15 @@ export const API_URL =
  */
 export const API_BASE = `${API_URL}/`;
 
-/** Deterministic admin: seeded on every backend boot (handlers.SeedAdminUser). */
+/**
+ * The admin handlers.SeedAdminUser creates on the backend's first boot. There is
+ * no default password (#485): E2E_ADMIN_PASSWORD must match the
+ * INITIAL_ADMIN_PASSWORD the backend was started with. global-setup refuses to
+ * run without it.
+ */
 export const ADMIN = {
   email: process.env.E2E_ADMIN_EMAIL || 'admin@opendefender.io',
-  password: process.env.E2E_ADMIN_PASSWORD || 'admin123',
+  password: process.env.E2E_ADMIN_PASSWORD ?? '',
 };
 
 /** tests/e2e directory. */

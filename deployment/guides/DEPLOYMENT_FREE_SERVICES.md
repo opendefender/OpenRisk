@@ -228,8 +228,8 @@ Après déploiement, vous aurez :
 
 1. Ouvrez https://openrisk-xxxx.vercel.app
 2. Connectez-vous avec :
-   - **Email** : `admin@openrisk.local`
-   - **Password** : `admin123`
+   - **Email** : `admin@opendefender.io`
+   - **Mot de passe** : le mot de passe défini dans `INITIAL_ADMIN_PASSWORD`, ou celui généré au premier démarrage dans `/app/secrets/initial_admin_password`. Il n'existe aucun mot de passe par défaut.
 
 ---
 

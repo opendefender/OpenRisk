@@ -678,5 +678,4 @@ docker logs openrisk-api
 
 ---
 
-**Questions?** Contact: security@openrisk.io  
-**Security Issues?** Report to: security@openrisk.io (GPG key available)
+**Security issues?** Report them privately as described in [SECURITY.md](../SECURITY.md).

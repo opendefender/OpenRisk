@@ -96,13 +96,14 @@ Redis Cloud (Cache - 30 MB)
 
 ---
 
-## 🎯 Default Credentials
+## 🎯 First sign-in
 
-After deployment:
-- **Email**: `admin@openrisk.local`
-- **Password**: `admin123`
+There are no default credentials. The first boot against an empty database
+creates `admin@opendefender.io` with the password in `INITIAL_ADMIN_PASSWORD`.
+Leave it empty and the backend generates one and writes it to
+`INITIAL_ADMIN_PASSWORD_FILE` (default `/app/secrets/initial_admin_password`, mode 0600). The password is never written to the logs.
 
-Change these after initial setup!
+Change it after the first sign-in, then delete that file.
 
 ---
 
