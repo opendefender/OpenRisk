@@ -121,7 +121,8 @@ VITE_ENV=production
 ```env
 DATABASE_URL=postgresql://postgres:PASSWORD@...
 REDIS_URL=redis://default:PASSWORD@...
-JWT_SECRET=generated-32-char-string
+RSA_PRIVATE_KEY=<PEM private key, see scripts/generate_rsa_keys.sh>
+RSA_PUBLIC_KEY=<PEM public key>
 [... more variables ...]
 ```
 

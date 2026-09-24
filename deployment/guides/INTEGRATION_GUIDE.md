@@ -248,12 +248,12 @@ CORS_ORIGINS=https://openrisk-xxxx.vercel.app
 
 ### 2. 401 Unauthorized - "Token invalid or expired"
 
-**Cause**: JWT_SECRET ne correspond pas entre services
+**Cause**: la paire de clés RS256 a changé depuis l'émission du jeton (clés régénérées, ou instances avec des clés différentes)
 
 **Solution**:
 ```bash
-# Vérifier que JWT_SECRET est identique sur Render
-# Redéployer si changé
+# Vérifier que RSA_PRIVATE_KEY / RSA_PUBLIC_KEY sont les mêmes sur toutes les instances
+# puis se reconnecter : les jetons signés avec l'ancienne clé ne sont plus acceptés
 ```
 
 ### 3. API Endpoint returns 404
@@ -344,7 +344,7 @@ curl https://openrisk-api.onrender.com/api/health
 - [ ] `frontend/.env.production` contient `VITE_API_URL` correct
 - [ ] `VITE_API_URL` est l'URL Render sans trailing slash
 - [ ] Backend a `CORS_ORIGINS` contenant l'URL Vercel exact
-- [ ] JWT_SECRET est identique sur backend
+- [ ] RSA_PRIVATE_KEY / RSA_PUBLIC_KEY identiques sur toutes les instances du backend
 - [ ] Database connection fonctionne (vérifier logs Render)
 - [ ] Redis connection fonctionne
 - [ ] Frontend peut atteindre `/api/health`

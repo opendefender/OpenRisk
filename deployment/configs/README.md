@@ -24,14 +24,14 @@ Backend environment variables template for Render.com.
 2. Fill in your actual values:
    - `DATABASE_URL` from Supabase
    - `REDIS_URL` from Redis Cloud
-   - `JWT_SECRET` (generate with: `openssl rand -base64 32`)
+   - `RSA_PRIVATE_KEY` and `RSA_PUBLIC_KEY` (generate with: `bash scripts/generate_rsa_keys.sh`)
    - `CORS_ORIGINS` with your Vercel URL
 3. Add these variables directly in Render.com dashboard (Environment tab)
 
 **Required Variables**:
 - `DATABASE_URL` - PostgreSQL connection string
 - `REDIS_URL` - Redis Cloud connection string
-- `JWT_SECRET` - 32+ character random secret
+- `RSA_PRIVATE_KEY` / `RSA_PUBLIC_KEY` - PEM key pair that signs and verifies sessions (RS256)
 - `CORS_ORIGINS` - Your Vercel frontend URL
 - `API_BASE_URL` - Your Render backend URL
 - `PORT` - Usually 8080
@@ -39,14 +39,14 @@ Backend environment variables template for Render.com.
 
 ---
 
-## 🔑 How to Generate JWT_SECRET
+## 🔑 How to Generate the RS256 Key Pair
 
 ```bash
-# Generate a 32-character base64 secret
-openssl rand -base64 32
+bash scripts/generate_rsa_keys.sh
 ```
 
-Copy the output and use it as `JWT_SECRET` in Render.com environment variables.
+Paste the PEM contents into `RSA_PRIVATE_KEY` and `RSA_PUBLIC_KEY` in the Render.com
+environment variables. The backend refuses to start without them.
 
 ---
 
@@ -58,7 +58,8 @@ Copy the output and use it as `JWT_SECRET` in Render.com environment variables.
 4. Add these variables from `.env.backend.example`:
    - `DATABASE_URL`
    - `REDIS_URL`
-   - `JWT_SECRET`
+   - `RSA_PRIVATE_KEY`
+   - `RSA_PUBLIC_KEY`
    - `CORS_ORIGINS`
    - `API_BASE_URL`
    - `LOG_LEVEL`
@@ -87,10 +88,10 @@ Copy the output and use it as `JWT_SECRET` in Render.com environment variables.
    - Only example files (`*.example`) are version controlled
    - Real secrets go in service dashboards
 
-2. **JWT_SECRET**
-   - Must be at least 32 characters
-   - Generate random: `openssl rand -base64 32`
-   - Keep it secret! Don't share
+2. **RSA_PRIVATE_KEY**
+   - Signs every session token (RS256)
+   - Generate with `bash scripts/generate_rsa_keys.sh`
+   - Keep it secret! Only the public key may be shared
 
 3. **Database URL**
    - Contains your Supabase password
@@ -126,8 +127,8 @@ ENVIRONMENT=production
 LOG_LEVEL=info
 
 # Security
-JWT_SECRET=generated-32-char-random-string
-JWT_EXPIRY=24h
+RSA_PRIVATE_KEY=<PEM private key>
+RSA_PUBLIC_KEY=<PEM public key>
 
 # API
 CORS_ORIGINS=https://openrisk-xxxx.vercel.app
@@ -174,7 +175,7 @@ curl https://openrisk-api.onrender.com/api/risks \
 ## 📞 Troubleshooting
 
 **API returns 401 (Unauthorized)**
-→ Check JWT_SECRET matches between frontend & backend
+→ Check every backend instance uses the same RSA key pair, then sign in again
 
 **API returns CORS error**
 → Check CORS_ORIGINS matches your exact Vercel URL

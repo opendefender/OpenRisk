@@ -147,7 +147,8 @@ VITE_ENV=production
 ```env
 DATABASE_URL=postgresql://postgres:PASSWORD@...
 REDIS_URL=redis://default:PASSWORD@...
-JWT_SECRET=your-32-character-secret-key
+RSA_PRIVATE_KEY=<PEM private key, see scripts/generate_rsa_keys.sh>
+RSA_PUBLIC_KEY=<PEM public key>
 CORS_ORIGINS=https://openrisk-xxxx.vercel.app
 API_BASE_URL=https://openrisk-api.onrender.com
 PORT=8080

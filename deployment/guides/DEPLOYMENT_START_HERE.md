@@ -150,9 +150,9 @@ Objectif: Comprendre l'architecture globale
 
 ## 💡 Tips & Tricks
 
-### Générer JWT_SECRET sécurisé
+### Générer la paire de clés RS256
 ```bash
-openssl rand -base64 32
+bash scripts/generate_rsa_keys.sh
 ```
 
 ### Tester API depuis CLI
