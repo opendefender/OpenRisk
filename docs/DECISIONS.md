@@ -5,43 +5,40 @@ recommends, and surfaces these in the daily brief. Run `/decide` to clear them.
 
 ## Open
 
-### D-047 — authenticated password change: built on the existing auth mechanisms · raised 2026-09-17
-**Status** — built and in review on #720 (PR stacked on #723). Escalated because it touches
-auth; it is a new capability assembled from existing parts, not a redesign. No action is
-needed unless the owner disagrees with one of the choices below.
-
-**Context** — A signed-in user could only change their password by signing out and using
-the reset flow. #720 adds `POST /auth/password/change`.
-
-**Choices made**
-- Requires the **current password** (argon2id `Verify`), and the new one must pass the same
-  `pwpolicy` the reset and registration paths use, including the HIBP check.
-- Mounted behind the existing `authRateLimit` (15 requests / 5 min / IP). A wrong current
-  password answers 403 with a generic message and spends that budget. There is no per-account
-  counter yet; that gap is already tracked by #688.
-- On success, **every session is revoked** (`TokenManager.RevokeAllUserTokens`, the reset
-  path's call) and the calling device is **re-issued a fresh session** in the same organization
-  (`IssueSessionForOrg`, the org-switch path's call), with new cookies. "Revoke all but the
-  current one" was the first design and was found broken during the live check: the refresh
-  cookie is scoped to `/api/v1/auth/refresh`, so no other route can identify the caller's
-  refresh row, and an empty keep-hash signs the caller out too. The same defect affects the
-  existing "sign out other devices" action (tracked separately). Access tokens already issued
-  to other devices remain valid until they expire (15 min).
-- An account with no local password (SAML/OAuth-provisioned) gets 409: its password belongs
-  to the identity provider.
-- Audit `password_change` (success and failure with a reason, never a secret), plus a
-  **dedicated** notification email. The reset confirmation email says every session was ended,
-  which would be false here.
-
-**Options**
-- **A — Keep as built.** Recommended: it adds no mechanism the product did not already trust.
-- **B — Revoke everything and force a fresh sign-in** on the calling device too. Simpler,
-  at the cost of interrupting the person who just proved their password.
-
-**Cost of delay** — none; the PR waits on review of #721 → #722 → #723 anyway.
-
-
 ## Resolved
+
+### D-047 — authenticated password change: kept as built · decided 2026-09-24
+**Decided (owner)** — **A, keep as built.** The owner asked for a test before closing it; the
+test below was run first.
+
+**Context** — #720 added `POST /auth/password/change` (PR #726, merged 2026-09-21). It needs
+the current password, applies the same `pwpolicy` as reset and registration, sits behind the
+existing `authRateLimit`, revokes every session and re-issues one for the calling device, answers
+409 to accounts without a local password, and writes an audit event plus a dedicated email.
+
+**Options put to the owner**
+- **A.** Keep as built.
+- **B.** Revoke everything and force a fresh sign-in on the calling device too.
+
+**Verification before closing (2026-09-24)**
+- On `master` (917e13c): `go test ./internal/application/auth/ ./internal/handler/auth/
+  ./internal/handler/ -run 'ChangePassword|Authz'`: the 7 `TestChangePassword_*` tests,
+  `TestChangePasswordHTTP` and the authz matrix all pass. `vitest run
+  changePasswordCard.test.tsx`: 4 passed.
+- Live, on the local stack (backend image built 2026-09-23), two devices signed in to one
+  account, with CSRF tokens sent as the browser does:
+  - wrong current password → 403 `wrong_current_password`;
+  - change from device A → 200 with `reauthenticate: false`; A's `/auth/me` and refresh → 200;
+  - device B's refresh → **401** (revoked); B's access token still answers 200, as documented
+    (valid until it expires, 15 min);
+  - old password → 401, new password → 200;
+  - `auth_audit_logs` holds `password_change` failure (`wrong_current_password`) and success.
+- **Not verified live:** the notification email (the local stack has no SMTP transport), the
+  409 for an SSO-only account, and the rate limit (not exercised, to avoid locking the local IP).
+
+**Rationale** — The behaviour matches what was described. It reuses mechanisms the product
+already relied on, and the caller is not signed out after proving their password.
+The missing per-account counter stays tracked by #688.
 
 ### D-048 — refresh rotation gets a grace window, and a derived successor · decided 2026-09-23
 **Decided (owner)** — **Add the window, with an idempotent replay.** Escalated because it
