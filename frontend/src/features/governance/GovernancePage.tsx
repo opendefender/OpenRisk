@@ -71,6 +71,7 @@ const AUDIT_ACTIONS: AuditAction[] = [
   'delegate',
   'revoke',
   'export',
+  'transfer',
 ];
 const AUDIT_ENTITIES = [
   'asset',
@@ -91,6 +92,7 @@ const ACTION_COLOR: Record<AuditAction, string> = {
   revoke: 'var(--danger)',
   login: 'var(--fg-secondary)',
   export: 'var(--fg-secondary)',
+  transfer: 'var(--warning)',
 };
 
 const STATUS_COLOR: Record<string, string> = {
