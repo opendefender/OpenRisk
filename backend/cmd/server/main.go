@@ -856,9 +856,9 @@ func main() {
 	api.Post("/auth/logout", cleanAuthHandler.Logout)
 
 	// NOTE: the legacy HS256 login/refresh routes (/auth/legacy/*) were removed for
-	// RC1. They minted HS256 sessions signed with JWT_SECRET that the RS256 gate
-	// rejected anyway (dead but dangerous surface). /auth/login (RS256) is the sole
-	// session-issuing path. /users/me is served by the profile handler (#719).
+	// RC1, and the handlers, services and middleware behind them in #789. Nothing
+	// reads JWT_SECRET any more. /auth/login (RS256) is the sole session-issuing
+	// path. /users/me is served by the profile handler (#719).
 
 	// --- Password reset (public) ---
 	// Both legs sit behind the per-IP auth limiter on top of the per-address cap

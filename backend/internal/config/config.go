@@ -12,7 +12,6 @@ import (
 
 type ServerConfig struct {
 	Port                int
-	JWTSecret           string // DEPRECATED: for legacy HMAC tokens only
 	RSAPrivateKeyPath   string // Path to private.pem for RS256 signing
 	RSAPublicKeyPath    string // Path to public.pem for RS256 verification
 	RSAPrivateKeyInline string // Alternative: inline PEM content
@@ -52,13 +51,6 @@ func LoadConfig() *Config {
 	port, _ := strconv.Atoi(os.Getenv("PORT"))
 	dbPort := 5432
 
-	// Legacy JWT_SECRET (for backward compatibility, but no longer used for new tokens)
-	jwtSecret := os.Getenv("JWT_SECRET")
-	if jwtSecret == "" {
-		// Don't panic yet - RS256 is the primary method
-		jwtSecret = "deprecated"
-	}
-
 	// RSA Keys for RS256 (CRITICAL — must be present)
 	rsaPrivateKeyPath := os.Getenv("RSA_PRIVATE_KEY_PATH")
 	rsaPublicKeyPath := os.Getenv("RSA_PUBLIC_KEY_PATH")
@@ -79,7 +71,6 @@ func LoadConfig() *Config {
 	return &Config{
 		Server: ServerConfig{
 			Port:                port,
-			JWTSecret:           jwtSecret,
 			RSAPrivateKeyPath:   rsaPrivateKeyPath,
 			RSAPublicKeyPath:    rsaPublicKeyPath,
 			RSAPrivateKeyInline: rsaPrivateKeyInline,
