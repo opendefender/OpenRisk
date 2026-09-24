@@ -252,3 +252,24 @@ func TestLegacyHashExpired(t *testing.T) {
 		t.Error("the cutoff only ever applies to legacy hashes")
 	}
 }
+
+func TestNewConfiguredArgon2idPasswordHasher_AppliesEnvironment(t *testing.T) {
+	t.Setenv("ARGON2ID_MEMORY_KIB", "19456")
+	t.Setenv("ARGON2ID_TIME", "2")
+	t.Setenv("ARGON2ID_PARALLELISM", "1")
+
+	stored, err := NewConfiguredArgon2idPasswordHasher().Hash("p")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.HasPrefix(stored, "$argon2id$v=19$m=19456,t=2,p=1$") {
+		t.Errorf("environment parameters not applied: %q", stored)
+	}
+}
+
+func TestNewConfiguredArgon2idPasswordHasher_MalformedFallsBackToDefaults(t *testing.T) {
+	t.Setenv("ARGON2ID_TIME", "1")
+	if got := NewConfiguredArgon2idPasswordHasher().Params(); got != DefaultArgon2idParams() {
+		t.Errorf("a refused value must fall back to the defaults, never to itself: %+v", got)
+	}
+}

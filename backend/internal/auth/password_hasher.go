@@ -141,6 +141,20 @@ func NewArgon2idPasswordHasher() *Argon2idPasswordHasher {
 	return &Argon2idPasswordHasher{params: DefaultArgon2idParams()}
 }
 
+// NewConfiguredArgon2idPasswordHasher creates a hasher with the deployment's
+// ARGON2ID_* parameters, for call sites built outside main's wiring.
+//
+// A malformed value falls back to the defaults here rather than failing:
+// main reads Argon2idParamsFromEnv first and refuses to boot on the same error,
+// so a running server never reaches that branch.
+func NewConfiguredArgon2idPasswordHasher() *Argon2idPasswordHasher {
+	p, err := Argon2idParamsFromEnv()
+	if err != nil {
+		return NewArgon2idPasswordHasher()
+	}
+	return NewArgon2idPasswordHasherWithParams(p)
+}
+
 // NewArgon2idPasswordHasherWithParams creates a hasher with explicit parameters.
 // Zero fields fall back to the defaults so a partially filled struct cannot
 // produce a hash weaker than the product's floor.
