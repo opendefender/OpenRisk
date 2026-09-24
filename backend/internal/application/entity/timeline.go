@@ -107,9 +107,8 @@ func auditTypes(t Type) []string {
 	case TypeAsset, TypeVendor:
 		return []string{"asset"}
 	case TypeRisk:
-		// Risk is deliberately not Auditable (see governance_auditable.go: the
-		// score worker writes it on a hot path), so only the HTTP middleware
-		// names it — always "risk".
+		// The GORM plugin (Risk is Auditable since #486), the HTTP middleware
+		// and the Score Engine worker all name it "risk".
 		return []string{"risk"}
 	case TypeVulnerability, TypeFinding:
 		return []string{"vulnerability"}

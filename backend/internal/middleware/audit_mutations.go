@@ -152,8 +152,9 @@ func buildAuditEvent(c *fiber.Ctx, mw *RequestContext, col *audittrail.Collector
 		StatusCode: c.Response().StatusCode(),
 		Source:     domain.AuditSourceHTTP,
 	}
+	ev.ActorType, ev.ActorLabel = actorKind(c, actorID)
 
-	if m, ok := col.Primary(); ok {
+	if m, ok := col.PrimaryFor(resID); ok {
 		if m.EntityType != "" {
 			ev.EntityType = m.EntityType
 		}
@@ -195,6 +196,23 @@ func buildAuditEvent(c *fiber.Ctx, mw *RequestContext, col *audittrail.Collector
 		ev.Summary += " (" + itoa(n) + " records affected)"
 	}
 	return ev
+}
+
+// actorKind classifies who made the request (#486). A personal access token is
+// recorded as such, with its id, because "the owner did it" and "a script
+// holding the owner's token did it" are different answers to an auditor.
+func actorKind(c *fiber.Ctx, actorID *uuid.UUID) (string, string) {
+	if isPAT, _ := c.Locals("is_pat").(bool); isPAT {
+		label := ""
+		if id, ok := c.Locals("token_id").(uuid.UUID); ok && id != uuid.Nil {
+			label = id.String()
+		}
+		return domain.AuditActorServiceToken, label
+	}
+	if actorID != nil {
+		return domain.AuditActorUser, ""
+	}
+	return "", ""
 }
 
 // requestID returns the caller's correlation id, minting one when absent so

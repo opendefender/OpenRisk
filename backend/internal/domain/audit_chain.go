@@ -33,6 +33,29 @@ import (
 // GenesisHash is the PrevHash of the very first event of a tenant.
 const GenesisHash = ""
 
+// Actor kinds (AuditEvent.ActorType). #486: an entry never says "system" and
+// stops there — it says which kind of identity acted and, for the non-human
+// ones, which one.
+const (
+	// AuditActorUser — a person, authenticated by session.
+	AuditActorUser = "user"
+	// AuditActorServiceToken — a personal access token; ActorID is its owner
+	// and ActorLabel the token id.
+	AuditActorServiceToken = "service_token"
+	// AuditActorJob — a background job; ActorLabel is the job name.
+	AuditActorJob = "job"
+	// AuditActorUnattributed — the write reached the trail carrying no
+	// identity. Recorded as such so the missing attribution is itself on the
+	// record, rather than read as "system".
+	AuditActorUnattributed = "unattributed"
+)
+
+// Job names recorded as ActorLabel for AuditActorJob entries.
+const (
+	// AuditJobScoreEngine — the Redis-driven Score Engine worker.
+	AuditJobScoreEngine = "score-engine"
+)
+
 // AuditSource says which writer produced an entry.
 const (
 	// AuditSourceHTTP — the request middleware (one entry per mutating API call).
@@ -97,6 +120,16 @@ func (e *AuditEvent) CanonicalPayload() []byte {
 	write("status", strconv.Itoa(e.StatusCode))
 	write("source", e.Source)
 	write("at", e.CreatedAt.UTC().Format(time.RFC3339Nano))
+	// Added by #486. Written ONLY when set, and only ever appended after every
+	// original field: an entry sealed before these fields existed carries
+	// neither, so it hashes to exactly the bytes it was sealed with. Any future
+	// field must follow the same rule — append, and omit when empty.
+	if e.ActorType != "" {
+		write("actor_type", e.ActorType)
+	}
+	if e.ActorLabel != "" {
+		write("actor_label", e.ActorLabel)
+	}
 	return []byte(b.String())
 }
 

@@ -77,6 +77,17 @@ func (r *AuditRecorder) Record(ctx context.Context, ev domain.AuditEvent) {
 	if ev.Source == "" {
 		ev.Source = domain.AuditSourceExplicit
 	}
+	// #486: an entry written outside a request still says who acted.
+	if ev.ActorType == "" {
+		actor, _ := audittrail.ActorFromContext(ctx)
+		if ev.ActorID != nil && *ev.ActorID != uuid.Nil {
+			ev.ActorType = domain.AuditActorUser
+		} else if actor.Job != "" {
+			ev.ActorType, ev.ActorLabel = domain.AuditActorJob, actor.Job
+		} else {
+			ev.ActorType = domain.AuditActorUnattributed
+		}
+	}
 	_ = r.repo.Append(ctx, &ev)
 }
 
