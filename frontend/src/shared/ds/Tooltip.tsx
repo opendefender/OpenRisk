@@ -6,7 +6,7 @@
  * what you can see (an icon-only button, a truncated cell, an abbreviation).
  *
  * What it is not: a place to put content. If the interface needs a paragraph to
- * be understandable, the interface is the problem — use InfoHint for a
+ * be understandable, the interface is the problem — use FieldHelp for a
  * deliberate progressive-disclosure popover, or fix the label.
  *
  * A11Y      This is the part tooltips usually get wrong (WCAG 1.4.13):
