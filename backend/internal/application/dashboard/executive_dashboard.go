@@ -147,7 +147,11 @@ type ExecutiveDashboard struct {
 	Currency    string    `json:"currency"`
 	XAFPerUSD   float64   `json:"xaf_per_usd"`
 
-	CyberScore       CyberScore           `json:"cyber_score"`
+	// There is no score in this payload on purpose (#287). It used to carry an
+	// A–F "cyber score" from a second formula, pointing the opposite way from
+	// the canonical one: the executive board and the sidebar disagreed on the
+	// same tenant. The board now reads GET /score?scope=tenant like every other
+	// surface.
 	Financial        FinancialHeadline    `json:"financial"`
 	KRIs             []KRI                `json:"kris"`
 	TopRisks         []ExecRisk           `json:"top_risks"`
@@ -245,10 +249,10 @@ func (uc *GetExecutiveDashboardUseCase) Execute(ctx context.Context, tenantID uu
 		out.XAFPerUSD = uc.quantifier.XAFPerUSD
 	}
 
-	// Axes fed into the composite cyber score.
+	// Totals kept for the coverage KRI and the Aha detection below.
 	var complAxisImpl, complAxisTotal int
 	var haveVuln bool
-	var vulnKEV, vulnCritical int64
+	var vulnCritical int64
 	var incAnalytics *IncidentAnalytics
 
 	// --- Financial exposure (widget 1) --------------------------------------
@@ -309,7 +313,6 @@ func (uc *GetExecutiveDashboardUseCase) Execute(ctx context.Context, tenantID uu
 	if uc.vulns != nil {
 		if vs, err := uc.vulns.Stats(ctx, tenantID); err == nil && vs != nil {
 			haveVuln = true
-			vulnKEV = vs.KEVCount
 			vulnCritical = vs.BySeverity["critical"]
 			out.KRIs = append(out.KRIs,
 				KRI{Key: "open_vulns", Label: "Vulnérabilités ouvertes", Value: float64(vs.Open), Unit: "", Severity: sevForCount(int(vs.Open), 5, 20)},
@@ -344,26 +347,9 @@ func (uc *GetExecutiveDashboardUseCase) Execute(ctx context.Context, tenantID uu
 		)
 	}
 
-	// --- Cyber score (widget 6) ---------------------------------------------
-	complV, complOK := complianceAxisValue(complAxisImpl, complAxisTotal)
-	riskV, riskOK := riskAxisValue(critCount, highCount, critCount+highCount+distTotal(out.RiskDistribution))
-	vulnV, vulnOK := vulnAxisValue(vulnKEV, vulnCritical, haveVuln)
-	var incV float64
-	var incOK bool
-	if incAnalytics != nil {
-		incV, incOK = incidentAxisValue(incAnalytics.ResolutionRate, incAnalytics.CriticalOpen, incAnalytics.Total)
-	}
-	out.CyberScore = computeCyberScore([]scoreAxis{
-		{key: "compliance", label: "Conformité", weight: weightCompliance, value: complV, present: complOK},
-		{key: "risk", label: "Risques", weight: weightRisk, value: riskV, present: riskOK},
-		{key: "vulnerabilities", label: "Vulnérabilités", weight: weightVuln, value: vulnV, present: vulnOK},
-		{key: "incidents", label: "Incidents", weight: weightIncident, value: incV, present: incOK},
-	})
-
 	// --- Aha moment (spec §7) -----------------------------------------------
-	// This is the honest place to detect it: it is the exact moment a cyber score
-	// exists, computed from this tenant's own records, and we already know how
-	// many compliance gaps were identified while computing the compliance axis.
+	// Detected here because this is where the tenant's own posture data is
+	// already loaded, and we know how many compliance gaps were identified.
 	if uc.activation != nil {
 		totalRisks := critCount + highCount + distTotal(out.RiskDistribution)
 		ownDataPoints := totalRisks
@@ -374,9 +360,10 @@ func (uc *GetExecutiveDashboardUseCase) Execute(ctx context.Context, tenantID uu
 		if gaps < 0 {
 			gaps = 0
 		}
-		// "Computed" means at least one axis was really present — a score built
+		// "Computed" means at least one source really had data — a posture built
 		// from zero sources is a number, not a measurement.
-		scoreComputed := complOK || riskOK || vulnOK || incOK
+		incOK := incAnalytics != nil && incAnalytics.Total > 0
+		scoreComputed := complAxisTotal > 0 || totalRisks > 0 || haveVuln || incOK
 		uc.activation.MaybeRecordAha(ctx, tenantID, scoreComputed, ownDataPoints, gaps)
 	}
 
@@ -455,7 +442,7 @@ func bands(score float64) (p, i int) {
 }
 
 func distTotal(d []DistributionSlice) int {
-	// medium + low only (critical/high are passed separately to riskAxisValue).
+	// medium + low only (critical/high are counted separately by the caller).
 	var t int
 	for _, s := range d {
 		if s.Criticality == "medium" || s.Criticality == "low" {

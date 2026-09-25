@@ -24,8 +24,7 @@ func NewExecutiveDashboardHandler(uc *dashboard.GetExecutiveDashboardUseCase) *E
 	return &ExecutiveDashboardHandler{uc: uc}
 }
 
-// GetExecutiveDashboard GET /analytics/executive — cyber score, financial
-// exposure, KRIs, top-10 risks, risk & incident trends and compliance coverage for
+// GetExecutiveDashboard GET /analytics/executive — financial exposure, KRIs, top-10 risks, risk & incident trends and compliance coverage for
 // the caller's tenant.
 func (h *ExecutiveDashboardHandler) GetExecutiveDashboard(c *fiber.Ctx) error {
 	tenantID := uuid.Nil
