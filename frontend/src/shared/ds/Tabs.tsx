@@ -17,6 +17,12 @@
  *             because switching a tab is cheap and local
  *           - aria-controls / aria-labelledby tie each tab to its panel
  *
+ * MOTION    One keyline for the whole tablist, which slides to the active tab
+ *           on --dur-slow / --ease-out (#751). Same duration both ways: a tab
+ *           change is one reversible motion, not an open and a close. The
+ *           first placement does not animate, and reduced motion removes the
+ *           slide entirely (global rule in index.css) — the keyline just moves.
+ *
  * Deep-linking is the caller's job: several screens carry the active tab in
  * `?tab=`, and a component that owned that would have to know about the router.
  *
@@ -27,7 +33,7 @@
  * catches it as aria-valid-attr-value; a person never would.
  */
 
-import { useRef, type KeyboardEvent, type ReactNode } from 'react';
+import { useLayoutEffect, useRef, type KeyboardEvent, type ReactNode } from 'react';
 import { cn } from './cn';
 import { Badge } from './Badge';
 
@@ -60,6 +66,41 @@ export function Tabs<T extends string = string>({
   className,
 }: TabsProps<T>) {
   const listRef = useRef<HTMLDivElement>(null);
+  const keylineRef = useRef<HTMLSpanElement>(null);
+
+  /* Place the keyline under the active tab, and keep it there when the list
+     resizes (a count badge changes width, the drawer is resized). Written
+     straight to the element's style rather than through state: a measurement
+     that feeds a re-render is a second paint for nothing. */
+  useLayoutEffect(() => {
+    const list = listRef.current;
+    const keyline = keylineRef.current;
+    if (!list || !keyline) return;
+
+    const place = () => {
+      const tab = list.querySelector<HTMLElement>(`[data-tab-id="${CSS.escape(value)}"]`);
+      if (!tab || tab.offsetWidth === 0) {
+        keyline.style.opacity = '0';
+        return;
+      }
+      // inset-x-2: the keyline stops 8px short of each edge of its tab.
+      keyline.style.width = `${tab.offsetWidth - 16}px`;
+      keyline.style.transform = `translateX(${tab.offsetLeft + 8}px)`;
+      keyline.style.opacity = '1';
+      // Arm the transition only after the first placement has painted, so the
+      // keyline does not fly in from the left edge on mount.
+      if (!keyline.dataset.ready) {
+        requestAnimationFrame(() => {
+          keyline.dataset.ready = 'true';
+        });
+      }
+    };
+
+    place();
+    const observer = new ResizeObserver(place);
+    observer.observe(list);
+    return () => observer.disconnect();
+  }, [value, items]);
 
   const enabled = items.filter((item) => !item.disabled);
 
@@ -117,7 +158,10 @@ export function Tabs<T extends string = string>({
       role="tablist"
       aria-label={label}
       onKeyDown={onKeyDown}
-      className={cn('flex items-center gap-1 overflow-x-auto border-b border-subtle', className)}
+      className={cn(
+        'relative flex items-center gap-1 overflow-x-auto border-b border-subtle',
+        className,
+      )}
     >
       {items.map((item) => {
         const active = item.id === value;
@@ -151,19 +195,21 @@ export function Tabs<T extends string = string>({
             {typeof item.count === 'number' && (
               <Badge intent={active ? 'accent' : 'neutral'}>{item.count}</Badge>
             )}
-            {/* The keyline. A sibling element rather than a border so it can sit
-                flush with the tablist rule underneath without the two fighting
-                over the same pixel row. */}
-            <span
-              aria-hidden="true"
-              className={cn(
-                'absolute inset-x-2 bottom-0 h-(--keyline-w) rounded-full transition-opacity duration-fast ease-out',
-                active ? 'bg-accent opacity-100' : 'opacity-0',
-              )}
-            />
           </button>
         );
       })}
+      {/* The keyline. A sibling of the tabs rather than a border on each, so it
+          can travel between them, and so it sits flush on the tablist rule
+          (-bottom-px) without the two fighting over the same pixel row. */}
+      <span
+        ref={keylineRef}
+        aria-hidden="true"
+        data-testid="tabs-keyline"
+        className={cn(
+          'pointer-events-none absolute -bottom-px left-0 h-(--keyline-w) rounded-full bg-accent opacity-0',
+          'data-[ready=true]:transition-[transform,width] data-[ready=true]:duration-slow data-[ready=true]:ease-out',
+        )}
+      />
     </div>
   );
 }
