@@ -9,39 +9,9 @@ on:
     - cron: '0 2 * * *'  # Daily at 2 AM
 
 jobs:
-  dependency-check:
-    runs-on: ubuntu-latest
-    name: Dependency Check
-    steps:
-      - uses: actions/checkout@v3
-      - uses: actions/setup-go@v5
-        with:
-          go-version: '1.25'
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      # Replaces `nancy` (which was never installed → exit 127, and now requires a
-      # Sonatype OSS Index token anyway) with govulncheck: the official Go vuln
-      # scanner, offline vuln DB, no credentials. Gates on *dependency* vulns;
-      # standard-library advisories (fixed by bumping the Go toolchain — see the
-      # Dockerfile builder + container scan) are surfaced as a warning, not a hard
-      # fail, since they are not fixable via go.mod.
-      - name: Go dependency scan (govulncheck)
-        run: |
-          go install golang.org/x/vuln/cmd/govulncheck@latest
-          cd backend
-          "$(go env GOPATH)/bin/govulncheck" ./... | tee govuln.txt || true
-          if grep -qE '^[[:space:]]+Module: ' govuln.txt; then
-            echo "::error::govulncheck found vulnerable Go module dependencies (see log)"
-            exit 1
-          fi
-          echo "govulncheck: no vulnerable module dependencies."
-
-      - name: NPM dependency check
-        run: |
-          cd frontend
-          npm audit --omit=dev --audit-level=high || true
+  # Go modules, npm production dependencies and the published image are gated
+  # by dependency-gate.yml (#487). The govulncheck step, the `npm audit || true`
+  # step and the scan of backend/Dockerfile that were here are replaced by it.
 
   sast:
     runs-on: ubuntu-latest
@@ -62,29 +32,6 @@ jobs:
         with:
           sarif_file: gosec.sarif
           category: gosec
-
-  container-scan:
-    runs-on: ubuntu-latest
-    name: Container Security Scan
-    steps:
-      - uses: actions/checkout@v3
-      - uses: docker/setup-buildx-action@v2
-      
-      - name: Build Docker image
-        uses: docker/build-push-action@v4
-        with:
-          context: ./backend
-          file: ./backend/Dockerfile
-          push: false
-          outputs: type=docker,dest=/tmp/image.tar
-      
-      - name: Scan with Trivy
-        uses: aquasecurity/trivy-action@master
-        with:
-          input: '/tmp/image.tar'
-          scan-type: 'image'
-          severity: 'HIGH,CRITICAL'
-          exit-code: '1'
 
   secret-scan:
     runs-on: ubuntu-latest
@@ -119,8 +66,8 @@ jobs:
           format: 'HTML'
           # Disable the online analyzers that now require credentials / an external
           # API and were failing this job (Node Audit hit the NPM Audit API; OSS Index
-          # needs a Sonatype token). Go module vulns are gated by the govulncheck step
-          # in the Dependency Check job; npm vulns by `npm audit` there.
+          # needs a Sonatype token). Go module and npm vulns are gated by
+          # dependency-gate.yml.
           args: >-
             --disableNodeAudit
             --disableYarnAudit
@@ -152,15 +99,13 @@ jobs:
   report:
     if: always()
     runs-on: ubuntu-latest
-    needs: [dependency-check, sast, container-scan, secret-scan, sca, code-quality]
+    needs: [sast, secret-scan, sca, code-quality]
     name: Security Report
     steps:
       - name: Create security summary
         run: |
           echo "# Security Scan Results" >> $GITHUB_STEP_SUMMARY
-          echo "- Dependency Check: Completed" >> $GITHUB_STEP_SUMMARY
           echo "- SAST Analysis: Completed" >> $GITHUB_STEP_SUMMARY
-          echo "- Container Scan: Completed" >> $GITHUB_STEP_SUMMARY
           echo "- Secret Detection: Completed" >> $GITHUB_STEP_SUMMARY
           echo "- SCA Analysis: Completed" >> $GITHUB_STEP_SUMMARY
           echo "- Code Quality: Completed" >> $GITHUB_STEP_SUMMARY
