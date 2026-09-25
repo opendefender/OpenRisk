@@ -335,7 +335,8 @@ func main() {
 	// Initialize Score Worker (listens to Redis events)
 	zeroLogger := zerolog.New(os.Stderr).With().Timestamp().Logger()
 	riskRepoForWorker := repository.NewGormRiskRepository(database.DB)
-	scoreWorker := workers.NewScoreWorker(redisClientInstance, scoreEngine, riskRepoForWorker, zeroLogger)
+	scoreWorker := workers.NewScoreWorker(redisClientInstance, scoreEngine, riskRepoForWorker, zeroLogger).
+		WithAudit(auditChainRepo)
 
 	// Start Score Worker in background goroutine
 	go scoreWorker.Start(context.Background())
@@ -1176,6 +1177,16 @@ func main() {
 	protected.Get("/ownership/assignable", ownershipHandler.ListAssignable)
 	protected.Get("/ownership/me", ownershipHandler.Me)
 
+	// Ownership transfer as its own audited action (#302). The routes are
+	// registered next to each entity's other writes, under the same permission.
+	ownershipTransferHandler := handlers.NewOwnershipTransferHandler(
+		ownership.NewTransferOwnershipUseCase(ownershipService, map[ownership.TransferEntity]ownership.OwnerStore{
+			ownership.TransferRisk:       repository.NewGormRiskOwnerStore(database.DB),
+			ownership.TransferMitigation: repository.NewGormMitigationOwnerStore(database.DB),
+			ownership.TransferIncident:   repository.NewGormIncidentOwnerStore(database.DB),
+		}).WithAudit(governance.NewAuditRecorder(auditChainRepo)),
+	)
+
 	// Initialize clean architecture risk module
 	riskRepo := repository.NewGormRiskRepository(database.DB)
 	riskControlMappingRepo := repository.NewGormRiskControlMappingRepository(database.DB)
@@ -1266,6 +1277,12 @@ func main() {
 	// Financial Risk Quantification (spec §9). Read-only: full per-risk assessment
 	// and a non-persisting investment-scenario simulator. Static "financial"/
 	// "simulate" segments are risk-scoped so they never collide with :id parsing.
+	// ScoreWorking (#486): the score, its terms, and the audit entry behind each.
+	scoreWorkingHandler := handlers.NewScoreWorkingHandler(
+		risk.NewGetScoreWorkingUseCase(riskRepo, auditChainRepo, scoreEngine).
+			WithUserLookup(repository.NewGormUserRepository(database.DB)))
+	protected.Get("/risks/:id/score-working",
+		middleware.RequirePermission("risks:read"), scoreWorkingHandler.Get)
 	protected.Get("/risks/:id/financial",
 		middleware.RequirePermission("risks:read"), featFinancial, riskHandler.GetRiskFinancial)
 	protected.Post("/risks/:id/simulate",
@@ -1294,6 +1311,7 @@ func main() {
 	protected.Post("/risks", riskCreate, capRisks, riskHandler.CreateRisk)
 	protected.Patch("/risks/:id", riskUpdate, riskHandler.UpdateRisk)
 	protected.Post("/risks/:id/review", riskUpdate, riskHandler.MarkReviewed)
+	protected.Post("/risks/:id/transfer-owner", riskUpdate, ownershipTransferHandler.TransferRiskOwner)
 	// ISO 31000 lifecycle transition (Identifier → … → Clôturer). Tenant-scoped, audited.
 	protected.Post("/risks/:id/transition", riskUpdate, riskHandler.TransitionPhase)
 	// The stepper's contract: what can this risk become next, and what is in the
@@ -1348,6 +1366,7 @@ func main() {
 	protected.Patch("/mitigations/:id", mitigationUpdate, handlers.UpdateMitigation)
 	protected.Delete("/mitigations/:id", mitigationDelete, handlers.DeleteMitigation)
 	protected.Patch("/mitigations/:id/validate", mitigationUpdate, handlers.ValidateMitigation)
+	protected.Post("/mitigations/:id/transfer-owner", mitigationUpdate, ownershipTransferHandler.TransferMitigationOwner)
 
 	// Sub-actions (checklist) for mitigations
 	protected.Post("/mitigations/:id/sub-actions", mitigationCreate, handlers.CreateSubAction)
@@ -2205,6 +2224,7 @@ func main() {
 	incidentsGroup.Get("", incidentHandler.ListIncidents)
 	incidentsGroup.Get("/:id", incidentHandler.GetIncident)
 	incidentsGroup.Put("/:id", incidentUpdate, incidentHandler.UpdateIncident)
+	incidentsGroup.Post("/:id/transfer-owner", incidentUpdate, ownershipTransferHandler.TransferIncidentOwner)
 	incidentsGroup.Delete("/:id", incidentDelete, incidentHandler.DeleteIncident)
 	incidentsGroup.Get("/:id/timeline", incidentHandler.GetIncidentTimeline)
 	incidentsGroup.Get("/:id/post-mortem", incidentHandler.GetPostMortem)

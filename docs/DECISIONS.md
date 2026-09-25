@@ -98,6 +98,60 @@ two are less likely to ask.
 
 **Blocks** — #485 task 6; possibly the banking pilot in #494.
 
+### D-052 — audit entries sealed on Postgres before #486 never verify · raised 2026-09-24
+**Raised by** — #486. It touches the tamper-evidence design and any fix to past rows is
+irreversible, so it is the owner's call.
+
+**Context** — `AuditEvent.SealChain` hashed `created_at` with Go's nanoseconds. Postgres stores
+microseconds, so no row read back from Postgres could re-hash to its sealed value: on a real
+database `GET /governance/audit-events/verify` reported **every** entry as `hash_mismatch`.
+Every earlier proof of the chain ran on sqlite, which keeps nanoseconds, so nobody saw it.
+#486 truncates to the microsecond before hashing (`internal/domain/audit_chain.go`) and adds
+`audit_chain_pg_test.go`, which fails without the fix and passes with it. New entries verify.
+Entries already written on a Postgres deployment still carry hashes over nanoseconds that the
+database threw away; they will keep failing verification.
+
+**Options**
+- **A — tolerant verification for legacy rows.** For a row that fails, try the 1 000 possible
+  sub-microsecond values (Postgres rounds to the nearest microsecond, so the lost part is in
+  ±500 ns). A row whose content was edited still fails: only the timestamp's lost digits are
+  searched. Cost: up to 1 000 SHA-256 per legacy row, once per verification. Rewrites nothing.
+- **B — seal the past.** Write one `AuditChainSeal` per tenant marking every entry up to the
+  fix as "sealed before verification was sound", and verify only after it. Honest, but it
+  declares a stretch of history unverifiable.
+- **C — re-hash legacy rows.** Rewrites the audit trail. Not recommended: it is exactly the
+  operation the chain exists to make detectable.
+
+**Recommendation** — **A.** It recovers the integrity proof for existing customers' history
+without touching a single stored row, and it does not widen what an attacker can change.
+
+**Cost of delay** — On any existing Postgres deployment the integrity panel shows the whole
+journal as altered. An auditor who opens it before this is settled sees a false alarm.
+
+**Blocks** — the Definition of Done of #486 on existing deployments (new ones are fine).
+
+### D-053 — the retention floor for the audit journal · raised 2026-09-24
+**Raised by** — #486 task 3 ("a configurable retention policy, with a floor configuration
+cannot lower"). Choosing the value is a compliance and product decision.
+
+**Context** — The floor exists and is in code, not configuration: `AuditRetentionPolicy.Validate`
+accepts 0 (keep forever, the default) or 30 to 3 650 days. Nothing in the environment or the API
+can go below 30. But 30 days is short for the markets we sell to: banking supervisors commonly
+expect several years of records.
+
+**Options**
+- **A — keep 30 days.** The floor is a safety net against mistakes, not a legal minimum.
+- **B — raise it to 365 days.**
+- **C — raise it to 5 years (1 825 days)**, closer to what a supervised bank keeps.
+
+**Recommendation** — **B.** It stops the obvious mistake without imposing a banking rule on
+every customer; a stricter tenant can already set a longer window. Needs a compliance check
+before it is written into any customer-facing claim.
+
+**Cost of delay** — Low. The default is "keep forever".
+
+**Blocks** — nothing; task 3 of #486 is met as the code stands.
+
 ## Resolved
 
 ### D-047 — authenticated password change: kept as built · decided 2026-09-24

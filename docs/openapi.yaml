@@ -811,6 +811,189 @@ paths:
         '401':
           description: Unauthorized
 
+  /risks/{id}/transfer-owner:
+    post:
+      tags:
+        - Ownership
+      summary: Transfer the ownership of a risk to another member
+      description: >
+        Hands the owner slot to another active member of the caller's
+        organisation, and changes nothing else. The previous owner is captured
+        before the write, the audit trail records a `transfer` entry
+        (previous owner → new owner, actor), and the new owner receives an
+        in-app notification unless they performed the transfer themselves.
+        Requires `risks:update`. A risk of another
+        organisation reads as not found.
+      operationId: transferRiskOwner
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransferOwnerRequest'
+      responses:
+        '200':
+          description: Ownership transferred
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransferOwnershipResult'
+        '400':
+          description: >
+            Malformed id or new_owner_id, or the new owner is not an active
+            member of the organisation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Missing `risks:update`
+        '404':
+          description: Not found in the caller's organisation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: The new owner already owns it
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /mitigations/{id}/transfer-owner:
+    post:
+      tags:
+        - Ownership
+      summary: Transfer the ownership of a mitigation to another member
+      description: >
+        Hands the owner slot to another active member of the caller's
+        organisation, and changes nothing else. The previous owner is captured
+        before the write, the audit trail records a `transfer` entry
+        (previous owner → new owner, actor), and the new owner receives an
+        in-app notification unless they performed the transfer themselves.
+        Requires `mitigations:update`. A mitigation of another
+        organisation reads as not found.
+      operationId: transferMitigationOwner
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransferOwnerRequest'
+      responses:
+        '200':
+          description: Ownership transferred
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransferOwnershipResult'
+        '400':
+          description: >
+            Malformed id or new_owner_id, or the new owner is not an active
+            member of the organisation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Missing `mitigations:update`
+        '404':
+          description: Not found in the caller's organisation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: The new owner already owns it
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /incidents/{id}/transfer-owner:
+    post:
+      tags:
+        - Ownership
+      summary: Transfer the ownership of an incident to another member
+      description: >
+        Hands the owner slot to another active member of the caller's
+        organisation, and changes nothing else. The previous owner is captured
+        before the write, the audit trail records a `transfer` entry
+        (previous owner → new owner, actor), and the new owner receives an
+        in-app notification unless they performed the transfer themselves.
+        Requires `incidents:update`. An incident of another
+        organisation reads as not found.
+      operationId: transferIncidentOwner
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TransferOwnerRequest'
+      responses:
+        '200':
+          description: Ownership transferred
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransferOwnershipResult'
+        '400':
+          description: >
+            Malformed id or new_owner_id, or the new owner is not an active
+            member of the organisation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+        '403':
+          description: Missing `incidents:update`
+        '404':
+          description: Not found in the caller's organisation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: The new owner already owns it
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   /risks/{id}/smart-score:
     get:
       tags:
@@ -5835,6 +6018,41 @@ components:
         locale: { type: string, enum: ['', fr, en] }
         date_format: { type: string, enum: ['', DD/MM/YYYY, MM/DD/YYYY, YYYY-MM-DD] }
         theme_mode: { type: string, enum: ['', light, dark, system] }
+    TransferOwnerRequest:
+      type: object
+      required:
+        - new_owner_id
+      properties:
+        new_owner_id:
+          type: string
+          format: uuid
+          description: User id of the new owner. Must be an active member of the organisation.
+    TransferOwnershipResult:
+      type: object
+      required:
+        - entity_type
+        - entity_id
+        - previous_owner_id
+        - owner_id
+        - transferred_at
+      properties:
+        entity_type:
+          type: string
+          enum: [risk, mitigation, incident]
+        entity_id:
+          type: string
+          description: The entity id as it appears in the path (a uuid, or an integer for incidents).
+        previous_owner_id:
+          type: string
+          format: uuid
+          nullable: true
+          description: Null when the entity had no owner.
+        owner_id:
+          type: string
+          format: uuid
+        transferred_at:
+          type: string
+          format: date-time
     ErrorResponse:
       type: object
       properties:

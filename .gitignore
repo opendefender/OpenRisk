@@ -41,4 +41,5 @@ backend/openrisk-server
 # Claude Code — local overrides and runtime artifacts
 .claude/settings.local.json
 .claude/agent-memory-local/
+.claude/CHECKPOINT.md
 CLAUDE.md.backup-*

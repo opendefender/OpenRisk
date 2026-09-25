@@ -100,6 +100,30 @@ func (c *Collector) Primary() (Mutation, bool) {
 	return muts[0], true
 }
 
+// PrimaryFor is Primary, but prefers the row the route names. Saving one entity
+// can write others (GORM upserts a risk's linked assets when it saves the
+// risk), and callback order across those writes is not something to rely on:
+// PATCH /risks/:id must be journalled as the risk, whichever row landed first.
+func (c *Collector) PrimaryFor(entityID string) (Mutation, bool) {
+	muts := c.Mutations()
+	if len(muts) == 0 {
+		return Mutation{}, false
+	}
+	for _, m := range muts {
+		if m.Explicit {
+			return m, true
+		}
+	}
+	if entityID != "" {
+		for _, m := range muts {
+			if m.EntityID == entityID {
+				return m, true
+			}
+		}
+	}
+	return muts[0], true
+}
+
 type collectorCtxKey struct{}
 
 // WithCollector returns a context carrying c. Installed by the audit middleware

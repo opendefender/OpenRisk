@@ -5,14 +5,19 @@
 
 package domain
 
+import "github.com/google/uuid"
+
 // Auditable opt-ins (spec §15). A model gains automatic, immutable audit-trail
 // coverage for every struct-form Create/Update/Delete simply by declaring its
 // entity type here — the audittrail GORM plugin does the rest, so a developer
 // can never forget to journal a mutation. To cover a new entity, add one line.
 //
-// Risk is intentionally NOT listed: it is written on a hot path by the
-// Score Engine worker (targeted map updates the plugin already skips), and its
-// point-in-time changes are captured separately in risk_histories.
+// Risk IS listed (#486), with a narrow snapshot. It used to be left out because
+// the Score Engine worker writes it on a hot path; that worker issues targeted
+// map updates the plugin skips, and it now journals its own score changes
+// explicitly (workers.ScoreWorker). What the plugin adds is the before → after
+// of every person's edit to the terms of the score, which is what ScoreWorking
+// cites as each term's source record.
 
 func (Asset) AuditEntityType() string { return "asset" }
 
@@ -51,3 +56,41 @@ func (Invitation) AuditEntityType() string { return "invitation" }
 // privileged accounts must hold a second factor, which is exactly the kind of
 // security decision an auditor asks who made and when (OR26-03, invariant 7).
 func (MFAPolicy) AuditEntityType() string { return "mfa_policy" }
+
+func (Risk) AuditEntityType() string { return "risk" }
+
+// AuditSnapshot is the part of a risk the trail captures: the terms of the
+// frozen score formula, the result, and the fields a regulator asks who changed
+// (status, ownership, classification). Deliberately not the whole row — the
+// financial drivers, free text and associations would bury the change in noise.
+func (r Risk) AuditSnapshot() map[string]interface{} {
+	uuidOrNil := func(id *uuid.UUID) interface{} {
+		if id == nil || *id == uuid.Nil {
+			return nil
+		}
+		return id.String()
+	}
+	title := r.Title
+	if title == "" {
+		title = r.Name
+	}
+	tenant := r.TenantID
+	if tenant == uuid.Nil {
+		tenant = r.OrganizationID
+	}
+	return map[string]interface{}{
+		"id":          r.ID.String(),
+		"tenant_id":   tenant.String(),
+		"title":       title,
+		"probability": r.Probability,
+		"impact":      r.Impact,
+		"score":       r.Score,
+		"criticality": string(r.Criticality),
+		"status":      string(r.Status),
+		"asset_id":    uuidOrNil(r.AssetID),
+		"owner_id":    uuidOrNil(r.OwnerID),
+		"assignee_id": uuidOrNil(r.AssigneeID),
+		"reviewer_id": uuidOrNil(r.ReviewerID),
+		"category_id": uuidOrNil(r.CategoryID),
+	}
+}

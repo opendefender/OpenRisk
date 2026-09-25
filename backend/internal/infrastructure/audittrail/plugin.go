@@ -80,6 +80,12 @@ func (p *Plugin) afterCreate(db *gorm.DB) {
 	if !p.shouldAudit(db) {
 		return
 	}
+	// An upsert that inserted nothing created nothing. GORM saves a model's
+	// associations as INSERT … ON CONFLICT DO NOTHING, so linking a risk to an
+	// existing asset used to journal a phantom "create asset" (#486).
+	if db.Statement.RowsAffected == 0 {
+		return
+	}
 	entityType := auditEntityType(db)
 	for _, snap := range snapshotRecords(db) {
 		p.record(db, domain.AuditActionCreate, entityType, snap, nil, snap)
@@ -118,6 +124,11 @@ func (p *Plugin) afterUpdate(db *gorm.DB) {
 	}
 	records := snapshotRecords(db)
 	if len(records) == 0 {
+		return
+	}
+	// A snapshotter model with nothing changed in its audited fields is not an
+	// event: its writer touched columns the trail deliberately leaves out.
+	if before != nil && len(records) == 1 && isSnapshotter(db) && len(changedFields(before, records[0])) == 0 {
 		return
 	}
 	// For struct updates there is exactly one record; use the before pre-image.
@@ -195,11 +206,27 @@ func (p *Plugin) record(db *gorm.DB, action domain.AuditAction, entityType strin
 		RequestID:     actor.RequestID,
 		Source:        domain.AuditSourceGorm,
 	}
+	ev.ActorType, ev.ActorLabel = backgroundActorKind(actor)
 
 	// Chained append — assigns sequence + prev_hash + hash inside a transaction.
 	if p.appender != nil {
 		_ = p.appender.Append(ctx, ev)
 	}
+}
+
+// backgroundActorKind classifies a mutation that reached the plugin without a
+// request collector (#486). A named job is recorded by name. A write that
+// carried no identity at all is recorded as unattributed — not as a job, since
+// it may have been a request that failed to pass its context down — so the gap
+// is visible rather than dressed up as "system".
+func backgroundActorKind(a Actor) (string, string) {
+	if a.ID != nil && *a.ID != uuid.Nil {
+		return domain.AuditActorUser, ""
+	}
+	if a.Job != "" {
+		return domain.AuditActorJob, a.Job
+	}
+	return domain.AuditActorUnattributed, ""
 }
 
 // shouldAudit gates a callback: the write must have succeeded, have a schema, and
@@ -269,6 +296,10 @@ func toJSONMap(rv reflect.Value) domain.JSONMap {
 	if !rv.CanInterface() {
 		return nil
 	}
+	// A model that names its own audit fields gets exactly those (#486).
+	if snap, ok := rv.Interface().(domain.AuditSnapshotter); ok {
+		return normalizeSnapshot(snap.AuditSnapshot())
+	}
 	raw, err := json.Marshal(rv.Interface())
 	if err != nil {
 		return nil
@@ -278,6 +309,33 @@ func toJSONMap(rv reflect.Value) domain.JSONMap {
 		return nil
 	}
 	return m
+}
+
+// normalizeSnapshot json-round-trips a hand-built snapshot so its values have
+// the same shapes as a marshalled record (numbers as float64, and so on). Without
+// it a before read from the database and an after built in memory could compare
+// unequal on type alone.
+func normalizeSnapshot(m map[string]interface{}) domain.JSONMap {
+	if m == nil {
+		return nil
+	}
+	raw, err := json.Marshal(m)
+	if err != nil {
+		return nil
+	}
+	var out domain.JSONMap
+	if err := json.Unmarshal(raw, &out); err != nil {
+		return nil
+	}
+	return out
+}
+
+// isSnapshotter reports whether the statement's model chooses its own audit
+// fields — and so is journalled only when one of them changed.
+func isSnapshotter(db *gorm.DB) bool {
+	inst := reflect.New(db.Statement.Schema.ModelType).Interface()
+	_, ok := inst.(domain.AuditSnapshotter)
+	return ok
 }
 
 // primaryKeyString extracts the "id" of the record under update as a string, for
