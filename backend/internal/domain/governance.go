@@ -91,6 +91,7 @@ const (
 	AuditActionRevoke   AuditAction = "revoke"   // delegation revoked / access revoked
 	AuditActionLogin    AuditAction = "login"
 	AuditActionExport   AuditAction = "export"
+	AuditActionTransfer AuditAction = "transfer" // ownership handed to another member
 )
 
 // AuditEvent is one immutable row in the audit trail. There is intentionally no

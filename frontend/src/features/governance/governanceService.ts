@@ -21,7 +21,8 @@ export type AuditAction =
   | 'delegate'
   | 'revoke'
   | 'login'
-  | 'export';
+  | 'export'
+  | 'transfer';
 
 export interface AuditEvent {
   id: string;

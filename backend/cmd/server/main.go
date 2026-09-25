@@ -1177,6 +1177,16 @@ func main() {
 	protected.Get("/ownership/assignable", ownershipHandler.ListAssignable)
 	protected.Get("/ownership/me", ownershipHandler.Me)
 
+	// Ownership transfer as its own audited action (#302). The routes are
+	// registered next to each entity's other writes, under the same permission.
+	ownershipTransferHandler := handlers.NewOwnershipTransferHandler(
+		ownership.NewTransferOwnershipUseCase(ownershipService, map[ownership.TransferEntity]ownership.OwnerStore{
+			ownership.TransferRisk:       repository.NewGormRiskOwnerStore(database.DB),
+			ownership.TransferMitigation: repository.NewGormMitigationOwnerStore(database.DB),
+			ownership.TransferIncident:   repository.NewGormIncidentOwnerStore(database.DB),
+		}).WithAudit(governance.NewAuditRecorder(auditChainRepo)),
+	)
+
 	// Initialize clean architecture risk module
 	riskRepo := repository.NewGormRiskRepository(database.DB)
 	riskControlMappingRepo := repository.NewGormRiskControlMappingRepository(database.DB)
@@ -1301,6 +1311,7 @@ func main() {
 	protected.Post("/risks", riskCreate, capRisks, riskHandler.CreateRisk)
 	protected.Patch("/risks/:id", riskUpdate, riskHandler.UpdateRisk)
 	protected.Post("/risks/:id/review", riskUpdate, riskHandler.MarkReviewed)
+	protected.Post("/risks/:id/transfer-owner", riskUpdate, ownershipTransferHandler.TransferRiskOwner)
 	// ISO 31000 lifecycle transition (Identifier → … → Clôturer). Tenant-scoped, audited.
 	protected.Post("/risks/:id/transition", riskUpdate, riskHandler.TransitionPhase)
 	// The stepper's contract: what can this risk become next, and what is in the
@@ -1355,6 +1366,7 @@ func main() {
 	protected.Patch("/mitigations/:id", mitigationUpdate, handlers.UpdateMitigation)
 	protected.Delete("/mitigations/:id", mitigationDelete, handlers.DeleteMitigation)
 	protected.Patch("/mitigations/:id/validate", mitigationUpdate, handlers.ValidateMitigation)
+	protected.Post("/mitigations/:id/transfer-owner", mitigationUpdate, ownershipTransferHandler.TransferMitigationOwner)
 
 	// Sub-actions (checklist) for mitigations
 	protected.Post("/mitigations/:id/sub-actions", mitigationCreate, handlers.CreateSubAction)
@@ -2212,6 +2224,7 @@ func main() {
 	incidentsGroup.Get("", incidentHandler.ListIncidents)
 	incidentsGroup.Get("/:id", incidentHandler.GetIncident)
 	incidentsGroup.Put("/:id", incidentUpdate, incidentHandler.UpdateIncident)
+	incidentsGroup.Post("/:id/transfer-owner", incidentUpdate, ownershipTransferHandler.TransferIncidentOwner)
 	incidentsGroup.Delete("/:id", incidentDelete, incidentHandler.DeleteIncident)
 	incidentsGroup.Get("/:id/timeline", incidentHandler.GetIncidentTimeline)
 	incidentsGroup.Get("/:id/post-mortem", incidentHandler.GetPostMortem)
