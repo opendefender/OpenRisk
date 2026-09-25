@@ -407,6 +407,61 @@ describe('Tabs', () => {
     // Hiding with CSS would leave the other panels' focusable content reachable.
     expect(screen.queryByText('Audit panel')).not.toBeInTheDocument();
   });
+
+  describe('sliding keyline', () => {
+    // jsdom has no layout. Give each tab a box: 100px wide, laid end to end in
+    // document order, which is all the keyline reads.
+    function stubLayout() {
+      const width = vi
+        .spyOn(HTMLElement.prototype, 'offsetWidth', 'get')
+        .mockImplementation(function (this: HTMLElement) {
+          return this.getAttribute('role') === 'tab' ? 100 : 0;
+        });
+      const left = vi
+        .spyOn(HTMLElement.prototype, 'offsetLeft', 'get')
+        .mockImplementation(function (this: HTMLElement) {
+          const tabs = Array.from(this.parentElement?.querySelectorAll('[role="tab"]') ?? []);
+          return tabs.indexOf(this) * 100;
+        });
+      return () => {
+        width.mockRestore();
+        left.mockRestore();
+      };
+    }
+
+    it('sits under the active tab, inset 8px each side', () => {
+      const restore = stubLayout();
+      render(<TabsHarness />);
+      const keyline = screen.getByTestId('tabs-keyline');
+      expect(keyline.style.transform).toBe('translateX(8px)');
+      expect(keyline.style.width).toBe('84px');
+      expect(keyline.style.opacity).toBe('1');
+      restore();
+    });
+
+    it('follows the active tab when it changes', async () => {
+      const restore = stubLayout();
+      const user = userEvent.setup();
+      render(<TabsHarness />);
+      await user.click(screen.getByRole('tab', { name: 'Audit' }));
+      expect(screen.getByTestId('tabs-keyline').style.transform).toBe('translateX(208px)');
+      restore();
+    });
+
+    it('does not animate its first placement', () => {
+      // The transition classes are gated on data-ready, which is set a frame
+      // after mount — otherwise the keyline flies in from the left edge.
+      const restore = stubLayout();
+      render(<TabsHarness />);
+      expect(screen.getByTestId('tabs-keyline').dataset.ready).toBeUndefined();
+      restore();
+    });
+
+    it('stays hidden when the active tab has no box to measure', () => {
+      render(<TabsHarness />);
+      expect(screen.getByTestId('tabs-keyline').style.opacity).toBe('0');
+    });
+  });
 });
 
 /* -------------------------------------------------------- permission denied -- */

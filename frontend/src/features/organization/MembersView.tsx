@@ -32,6 +32,7 @@ import {
   Search,
 } from 'lucide-react';
 import { Card, Chip, SkeletonRows, ErrorState } from '../../shared/ui';
+import { TabPanel, Tabs } from '../../shared/ds';
 import { EmptyState } from '../../shared/EmptyState';
 import { DangerConfirm } from '../../shared/DangerConfirm';
 import { useUIStore } from '../../store/uiStore';
@@ -85,55 +86,6 @@ const ADMIN_OPTION = '__admin__';
 function useMemberDate(): (iso: string | undefined) => string {
   const when = usePreferredDate();
   return (iso) => (iso ? when.date(iso) : '—');
-}
-
-function TabBtn({
-  id,
-  label,
-  icon: Icon,
-  tab,
-  count,
-  onSelect,
-}: {
-  id: Tab;
-  label: string;
-  icon: typeof Users;
-  tab: Tab;
-  count?: number;
-  onSelect: (t: Tab) => void;
-}) {
-  const active = tab === id;
-  return (
-    <button
-      onClick={() => onSelect(id)}
-      data-testid={`members-tab-${id}`}
-      aria-current={active ? 'page' : undefined}
-      className="h-9 px-3.5 rounded-[9px] text-[12.5px] font-semibold inline-flex items-center gap-1.5"
-      style={{
-        // --accent is the readable TEXT step and is too light to carry white
-        // text; --accent-solid is the fill step the design system pairs with
-        // --fg-on-solid (#724).
-        background: active ? 'var(--accent-solid)' : 'transparent',
-        color: active ? 'var(--fg-on-solid)' : 'var(--fg-secondary)',
-        border: active ? 'none' : '1px solid var(--border-strong)',
-      }}
-    >
-      <Icon size={14} /> {label}
-      {count !== undefined && count > 0 && (
-        <span
-          className="ml-0.5 px-1.5 rounded-full text-[10.5px] font-bold"
-          style={{
-            background: active
-              ? 'color-mix(in srgb, var(--fg-on-solid) 22%, transparent)'
-              : 'var(--bg-hover)',
-            color: active ? 'var(--fg-on-solid)' : 'var(--fg-secondary)',
-          }}
-        >
-          {count}
-        </span>
-      )}
-    </button>
-  );
 }
 
 /* ------------------------------------------------------------------- container */
@@ -192,32 +144,39 @@ export function MembersView() {
 
   return (
     <>
-      <div className="flex gap-2 mb-4 flex-wrap items-center">
-        <TabBtn
+      <div className="flex gap-2 mb-4 flex-wrap items-end">
+        <Tabs<Tab>
           id="members"
-          label={tr('Membres', 'Members')}
-          icon={Users}
-          tab={tab}
-          onSelect={setTab}
+          label={tr('Sections des membres', 'Member sections')}
+          className="flex-1"
+          value={tab}
+          onChange={setTab}
+          items={[
+            {
+              id: 'members',
+              label: tr('Membres', 'Members'),
+              icon: <Users size={14} aria-hidden="true" />,
+              testId: 'members-tab-members',
+            },
+            {
+              id: 'invitations',
+              label: tr('Invitations', 'Invitations'),
+              icon: <Mail size={14} aria-hidden="true" />,
+              count: pendingCount > 0 ? pendingCount : undefined,
+              testId: 'members-tab-invitations',
+            },
+            ...(canAudit
+              ? [
+                  {
+                    id: 'history' as const,
+                    label: tr("Journal d'accès", 'Access history'),
+                    icon: <History size={14} aria-hidden="true" />,
+                    testId: 'members-tab-history',
+                  },
+                ]
+              : []),
+          ]}
         />
-        <TabBtn
-          id="invitations"
-          label={tr('Invitations', 'Invitations')}
-          icon={Mail}
-          tab={tab}
-          count={pendingCount}
-          onSelect={setTab}
-        />
-        {canAudit && (
-          <TabBtn
-            id="history"
-            label={tr("Journal d'accès", 'Access history')}
-            icon={History}
-            tab={tab}
-            onSelect={setTab}
-          />
-        )}
-        <div className="flex-1" />
         {canInvite && (
           <button
             onClick={() => setManualInvite(true)}
@@ -230,9 +189,11 @@ export function MembersView() {
         )}
       </div>
 
-      {tab === 'members' && <MembersTable tr={tr} lang={lang} />}
-      {tab === 'invitations' && <InvitationsTable tr={tr} lang={lang} />}
-      {tab === 'history' && canAudit && <AccessHistory tr={tr} lang={lang} />}
+      <TabPanel tabsId="members" id={tab} active>
+        {tab === 'members' && <MembersTable tr={tr} lang={lang} />}
+        {tab === 'invitations' && <InvitationsTable tr={tr} lang={lang} />}
+        {tab === 'history' && canAudit && <AccessHistory tr={tr} lang={lang} />}
+      </TabPanel>
 
       {inviteOpen && <InviteDialog tr={tr} onClose={closeInvite} />}
     </>
@@ -1150,7 +1111,7 @@ function Overlay({ children, onClose }: { children: React.ReactNode; onClose: ()
           background: 'var(--bg-elevated)',
           border: '1px solid var(--border)',
           boxShadow: 'var(--shadow-overlay)',
-          animation: 'or-scalein .18s cubic-bezier(.2,.8,.2,1)',
+          animation: 'or-scalein var(--motion-enter)',
         }}
       >
         {children}

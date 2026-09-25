@@ -125,7 +125,7 @@ export function ReportsScreen() {
             key={title}
             style={{
               padding: 20,
-              animation: 'or-fadeup .4s ease both',
+              animation: 'or-fadeup var(--dur-slow) var(--ease-out) both',
               animationDelay: `${i * 0.04}s`,
             }}
           >

@@ -104,7 +104,7 @@ export function ScanConfigDrawer({
         aria-modal="true"
         aria-labelledby="scan-config-title"
         className="relative h-full w-full max-w-[460px] flex flex-col glass-strong"
-        style={{ borderLeft: '1px solid var(--border-strong)', animation: 'or-slidein .28s ease' }}
+        style={{ borderLeft: '1px solid var(--border-strong)', animation: 'or-slidein var(--motion-panel)' }}
       >
         {/* header */}
         <div

@@ -3,8 +3,8 @@
 // This program is free software: you can redistribute it and/or modify it under
 // the terms of the GNU Affero General Public License v3.0 (see LICENSE).
 
-import { useEffect } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { useEffect, useRef } from 'react';
+import { AnimatePresence, dialogMotion, motion } from '../../../shared/motion';
 import { Controller, useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -14,7 +14,7 @@ import { apiErrorMessage } from '../../../lib/apiError';
 
 import { useRiskStore } from '../../../hooks/useRiskStore';
 import { useAssetStore } from '../../../hooks/useAssetStore';
-import { Button, Field, Input, TagInput } from '../../../shared/ds';
+import { Button, Field, Input, ScrollProgress, TagInput } from '../../../shared/ds';
 import { useI18n } from '../../../hooks/useI18n';
 import { useRiskTagLabels } from '../useRiskTagLabels';
 
@@ -54,6 +54,8 @@ export const EditRiskModal = ({ isOpen, onClose, risk, onSuccess }: EditRiskModa
 
   const { t } = useI18n();
   const tagLabels = useRiskTagLabels();
+  // The form scrolls under a pinned header; the keyline shows how far down it is.
+  const formRef = useRef<HTMLFormElement>(null);
 
   const {
     register,
@@ -173,16 +175,13 @@ export const EditRiskModal = ({ isOpen, onClose, risk, onSuccess }: EditRiskModa
           />
 
           <motion.div
-            initial={{ opacity: 0, y: 50 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 50 }}
-            transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+            {...dialogMotion}
             role="dialog"
             aria-modal="true"
             aria-labelledby="edit-risk-title"
             className="fixed inset-0 m-auto w-full max-w-lg h-fit max-h-[90vh] bg-surface border border-border rounded-xl shadow-2xl p-6 z-90 overflow-hidden"
           >
-            <div className="flex justify-between items-center mb-6 border-b border-border-strong/5 pb-4">
+            <div className="flex justify-between items-center border-b border-border-strong/5 pb-4">
               <h2
                 id="edit-risk-title"
                 className="text-xl font-bold text-fg-primary flex items-center gap-2"
@@ -198,8 +197,11 @@ export const EditRiskModal = ({ isOpen, onClose, risk, onSuccess }: EditRiskModa
                 <X size={24} aria-hidden="true" />
               </button>
             </div>
+            {/* On the header's bottom rule; the 23px below restores its old mb-6. */}
+            <ScrollProgress target={formRef} className="-mt-px mb-[23px]" />
 
             <form
+              ref={formRef}
               onSubmit={handleSubmit((data: any) => onSubmit(data))}
               className="space-y-4 overflow-y-auto pr-2 max-h-[calc(90vh-140px)]"
             >

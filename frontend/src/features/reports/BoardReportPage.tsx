@@ -4,7 +4,7 @@
 // AGPL; it is licensed under the OpenRisk Commercial License (see LICENSE.commercial).
 
 import { useEffect, useMemo, useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from '../../shared/motion';
 import {
   Sparkles,
   FileText,

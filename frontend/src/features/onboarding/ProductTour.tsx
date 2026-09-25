@@ -192,7 +192,7 @@ export function ProductTour() {
           background: 'var(--bg-elevated)',
           border: '1px solid var(--border-strong)',
           boxShadow: 'var(--elev-3)',
-          animation: 'or-scalein .18s ease',
+          animation: 'or-scalein var(--motion-enter)',
         }}
       >
         <div className="flex items-start justify-between gap-2 mb-1.5">

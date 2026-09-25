@@ -4,7 +4,7 @@
 // the terms of the GNU Affero General Public License v3.0 (see LICENSE).
 
 import { useFormat } from '../../hooks/useI18n';
-import { motion } from 'framer-motion';
+import { motion } from '../../shared/motion';
 import { Zap } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';

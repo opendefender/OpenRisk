@@ -118,7 +118,7 @@ export function Empty({
       // every caller's override was silently ignored and those surfaces rendered
       // 64px of padding top and bottom instead of the 32px asked for.
       className={cn('flex flex-col items-center justify-center text-center py-16 px-6', className)}
-      style={{ animation: 'or-fadein .3s ease' }}
+      style={{ animation: 'or-fadein var(--dur-slow) var(--ease-out)' }}
     >
       <div
         className="w-16 h-16 rounded-2xl flex items-center justify-center mb-5"

@@ -66,7 +66,7 @@ import {
   type Facet,
   type RowAction,
 } from '../../shared/datatable';
-import { RiskMatrix, type MatrixBucket } from '../../shared/ds';
+import { RiskMatrix, TabPanel, Tabs, type MatrixBucket } from '../../shared/ds';
 import { critColor } from '../../shared/riskColors';
 import type { Criticality } from '../../shared/riskColors';
 import { ImpactDialog } from '../../shared/ImpactDialog';
@@ -1247,7 +1247,10 @@ function DrawerAI({ r }: { r: UiRisk }) {
       )}
 
       {res && (
-        <div className="mt-5 space-y-4" style={{ animation: 'or-fadeup .25s ease' }}>
+        <div
+          className="mt-5 space-y-4"
+          style={{ animation: 'or-fadeup var(--dur-slow) var(--ease-out)' }}
+        >
           <div>
             <div className="text-[11px] font-semibold text-ink-muted uppercase tracking-wide mb-1.5">
               {tr('Synthèse', 'Summary')}
@@ -1394,7 +1397,7 @@ function RiskDrawer({
       style={{
         background: 'var(--surface-overlay)',
         backdropFilter: 'blur(var(--overlay-blur))',
-        animation: 'or-fadein .2s ease',
+        animation: 'or-fadein var(--motion-enter)',
       }}
       onClick={onClose}
     >
@@ -1409,7 +1412,7 @@ function RiskDrawer({
           background: 'var(--bg-secondary)',
           borderLeft: '1px solid var(--border)',
           boxShadow: 'var(--shadow-lg)',
-          animation: 'or-slidein .3s cubic-bezier(.2,.8,.2,1)',
+          animation: 'or-slidein var(--motion-panel)',
         }}
       >
         <div className="px-[22px] pt-5 pb-3.5">
@@ -1449,28 +1452,16 @@ function RiskDrawer({
           </div>
         </div>
 
-        <div
-          className="flex gap-0.5 px-[22px] overflow-x-auto"
-          style={{ borderBottom: '1px solid var(--border)' }}
-        >
-          {tabDef.map(([k, lbl]) => (
-            <button
-              key={k}
-              onClick={() => setTab(k)}
-              className="px-3 py-[11px] text-[13px] whitespace-nowrap"
-              style={{
-                color: tab === k ? 'var(--fg-primary)' : 'var(--fg-secondary)',
-                fontWeight: tab === k ? 600 : 500,
-                borderBottom: `2px solid ${tab === k ? 'var(--accent)' : 'transparent'}`,
-                marginBottom: -1,
-              }}
-            >
-              {lbl}
-            </button>
-          ))}
-        </div>
+        <Tabs<DrawerTab>
+          id={`risk-drawer-${r.id}`}
+          label={tr('Sections du risque', 'Risk sections')}
+          className="px-[22px]"
+          value={tab}
+          onChange={setTab}
+          items={tabDef.map(([id, label]) => ({ id, label }))}
+        />
 
-        <div className="flex-1 overflow-y-auto">
+        <TabPanel tabsId={`risk-drawer-${r.id}`} id={tab} active className="flex-1 overflow-y-auto">
           {tab === 'details' && <DrawerDetails r={r} onCreateMiti={onCreateMiti} />}
           {tab === 'lifecycle' && (
             <DrawerLifecycle r={r} onOpenMitigations={() => setTab('miti')} />
@@ -1482,7 +1473,7 @@ function RiskDrawer({
           {tab === 'ai' && <DrawerAI r={r} />}
           {tab === 'timeline' && <DrawerTimeline r={r} />}
           {tab === 'cti' && <DrawerCTI r={r} />}
-        </div>
+        </TabPanel>
       </div>
     </div>,
     document.body,

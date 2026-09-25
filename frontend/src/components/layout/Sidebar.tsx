@@ -3,7 +3,7 @@
 // This program is free software: you can redistribute it and/or modify it under
 // the terms of the GNU Affero General Public License v3.0 (see LICENSE).
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router';
 import {
   PanelLeftClose,
@@ -38,6 +38,7 @@ import { bandColor, bandLabel, bandTextColor } from '../../services/scoreService
 import { UserAvatar } from '../../shared/UserAvatar';
 import { useMyProfile } from '../../features/profile/useProfile';
 import { OrgLogo } from '../../features/organization/OrgLogo';
+import { useNavGlide } from './useNavGlide';
 
 interface SidebarProps {
   /** Off-canvas drawer open on mobile (< lg). Ignored on desktop, where the
@@ -66,6 +67,9 @@ export const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => 
   const { data: myProfile } = useMyProfile(Boolean(user));
   const { can, isAdmin } = usePermissions();
   const [menuOpen, setMenuOpen] = useState(false);
+  // One hover backdrop that glides between nav entries (#751).
+  const glideRef = useRef<HTMLDivElement>(null);
+  const glide = useNavGlide(glideRef);
   // Real org identity + posture — replaces the former hardcoded fixtures.
   // Branding (#718) is readable by every member; the login's org_name is the
   // fallback while it loads.
@@ -157,6 +161,7 @@ export const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => 
         key={item.key}
         to={item.href ?? item.path}
         data-testid={`nav-${item.key}`}
+        data-nav-entry=""
         // Anchor for the product tour's third coach mark (features/onboarding/ProductTour).
         data-tour={`nav-${item.key}`}
         // The visual highlight told sighted users which page they were on; this
@@ -165,7 +170,9 @@ export const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => 
         title={L[item.labelKey]}
         className={cn(
           'w-full flex items-center gap-[11px] px-[11px] py-2 rounded-[9px] relative mb-0.5 transition-colors',
-          active ? 'bg-accent-soft' : 'hover:bg-hover',
+          // With the glide on, the shared backdrop is the hover; without it
+          // (touch, reduced motion) each entry keeps its own.
+          active ? 'bg-accent-soft' : !glide.enabled && 'hover:bg-hover',
         )}
       >
         <span
@@ -292,7 +299,23 @@ export const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => 
           )}
 
           {/* Navigation */}
-          <nav className="flex-1 overflow-y-auto px-2.5 pt-1.5 pb-2.5">
+          <nav className="relative flex-1 overflow-y-auto px-2.5 pt-1.5 pb-2.5" {...glide.navProps}>
+            {/* First child, so every entry paints above it. Glides on
+                --motion-hover, fades out on --motion-exit, never scales. */}
+            {glide.enabled && (
+              <div
+                ref={glideRef}
+                aria-hidden="true"
+                data-testid="nav-glide"
+                data-visible="false"
+                className={cn(
+                  'pointer-events-none absolute top-0 left-0 rounded-[9px] bg-hover opacity-0',
+                  'transition-opacity duration-fast ease-in',
+                  'data-[visible=true]:opacity-100 data-[visible=true]:ease-out',
+                  'data-[visible=true]:transition-[transform,height,opacity] data-[visible=true]:duration-fast',
+                )}
+              />
+            )}
             {/* Pinned entries (Dashboard) hoisted above the intention groups. */}
             {pinned.length > 0 && (
               <div className="mb-3 pb-3 border-b border-border">{pinned.map(navItem)}</div>
@@ -371,7 +394,7 @@ export const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => 
                     bottom: 'calc(100% - 6px)',
                     background: 'var(--bg-elevated)',
                     border: '1px solid var(--border)',
-                    animation: 'or-scalein .14s cubic-bezier(.2,.8,.2,1)',
+                    animation: 'or-scalein var(--motion-enter)',
                   }}
                 >
                   <div className="px-3 py-2.5 border-b border-border">

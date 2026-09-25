@@ -131,7 +131,7 @@ function ShortcutsHelp({ onClose }: { onClose: () => void }) {
         background: 'var(--surface-overlay)',
         backdropFilter: 'blur(6px)',
         WebkitBackdropFilter: 'blur(6px)',
-        animation: 'or-fadein .16s ease',
+        animation: 'or-fadein var(--motion-enter)',
       }}
       onClick={onClose}
     >
@@ -141,7 +141,7 @@ function ShortcutsHelp({ onClose }: { onClose: () => void }) {
         style={{
           background: 'var(--bg-elevated)',
           border: '1px solid var(--border)',
-          animation: 'or-scalein .18s cubic-bezier(.2,.8,.2,1)',
+          animation: 'or-scalein var(--motion-enter)',
         }}
       >
         <div className="flex items-center justify-between px-5 py-4 border-b border-border">

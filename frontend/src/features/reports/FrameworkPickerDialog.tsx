@@ -39,7 +39,7 @@ export function FrameworkPickerDialog({ frameworks, busy, onClose, onPick }: Pro
       style={{
         background: 'var(--surface-overlay)',
         backdropFilter: 'blur(6px)',
-        animation: 'or-fadein .16s ease',
+        animation: 'or-fadein var(--motion-enter)',
       }}
       onClick={onClose}
       role="dialog"
@@ -49,7 +49,11 @@ export function FrameworkPickerDialog({ frameworks, busy, onClose, onPick }: Pro
       <div
         onClick={(e) => e.stopPropagation()}
         className="glass-strong rounded-[18px] shadow-card-lg flex flex-col"
-        style={{ width: 'min(92vw,460px)', maxHeight: '80vh', animation: 'or-scalein .18s ease' }}
+        style={{
+          width: 'min(92vw,460px)',
+          maxHeight: '80vh',
+          animation: 'or-scalein var(--motion-enter)',
+        }}
       >
         <div
           className="shrink-0 flex items-center justify-between px-5 py-4"
