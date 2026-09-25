@@ -154,7 +154,9 @@ func (uc *UseCase) tenantScore(ctx context.Context, tenantID uuid.UUID) (*scorin
 	}
 
 	if uc.vulnStats != nil {
-		if stats, err := uc.vulnStats.Stats(ctx, tenantID); err == nil && stats != nil {
+		// Zero vulnerabilities on record means nothing was ever imported, not a
+		// clean scan: the factor stays unavailable rather than scoring perfect.
+		if stats, err := uc.vulnStats.Stats(ctx, tenantID); err == nil && stats != nil && stats.Total > 0 {
 			in.KEVVulnerabilities = int(stats.KEVCount)
 			in.CriticalVulnerabilities = int(stats.BySeverity["critical"])
 			in.HasVulnData = true

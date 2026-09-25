@@ -6,6 +6,7 @@
 package scoring
 
 import (
+	"encoding/json"
 	"sort"
 	"time"
 )
@@ -86,6 +87,14 @@ type Factor struct {
 // Result is one computed score, with everything needed to explain it.
 type Result struct {
 	Scope Scope `json:"scope"`
+
+	// Measured is false when there is not enough data to say anything: a tenant
+	// with no risks and no applicable controls. The value is then serialised as
+	// null, never as 0 — on this scale 0 reads as "no exposure", and a fresh
+	// tenant has not earned that. ReasonI18nKey says what would make it measurable.
+	Measured      bool   `json:"measured"`
+	ReasonI18nKey string `json:"reason_i18n_key,omitempty"`
+
 	// Value is the residual score when mitigations are known, otherwise the
 	// inherent one — it is the number every surface displays.
 	Value            float64 `json:"value"`
@@ -111,6 +120,29 @@ type Result struct {
 	Inputs map[string]any `json:"inputs"`
 
 	Breakdown []Factor `json:"breakdown"`
+}
+
+// ReasonNoData is the reason given when a tenant has nothing to score yet.
+const ReasonNoData = "score.unmeasured.no_data"
+
+// MarshalJSON nulls every number and band of an unmeasured result, so no client
+// can render a default as if it had been measured. The breakdown is kept: it is
+// what lets the explainer list each factor as "not measured".
+func (r Result) MarshalJSON() ([]byte, error) {
+	type plain Result
+	if r.Measured {
+		return json.Marshal(plain(r))
+	}
+	return json.Marshal(struct {
+		plain
+		Value            *float64 `json:"value"`
+		Band             *Band    `json:"band"`
+		BandLabelI18nKey *string  `json:"band_label_i18n_key"`
+		Inherent         *float64 `json:"inherent"`
+		InherentBand     *Band    `json:"inherent_band"`
+		Residual         *float64 `json:"residual"`
+		ResidualBand     *Band    `json:"residual_band"`
+	}{plain: plain(r)})
 }
 
 // weighted is the internal accumulator shared by all three scopes.
@@ -188,6 +220,7 @@ func finish(scope Scope, inherent float64, effectiveness float64, at time.Time, 
 
 	return Result{
 		Scope:                   scope,
+		Measured:                true,
 		Value:                   residual,
 		Band:                    BandFor(residual),
 		BandLabelI18nKey:        BandFor(residual).I18nKey(),
