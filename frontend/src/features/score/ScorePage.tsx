@@ -15,8 +15,9 @@ import { useUIStore } from '../../store/uiStore';
 import { useScore, useScoreModel } from '../../hooks/useScore';
 import { ScoreGauge } from '../../shared/ScoreGauge';
 import { ScoreExplainer } from '../../shared/ScoreExplainer';
-import { bandColor, bandLabel } from '../../services/scoreService';
+import { bandColor, bandLabel, unmeasuredReason } from '../../services/scoreService';
 import { ErrorState, SkeletonRows } from '../../shared/ui';
+import { Empty } from '../../shared/ds';
 import type { LocaleCode } from '../../i18n/locales';
 
 export function ScorePage() {
@@ -60,7 +61,29 @@ export function ScorePage() {
           />
         )}
 
-        {score && (
+        {/* #287 — nothing to score yet: say so, and say what would change it. */}
+        {score && !score.measured && (
+          <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-4">
+            <ScoreGauge score={score} title={tr('Score global', 'Overall score')} />
+            <Empty
+              variant="first-use"
+              title={tr('Score non mesuré', 'Score not measured')}
+              description={unmeasuredReason(score.reason_i18n_key, lang)}
+              primaryAction={
+                <button
+                  onClick={() => navigate('/risks')}
+                  className="h-10 px-4 rounded-[10px] text-[13px] font-semibold inline-flex items-center gap-2"
+                  style={{ background: 'var(--accent-solid)', color: 'var(--fg-on-solid)' }}
+                >
+                  {tr('Ouvrir le registre des risques', 'Open the risk register')}
+                  <ArrowRight size={15} />
+                </button>
+              }
+            />
+          </div>
+        )}
+
+        {score?.measured && (
           <>
             <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-4 mb-4">
               <ScoreGauge score={score} title={tr('Score global', 'Overall score')} />

@@ -125,11 +125,13 @@ export const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => 
   // Posture footer. No thresholds live here any more: the band comes from the
   // server alongside the value, and bandColor maps a BAND (never a number) to a
   // token — so this cannot disagree with the server about where a cut lies.
-  const score = tenantScore ? Math.round(tenantScore.value) : undefined;
-  const scoreColor = bandColor(tenantScore?.band);
+  // An unmeasured tenant (#287) gets no number at all — not 0, not a default.
+  const measuredScore = tenantScore?.measured ? tenantScore : undefined;
+  const score = measuredScore ? Math.round(measuredScore.value) : undefined;
+  const scoreColor = bandColor(measuredScore?.band);
   // The bar uses the fill colour; the number is small text and needs the
   // text-weight token (see bandTextColor).
-  const scoreTextColor = bandTextColor(tenantScore?.band);
+  const scoreTextColor = bandTextColor(measuredScore?.band);
 
   // Live, tenant-scoped counters for the nav badges. A failed or refused read
   // leaves every count at zero, which renders no badge at all — the honest
@@ -318,8 +320,9 @@ export const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => 
             })}
           </nav>
 
-          {/* Security score footer — real cyber score; hidden until available. */}
-          {!collapsed && score !== undefined && (
+          {/* Security score footer — the canonical tenant score; hidden until
+              it has loaded, "not measured" when the tenant has nothing to score. */}
+          {!collapsed && tenantScore !== undefined && (
             <button
               onClick={() => navigate('/?view=executive')}
               className="w-full text-left px-[14px] py-3 border-t border-border hover:bg-hover transition-colors"
@@ -327,10 +330,14 @@ export const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => 
             >
               <div className="flex items-center justify-between mb-[7px]">
                 <span className="text-[10.5px] text-ink-soft font-medium">
-                  {L.globalScore} · {bandLabel(tenantScore?.band, lang)}
+                  {L.globalScore} · {bandLabel(measuredScore?.band, lang)}
                 </span>
-                <span className="mono text-[12px] font-semibold" style={{ color: scoreTextColor }}>
-                  {score}/100
+                <span
+                  className={`mono text-[12px] font-semibold${score === undefined ? ' text-ink-muted' : ''}`}
+                  style={score === undefined ? undefined : { color: scoreTextColor }}
+                  data-testid="sidebar-score-value"
+                >
+                  {score === undefined ? '—' : `${score}/100`}
                 </span>
               </div>
               <div
@@ -340,7 +347,7 @@ export const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => 
                 <div
                   className="h-full rounded-[5px]"
                   style={{
-                    width: `${score}%`,
+                    width: `${score ?? 0}%`,
                     background: scoreColor,
                     transition: 'width .8s cubic-bezier(.2,.8,.2,1)',
                   }}
