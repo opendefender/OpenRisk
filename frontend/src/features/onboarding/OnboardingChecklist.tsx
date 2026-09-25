@@ -92,7 +92,7 @@ export function OnboardingChecklist() {
       style={{
         background: 'var(--bg-elevated)',
         border: '1px solid var(--border-strong)',
-        animation: 'or-fadeup .4s ease',
+        animation: 'or-fadeup var(--dur-slow) var(--ease-out)',
       }}
       aria-label={tr('Prise en main', 'Get started')}
     >

@@ -1247,7 +1247,10 @@ function DrawerAI({ r }: { r: UiRisk }) {
       )}
 
       {res && (
-        <div className="mt-5 space-y-4" style={{ animation: 'or-fadeup .25s ease' }}>
+        <div
+          className="mt-5 space-y-4"
+          style={{ animation: 'or-fadeup var(--dur-slow) var(--ease-out)' }}
+        >
           <div>
             <div className="text-[11px] font-semibold text-ink-muted uppercase tracking-wide mb-1.5">
               {tr('Synthèse', 'Summary')}

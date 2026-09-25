@@ -193,7 +193,7 @@ export function GapAnalysisPage() {
                 style={{
                   padding: 0,
                   overflow: 'hidden',
-                  animation: 'or-fadeup .4s ease both',
+                  animation: 'or-fadeup var(--dur-slow) var(--ease-out) both',
                   animationDelay: `${Math.min(gi * 0.04, 0.3)}s`,
                 }}
               >

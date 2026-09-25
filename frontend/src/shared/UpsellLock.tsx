@@ -47,7 +47,10 @@ export function UpsellLock({
           background: 'radial-gradient(120% 90% at 50% 30%, transparent, var(--bg-primary) 78%)',
         }}
       >
-        <div className="max-w-sm" style={{ animation: 'or-fadeup .4s ease' }}>
+        <div
+          className="max-w-sm"
+          style={{ animation: 'or-fadeup var(--dur-slow) var(--ease-out)' }}
+        >
           <div
             className="w-12 h-12 rounded-2xl mx-auto mb-4 flex items-center justify-center text-accent-strong"
             style={{ background: 'var(--accent-soft)' }}
