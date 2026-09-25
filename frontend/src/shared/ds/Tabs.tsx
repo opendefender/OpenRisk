@@ -44,6 +44,8 @@ export interface TabItem<T extends string = string> {
   count?: number;
   icon?: ReactNode;
   disabled?: boolean;
+  /** data-testid for the tab button, for suites that already target one. */
+  testId?: string;
 }
 
 export interface TabsProps<T extends string = string> {
@@ -171,6 +173,7 @@ export function Tabs<T extends string = string>({
             role="tab"
             type="button"
             data-tab-id={item.id}
+            data-testid={item.testId}
             id={`${baseId}-tab-${item.id}`}
             aria-selected={active}
             /* Only the active tab points at a panel. Inactive panels are not
