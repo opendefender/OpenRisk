@@ -1,7 +1,9 @@
 # Multi-stage build for OpenRisk
 
 # Stage 1: Build backend
-FROM golang:1.21-alpine AS backend-builder
+# Float to the latest 1.25.x patch so the binary's standard library carries Go
+# security fixes; go.mod's `go` line sets the floor.
+FROM golang:1.25-alpine AS backend-builder
 WORKDIR /app
 RUN apk add --no-cache git make
 
@@ -10,7 +12,7 @@ COPY backend/go.mod backend/go.sum ./
 RUN go mod download
 
 COPY backend/ ./
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o openrisk ./cmd/server
+RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -o openrisk ./cmd/server
 
 # Stage 2: Build frontend
 FROM node:20-alpine AS frontend-builder
@@ -22,8 +24,9 @@ COPY frontend/ ./
 RUN npm run build
 
 # Stage 3: Runtime
-FROM alpine:3.18
-RUN apk add --no-cache ca-certificates curl
+# alpine:3.18 reached end of life in May 2025 and no longer gets fixes.
+FROM alpine:3.24
+RUN apk upgrade --no-cache && apk add --no-cache ca-certificates curl
 
 WORKDIR /app
 
