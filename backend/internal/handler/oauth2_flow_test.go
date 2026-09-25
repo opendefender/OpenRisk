@@ -171,19 +171,33 @@ func startFlow(t *testing.T, app *fiber.App, provider string) (state string, aut
 	return q.Get("state"), q
 }
 
-// callbackError drives /callback and returns the error code on the SPA redirect.
+// callbackError drives /callback as the browser that started the flow — it
+// presents the state cookie /login would have set for the query's state — and
+// returns the error code on the SPA redirect.
 func callbackError(t *testing.T, app *fiber.App, provider, query string) (status int, params url.Values) {
 	t.Helper()
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/auth/oauth2/callback/"+provider+"?"+query, nil)
-	resp, err := app.Test(req, -1)
-	if err != nil {
-		t.Fatal(err)
-	}
+	q, _ := url.ParseQuery(query)
+	resp := callbackWithCookie(t, app, provider, query, q.Get("state"))
 	loc, _ := url.Parse(resp.Header.Get("Location"))
 	if loc == nil {
 		return resp.StatusCode, url.Values{}
 	}
 	return resp.StatusCode, loc.Query()
+}
+
+// callbackWithCookie drives /callback presenting `cookie` as the state cookie,
+// or no cookie at all when it is empty.
+func callbackWithCookie(t *testing.T, app *fiber.App, provider, query, cookie string) *http.Response {
+	t.Helper()
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/auth/oauth2/callback/"+provider+"?"+query, nil)
+	if cookie != "" {
+		req.AddCookie(&http.Cookie{Name: OAuthStateCookie, Value: cookie})
+	}
+	resp, err := app.Test(req, -1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return resp
 }
 
 // ---------------------------------------------------------------------------

@@ -7,6 +7,7 @@ package handler
 
 import (
 	"context"
+	"crypto/subtle"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -22,6 +23,7 @@ import (
 
 	appauth "github.com/opendefender/openrisk/internal/application/auth"
 	coreauth "github.com/opendefender/openrisk/internal/auth"
+	"github.com/opendefender/openrisk/internal/middleware"
 	"github.com/opendefender/openrisk/internal/service"
 	"github.com/opendefender/openrisk/pkg/oauthpkce"
 	"golang.org/x/oauth2"
@@ -67,6 +69,75 @@ var (
 // Ten minutes: comfortably longer than a consent screen plus an MFA prompt at
 // the provider, short enough that an abandoned flow is not a lingering credential.
 const oauthStateTTL = 10 * time.Minute
+
+// OAuthStateCookie binds a started flow to the browser that started it.
+//
+// The server-side state alone proves the flow is ours, not that it is THIS
+// browser's: an attacker could start a flow, stop at the callback URL and send
+// that link to a victim, who would then be signed in to the attacker's account
+// (login CSRF). The cookie closes that. Only the browser that hit /login holds
+// it, and the callback refuses a state the cookie does not vouch for.
+//
+// HttpOnly so no script can read it. SameSite=Lax, not Strict: the callback
+// arrives as a cross-site top-level redirect from the provider, and browsers
+// withhold Strict cookies on exactly that hop, which would fail every sign-in.
+// Its Path is the provider's callback, so it rides on no other request, and
+// flows for two providers in parallel do not overwrite each other.
+const OAuthStateCookie = "or_oauth_state"
+
+// oauthCallbackFallbackPath scopes the cookie when a redirect URL is unusable.
+const oauthCallbackFallbackPath = "/api/v1/auth/oauth2/callback"
+
+// oauthStateCookiePath is the path part of the provider's redirect URL, which is
+// where the browser will carry the cookie back to. Deriving it rather than
+// hard-coding it keeps the binding working behind a path-prefixing proxy.
+func oauthStateCookiePath(config *oauth2.Config) string {
+	if config != nil {
+		if u, err := url.Parse(config.RedirectURL); err == nil && strings.HasPrefix(u.Path, "/") {
+			return u.Path
+		}
+	}
+	return oauthCallbackFallbackPath
+}
+
+func setOAuthStateCookie(c *fiber.Ctx, config *oauth2.Config, state string) {
+	c.Cookie(&fiber.Cookie{
+		Name:     OAuthStateCookie,
+		Value:    state,
+		Path:     oauthStateCookiePath(config),
+		MaxAge:   int(oauthStateTTL / time.Second),
+		Expires:  time.Now().Add(oauthStateTTL),
+		HTTPOnly: true,
+		Secure:   middleware.IsProductionEnv(),
+		SameSite: fiber.CookieSameSiteLaxMode,
+	})
+}
+
+// clearOAuthStateCookie expires the cookie with the same Path it was set with;
+// a different Path would leave the original in place.
+func clearOAuthStateCookie(c *fiber.Ctx, config *oauth2.Config) {
+	c.Cookie(&fiber.Cookie{
+		Name:     OAuthStateCookie,
+		Value:    "",
+		Path:     oauthStateCookiePath(config),
+		MaxAge:   -1,
+		Expires:  time.Now().Add(-time.Hour),
+		HTTPOnly: true,
+		Secure:   middleware.IsProductionEnv(),
+		SameSite: fiber.CookieSameSiteLaxMode,
+	})
+}
+
+// stateMatchesCookie reports whether the browser presented the cookie minted
+// for this state. Constant-time, though the state is not secret once it has
+// been in a URL, so that a mismatch leaks nothing about the expected value.
+func stateMatchesCookie(c *fiber.Ctx, state string) bool {
+	cookie := c.Cookies(OAuthStateCookie)
+	if cookie == "" {
+		return false
+	}
+	return subtle.ConstantTimeCompare([]byte(cookie), []byte(state)) == 1
+}
 
 // InitializeOAuth2 initializes all OAuth2 configurations
 func InitializeOAuth2() *OAuth2Config {
@@ -184,6 +255,7 @@ func OAuth2Login(c *fiber.Ctx) error {
 		Locale:       locale,
 		ReturnTo:     sanitiseReturnTo(c.Query("return_to")),
 	}, oauthStateTTL)
+	setOAuthStateCookie(c, config, state)
 
 	authURL := config.AuthCodeURL(state,
 		oauth2.AccessTypeOffline,
@@ -204,6 +276,11 @@ func OAuth2Callback(c *fiber.Ctx) error {
 	provider := c.Params("provider")
 	locale := oauthLocale(c)
 
+	// Read the binding cookie, then expire it at once so every exit below, on
+	// success or failure, leaves the browser without it. A flow gets one try.
+	stateBound := stateMatchesCookie(c, c.Query("state"))
+	clearOAuthStateCookie(c, providerConfig(provider))
+
 	// The provider itself can fail the flow (user pressed Cancel, admin consent
 	// missing). It reports that as ?error=..., not as a missing code.
 	if providerErr := c.Query("error"); providerErr != "" {
@@ -213,6 +290,12 @@ func OAuth2Callback(c *fiber.Ctx) error {
 	state := c.Query("state")
 	if state == "" {
 		return oauthFailure(c, "state_missing", provider, locale)
+	}
+
+	// Checked before the server-side flow is consumed: a callback from a browser
+	// that did not start this flow is refused without spending the flow.
+	if !stateBound {
+		return oauthFailure(c, "state_invalid", provider, locale)
 	}
 
 	flow, err := oauthStateService.ConsumeFlow(state, provider)
