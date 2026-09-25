@@ -324,11 +324,11 @@ func Render(w io.Writer, res Result, excErrs []error) bool {
 		fmt.Fprintf(&b, "BLOCKING: %d HIGH/CRITICAL or reachable finding(s) with no valid exception\n\n", len(res.Blocking))
 		writeTable(&b, res.Blocking)
 		for _, f := range res.Blocking {
-			fixed := f.Fixed
-			if fixed == "" {
+			fixed := "fixed in " + f.Fixed
+			if f.Fixed == "" {
 				fixed = "no fixed version"
 			}
-			fmt.Fprintf(&b, "::error title=%s %s::%s — installed %s, fixed %s (%s, %s)\n",
+			fmt.Fprintf(&b, "::error title=%s %s::%s — installed %s, %s (%s, %s)\n",
 				f.Severity, f.ID, f.Package, f.Installed, fixed, f.Source, f.Target)
 		}
 		b.WriteString("\n")
