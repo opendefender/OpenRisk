@@ -350,6 +350,14 @@ kubectl rollout status deployment/frontend -n openrisk
 
 ### Rollback on Issues
 
+`helm rollback` alone is not enough when the newer release applied SQL
+migrations: the previous image refuses to boot on a database ahead of its own
+migrations (`no migration found for version N`) and crash-loops. Record the
+previous version with the previous image first (`openrisk migrate force <N>`).
+See [docs/runbooks/migrations.md](runbooks/migrations.md#rolling-back-to-a-previous-release),
+and [docs/runbooks/migration-0060.md](runbooks/migration-0060.md) for the upgrade
+across migration 0060, which also needs longer probes on large databases.
+
 ```bash
 # View release history
 helm history openrisk -n openrisk

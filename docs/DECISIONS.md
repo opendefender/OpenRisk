@@ -152,6 +152,37 @@ before it is written into any customer-facing claim.
 
 **Blocks** — nothing; task 3 of #486 is met as the code stands.
 
+### D-054 — RSSI members without MFA are locked out at the upgrade to 0060 · raised 2026-09-25
+**Raised by** — #349, found while rehearsing the upgrade from `v1.1.0-rc.3`. Who must hold MFA
+is auth policy, so it comes here rather than into the PR.
+
+**Context** — `v1.1.0-rc.3` required MFA from the `admin` and `root` org roles only. The current
+default privileged set adds the `rssi` business role (`DefaultMFAPrivilegeRoles`). Migration
+0060 anchors every existing membership's grace window to when it began. Result: an RSSI who
+joined more than 7 days ago and has no verified authenticator goes from "MFA optional" to
+"required now" at their first login after the upgrade, with no window at all. On the rehearsal
+data (200 001 memberships), that was 26 925 members. Admins and roots are not affected: the
+previous release already refused them a session without MFA. The runbook
+(`docs/runbooks/migration-0060.md`, pre-check 4) counts them so the operator can warn them.
+
+**Options**
+- **A — accept it and communicate.** The runbook already gives the count. RSSI accounts read
+  every register, and a strict start is defensible.
+- **B — give newly privileged roles a fresh window once.** A one-off migration anchors RSSI
+  members without verified MFA to the upgrade time instead of their join date, so they get the
+  tenant's window (7 days by default) like a promoted member does.
+- **C — ship the upgrade with `MFA_REQUIRED_BUSINESS_ROLES=` (empty)** and turn it on per
+  deployment after the RSSI members have enrolled.
+
+**Recommendation** — **B.** It follows the rule the product already applies to promotions: a new
+privilege gets a fresh window. It needs no operator action, and the requirement still takes
+effect within a week.
+
+**Cost of delay** — Medium, and only at upgrade time. Nothing happens until a deployment on
+rc.3 or earlier upgrades. Then every RSSI without MFA is stopped at login on day one.
+
+**Blocks** — nothing in #349. It decides whether a follow-up migration is written.
+
 ## Resolved
 
 ### D-047 — authenticated password change: kept as built · decided 2026-09-24
