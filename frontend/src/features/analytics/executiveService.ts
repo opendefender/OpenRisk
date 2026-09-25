@@ -14,21 +14,6 @@ export interface Money {
   usd: number;
 }
 
-export interface ScoreComponent {
-  key: string;
-  label: string;
-  value: number; // 0..100 (higher = safer)
-  weight: number; // effective weight after renormalisation
-}
-
-/** Composite posture grade: 0..100 + A..F letter. */
-export interface CyberScore {
-  score: number;
-  grade: string;
-  label: string;
-  components: ScoreComponent[];
-}
-
 export interface FinancialHeadline {
   total_ale: Money;
   total_ale_worst: Money;
@@ -91,7 +76,6 @@ export interface ExecutiveDashboard {
   generated_at: string;
   currency: string;
   xaf_per_usd: number;
-  cyber_score: CyberScore;
   financial: FinancialHeadline;
   kris: KRI[];
   top_risks: ExecRisk[];

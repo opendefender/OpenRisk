@@ -42,6 +42,7 @@ vi.mock('../../../services/scoreService', async () => {
 function makeScore(over: Partial<Score> = {}): Score {
   return {
     scope: 'tenant',
+    measured: true,
     value: 63,
     band: 'high',
     band_label_i18n_key: 'score.band.high',

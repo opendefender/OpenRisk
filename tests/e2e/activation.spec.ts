@@ -212,8 +212,11 @@ test.describe('activation — signup to Aha', () => {
     // dashboard is what computes it — which is what the user does next.
     const exec = await api.get('/analytics/executive');
     expect(exec.status()).toBe(200);
-    const dashboard = await exec.json();
-    expect(dashboard.cyber_score, 'a cyber score is produced').toBeTruthy();
+    // The score itself is the canonical tenant score (#287): with one risk on
+    // record it must be measured, and a number — never the empty-tenant null.
+    const score = await (await api.get('/score?scope=tenant')).json();
+    expect(score.measured, 'one risk makes the tenant score measurable').toBe(true);
+    expect(typeof score.value, 'a measured score carries a number').toBe('number');
 
     await expect
       .poll(

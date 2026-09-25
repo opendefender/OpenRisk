@@ -45,7 +45,7 @@ export function ViewerDashboard() {
   const statsQuery = useDashboardStats(selection);
   const stats = statsQuery.data;
   // The canonical score, from the shared query key.
-  const { data: tenantScore, isLoading: scoreLoading } = useScore('tenant');
+  const { data: tenantScore, isLoading: scoreLoading, isError: scoreError } = useScore('tenant');
 
   useEffect(() => {
     fetchRisks?.().catch(() => {});
@@ -99,6 +99,7 @@ export function ViewerDashboard() {
         <ScoreGauge
           score={tenantScore}
           loading={scoreLoading}
+          error={scoreError}
           title={tr('Score de sécurité', 'Security score')}
           ctaLabel={tr('Voir le détail', 'View details')}
           onDetails={() => navigate('/score')}

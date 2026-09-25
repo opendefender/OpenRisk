@@ -2,8 +2,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 //
 // Executive dashboard persona (UX-2). Leads with cost & KPIs, no technical detail:
-// the A–F cyber score, financial exposure (ALE, FCFA) and the key risk indicators.
+// the security score, financial exposure (ALE, FCFA) and the key risk indicators.
 // Real data from the consolidated /analytics/executive endpoint.
+//
+// #287: the score here used to be an A–F "cyber score" from a second formula,
+// pointing the opposite way from the sidebar's (higher = safer), and it read
+// 50/E on an empty tenant while the home page read 0. It is now the canonical
+// tenant score, from the same query key as every other surface.
 //
 // W0-06: every value on this screen was `?? 0`. A failed fetch of
 // /analytics/executive rendered a cyber score of 0 with grade F, an annual
@@ -21,7 +26,9 @@ import { useUIStore } from '../../store/uiStore';
 import { useExecutiveDashboard } from '../analytics/useExecutive';
 import { deepLink } from './deepLinks';
 import { WidgetState } from './WidgetState';
-import { DashboardShell, PersonaHeader, ScoreHero, StatCard, Card } from './shared';
+import { DashboardShell, PersonaHeader, StatCard, Card } from './shared';
+import { useScore } from '../../hooks/useScore';
+import { ScoreGauge } from '../../shared/ScoreGauge';
 
 const KRI_COL: Record<string, string> = {
   critical: 'var(--critical)',
@@ -37,7 +44,7 @@ export function ExecDashboard() {
   const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
   const query = useExecutiveDashboard();
   const data = query.data;
-  const cyber = data?.cyber_score;
+  const tenantScore = useScore('tenant');
   const fin = data?.financial;
   const kris = data?.kris ?? [];
 
@@ -68,16 +75,13 @@ export function ExecDashboard() {
         retry={() => void query.refetch()}
       >
         <div className="grid grid-cols-1 lg:grid-cols-[340px_1fr] gap-4 mb-4">
-          <ScoreHero
-            title={tr('Cyber score', 'Cyber score')}
-            score={Math.round(cyber?.score ?? 0)}
-            grade={cyber?.grade}
-            hint={tr(
-              'Note composite A–F sur 4 axes pondérés : conformité, risques, vulnérabilités, incidents.',
-              'Composite A–F grade over 4 weighted axes: compliance, risks, vulnerabilities, incidents.',
-            )}
-            ctaLabel={tr('Voir Analytics', 'View analytics')}
-            onDetails={() => navigate('/?view=executive')}
+          <ScoreGauge
+            score={tenantScore.data}
+            loading={tenantScore.isLoading}
+            error={tenantScore.isError}
+            title={tr('Score de sécurité', 'Security score')}
+            ctaLabel={tr('Voir le détail', 'View details')}
+            onDetails={() => navigate('/score')}
           />
           <div className="grid grid-cols-2 gap-4">
             <StatCard

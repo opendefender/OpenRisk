@@ -4,6 +4,7 @@
 package scoring
 
 import (
+	"encoding/json"
 	"math"
 	"testing"
 	"time"
@@ -462,4 +463,71 @@ func TestBreakdown_ArithmeticIsCheckableByEye(t *testing.T) {
 		return
 	}
 	t.Fatal("risk_exposure factor missing from the tenant breakdown")
+}
+
+// #287 — an empty tenant must never read as 0 ("no exposure") or 100.
+func TestComputeTenant_EmptyTenantIsNotMeasured(t *testing.T) {
+	// Every source answered, and every answer was "nothing": the exact shape of a
+	// fresh tenant. Zero open incidents is a real reading, but it is not a posture.
+	r := ComputeTenant(TenantInput{HasRiskData: true, HasComplianceData: true, HasIncidentData: true}, at)
+
+	if r.Measured {
+		t.Fatalf("empty tenant reported as measured, value %v", r.Value)
+	}
+	if r.ReasonI18nKey != ReasonNoData {
+		t.Errorf("reason = %q, want %q", r.ReasonI18nKey, ReasonNoData)
+	}
+	for _, f := range r.Breakdown {
+		if f.Key == FactorRiskExposure && f.Available {
+			t.Error("an empty register was scored as a measured risk exposure")
+		}
+	}
+
+	raw, err := json.Marshal(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var wire map[string]any
+	if err := json.Unmarshal(raw, &wire); err != nil {
+		t.Fatal(err)
+	}
+	for _, k := range []string{"value", "band", "band_label_i18n_key", "inherent", "inherent_band", "residual", "residual_band"} {
+		v, present := wire[k]
+		if !present || v != nil {
+			t.Errorf("%s = %v (present %v), want null", k, v, present)
+		}
+	}
+	if wire["measured"] != false || wire["reason_i18n_key"] != ReasonNoData {
+		t.Errorf("wire measured/reason = %v/%v", wire["measured"], wire["reason_i18n_key"])
+	}
+}
+
+// One real risk, or one applicable control, is enough to measure.
+func TestComputeTenant_OneSignalIsMeasured(t *testing.T) {
+	cases := map[string]TenantInput{
+		"one risk":    {CriticalRisks: 1, TotalRisks: 1, HasRiskData: true},
+		"one control": {ApplicableControls: 1, HasComplianceData: true},
+	}
+	for name, in := range cases {
+		r := ComputeTenant(in, at)
+		if !r.Measured || r.ReasonI18nKey != "" {
+			t.Errorf("%s: measured=%v reason=%q", name, r.Measured, r.ReasonI18nKey)
+		}
+		raw, _ := json.Marshal(r)
+		var wire map[string]any
+		_ = json.Unmarshal(raw, &wire)
+		if _, ok := wire["value"].(float64); !ok {
+			t.Errorf("%s: value = %v, want a number", name, wire["value"])
+		}
+	}
+}
+
+// Risk and asset scores are always measured: they describe a record that exists.
+func TestComputeRiskAndAsset_AlwaysMeasured(t *testing.T) {
+	if !ComputeRisk(RiskInput{}, at).Measured {
+		t.Error("risk score reported as unmeasured")
+	}
+	if !ComputeAsset(AssetInput{}, at).Measured {
+		t.Error("asset score reported as unmeasured")
+	}
 }

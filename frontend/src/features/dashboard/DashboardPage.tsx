@@ -144,7 +144,7 @@ function PostureDashboard() {
 
   // The canonical tenant score — the same query key the sidebar and /score use,
   // so the three render one object from one fetch and cannot disagree.
-  const { data: tenantScore, isLoading: scoreLoading } = useScore('tenant');
+  const { data: tenantScore, isLoading: scoreLoading, isError: scoreError } = useScore('tenant');
   const user = useAuthStore((s) => s.user);
   const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
   const firstName = (user?.full_name || '').trim().split(/\s+/)[0] || user?.username || '';
@@ -256,6 +256,7 @@ function PostureDashboard() {
           <ScoreGauge
             score={tenantScore}
             loading={scoreLoading}
+            error={scoreError}
             title={L.globalScore}
             ctaLabel={L.viewDetails}
             onDetails={() => navigate('/score')}

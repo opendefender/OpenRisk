@@ -1,6 +1,6 @@
 # The OpenRisk score model
 
-**Formula version: `2.1`** · Canonical scale: **0–100** · Source of truth: `backend/internal/domain/scoring/`
+**Formula version: `2.2`** · Canonical scale: **0–100** · Source of truth: `backend/internal/domain/scoring/`
 
 This document is the human-readable half of the model. The machine-readable half
 is `GET /api/v1/score/model`, and the enforcement half is
@@ -161,6 +161,28 @@ The factor is still returned, flagged `"available": false`, so the explainer can
 say **"not measured"** rather than quietly showing three factors where the model
 has four.
 
+A factor with **no underlying records** is unavailable too, not a perfect reading
+(since `2.2`, #287): an empty register is an organisation that has not assessed
+anything, and zero vulnerabilities on record means nothing was ever imported —
+neither is a measured absence of exposure. Zero open incidents is still a reading.
+
+### Not measured
+
+When a tenant has **no risk and no applicable control**, the tenant score is not
+computed from what is left (vulnerabilities and incidents alone would rest on the
+absence of findings, which reads as excellent). The response says so instead:
+
+```json
+{ "scope": "tenant", "measured": false, "reason_i18n_key": "score.unmeasured.no_data",
+  "value": null, "band": null, "band_label_i18n_key": null,
+  "inherent": null, "inherent_band": null, "residual": null, "residual_band": null,
+  "breakdown": [ { "factor": "risk_exposure", "available": false, "…": "…" } ] }
+```
+
+Every number and band is `null`, never `0`: on this scale `0` means "no exposure".
+Every surface renders it as **"Non mesuré / Not measured"** with the reason. Risk
+and asset scores are always `"measured": true` — they describe a record that exists.
+
 ### Weights
 
 **Tenant** — the organisation's posture:
@@ -236,6 +258,7 @@ Response:
 ```json
 {
   "scope": "tenant",
+  "measured": true,
   "value": 63,
   "band": "high",
   "band_label_i18n_key": "score.band.high",
@@ -245,7 +268,7 @@ Response:
   "residual_band": "high",
   "mitigation_effectiveness": 0.1,
   "computed_at": "2026-08-10T12:00:00Z",
-  "formula_version": "2.1",
+  "formula_version": "2.2",
   "inputs": { "critical_risks": 4, "applicable_controls": 100, "…": "…" },
   "breakdown": [
     { "factor": "risk_exposure", "weight": 0.4, "raw": 71, "contribution": 28.4,
@@ -277,6 +300,9 @@ is deciding. The client debounces it at 300 ms.
 - **Band re-calibration changes what existing risks are called.** A risk that was
   "critical" under the old ≥7-of-30 cut may now read `medium`. That is the
   correction, not a regression: the old cut called 77 % of the range critical.
+- **There is no second score.** The executive dashboards' A–F `cyber_score`
+  (`analytics/executive`) was removed by #287; both executive boards read
+  `GET /score?scope=tenant` like every other surface.
 - **The tenant score's direction is flipped from the old sidebar figure.** The
   sidebar used to show a *cyber score* where higher was better (a grade). This is
   an *exposure* score where higher is worse. One number, one direction, one
