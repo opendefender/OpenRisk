@@ -1,0 +1,40 @@
+{
+  "SchemaVersion": 2,
+  "ArtifactName": "backend",
+  "ArtifactType": "filesystem",
+  "Results": [
+    {
+      "Target": "go.mod",
+      "Class": "lang-pkgs",
+      "Type": "gomod",
+      "Vulnerabilities": [
+        {
+          "VulnerabilityID": "CVE-2026-41567",
+          "PkgName": "github.com/docker/docker",
+          "InstalledVersion": "v28.5.2+incompatible",
+          "Status": "affected",
+          "Severity": "HIGH",
+          "Title": "docker: Moby/Docker Engine: Arbitrary Code Execution via malicious container image and compressed archive upload"
+        },
+        {
+          "VulnerabilityID": "CVE-2026-33997",
+          "PkgName": "github.com/docker/docker",
+          "InstalledVersion": "v28.5.2+incompatible",
+          "FixedVersion": "29.3.1",
+          "Status": "fixed",
+          "Severity": "MEDIUM",
+          "Title": "moby: docker: github.com/moby/moby: Moby: Privilege validation bypass during plugin installation"
+        },
+        {
+          "VulnerabilityID": "CVE-2026-56854",
+          "PkgName": "golang.org/x/crypto",
+          "InstalledVersion": "v0.54.0",
+          "FixedVersion": "0.55.0",
+          "Status": "fixed",
+          "Severity": "HIGH",
+          "Title": "golang.org/x/crypto/ssh: golang.org/x/crypto/ssh: Authentication bypass due to unenforced source-address restrictions"
+        }
+      ]
+    }
+  ]
+}

@@ -1,6 +1,6 @@
 module github.com/opendefender/openrisk
 
-go 1.25.12
+go 1.25.13
 
 require (
 	cloud.google.com/go/compute v1.64.0

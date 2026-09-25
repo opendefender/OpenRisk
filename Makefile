@@ -79,7 +79,7 @@ frontend-install:
 
 build:
 	@echo "🔨 Building backend binary (v$(VERSION), commit $(GIT_COMMIT))..."
-	cd backend && CGO_ENABLED=0 go build -ldflags "$(LDFLAGS)" -o openrisk ./cmd/server
+	cd backend && CGO_ENABLED=0 go build -trimpath -ldflags "$(LDFLAGS)" -o openrisk ./cmd/server
 	@echo "✅ Backend binary built: backend/openrisk"
 
 # ----------------------------------------------------------------------------

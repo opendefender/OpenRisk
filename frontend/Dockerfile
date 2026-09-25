@@ -22,7 +22,11 @@ RUN npm run build
 # does the first, so every API call the browser made came back as index.html and
 # signing up or signing in was impossible (#647). `serve` has no proxy mode, so
 # this is a change of server, not of flags.
-FROM nginx:1.27-alpine
+FROM nginx:1.30-alpine
+
+# Take Alpine's security fixes now rather than when the nginx image is next
+# rebuilt; the Dependency gate scans this image (#487).
+RUN apk upgrade --no-cache
 
 # Replaces the packaged default server block, which listens on 80 and knows
 # nothing about /api.
