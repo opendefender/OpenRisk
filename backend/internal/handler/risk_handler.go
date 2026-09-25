@@ -365,14 +365,15 @@ func (h *RiskHandler) CreateRisk(c *fiber.Ctx) error {
 	// Link Assets (fallback until AssetRepo introduced)
 	var linkedAssets []*domain.Asset
 	if len(input.AssetIDs) > 0 {
-		query := database.DB
-		if mwCtx != nil {
-			query = query.Where("organization_id = ?", mwCtx.OrganizationID)
-		}
+		// Tenant-scoped unconditionally: this filter used to apply only when the
+		// middleware context was present, so its absence meant no filter at all.
+		// The request context is passed so the audit trail attributes the link to
+		// the caller instead of recording an unattributed write (#486).
+		query := database.DB.WithContext(stdCtx).Where("organization_id = ?", orgID)
 		if err := query.Where("id IN ?", input.AssetIDs).Find(&linkedAssets).Error; err == nil {
 			domainRisk.Assets = linkedAssets
 			// Save relationships (no direct score compute — publish Redis event instead)
-			if err := database.DB.Model(&domainRisk).Association("Assets").Replace(linkedAssets); err != nil {
+			if err := database.DB.WithContext(stdCtx).Model(&domainRisk).Association("Assets").Replace(linkedAssets); err != nil {
 				log.Printf("Warning: failed to update asset associations for risk %s: %v", domainRisk.ID, err)
 			}
 		}

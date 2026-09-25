@@ -28,6 +28,15 @@ type Actor struct {
 	IPAddress string
 	UserAgent string
 	RequestID string
+	// Job names the background job making the change when there is no human
+	// actor (#486). Ignored when ID is set.
+	Job string
+}
+
+// WithJob marks ctx as belonging to a named background job, so a mutation it
+// makes is journalled as "job <name>" instead of an unattributed blank.
+func WithJob(ctx context.Context, tenantID uuid.UUID, job string) context.Context {
+	return WithActor(ctx, Actor{TenantID: tenantID, Job: job})
 }
 
 type actorCtxKey struct{}

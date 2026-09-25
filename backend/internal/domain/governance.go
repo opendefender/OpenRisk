@@ -109,7 +109,15 @@ type AuditEvent struct {
 	ActorID  *uuid.UUID `gorm:"type:uuid;index" json:"actor_id,omitempty"`
 	// ActorEmail is resolved on read (never persisted) so the journal shows a
 	// human name instead of a bare UUID.
-	ActorEmail    string      `gorm:"-" json:"actor_email,omitempty"`
+	ActorEmail string `gorm:"-" json:"actor_email,omitempty"`
+	// ActorType says what KIND of identity acted (#486: never "system" without
+	// more): a person, a personal access token, or a named background job.
+	// ActorLabel names it further — the token id or the job name — so an
+	// automatic change reads "job score-engine", not a blank actor. Both are
+	// empty on entries written before #486; see CanonicalPayload for why that
+	// keeps their hashes valid.
+	ActorType     string      `gorm:"type:varchar(16);index" json:"actor_type,omitempty"`
+	ActorLabel    string      `gorm:"type:varchar(128)" json:"actor_label,omitempty"`
 	Action        AuditAction `gorm:"type:varchar(24);index" json:"action"`
 	EntityType    string      `gorm:"type:varchar(64);index" json:"entity_type"`
 	EntityID      string      `gorm:"type:varchar(128);index" json:"entity_id"`
@@ -154,15 +162,15 @@ type AuditEventFilter struct {
 	// Ignored when empty; EntityType still applies on its own.
 	EntityTypes []string
 	EntityID    string
-	Action     string
-	ActorID    *uuid.UUID
-	RequestID  string
-	Source     string
-	From       *time.Time
-	To         *time.Time
-	Search     string // free-text over summary / entity_type / entity_id / path
-	Limit      int
-	Offset     int
+	Action      string
+	ActorID     *uuid.UUID
+	RequestID   string
+	Source      string
+	From        *time.Time
+	To          *time.Time
+	Search      string // free-text over summary / entity_type / entity_id / path
+	Limit       int
+	Offset      int
 }
 
 // AuditEventRepository is the append-only store for the audit trail.
@@ -176,6 +184,15 @@ type AuditEventRepository interface {
 // plugin reflects the primary key and tenant_id from the record itself.
 type Auditable interface {
 	AuditEntityType() string
+}
+
+// AuditSnapshotter lets an Auditable model choose exactly which fields the
+// trail captures, instead of its whole json form. The snapshot MUST carry "id"
+// and "tenant_id" (the plugin anchors the entry on them) and must hold nothing
+// secret. A model that implements it is also journalled only when one of those
+// fields actually changed, which is what makes it safe on a hot write path.
+type AuditSnapshotter interface {
+	AuditSnapshot() map[string]interface{}
 }
 
 // =============================================================================

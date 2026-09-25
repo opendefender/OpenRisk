@@ -335,7 +335,8 @@ func main() {
 	// Initialize Score Worker (listens to Redis events)
 	zeroLogger := zerolog.New(os.Stderr).With().Timestamp().Logger()
 	riskRepoForWorker := repository.NewGormRiskRepository(database.DB)
-	scoreWorker := workers.NewScoreWorker(redisClientInstance, scoreEngine, riskRepoForWorker, zeroLogger)
+	scoreWorker := workers.NewScoreWorker(redisClientInstance, scoreEngine, riskRepoForWorker, zeroLogger).
+		WithAudit(auditChainRepo)
 
 	// Start Score Worker in background goroutine
 	go scoreWorker.Start(context.Background())
@@ -1266,6 +1267,12 @@ func main() {
 	// Financial Risk Quantification (spec §9). Read-only: full per-risk assessment
 	// and a non-persisting investment-scenario simulator. Static "financial"/
 	// "simulate" segments are risk-scoped so they never collide with :id parsing.
+	// ScoreWorking (#486): the score, its terms, and the audit entry behind each.
+	scoreWorkingHandler := handlers.NewScoreWorkingHandler(
+		risk.NewGetScoreWorkingUseCase(riskRepo, auditChainRepo, scoreEngine).
+			WithUserLookup(repository.NewGormUserRepository(database.DB)))
+	protected.Get("/risks/:id/score-working",
+		middleware.RequirePermission("risks:read"), scoreWorkingHandler.Get)
 	protected.Get("/risks/:id/financial",
 		middleware.RequirePermission("risks:read"), featFinancial, riskHandler.GetRiskFinancial)
 	protected.Post("/risks/:id/simulate",
