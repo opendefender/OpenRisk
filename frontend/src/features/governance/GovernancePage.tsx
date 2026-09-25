@@ -26,7 +26,7 @@ import {
   FileClock,
 } from 'lucide-react';
 import { PageFrame, PageHeader, Btn, Card, SkeletonRows, EmptyState, Chip } from '../../shared/ui';
-import { Collapse } from '../../shared/ds';
+import { Collapse, TabPanel, Tabs } from '../../shared/ds';
 import {
   DataTable,
   useTableState,
@@ -146,21 +146,6 @@ export function GovernancePage() {
     setParams(next, { replace: true });
   };
 
-  const TabBtn = ({ id, label, count }: { id: Tab; label: string; count?: number }) => (
-    <button
-      onClick={() => selectTab(id)}
-      className="h-9 px-3.5 rounded-[9px] text-[12.5px] font-semibold inline-flex items-center gap-1.5"
-      style={{
-        background: tab === id ? 'var(--accent-solid)' : 'transparent',
-        color: tab === id ? 'var(--fg-on-solid)' : 'var(--fg-secondary)',
-        border: tab === id ? 'none' : '1px solid var(--border-strong)',
-      }}
-    >
-      {label}
-      {typeof count === 'number' && count > 0 && <span className="mono opacity-80">{count}</span>}
-    </button>
-  );
-
   return (
     <PageFrame wide>
       <PageHeader
@@ -171,31 +156,44 @@ export function GovernancePage() {
         )}
       />
 
-      <div className="flex gap-2 mb-4 flex-wrap">
-        <TabBtn id="approvals" label={tr('Approbations', 'Approvals')} count={approvals.length} />
-        <TabBtn id="delegations" label={tr('Délégations', 'Delegations')} />
-        {isAdmin && <TabBtn id="workflows" label={tr('Workflows', 'Workflows')} />}
-        {/* Shown to a non-admin only when they asked for it by URL — so the tab
-            they landed on is visibly the one they selected, rather than the page
-            quietly choosing another. */}
-        {(isAdmin || tab === 'audit') && (
-          <TabBtn id="audit" label={tr('Piste d’audit', 'Audit trail')} />
-        )}
-      </div>
+      <Tabs<Tab>
+        id="governance"
+        label={tr('Sections de la gouvernance', 'Governance sections')}
+        className="mb-4"
+        value={tab}
+        onChange={selectTab}
+        items={[
+          {
+            id: 'approvals',
+            label: tr('Approbations', 'Approvals'),
+            count: approvals.length > 0 ? approvals.length : undefined,
+          },
+          { id: 'delegations', label: tr('Délégations', 'Delegations') },
+          ...(isAdmin ? [{ id: 'workflows' as const, label: tr('Workflows', 'Workflows') }] : []),
+          /* Shown to a non-admin only when they asked for it by URL — so the tab
+             they landed on is visibly the one they selected, rather than the page
+             quietly choosing another. */
+          ...(isAdmin || tab === 'audit'
+            ? [{ id: 'audit' as const, label: tr('Piste d’audit', 'Audit trail') }]
+            : []),
+        ]}
+      />
 
-      {tab === 'approvals' && <ApprovalsView />}
-      {tab === 'delegations' && <DelegationsView />}
-      {tab === 'workflows' && isAdmin && <WorkflowsView />}
-      {tab === 'audit' && isAdmin && <AuditView isAdmin={isAdmin} />}
-      {/* The audit trail is admin-only server-side (/governance/audit-events
+      <TabPanel tabsId="governance" id={tab} active>
+        {tab === 'approvals' && <ApprovalsView />}
+        {tab === 'delegations' && <DelegationsView />}
+        {tab === 'workflows' && isAdmin && <WorkflowsView />}
+        {tab === 'audit' && isAdmin && <AuditView isAdmin={isAdmin} />}
+        {/* The audit trail is admin-only server-side (/governance/audit-events
           answers 403). Rendering nothing left a non-admin who followed the URL
           looking at the Approvals empty state — "nothing to approve" — which
           reads as "there is no data" when the truth is "you may not see it".
           Those two call for different actions from whoever is reading, so they
           must not look the same (W0-05 / D14). */}
-      {tab === 'audit' && !isAdmin && (
-        <AccessDenied permission="governance:audit:read" pathname={pathname} />
-      )}
+        {tab === 'audit' && !isAdmin && (
+          <AccessDenied permission="governance:audit:read" pathname={pathname} />
+        )}
+      </TabPanel>
     </PageFrame>
   );
 }
