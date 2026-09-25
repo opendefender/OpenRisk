@@ -152,36 +152,111 @@ before it is written into any customer-facing claim.
 
 **Blocks** — nothing; task 3 of #486 is met as the code stands.
 
-### D-054 — RSSI members without MFA are locked out at the upgrade to 0060 · raised 2026-09-25
-**Raised by** — #349, found while rehearsing the upgrade from `v1.1.0-rc.3`. Who must hold MFA
-is auth policy, so it comes here rather than into the PR.
+### D-054 — the January 2027 launch scope, and what waits until after it · raised 2026-09-25
+**Raised by** — the direction audit of 2026-09-25 and the launch board #815. Cutting a
+milestone's scope is the owner's call (CLAUDE.md, Autonomy).
 
-**Context** — `v1.1.0-rc.3` required MFA from the `admin` and `root` org roles only. The current
-default privileged set adds the `rssi` business role (`DefaultMFAPrivilegeRoles`). Migration
-0060 anchors every existing membership's grace window to when it began. Result: an RSSI who
-joined more than 7 days ago and has no verified authenticator goes from "MFA optional" to
-"required now" at their first login after the upgrade, with no window at all. On the rehearsal
-data (200 001 memberships), that was 26 925 members. Admins and roots are not affected: the
-previous release already refused them a session without MFA. The runbook
-(`docs/runbooks/migration-0060.md`, pre-check 4) counts them so the operator can warn them.
+**Context** — 298 issues are open. The engine the differentiating workflows sit on is not
+specified yet: #541 and #553 are `status:needs-refinement`, and the Closed-loop and Evidence
+Automation KPIs are at 0 % (ROADMAP, "L'étoile polaire"). Twelve two-week sprints separate
+28 September from mid-January. What does not fit has to be named, not left to slip silently.
 
 **Options**
-- **A — accept it and communicate.** The runbook already gives the count. RSSI accounts read
-  every register, and a strict start is defensible.
-- **B — give newly privileged roles a fresh window once.** A one-off migration anchors RSSI
-  members without verified MFA to the upgrade time instead of their join date, so they get the
-  tenant's window (7 days by default) like a promoted member does.
-- **C — ship the upgrade with `MFA_REQUIRED_BUSINESS_ROLES=` (empty)** and turn it on per
-  deployment after the RSSI members have enrolled.
+- **A — launch on Trust + Engine + Evidence Fabric (killer workflow B).** trust-v1 complete,
+  the GRC slice of the canonical model (#541, #553), then #554, #555, #811, #809, #556, #489.
+  Release 1.3 (auto-draft), 1.5 (governed AI) and 1.6 (ecosystem) come after the launch.
+  The vision issues (no-code #385-#389, marketplace/SDK #390-#393, predictive AI #394-#401,
+  Wave 2/3/5 features #202-#221) move to `tier:5-deferred`.
+- **B — launch on Trust + killer workflow A (Signal → Risk).** Needs #541-#545 (ingestion,
+  normalisation) plus #547-#550 (auto-draft, validation queue). More differentiating, but it
+  depends on connectors and on the canonical model shipping in the same window: higher risk.
+- **C — keep every release train in scope for January.** Not achievable. It spreads the
+  capacity over the four trains and ends with none of them finished.
 
-**Recommendation** — **B.** It follows the rule the product already applies to promotions: a new
-privilege gets a fresh window. It needs no operator action, and the requirement still takes
-effect within a week.
+**Recommendation** — **A.** Evidence and time-bound decisions are what the regulated buyers
+of #494 (a COBAC-supervised bank, a microfinance institution) test first. It reuses what
+already exists (evidence library, crosswalks, governed acceptance) and it is the part where
+Vanta and Drata win today. Workflow A remains the first release after the launch.
 
-**Cost of delay** — Medium, and only at upgrade time. Nothing happens until a deployment on
-rc.3 or earlier upgrades. Then every RSSI without MFA is stopped at login on day one.
+**Also needed from the owner** — (1) the GA date: the proposal is the week of
+**18 January 2027**; (2) a `v1.0 — Launch` milestone with that due date, because the session
+that built #815 could not create milestones; (3) confirmation to apply `tier:5-deferred` to
+the vision issues listed in option A (nothing is closed, D-031 is the precedent).
 
-**Blocks** — nothing in #349. It decides whether a follow-up migration is written.
+**Cost of delay** — High. Every week without a scope decision is a week the board orders but
+does not bind.
+
+**Blocks** — the binding order of #815; the `tier:5-deferred` sweep.
+
+### D-055 — structural tenant guard: a GORM callback now, Postgres RLS later? · raised 2026-09-25
+**Raised by** — #808. It touches the design of tenant isolation, which CLAUDE.md reserves to
+the owner.
+
+**Context** — Tenant filtering is enforced by review. On `master` `6a8c964` there are 100
+direct `database.DB` calls in `internal/handler`. #807 is a defect that passed that review:
+each query was fine, but the effect crossed the tenant boundary.
+
+**Options**
+- **A — a GORM callback (tests and staging)** that fails any query on a tenant-scoped table
+  whose `WHERE` has no `tenant_id`, with an explicit allowlist. Reversible and cheap. It catches
+  missing filters, not wrong ones.
+- **B — Postgres Row-Level Security** with `SET app.tenant_id` per transaction. It is enforced
+  by the database even against a buggy query, but it touches every connection, the workers
+  and the migrations, and it needs an ADR.
+- **C — both, A now and B after the launch.**
+
+**Recommendation** — **C.** A fits in #808 before the launch at no design risk. B is the
+defence-in-depth a regulated buyer's security review asks about. It gets its own ADR after
+January.
+
+**Cost of delay** — Medium. Each new handler written the old way adds to the debt.
+
+**Blocks** — criterion 5 of #808 (RLS evaluated, not implemented).
+
+### D-056 — drop the legacy `control_evidences` table · raised 2026-09-25
+**Raised by** — #813. Dropping a table is irreversible (CLAUDE.md: "any schema migration
+that drops or renames a column").
+
+**Context** — The evidence library (`domain.Evidence`, migration 0052) is the only register
+the product reads. `control_evidences` is backfilled into it at every boot
+(`cmd/server/main.go:1408-1415`) and kept "for a release" (`cmd/server/schema.go:155-158`).
+The Evidence Fabric (#554) adds a hash and a chain of custody, and a second table outside
+that chain would be a gap an auditor can find.
+
+**Options**
+- **A — drop it** once a SQL check proves every row exists in the library on a
+  production-like database, with a migration `down` that recreates the empty table.
+- **B — keep it read-only** (revoke writes, keep the rows) for one more release.
+- **C — keep as is.**
+
+**Recommendation** — **A**, gated by the SQL proof of #813 criterion 1. B only if a
+self-hosted customer is known to run a version older than migration 0052.
+
+**Cost of delay** — Low now, higher once #554 seals evidence.
+
+**Blocks** — #813.
+
+### D-057 — CIS Controls and PCI DSS content: licence before depth · raised 2026-09-25
+**Raised by** — #809. Licensing is the owner's call (CLAUDE.md).
+
+**Context** — `cis-v8` ships 18 rows and `pci-dss-4.0` ships 12, against 153 safeguards and
+about 250 sub-requirements. CIS Controls v8 is published under CC BY-NC-ND 4.0, and OpenRisk is
+also sold under `LICENSE.commercial`. The PCI DSS text is copyrighted by PCI SSC. Going deeper
+means either reproducing text we may not have the right to ship, or writing our own wording
+against their identifiers.
+
+**Options**
+- **A — reference-only rows**: identifier plus our own short wording, no reproduced text,
+  reviewed by counsel.
+- **B — ask CIS and PCI SSC** for a licence or a membership that covers the use.
+- **C — leave both at top level**, and state it in the product and the README.
+
+**Recommendation** — **C for the launch, then A or B.** NIST, NIS2 and DORA (#809) can be
+deepened without a licence question; CIS and PCI wait for a written answer.
+
+**Cost of delay** — Low for the launch. Medium for payment-sector prospects.
+
+**Blocks** — any extension of #809 to CIS or PCI.
 
 ## Resolved
 
