@@ -4,7 +4,7 @@
 // the terms of the GNU Affero General Public License v3.0 (see LICENSE).
 
 import { useEffect } from 'react';
-import { AnimatePresence, motion } from '../../../shared/motion';
+import { AnimatePresence, dialogMotion, motion } from '../../../shared/motion';
 import { Controller, useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -173,10 +173,7 @@ export const EditRiskModal = ({ isOpen, onClose, risk, onSuccess }: EditRiskModa
           />
 
           <motion.div
-            initial={{ opacity: 0, y: 50 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 50 }}
-            transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+            {...dialogMotion}
             role="dialog"
             aria-modal="true"
             aria-labelledby="edit-risk-title"

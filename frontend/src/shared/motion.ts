@@ -37,5 +37,27 @@ export function syncReducedMotion(): void {
 
 syncReducedMotion();
 
+/**
+ * The motion tokens, for framer-motion, which cannot read a CSS variable as a
+ * duration. Seconds, mirroring --dur-* in styles/primitives.css and --ease-* in
+ * styles/theme.css; the test fails if the two drift apart.
+ */
+export const DUR = { instant: 0.09, fast: 0.12, base: 0.18, slow: 0.26, panel: 0.4 } as const;
+export const EASE = {
+  out: [0.2, 0.8, 0.2, 1],
+  in: [0.4, 0, 1, 1],
+} as const satisfies Record<string, readonly [number, number, number, number]>;
+
+/**
+ * A dialog panel, matching shared/ds/Modal: fade and rise 8px on --motion-enter,
+ * leave on --motion-exit. Closing is faster and accelerates away, so dismissal
+ * reads as dismissal rather than as the dialog being dragged off.
+ */
+export const dialogMotion = {
+  initial: { opacity: 0, y: 8 },
+  animate: { opacity: 1, y: 0, transition: { duration: DUR.base, ease: EASE.out } },
+  exit: { opacity: 0, y: 8, transition: { duration: DUR.fast, ease: EASE.in } },
+} as const;
+
 // eslint-disable-next-line no-restricted-imports -- this module is the wrapper the rule points to
 export { AnimatePresence, motion, type Variants } from 'framer-motion';
