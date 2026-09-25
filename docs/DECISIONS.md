@@ -5,6 +5,55 @@ recommends, and surfaces these in the daily brief. Run `/decide` to clear them.
 
 ## Open
 
+### D-059 — RareUI's real licence is MIT + Commons Clause + Attribution: can an AGPL repo ship it? · raised 2026-09-25
+**Raised by** — #751, Step 0. The install was stopped before any file was copied. D-058 was
+decided on the licence of the wrong repository, and the correct one changes the question.
+
+**Facts, checked 2026-09-25**
+- The source of rareui.com is **`swamimalode07/rare-ui`**: 1455 stars, pushed
+  2026-09-25, homepage `rareui.com`. It is not `Codewithswappy/RareUI`, the MIT repo cited
+  in D-058. That repo has none of the six components.
+- Its `LICENSE` is **"MIT + Commons Clause License Condition v1.0 + Attribution"**,
+  © 2026 Swami Malode. On top of MIT's terms it adds two conditions:
+  - *Attribution*: any project that ships part of it must carry "a visible link to
+    https://rareui.com", in a footer, an about page, a credits screen or the README.
+  - *Commons Clause*: "you do not sell, sublicense, or redistribute the components
+    themselves, whether alone, in a bundle, or as a ported version."
+- `registry.json`: all six components depend on `motion`, and `notification-bell` also on
+  `@radix-ui/react-slot`. Each one is a single file under `components/ui/`.
+
+**Why this can't be settled by an agent**
+- OpenRisk is published as source under **AGPL-3.0-only**, with an EE under
+  `LicenseRef-OpenRisk-Commercial`, and `shared/ds/` is Apache-2.0 (D-014/D-016).
+  Committing these files to a public repository redistributes the components' source.
+  That looks like exactly what the Commons Clause forbids. AGPL-3.0 §7 and §10 also forbid
+  imposing "further restrictions" on recipients, which the Commons Clause is. The two
+  licences look incompatible whichever directory the files land in.
+- The EE is sold, and "sell … in a bundle" is also restricted.
+- This is licensing, so it goes to the owner under CLAUDE.md, and to `legal-counsel` for
+  an opinion. It isn't a decision about the design.
+
+**Options**
+- **A — decline RareUI and build the six in-house** on `framer-motion` and transitions.dev.
+  RareUI can serve as a visual reference, but no code is copied. No new dependency, and
+  the `motion` ban stays useful.
+- **B — ask the author for a written exception** (a dual licence or an MIT grant for
+  OpenRisk), then vendor under D-020 with the notice. #751 stays blocked until the reply.
+- **C — vendor anyway, with the attribution link.** This is not recommended: it looks like
+  an infringement in a public repository, and it can't be withdrawn once published.
+
+**Recommendation** — **A**, with B in parallel if the owner wants a specific RareUI
+component. Every component in the list is buildable in-house at a few hundred lines. The
+AGPL is not negotiable; the author's goodwill is.
+
+**Cost of delay** — Low. Phases 1–5 of #751 that rely only on transitions.dev (CSS, no
+licence issue) can go ahead. The six RareUI components are blocked.
+
+**Reversible** — A and B, yes. C is not, once pushed to the public repository.
+
+**Blocks** — #751, Step 0 (the RareUI half), and every phase item that names a RareUI
+component.
+
 ### D-049 — force a password change at the first administrator's first sign-in · raised 2026-09-24
 **Raised by** — #485. The issue asks that "le premier démarrage génère un mot de passe aléatoire
 et impose son changement". The first half is implemented; the second is auth design, so it
@@ -269,6 +318,11 @@ only, on the existing `shared/ds/` primitives, with no new dependency. The owner
 the cost of a second animation runtime and duplicated primitives in exchange for the
 RareUI components as they are published. This is recorded plainly because the argument
 runs the other way. A future reader shouldn't have to work out that it was considered.
+
+> **Correction, 2026-09-25, same day** — the licence facts below are about the wrong
+> repository. rareui.com is `swamimalode07/rare-ui`, licensed **MIT + Commons Clause +
+> Attribution**, not plain MIT. Nothing was installed. The question this raises is
+> open as **D-059** and suspends the RareUI half of this decision until it is answered.
 
 **Facts this was decided on, checked 2026-09-25**
 - The only public RareUI repository found, `Codewithswappy/RareUI`, is MIT ("Copyright (c)
