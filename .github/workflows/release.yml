@@ -3,13 +3,25 @@ name: Release
 # Fires only on version tags (vMAJOR.MINOR.PATCH[-rc.N]). The guard job refuses
 # to proceed unless the tag matches the committed VERSION file, so a release can
 # never ship a binary/chart/frontend whose reported version disagrees with the tag.
+#
+# Nothing is published until every check has passed (#487): the dependency gate
+# on the tree and on the exact image that will be pushed, the reproducibility
+# check on the backend binary, and the SBOM checks. The versioned image is
+# pushed only in the last job, just before the GitHub release is created.
+#
+# Every third-party action is pinned to a full commit SHA; the tag is in the
+# trailing comment.
 on:
   push:
     tags:
       - 'v*'
 
 permissions:
-  contents: write
+  contents: read
+
+env:
+  TRIVY_VERSION: v0.74.0
+  GOVULNCHECK_VERSION: v1.7.0
 
 jobs:
   # --------------------------------------------------------------------------
@@ -18,10 +30,13 @@ jobs:
   guard:
     name: Version guard
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
       - name: Tag must equal v$(VERSION)
+        id: version
         run: |
           set -euo pipefail
           TAG="${GITHUB_REF_NAME}"
@@ -31,39 +46,49 @@ jobs:
             exit 1
           fi
           echo "OK: tag ${TAG} matches VERSION ${FILE_VERSION}."
+          echo "version=${FILE_VERSION}" >> "$GITHUB_OUTPUT"
 
       - name: Propagated versions must not drift
         run: make check-version
 
   # --------------------------------------------------------------------------
-  # 2. Build + test, then stage the release artifacts.
+  # 2. Build + test, stage the release artifacts and the source SBOMs.
   # --------------------------------------------------------------------------
   build:
     name: Build, test & package
     needs: guard
     runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ needs.guard.outputs.version }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
-      - uses: actions/setup-go@v4
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
         with:
           go-version: '1.25'
+          check-latest: true
+          cache-dependency-path: backend/go.sum
 
       - name: Backend build (version-stamped) + tests
         run: |
           make build
           cd backend && go test ./...
 
-      - uses: actions/setup-node@v3
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: '20'
 
       - name: Frontend build
         run: cd frontend && npm ci && npm run build
 
-      - uses: azure/setup-helm@v4
+      - uses: azure/setup-helm@1a275c3b69536ee54be43f2070a358922e12c8d4 # v4.3.1
         with:
           version: v3.14.0
+
+      - uses: aquasecurity/setup-trivy@81e514348e19b6112ce2a7e3ecbafe19c1e1f567 # v0.3.1
+        with:
+          version: ${{ env.TRIVY_VERSION }}
+          cache: true
 
       - name: Stage artifacts
         run: |
@@ -73,26 +98,189 @@ jobs:
           tar -czf dist-artifacts/frontend-dist.tar.gz -C frontend dist
           helm package helm/openrisk --destination dist-artifacts
 
-      - uses: actions/upload-artifact@v4
+      # CycloneDX JSON. Backend: every module required by backend/go.mod.
+      # Frontend: production dependencies of frontend/package-lock.json (Trivy
+      # leaves devDependencies out unless told otherwise).
+      - name: SBOMs of the sources
+        run: |
+          set -euo pipefail
+          trivy fs --quiet --format cyclonedx \
+            --output "dist-artifacts/openrisk-backend-${VERSION}.cdx.json" backend
+          trivy fs --quiet --format cyclonedx --skip-dirs node_modules \
+            --output "dist-artifacts/openrisk-frontend-${VERSION}.cdx.json" frontend
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: release-artifacts
           path: dist-artifacts/
           retention-days: 7
 
   # --------------------------------------------------------------------------
-  # 3. Publish the GitHub release with notes taken from CHANGELOG.md.
+  # 3. The backend binary must be bit-for-bit reproducible from the tag.
+  #    Two builds, in two different directories, with two empty build caches.
+  # --------------------------------------------------------------------------
+  reproducibility:
+    name: Reproducible backend binary
+    needs: guard
+    runs-on: ubuntu-latest
+    outputs:
+      sha256: ${{ steps.compare.outputs.sha256 }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          path: build-a
+
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          path: build-b
+
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version: '1.25'
+          check-latest: true
+          cache: false
+
+      - name: Build twice and compare
+        id: compare
+        run: |
+          set -euo pipefail
+          for d in build-a build-b; do
+            GOCACHE="${RUNNER_TEMP}/gocache-${d}" make -C "${d}" build
+          done
+          a="$(sha256sum build-a/backend/openrisk | cut -d' ' -f1)"
+          b="$(sha256sum build-b/backend/openrisk | cut -d' ' -f1)"
+          echo "go: $(go version)"
+          echo "build-a: ${a}"
+          echo "build-b: ${b}"
+          if [ "${a}" != "${b}" ]; then
+            echo "::error title=Reproducibility::two builds of the backend from ${GITHUB_REF_NAME} differ"
+            exit 1
+          fi
+          echo "sha256=${a}" >> "$GITHUB_OUTPUT"
+
+  # --------------------------------------------------------------------------
+  # 4. Build the image, gate it, describe it. Nothing is pushed here: the
+  #    gated image travels to the publish job as a tarball, so the image
+  #    pushed is byte-for-byte the image that was scanned.
+  # --------------------------------------------------------------------------
+  image:
+    name: Image, dependency gate & image SBOM
+    needs: guard
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ needs.guard.outputs.version }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version: '1.25'
+          check-latest: true
+          cache-dependency-path: backend/go.sum
+
+      - uses: aquasecurity/setup-trivy@81e514348e19b6112ce2a7e3ecbafe19c1e1f567 # v0.3.1
+        with:
+          version: ${{ env.TRIVY_VERSION }}
+          cache: true
+
+      - name: Install govulncheck
+        run: go install "golang.org/x/vuln/cmd/govulncheck@${GOVULNCHECK_VERSION}"
+
+      # The published image, plus the two images deploy/selfhost builds from
+      # this tag: the release is gated on everything a customer can run.
+      - name: Build the images
+        run: |
+          set -euo pipefail
+          docker build -t "openrisk:${VERSION}" -f Dockerfile .
+          docker build -t openrisk-backend:gate backend
+          docker build -t openrisk-frontend:gate frontend
+
+      - name: Dependency gate (blocks the release)
+        run: scripts/security/dependency-gate.sh "openrisk:${VERSION}" openrisk-backend:gate openrisk-frontend:gate
+
+      - name: Image SBOM and tarball
+        run: |
+          set -euo pipefail
+          mkdir -p image-artifacts
+          trivy image --quiet --image-src docker --format cyclonedx \
+            --output "image-artifacts/openrisk-image-${VERSION}.cdx.json" "openrisk:${VERSION}"
+          docker save "openrisk:${VERSION}" -o image-artifacts/image.tar
+
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: image-artifacts
+          path: image-artifacts/
+          retention-days: 1
+
+      - name: Keep the scan reports
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: dependency-gate-reports
+          path: gate-reports/*.json
+          if-no-files-found: ignore
+          retention-days: 90
+
+  # --------------------------------------------------------------------------
+  # 5. Check everything, push the image, publish the GitHub release with notes
+  #    taken from CHANGELOG.md.
   # --------------------------------------------------------------------------
   release:
-    name: Publish GitHub release
-    needs: [guard, build]
+    name: Publish image and GitHub release
+    needs: [guard, build, reproducibility, image]
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+    env:
+      VERSION: ${{ needs.guard.outputs.version }}
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: release-artifacts
           path: dist-artifacts
+
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: image-artifacts
+          path: image-artifacts
+
+      - uses: aquasecurity/setup-trivy@81e514348e19b6112ce2a7e3ecbafe19c1e1f567 # v0.3.1
+        with:
+          version: ${{ env.TRIVY_VERSION }}
+          cache: true
+
+      - name: SBOMs must be non-empty and readable
+        run: |
+          set -euo pipefail
+          mv "image-artifacts/openrisk-image-${VERSION}.cdx.json" dist-artifacts/
+          scripts/security/check-sbom.sh \
+            "dist-artifacts/openrisk-backend-${VERSION}.cdx.json" \
+            "dist-artifacts/openrisk-frontend-${VERSION}.cdx.json" \
+            "dist-artifacts/openrisk-image-${VERSION}.cdx.json"
+
+      - name: Published binary is the reproducible one
+        env:
+          REPRO_SHA256: ${{ needs.reproducibility.outputs.sha256 }}
+        run: |
+          set -euo pipefail
+          got="$(sha256sum dist-artifacts/openrisk-linux-amd64 | cut -d' ' -f1)"
+          if [ "${got}" != "${REPRO_SHA256}" ]; then
+            echo "::error title=Reproducibility::published binary ${got} differs from the reproducibility builds ${REPRO_SHA256}"
+            exit 1
+          fi
+          echo "OK: openrisk-linux-amd64 ${got}"
+
+      - name: SHA256SUMS
+        run: |
+          set -euo pipefail
+          cd dist-artifacts
+          sha256sum -- * > "${RUNNER_TEMP}/SHA256SUMS"
+          mv "${RUNNER_TEMP}/SHA256SUMS" SHA256SUMS
+          sha256sum -c SHA256SUMS
+          cat SHA256SUMS
 
       - name: Extract release notes from CHANGELOG.md
         run: |
@@ -107,7 +295,6 @@ jobs:
           if [ ! -s release-notes.md ]; then
             echo "Release ${TAG}. See CHANGELOG.md." > release-notes.md
           fi
-          echo "----- release notes -----"; cat release-notes.md
 
       - name: Detect pre-release (tag contains a hyphen, e.g. -rc.N)
         id: prerel
@@ -118,8 +305,41 @@ jobs:
             echo "prerelease=false" >> "$GITHUB_OUTPUT"
           fi
 
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Last step before the release itself, so a release that failed any check
+      # above never leaves a versioned image behind.
+      - name: Push the gated image
+        run: |
+          set -euo pipefail
+          IMAGE="ghcr.io/${GITHUB_REPOSITORY,,}:${VERSION}"
+          docker load -i image-artifacts/image.tar
+          docker tag "openrisk:${VERSION}" "${IMAGE}"
+          docker push "${IMAGE}"
+          DIGEST="$(docker inspect --format '{{index .RepoDigests 0}}' "${IMAGE}")"
+          DIGEST="${DIGEST#*@}"
+          echo "Pushed ${IMAGE}@${DIGEST}"
+          {
+            echo
+            echo "## Container image"
+            echo
+            echo '```'
+            echo "${IMAGE}"
+            echo "${IMAGE%:*}@${DIGEST}"
+            echo '```'
+            echo
+            echo "## Verify this release"
+            echo
+            echo "Download the files and run \`sha256sum -c SHA256SUMS\`. SBOMs (CycloneDX JSON): \`openrisk-backend-${VERSION}.cdx.json\`, \`openrisk-frontend-${VERSION}.cdx.json\`, \`openrisk-image-${VERSION}.cdx.json\`. See SECURITY.md."
+          } >> release-notes.md
+          echo "----- release notes -----"; cat release-notes.md
+
       - name: Create GitHub release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.6.2
         with:
           body_path: release-notes.md
           prerelease: ${{ steps.prerel.outputs.prerelease }}
@@ -128,3 +348,5 @@ jobs:
             dist-artifacts/openrisk-linux-amd64
             dist-artifacts/frontend-dist.tar.gz
             dist-artifacts/*.tgz
+            dist-artifacts/*.cdx.json
+            dist-artifacts/SHA256SUMS
