@@ -130,7 +130,7 @@ export function IncidentDrawer({
             background: 'var(--bg-secondary)',
             borderLeft: '1px solid var(--border)',
             boxShadow: 'var(--shadow-lg)',
-            animation: 'or-slidein .3s cubic-bezier(.2,.8,.2,1)',
+            animation: 'or-slidein var(--motion-panel)',
           }}
         >
           {/* header */}
