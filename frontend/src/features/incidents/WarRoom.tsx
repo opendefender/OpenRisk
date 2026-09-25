@@ -466,7 +466,7 @@ export function WarRoom() {
             aria-describedby="warroom-close-body"
             onClick={(e) => e.stopPropagation()}
             className="glass-strong rounded-[18px] shadow-card-lg p-[26px]"
-            style={{ width: 'min(90vw,420px)', animation: 'or-scalein .18s ease' }}
+            style={{ width: 'min(90vw,420px)', animation: 'or-scalein var(--motion-enter)' }}
           >
             <div
               className="w-[46px] h-[46px] rounded-[13px] flex items-center justify-center mb-4"

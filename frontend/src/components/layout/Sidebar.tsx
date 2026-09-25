@@ -371,7 +371,7 @@ export const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => 
                     bottom: 'calc(100% - 6px)',
                     background: 'var(--bg-elevated)',
                     border: '1px solid var(--border)',
-                    animation: 'or-scalein .14s cubic-bezier(.2,.8,.2,1)',
+                    animation: 'or-scalein var(--motion-enter)',
                   }}
                 >
                   <div className="px-3 py-2.5 border-b border-border">

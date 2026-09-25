@@ -205,7 +205,7 @@ export function OrgSwitcher({
           style={{
             background: 'var(--bg-elevated)',
             border: '1px solid var(--border)',
-            animation: 'or-scalein .14s cubic-bezier(.2,.8,.2,1)',
+            animation: 'or-scalein var(--motion-enter)',
           }}
         >
           <div className="px-3 pt-2.5 pb-1.5 text-[10.5px] tracking-[0.08em] uppercase font-semibold text-ink-muted">

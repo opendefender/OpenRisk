@@ -1150,7 +1150,7 @@ function Overlay({ children, onClose }: { children: React.ReactNode; onClose: ()
           background: 'var(--bg-elevated)',
           border: '1px solid var(--border)',
           boxShadow: 'var(--shadow-overlay)',
-          animation: 'or-scalein .18s cubic-bezier(.2,.8,.2,1)',
+          animation: 'or-scalein var(--motion-enter)',
         }}
       >
         {children}

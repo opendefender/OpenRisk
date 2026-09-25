@@ -78,7 +78,7 @@ export function ModalShell({
           background: 'var(--bg-secondary)',
           border: '1px solid var(--border)',
           boxShadow: 'var(--shadow-lg)',
-          animation: 'or-scalein .22s cubic-bezier(.2,.8,.2,1)',
+          animation: 'or-scalein var(--motion-enter)',
         }}
       >
         <div

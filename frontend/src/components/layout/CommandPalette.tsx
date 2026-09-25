@@ -231,7 +231,7 @@ export const CommandPalette = () => {
       <div
         onClick={(e) => e.stopPropagation()}
         className="glass-strong rounded-[18px] overflow-hidden shadow-card-lg"
-        style={{ width: 'min(92vw,600px)', animation: 'or-scalein .18s cubic-bezier(.2,.8,.2,1)' }}
+        style={{ width: 'min(92vw,600px)', animation: 'or-scalein var(--motion-enter)' }}
       >
         <div className="flex items-center gap-[11px] px-[18px] py-4 border-b border-border">
           {searching ? (

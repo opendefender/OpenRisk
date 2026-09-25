@@ -75,7 +75,7 @@ export function ShortcutsOverlay({
           background: 'var(--bg-elevated)',
           border: '1px solid var(--border)',
           boxShadow: 'var(--shadow-overlay)',
-          animation: 'or-scalein .14s cubic-bezier(.2,.8,.2,1)',
+          animation: 'or-scalein var(--motion-enter)',
         }}
         onClick={(e) => e.stopPropagation()}
         role="dialog"

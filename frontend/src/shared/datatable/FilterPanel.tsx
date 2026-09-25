@@ -193,7 +193,7 @@ export function FilterPanel<T>({
                 border: '1px solid var(--border)',
                 borderRadius: 14,
                 boxShadow: 'var(--shadow-lg)',
-                animation: 'or-scalein .14s cubic-bezier(.2,.8,.2,1)',
+                animation: 'or-scalein var(--motion-enter)',
               }}
               data-testid="filters-panel"
               aria-label={labels.filters}
