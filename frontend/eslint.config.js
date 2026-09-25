@@ -184,6 +184,11 @@ export default defineConfig([
               message:
                 "Use 'framer-motion', already a dependency. Two animation runtimes in one bundle is the size budget spent twice.",
             },
+            {
+              name: 'framer-motion',
+              message:
+                'Import from src/shared/motion instead. It is where prefers-reduced-motion is applied to framer-motion; a direct import animates for users who asked it not to (#751).',
+            },
           ],
           patterns: [
             {
