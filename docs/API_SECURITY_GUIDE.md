@@ -158,11 +158,32 @@ curl -H "Authorization: Bearer opnrsk_abcd1234efgh5678ijkl9012" \
 #### OAuth2 Flow
 
 1. Redirect to: `GET /api/v1/auth/oauth2/login/:provider`
-   - Supported providers: google, github, microsoft, okta
+   - Supported providers: google, github, azure
+   - Mints a `state` and a PKCE verifier, both kept server-side, and sets the
+     `or_oauth_state` cookie (see below)
 2. User authenticates with provider
 3. Callback to: `GET /api/v1/auth/oauth2/callback/:provider`
+   - Refused with `error=state_invalid` unless the `or_oauth_state` cookie
+     matches the `state` query parameter
 4. OpenRisk creates/links user account
 5. JWT token issued
+
+**State cookie `or_oauth_state`.** This cookie ties the callback to the browser
+that started the flow. Without it, an attacker could send someone a callback
+link from their own flow and sign that person in to the attacker's account
+(login CSRF).
+
+| Attribute | Value |
+|---|---|
+| TTL | 10 minutes (`Max-Age=600`), the same as the server-side flow |
+| Path | The path of the provider's redirect URL, e.g. `/api/v1/auth/oauth2/callback/google` |
+| HttpOnly | yes, so no script can read it |
+| SameSite | `Lax`. `Strict` cannot be used because browsers withhold it on the provider's cross-site redirect back to the callback |
+| Secure | yes, unless `APP_ENV` is a development value |
+
+The callback clears the cookie on every exit, success or failure. A callback
+without the cookie is refused before the server-side flow is consumed, so a
+forged request cannot use up the real user's flow.
 
 #### SAML2 Flow
 
