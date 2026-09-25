@@ -260,6 +260,54 @@ deepened without a licence question; CIS and PCI wait for a written answer.
 
 ## Resolved
 
+### D-058 — #751 "premium visual overhaul": RareUI adopted as written · decided 2026-09-25
+**Decided (owner)** — **Option C, as written.** RareUI goes in through the shadcn CLI, as
+#751 specifies.
+
+**Rationale (owner)** — Chosen **over the recommendation**, which was A: transitions.dev
+only, on the existing `shared/ds/` primitives, with no new dependency. The owner accepts
+the cost of a second animation runtime and duplicated primitives in exchange for the
+RareUI components as they are published. This is recorded plainly because the argument
+runs the other way. A future reader shouldn't have to work out that it was considered.
+
+**Facts this was decided on, checked 2026-09-25**
+- The only public RareUI repository found, `Codewithswappy/RareUI`, is MIT ("Copyright (c)
+  2025 Swapnil Kalambe (RareUI)") and `"private": true`. It depends on
+  **`motion ^12.23.24`** and **`three ^0.181.2`**.
+- Its homepage is `rareui.in`. #751 links `rareui.com`, whose registry (`/r/*.json`) was
+  behind a Vercel bot checkpoint and couldn't be read.
+- `shared/ds/` already ships `Tabs`, `Menu`, `Modal`, `Tooltip`, `Checkbox`, `OtpField`
+  and `Drawer` (D-019, D-023).
+- transitions.dev is CSS only. Its skills are already installed.
+
+**What this amends**
+- **D-024 consequence 2 is lifted for `motion`.** The `no-restricted-imports` entry for
+  `motion` in `frontend/eslint.config.js` may be removed by the PR that first installs a
+  RareUI component. `@number-flow/react` stays banned; nothing here concerns it.
+- **D-019 is amended for the RareUI components #751 names**: `tasklist`,
+  `animatedcounter`, `proximitysidebar`, `otpinput`, `deletebutton` and
+  `notificationbell`. Everything else is still built in-house.
+
+**What still binds, because it isn't a design choice**
+- **MIT notice retention (D-020).** MIT requires the copyright line and permission notice
+  to travel with the code. Each installed RareUI file keeps its notice, and a row goes into
+  `frontend/design-system/NOTICE` when the file lands under the Apache-2.0 boundary. The
+  first PR confirms that the `rareui.com` registry is the `Codewithswappy/RareUI` source,
+  or records where it actually comes from.
+- **The 180 KB preloaded budget may only be lowered**
+  (`frontend/scripts/check-bundle-budget.mjs`). `motion` and `three` stay out of the
+  preloaded graph, in a lazy chunk if needed. If a component can't be loaded lazily, that
+  goes back to the owner; the ceiling isn't raised by default.
+- **`prefers-reduced-motion` and AA contrast**, as #751 already requires. The keyboard and
+  focus contract of any `shared/ds/` primitive that is replaced must hold. Its existing
+  tests are kept and must still pass against the RareUI version.
+
+**Reversible** — yes, while it stays uncommitted to a release: uninstall the components and
+restore the lint rule. After that the cost grows with every call site.
+
+**Unblocked** — #751, back to `status:ready`. As #751 itself says, each phase lands as
+atomic commits and is reviewed before merge.
+
 ### D-047 — authenticated password change: kept as built · decided 2026-09-24
 **Decided (owner)** — **A, keep as built.** The owner asked for a test before closing it; the
 test below was run first.
