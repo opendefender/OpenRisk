@@ -4,7 +4,7 @@
 // Contextual help for the three fields a newcomer cannot answer honestly without
 // a shared reference: probability, impact, asset criticality (spec §6).
 //
-// Why a dedicated component rather than the existing InfoHint: a one-line tooltip
+// Why a dedicated component rather than a plain tooltip: a one-line tooltip
 // is enough for a label ("what is ALE?"), but these three fields ask for a NUMBER.
 // "Impact: 7" means nothing until someone tells you what 7 is. So this shows a
 // definition in one sentence, then the 1–5 scale with concrete wording, then an

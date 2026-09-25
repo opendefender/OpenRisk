@@ -46,7 +46,27 @@ Recover:
 
 `force` only sets the recorded version and clears the dirty flag — it does **not** run any SQL. Point it at a version whose schema you have verified.
 
+## Rolling back to a previous release
+
+A release does not boot on a database whose SQL layer is ahead of its own
+migration files: golang-migrate stops with `no migration found for version N`.
+Roll back the application, not the schema:
+
+1. Scale the newer release to zero.
+2. With the **previous** image, `migrate force <its last version>`. No SQL runs.
+3. Deploy the previous release. The SQL layer is additive, so it ignores the
+   newer columns and tables.
+4. The next upgrade re-applies the newer migrations. They must be idempotent;
+   see the rules in `docs/MIGRATIONS.md`.
+
+Do not use the down migrations for this: they drop what the newer release
+stored. Upgrade-specific procedures:
+
+- [migration-0060.md](migration-0060.md): MFA grace anchor (0060) and the
+  `mfa_policies` guarantees (0065).
+
 ## Notes
 
 - A **fresh** database boots cleanly with no manual steps: AutoMigrate builds the schema and the SQL layer applies from the baseline to head.
+- `migrate up` on its own is not an upgrade path. The SQL layer assumes AutoMigrate has already run (0062, for example, indexes a table AutoMigrate creates), so run the new release's boot and let it do both, in order.
 - Historical migrations that predate the current baseline live in `migrations/_archive/` and are not applied by the live runner.

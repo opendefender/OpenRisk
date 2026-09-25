@@ -65,9 +65,11 @@ type MFAPolicy struct {
 	// NO `default:` tag, deliberately. GORM omits a zero-valued field on INSERT
 	// when the column declares a default, so `default:7` made it impossible to
 	// save 0 — the strictest setting, "require MFA immediately", silently became
-	// the most permissive one. The DB-level default still exists in migration
-	// 0060 for raw inserts; every write from Go carries an explicit value, and
-	// callers that have none use DefaultMFAPolicy.
+	// the most permissive one. The DB-level default (7) comes from migration
+	// 0065, for raw inserts; 0060 declares it too, but AutoMigrate creates the
+	// table first so that declaration never runs on a booted server (#349).
+	// Every write from Go carries an explicit value, and callers that have none
+	// use DefaultMFAPolicy.
 	GraceDays int `gorm:"not null" json:"grace_days"`
 	// UpdatedByID is the administrator who last saved it. The full who/when/
 	// before/after record lives in the governance audit trail; this is the

@@ -3,15 +3,18 @@
 // This program is free software: you can redistribute it and/or modify it under
 //
 // Executive dashboard (spec §11 « Tableau de bord exécutif ») — a board-level view
-// of the whole security posture: a cyber-score grade, financial exposure, key risk
+// of the whole security posture: the security score, financial exposure, key risk
 // indicators, the top-10 risks, risk & incident trends and compliance coverage.
-// Every figure comes from ONE consolidated request (GET /analytics/executive) — no
-// fixtures. Charts follow the project's dc.html tokens: reserved status colours for
+// Every figure but the score comes from ONE consolidated request
+// (GET /analytics/executive) — no fixtures. The score is the canonical tenant
+// score (GET /score, shared query key): this page used to draw an A–F "cyber
+// score" from a second formula that disagreed with the sidebar (#287). Charts follow the project's dc.html tokens: reserved status colours for
 // severity (with labels/legend), one hue for magnitude, ink tokens for text, and
 // they render in light + dark.
 
 import { localeTag, type LocaleCode } from '../../i18n/locales';
 import { useMemo } from 'react';
+import { useNavigate } from 'react-router';
 import { toast } from 'sonner';
 import { CartesianChart, RadarChart } from '../../shared/ds/charts';
 import {
@@ -28,9 +31,10 @@ import { PageFrame, PageHeader, Card, Btn, Skeleton, ErrorState } from '../../sh
 import { softFill } from '../../shared/riskColors';
 import { useUIStore } from '../../store/uiStore';
 import { useExecutiveDashboard } from './useExecutive';
+import { useScore } from '../../hooks/useScore';
+import { ScoreGauge } from '../../shared/ScoreGauge';
 import type {
   ExecutiveDashboard as ExecData,
-  CyberScore,
   KRI,
   ExecRisk,
   ComplianceCoverage,
@@ -70,38 +74,15 @@ function monthLabel(m: string): string {
   const [y, mo] = m.split('-');
   return y && mo ? `${mo}/${y.slice(2)}` : m;
 }
-function gradeColor(grade: string): string {
-  switch (grade) {
-    case 'A':
-    case 'B':
-      return 'var(--low)';
-    case 'C':
-      return 'var(--medium)';
-    case 'D':
-      return 'var(--high)';
-    default:
-      return 'var(--critical)';
-  }
-}
-
-/* ---------------- SVG gauge helpers ---------------- */
-function polar(cx: number, cy: number, r: number, deg: number): [number, number] {
-  const a = ((deg - 90) * Math.PI) / 180;
-  return [cx + r * Math.cos(a), cy + r * Math.sin(a)];
-}
-function arcPath(cx: number, cy: number, r: number, a0: number, a1: number): string {
-  const [x0, y0] = polar(cx, cy, r, a1);
-  const [x1, y1] = polar(cx, cy, r, a0);
-  const large = a1 - a0 <= 180 ? 0 : 1;
-  return `M ${x0} ${y0} A ${r} ${r} 0 ${large} 0 ${x1} ${y1}`;
-}
-
 /* ---------------- page ---------------- */
 
 export function ExecutiveDashboard() {
   const lang = useUIStore((s) => s.lang);
   const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
+  const navigate = useNavigate();
   const { data, isLoading, isError, refetch, isFetching } = useExecutiveDashboard();
+  // Called before the early returns: hooks must run in the same order every render.
+  const tenantScore = useScore('tenant');
 
   if (isLoading) return <ExecSkeleton />;
   if (isError || !data) {
@@ -147,9 +128,16 @@ export function ExecutiveDashboard() {
         }
       />
 
-      {/* row 1 — cyber score + financial + KRIs */}
+      {/* row 1 — security score + financial + KRIs */}
       <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-4 mb-4">
-        <CyberScoreCard cs={data.cyber_score} tr={tr} />
+        <ScoreGauge
+          score={tenantScore.data}
+          loading={tenantScore.isLoading}
+          error={tenantScore.isError}
+          title={tr('Score de sécurité', 'Security score')}
+          ctaLabel={tr('Voir le détail', 'View details')}
+          onDetails={() => navigate('/score')}
+        />
         <div className="flex flex-col gap-4">
           <FinancialCard data={data} lang={lang} tr={tr} />
           <KriStrip kris={data.kris} lang={lang} />
@@ -174,76 +162,6 @@ export function ExecutiveDashboard() {
         <IncidentTrendCard points={data.incident_trend} tr={tr} />
       </div>
     </PageFrame>
-  );
-}
-
-/* ---------------- Cyber score ---------------- */
-function CyberScoreCard({ cs, tr }: { cs: CyberScore; tr: (f: string, e: string) => string }) {
-  const col = gradeColor(cs.grade);
-  const cx = 100,
-    cy = 104,
-    r = 72;
-  const track = arcPath(cx, cy, r, -115, 115);
-  const prog = arcPath(cx, cy, r, -115, -115 + 230 * (cs.score / 100));
-  return (
-    <Card style={{ padding: '18px 20px' }}>
-      <div className="text-[13px] font-semibold text-ink-soft mb-1">
-        {tr('Cyber score', 'Cyber score')}
-      </div>
-      <div className="relative flex justify-center">
-        <svg viewBox="0 0 200 140" width="200" height="140">
-          <path
-            d={track}
-            fill="none"
-            stroke="var(--bg-hover)"
-            strokeWidth={13}
-            strokeLinecap="round"
-          />
-          <path
-            d={prog}
-            fill="none"
-            stroke={col}
-            strokeWidth={13}
-            strokeLinecap="round"
-            style={{ filter: `drop-shadow(0 0 6px ${col})` }}
-          />
-        </svg>
-        <div className="absolute left-0 right-0 text-center" style={{ top: '44px' }}>
-          <div className="disp mono text-[46px] font-bold leading-none" style={{ color: col }}>
-            {cs.grade}
-          </div>
-          <div className="text-[13px] text-ink-soft mt-1">
-            {cs.score} / 100 · {cs.label}
-          </div>
-        </div>
-      </div>
-      <div className="flex flex-col gap-2 mt-3">
-        {cs.components.map((c) => (
-          <div key={c.key} className="flex items-center gap-2.5">
-            <span className="w-[92px] text-[11.5px] text-ink-soft shrink-0 truncate">
-              {c.label}
-            </span>
-            <div
-              className="flex-1 h-[6px] rounded-full overflow-hidden"
-              style={{ background: 'var(--bg-hover)' }}
-            >
-              <div
-                className="h-full rounded-full"
-                style={{ width: `${c.value}%`, background: col }}
-              />
-            </div>
-            <span className="mono text-[11px] font-semibold text-ink w-[30px] text-right">
-              {c.value}
-            </span>
-          </div>
-        ))}
-        {cs.components.length === 0 && (
-          <div className="text-[12px] text-ink-muted py-2 text-center">
-            {tr('Données insuffisantes', 'Not enough data')}
-          </div>
-        )}
-      </div>
-    </Card>
   );
 }
 

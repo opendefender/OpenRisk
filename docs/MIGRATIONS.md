@@ -65,3 +65,16 @@ migrations/00NN_courte_description.down.sql
 ```
 Régles : idempotent (`... IF NOT EXISTS`), s'appuie sur les tables qu'AutoMigrate a déjà créées,
 `down` réversible, testé `up` **et** `down` sur une base fraîche avant merge.
+
+**Piège : `CREATE TABLE IF NOT EXISTS` sur une table qu'AutoMigrate possède.** AutoMigrate tourne
+avant la couche SQL. Si le modèle GORM existe, la table est déjà là et tout le `CREATE TABLE` est
+ignoré, contraintes `CHECK` et `DEFAULT` comprises. Une garantie de ce type s'ajoute par
+`ALTER TABLE` (dans un bloc `DO` qui teste `pg_constraint` pour rester idempotent). Cas réel :
+0060 déclarait la borne de `mfa_policies.grace_days` et ses défauts ; ils n'existaient sur aucune
+base démarrée par le serveur, 0065 les pose (#349).
+
+**Une migration qui modifie des lignes se teste sur une base peuplée**, pas seulement sur une base
+vide : schéma de la version précédente, données de tous les âges et de toutes les formes (colonnes
+NULL, lignes antérieures aux hooks), puis la séquence de boot (`PrepareForAutoMigrate`,
+AutoMigrate, couche SQL). Modèle : `backend/cmd/server/migration_0060_integration_test.go`.
+Procédure de montée de version et de retour arrière associée : `docs/runbooks/migration-0060.md`.

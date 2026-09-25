@@ -43,7 +43,7 @@ import "math"
 // stale cached value is recognisable rather than silently wrong.
 //
 // Bump it whenever weights, factors or band boundaries change.
-const FormulaVersion = "2.1"
+const FormulaVersion = "2.2"
 
 // The canonical scale. EVERY score this product displays lives here — there is no
 // second scale, and no caller may invent one.

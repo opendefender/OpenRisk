@@ -61,10 +61,9 @@ func newExecutiveDashboardHandler(
 		WithVulnerabilities(vulnRepo).
 		WithIncidents(incidentSourceAdapter{svc: incidentSvc}).
 		WithQuantifier(quantifier).
-		// The Aha moment (spec §7) is detected exactly where the cyber score is
-		// computed: this is the only place that knows both that a score was
-		// produced from the tenant's own data AND how many compliance gaps were
-		// identified while producing it.
+		// The Aha moment (spec §7) is detected where the executive posture is
+		// assembled: this is the only place that knows both that the tenant has
+		// its own data AND how many compliance gaps were identified.
 		WithActivation(aha)
 	return handlers.NewExecutiveDashboardHandler(uc)
 }

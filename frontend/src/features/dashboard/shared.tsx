@@ -2,14 +2,13 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 //
 // Shared dashboard primitives (UX-2). Extracted so every role persona dashboard
-// renders from one visual system: the count-up KPI card, the gauge ScoreHero, the
+// renders from one visual system: the count-up KPI card, the
 // card shell and the persona header. Keeps the personas thin — each just wires its
 // own real data into these.
 
 import { localeTag, type LocaleCode } from '../../i18n/locales';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { FileText, type LucideIcon } from 'lucide-react';
-import { InfoHint } from '../../shared/InfoHint';
 import { MFAEnrollmentBanner } from '../auth/MFAEnrollmentBanner';
 import { MFAPostAhaPrompt } from '../auth/MFAPostAhaPrompt';
 import { ActionCenterPanel } from '../action-center/ActionCenterPanel';
@@ -200,92 +199,9 @@ export function KpiRow({ items }: { items: KpiSpec[] }) {
   );
 }
 
-/* ---------------- Score hero gauge ---------------- */
-
-function polar(cx: number, cy: number, r: number, deg: number): [number, number] {
-  const a = ((deg - 90) * Math.PI) / 180;
-  return [cx + r * Math.cos(a), cy + r * Math.sin(a)];
-}
-function arcPath(cx: number, cy: number, r: number, a0: number, a1: number): string {
-  const [x0, y0] = polar(cx, cy, r, a1);
-  const [x1, y1] = polar(cx, cy, r, a0);
-  const large = a1 - a0 <= 180 ? 0 : 1;
-  return `M ${x0} ${y0} A ${r} ${r} 0 ${large} 0 ${x1} ${y1}`;
-}
-
-/** Radial gauge. `max`/`grade` let it show a 0–100 score or an A–F cyber grade. */
-export function ScoreHero({
-  score,
-  title,
-  ctaLabel,
-  onDetails,
-  grade,
-  max = 100,
-  hint,
-}: {
-  score: number;
-  title: string;
-  ctaLabel: string;
-  onDetails: () => void;
-  grade?: string;
-  max?: number;
-  hint?: string;
-}) {
-  const val = Math.round(useCountUp(score));
-  const cx = 110,
-    cy = 112,
-    r = 76;
-  const pct = Math.max(0, Math.min(1, val / max));
-  const track = arcPath(cx, cy, r, -115, 115);
-  const prog = arcPath(cx, cy, r, -115, -115 + 230 * pct);
-  const col = pct >= 0.7 ? 'var(--low)' : pct >= 0.45 ? 'var(--high)' : 'var(--critical)';
-  return (
-    <Card>
-      <div className="px-[22px] pt-5 pb-2 text-[13px] font-semibold text-ink-soft flex items-center gap-1.5">
-        {title}
-        {hint && <InfoHint text={hint} />}
-      </div>
-      <div className="relative flex justify-center">
-        <svg viewBox="0 0 220 150" width="220" height="150">
-          <path
-            d={track}
-            fill="none"
-            stroke="var(--bg-hover)"
-            strokeWidth={14}
-            strokeLinecap="round"
-          />
-          <path
-            d={prog}
-            fill="none"
-            stroke={col}
-            strokeWidth={14}
-            strokeLinecap="round"
-            style={{ filter: `drop-shadow(0 0 6px ${col})` }}
-          />
-        </svg>
-        <div className="absolute left-0 right-0 text-center" style={{ top: '52px' }}>
-          <div className="disp mono text-[44px] font-bold text-ink leading-none">
-            {grade ?? val}
-          </div>
-          <div className="text-[12px] text-ink-muted mt-0.5">
-            {grade ? `${val}/${max}` : `/ ${max}`}
-          </div>
-        </div>
-      </div>
-      <button
-        onClick={onDetails}
-        className="mx-[22px] mb-5 mt-3 h-[34px] rounded-[9px] text-[12.5px] font-semibold text-ink hover:bg-hover transition-colors"
-        style={{
-          width: 'calc(100% - 44px)',
-          border: '1px solid var(--border-strong)',
-          background: 'transparent',
-        }}
-      >
-        {ctaLabel}
-      </button>
-    </Card>
-  );
-}
+/* A score is drawn by shared/ScoreGauge only. The ScoreHero that lived here
+   took a bare number and picked its own colour thresholds, which is how the
+   executive board came to disagree with the sidebar (#287). */
 
 /** Page scroll frame shared by all personas. */
 export function DashboardShell({ children }: { children: ReactNode }) {

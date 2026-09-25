@@ -42,6 +42,7 @@ export interface ScoreFactor {
 
 export interface Score {
   scope: ScoreScope;
+  measured: true;
   /** The number every surface displays: the residual score, 0–100. */
   value: number;
   band: ScoreBand;
@@ -61,6 +62,35 @@ export interface Score {
   inputs: Record<string, unknown>;
   breakdown: ScoreFactor[];
 }
+
+/**
+ * The tenant score when there is nothing to score yet (#287): no risk assessed
+ * and no control applicable. Every number and band is null on the wire, so there
+ * is no default a surface could render as if it had been measured — "0 / 100"
+ * on a fresh tenant would read as a flawless posture.
+ */
+export interface UnmeasuredScore {
+  scope: ScoreScope;
+  measured: false;
+  /** What would make it measurable, e.g. `score.unmeasured.no_data`. */
+  reason_i18n_key: string;
+  value: null;
+  band: null;
+  band_label_i18n_key: null;
+  inherent: null;
+  inherent_band: null;
+  residual: null;
+  residual_band: null;
+  mitigation_effectiveness: number;
+  computed_at: string;
+  formula_version: string;
+  inputs: Record<string, unknown>;
+  /** Kept, so the explainer can list every factor as "not measured". */
+  breakdown: ScoreFactor[];
+}
+
+/** What GET /score returns: a measured score, or the honest absence of one. */
+export type ScoreResult = Score | UnmeasuredScore;
 
 export interface ScoreBandRange {
   band: ScoreBand;
@@ -92,8 +122,8 @@ export interface ScorePreviewInput {
 }
 
 export const scoreService = {
-  async get(scope: ScoreScope, id?: string, signal?: AbortSignal): Promise<Score> {
-    const { data } = await api.get<Score>('/score', { params: { scope, id }, signal });
+  async get(scope: ScoreScope, id?: string, signal?: AbortSignal): Promise<ScoreResult> {
+    const { data } = await api.get<ScoreResult>('/score', { params: { scope, id }, signal });
     return data;
   },
 
@@ -159,6 +189,21 @@ export function bandLabel(band: ScoreBand | undefined, lang: LocaleCode): string
   };
   if (!band || !(band in labels)) return lang === 'fr' ? 'Non mesuré' : 'Not measured';
   return pickLocalized(lang, labels[band]) ?? band;
+}
+
+/** FR/EN explanation of why a score is not measured, keyed by the server's reason. */
+export function unmeasuredReason(key: string | undefined, lang: LocaleCode): string {
+  const labels: Record<string, { fr: string; en: string }> = {
+    'score.unmeasured.no_data': {
+      fr: 'Ajoutez des risques pour calculer votre score',
+      en: 'Add risks to calculate your score',
+    },
+  };
+  return (
+    pickLocalized(lang, labels[key ?? 'score.unmeasured.no_data']) ??
+    pickLocalized(lang, labels['score.unmeasured.no_data']) ??
+    ''
+  );
 }
 
 /** FR/EN label for a factor, keyed by the server's factor key. */

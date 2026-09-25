@@ -14,7 +14,7 @@
 
 import { useCountUp } from '../features/dashboard/shared';
 import { useUIStore } from '../store/uiStore';
-import { bandColor, bandLabel, type Score } from '../services/scoreService';
+import { bandColor, bandLabel, unmeasuredReason, type ScoreResult } from '../services/scoreService';
 import { ScoreExplainerButton } from './ScoreExplainer';
 
 function polar(cx: number, cy: number, r: number, deg: number): [number, number] {
@@ -35,18 +35,24 @@ export function ScoreGauge({
   ctaLabel,
   onDetails,
   loading,
+  error,
 }: {
   /** Undefined while loading, or when the endpoint failed. */
-  score: Score | undefined;
+  score: ScoreResult | undefined;
   title: string;
   ctaLabel?: string;
   onDetails?: () => void;
   loading?: boolean;
+  /** The request failed: say so, rather than "not measured". */
+  error?: boolean;
 }) {
   const lang = useUIStore((s) => s.lang);
   const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
 
-  const value = score?.value ?? 0;
+  // Narrowed once: from here on `measuredScore` is either a real measurement or
+  // undefined, so no null can leak into the arithmetic or the band.
+  const measuredScore = score?.measured ? score : undefined;
+  const value = measuredScore?.value ?? 0;
   const animated = Math.round(useCountUp(value));
   const cx = 110,
     cy = 112,
@@ -56,11 +62,12 @@ export function ScoreGauge({
   const prog = arcPath(cx, cy, r, -115, -115 + 230 * pct);
 
   // The colour follows the SERVER's band. No thresholds here.
-  const color = bandColor(score?.band);
+  const color = bandColor(measuredScore?.band);
 
   // "Not measured" is a distinct state from "zero". A fresh tenant with no data
-  // must not read as a flawless posture — that reassurance would be a lie.
-  const measured = !!score;
+  // must not read as a flawless posture — that reassurance would be a lie (#287).
+  const measured = !!measuredScore;
+  const unmeasured = score?.measured === false;
 
   return (
     <div
@@ -70,7 +77,7 @@ export function ScoreGauge({
     >
       <div className="px-[22px] pt-5 pb-2 text-[13px] font-semibold text-ink-soft flex items-center gap-1.5">
         {title}
-        <ScoreExplainerButton score={score} />
+        <ScoreExplainerButton score={measuredScore} />
       </div>
 
       <div className="relative flex justify-center">
@@ -100,17 +107,23 @@ export function ScoreGauge({
           >
             {loading ? '…' : measured ? animated : '—'}
           </div>
-          <div className="text-[12px] text-ink-muted mt-0.5">
-            {measured ? '/ 100' : tr('non mesuré', 'not measured')}
+          <div className="text-[12px] text-ink-muted mt-0.5" data-testid="score-state">
+            {loading
+              ? ''
+              : measured
+                ? '/ 100'
+                : error && !unmeasured
+                  ? tr('indisponible', 'unavailable')
+                  : tr('non mesuré', 'not measured')}
           </div>
           {/* The band, printed exactly as the server sent it. */}
-          {measured && (
+          {measuredScore && (
             <div
               className="text-[12.5px] font-semibold mt-1"
               style={{ color }}
               data-testid="score-band"
             >
-              {bandLabel(score.band, lang)}
+              {bandLabel(measuredScore.band, lang)}
             </div>
           )}
         </div>
@@ -118,14 +131,24 @@ export function ScoreGauge({
 
       {/* Inherent → residual, so treatment progress is visible rather than
           appearing as an unexplained drop in the headline number. */}
-      {measured && score.inherent !== score.residual && (
+      {/* What would make the score measurable, as the server states it. */}
+      {unmeasured && (
+        <div
+          className="px-[22px] pt-2 text-[12px] text-ink-soft text-center"
+          data-testid="score-unmeasured-reason"
+        >
+          {unmeasuredReason(score.reason_i18n_key, lang)}
+        </div>
+      )}
+
+      {measuredScore && measuredScore.inherent !== measuredScore.residual && (
         <div className="px-[22px] pt-2 text-[11.5px] text-ink-muted text-center">
           {tr('Inhérent ', 'Inherent ')}
-          <span className="mono text-ink-soft">{score.inherent.toFixed(0)}</span>
+          <span className="mono text-ink-soft">{measuredScore.inherent.toFixed(0)}</span>
           {' → '}
           {tr('résiduel ', 'residual ')}
           <span className="mono font-semibold" style={{ color }}>
-            {score.residual.toFixed(0)}
+            {measuredScore.residual.toFixed(0)}
           </span>
         </div>
       )}

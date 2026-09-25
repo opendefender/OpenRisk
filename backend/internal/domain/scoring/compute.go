@@ -233,10 +233,12 @@ type TenantInput struct {
 func ComputeTenant(in TenantInput, at time.Time) Result {
 	factors := []weighted{
 		{
-			key:       FactorRiskExposure,
-			weight:    tenantWeights[FactorRiskExposure],
-			raw:       riskExposure(in.CriticalRisks, in.HighRisks, in.TotalRisks),
-			available: in.HasRiskData,
+			key:    FactorRiskExposure,
+			weight: tenantWeights[FactorRiskExposure],
+			raw:    riskExposure(in.CriticalRisks, in.HighRisks, in.TotalRisks),
+			// An empty register is not a measured absence of exposure: it is an
+			// organisation that has not assessed anything yet.
+			available: in.HasRiskData && in.TotalRisks > 0,
 		},
 		{
 			key:       FactorControlGaps,
@@ -272,7 +274,18 @@ func ComputeTenant(in TenantInput, at time.Time) Result {
 		"critical_open_incidents":  in.CriticalOpenIncidents,
 	}
 
-	return finish(ScopeTenant, inherent, in.MitigationEffectiveness, at, inputs, breakdown)
+	result := finish(ScopeTenant, inherent, in.MitigationEffectiveness, at, inputs, breakdown)
+
+	// Vulnerabilities and incidents alone do not make a posture: with no risk
+	// assessed and no control applicable, the score would rest on the absence of
+	// findings, which reads as excellent. Say "not measured" instead.
+	riskMeasured := in.HasRiskData && in.TotalRisks > 0
+	controlsMeasured := in.HasComplianceData && in.ApplicableControls > 0
+	if !riskMeasured && !controlsMeasured {
+		result.Measured = false
+		result.ReasonI18nKey = ReasonNoData
+	}
+	return result
 }
 
 // ---------------------------------------------------------------------------

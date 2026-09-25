@@ -121,10 +121,6 @@ func TestExecutiveDashboard_Success(t *testing.T) {
 	if len(out.Compliance) != 2 || out.Compliance[0].Name != "ISO 27001" {
 		t.Errorf("compliance = %+v", out.Compliance)
 	}
-	// Cyber score must be computed with all four axes present.
-	if out.CyberScore.Grade == "" || len(out.CyberScore.Components) != 4 {
-		t.Errorf("cyber score not fully computed: %+v", out.CyberScore)
-	}
 	// MTTR + compliance-coverage KRIs must be present.
 	var haveMTTR, haveCoverage bool
 	for _, k := range out.KRIs {
@@ -141,7 +137,7 @@ func TestExecutiveDashboard_Success(t *testing.T) {
 }
 
 func TestExecutiveDashboard_DegradesWithNoSources(t *testing.T) {
-	// No sources attached: the board must still render (empty slices, neutral score).
+	// No sources attached: the board must still render (empty slices).
 	uc := NewGetExecutiveDashboardUseCase()
 	out, err := uc.Execute(context.Background(), uuid.New())
 	if err != nil {
@@ -154,7 +150,7 @@ func TestExecutiveDashboard_DegradesWithNoSources(t *testing.T) {
 		t.Errorf("expected empty slices, got %+v", out)
 	}
 	// Only the always-on critical_risks KRI (value 0) should be present.
-	if out.CyberScore.Score != 50 || out.CyberScore.Grade != "E" {
-		t.Errorf("neutral score expected, got %d/%s", out.CyberScore.Score, out.CyberScore.Grade)
+	if len(out.KRIs) != 1 || out.KRIs[0].Key != "critical_risks" {
+		t.Errorf("KRIs = %+v, want only critical_risks", out.KRIs)
 	}
 }

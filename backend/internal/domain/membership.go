@@ -47,9 +47,11 @@ type OrganizationMember struct {
 	DeactivatedAt *time.Time       `json:"deactivated_at,omitempty"`
 	RevokedAt     *time.Time       `json:"revoked_at,omitempty"`
 	// MFAGraceStartedAt anchors the deferrable-MFA countdown (OR26-03): the
-	// moment this member became subject to the requirement. Set at membership
-	// creation, and RESET when an administrator promotes the member into a
-	// privileged role — a fresh privilege deserves a fresh window, and the
+	// moment this member became subject to the requirement. Backfilled by
+	// migration 0060 for memberships that predate it, left NULL on creation
+	// (the anchor then reads from JoinedAt), and RESET when an administrator
+	// promotes the member into a privileged role — a fresh privilege deserves a
+	// fresh window, and the
 	// alternative (running from joined_at) would lock a promoted colleague out
 	// the instant their new role took effect.
 	//
