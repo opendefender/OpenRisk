@@ -1,0 +1,74 @@
+name: Dependency gate
+
+# The single blocking gate on known vulnerabilities in what OpenRisk ships
+# (#487): backend Go modules, frontend production dependencies, the image
+# built from the root Dockerfile and the two self-host images. HIGH and CRITICAL findings, and govulncheck
+# findings our code reaches, fail it unless security/vulnerability-exceptions.yaml
+# holds a valid, unexpired entry for that exact id and package.
+#
+# The daily run matters on its own: a new advisory, or an exception reaching
+# its expiry date, turns master red without any code change. release.yml runs
+# the same script before it publishes anything.
+#
+# Every third-party action is pinned to a full commit SHA; the tag is in the
+# trailing comment.
+
+on:
+  push:
+    branches: [master, stag, develop]
+  pull_request:
+    branches: [master, stag, develop]
+  schedule:
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  TRIVY_VERSION: v0.74.0
+  GOVULNCHECK_VERSION: v1.7.0
+
+jobs:
+  gate:
+    name: Dependency gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      # Latest 1.25 patch, as the golang:1.25-alpine builder in the Dockerfile
+      # uses: govulncheck judges the standard library by the Go that runs it.
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version: '1.25'
+          check-latest: true
+          cache-dependency-path: backend/go.sum
+
+      - uses: aquasecurity/setup-trivy@81e514348e19b6112ce2a7e3ecbafe19c1e1f567 # v0.3.1
+        with:
+          version: ${{ env.TRIVY_VERSION }}
+          cache: true
+
+      - name: Install govulncheck
+        run: go install "golang.org/x/vuln/cmd/govulncheck@${GOVULNCHECK_VERSION}"
+
+      # The image release.yml publishes (root Dockerfile), and the two images
+      # deploy/selfhost builds on the customer's host.
+      - name: Build the images that ship
+        run: |
+          set -euo pipefail
+          docker build -t openrisk:gate -f Dockerfile .
+          docker build -t openrisk-backend:gate backend
+          docker build -t openrisk-frontend:gate frontend
+
+      - name: Scan and gate
+        run: scripts/security/dependency-gate.sh openrisk:gate openrisk-backend:gate openrisk-frontend:gate
+
+      - name: Keep the scan reports
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: dependency-gate-reports
+          path: gate-reports/*.json
+          if-no-files-found: ignore
+          retention-days: 14
