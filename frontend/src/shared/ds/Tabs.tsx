@@ -161,7 +161,7 @@ export function Tabs<T extends string = string>({
       aria-label={label}
       onKeyDown={onKeyDown}
       className={cn(
-        'relative flex items-center gap-1 overflow-x-auto border-b border-subtle',
+        'relative flex items-center gap-1 overflow-x-auto overflow-y-hidden border-b border-subtle',
         className,
       )}
     >
