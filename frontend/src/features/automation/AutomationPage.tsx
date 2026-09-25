@@ -36,7 +36,7 @@ import {
   HelpCircle,
 } from 'lucide-react';
 import { PageFrame, PageHeader, Btn, Card, SkeletonRows, EmptyState } from '../../shared/ui';
-import { Collapse } from '../../shared/ds';
+import { Collapse, TabPanel, Tabs } from '../../shared/ds';
 import { useUIStore } from '../../store/uiStore';
 import { useAuthStore } from '../../hooks/useAuthStore';
 import {
@@ -125,21 +125,6 @@ export function AutomationPage() {
     setEditorOpen(true);
   };
 
-  const TabBtn = ({ id, label, count }: { id: Tab; label: string; count?: number }) => (
-    <button
-      onClick={() => setTab(id)}
-      className="h-9 px-3.5 rounded-[9px] text-[12.5px] font-semibold inline-flex items-center gap-1.5"
-      style={{
-        background: tab === id ? 'var(--accent-solid)' : 'transparent',
-        color: tab === id ? 'var(--fg-on-solid)' : 'var(--fg-secondary)',
-        border: tab === id ? 'none' : '1px solid var(--border-strong)',
-      }}
-    >
-      {label}
-      {typeof count === 'number' && <span className="mono opacity-80">{count}</span>}
-    </button>
-  );
-
   return (
     <PageFrame wide>
       <PageHeader
@@ -152,33 +137,42 @@ export function AutomationPage() {
         }
       />
 
-      <div className="flex gap-2 mb-4 flex-wrap">
-        <TabBtn id="rules" label={tr('Règles', 'Rules')} count={rules.length} />
-        <TabBtn
-          id="sla"
-          label={tr('SLA en cours', 'Live SLA')}
-          count={stats ? stats.open + stats.breached + stats.escalated : undefined}
-        />
-        <TabBtn id="history" label={tr('Historique', 'History')} />
-        <TabBtn id="channels" label={tr('Canaux', 'Channels')} />
-      </div>
+      <Tabs<Tab>
+        id="automation"
+        label={tr('Sections de l’automatisation', 'Automation sections')}
+        className="mb-4"
+        value={tab}
+        onChange={setTab}
+        items={[
+          { id: 'rules', label: tr('Règles', 'Rules'), count: rules.length },
+          {
+            id: 'sla',
+            label: tr('SLA en cours', 'Live SLA'),
+            count: stats ? stats.open + stats.breached + stats.escalated : undefined,
+          },
+          { id: 'history', label: tr('Historique', 'History') },
+          { id: 'channels', label: tr('Canaux', 'Channels') },
+        ]}
+      />
 
-      <p className="text-[12.5px] mb-3" style={{ color: 'var(--fg-secondary)' }}>
-        {tr(TAB_PURPOSE[tab].fr, TAB_PURPOSE[tab].en)}
-      </p>
+      <TabPanel tabsId="automation" id={tab} active>
+        <p className="text-[12.5px] mb-3" style={{ color: 'var(--fg-secondary)' }}>
+          {tr(TAB_PURPOSE[tab].fr, TAB_PURPOSE[tab].en)}
+        </p>
 
-      {tab === 'rules' && (
-        <RulesView
-          rules={rules}
-          loading={rulesLoading}
-          canWrite={canWrite}
-          onEdit={openEdit}
-          onNew={openNew}
-        />
-      )}
-      {tab === 'sla' && <SLAView />}
-      {tab === 'history' && <HistoryView />}
-      {tab === 'channels' && <ChannelsView canWrite={canWrite} />}
+        {tab === 'rules' && (
+          <RulesView
+            rules={rules}
+            loading={rulesLoading}
+            canWrite={canWrite}
+            onEdit={openEdit}
+            onNew={openNew}
+          />
+        )}
+        {tab === 'sla' && <SLAView />}
+        {tab === 'history' && <HistoryView />}
+        {tab === 'channels' && <ChannelsView canWrite={canWrite} />}
+      </TabPanel>
 
       {editorOpen && (
         <RuleEditorModal
