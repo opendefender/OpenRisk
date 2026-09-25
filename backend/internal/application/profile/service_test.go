@@ -223,6 +223,25 @@ func TestGetMyProfile_Unauthorized(t *testing.T) {
 	}
 }
 
+// The first-boot administrator has no legacy role row (role_id is the zero
+// UUID, Role is nil): its authority is its root membership. GET /users/me
+// must serve it. The unrouted handler.GetMe that dereferenced Role.Name for
+// such a user was removed in #789; this pins that the live path never needs it.
+func TestGetMyProfile_Success_UserWithoutLegacyRole(t *testing.T) {
+	h := newHarness(t)
+	admin := h.users.rows[h.alice]
+	admin.RoleID = uuid.Nil
+	admin.Role = nil
+
+	v, err := h.svc.GetMyProfile(context.Background(), h.tenantA, h.alice)
+	if err != nil {
+		t.Fatalf("GetMyProfile: %v", err)
+	}
+	if v.ID != h.alice || v.Email != "alice@a.io" {
+		t.Fatalf("unexpected view: %+v", v)
+	}
+}
+
 // ---------------------------------------------------------------------------
 // UpdateMyProfile
 // ---------------------------------------------------------------------------

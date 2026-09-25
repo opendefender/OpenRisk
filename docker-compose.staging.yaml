@@ -56,7 +56,6 @@ services:
       # Same reason as the test stack (#728). The password belongs in the URL
       # too: this Redis requires one, and ParseURL is what the client uses.
       REDIS_URL: redis://:${STAGING_REDIS_PASSWORD:?set STAGING_REDIS_PASSWORD}@redis-staging:6379/0
-      JWT_SECRET: ${STAGING_JWT_SECRET:?set STAGING_JWT_SECRET}
       LOG_LEVEL: debug
       CORS_ORIGINS: ${STAGING_CORS_ORIGINS:-http://localhost:3000,http://localhost:3001}
       API_PORT: 8080

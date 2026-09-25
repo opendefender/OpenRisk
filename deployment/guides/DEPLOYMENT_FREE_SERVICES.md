@@ -97,7 +97,8 @@ Allez dans **Environment** et ajoutez :
 
 ```env
 DATABASE_URL=postgresql://postgres:[PASSWORD]@[SUPABASE_HOST]:5432/postgres
-JWT_SECRET=your-super-secret-key-min-32-chars-here-do-not-use-this
+RSA_PRIVATE_KEY=<PEM private key, see scripts/generate_rsa_keys.sh>
+RSA_PUBLIC_KEY=<PEM public key>
 REDIS_URL=redis://default:[REDIS_PASSWORD]@[REDIS_HOST]:19999
 PORT=8080
 ENVIRONMENT=production

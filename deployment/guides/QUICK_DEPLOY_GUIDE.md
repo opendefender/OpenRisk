@@ -37,7 +37,8 @@ Pour obtenir un lien de démo en 30 minutes avec **zéro frais**, voici les 4 é
 4. Environment Variables:
    DATABASE_URL=postgresql://postgres:PASSWORD@...
    REDIS_URL=redis://default:PASSWORD@...
-   JWT_SECRET=generez-une-clé-de-32-chars
+   RSA_PRIVATE_KEY=<clé privée PEM, voir scripts/generate_rsa_keys.sh>
+   RSA_PUBLIC_KEY=<clé publique PEM>
    CORS_ORIGINS=https://openrisk-xxxx.vercel.app (ajouter après Vercel)
    API_BASE_URL=https://openrisk-api.onrender.com
    
@@ -134,9 +135,9 @@ dans les logs). Changez-le après la première connexion, puis supprimez ce fich
 
 ## 🔧 Commandes utiles
 
-### Générer un JWT_SECRET robuste
+### Générer la paire de clés RS256
 ```bash
-openssl rand -base64 32
+bash scripts/generate_rsa_keys.sh
 ```
 
 ### Tester la connexion DB Supabase

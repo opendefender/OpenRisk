@@ -42,7 +42,8 @@ Optimized Docker configuration for Render.com web services.
    ```env
    DATABASE_URL=postgresql://...
    REDIS_URL=redis://...
-   JWT_SECRET=your-32-char-secret
+   RSA_PRIVATE_KEY=<PEM private key, see scripts/generate_rsa_keys.sh>
+   RSA_PUBLIC_KEY=<PEM public key>
    CORS_ORIGINS=https://openrisk-xxxx.vercel.app
    API_BASE_URL=https://openrisk-api.onrender.com
    PORT=8080
@@ -99,10 +100,15 @@ docker build -f deployment/docker/Dockerfile.render -t openrisk .
 
 ### Run Locally
 ```bash
+# From the repository root. Writes secrets/private.pem and secrets/public.pem.
+bash scripts/generate_rsa_keys.sh
+
 docker run -p 8080:8080 \
   -e DATABASE_URL="postgresql://..." \
   -e REDIS_URL="redis://..." \
-  -e JWT_SECRET="your-secret" \
+  -e RSA_PRIVATE_KEY_PATH=/app/secrets/private.pem \
+  -e RSA_PUBLIC_KEY_PATH=/app/secrets/public.pem \
+  -v "$PWD/secrets:/app/secrets:ro" \
   -e CORS_ORIGINS="http://localhost:5173" \
   -e API_BASE_URL="http://localhost:8080" \
   openrisk

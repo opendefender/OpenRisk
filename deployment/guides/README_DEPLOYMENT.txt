@@ -77,7 +77,8 @@ PHASE 3: DÉPLOYER LE BACKEND (15 minutes)
 [ ] 4. Set ENVIRONMENT VARIABLES:
      DATABASE_URL=postgresql://postgres:PASSWORD@...
      REDIS_URL=redis://default:PASSWORD@...
-     JWT_SECRET=generated-32-char-random-string
+     RSA_PRIVATE_KEY=<PEM private key, see scripts/generate_rsa_keys.sh>
+     RSA_PUBLIC_KEY=<PEM public key>
      CORS_ORIGINS=https://openrisk-xxxx.vercel.app
      API_BASE_URL=https://openrisk-api.onrender.com
      PORT=8080
@@ -217,7 +218,8 @@ FICHIERS DE CONFIGURATION CRÉÉS:
    ─────────────────────   ─────────────────────────────────
    DATABASE_URL            postgresql://postgres:PASSWORD@...
    REDIS_URL               redis://default:PASSWORD@...
-   JWT_SECRET              [openssl rand -base64 32]
+   RSA_PRIVATE_KEY         [PEM, scripts/generate_rsa_keys.sh]
+   RSA_PUBLIC_KEY          [PEM]
    API_BASE_URL            https://openrisk-api.onrender.com
    CORS_ORIGINS            https://openrisk-xxxx.vercel.app (later)
    PORT                    8080
@@ -300,8 +302,8 @@ PROBLÈMES COURANTS & SOLUTIONS:
    → Vérifier password et host
 
 ❌ "Cannot login - 401 Unauthorized"
-✅ Solution: JWT_SECRET ne correspond pas
-   → Vérifier JWT_SECRET sur Render
+✅ Solution: la paire de clés RS256 a changé
+   → Vérifier RSA_PRIVATE_KEY / RSA_PUBLIC_KEY sur Render
    → Redeploy
 
 ❌ "API not responding / Network error"

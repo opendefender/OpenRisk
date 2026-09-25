@@ -240,9 +240,10 @@ func OAuth2Callback(c *fiber.Ctx) error {
 		})
 	}
 
-	// Generate JWT
-	authService := services.NewAuthService(getEnv("JWT_SECRET", ""), 24*time.Hour)
-	jwtToken, err := authService.GenerateToken(user)
+	// Issue the session. The real handlers call issueSSOSession
+	// (internal/handler/sso_session.go), which mints an RS256 pair through the
+	// same TokenManager as password sign-in. There is no shared HMAC secret.
+	jwtToken, err := issueSessionFor(user)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to generate token",
@@ -407,9 +408,10 @@ func SAML2ACS(c *fiber.Ctx) error {
 		})
 	}
 
-	// Generate JWT
-	authService := services.NewAuthService(getEnv("JWT_SECRET", ""), 24*time.Hour)
-	jwtToken, err := authService.GenerateToken(user)
+	// Issue the session. The real handlers call issueSSOSession
+	// (internal/handler/sso_session.go), which mints an RS256 pair through the
+	// same TokenManager as password sign-in. There is no shared HMAC secret.
+	jwtToken, err := issueSessionFor(user)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to generate token",

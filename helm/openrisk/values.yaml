@@ -293,6 +293,5 @@ secrets:
   # Inline secrets (NOT recommended for production)
   inline:
     databaseUrl: ""
-    jwtSecret: ""
     oauth2ClientId: ""
     oauth2ClientSecret: ""

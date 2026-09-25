@@ -55,11 +55,11 @@ Two layers coexist; only the **modern** one is wired into `cmd/server/main.go`:
   `internal/auth.TokenManager` (DB refresh tokens, rotation, resolver) +
   `internal/application/auth/*` (use cases) + `internal/handler/auth/*`
   (handlers) + `internal/middleware` (Protected, PAT, MFA-token, session-cookie).
-- **Legacy (dead):** `internal/service/multitenancy_auth_service.go`
-  (HS256, stateless 7-day refresh, `SelectOrganization`) — **not wired**; its
-  HS256 tokens would be rejected by the RS256 middleware anyway. Left in place
-  (out of scope to delete) but documented here as non-functional so no one
-  mistakes it for the live path.
+- **Legacy (deleted):** `internal/service/multitenancy_auth_service.go`
+  (HS256, stateless 7-day refresh, `SelectOrganization`) and its handler were
+  never wired; their HS256 tokens would have been rejected by the RS256
+  middleware anyway. Both were deleted in #789 / #293, with the rest of the
+  unreachable HS256 code and `JWT_SECRET`.
 
 Single signing authority: the same `rsaKeys` is handed to both
 `middleware.Protected` and the `TokenManager`, so one implementation signs and
@@ -414,8 +414,8 @@ leakage.
   challenge; the provider handshake, SAML signature/audience/recipient/replay
   validation, and OIDC state/nonce/code-exchange are **not** verified here →
   marked `BLOCKED`, not passing.
-- The legacy HS256 `MultitenantAuthService` remains in the tree (unwired,
-  non-functional); deleting it is out of W0-03 scope.
+- ~~The legacy HS256 `MultitenantAuthService` remains in the tree~~: deleted
+  in #789 / #293.
 - `oauth_state` nonce sits in `localStorage` (P3-02, low).
 - `PruneExpiredTokens` is implemented but not yet wired to a scheduler; spent/
   expired tokens are bounded by the 30-day TTL until then.
@@ -424,7 +424,8 @@ leakage.
 ## Recommended Follow-up Work
 1. Wire OAuth2/OIDC + SAML2 against a test IdP and add signature/audience/
    recipient/replay + state/nonce/code-exchange tests (lift the `BLOCKED` rows).
-2. Delete the dead HS256 `MultitenantAuthService` and its handler.
+2. ~~Delete the dead HS256 `MultitenantAuthService` and its handler.~~ Done in
+   #789 / #293.
 3. Schedule `PruneExpiredTokens` from a worker.
 4. Move `oauth_state` to a short-lived HttpOnly cookie.
 5. Build the frontend org-switcher on `GET /auth/organizations` /

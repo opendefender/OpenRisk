@@ -55,11 +55,6 @@ spec:
             secretKeyRef:
               name: openrisk-secrets
               key: redis-url
-        - name: JWT_SECRET
-          valueFrom:
-            secretKeyRef:
-              name: openrisk-secrets
-              key: jwt-secret
         
         resources:
           {{- toYaml .Values.backend.resources | nindent 12 }}

@@ -91,8 +91,8 @@ curl -X POST https://api.openrisk.io/api/v1/auth/refresh \
 
 #### Token Security
 
-- ✅ Tokens signed with HMAC-SHA256
-- ✅ Secret stored in `JWT_SECRET` environment variable
+- ✅ Tokens signed with RS256 (`pkg/auth/jwt.go`)
+- ✅ Private key supplied through `RSA_PRIVATE_KEY_PATH` or `RSA_PRIVATE_KEY`, never committed
 - ✅ Never expose secrets in code or logs
 - ✅ Always use HTTPS in production
 - ✅ Store tokens securely on client (e.g., HTTPOnly cookies)
