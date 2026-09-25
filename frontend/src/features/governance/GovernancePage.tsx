@@ -26,6 +26,7 @@ import {
   FileClock,
 } from 'lucide-react';
 import { PageFrame, PageHeader, Btn, Card, SkeletonRows, EmptyState, Chip } from '../../shared/ui';
+import { Collapse } from '../../shared/ds';
 import {
   DataTable,
   useTableState,
@@ -824,13 +825,15 @@ function ApprovalCard({ req }: { req: ApprovalRequest }) {
           className="text-[12px] mt-2 inline-flex items-center gap-1"
           style={{ color: 'var(--fg-secondary)' }}
           onClick={() => setExpanded((x) => !x)}
+          aria-expanded={expanded}
+          aria-controls={`decisions-${req.id}`}
         >
           <Clock size={12} /> {req.decisions.length} {tr('décision(s)', 'decision(s)')}{' '}
           {expanded ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
         </button>
       )}
-      {expanded && (
-        <div className="mt-2 space-y-1 pl-5">
+      {(req.decisions?.length ?? 0) > 0 && (
+        <Collapse id={`decisions-${req.id}`} open={expanded} className="pt-2 space-y-1 pl-5">
           {req.decisions.map((d, i) => (
             <div key={i} className="text-[12px]" style={{ color: 'var(--fg-secondary)' }}>
               <span
@@ -846,7 +849,7 @@ function ApprovalCard({ req }: { req: ApprovalRequest }) {
               {d.comment ? ` — “${d.comment}”` : ''}
             </div>
           ))}
-        </div>
+        </Collapse>
       )}
     </Card>
   );
