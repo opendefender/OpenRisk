@@ -39,7 +39,7 @@ export function FrameworkPickerDialog({ frameworks, busy, onClose, onPick }: Pro
       style={{
         background: 'var(--surface-overlay)',
         backdropFilter: 'blur(6px)',
-        animation: 'or-fadein .16s ease',
+        animation: 'or-fadein var(--motion-enter)',
       }}
       onClick={onClose}
       role="dialog"

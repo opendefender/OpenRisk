@@ -131,7 +131,7 @@ function ShortcutsHelp({ onClose }: { onClose: () => void }) {
         background: 'var(--surface-overlay)',
         backdropFilter: 'blur(6px)',
         WebkitBackdropFilter: 'blur(6px)',
-        animation: 'or-fadein .16s ease',
+        animation: 'or-fadein var(--motion-enter)',
       }}
       onClick={onClose}
     >

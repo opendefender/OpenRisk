@@ -63,7 +63,7 @@ export function ModalShell({
       style={{
         background: 'var(--surface-overlay)',
         backdropFilter: 'blur(var(--overlay-blur))',
-        animation: 'or-fadein .2s ease',
+        animation: 'or-fadein var(--motion-enter)',
       }}
       onClick={onClose}
     >

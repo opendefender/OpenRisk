@@ -225,7 +225,7 @@ export const CommandPalette = () => {
         backdropFilter: 'blur(6px)',
         WebkitBackdropFilter: 'blur(6px)',
         paddingTop: '14vh',
-        animation: 'or-fadein .16s ease',
+        animation: 'or-fadein var(--motion-enter)',
       }}
     >
       <div

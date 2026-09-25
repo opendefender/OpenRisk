@@ -453,7 +453,7 @@ export function WarRoom() {
           style={{
             background: 'var(--surface-overlay)',
             backdropFilter: 'blur(var(--overlay-blur))',
-            animation: 'or-fadein .16s ease',
+            animation: 'or-fadein var(--motion-enter)',
           }}
           onClick={() => setConfirmClose(false)}
         >
