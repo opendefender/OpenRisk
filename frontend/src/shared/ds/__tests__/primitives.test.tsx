@@ -655,3 +655,36 @@ describe('icon usage', () => {
     expect(screen.getByRole('button', { name: 'Vulnerabilities' })).toBeInTheDocument();
   });
 });
+
+/* -------------------------------------------------------------------- axe -- */
+
+describe('accessibility (axe-core)', () => {
+  it('finds no serious or critical violation across Button feedback, DeleteButton and an invalid, shaking Field', async () => {
+    const axe = (await import('axe-core')).default;
+
+    const { baseElement } = render(
+      <form>
+        <Button feedback="success">Save</Button>
+        <DeleteButton aria-label="Delete asset" onClick={() => {}} />
+        <Field
+          label="Title"
+          status="invalid"
+          message="This field is required."
+          shakeKey={1}
+          required
+        >
+          <Input />
+        </Field>
+      </form>,
+    );
+
+    const results = await axe.run(baseElement, {
+      resultTypes: ['violations'],
+      rules: { 'color-contrast': { enabled: false } },
+    });
+    const serious = results.violations.filter(
+      (v) => v.impact === 'serious' || v.impact === 'critical',
+    );
+    expect(serious.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
+  }, 20_000);
+});
