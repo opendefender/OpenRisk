@@ -177,7 +177,7 @@ export default defineConfig([
             {
               name: '@number-flow/react',
               message:
-                'Animated number tickers make a figure unreadable while it settles. Render the value; if it must change visibly, change it once.',
+                'Third-party number-ticker dependency, banned by D-060. An in-house ticker is allowed — see shared/ds/SlotReel, which never shows an intermediate value to assistive tech or print, and settles on a token-driven timer rather than this library.',
             },
             {
               name: 'motion',
