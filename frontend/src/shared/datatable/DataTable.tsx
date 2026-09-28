@@ -483,6 +483,9 @@ export function DataTable<T>({
     if (state.q !== searchDraftRef.current) {
       searchDraftRef.current = state.q;
       setSearchDraft(state.q);
+      // A value change from outside must not leave a stale snapshot fading
+      // over the newly synced text — same rule as the user typing below.
+      setClearedSnapshot(null);
     }
   }, [state.q]);
   useEffect(() => {
@@ -499,6 +502,8 @@ export function DataTable<T>({
   // input (now empty) shows its placeholder underneath. Never set under
   // reduced motion, since nothing will fire `onAnimationEnd` to take it back
   // off — the clear is just instant there, which is the correct fallback.
+  // It is dropped on ANY later value change (typed, synced from the URL) so
+  // old and new text can never overlap in the DOM.
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [clearedSnapshot, setClearedSnapshot] = useState<string | null>(null);
   const clearSearch = () => {
@@ -529,7 +534,13 @@ export function DataTable<T>({
         <input
           ref={searchInputRef}
           value={searchDraft}
-          onChange={(e) => setSearchDraft(e.target.value)}
+          onChange={(e) => {
+            // Drop any still-fading snapshot the instant the value changes —
+            // typing before the exit animation finishes must never leave old
+            // and new text overlapping in the DOM.
+            setClearedSnapshot(null);
+            setSearchDraft(e.target.value);
+          }}
           placeholder={searchPlaceholder ?? L.search}
           aria-label={L.searchAria}
           data-testid="table-search"

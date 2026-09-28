@@ -287,6 +287,21 @@ describe('search clear', () => {
     expect(input.className).not.toContain('animate-');
   });
 
+  it('clears the old snapshot as soon as the user types again, before the exit animation ends', () => {
+    renderTable();
+    const input = screen.getByTestId('table-search');
+    fireEvent.change(input, { target: { value: 'alpha' } });
+    fireEvent.click(screen.getByRole('button', { name: /effacer la recherche|clear search/i }));
+    expect(screen.getByText('alpha')).toBeInTheDocument();
+
+    // Typing "beta" before the CSS exit would ever fire `animationend` must
+    // drop the "alpha" snapshot immediately — otherwise the old text and the
+    // freshly typed text render on top of each other.
+    fireEvent.change(input, { target: { value: 'beta' } });
+    expect(screen.queryByText('alpha')).not.toBeInTheDocument();
+    expect(input).toHaveValue('beta');
+  });
+
   it('never shows the snapshot under reduced motion, since nothing would take it back off', () => {
     const original = window.matchMedia;
     window.matchMedia = vi.fn().mockImplementation((query: string) => ({
