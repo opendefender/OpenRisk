@@ -144,19 +144,23 @@ export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(function Che
         {...rest}
       />
       {/* Drawn over the input, never in front of it for pointer purposes.
-          The visibility variants live HERE, on the input's sibling: `peer-*`
-          only reaches siblings, so putting them on the icon inside would have
-          styled nothing and left the glyph permanently visible. The
-          --glyph-* custom properties do the same job for CheckGlyph's own
-          path, one level further down than opacity needs to reach — see its
-          doc comment. Indeterminate stays opacity-only: no --glyph-* here, so
-          Minus never draws, it only ever fades with this wrapper. */}
+          The --glyph-* custom properties live HERE, on the input's sibling:
+          `peer-*` only reaches siblings, so putting them on the icon inside
+          would have styled nothing. CheckGlyph is never opacity-gated — its
+          own stroke-dashoffset is 1 at rest, which already makes it
+          invisible, and gating it on the wrapper's opacity too would hide
+          the undraw transition on uncheck, since that opacity had no
+          transition of its own. Indeterminate is a genuinely bistable icon
+          swap (Minus has no drawn state), so IT stays opacity-only, and only
+          when the ternary below has actually chosen it — the two glyphs are
+          alternatives in the same slot, so React never mounts both. */}
       <span
         aria-hidden="true"
         className={cn(
           'pointer-events-none absolute inset-0 flex items-center justify-center text-fg-on-solid',
-          'opacity-0 peer-checked:opacity-100 peer-indeterminate:opacity-100',
           'peer-checked:[--glyph-offset:0] peer-checked:[--glyph-dur:var(--dur-base)] peer-checked:[--glyph-ease:var(--ease-out)]',
+          indeterminate &&
+            'opacity-0 transition-opacity duration-fast ease-out peer-indeterminate:opacity-100',
         )}
       >
         {indeterminate ? <Minus size={12} strokeWidth={3} /> : <CheckGlyph />}

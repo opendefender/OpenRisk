@@ -75,6 +75,33 @@ describe('Checkbox', () => {
     expect(container.querySelector('svg.lucide-minus')).toBeInTheDocument();
   });
 
+  it('never opacity-gates the checked glyph, so its stroke-dashoffset undraw plays on uncheck', () => {
+    // Regression for the uncheck-snap defect: an un-transitioned wrapper
+    // opacity toggling to 0 on uncheck hid the drawn glyph's own exit
+    // transition instantly. The wrapper must carry no opacity class at all
+    // when it is hosting the drawn CheckGlyph.
+    const { container } = render(<Checkbox label="Notify" />);
+    const path = container.querySelector('path[stroke-dasharray="1"]');
+    const wrapper = path?.closest('span[aria-hidden="true"]');
+    expect(wrapper?.className ?? '').not.toMatch(/(^|\s)opacity-0(\s|$)/);
+    expect(wrapper?.className ?? '').not.toContain('peer-checked:opacity-100');
+  });
+
+  it('opacity-gates only the indeterminate Minus glyph, with its own transition', () => {
+    const { container } = render(<Checkbox label="Some selected" indeterminate />);
+    const minus = container.querySelector('svg.lucide-minus');
+    const wrapper = minus?.closest('span[aria-hidden="true"]');
+    expect(wrapper?.className ?? '').toContain('opacity-0');
+    expect(wrapper?.className ?? '').toContain('peer-indeterminate:opacity-100');
+    expect(wrapper?.className ?? '').toContain('transition-opacity');
+  });
+
+  it('never mounts the checked and indeterminate glyphs at the same time', () => {
+    const { container } = render(<Checkbox label="Some selected" indeterminate />);
+    expect(container.querySelector('path[stroke-dasharray="1"]')).not.toBeInTheDocument();
+    expect(container.querySelectorAll('span[aria-hidden="true"]')).toHaveLength(1);
+  });
+
   it('describes itself with its description', () => {
     render(<Checkbox label="Notify" description="Sends one email per incident." />);
     expect(screen.getByRole('checkbox', { name: 'Notify' })).toHaveAccessibleDescription(
