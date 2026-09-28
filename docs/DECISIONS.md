@@ -258,6 +258,41 @@ deepened without a licence question; CIS and PCI wait for a written answer.
 
 **Blocks** — any extension of #809 to CIS or PCI.
 
+### D-060 — animated KPI counters: the issue asks for them, the lint rule forbids them · raised 2026-09-28
+**Raised by** — #751, phase 3. It asks for "KPIs (risk score, open findings, % compliance) →
+`animatedcounter` + `spinning-counter`". The house rule points the other way, so the choice
+belongs to the owner before any phase 3 code.
+
+**Context** — Three facts pull in different directions:
+- `frontend/eslint.config.js:178` bans `@number-flow/react` because "animated number tickers
+  make a figure unreadable while it settles. Render the value; if it must change visibly,
+  change it once."
+- A count-up already ships anyway. `useCountUp` (1100 ms ease-out from 0, reduced-motion
+  shows the value at once) runs on the dashboard KPIs (`features/dashboard/DashboardPage.tsx:431`,
+  `features/dashboard/shared.tsx:120`), `shared/ScoreGauge.tsx:56`, `shared/ui.tsx:338` and two
+  onboarding pages. There are two copies of it (`shared/ui.tsx:19`, `features/dashboard/shared.tsx:17`).
+- D-059 makes any counter an in-house build; RareUI's `animatedcounter` is out either way.
+
+**Options**
+- **A — follow the issue.** Build a slot-reel counter (transitions.dev `spinning-counter`) and
+  put it on the three KPIs. Relax the lint message to allow in-house tickers. For about a
+  second, every KPI shows a number that isn't the data.
+- **B — change once (the lint rule's wording).** No counting. When a KPI's value changes,
+  swap it with the transitions.dev `number-pop-in` (a short blur-slide of the new digits,
+  about 250 ms), and render it plainly on first paint. Remove `useCountUp` and its duplicate
+  (shrinks the code; rule-consistent).
+- **C — status quo.** Keep `useCountUp` where it is, add nothing, and strike the KPI line from
+  #751.
+
+**Recommendation** — **B.** A GRC dashboard gets screenshotted into board decks and read by
+auditors. A figure that is mid-count when the page is captured is wrong in the capture. B
+still gives the "premium" moment the issue wants on the event that matters, a value changing,
+and it resolves the contradiction instead of papering over it.
+
+**Cost of delay** — Low. Phase 3 is the only thing waiting, and phase 2 can go first.
+
+**Blocks** — #751 phase 3 KPI line.
+
 ## Resolved
 
 ### D-059 — RareUI's real licence is MIT + Commons Clause + Attribution: declined, the six components are built in-house · decided 2026-09-25
