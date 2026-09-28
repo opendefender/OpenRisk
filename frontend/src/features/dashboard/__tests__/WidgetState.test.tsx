@@ -1,8 +1,8 @@
 // Copyright (c) 2026 OpenDefender Contributors
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import { render, screen } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { act, render, screen } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { WidgetState } from '../WidgetState';
 import { isPermissionError } from '../widgetError';
@@ -99,6 +99,121 @@ function cleanupAndRender(props: Partial<React.ComponentProps<typeof WidgetState
   document.body.innerHTML = '';
   renderState(props);
 }
+
+/**
+ * The skeleton -> content reveal (#751 phase 3). Both guarantees below are
+ * ones a screenshot cannot catch: a skeleton flash on fast/cached data, and a
+ * skeleton spuriously coming back for a widget that already has content on
+ * screen (the #823-class mount-vs-value-identity trap).
+ */
+describe('WidgetState — skeleton reveal', () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  it('never shows the skeleton for data that resolves inside the grace window', () => {
+    const { container, rerender } = render(
+      <WidgetState lang="en" isLoading error={null}>
+        <div data-testid="payload">63</div>
+      </WidgetState>,
+    );
+
+    // Well under the 100ms grace window.
+    act(() => {
+      vi.advanceTimersByTime(30);
+    });
+    expect(container.querySelector('.or-skeleton')).toBeNull();
+
+    rerender(
+      <WidgetState lang="en" isLoading={false} error={null}>
+        <div data-testid="payload">63</div>
+      </WidgetState>,
+    );
+
+    expect(container.querySelector('.or-skeleton')).toBeNull();
+    expect(screen.getByTestId('payload')).toBeInTheDocument();
+  });
+
+  it('shows the skeleton once the grace window has genuinely elapsed', () => {
+    const { container } = render(
+      <WidgetState lang="en" isLoading error={null}>
+        <div data-testid="payload">63</div>
+      </WidgetState>,
+    );
+
+    act(() => {
+      vi.advanceTimersByTime(150);
+    });
+
+    expect(container.querySelector('.or-skeleton')).not.toBeNull();
+    expect(screen.queryByTestId('payload')).not.toBeInTheDocument();
+  });
+
+  it('cross-fades: the skeleton fades out while content fades in, then is removed', () => {
+    const { container, rerender } = render(
+      <WidgetState lang="en" isLoading error={null}>
+        <div data-testid="payload">63</div>
+      </WidgetState>,
+    );
+    act(() => {
+      vi.advanceTimersByTime(150); // the skeleton is now genuinely showing
+    });
+    expect(container.querySelector('.or-skeleton')).not.toBeNull();
+
+    rerender(
+      <WidgetState lang="en" isLoading={false} error={null}>
+        <div data-testid="payload">63</div>
+      </WidgetState>,
+    );
+
+    // Mid cross-fade: both are mounted, the skeleton on its way to opacity 0.
+    expect(screen.getByTestId('payload')).toBeInTheDocument();
+    const fading = container.querySelector('.or-skeleton') as HTMLElement | null;
+    expect(fading).not.toBeNull();
+    expect(fading?.style.opacity).toBe('0');
+
+    act(() => {
+      vi.advanceTimersByTime(200); // past --dur-fast (120ms fallback)
+    });
+
+    expect(container.querySelector('.or-skeleton')).toBeNull();
+    expect(screen.getByTestId('payload')).toBeInTheDocument();
+  });
+
+  it('never brings the skeleton back for a background refetch once content has shown', () => {
+    const { container, rerender } = render(
+      <WidgetState lang="en" isLoading error={null}>
+        <div data-testid="payload">63</div>
+      </WidgetState>,
+    );
+    act(() => {
+      vi.advanceTimersByTime(150);
+    });
+    rerender(
+      <WidgetState lang="en" isLoading={false} error={null}>
+        <div data-testid="payload">63</div>
+      </WidgetState>,
+    );
+    act(() => {
+      vi.advanceTimersByTime(200); // fully settled
+    });
+    expect(container.querySelector('.or-skeleton')).toBeNull();
+
+    // A background refetch: isLoading flips true again with content already
+    // on screen (the shape a `query.isLoading` toggling during a refetch
+    // would produce if a caller ever passed it in).
+    rerender(
+      <WidgetState lang="en" isLoading error={null}>
+        <div data-testid="payload">64</div>
+      </WidgetState>,
+    );
+    act(() => {
+      vi.advanceTimersByTime(150);
+    });
+
+    expect(container.querySelector('.or-skeleton')).toBeNull();
+    expect(screen.getByTestId('payload')).toHaveTextContent('64');
+  });
+});
 
 describe('isPermissionError', () => {
   it('recognises the two statuses that mean "not yours to read"', () => {
