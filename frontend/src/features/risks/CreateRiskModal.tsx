@@ -17,7 +17,7 @@ import { taxonomyService } from '../../services/taxonomyService';
 import { ComplianceMappingField, type MappingDraft } from './ComplianceMappingField';
 import { useRiskCategories, IMPORTED_FRAMEWORKS_KEY } from './useTaxonomy';
 import { ImportFrameworkDialog } from '../compliance/ComplianceModals';
-import { Button, Field, Input, TagInput, Textarea, useSuccessFeedback } from '../../shared/ds';
+import { Button, Field, Input, TagInput, Textarea } from '../../shared/ds';
 import { useRiskTagLabels } from './useRiskTagLabels';
 import { useI18n } from '../../hooks/useI18n';
 import { useEscapeToClose } from '../../shared/useBackTo';
@@ -73,7 +73,6 @@ export const CreateRiskModal = ({ isOpen, onClose, onCreated }: CreateRiskModalP
   const refreshActivation = useInvalidateActivation();
 
   const tagLabels = useRiskTagLabels();
-  const { feedback, flashSuccess } = useSuccessFeedback();
   // Bumped from the form's own onInvalid handler, once per failed submit —
   // never from onChange, or every keystroke before the user has even
   // submitted would shake the field (see Shake).
@@ -155,9 +154,6 @@ export const CreateRiskModal = ({ isOpen, onClose, onCreated }: CreateRiskModalP
         source: 'manual',
       };
       const created = await riskService.createRisk(payload);
-      // The check on Save is a claim the SERVER accepted the write, so it is
-      // fired here — the moment the request resolves — never earlier.
-      flashSuccess();
       // Mappings are written after the risk exists — they reference its id. A
       // failure here must NOT lose the risk that was just created, so each one
       // is best-effort and reported separately.
@@ -540,7 +536,6 @@ export const CreateRiskModal = ({ isOpen, onClose, onCreated }: CreateRiskModalP
                     type="submit"
                     variant="secondary"
                     loading={isSubmitting}
-                    feedback={feedback}
                     className="gap-2"
                   >
                     <Zap size={16} /> {t('common.save')}

@@ -5,6 +5,13 @@
  * Drives a `Button` `feedback="success"` prop for the "the server just
  * acknowledged this" moment (#751 phase 2).
  *
+ * Only for forms that STAY ON SCREEN after saving — `ChangePasswordCard`,
+ * `OrganizationProfileForm`. A modal that closes itself in the same batch as
+ * the mutation resolving never gets to paint this: `Modal` returns null once
+ * closed, so there is no exit to carry the glyph, and the check is dead code.
+ * `CreateRiskModal`/`EditRiskModal` do not delay their close to make room for
+ * it — the toast is their only confirmation — so they must not wire this in.
+ *
  * `flashSuccess` is called once the mutation has actually resolved — never on
  * an optimistic update, never on client-side Zod validity, because the check
  * is a claim that the server accepted the write. The toast stays the only
