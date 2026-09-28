@@ -534,16 +534,15 @@ export function DataTable<T>({
           aria-label={L.searchAria}
           data-testid="table-search"
           type="search"
-          className={
-            'w-full h-9 pl-9 pr-8 rounded-[10px] text-[13px] text-ink outline-none focus:ring-2 focus:ring-(--accent)/40' +
-            (clearedSnapshot !== null ? ' motion-safe:animate-or-fadein' : '')
-          }
+          className="w-full h-9 pl-9 pr-8 rounded-[10px] text-[13px] text-ink outline-none focus:ring-2 focus:ring-(--accent)/40"
           style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-strong)' }}
         />
         {/* A snapshot of the cleared text, fading/falling out on --motion-exit
-            while the real input (already empty, underneath) fades its
-            placeholder in on --dur-base. aria-hidden: the live value is the
-            input's, already announced by its own change. */}
+            over the real input underneath — already empty, showing its
+            placeholder with no transition of its own. The snapshot's exit is
+            the only motion here; the input itself is never animated, so its
+            border/background never flashes. aria-hidden: the live value is
+            the input's, already announced by its own change. */}
         {clearedSnapshot !== null && (
           <span
             aria-hidden="true"

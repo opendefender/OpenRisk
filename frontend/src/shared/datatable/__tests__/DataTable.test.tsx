@@ -275,6 +275,18 @@ describe('search clear', () => {
     expect(screen.queryByText('alpha')).not.toBeInTheDocument();
   });
 
+  it('never animates the input itself, only the snapshot overlay, so the border/background never flashes', () => {
+    renderTable();
+    const input = screen.getByTestId('table-search');
+    fireEvent.change(input, { target: { value: 'alpha' } });
+    fireEvent.click(screen.getByRole('button', { name: /effacer la recherche|clear search/i }));
+
+    // The snapshot exists and carries the exit animation...
+    expect(screen.getByText('alpha').className).toContain('animate-or-clearexit');
+    // ...but the real input never gets an animation class of its own.
+    expect(input.className).not.toContain('animate-');
+  });
+
   it('never shows the snapshot under reduced motion, since nothing would take it back off', () => {
     const original = window.matchMedia;
     window.matchMedia = vi.fn().mockImplementation((query: string) => ({
