@@ -36,6 +36,7 @@ export function ScoreGauge({
   onDetails,
   loading,
   error,
+  fresh,
 }: {
   /** Undefined while loading, or when the endpoint failed. */
   score: ScoreResult | undefined;
@@ -45,6 +46,13 @@ export function ScoreGauge({
   loading?: boolean;
   /** The request failed: say so, rather than "not measured". */
   error?: boolean;
+  /**
+   * True when `score` was genuinely fetched during THIS mount — pass a
+   * query's `isFetchedAfterMount` (e.g. `useScore('tenant')`). Rolls the
+   * number in from 0 once, per D-060; a value already sitting in the cache
+   * from an earlier visit renders plain. Read once, at mount.
+   */
+  fresh?: boolean;
 }) {
   const lang = useUIStore((s) => s.lang);
   const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
@@ -116,7 +124,11 @@ export function ScoreGauge({
             {loading ? (
               '…'
             ) : measured ? (
-              <SlotReel value={value} formatOptions={{ maximumFractionDigits: 0 }} />
+              <SlotReel
+                value={value}
+                rollOnMount={fresh}
+                formatOptions={{ maximumFractionDigits: 0 }}
+              />
             ) : (
               '—'
             )}

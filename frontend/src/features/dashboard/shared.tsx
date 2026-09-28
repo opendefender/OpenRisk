@@ -75,13 +75,20 @@ export interface KpiSpec {
   /** Optional value suffix (e.g. "%", "j"). */
   suffix?: string;
   onClick?: () => void;
+  /**
+   * True when `val` was genuinely fetched during THIS mount, not served from
+   * cache — pass the source query's `isFetchedAfterMount`. Rolls the number
+   * in from 0 once, per D-060; cached data (a revisit) renders plain. Read
+   * once, at mount.
+   */
+  fresh?: boolean;
 }
 
 function softFill(col: string, pct: number): string {
   return `color-mix(in srgb, ${col} ${pct}%, transparent)`;
 }
 
-export function KpiCard({ label, val, icon: Icon, col, suffix, onClick }: KpiSpec) {
+export function KpiCard({ label, val, icon: Icon, col, suffix, onClick, fresh }: KpiSpec) {
   const inner = (
     <>
       <div className="flex items-center mb-3.5">
@@ -98,7 +105,7 @@ export function KpiCard({ label, val, icon: Icon, col, suffix, onClick }: KpiSpe
             this KpiCard has no `lang` prop to do better with — matching the
             prior behaviour exactly rather than widening this component's
             contract for a cosmetic locale match. */}
-        <SlotReel value={val} formatOptions={{ maximumFractionDigits: 0 }} />
+        <SlotReel value={val} rollOnMount={fresh} formatOptions={{ maximumFractionDigits: 0 }} />
         {suffix && <span className="text-[18px] text-ink-soft ml-0.5">{suffix}</span>}
       </div>
       <div className="text-[12.5px] text-ink-soft mt-[5px]">{label}</div>

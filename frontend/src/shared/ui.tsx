@@ -302,6 +302,7 @@ export function RadialGauge({
   suffix,
   color,
   countUp = true,
+  fresh,
 }: {
   value: number;
   max?: number;
@@ -310,6 +311,11 @@ export function RadialGauge({
   suffix?: string;
   color?: string;
   countUp?: boolean;
+  /** True when `value` was genuinely fetched during THIS mount (a query's
+   *  `isFetchedAfterMount`) — rolls the number in from 0 once, per D-060.
+   *  Cached data renders plain. Read once, at mount. No effect if `countUp`
+   *  is false. */
+  fresh?: boolean;
 }) {
   const pct = Math.max(0, Math.min(1, value / max));
   const h = size * 0.68;
@@ -354,7 +360,7 @@ export function RadialGauge({
       <div className="absolute left-0 right-0 text-center" style={{ top: h * 0.34 }}>
         <div className="disp mono font-bold text-ink leading-none" style={{ fontSize: size * 0.2 }}>
           {countUp ? (
-            <SlotReel value={value} formatOptions={formatOptions} />
+            <SlotReel value={value} rollOnMount={fresh} formatOptions={formatOptions} />
           ) : (
             new Intl.NumberFormat(undefined, formatOptions).format(value)
           )}

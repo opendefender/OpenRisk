@@ -50,6 +50,9 @@ export function AnalystDashboard() {
   // The queue is sorted by priority, so every link carries that sort: the rows
   // the tile counted are the rows at the top of the page it opens.
   const sort = { key: 'priority_score', dir: 'desc' } as const;
+  // Every tile here reads the same query, so they share one "did this
+  // genuinely fetch during this mount" signal.
+  const fresh = statsQuery.isFetchedAfterMount;
   const kpis: KpiSpec[] = [
     {
       label: tr('Vulnérabilités', 'Vulnerabilities'),
@@ -57,6 +60,7 @@ export function AnalystDashboard() {
       icon: Bug,
       col: 'var(--accent)',
       onClick: () => navigate(deepLink('vulnerabilities', { sort })),
+      fresh,
     },
     {
       label: tr('Ouvertes', 'Open'),
@@ -64,6 +68,7 @@ export function AnalystDashboard() {
       icon: ShieldAlert,
       col: 'var(--high)',
       onClick: () => navigate(deepLink('vulnerabilities', { filters: { status: 'open' }, sort })),
+      fresh,
     },
     {
       label: tr('Priorité P1', 'Priority P1'),
@@ -71,6 +76,7 @@ export function AnalystDashboard() {
       icon: Flame,
       col: 'var(--critical)',
       onClick: () => navigate(deepLink('vulnerabilities', { filters: { tier: 'P1' }, sort })),
+      fresh,
     },
     {
       label: 'KEV',
@@ -78,6 +84,7 @@ export function AnalystDashboard() {
       icon: Zap,
       col: 'var(--critical)',
       onClick: () => navigate(deepLink('vulnerabilities', { filters: { kev: 'true' }, sort })),
+      fresh,
     },
   ];
 

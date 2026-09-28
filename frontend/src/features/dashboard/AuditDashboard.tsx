@@ -34,6 +34,9 @@ export function AuditDashboard() {
     ? Math.round(frameworks.reduce((s, f) => s + f.pct, 0) / frameworks.length)
     : 0;
 
+  // All four tiles read the same query, so they share one "did this
+  // genuinely fetch during this mount" signal.
+  const fresh = query.isFetchedAfterMount;
   const kpis: KpiSpec[] = [
     {
       label: tr('Référentiels', 'Frameworks'),
@@ -41,6 +44,7 @@ export function AuditDashboard() {
       icon: Layers,
       col: 'var(--accent)',
       onClick: () => navigate('/compliance'),
+      fresh,
     },
     {
       label: tr('Couverture moy.', 'Avg. coverage'),
@@ -49,6 +53,7 @@ export function AuditDashboard() {
       col: 'var(--low)',
       suffix: '%',
       onClick: () => navigate('/compliance'),
+      fresh,
     },
     {
       label: tr('Contrôles', 'Controls'),
@@ -56,6 +61,7 @@ export function AuditDashboard() {
       icon: ListChecks,
       col: 'var(--high)',
       onClick: () => navigate('/compliance'),
+      fresh,
     },
     {
       label: tr('Écarts', 'Gaps'),
@@ -63,6 +69,7 @@ export function AuditDashboard() {
       icon: AlertTriangle,
       col: 'var(--critical)',
       onClick: () => navigate('/compliance/gaps'),
+      fresh,
     },
   ];
 

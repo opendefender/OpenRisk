@@ -63,7 +63,10 @@ export function EstateDashboard() {
   );
 
   // Each tile carries its own filter into the inventory. "Critical — 7" opens
-  // the seven assets it counted, not the whole estate.
+  // the seven assets it counted, not the whole estate. All four read the same
+  // query, so they share one "did this genuinely fetch during this mount"
+  // signal.
+  const fresh = statsQuery.isFetchedAfterMount;
   const kpis: KpiSpec[] = [
     {
       label: tr('Actifs', 'Assets'),
@@ -71,6 +74,7 @@ export function EstateDashboard() {
       icon: Database,
       col: 'var(--accent)',
       onClick: () => navigate(deepLink('assets')),
+      fresh,
     },
     {
       label: tr('Critiques', 'Critical'),
@@ -78,6 +82,7 @@ export function EstateDashboard() {
       icon: AlertTriangle,
       col: 'var(--critical)',
       onClick: () => navigate(deepLink('assets', { filters: { criticality: 'critical' } })),
+      fresh,
     },
     {
       label: tr('Élevés', 'High'),
@@ -85,6 +90,7 @@ export function EstateDashboard() {
       icon: ShieldAlert,
       col: 'var(--high)',
       onClick: () => navigate(deepLink('assets', { filters: { criticality: 'high' } })),
+      fresh,
     },
     {
       label: tr('Types', 'Types'),
@@ -92,6 +98,7 @@ export function EstateDashboard() {
       icon: Boxes,
       col: 'var(--low)',
       onClick: () => navigate(deepLink('assets')),
+      fresh,
     },
   ];
 

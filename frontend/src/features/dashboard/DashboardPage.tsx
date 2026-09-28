@@ -144,7 +144,12 @@ function PostureDashboard() {
 
   // The canonical tenant score — the same query key the sidebar and /score use,
   // so the three render one object from one fetch and cannot disagree.
-  const { data: tenantScore, isLoading: scoreLoading, isError: scoreError } = useScore('tenant');
+  const {
+    data: tenantScore,
+    isLoading: scoreLoading,
+    isError: scoreError,
+    isFetchedAfterMount: scoreFresh,
+  } = useScore('tenant');
   const user = useAuthStore((s) => s.user);
   const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
   const firstName = (user?.full_name || '').trim().split(/\s+/)[0] || user?.username || '';
@@ -257,6 +262,7 @@ function PostureDashboard() {
             score={tenantScore}
             loading={scoreLoading}
             error={scoreError}
+            fresh={scoreFresh}
             title={L.globalScore}
             ctaLabel={L.viewDetails}
             onDetails={() => navigate('/score')}
@@ -306,6 +312,10 @@ interface StatsQuery {
   isLoading: boolean;
   error: unknown;
   refetch: () => unknown;
+  /** True once this query has genuinely fetched during THIS mount, as
+   *  opposed to serving cached data from an earlier visit — TanStack Query's
+   *  own signal for exactly that distinction. */
+  isFetchedAfterMount: boolean;
 }
 
 function KpiGrid({
@@ -394,7 +404,14 @@ function KpiGrid({
       >
         <>
           {data.map((d) => (
-            <KpiCard key={d.label} {...d} fmt={fmt} lang={lang} onClick={() => navigate(d.to)} />
+            <KpiCard
+              key={d.label}
+              {...d}
+              fmt={fmt}
+              lang={lang}
+              fresh={query.isFetchedAfterMount}
+              onClick={() => navigate(d.to)}
+            />
           ))}
           {/* The one period-scoped counter in this block, labelled with the
               window so it cannot be read as a stock. */}
@@ -420,6 +437,7 @@ function KpiCard({
   lang,
   onClick,
   hint,
+  fresh,
 }: {
   label: string;
   val: number;
@@ -429,6 +447,9 @@ function KpiCard({
   lang: LocaleCode;
   onClick: () => void;
   hint: string;
+  /** True when `val` was genuinely fetched during THIS mount — see
+   *  `StatsQuery.isFetchedAfterMount`. Rolls the number in from 0 once. */
+  fresh?: boolean;
 }) {
   return (
     <button
@@ -449,6 +470,7 @@ function KpiCard({
       </div>
       <SlotReel
         value={val}
+        rollOnMount={fresh}
         locale={localeTag(lang)}
         formatOptions={{ maximumFractionDigits: 0 }}
         className="disp mono text-[32px] font-bold text-ink leading-none"
