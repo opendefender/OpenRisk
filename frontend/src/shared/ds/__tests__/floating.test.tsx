@@ -125,6 +125,7 @@ describe('Menu', () => {
     await user.keyboard('{ArrowDown}{Enter}');
 
     expect(onSelect).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('button', { name: 'Row actions' })).toHaveFocus();
     await waitFor(() => expect(screen.queryByRole('menu')).not.toBeInTheDocument());
   });
 
@@ -200,6 +201,44 @@ describe('Menu', () => {
     expect(menu).toHaveAttribute('data-status', 'close');
     expect(menu).toHaveClass('data-[status=close]:pointer-events-none');
     await waitFor(() => expect(menu).not.toBeInTheDocument());
+  });
+
+  /* The exit must not hold focus. Every other "focus returns" assertion here
+     waits for the unmount first, which hid an invisible, inert menu keeping the
+     focus trap for the whole exit. */
+  it('hands focus back the moment it starts closing, not when it unmounts', async () => {
+    const user = userEvent.setup();
+    render(
+      <div>
+        <Harness />
+        <Button>After</Button>
+      </div>,
+    );
+    const trigger = screen.getByRole('button', { name: 'Row actions' });
+    await user.click(trigger);
+    const menu = await screen.findByRole('menu');
+
+    await user.keyboard('{Escape}');
+    expect(menu).toHaveAttribute('data-status', 'close');
+    expect(trigger).toHaveFocus();
+
+    await user.tab();
+    expect(screen.getByRole('button', { name: 'After' })).toHaveFocus();
+  });
+
+  it('re-opens cleanly when clicked again during its exit', async () => {
+    const user = userEvent.setup();
+    render(<Harness />);
+    const trigger = screen.getByRole('button', { name: 'Row actions' });
+    await user.click(trigger);
+    const menu = await screen.findByRole('menu');
+    await waitFor(() => expect(menu).toHaveAttribute('data-status', 'open'));
+
+    await user.keyboard('{Escape}');
+    expect(screen.getByRole('menu')).toHaveAttribute('data-status', 'close');
+    await user.click(trigger);
+
+    await waitFor(() => expect(screen.getByRole('menu')).toHaveAttribute('data-status', 'open'));
   });
 });
 

@@ -155,8 +155,11 @@ export function Menu({ trigger, items, placement = 'bottom-end', label, classNam
           {/* A menu DOES trap focus while open: unlike a popover it holds only
               actions, and tabbing out of a half-open action list into the page
               behind is how a user loses the menu without meaning to. Escape and
-              selecting both return focus to the trigger. */}
-          <FloatingFocusManager context={context} modal returnFocus>
+              selecting both return focus to the trigger. The manager is
+              disabled once `open` drops, not at unmount: during the exit the
+              layer is invisible and inert, and a trap held on it would swallow
+              Tab for 120ms with no visible focus (found in QA, #751). */}
+          <FloatingFocusManager context={context} modal returnFocus disabled={!open}>
             <div
               ref={setFloating}
               data-status={status}
