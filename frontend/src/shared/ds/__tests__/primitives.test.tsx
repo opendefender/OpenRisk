@@ -17,7 +17,7 @@
  */
 
 import { describe, expect, it, vi } from 'vitest';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Bug, Trash2 } from 'lucide-react';
@@ -26,6 +26,7 @@ import { Badge } from '../Badge';
 import { riskStatusIntent, severityIntent } from '../badgeIntents';
 import { Button } from '../Button';
 import { Field, Input, Select, Textarea } from '../Field';
+import { Shake } from '../Shake';
 import { useSuccessFeedback } from '../useSuccessFeedback';
 import { Modal } from '../Modal';
 import { Drawer } from '../Drawer';
@@ -261,6 +262,69 @@ describe('Field', () => {
     // render rather than depending on a context that is not there.
     render(<Input aria-label="Search" />);
     expect(screen.getByLabelText('Search')).toBeInTheDocument();
+  });
+
+  it('does not shake when no shakeKey is given', () => {
+    const { container } = render(
+      <Field label="Title">
+        <Input />
+      </Field>,
+    );
+    expect(container.querySelector('.motion-safe\\:animate-or-shake')).not.toBeInTheDocument();
+  });
+
+  it('shakes once per failed submit and replays on a repeat failure, never on a keystroke', async () => {
+    const user = userEvent.setup();
+    const mountsRef = { current: 0 };
+    function Probe() {
+      // A fresh mount count is the observable proxy for "the shake wrapper
+      // remounted and the CSS animation restarted" (see Shake's own doc).
+      useEffect(() => {
+        mountsRef.current += 1;
+      }, []);
+      return <Input aria-label="Title" />;
+    }
+    function Harness() {
+      const [nonce, setNonce] = useState(0);
+      return (
+        <>
+          <Field shakeKey={nonce || undefined}>
+            <Probe />
+          </Field>
+          <button type="button" onClick={() => setNonce((n) => n + 1)}>
+            fail submit
+          </button>
+        </>
+      );
+    }
+    render(<Harness />);
+    expect(mountsRef.current).toBe(1);
+
+    // A keystroke never touches the nonce, so it must not remount/replay.
+    await user.type(screen.getByLabelText('Title'), 'x');
+    expect(mountsRef.current).toBe(1);
+
+    await user.click(screen.getByRole('button', { name: 'fail submit' }));
+    expect(mountsRef.current).toBe(2);
+
+    // A second, identically-worded failure still has to shake again.
+    await user.click(screen.getByRole('button', { name: 'fail submit' }));
+    expect(mountsRef.current).toBe(3);
+  });
+});
+
+/* -------------------------------------------------------------------- Shake -- */
+
+describe('Shake', () => {
+  it('renders its children plainly when there is nothing to report', () => {
+    const { container } = render(<Shake errorKey={0}>Value</Shake>);
+    expect(screen.getByText('Value')).toBeInTheDocument();
+    expect(container.querySelector('.motion-safe\\:animate-or-shake')).not.toBeInTheDocument();
+  });
+
+  it('carries the shake animation class once errorKey is truthy', () => {
+    const { container } = render(<Shake errorKey={1}>Value</Shake>);
+    expect(container.querySelector('.motion-safe\\:animate-or-shake')).toBeInTheDocument();
   });
 });
 

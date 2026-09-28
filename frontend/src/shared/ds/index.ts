@@ -27,6 +27,7 @@ export {
   type SelectProps,
 } from './Field';
 export { Label, type LabelProps } from './Label';
+export { Shake } from './Shake';
 export { Fieldset, type FieldsetProps } from './Fieldset';
 export { InputGroup, type InputGroupProps, type InputGroupSize } from './InputGroup';
 export { Checkbox, CheckboxGroup, type CheckboxProps, type CheckboxGroupProps } from './Checkbox';
