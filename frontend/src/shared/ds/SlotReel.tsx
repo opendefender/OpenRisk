@@ -127,57 +127,92 @@ export function SlotReel({
   formatOptions,
   className,
 }: SlotReelProps) {
+  // NaN, +/-Infinity, or — despite `value: number`'s compile-time-only
+  // guarantee — a null/undefined that slipped past an untyped caller: none
+  // of these are a number this component can roll or format. In particular,
+  // `NaN !== NaN` is always true in JS, so comparing an invalid `value`
+  // against a `renderedValue` seeded from it below would find "a change"
+  // every single render and call setState forever ("Too many re-renders").
+  // `safeValue` stands in for every hook below that needs a real number; the
+  // actual INVALID render is handled separately, once, after the hooks
+  // (rules of hooks: the hook CALLS must never be conditional, even though
+  // what feeds them and what gets returned can be).
+  const valid = typeof value === 'number' && Number.isFinite(value);
+  const safeValue = valid ? value : 0;
+
   const formatter = new Intl.NumberFormat(locale, formatOptions);
-  const formatted = formatter.format(value);
-  const parts = toParts(value, formatter);
+  const formatted = valid ? formatter.format(value) : '—';
+  const parts = valid ? toParts(value, formatter) : [];
 
   const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const mountTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const [phase, setPhase] = useState<'settled' | 'rolling'>('settled');
+  // Bumped every time a roll genuinely STARTS (the mount-roll or a later
+  // value change) — not derived from `phase` alone. `phase` can already be
+  // 'rolling' when a SECOND value change lands mid-roll, and calling
+  // `setPhase('rolling')` again is then a no-op (same value in, React bails
+  // out), so nothing would re-run the settle effect below on `phase` alone —
+  // it would settle on the FIRST roll's schedule while a second roll is
+  // still animating, dropping `data-rolling`/the edge mask up to one whole
+  // budget early.
+  const [rollId, setRollId] = useState(0);
   // Lazily seeded to the FIRST value this instance ever renders — never
   // touched by an effect, so a genuine remount (a fresh `renderedValue`
   // matching whatever `value` already is) can never be mistaken for a change
   // to roll. This is "value identity through a ref, never mount": the thing
   // being compared is the value itself, not whether the component happened
   // to (re)mount.
-  const [renderedValue, setRenderedValue] = useState(value);
+  const [renderedValue, setRenderedValue] = useState(safeValue);
   // Also lazy, also read once: whether THIS instance is mid mount-roll. A CSS
   // transition needs two genuinely PAINTED states to animate between, so this
   // can't be done the way a later value change is (adjusting state during
   // render, which collapses into a single commit and never paints the "0"
   // frame at all) — the digit strip below renders literal '0's for every
   // column while this is true, and an effect flips it after that first paint
-  // has actually happened.
-  const [mountRoll, setMountRoll] = useState(() => rollOnMount && !prefersReducedMotion());
+  // has actually happened. Gated on `valid`: an invalid value never rolls,
+  // mount or otherwise.
+  const [mountRoll, setMountRoll] = useState(() => valid && rollOnMount && !prefersReducedMotion());
 
   useEffect(() => {
     if (!mountRoll) return;
-    // A timer, not a bare effect-body setState (the latter is a hard lint
-    // error in this repo — see the eslint-plugin-react-hooks v7
-    // `set-state-in-effect` rule — and, separately, would fire before the
-    // browser has painted the '0' frame at all, since effects that run
-    // synchronously with no async boundary happen before paint just as
-    // reliably as "adjust state while rendering" does). 0ms is enough: a
-    // `setTimeout` is a macrotask, so the browser paints the pending '0'
-    // frame before this callback ever runs.
+    // `useEffect` itself already runs AFTER the browser has painted the
+    // pending '0' frame — that part needs no timer. What the timer buys is
+    // keeping this setState out of the effect BODY: a bare `setState(...)`
+    // written directly there is a hard lint error in this repo (see
+    // eslint-plugin-react-hooks v7's `set-state-in-effect` rule), because it
+    // is indistinguishable, to static analysis, from state that should just
+    // be derived during render — which is exactly the "adjust state while
+    // rendering" trick used below for a later value CHANGE, and which
+    // cannot be reused here (it collapses into a single commit and would
+    // never paint the undrawn '0' frame at all). Moving this into
+    // `useLayoutEffect` would break it for the same underlying reason: a
+    // layout effect's own setState calls flush and re-render BEFORE the
+    // browser paints, so the '0' frame would never reach the screen either —
+    // the reel would just silently start at its final value, no roll, the
+    // exact bug this two-commit shape exists to avoid. `setTimeout`, not
+    // `requestAnimationFrame`: rAF does not fire in a background tab, which
+    // would leave the reel stuck showing '0' until the tab is foregrounded.
     mountTimerRef.current = setTimeout(() => {
       setMountRoll(false);
-      setRenderedValue(value);
+      setRenderedValue(safeValue);
       setPhase('rolling');
+      setRollId((id) => id + 1);
     }, 0);
     return () => clearTimeout(mountTimerRef.current);
-  }, [mountRoll, value]);
+  }, [mountRoll, safeValue]);
 
   // React-documented "adjust state while rendering": lands in THIS commit,
   // not a tick later via an effect, and is what keeps every direct setState
   // call out of a `useEffect` body — only the settle-back calls run inside
   // one, and always inside a timer callback, never the effect body itself.
-  // Skipped for as long as the mount-roll above is still pending: that path
-  // owns the transition from 0 to `value` on its own timer.
-  if (!mountRoll && value !== renderedValue) {
-    setRenderedValue(value);
+  // Skipped for as long as the mount-roll above is still pending (that path
+  // owns the transition from 0 to `value` on its own timer) and, via
+  // `valid`, for any invalid value — see the dedicated invalid render below.
+  if (valid && !mountRoll && safeValue !== renderedValue) {
+    setRenderedValue(safeValue);
     if (!prefersReducedMotion()) {
       setPhase('rolling');
+      setRollId((id) => id + 1);
     }
   }
 
@@ -188,12 +223,34 @@ export function SlotReel({
     // `data-rolling` stuck true forever for a user who, by definition, never
     // sees a `transitionend` for this transform. A timer sized off the same
     // tokens the CSS uses settles correctly either way.
+    //
+    // Keyed on `rollId` as well as `phase`: see the comment on `rollId`
+    // above — a value change landing mid-roll needs its own full budget,
+    // not whatever remains of the PREVIOUS roll's.
     const total =
       readTokenMs('--dur-panel', FALLBACK_DUR_PANEL_MS) +
       MAX_STAGGER_COLUMNS * readTokenMs('--stagger-step', FALLBACK_STAGGER_STEP_MS);
     timerRef.current = setTimeout(() => setPhase('settled'), total);
     return () => clearTimeout(timerRef.current);
-  }, [phase]);
+  }, [phase, rollId]);
+
+  if (!valid) {
+    // Never a fabricated 0 — that is a specific, false claim ("the value IS
+    // zero"). An invalid `value` gets the same honest "no reading" dash used
+    // elsewhere in the product (e.g. ScoreGauge's unmeasured state), and —
+    // the point of the `valid` guards above — never touches the roll
+    // machinery: no digits, nothing compared against `NaN`, nothing to loop.
+    return (
+      <span className={className} data-testid="slot-reel" data-settled="true" data-invalid="true">
+        <span aria-hidden="true" className="tabular-nums">
+          —
+        </span>
+        <span data-testid="slot-reel-value" className="sr-only">
+          —
+        </span>
+      </span>
+    );
+  }
 
   // Reduced motion always overrides `phase` at render time — belt and braces
   // with the render-time adjustment above skipping the roll in the first

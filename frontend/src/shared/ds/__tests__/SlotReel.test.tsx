@@ -215,3 +215,96 @@ describe('SlotReel — rollOnMount', () => {
     expect(screen.getByTestId('slot-reel-value')).toHaveTextContent('68');
   });
 });
+
+/**
+ * QA finding (#751 phase 3 review): `value={NaN}` crashed with "Too many
+ * re-renders" — `NaN !== NaN` is always true in JS, so the render-time
+ * "did the value change" comparison found a change on every single render
+ * and looped forever. Non-finite input (and, since `value: number` is only a
+ * compile-time guarantee, a null/undefined that reaches this component
+ * anyway) is now a plain, never-rolling "—" render instead of a fabricated
+ * 0 — a zero here would be a specific, false claim ("the value IS zero"),
+ * the same reasoning ScoreGauge's "not measured" state already rests on.
+ */
+describe('SlotReel — invalid value', () => {
+  it('NaN renders "—" once, settled, and never loops or rolls', () => {
+    render(<SlotReel value={NaN} />);
+    const reel = screen.getByTestId('slot-reel');
+    expect(reel).toHaveAttribute('data-settled', 'true');
+    expect(reel).not.toHaveAttribute('data-rolling');
+    expect(screen.getByTestId('slot-reel-value')).toHaveTextContent('—');
+  });
+
+  it('+Infinity renders "—", never rolling even with rollOnMount', () => {
+    vi.useFakeTimers();
+    render(<SlotReel value={Infinity} rollOnMount />);
+    act(() => vi.advanceTimersByTime(600));
+    const reel = screen.getByTestId('slot-reel');
+    expect(reel).not.toHaveAttribute('data-rolling');
+    expect(screen.getByTestId('slot-reel-value')).toHaveTextContent('—');
+  });
+
+  it('-Infinity renders "—"', () => {
+    render(<SlotReel value={-Infinity} />);
+    expect(screen.getByTestId('slot-reel-value')).toHaveTextContent('—');
+  });
+
+  it('a null/undefined value coerced past `value: number` by a caller renders "—", not a crash', () => {
+    // TypeScript's `value: number` is a compile-time promise only; a caller
+    // that ignores it (an untyped call site, `stats?.total` before the
+    // optional chain resolves, etc.) can still hand this a null/undefined at
+    // runtime — this must degrade to the same "—", not throw or loop.
+    const untypedProps = { value: null } as unknown as { value: number };
+    render(<SlotReel {...untypedProps} />);
+    expect(screen.getByTestId('slot-reel-value')).toHaveTextContent('—');
+
+    const untypedUndefined = { value: undefined } as unknown as { value: number };
+    render(<SlotReel {...untypedUndefined} />);
+    expect(screen.getAllByTestId('slot-reel-value').at(-1)).toHaveTextContent('—');
+  });
+
+  it('recovers when a later value is valid — does not stay stuck on "—"', () => {
+    const { rerender } = render(<SlotReel value={NaN} />);
+    expect(screen.getByTestId('slot-reel-value')).toHaveTextContent('—');
+
+    rerender(<SlotReel value={7} />);
+    expect(screen.getByTestId('slot-reel-value')).toHaveTextContent('7');
+  });
+});
+
+/**
+ * QA finding (#751 phase 3 review): the settle effect was keyed on `phase`
+ * alone, so a value change landing WHILE already rolling (`phase` already
+ * 'rolling', so `setPhase('rolling')` again is a no-op) never re-armed the
+ * timer — the reel settled on the FIRST change's schedule while a SECOND
+ * roll was still animating, dropping `data-rolling`/the edge mask early.
+ */
+describe('SlotReel — a value change mid-roll re-arms the settle timer', () => {
+  it('1 -> 2 -> 3 in quick succession keeps rolling for a full budget after the LAST change', () => {
+    vi.useFakeTimers();
+    setReducedMotion(false);
+    const { rerender } = render(<SlotReel value={1} />);
+
+    act(() => rerender(<SlotReel value={2} />));
+    expect(screen.getByTestId('slot-reel')).toHaveAttribute('data-rolling', 'true');
+
+    // Just under the fallback budget (400ms --dur-panel + 3*40ms
+    // --stagger-step = 520ms) since the FIRST change.
+    act(() => vi.advanceTimersByTime(500));
+    expect(screen.getByTestId('slot-reel')).toHaveAttribute('data-rolling', 'true');
+
+    act(() => rerender(<SlotReel value={3} />));
+
+    // 20ms further — 520ms since the FIRST change, which is exactly where
+    // an un-re-armed timer would have settled it. The re-armed timer, keyed
+    // off the SECOND change, must still be rolling here.
+    act(() => vi.advanceTimersByTime(20));
+    expect(screen.getByTestId('slot-reel')).toHaveAttribute('data-rolling', 'true');
+    expect(screen.getByTestId('slot-reel-value')).toHaveTextContent('3');
+
+    // Past a full budget from the SECOND change: now it settles.
+    act(() => vi.advanceTimersByTime(600));
+    expect(screen.getByTestId('slot-reel')).not.toHaveAttribute('data-rolling');
+    expect(screen.getByTestId('slot-reel')).toHaveAttribute('data-settled', 'true');
+  });
+});
