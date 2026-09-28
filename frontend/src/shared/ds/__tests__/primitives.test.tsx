@@ -25,6 +25,7 @@ import { Bug, Trash2 } from 'lucide-react';
 import { Badge } from '../Badge';
 import { riskStatusIntent, severityIntent } from '../badgeIntents';
 import { Button } from '../Button';
+import { DeleteButton } from '../DeleteButton';
 import { Field, Input, Select, Textarea } from '../Field';
 import { Shake } from '../Shake';
 import { useSuccessFeedback } from '../useSuccessFeedback';
@@ -106,6 +107,46 @@ describe('Button', () => {
     );
     expect(container.querySelector('path[stroke-dasharray="1"]')).not.toBeInTheDocument();
     expect(screen.getByRole('button')).toHaveAttribute('aria-busy', 'true');
+  });
+});
+
+/* ------------------------------------------------------------ DeleteButton -- */
+
+describe('DeleteButton', () => {
+  it('takes its accessible name from the required aria-label', () => {
+    render(<DeleteButton aria-label="Delete asset" />);
+    expect(screen.getByRole('button', { name: 'Delete asset' })).toBeInTheDocument();
+  });
+
+  it('refuses to compile without an aria-label', () => {
+    // @ts-expect-error aria-label is required, not optional — an icon-only
+    // control with no accessible name is a compiler error here, not a review
+    // comment.
+    render(<DeleteButton />);
+  });
+
+  it('only calls the handler it was given — no arming, no built-in dialog', async () => {
+    const onClick = vi.fn();
+    const user = userEvent.setup();
+    render(<DeleteButton aria-label="Delete asset" onClick={onClick} />);
+
+    const button = screen.getByRole('button', { name: 'Delete asset' });
+    await user.click(button);
+    expect(onClick).toHaveBeenCalledTimes(1);
+
+    // No second click needed, and no confirmation UI appeared in between.
+    await user.click(button);
+    expect(onClick).toHaveBeenCalledTimes(2);
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+  });
+
+  it('is inert while disabled', async () => {
+    const onClick = vi.fn();
+    const user = userEvent.setup();
+    render(<DeleteButton aria-label="Delete asset" onClick={onClick} disabled />);
+    await user.click(screen.getByRole('button', { name: 'Delete asset' }));
+    expect(onClick).not.toHaveBeenCalled();
   });
 });
 

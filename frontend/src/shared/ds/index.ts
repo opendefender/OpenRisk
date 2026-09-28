@@ -15,6 +15,7 @@
 export { cn } from './cn';
 
 export { Button, type ButtonVariant, type ButtonSize } from './Button';
+export { DeleteButton, type DeleteButtonProps } from './DeleteButton';
 export {
   Field,
   Input,

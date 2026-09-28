@@ -25,13 +25,13 @@ import {
   Copy,
   RefreshCw,
   Ban,
-  Trash2,
   CheckCircle2,
   Clock,
   AlertTriangle,
   Search,
 } from 'lucide-react';
 import { Card, Chip, SkeletonRows, ErrorState } from '../../shared/ui';
+import { DeleteButton } from '../../shared/ds';
 import { EmptyState } from '../../shared/EmptyState';
 import { DangerConfirm } from '../../shared/DangerConfirm';
 import { useUIStore } from '../../store/uiStore';
@@ -524,21 +524,14 @@ function MembersTable({ tr, lang }: { tr: Tr; lang: LocaleCode }) {
                             </button>
                           )}
                           {!locked && canDeactivate && m.status !== 'revoked' && (
-                            <button
+                            <DeleteButton
                               onClick={() => setConfirm({ member: m, next: 'revoked' })}
                               disabled={busy}
                               aria-label={tr(
                                 `Révoquer l'accès de ${m.email}`,
                                 `Revoke access for ${m.email}`,
                               )}
-                              className="h-8 w-8 rounded-[8px] inline-flex items-center justify-center"
-                              style={{
-                                border: '1px solid var(--border-strong)',
-                                color: 'var(--critical)',
-                              }}
-                            >
-                              <Trash2 size={13} />
-                            </button>
+                            />
                           )}
                         </div>
                       </td>
