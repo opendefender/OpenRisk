@@ -200,4 +200,33 @@ describe('Empty', () => {
   // src/shared/__tests__/emptyStateShim.test.tsx, NOT here. This directory is
   // Apache-2.0 and the shim is AGPL: importing it from inside shared/ds/ pointed
   // the dependency the forbidden way and failed the licence-boundary gate.
+
+  describe('text reveal (#751 phase 3)', () => {
+    it('rises the title in on --motion-enter, and the description a --stagger-step behind it', () => {
+      render(<Empty title="No risks yet" description="Create your first risk to get started." />);
+      const title = screen.getByText('No risks yet');
+      const description = screen.getByText('Create your first risk to get started.');
+
+      expect(title.style.animation).toContain('or-rise-xs');
+      expect(title.style.animation).toContain('var(--dur-base)');
+      expect(title.style.animationDelay).toBe('');
+
+      expect(description.style.animation).toContain('or-rise-xs');
+      expect(description.style.animationDelay).toBe('var(--stagger-step)');
+    });
+
+    it('replays the reveal for new copy when the title/description change in place', () => {
+      const { rerender } = render(<Empty title="No risks yet" />);
+      const first = screen.getByText('No risks yet');
+
+      rerender(<Empty title="Nothing in this period" />);
+      const second = screen.getByText('Nothing in this period');
+
+      // A DIFFERENT node — `key`ed on the text, so the new copy gets its own
+      // mount and the keyframe (which does not replay on a mere prop update)
+      // actually plays for it, instead of the old node just having its text
+      // silently swapped mid- or post-animation.
+      expect(second).not.toBe(first);
+    });
+  });
 });
