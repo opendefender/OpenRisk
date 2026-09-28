@@ -44,6 +44,7 @@ export { AlertDialog, type AlertDialogProps } from './AlertDialog';
 export { Spinner, type SpinnerProps, type SpinnerSize } from './Spinner';
 export { Empty, type EmptyProps, type EmptyVariant } from './Empty';
 export { SlotReel, type SlotReelProps } from './SlotReel';
+export { useArcReveal } from './useArcReveal';
 export { Drawer, type DrawerProps, type DrawerSide, type DrawerSize } from './Drawer';
 export { Tabs, TabPanel, type TabItem, type TabsProps } from './Tabs';
 export { Tooltip, type TooltipProps, type TooltipPlacement } from './Tooltip';

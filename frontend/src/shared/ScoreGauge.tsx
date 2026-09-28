@@ -16,6 +16,7 @@ import { useUIStore } from '../store/uiStore';
 import { bandColor, bandLabel, unmeasuredReason, type ScoreResult } from '../services/scoreService';
 import { ScoreExplainerButton } from './ScoreExplainer';
 import { SlotReel } from './ds/SlotReel';
+import { useArcReveal } from './ds/useArcReveal';
 
 function polar(cx: number, cy: number, r: number, deg: number): [number, number] {
   const a = ((deg - 90) * Math.PI) / 180;
@@ -66,6 +67,10 @@ export function ScoreGauge({
     r = 76;
   const track = arcPath(cx, cy, r, -115, 115);
   const pct = Math.max(0, Math.min(1, value / 100));
+  // Same `fresh` signal SlotReel's number reads — the arc and the number
+  // must agree on whether this is a fresh load, or a screenshot catches one
+  // rolling in while the other has already snapped to its final sweep.
+  const arcRevealed = useArcReveal(fresh);
 
   // The colour follows the SERVER's band. No thresholds here.
   const color = bandColor(measuredScore?.band);
@@ -108,7 +113,11 @@ export function ScoreGauge({
               strokeLinecap="round"
               pathLength={1}
               strokeDasharray={1}
-              strokeDashoffset={1 - pct}
+              // Fully undrawn (1) for the one render before `arcRevealed`
+              // flips — a fresh mount only, see useArcReveal — then the real
+              // sweep, which the path's own transition draws in.
+              strokeDashoffset={arcRevealed ? 1 - pct : 1}
+              data-testid="score-arc"
               style={{
                 filter: `drop-shadow(0 0 6px ${color})`,
                 transition: 'stroke-dashoffset var(--dur-panel) var(--ease-out)',

@@ -9,7 +9,7 @@
 import type { LucideIcon } from 'lucide-react';
 import { Clock } from 'lucide-react';
 import { critColor, frameworkColor, softFill, type Criticality } from './riskColors';
-import { Button, SlotReel, type ButtonVariant } from './ds';
+import { Button, SlotReel, useArcReveal, type ButtonVariant } from './ds';
 import { useUIStrings } from './uiStrings';
 
 /* ---------------- math + motion ---------------- */
@@ -325,6 +325,10 @@ export function RadialGauge({
   const track = arcPath(cx, cy, r, -115, 115);
   const col =
     color ?? (pct >= 0.7 ? 'var(--low)' : pct >= 0.45 ? 'var(--high)' : 'var(--critical)');
+  // Same `fresh` signal the number reads (and, like the number, irrelevant
+  // when `countUp` is off) — the arc and the number must agree on whether
+  // this is a fresh load.
+  const arcRevealed = useArcReveal(countUp && fresh);
   const formatOptions: Intl.NumberFormatOptions =
     max === 100
       ? { maximumFractionDigits: 0 }
@@ -350,7 +354,8 @@ export function RadialGauge({
           strokeLinecap="round"
           pathLength={1}
           strokeDasharray={1}
-          strokeDashoffset={1 - pct}
+          strokeDashoffset={arcRevealed ? 1 - pct : 1}
+          data-testid="radial-gauge-arc"
           style={{
             filter: `drop-shadow(0 0 6px ${col})`,
             transition: 'stroke-dashoffset var(--dur-panel) var(--ease-out)',
