@@ -41,7 +41,7 @@ import { useDashboardPeriod, periodLabel, type PeriodSelection } from './period'
 import { deepLink } from './deepLinks';
 import { PeriodControl } from './PeriodControl';
 import { WidgetState } from './WidgetState';
-import { useCountUp } from './shared';
+import { SlotReel } from '../../shared/ds/SlotReel';
 import { useScore } from '../../hooks/useScore';
 import { ScoreGauge } from '../../shared/ScoreGauge';
 import { EmptyState } from '../../shared/EmptyState';
@@ -394,7 +394,7 @@ function KpiGrid({
       >
         <>
           {data.map((d) => (
-            <KpiCard key={d.label} {...d} fmt={fmt} onClick={() => navigate(d.to)} />
+            <KpiCard key={d.label} {...d} fmt={fmt} lang={lang} onClick={() => navigate(d.to)} />
           ))}
           {/* The one period-scoped counter in this block, labelled with the
               window so it cannot be read as a stock. */}
@@ -417,6 +417,7 @@ function KpiCard({
   icon: Icon,
   col,
   fmt,
+  lang,
   onClick,
   hint,
 }: {
@@ -425,10 +426,10 @@ function KpiCard({
   icon: LucideIcon;
   col: string;
   fmt: (n: number) => string;
+  lang: LocaleCode;
   onClick: () => void;
   hint: string;
 }) {
-  const shown = Math.round(useCountUp(val));
   return (
     <button
       onClick={onClick}
@@ -446,7 +447,12 @@ function KpiCard({
           <Icon size={18} strokeWidth={1.75} />
         </div>
       </div>
-      <div className="disp mono text-[32px] font-bold text-ink leading-none">{fmt(shown)}</div>
+      <SlotReel
+        value={val}
+        locale={localeTag(lang)}
+        formatOptions={{ maximumFractionDigits: 0 }}
+        className="disp mono text-[32px] font-bold text-ink leading-none"
+      />
       <div className="text-[12.5px] text-ink-soft mt-[5px]">{label}</div>
     </button>
   );

@@ -12,10 +12,10 @@
 // DashboardPage, one exported from features/dashboard/shared), each with its own
 // colour thresholds.
 
-import { useCountUp } from '../features/dashboard/shared';
 import { useUIStore } from '../store/uiStore';
 import { bandColor, bandLabel, unmeasuredReason, type ScoreResult } from '../services/scoreService';
 import { ScoreExplainerButton } from './ScoreExplainer';
+import { SlotReel } from './ds/SlotReel';
 
 function polar(cx: number, cy: number, r: number, deg: number): [number, number] {
   const a = ((deg - 90) * Math.PI) / 180;
@@ -53,13 +53,11 @@ export function ScoreGauge({
   // undefined, so no null can leak into the arithmetic or the band.
   const measuredScore = score?.measured ? score : undefined;
   const value = measuredScore?.value ?? 0;
-  const animated = Math.round(useCountUp(value));
   const cx = 110,
     cy = 112,
     r = 76;
   const track = arcPath(cx, cy, r, -115, 115);
-  const pct = Math.max(0, Math.min(1, animated / 100));
-  const prog = arcPath(cx, cy, r, -115, -115 + 230 * pct);
+  const pct = Math.max(0, Math.min(1, value / 100));
 
   // The colour follows the SERVER's band. No thresholds here.
   const color = bandColor(measuredScore?.band);
@@ -91,12 +89,22 @@ export function ScoreGauge({
           />
           {measured && (
             <path
-              d={prog}
+              // Same path as the track — the FULL arc, always. `pathLength`
+              // normalises it to a 0..1 coordinate space so the reveal is a
+              // plain `strokeDashoffset` transition to the final `pct`, not a
+              // `d` recomputed every animation frame from a JS-counted value.
+              d={track}
               fill="none"
               stroke={color}
               strokeWidth={14}
               strokeLinecap="round"
-              style={{ filter: `drop-shadow(0 0 6px ${color})` }}
+              pathLength={1}
+              strokeDasharray={1}
+              strokeDashoffset={1 - pct}
+              style={{
+                filter: `drop-shadow(0 0 6px ${color})`,
+                transition: 'stroke-dashoffset var(--dur-panel) var(--ease-out)',
+              }}
             />
           )}
         </svg>
@@ -105,7 +113,13 @@ export function ScoreGauge({
             className="disp mono text-[44px] font-bold text-ink leading-none"
             data-testid="score-value"
           >
-            {loading ? '…' : measured ? animated : '—'}
+            {loading ? (
+              '…'
+            ) : measured ? (
+              <SlotReel value={value} formatOptions={{ maximumFractionDigits: 0 }} />
+            ) : (
+              '—'
+            )}
           </div>
           <div className="text-[12px] text-ink-muted mt-0.5" data-testid="score-state">
             {loading
