@@ -10,15 +10,26 @@
  *
  * WHY THE NUMBER CAN NEVER BE WRONG   Every digit column is positioned at its
  * FINAL row on every single render, via a CSS `transform` computed straight
- * from `value` — there is no intermediate JS-counted number anywhere in this
- * component. A CSS transition only plays when a property's computed value
- * changes between two already-correct renders; it never plays on mount (an
- * element's first paint has no "before" state to transition from), so a fresh
- * mount with a value already in hand renders plain, with no roll — a
- * `value` that changes while the component stays mounted is what rolls, old
- * digit position to new. That is "value identity through a ref, never mount":
- * the digit position is a pure function of props, so there's nothing for a
- * remount to get wrong.
+ * from `value` (or, for exactly one render right after a `rollOnMount` mount,
+ * from `0` — see below) — there is no intermediate JS-counted number anywhere
+ * in this component. A CSS transition only plays when a property's computed
+ * value changes between two already-PAINTED renders; a fresh mount with a
+ * value already in hand and `rollOnMount` unset (or absent) renders plain,
+ * with no roll — a `value` that changes while the component stays mounted is
+ * what rolls, old digit position to new. That is "value identity through a
+ * ref, never mount": the digit position is a pure function of props, so
+ * there's nothing for a remount to get wrong.
+ *
+ * ROLLING ON MOUNT   `rollOnMount` is for the one case that genuinely needs a
+ * mount-time roll — real data landing for the first time on this page load,
+ * as opposed to a value already sitting in the cache from an earlier visit
+ * (D-060's "for about a second after load" cost the owner explicitly
+ * accepted). The caller decides which is which — typically a TanStack Query
+ * result's `isFetchedAfterMount` — because only the caller knows whether ITS
+ * fetch actually ran during this mount or was served from cache. The prop is
+ * read exactly once, via a lazy `useState` initializer: a LATER flip of the
+ * prop (the query resolving after mount, a parent re-render) can never
+ * retroactively start or cancel a roll on an instance that already decided.
  *
  * TRUTH GUARD   The digit strip is `aria-hidden`; the number a screen reader
  * or `@media print` sees is a plain `Intl.NumberFormat` string taken from
@@ -93,6 +104,15 @@ function toParts(value: number, formatter: Intl.NumberFormat): ReelPart[] {
 export interface SlotReelProps {
   /** The real number. Always what settles — there is no other truth. */
   value: number;
+  /**
+   * Roll every column from 0 the moment this instance first paints, instead
+   * of rendering `value` plainly. For fresh data landing on this page load —
+   * pass the caller's own signal for "did I actually fetch, or was this
+   * cache", e.g. a TanStack Query result's `isFetchedAfterMount`. Read once,
+   * at mount; changing it later has no effect. Default false: mounting with
+   * a value already in hand renders plain.
+   */
+  rollOnMount?: boolean;
   /** BCP-47 locale tag. Omit to use the runtime default, matching a bare
    *  `.toLocaleString()`. */
   locale?: string;
@@ -100,12 +120,19 @@ export interface SlotReelProps {
   className?: string;
 }
 
-export function SlotReel({ value, locale, formatOptions, className }: SlotReelProps) {
+export function SlotReel({
+  value,
+  rollOnMount = false,
+  locale,
+  formatOptions,
+  className,
+}: SlotReelProps) {
   const formatter = new Intl.NumberFormat(locale, formatOptions);
   const formatted = formatter.format(value);
   const parts = toParts(value, formatter);
 
   const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const mountTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const [phase, setPhase] = useState<'settled' | 'rolling'>('settled');
   // Lazily seeded to the FIRST value this instance ever renders — never
   // touched by an effect, so a genuine remount (a fresh `renderedValue`
@@ -114,13 +141,40 @@ export function SlotReel({ value, locale, formatOptions, className }: SlotReelPr
   // being compared is the value itself, not whether the component happened
   // to (re)mount.
   const [renderedValue, setRenderedValue] = useState(value);
+  // Also lazy, also read once: whether THIS instance is mid mount-roll. A CSS
+  // transition needs two genuinely PAINTED states to animate between, so this
+  // can't be done the way a later value change is (adjusting state during
+  // render, which collapses into a single commit and never paints the "0"
+  // frame at all) — the digit strip below renders literal '0's for every
+  // column while this is true, and an effect flips it after that first paint
+  // has actually happened.
+  const [mountRoll, setMountRoll] = useState(() => rollOnMount && !prefersReducedMotion());
+
+  useEffect(() => {
+    if (!mountRoll) return;
+    // A timer, not a bare effect-body setState (the latter is a hard lint
+    // error in this repo — see the eslint-plugin-react-hooks v7
+    // `set-state-in-effect` rule — and, separately, would fire before the
+    // browser has painted the '0' frame at all, since effects that run
+    // synchronously with no async boundary happen before paint just as
+    // reliably as "adjust state while rendering" does). 0ms is enough: a
+    // `setTimeout` is a macrotask, so the browser paints the pending '0'
+    // frame before this callback ever runs.
+    mountTimerRef.current = setTimeout(() => {
+      setMountRoll(false);
+      setRenderedValue(value);
+      setPhase('rolling');
+    }, 0);
+    return () => clearTimeout(mountTimerRef.current);
+  }, [mountRoll, value]);
 
   // React-documented "adjust state while rendering": lands in THIS commit,
   // not a tick later via an effect, and is what keeps every direct setState
-  // call out of a `useEffect` body — only the settle-back call below runs
-  // inside one, and it runs inside a timer callback, not the effect body
-  // itself.
-  if (value !== renderedValue) {
+  // call out of a `useEffect` body — only the settle-back calls run inside
+  // one, and always inside a timer callback, never the effect body itself.
+  // Skipped for as long as the mount-roll above is still pending: that path
+  // owns the transition from 0 to `value` on its own timer.
+  if (!mountRoll && value !== renderedValue) {
     setRenderedValue(value);
     if (!prefersReducedMotion()) {
       setPhase('rolling');
@@ -184,7 +238,12 @@ export function SlotReel({ value, locale, formatOptions, className }: SlotReelPr
               <span
                 className="absolute inset-x-0 top-0 flex flex-col transition-transform duration-panel ease-out"
                 style={{
-                  transform: `translateY(${-Number(part.text)}em)`,
+                  // Every column starts at '0' during the mount-roll window
+                  // (the structure — how many columns, where the separators
+                  // sit — still comes from the TARGET value's formatting, per
+                  // the spec's "column count is fixed from the target
+                  // value"; only which digit each column shows is 0 here).
+                  transform: `translateY(${-Number(mountRoll ? '0' : part.text)}em)`,
                   transitionDelay: `calc(var(--stagger-step) * ${Math.min(part.colIndex, MAX_STAGGER_COLUMNS)})`,
                 }}
               >
