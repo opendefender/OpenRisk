@@ -72,6 +72,7 @@ export {
   type MatrixBucket,
 } from './RiskMatrix';
 export { useDismissableLayer } from './useDismissableLayer';
+export { useSuccessFeedback } from './useSuccessFeedback';
 
 /** Visualisation contract — palette, axes, tooltip, graph. */
 export * as chart from './chart';

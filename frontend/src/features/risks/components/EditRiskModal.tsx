@@ -14,7 +14,7 @@ import { apiErrorMessage } from '../../../lib/apiError';
 
 import { useRiskStore } from '../../../hooks/useRiskStore';
 import { useAssetStore } from '../../../hooks/useAssetStore';
-import { Button, Field, Input, TagInput } from '../../../shared/ds';
+import { Button, Field, Input, TagInput, useSuccessFeedback } from '../../../shared/ds';
 import { useI18n } from '../../../hooks/useI18n';
 import { useRiskTagLabels } from '../useRiskTagLabels';
 
@@ -54,6 +54,7 @@ export const EditRiskModal = ({ isOpen, onClose, risk, onSuccess }: EditRiskModa
 
   const { t } = useI18n();
   const tagLabels = useRiskTagLabels();
+  const { feedback, flashSuccess } = useSuccessFeedback();
 
   const {
     register,
@@ -145,6 +146,9 @@ export const EditRiskModal = ({ isOpen, onClose, risk, onSuccess }: EditRiskModa
         tags: data.tags,
       };
       await updateRisk(risk.id, payload);
+      // The check is a claim the SERVER accepted the write, so it fires only
+      // once the request has resolved.
+      flashSuccess();
       toast.success(t('risks.updated'));
       onClose();
       onSuccess?.();
@@ -375,7 +379,12 @@ export const EditRiskModal = ({ isOpen, onClose, risk, onSuccess }: EditRiskModa
                 <Button type="button" variant="ghost" onClick={handleClose} disabled={isLoading}>
                   {t('common.cancel')}
                 </Button>
-                <Button variant="primary" type="submit" loading={isLoading || isSubmitting}>
+                <Button
+                  variant="primary"
+                  type="submit"
+                  loading={isLoading || isSubmitting}
+                  feedback={feedback}
+                >
                   {t('common.save')}
                 </Button>
               </div>

@@ -18,7 +18,7 @@
 
 import { describe, expect, it, vi } from 'vitest';
 import { useState } from 'react';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Bug, Trash2 } from 'lucide-react';
 
@@ -26,6 +26,7 @@ import { Badge } from '../Badge';
 import { riskStatusIntent, severityIntent } from '../badgeIntents';
 import { Button } from '../Button';
 import { Field, Input, Select, Textarea } from '../Field';
+import { useSuccessFeedback } from '../useSuccessFeedback';
 import { Modal } from '../Modal';
 import { Drawer } from '../Drawer';
 import { TabPanel, Tabs } from '../Tabs';
@@ -83,6 +84,91 @@ describe('Button', () => {
       </form>,
     );
     expect(screen.getByRole('button', { name: 'Sign in' })).toHaveAttribute('type', 'submit');
+  });
+
+  it('draws a check for feedback="success", not the loading spinner', () => {
+    const { container, rerender } = render(<Button>Save</Button>);
+    expect(container.querySelector('svg')).not.toBeInTheDocument();
+
+    rerender(<Button feedback="success">Save</Button>);
+    // The glyph is a hand-drawn path, not lucide's Check — asserting on the
+    // path's own drawing attribute is what proves it is THIS glyph.
+    const path = container.querySelector('svg path');
+    expect(path).toHaveAttribute('stroke-dasharray', '1');
+
+    // Precedence: in flight beats the previous result. Rendering the spinner
+    // AND the tick at once would be a lie about one of them.
+    rerender(
+      <Button loading feedback="success">
+        Save
+      </Button>,
+    );
+    expect(container.querySelector('path[stroke-dasharray="1"]')).not.toBeInTheDocument();
+    expect(screen.getByRole('button')).toHaveAttribute('aria-busy', 'true');
+  });
+});
+
+/* ------------------------------------------------------- useSuccessFeedback -- */
+
+describe('useSuccessFeedback', () => {
+  it('stays unset until flashSuccess is called, then reverts on its own', () => {
+    vi.useFakeTimers();
+    try {
+      function Harness() {
+        const { feedback, flashSuccess } = useSuccessFeedback();
+        return (
+          <Button feedback={feedback} onClick={flashSuccess}>
+            Save
+          </Button>
+        );
+      }
+      const { container } = render(<Harness />);
+      // Not shown before anything resolves — this hook is only ever driven
+      // from a mutation's resolution, never optimistically.
+      expect(container.querySelector('svg path')).not.toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+      expect(container.querySelector('svg path')).toBeInTheDocument();
+
+      act(() => {
+        vi.advanceTimersByTime(1799);
+      });
+      expect(container.querySelector('svg path')).toBeInTheDocument();
+
+      act(() => {
+        vi.advanceTimersByTime(1);
+      });
+      expect(container.querySelector('svg path')).not.toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('replays on a second flash after the first has reverted', () => {
+    vi.useFakeTimers();
+    try {
+      function Harness() {
+        const { feedback, flashSuccess } = useSuccessFeedback();
+        return (
+          <Button feedback={feedback} onClick={flashSuccess}>
+            Save
+          </Button>
+        );
+      }
+      const { container } = render(<Harness />);
+      const button = screen.getByRole('button', { name: 'Save' });
+
+      fireEvent.click(button);
+      act(() => {
+        vi.advanceTimersByTime(1800);
+      });
+      expect(container.querySelector('svg path')).not.toBeInTheDocument();
+
+      fireEvent.click(button);
+      expect(container.querySelector('svg path')).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 
