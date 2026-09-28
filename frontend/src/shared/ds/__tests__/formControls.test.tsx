@@ -54,6 +54,27 @@ describe('Checkbox', () => {
     expect(box.indeterminate).toBe(true);
   });
 
+  it('draws its own check glyph rather than lucide’s, wired to peer-checked via --glyph-*', () => {
+    const { container } = render(<Checkbox label="Notify" />);
+    // pathLength=1 is what lets the dash unit stay 1 regardless of box size —
+    // the tell that this is the hand-drawn glyph, not a swapped-in icon.
+    const path = container.querySelector('path[stroke-dasharray="1"]');
+    expect(path).toBeInTheDocument();
+    expect(path).toHaveStyle({ strokeDashoffset: 'var(--glyph-offset, 1)' });
+
+    // The wrapper two levels up carries the peer-checked overrides that
+    // inherit down to the path — Tailwind's peer variant cannot reach a
+    // nested descendant directly, only a custom property can.
+    const wrapper = path?.closest('span[aria-hidden="true"]');
+    expect(wrapper?.className).toContain('peer-checked:[--glyph-offset:0]');
+  });
+
+  it('keeps indeterminate opacity-only: no drawn glyph, only the Minus icon', () => {
+    const { container } = render(<Checkbox label="Some selected" indeterminate />);
+    expect(container.querySelector('path[stroke-dasharray="1"]')).not.toBeInTheDocument();
+    expect(container.querySelector('svg.lucide-minus')).toBeInTheDocument();
+  });
+
   it('describes itself with its description', () => {
     render(<Checkbox label="Notify" description="Sends one email per incident." />);
     expect(screen.getByRole('checkbox', { name: 'Notify' })).toHaveAccessibleDescription(
