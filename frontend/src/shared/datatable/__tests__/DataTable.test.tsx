@@ -18,8 +18,7 @@ import { savedViewService } from '../../../services/savedViewService';
 // Saved views are server-side since #580. The transport is mocked; the Zod form
 // schema is deliberately NOT — it is the real client-side gate on the form.
 vi.mock('../../../services/savedViewService', async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import('../../../services/savedViewService')>();
+  const actual = await importOriginal<typeof import('../../../services/savedViewService')>();
   return {
     ...actual,
     migrateLegacyViews: vi.fn(async () => 0),
@@ -240,6 +239,71 @@ describe('search and facets are distinct affordances', () => {
     // Re-query: the optimistic row was replaced by the server-confirmed one.
     fireEvent.click(screen.getByTestId('saved-view-Critiques'));
     expect(screen.getByTestId('url').textContent).toContain('f.sev=critical');
+  });
+});
+
+describe('search clear', () => {
+  it('empties the value immediately and returns focus to the input', () => {
+    renderTable();
+    const input = screen.getByTestId('table-search') as HTMLInputElement;
+    fireEvent.change(input, { target: { value: 'alpha' } });
+    expect(input).toHaveValue('alpha');
+
+    const clear = screen.getByRole('button', { name: /effacer la recherche|clear search/i });
+    fireEvent.click(clear);
+
+    expect(input).toHaveValue('');
+    expect(input).toHaveFocus();
+    // The trigger only shows while there is something to clear.
+    expect(
+      screen.queryByRole('button', { name: /effacer la recherche|clear search/i }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('shows a snapshot of the old text, which unmounts once its exit finishes', () => {
+    renderTable();
+    const input = screen.getByTestId('table-search');
+    fireEvent.change(input, { target: { value: 'alpha' } });
+    fireEvent.click(screen.getByRole('button', { name: /effacer la recherche|clear search/i }));
+
+    const snapshot = screen.getByText('alpha');
+    expect(snapshot).toHaveAttribute('aria-hidden', 'true');
+
+    // jsdom never plays the CSS animation, so the browser's real signal for
+    // "the exit finished" is simulated directly.
+    fireEvent.animationEnd(snapshot);
+    expect(screen.queryByText('alpha')).not.toBeInTheDocument();
+  });
+
+  it('never shows the snapshot under reduced motion, since nothing would take it back off', () => {
+    const original = window.matchMedia;
+    window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+      matches: query === '(prefers-reduced-motion: reduce)',
+      media: query,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+    })) as unknown as typeof window.matchMedia;
+
+    try {
+      renderTable();
+      const input = screen.getByTestId('table-search');
+      fireEvent.change(input, { target: { value: 'alpha' } });
+      fireEvent.click(screen.getByRole('button', { name: /effacer la recherche|clear search/i }));
+      expect(screen.queryByText('alpha')).not.toBeInTheDocument();
+    } finally {
+      window.matchMedia = original;
+    }
+  });
+
+  it('prevents mousedown on the × so nothing blurs before the click lands', () => {
+    renderTable();
+    const input = screen.getByTestId('table-search');
+    fireEvent.change(input, { target: { value: 'alpha' } });
+    const clear = screen.getByRole('button', { name: /effacer la recherche|clear search/i });
+
+    const event = new MouseEvent('mousedown', { bubbles: true, cancelable: true });
+    fireEvent(clear, event);
+    expect(event.defaultPrevented).toBe(true);
   });
 });
 

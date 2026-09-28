@@ -202,6 +202,10 @@
      see the keyframe comment in index.css for why. */
   --animate-or-checkfade: or-checkfade var(--dur-base) var(--ease-out) both;
   --animate-or-checkdraw: or-checkdraw var(--dur-slow) var(--ease-out) var(--dur-instant) both;
+  /* Search-clear snapshot exit (#751 phase 2) — reuses --motion-exit exactly
+     (dur-fast/ease-in), the same shorthand every hover/press exit already
+     reads, rather than restating its two halves. */
+  --animate-or-clearexit: or-clearexit var(--motion-exit) both;
 
   /* ------------------------------------------------------- named line lengths */
   /* --container-* backs max-w-*. A measure, not a box width. */

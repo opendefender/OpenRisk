@@ -263,6 +263,22 @@ layer(base);
       stroke-dashoffset: 0;
     }
   }
+  /* The search-clear snapshot (DataTable / AttributeSearchBar-style clear
+     affordances, #751 phase 2): the OLD text falls ≤4px and fades out while
+     the real, already-empty input's placeholder fades in underneath via
+     `or-fadein` (already above). Never rendered at all under reduced motion
+     — see the JS guard at the call site — so this keyframe has no reduced-
+     motion special case of its own. */
+  @keyframes or-clearexit {
+    from {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    to {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+  }
   @media (prefers-reduced-motion: reduce) {
     * {
       animation: none !important;

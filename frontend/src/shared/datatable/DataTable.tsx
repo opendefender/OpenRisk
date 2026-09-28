@@ -494,6 +494,23 @@ export function DataTable<T>({
     return () => window.clearTimeout(t);
   }, [searchDraft, state.q, api]);
 
+  // The × clears the value immediately; `clearedSnapshot` is only the OLD text,
+  // kept around long enough to fade/fall out on --motion-exit while the real
+  // input (now empty) shows its placeholder underneath. Never set under
+  // reduced motion, since nothing will fire `onAnimationEnd` to take it back
+  // off — the clear is just instant there, which is the correct fallback.
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const [clearedSnapshot, setClearedSnapshot] = useState<string | null>(null);
+  const clearSearch = () => {
+    const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true;
+    if (searchDraft && !reduced) setClearedSnapshot(searchDraft);
+    setSearchDraft('');
+    // The × has its mousedown prevented below, so focus never actually left
+    // the input on most platforms — this call is what makes it true on the
+    // rest, and after a remount.
+    searchInputRef.current?.focus();
+  };
+
   /* -------------------------------------------------------------- rendering */
   const sortableKey = (col: Column<T>) =>
     mode === 'server' ? col.sortKey : col.sortValue ? col.key : undefined;
@@ -510,19 +527,37 @@ export function DataTable<T>({
           className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted pointer-events-none"
         />
         <input
+          ref={searchInputRef}
           value={searchDraft}
           onChange={(e) => setSearchDraft(e.target.value)}
           placeholder={searchPlaceholder ?? L.search}
           aria-label={L.searchAria}
           data-testid="table-search"
           type="search"
-          className="w-full h-9 pl-9 pr-8 rounded-[10px] text-[13px] text-ink outline-none focus:ring-2 focus:ring-(--accent)/40"
+          className={
+            'w-full h-9 pl-9 pr-8 rounded-[10px] text-[13px] text-ink outline-none focus:ring-2 focus:ring-(--accent)/40' +
+            (clearedSnapshot !== null ? ' motion-safe:animate-or-fadein' : '')
+          }
           style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-strong)' }}
         />
+        {/* A snapshot of the cleared text, fading/falling out on --motion-exit
+            while the real input (already empty, underneath) fades its
+            placeholder in on --dur-base. aria-hidden: the live value is the
+            input's, already announced by its own change. */}
+        {clearedSnapshot !== null && (
+          <span
+            aria-hidden="true"
+            onAnimationEnd={() => setClearedSnapshot(null)}
+            className="pointer-events-none absolute inset-y-0 left-9 right-8 flex items-center truncate text-[13px] text-ink-muted motion-safe:animate-or-clearexit"
+          >
+            {clearedSnapshot}
+          </span>
+        )}
         {searchDraft && (
           <button
             type="button"
-            onClick={() => setSearchDraft('')}
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={clearSearch}
             aria-label={L.clearSearch}
             className="absolute right-2 top-1/2 -translate-y-1/2 text-ink-muted hover:text-ink"
           >
