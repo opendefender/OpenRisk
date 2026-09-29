@@ -199,12 +199,36 @@ export const AppHeader = ({ onOpenMobileNav }: AppHeaderProps) => {
           {notifOpen && <NotifPanel onClose={() => setNotifOpen(false)} />}
         </div>
 
-        <button onClick={toggleTheme} className={iconBtn} title="Theme" aria-label="Toggle theme">
-          {theme === 'dark' ? (
-            <Sun size={18} strokeWidth={1.7} />
-          ) : (
-            <Moon size={18} strokeWidth={1.7} />
-          )}
+        <button
+          onClick={toggleTheme}
+          className={iconBtn}
+          title="Theme"
+          /* Names what pressing it DOES, not a static "toggle theme" — the
+             accessible name tracks state the same way the icon does. */
+          aria-label={theme === 'dark' ? L.themeToLight : L.themeToDark}
+        >
+          {/* Both icons stacked in one grid cell and cross-faded on
+              --motion-hover (opacity + a slight scale) — no rotation, no pop. */}
+          <span className="grid">
+            <Sun
+              aria-hidden="true"
+              size={18}
+              strokeWidth={1.7}
+              className={cn(
+                '[grid-area:1/1] transition-[opacity,transform] duration-fast ease-out',
+                theme === 'dark' ? 'opacity-100 scale-100' : 'opacity-0 scale-75',
+              )}
+            />
+            <Moon
+              aria-hidden="true"
+              size={18}
+              strokeWidth={1.7}
+              className={cn(
+                '[grid-area:1/1] transition-[opacity,transform] duration-fast ease-out',
+                theme === 'dark' ? 'opacity-0 scale-75' : 'opacity-100 scale-100',
+              )}
+            />
+          </span>
         </button>
       </div>
     </header>
