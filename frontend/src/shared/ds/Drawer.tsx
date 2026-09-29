@@ -20,9 +20,18 @@
  *
  * SIZES     sm 380 | md 480 (default) | lg 620 | xl 780
  *
- * MOTION    Slides in from its edge over --dur-panel. Slide is the right verb
- *           here precisely because it says where the thing came from and where
- *           it will go back to — the continuity a modal's fade cannot express.
+ * MOTION    Slides in from its edge on --motion-panel (--dur-panel), and back
+ *           out on the slower --dur-base/--ease-in — deliberately not the
+ *           same pair reversed: a panel that has just travelled the width of
+ *           the viewport reads as yanked off screen on the fast timing a
+ *           small dialog exits on. Slide is the right verb here precisely
+ *           because it says where the thing came from and where it will go
+ *           back to — the continuity a modal's fade cannot express.
+ *
+ *           Same mount/exit contract as Modal (#751 phase 5): `open` going
+ *           false does not unmount the panel, it stays at
+ *           `data-state="closed"` until `useExitTimer` reports it gone, so a
+ *           reopen mid-exit reverses the transition instead of restarting one.
  *
  * WIDE SCREENS  At >=1920px a drawer marked `docked` stops overlaying and sits
  *           beside the list instead (the .or-md-* rules in index.css). On a
@@ -30,15 +39,18 @@
  *           a waste of the room.
  *
  * A11Y      Identical contract to Modal — trap, restore, Escape, scroll lock —
- *           because it is the same hook. A drawer is a dialog to assistive
- *           technology, so it says so.
+ *           because it is the same hook, keyed on `open` (not the exit timer)
+ *           so it releases at the start of the close. A drawer is a dialog to
+ *           assistive technology, so it says so.
  */
 
-import { useId, useRef, type ReactNode } from 'react';
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { cn } from './cn';
 import { useDismissableLayer } from './useDismissableLayer';
+import { useExitTimer } from './useExitTimer';
+import { DRAWER_EXIT_MS } from './overlayMotion';
 import { Button } from './Button';
 
 export type DrawerSide = 'left' | 'right';
@@ -85,14 +97,27 @@ export function Drawer({
 
   useDismissableLayer(panelRef, { open, onClose });
 
-  if (!open) return null;
+  // Same contract as Modal: stays mounted through its exit, `data-state`
+  // drives the CSS, closing is synchronous and opening is deferred a frame —
+  // see Modal.tsx for the full reasoning, identical here.
+  const mounted = useExitTimer(open, DRAWER_EXIT_MS);
+  const [state, setState] = useState<'open' | 'closed'>('closed');
+  if (!open && state === 'open') setState('closed');
+  useEffect(() => {
+    if (!open) return;
+    const frame = requestAnimationFrame(() => setState('open'));
+    return () => cancelAnimationFrame(frame);
+  }, [open]);
+
+  if (!mounted) return null;
 
   return createPortal(
     <div
       className={cn(
-        'fixed inset-0 z-drawer flex motion-safe:animate-or-fadein',
+        'or-scrim fixed inset-0 z-drawer flex',
         side === 'right' ? 'justify-end' : 'justify-start',
       )}
+      data-state={state}
       style={{
         background: 'var(--surface-overlay)',
         backdropFilter: 'blur(var(--overlay-blur))',
@@ -109,13 +134,13 @@ export function Drawer({
         aria-labelledby={titleId}
         aria-describedby={subtitleId}
         tabIndex={-1}
+        data-state={state}
+        data-side={side}
         className={cn(
-          'flex h-full flex-col bg-surface-1 shadow-overlay outline-none',
+          'or-drawer-panel flex h-full flex-col bg-surface-1 shadow-overlay outline-none',
           side === 'right' ? 'border-l' : 'border-r',
           'border-default',
           SIZE[size],
-          'motion-safe:animate-or-slidein',
-          side === 'left' && 'motion-safe:[animation-name:or-slidein-left]',
           className,
         )}
       >

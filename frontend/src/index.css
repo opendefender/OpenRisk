@@ -535,3 +535,62 @@ layer(base);
 .or-den-rows td {
   padding-block: var(--den-cell-y) !important;
 }
+
+/* Modal / Drawer exit (#751 phase 5) — plain CSS, not a Tailwind
+   `data-[state=…]:` variant. A browser plays the transition-duration/-easing
+   of the state being transitioned INTO, never the one being left, so the
+   asymmetric-duration trick (feedback_css-motion-tricks.md) puts the EXIT
+   values on the base/closed rule and lets `[data-state='open']` override them
+   for ENTER. Writing this as `data-[state=open]:duration-*` utilities instead
+   would also risk the duration-variant trap: a variant-scoped
+   `transition-[...]` re-emits Tailwind's own 150ms default and beats a
+   base-level `duration-*` utility (.claude/agent-memory/frontend-react).
+   Reduced motion needs no special case of its own — the global kill switch
+   above already zeroes every `transition`, so a `data-state` flip lands
+   instantly either way. */
+@layer components {
+  .or-scrim {
+    opacity: 0;
+    transition: opacity var(--motion-exit);
+  }
+  .or-scrim[data-state='open'] {
+    opacity: 1;
+    transition: opacity var(--motion-enter);
+  }
+
+  .or-modal-panel {
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(8px);
+    transition:
+      opacity var(--motion-exit),
+      transform var(--motion-exit);
+  }
+  .or-modal-panel[data-state='open'] {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0);
+    transition:
+      opacity var(--motion-enter),
+      transform var(--motion-enter);
+  }
+
+  /* Drawer exit is --dur-base/--ease-in, not --motion-exit (--dur-fast) — see
+     the MOTION comment in Drawer.tsx for why the two directions differ. */
+  .or-drawer-panel {
+    pointer-events: none;
+    transform: translateX(100%);
+    transition: transform var(--dur-base) var(--ease-in);
+  }
+  .or-drawer-panel[data-side='left'] {
+    transform: translateX(-100%);
+  }
+  /* Declared after [data-side='left'] so it wins the tie on `transform`
+     regardless of which side the panel opens from — both sides converge on
+     translateX(0) when open. */
+  .or-drawer-panel[data-state='open'] {
+    pointer-events: auto;
+    transform: translateX(0);
+    transition: transform var(--motion-panel);
+  }
+}
