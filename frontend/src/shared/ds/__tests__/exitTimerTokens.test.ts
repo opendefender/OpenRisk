@@ -12,7 +12,7 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, it, expect } from 'vitest';
 
-import { NOTIF_EXIT_MS } from '../../../components/layout/AppHeader';
+import { NOTIF_EXIT_MS } from '../../../components/layout/notifMotion';
 import { MFA_DISMISS_EXIT_MS } from '../../../features/auth/MFAEnrollmentBanner';
 
 function durFastMs(): number {

@@ -46,6 +46,7 @@ import { Btn, SkeletonRows } from '../../shared/ui';
 import type { LocaleCode } from '../../i18n/locales';
 import { pickLocalized } from '../../i18n/locales';
 import { ENABLED_LOCALES, localeDefinition } from '../../i18n/locales';
+import { NOTIF_EXIT_MS } from './notifMotion';
 
 interface AppHeaderProps {
   onOpenMobileNav: () => void;
@@ -53,14 +54,6 @@ interface AppHeaderProps {
 
 const iconBtn =
   'w-9 h-9 rounded-[9px] flex items-center justify-center text-ink-muted hover:bg-hover hover:text-ink transition-colors';
-
-/**
- * Matches --dur-fast (src/styles/primitives.css) — the notif panel's exit.
- * Exported so a test can read the token from disk and assert this literal
- * hasn't drifted from it (a hand-copied ms value has no compiler to catch
- * that on its own).
- */
-export const NOTIF_EXIT_MS = 120;
 
 export const AppHeader = ({ onOpenMobileNav }: AppHeaderProps) => {
   const setCmdkOpen = useUIStore((s) => s.setCmdkOpen);
