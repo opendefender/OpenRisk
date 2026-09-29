@@ -14,8 +14,8 @@
 // It also pins the second bug: the band never comes from the client, so a label
 // cannot disagree with the number beside it.
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
@@ -130,6 +130,10 @@ beforeEach(() => {
   getScore.mockReset().mockResolvedValue(makeScore());
 });
 
+afterEach(() => {
+  vi.useRealTimers();
+});
+
 describe('one score, everywhere', () => {
   it('dashboard, sidebar and the dedicated page show the same value, from ONE fetch', async () => {
     renderAll(
@@ -220,6 +224,50 @@ describe('ScoreGauge', () => {
     renderAll(<ScoreGauge score={undefined} title="Score" />);
     const gauges = screen.getAllByTestId('score-value');
     expect(gauges[gauges.length - 1]).toHaveTextContent('—');
+  });
+
+  // Review coherence finding (#751 phase 3): the number rolled in on a fresh
+  // mount while the arc beside it snapped straight to its final sweep — the
+  // two halves of one figure disagreeing about whether the data had just
+  // arrived.
+  it('a fresh mount undraws the arc first, then draws it to the final value', () => {
+    vi.useFakeTimers();
+    const { container } = renderAll(<ScoreGauge score={makeScore()} title="Score" fresh />);
+    const arc = container.querySelector('[data-testid="score-arc"]');
+    expect(arc).not.toBeNull();
+    // First commit: fully undrawn — nothing to transition FROM yet.
+    expect(arc).toHaveAttribute('stroke-dashoffset', '1');
+
+    // The post-paint tick: same node, now the real sweep — 63/100 == 0.37.
+    act(() => vi.advanceTimersByTime(0));
+    expect(arc).toHaveAttribute('stroke-dashoffset', '0.37');
+  });
+
+  it('cached data (no fresh prop) renders the final arc immediately, never undrawn', () => {
+    const { container } = renderAll(<ScoreGauge score={makeScore()} title="Score" />);
+    const arc = container.querySelector('[data-testid="score-arc"]');
+    expect(arc).toHaveAttribute('stroke-dashoffset', '0.37');
+  });
+
+  it('a same-value refetch after a fresh mount does not re-sweep the arc', () => {
+    vi.useFakeTimers();
+    const { container, rerender } = renderAll(
+      <ScoreGauge score={makeScore()} title="Score" fresh />,
+    );
+    act(() => vi.advanceTimersByTime(0)); // fresh reveal has settled
+
+    rerender(
+      <QueryClientProvider
+        client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
+      >
+        <MemoryRouter>
+          <ScoreGauge score={makeScore()} title="Score" fresh />
+        </MemoryRouter>
+      </QueryClientProvider>,
+    );
+
+    const arc = container.querySelector('[data-testid="score-arc"]');
+    expect(arc).toHaveAttribute('stroke-dashoffset', '0.37');
   });
 });
 

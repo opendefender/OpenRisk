@@ -45,7 +45,12 @@ export function ViewerDashboard() {
   const statsQuery = useDashboardStats(selection);
   const stats = statsQuery.data;
   // The canonical score, from the shared query key.
-  const { data: tenantScore, isLoading: scoreLoading, isError: scoreError } = useScore('tenant');
+  const {
+    data: tenantScore,
+    isLoading: scoreLoading,
+    isError: scoreError,
+    isFetchedAfterMount: scoreFresh,
+  } = useScore('tenant');
 
   useEffect(() => {
     fetchRisks?.().catch(() => {});
@@ -66,6 +71,7 @@ export function ViewerDashboard() {
       icon: ShieldAlert,
       col: 'var(--accent)',
       onClick: () => navigate(deepLink('risks', { sort })),
+      fresh: statsQuery.isFetchedAfterMount,
     },
     {
       label: tr('Critiques', 'Critical'),
@@ -73,6 +79,7 @@ export function ViewerDashboard() {
       icon: AlertTriangle,
       col: 'var(--critical)',
       onClick: () => navigate(deepLink('risks', { filters: { criticality: 'critical' }, sort })),
+      fresh: statsQuery.isFetchedAfterMount,
     },
     {
       label: tr('Atténués', 'Mitigated'),
@@ -80,6 +87,7 @@ export function ViewerDashboard() {
       icon: ShieldCheck,
       col: 'var(--low)',
       onClick: () => navigate(deepLink('risks', { filters: { status: 'mitigated' }, sort })),
+      fresh: statsQuery.isFetchedAfterMount,
     },
   ];
 
@@ -100,6 +108,7 @@ export function ViewerDashboard() {
           score={tenantScore}
           loading={scoreLoading}
           error={scoreError}
+          fresh={scoreFresh}
           title={tr('Score de sécurité', 'Security score')}
           ctaLabel={tr('Voir le détail', 'View details')}
           onDetails={() => navigate('/score')}

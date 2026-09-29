@@ -170,6 +170,19 @@ layer(base);
       transform: translateY(0);
     }
   }
+  /* The Empty state's title/description reveal (#751 phase 3) — or-rise's
+     4px sibling. A full 8px is a panel arriving; a line of text inside a
+     state that is already on screen only needs to settle, not travel. */
+  @keyframes or-rise-xs {
+    from {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
   @keyframes or-slidein-left {
     from {
       transform: translateX(-100%);
