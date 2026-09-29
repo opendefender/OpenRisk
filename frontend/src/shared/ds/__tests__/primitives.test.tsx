@@ -729,6 +729,48 @@ describe('Drawer', () => {
       vi.useRealTimers();
     }
   });
+
+  it('reopening mid-exit reverses the same panel instead of restarting a new one', () => {
+    vi.useFakeTimers();
+    try {
+      function Harness() {
+        const [open, setOpen] = useState(false);
+        return (
+          <>
+            <button type="button" onClick={() => setOpen(true)}>
+              Open asset
+            </button>
+            <Drawer
+              open={open}
+              onClose={() => setOpen(false)}
+              title="web-prod-01"
+              subtitle="Server"
+            >
+              <p>Detail</p>
+            </Drawer>
+          </>
+        );
+      }
+      render(<Harness />);
+      const trigger = screen.getByRole('button', { name: 'Open asset' });
+      fireEvent.click(trigger);
+      const dialog = screen.getByRole('dialog');
+
+      fireEvent.click(within(dialog).getByRole('button', { name: /close/i }));
+      expect(dialog).toHaveAttribute('data-state', 'closed');
+
+      // Reopen before DRAWER_EXIT_MS elapses: same node, and the timer that
+      // was already queued must not unmount a drawer that is open again.
+      fireEvent.click(trigger);
+      expect(screen.getByRole('dialog')).toBe(dialog);
+      act(() => {
+        vi.advanceTimersByTime(DRAWER_EXIT_MS + 10);
+      });
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });
 
 /* -------------------------------------------------------------------- Tabs -- */
