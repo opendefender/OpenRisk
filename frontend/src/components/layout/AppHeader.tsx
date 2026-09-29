@@ -263,7 +263,7 @@ function NotifPanel({ onClose }: { onClose: () => void }) {
       <div
         onClick={(e) => e.stopPropagation()}
         className="glass-strong absolute top-[44px] right-0 w-[352px] rounded-[16px] overflow-hidden shadow-card-lg z-70"
-        style={{ animation: 'or-scalein .16s cubic-bezier(.2,.8,.2,1)' }}
+        style={{ animation: 'or-scalein var(--motion-enter)' }}
       >
         <div className="flex items-center justify-between px-[17px] py-[15px] border-b border-border">
           <span className="text-[14px] font-semibold text-ink">{L.notifTitle}</span>

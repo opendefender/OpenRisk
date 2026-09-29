@@ -218,7 +218,7 @@ export function ComplianceScreen() {
                   key={f.id}
                   style={{
                     padding: 18,
-                    animation: 'or-fadeup .4s ease both',
+                    animation: 'or-fadeup var(--dur-slow) var(--ease-out) both',
                     animationDelay: `${Math.min(i * 0.04, 0.3)}s`,
                   }}
                 >

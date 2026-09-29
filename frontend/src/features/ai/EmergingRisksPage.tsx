@@ -121,7 +121,7 @@ export function EmergingRisksPage() {
       )}
 
       {res && (
-        <div style={{ animation: 'or-fadeup .25s ease' }}>
+        <div style={{ animation: 'or-fadeup var(--dur-slow) var(--ease-out)' }}>
           <div className="flex items-center justify-between mb-3">
             <div className="text-[13.5px] font-semibold text-ink">{res.summary}</div>
             <span className="text-[11px] text-ink-muted">

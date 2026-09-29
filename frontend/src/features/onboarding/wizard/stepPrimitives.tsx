@@ -74,7 +74,7 @@ export function StepShell({
         e.preventDefault();
         if (!busy && !nextDisabled) onNext();
       }}
-      style={{ animation: 'or-fadeup .35s ease' }}
+      style={{ animation: 'or-fadeup var(--dur-slow) var(--ease-out)' }}
     >
       {/* tabIndex -1 so the shell can move focus here on every step change
           (criterion 12): a screen-reader user is told where they landed instead

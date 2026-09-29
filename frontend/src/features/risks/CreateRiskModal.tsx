@@ -3,8 +3,8 @@
 // This program is free software: you can redistribute it and/or modify it under
 // the terms of the GNU Affero General Public License v3.0 (see LICENSE).
 
-import { useEffect, useMemo, useState } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { AnimatePresence, dialogMotion, motion } from '../../shared/motion';
 import { Controller, useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -110,6 +110,8 @@ export const CreateRiskModal = ({ isOpen, onClose, onCreated }: CreateRiskModalP
   // the form without unmounting it.
   const [mappings, setMappings] = useState<MappingDraft[]>([]);
   const [importOpen, setImportOpen] = useState(false);
+  // The scrolling body, for the progress keyline under the header.
+  const bodyRef = useRef<HTMLDivElement>(null);
   const { data: categories } = useRiskCategories();
   const queryClient = useQueryClient();
   const watchedAssetIds = watch('asset_ids') ?? [];
@@ -205,10 +207,7 @@ export const CreateRiskModal = ({ isOpen, onClose, onCreated }: CreateRiskModalP
           />
 
           <motion.div
-            initial={{ opacity: 0, scale: 0.96, y: 40 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.96, y: 40 }}
-            transition={{ duration: 0.22, type: 'spring', stiffness: 240 }}
+            {...dialogMotion}
             className="fixed inset-0 z-50 flex items-center justify-center p-4"
             // The app's primary creation flow was a bare <div>: no dialog role,
             // no aria-modal, no accessible name. Assistive technology never
@@ -238,6 +237,8 @@ export const CreateRiskModal = ({ isOpen, onClose, onCreated }: CreateRiskModalP
                   <X size={20} />
                 </button>
               </div>
+              {/* Sits on the header's bottom rule and fills as the body scrolls. */}
+              <ScrollProgress target={bodyRef} className="-mt-px shrink-0" />
 
               <form
                 onSubmit={handleSubmit(onSubmit, () => setShakeNonce((n) => n + 1))}

@@ -209,7 +209,7 @@ export function DashboardShell({ children }: { children: ReactNode }) {
     <div className="flex-1 overflow-y-auto">
       <div
         className="mx-auto px-5 sm:px-7 pt-6 pb-10 max-w-[1320px]"
-        style={{ animation: 'or-fadeup .4s ease' }}
+        style={{ animation: 'or-fadeup var(--dur-slow) var(--ease-out)' }}
       >
         {/* OR26-03 — every persona dashboard frames itself with this shell
             except the posture one, which mounts the same pair itself. Putting
