@@ -279,6 +279,29 @@ function useArmedBadge(isFetched: boolean): boolean {
   return armed;
 }
 
+/**
+ * True once `open` is allowed to reach the DOM, which is one macrotask after
+ * mount at the earliest. A freshly-mounted node cannot animate its own
+ * insertion via a `transition` (the browser needs an already-rendered
+ * "before" style to interpolate from), so the very first render is always
+ * forced closed here regardless of `open`, then flipped to match `open` a
+ * tick later — the same "paint the wrong frame first, correct it on a timer"
+ * device used elsewhere in this codebase (see #751 phase 3's SlotReel
+ * roll-on-mount). Skipped under reduced motion, where there is no transition
+ * to prepare a from-state for and the extra frame would just be a flash.
+ */
+function useEnterGate(open: boolean): boolean {
+  const [ready, setReady] = useState(
+    () => window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+  );
+  useEffect(() => {
+    if (ready) return;
+    const timer = setTimeout(() => setReady(true), 0);
+    return () => clearTimeout(timer);
+  }, [ready]);
+  return ready && open;
+}
+
 /* ---------- Notifications panel (glass, anchored right) ---------- */
 // Reads the real /notifications feed. This panel used to render four invented
 // notifications on every tenant, which is how a fresh install came to report
@@ -297,6 +320,15 @@ function NotifPanel({ open, onClose }: { open: boolean; onClose: () => void }) {
   // open. `lockScroll: false` — this is a popover over content, not a modal,
   // so the page behind stays scrollable (ux spec: adopt useDismissableLayer).
   useDismissableLayer(panelRef, { open, onClose, closeOnEscape: true, lockScroll: false });
+  // Gates the very first `data-open="true"` by one macrotask (review fix:
+  // the panel mounts already open, and a plain CSS *transition* — needed so
+  // reopening mid-exit interpolates instead of restarting a keyframe from
+  // 0% — never plays on an element's initial style resolution, only on a
+  // later style recalc of an already-painted node). Every later flip (close,
+  // or reopening while still mid-exit) tracks `open` directly and instantly:
+  // by then the node is already painted, so the transition just continues
+  // from wherever it currently sits.
+  const dataOpen = useEnterGate(open);
 
   const items = notifications.map((n) => {
     const category = categoryForType(n.type);
@@ -337,7 +369,7 @@ function NotifPanel({ open, onClose }: { open: boolean; onClose: () => void }) {
       <div
         ref={panelRef}
         onClick={(e) => e.stopPropagation()}
-        data-open={open}
+        data-open={dataOpen}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}

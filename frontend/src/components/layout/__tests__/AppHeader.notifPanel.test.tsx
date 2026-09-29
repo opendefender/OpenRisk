@@ -6,8 +6,10 @@
 // only on an invisible backdrop click. These tests are new — every one of
 // them fails against the pre-fix panel.
 
+import { readFileSync } from 'node:fs';
+import path from 'node:path';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
 
@@ -131,5 +133,59 @@ describe('AppHeader — notification panel (#751 phase 4)', () => {
     // right away.
     expect(dialog).toHaveAttribute('data-open', 'false');
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  });
+
+  it('reopening mid-exit keeps the same panel node mounted and ends open (review fix)', () => {
+    // Regression: .notif-panel used to be a @keyframes animation, which
+    // restarts from 0% every time `data-open` flips — so reopening during
+    // the 120ms exit snapped the panel to fully closed before replaying the
+    // enter, a visible flash. A `transition` (this fix) has no "restart":
+    // it just continues interpolating from wherever the value currently is.
+    vi.useFakeTimers();
+    try {
+      renderHeader();
+
+      fireEvent.click(bell());
+      // Flush useEnterGate's one-macrotask delay so the panel is genuinely
+      // open (data-open="true"), not just mounted-but-still-gated.
+      act(() => {
+        vi.advanceTimersByTime(0);
+      });
+      const dialog = screen.getByRole('dialog');
+      expect(dialog).toHaveAttribute('data-open', 'true');
+
+      fireEvent.keyDown(document, { key: 'Escape' });
+      expect(dialog).toHaveAttribute('data-open', 'false');
+
+      // Reopen well before NOTIF_EXIT_MS (120ms) elapses.
+      act(() => {
+        vi.advanceTimersByTime(50);
+      });
+      fireEvent.click(bell());
+
+      // Same node — no remount — and it ends up open, not stuck mid-close.
+      expect(screen.getByRole('dialog')).toBe(dialog);
+      expect(dialog).toHaveAttribute('data-open', 'true');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('.notif-panel animates via transition, never a restarting keyframe (review fix)', () => {
+    // jsdom cannot play back a real CSS animation/transition timeline, so
+    // the DOM-level reopen test above cannot observe the actual visual bug
+    // (a @keyframes animation restarts from 0% every time `data-open` flips,
+    // so reopening mid-exit snapped the panel to fully closed before
+    // replaying the enter). This reads the authored rule directly instead:
+    // it must be a `transition` (which continues interpolating from
+    // wherever the value currently sits), never driven by `animation:`
+    // (which always restarts).
+    const css = readFileSync(path.resolve(__dirname, '../../../index.css'), 'utf8');
+    const base = css.match(/\.notif-panel\s*\{[^}]*\}/)?.[0] ?? '';
+    const openState = css.match(/\.notif-panel\[data-open='true'\]\s*\{[^}]*\}/)?.[0] ?? '';
+    expect(base).toMatch(/transition:/);
+    expect(base).not.toMatch(/animation:/);
+    expect(openState).toMatch(/transition:/);
+    expect(openState).not.toMatch(/animation:/);
   });
 });

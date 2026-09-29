@@ -188,33 +188,6 @@ layer(base);
       transform: scale(1);
     }
   }
-  /* Notif panel open/close (#751 phase 4). A keyframe, not a transition,
-     because it has to play on the panel's very first paint (it mounts already
-     open) as well as on a later close — a `transition` only interpolates
-     between two already-rendered states, so it never plays on insertion.
-     Flipping which animation-name applies (base rule vs [data-open='true'])
-     restarts the animation fresh each time, which is what gives the "close"
-     leg its own timing distinct from "open" (see .notif-panel below). */
-  @keyframes or-notif-enter {
-    from {
-      opacity: 0;
-      transform: scale(0.96) translateY(-4px);
-    }
-    to {
-      opacity: 1;
-      transform: scale(1) translateY(0);
-    }
-  }
-  @keyframes or-notif-exit {
-    from {
-      opacity: 1;
-      transform: scale(1) translateY(0);
-    }
-    to {
-      opacity: 0;
-      transform: scale(0.96) translateY(-4px);
-    }
-  }
   @keyframes or-spin {
     to {
       transform: rotate(360deg);
@@ -394,16 +367,34 @@ layer(base);
   }
 
   /* Notif panel (#751 phase 4). Replaces the hard-coded `or-scalein .16s`
-     inline style: same idea (scale in from the corner it's anchored to), but
-     timed on the shared motion tokens and with a real close leg. useExitTimer
-     keeps the panel mounted for --dur-fast after `open` goes false so this
-     exit animation has a frame to play before AppHeader stops rendering it. */
+     inline style: scale/rise in from the corner it's anchored to, timed on
+     the shared motion tokens, with a real close leg. useExitTimer keeps the
+     panel mounted for --dur-fast after `open` goes false so this exit
+     animation has a frame to play before AppHeader stops rendering it.
+     A `transition`, not a keyframe (review fix, motion-designer): a keyframe
+     restarts from its 0% every time `data-open` flips, so reopening the
+     panel mid-exit snapped it back to fully closed before replaying the
+     enter — a `transition` instead continues smoothly from whatever value is
+     current. Same asymmetric-duration technique as .notif-badge above: exit
+     timing lives on the base rule, enter timing overrides it on the open
+     state. AppHeader's useEnterGate keeps this working on first mount too
+     (a transition never plays on an element's very first style resolution),
+     by holding `data-open` at "false" for one macrotask before it can ever
+     read "true". */
   .notif-panel {
     transform-origin: top right;
-    animation: or-notif-exit var(--motion-exit) both;
+    opacity: 0;
+    transform: scale(0.96) translateY(-4px);
+    transition:
+      opacity var(--motion-exit),
+      transform var(--motion-exit);
   }
   .notif-panel[data-open='true'] {
-    animation: or-notif-enter var(--motion-enter) both;
+    opacity: 1;
+    transform: scale(1) translateY(0);
+    transition:
+      opacity var(--motion-enter),
+      transform var(--motion-enter);
   }
 
   /* Shared height-collapse (#751 phase 4): OfflineBanner and
