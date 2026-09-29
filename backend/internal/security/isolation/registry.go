@@ -130,7 +130,7 @@ var decisions = []Decision{
 	{"/api/v1/teams/{id}", Covered,
 		"handler/team_isolation_test TestTeam_TenantIsolationPredicate"},
 	{"/api/v1/teams/*", Covered,
-		"handler/team_isolation_test covers member add/remove paths"},
+		"handler/team_handler_test TestTeams_NotFound: a foreign, withdrawn, unknown or malformed member id answers the same 404, and B's team is unreachable from A (#830)"},
 	{"/api/v1/users/{id}", Covered,
 		"handler/user_isolation_test TestUser_TenantScoping"},
 	{"/api/v1/users/*", Covered,
