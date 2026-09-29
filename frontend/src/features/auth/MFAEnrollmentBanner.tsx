@@ -24,8 +24,12 @@ import { useUIStore } from '../../store/uiStore';
 import { useExitTimer } from '../../shared/ds';
 import { catalogs, translate, DEFAULT_LOCALE, type LocaleCode } from '../../i18n';
 
-/** Matches --dur-fast (src/styles/primitives.css) — the dismiss collapse's exit. */
-const MFA_DISMISS_EXIT_MS = 120;
+/**
+ * Matches --dur-fast (src/styles/primitives.css) — the dismiss collapse's
+ * exit. Exported so a test can read the token from disk and assert this
+ * literal hasn't drifted from it.
+ */
+export const MFA_DISMISS_EXIT_MS = 120;
 
 /**
  * Session-scoped dismissal for the soft prompt.
