@@ -659,7 +659,12 @@ describe('Drawer', () => {
             <button type="button" onClick={() => setOpen(true)}>
               Open asset
             </button>
-            <Drawer open={open} onClose={() => setOpen(false)} title="web-prod-01" subtitle="Server">
+            <Drawer
+              open={open}
+              onClose={() => setOpen(false)}
+              title="web-prod-01"
+              subtitle="Server"
+            >
               <p>Detail</p>
             </Drawer>
           </>
@@ -697,7 +702,12 @@ describe('Drawer', () => {
             <button type="button" onClick={() => setOpen(true)}>
               Open asset
             </button>
-            <Drawer open={open} onClose={() => setOpen(false)} title="web-prod-01" subtitle="Server">
+            <Drawer
+              open={open}
+              onClose={() => setOpen(false)}
+              title="web-prod-01"
+              subtitle="Server"
+            >
               <p>Detail</p>
             </Drawer>
           </>

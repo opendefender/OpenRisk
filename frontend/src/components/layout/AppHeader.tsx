@@ -307,7 +307,8 @@ function NotifPanel({ onClose }: { onClose: () => void }) {
           <div className="flex gap-1.5 px-[15px] py-2.5 border-b border-border overflow-x-auto">
             {cats.map((c) => {
               const active = filter === c;
-              const label = c === 'all' ? tr('Tout', 'All') : pickLocalized(lang, categoryMeta(c).label);
+              const label =
+                c === 'all' ? tr('Tout', 'All') : pickLocalized(lang, categoryMeta(c).label);
               return (
                 <button
                   key={c}

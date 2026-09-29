@@ -24,7 +24,10 @@ vi.mock('../useMfa', () => ({
   useInvalidateMFAStatus: () => invalidateStatus,
 }));
 vi.mock('sonner', () => ({
-  toast: { success: (...a: unknown[]) => toastSuccess(...a), error: (...a: unknown[]) => toastError(...a) },
+  toast: {
+    success: (...a: unknown[]) => toastSuccess(...a),
+    error: (...a: unknown[]) => toastError(...a),
+  },
 }));
 
 import { MFAEnrollmentDialog } from '../MFAEnrollmentDialog';
