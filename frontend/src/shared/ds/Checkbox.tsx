@@ -40,9 +40,50 @@ import {
   type InputHTMLAttributes,
   type ReactNode,
 } from 'react';
-import { Check, Minus } from 'lucide-react';
+import { Minus } from 'lucide-react';
 import { cn } from './cn';
 import { useControlWiring } from './fieldContext';
+
+/**
+ * The checked glyph — an in-house path (not lucide's `Check`) so it can be
+ * DRAWN rather than just faded: `pathLength=1` makes the dash unit 1 no
+ * matter the box size, so there is no `getTotalLength()` to calibrate.
+ *
+ * A CSS `transition`, not an `animation`: unlike the one-shot Button success
+ * check, this glyph is bistable (checked/unchecked persist), so it needs the
+ * asymmetric-duration trick — the browser takes the transition-duration/
+ * -timing-function of the state it is transitioning INTO. The default (0%
+ * drawn, --motion-exit for the undraw) lives on the path itself; the CSS
+ * custom properties that flip it to fully-drawn on dur-base/ease-out are set
+ * by `peer-checked` two levels up, on the icon-visibility wrapper — Tailwind's
+ * peer variant only reaches a DIRECT sibling of the input, not a nested
+ * descendant, but a custom property set there still inherits all the way down
+ * to this path, which is why the values are threaded through --glyph-* rather
+ * than applied here with `peer-checked:` directly. Under reduced motion the
+ * global rule kills the transition outright and the two states simply snap,
+ * never landing mid-draw.
+ */
+function CheckGlyph() {
+  return (
+    <svg width={12} height={12} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path
+        d="M20 6 9 17l-5-5"
+        pathLength={1}
+        strokeDasharray={1}
+        stroke="currentColor"
+        strokeWidth={3}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        style={{
+          strokeDashoffset: 'var(--glyph-offset, 1)',
+          transitionProperty: 'stroke-dashoffset',
+          transitionDuration: 'var(--glyph-dur, var(--dur-fast))',
+          transitionTimingFunction: 'var(--glyph-ease, var(--ease-in))',
+        }}
+      />
+    </svg>
+  );
+}
 
 export interface CheckboxProps extends Omit<
   InputHTMLAttributes<HTMLInputElement>,
@@ -103,17 +144,26 @@ export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(function Che
         {...rest}
       />
       {/* Drawn over the input, never in front of it for pointer purposes.
-          The visibility variants live HERE, on the input's sibling: `peer-*`
-          only reaches siblings, so putting them on the icon inside would have
-          styled nothing and left the glyph permanently visible. */}
+          The --glyph-* custom properties live HERE, on the input's sibling:
+          `peer-*` only reaches siblings, so putting them on the icon inside
+          would have styled nothing. CheckGlyph is never opacity-gated — its
+          own stroke-dashoffset is 1 at rest, which already makes it
+          invisible, and gating it on the wrapper's opacity too would hide
+          the undraw transition on uncheck, since that opacity had no
+          transition of its own. Indeterminate is a genuinely bistable icon
+          swap (Minus has no drawn state), so IT stays opacity-only, and only
+          when the ternary below has actually chosen it — the two glyphs are
+          alternatives in the same slot, so React never mounts both. */}
       <span
         aria-hidden="true"
         className={cn(
           'pointer-events-none absolute inset-0 flex items-center justify-center text-fg-on-solid',
-          'opacity-0 peer-checked:opacity-100 peer-indeterminate:opacity-100',
+          'peer-checked:[--glyph-offset:0] peer-checked:[--glyph-dur:var(--dur-base)] peer-checked:[--glyph-ease:var(--ease-out)]',
+          indeterminate &&
+            'opacity-0 transition-opacity duration-fast ease-out peer-indeterminate:opacity-100',
         )}
       >
-        {indeterminate ? <Minus size={12} strokeWidth={3} /> : <Check size={12} strokeWidth={3} />}
+        {indeterminate ? <Minus size={12} strokeWidth={3} /> : <CheckGlyph />}
       </span>
     </span>
   );

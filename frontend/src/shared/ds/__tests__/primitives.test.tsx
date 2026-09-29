@@ -17,15 +17,18 @@
  */
 
 import { describe, expect, it, vi } from 'vitest';
-import { useState } from 'react';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { useEffect, useState } from 'react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Bug, Trash2 } from 'lucide-react';
 
 import { Badge } from '../Badge';
 import { riskStatusIntent, severityIntent } from '../badgeIntents';
 import { Button } from '../Button';
+import { DeleteButton } from '../DeleteButton';
 import { Field, Input, Select, Textarea } from '../Field';
+import { Shake } from '../Shake';
+import { useSuccessFeedback } from '../useSuccessFeedback';
 import { Modal } from '../Modal';
 import { Drawer } from '../Drawer';
 import { TabPanel, Tabs } from '../Tabs';
@@ -83,6 +86,131 @@ describe('Button', () => {
       </form>,
     );
     expect(screen.getByRole('button', { name: 'Sign in' })).toHaveAttribute('type', 'submit');
+  });
+
+  it('draws a check for feedback="success", not the loading spinner', () => {
+    const { container, rerender } = render(<Button>Save</Button>);
+    expect(container.querySelector('svg')).not.toBeInTheDocument();
+
+    rerender(<Button feedback="success">Save</Button>);
+    // The glyph is a hand-drawn path, not lucide's Check — asserting on the
+    // path's own drawing attribute is what proves it is THIS glyph.
+    const path = container.querySelector('svg path');
+    expect(path).toHaveAttribute('stroke-dasharray', '1');
+
+    // Precedence: in flight beats the previous result. Rendering the spinner
+    // AND the tick at once would be a lie about one of them.
+    rerender(
+      <Button loading feedback="success">
+        Save
+      </Button>,
+    );
+    expect(container.querySelector('path[stroke-dasharray="1"]')).not.toBeInTheDocument();
+    expect(screen.getByRole('button')).toHaveAttribute('aria-busy', 'true');
+  });
+});
+
+/* ------------------------------------------------------------ DeleteButton -- */
+
+describe('DeleteButton', () => {
+  it('takes its accessible name from the required aria-label', () => {
+    render(<DeleteButton aria-label="Delete asset" />);
+    expect(screen.getByRole('button', { name: 'Delete asset' })).toBeInTheDocument();
+  });
+
+  it('refuses to compile without an aria-label', () => {
+    // @ts-expect-error aria-label is required, not optional — an icon-only
+    // control with no accessible name is a compiler error here, not a review
+    // comment.
+    render(<DeleteButton />);
+  });
+
+  it('only calls the handler it was given — no arming, no built-in dialog', async () => {
+    const onClick = vi.fn();
+    const user = userEvent.setup();
+    render(<DeleteButton aria-label="Delete asset" onClick={onClick} />);
+
+    const button = screen.getByRole('button', { name: 'Delete asset' });
+    await user.click(button);
+    expect(onClick).toHaveBeenCalledTimes(1);
+
+    // No second click needed, and no confirmation UI appeared in between.
+    await user.click(button);
+    expect(onClick).toHaveBeenCalledTimes(2);
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+  });
+
+  it('is inert while disabled', async () => {
+    const onClick = vi.fn();
+    const user = userEvent.setup();
+    render(<DeleteButton aria-label="Delete asset" onClick={onClick} disabled />);
+    await user.click(screen.getByRole('button', { name: 'Delete asset' }));
+    expect(onClick).not.toHaveBeenCalled();
+  });
+});
+
+/* ------------------------------------------------------- useSuccessFeedback -- */
+
+describe('useSuccessFeedback', () => {
+  it('stays unset until flashSuccess is called, then reverts on its own', () => {
+    vi.useFakeTimers();
+    try {
+      function Harness() {
+        const { feedback, flashSuccess } = useSuccessFeedback();
+        return (
+          <Button feedback={feedback} onClick={flashSuccess}>
+            Save
+          </Button>
+        );
+      }
+      const { container } = render(<Harness />);
+      // Not shown before anything resolves — this hook is only ever driven
+      // from a mutation's resolution, never optimistically.
+      expect(container.querySelector('svg path')).not.toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+      expect(container.querySelector('svg path')).toBeInTheDocument();
+
+      act(() => {
+        vi.advanceTimersByTime(1799);
+      });
+      expect(container.querySelector('svg path')).toBeInTheDocument();
+
+      act(() => {
+        vi.advanceTimersByTime(1);
+      });
+      expect(container.querySelector('svg path')).not.toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('replays on a second flash after the first has reverted', () => {
+    vi.useFakeTimers();
+    try {
+      function Harness() {
+        const { feedback, flashSuccess } = useSuccessFeedback();
+        return (
+          <Button feedback={feedback} onClick={flashSuccess}>
+            Save
+          </Button>
+        );
+      }
+      const { container } = render(<Harness />);
+      const button = screen.getByRole('button', { name: 'Save' });
+
+      fireEvent.click(button);
+      act(() => {
+        vi.advanceTimersByTime(1800);
+      });
+      expect(container.querySelector('svg path')).not.toBeInTheDocument();
+
+      fireEvent.click(button);
+      expect(container.querySelector('svg path')).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 
@@ -175,6 +303,69 @@ describe('Field', () => {
     // render rather than depending on a context that is not there.
     render(<Input aria-label="Search" />);
     expect(screen.getByLabelText('Search')).toBeInTheDocument();
+  });
+
+  it('does not shake when no shakeKey is given', () => {
+    const { container } = render(
+      <Field label="Title">
+        <Input />
+      </Field>,
+    );
+    expect(container.querySelector('.motion-safe\\:animate-or-shake')).not.toBeInTheDocument();
+  });
+
+  it('shakes once per failed submit and replays on a repeat failure, never on a keystroke', async () => {
+    const user = userEvent.setup();
+    const mountsRef = { current: 0 };
+    function Probe() {
+      // A fresh mount count is the observable proxy for "the shake wrapper
+      // remounted and the CSS animation restarted" (see Shake's own doc).
+      useEffect(() => {
+        mountsRef.current += 1;
+      }, []);
+      return <Input aria-label="Title" />;
+    }
+    function Harness() {
+      const [nonce, setNonce] = useState(0);
+      return (
+        <>
+          <Field shakeKey={nonce || undefined}>
+            <Probe />
+          </Field>
+          <button type="button" onClick={() => setNonce((n) => n + 1)}>
+            fail submit
+          </button>
+        </>
+      );
+    }
+    render(<Harness />);
+    expect(mountsRef.current).toBe(1);
+
+    // A keystroke never touches the nonce, so it must not remount/replay.
+    await user.type(screen.getByLabelText('Title'), 'x');
+    expect(mountsRef.current).toBe(1);
+
+    await user.click(screen.getByRole('button', { name: 'fail submit' }));
+    expect(mountsRef.current).toBe(2);
+
+    // A second, identically-worded failure still has to shake again.
+    await user.click(screen.getByRole('button', { name: 'fail submit' }));
+    expect(mountsRef.current).toBe(3);
+  });
+});
+
+/* -------------------------------------------------------------------- Shake -- */
+
+describe('Shake', () => {
+  it('renders its children plainly when there is nothing to report', () => {
+    const { container } = render(<Shake errorKey={0}>Value</Shake>);
+    expect(screen.getByText('Value')).toBeInTheDocument();
+    expect(container.querySelector('.motion-safe\\:animate-or-shake')).not.toBeInTheDocument();
+  });
+
+  it('carries the shake animation class once errorKey is truthy', () => {
+    const { container } = render(<Shake errorKey={1}>Value</Shake>);
+    expect(container.querySelector('.motion-safe\\:animate-or-shake')).toBeInTheDocument();
   });
 });
 
@@ -518,4 +709,37 @@ describe('icon usage', () => {
     render(<Button icon={Bug}>Vulnerabilities</Button>);
     expect(screen.getByRole('button', { name: 'Vulnerabilities' })).toBeInTheDocument();
   });
+});
+
+/* -------------------------------------------------------------------- axe -- */
+
+describe('accessibility (axe-core)', () => {
+  it('finds no serious or critical violation across Button feedback, DeleteButton and an invalid, shaking Field', async () => {
+    const axe = (await import('axe-core')).default;
+
+    const { baseElement } = render(
+      <form>
+        <Button feedback="success">Save</Button>
+        <DeleteButton aria-label="Delete asset" onClick={() => {}} />
+        <Field
+          label="Title"
+          status="invalid"
+          message="This field is required."
+          shakeKey={1}
+          required
+        >
+          <Input />
+        </Field>
+      </form>,
+    );
+
+    const results = await axe.run(baseElement, {
+      resultTypes: ['violations'],
+      rules: { 'color-contrast': { enabled: false } },
+    });
+    const serious = results.violations.filter(
+      (v) => v.impact === 'serious' || v.impact === 'critical',
+    );
+    expect(serious.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
+  }, 20_000);
 });

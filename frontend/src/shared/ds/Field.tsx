@@ -42,6 +42,7 @@ import {
 import { Loader2 } from 'lucide-react';
 import { cn } from './cn';
 import { FieldContext, useControlWiring, type FieldStatus } from './fieldContext';
+import { Shake } from './Shake';
 
 /* Re-exported so `import { type FieldStatus } from './Field'` keeps working —
    index.ts and 45 call sites already spell it that way, and Résolution 1 of
@@ -61,6 +62,12 @@ export interface FieldProps {
   /** Override the generated id when a caller already owns one. */
   htmlFor?: string;
   className?: string;
+  /**
+   * Increment from a failed-submit handler to shake the control once (see
+   * `Shake`). Omit entirely for a field that should never shake — passing
+   * nothing costs nothing, since the wrapper only mounts when this is set.
+   */
+  shakeKey?: string | number;
   children: ReactNode;
 }
 
@@ -73,6 +80,7 @@ export function Field({
   disabled = false,
   htmlFor,
   className,
+  shakeKey,
   children,
 }: FieldProps) {
   const generated = useId();
@@ -118,7 +126,7 @@ export function Field({
           </p>
         )}
 
-        {children}
+        {shakeKey === undefined ? children : <Shake errorKey={shakeKey}>{children}</Shake>}
 
         {message && (
           <p

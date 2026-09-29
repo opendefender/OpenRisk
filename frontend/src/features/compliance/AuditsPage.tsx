@@ -7,7 +7,7 @@
 
 import { localeTag } from '../../i18n/locales';
 import { useMemo, useState } from 'react';
-import { CalendarClock, Plus, Trash2, Wand2, ArrowLeft } from 'lucide-react';
+import { CalendarClock, Plus, Wand2, ArrowLeft } from 'lucide-react';
 import { useNavigate, Link } from 'react-router';
 import { toast } from 'sonner';
 import {
@@ -20,6 +20,7 @@ import {
   ErrorState,
   Chip,
 } from '../../shared/ui';
+import { DeleteButton } from '../../shared/ds';
 import { useUIStore } from '../../store/uiStore';
 import { useAuthStore } from '../../hooks/useAuthStore';
 import { useUndoableRemove } from '../../shared/useUndoableRemove';
@@ -306,18 +307,10 @@ export function AuditsPage() {
                             </Hint>
                           )}
                           {canWrite && (
-                            <button
+                            <DeleteButton
                               onClick={() => remove(a)}
-                              className="w-8 h-8 rounded-[8px] inline-flex items-center justify-center transition-colors hover:brightness-110"
-                              style={{
-                                border:
-                                  '1px solid color-mix(in srgb,var(--critical) 30%,transparent)',
-                                color: 'var(--critical)',
-                              }}
-                              title={tr('Supprimer', 'Delete')}
-                            >
-                              <Trash2 size={14} />
-                            </button>
+                              aria-label={tr(`Supprimer « ${a.title} »`, `Delete "${a.title}"`)}
+                            />
                           )}
                         </div>
                       </td>

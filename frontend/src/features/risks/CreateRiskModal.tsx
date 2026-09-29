@@ -17,7 +17,7 @@ import { taxonomyService } from '../../services/taxonomyService';
 import { ComplianceMappingField, type MappingDraft } from './ComplianceMappingField';
 import { useRiskCategories, IMPORTED_FRAMEWORKS_KEY } from './useTaxonomy';
 import { ImportFrameworkDialog } from '../compliance/ComplianceModals';
-import { Button, Field, Input, ScrollProgress, TagInput } from '../../shared/ds';
+import { Button, Field, Input, TagInput, Textarea } from '../../shared/ds';
 import { useRiskTagLabels } from './useRiskTagLabels';
 import { useI18n } from '../../hooks/useI18n';
 import { useEscapeToClose } from '../../shared/useBackTo';
@@ -73,6 +73,10 @@ export const CreateRiskModal = ({ isOpen, onClose, onCreated }: CreateRiskModalP
   const refreshActivation = useInvalidateActivation();
 
   const tagLabels = useRiskTagLabels();
+  // Bumped from the form's own onInvalid handler, once per failed submit —
+  // never from onChange, or every keystroke before the user has even
+  // submitted would shake the field (see Shake).
+  const [shakeNonce, setShakeNonce] = useState(0);
 
   const {
     register,
@@ -236,11 +240,11 @@ export const CreateRiskModal = ({ isOpen, onClose, onCreated }: CreateRiskModalP
               {/* Sits on the header's bottom rule and fills as the body scrolls. */}
               <ScrollProgress target={bodyRef} className="-mt-px shrink-0" />
 
-              <form onSubmit={handleSubmit(onSubmit)} className="flex min-h-0 flex-1 flex-col">
-                <div
-                  ref={bodyRef}
-                  className="flex-1 space-y-6 overflow-y-auto px-6 py-6 scrollbar-thin"
-                >
+              <form
+                onSubmit={handleSubmit(onSubmit, () => setShakeNonce((n) => n + 1))}
+                className="flex min-h-0 flex-1 flex-col"
+              >
+                <div className="flex-1 space-y-6 overflow-y-auto px-6 py-6 scrollbar-thin">
                   {/* Guided first risk (spec §5). Three drafts drawn from the
                     sector chosen at signup. We do NOT create anything: clicking
                     one fills the form, and the user adjusts and validates it —
@@ -263,27 +267,24 @@ export const CreateRiskModal = ({ isOpen, onClose, onCreated }: CreateRiskModalP
                     label={t('risks.riskName')}
                     message={errors.title?.message}
                     status={errors.title?.message ? 'invalid' : 'default'}
+                    shakeKey={errors.title?.message ? shakeNonce : undefined}
                   >
                     <Input {...register('title')} disabled={isSubmitting} />
                   </Field>
-                  <div className="space-y-1.5">
-                    <label
-                      htmlFor="create-risk-description"
-                      className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted"
-                    >
-                      {t('risks.riskDescription')}
-                    </label>
-                    <textarea
+                  <Field
+                    label={t('risks.riskDescription')}
+                    htmlFor="create-risk-description"
+                    message={errors.description?.message}
+                    status={errors.description?.message ? 'invalid' : 'default'}
+                    shakeKey={errors.description?.message ? shakeNonce : undefined}
+                  >
+                    <Textarea
                       id="create-risk-description"
                       {...register('description')}
                       rows={5}
-                      className="w-full rounded-3xl border border-border bg-elevated px-4 py-3 text-sm text-ink outline-none focus:ring-2 focus:ring-primary/40"
                       disabled={isSubmitting}
                     />
-                    {errors.description && (
-                      <p className="text-xs text-danger-text">{errors.description.message}</p>
-                    )}
-                  </div>
+                  </Field>
 
                   <div className="grid gap-4 sm:grid-cols-3">
                     <div className="space-y-2">

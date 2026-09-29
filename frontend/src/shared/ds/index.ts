@@ -15,6 +15,7 @@
 export { cn } from './cn';
 
 export { Button, type ButtonVariant, type ButtonSize } from './Button';
+export { DeleteButton, type DeleteButtonProps } from './DeleteButton';
 export {
   Field,
   Input,
@@ -27,6 +28,7 @@ export {
   type SelectProps,
 } from './Field';
 export { Label, type LabelProps } from './Label';
+export { Shake } from './Shake';
 export { Fieldset, type FieldsetProps } from './Fieldset';
 export { InputGroup, type InputGroupProps, type InputGroupSize } from './InputGroup';
 export { Checkbox, CheckboxGroup, type CheckboxProps, type CheckboxGroupProps } from './Checkbox';
@@ -74,6 +76,7 @@ export {
   type MatrixBucket,
 } from './RiskMatrix';
 export { useDismissableLayer } from './useDismissableLayer';
+export { useSuccessFeedback } from './useSuccessFeedback';
 
 /** Visualisation contract — palette, axes, tooltip, graph. */
 export * as chart from './chart';

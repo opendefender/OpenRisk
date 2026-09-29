@@ -195,6 +195,17 @@
   --animate-or-slidein: or-slidein var(--dur-panel) var(--ease-out) both;
   --animate-or-pulsedot: or-pulsedot 1.5s infinite;
   --animate-or-shimmer: or-shimmer 1.4s infinite linear;
+  /* Error shake — promoted from features/auth/fields.tsx (#751 phase 2),
+     retimed off its 300ms literal onto the scale above. */
+  --animate-or-shake: or-shake var(--dur-slow) var(--ease-out) both;
+  /* Button `feedback="success"` glyph (#751 phase 2) — one animation per node,
+     see the keyframe comment in index.css for why. */
+  --animate-or-checkfade: or-checkfade var(--dur-base) var(--ease-out) both;
+  --animate-or-checkdraw: or-checkdraw var(--dur-slow) var(--ease-out) var(--dur-instant) both;
+  /* Search-clear snapshot exit (#751 phase 2) — reuses --motion-exit exactly
+     (dur-fast/ease-in), the same shorthand every hover/press exit already
+     reads, rather than restating its two halves. */
+  --animate-or-clearexit: or-clearexit var(--motion-exit) both;
 
   /* ------------------------------------------------------- named line lengths */
   /* --container-* backs max-w-*. A measure, not a box width. */

@@ -105,6 +105,31 @@ describe('EditRiskModal', () => {
     );
   });
 
+  // Review defect (#751 phase 2): flashSuccess() and onClose() fired in the
+  // same batch, and Modal renders nothing once closed, so the drawn check
+  // glyph was dead code. The fix drops the wiring; the toast is the only
+  // confirmation left.
+  it('never wires the drawn success check — the toast is the only confirmation', async () => {
+    const risk = {
+      id: '9',
+      title: 'Fuite de données',
+      description: 'Description suffisamment longue',
+      impact: 5,
+      probability: 0.5,
+      tags: [],
+    };
+    render(<EditRiskModal isOpen={true} onClose={vi.fn()} risk={risk} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /Enregistrer/i }));
+
+    await waitFor(() => expect(updateRiskMock).toHaveBeenCalled());
+
+    // Button's feedback="success" renders a drawn check as an svg <path>
+    // with pathLength=1 / stroke-dasharray=1 (see shared/ds/Button.tsx). It
+    // must never appear, because this component never passes `feedback`.
+    expect(document.querySelector('path[stroke-dasharray="1"]')).not.toBeInTheDocument();
+  });
+
   it('removing a chip drops exactly that tag from the payload', async () => {
     const risk = {
       id: '8',
@@ -120,7 +145,10 @@ describe('EditRiskModal', () => {
     fireEvent.click(screen.getByRole('button', { name: /Enregistrer/i }));
 
     await waitFor(() =>
-      expect(updateRiskMock).toHaveBeenCalledWith('8', expect.objectContaining({ tags: ['cyber'] })),
+      expect(updateRiskMock).toHaveBeenCalledWith(
+        '8',
+        expect.objectContaining({ tags: ['cyber'] }),
+      ),
     );
   });
 });
