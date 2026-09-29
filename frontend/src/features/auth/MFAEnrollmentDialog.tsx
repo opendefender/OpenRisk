@@ -122,7 +122,7 @@ export function MFAEnrollmentDialog({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-80 flex items-center justify-center p-4"
+      className="fixed inset-0 z-80 flex items-center justify-center p-4 motion-safe:animate-or-fadein"
       style={{ background: 'var(--surface-overlay)', backdropFilter: 'blur(var(--overlay-blur))' }}
       onClick={onClose}
     >
@@ -134,7 +134,10 @@ export function MFAEnrollmentDialog({
         tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
         onSubmit={submit}
-        className="w-full max-w-[440px] max-h-[90vh] flex flex-col rounded-[16px] overflow-hidden outline-none"
+        /* Stopgap (#751 phase 5): this dialog was hand-rolled with no
+           entrance at all. The house enter class is the fix here, not an
+           exit — moving it onto the ds `Modal` needs its own issue. */
+        className="motion-safe:animate-or-rise w-full max-w-[440px] max-h-[90vh] flex flex-col rounded-[16px] overflow-hidden outline-none"
         style={{
           background: 'var(--bg-secondary)',
           border: '1px solid var(--border)',

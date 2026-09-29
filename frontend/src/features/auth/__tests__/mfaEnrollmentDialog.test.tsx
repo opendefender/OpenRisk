@@ -55,6 +55,16 @@ beforeEach(() => {
 });
 
 describe('MFAEnrollmentDialog', () => {
+  /* #751 phase 5, stopgap — this dialog is hand-rolled (not the ds Modal) and
+     had no entrance at all before this phase; a real exit transition needs
+     migrating onto Modal, which is its own issue. */
+  it('has the house enter class on both the scrim and the panel', async () => {
+    renderDialog();
+    const dialog = await screen.findByRole('dialog');
+    expect(dialog).toHaveClass('motion-safe:animate-or-rise');
+    expect(dialog.parentElement).toHaveClass('motion-safe:animate-or-fadein');
+  });
+
   it('has an OtpField labelled by the control itself, not just its wrapping text', async () => {
     renderDialog();
     // OtpField's `label` prop sets aria-label directly, so this resolves even
