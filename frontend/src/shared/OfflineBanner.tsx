@@ -79,7 +79,18 @@ export function OfflineBanner() {
           background: shown.offline
             ? 'color-mix(in srgb,var(--critical) 16%,transparent)'
             : 'color-mix(in srgb,var(--medium) 16%,transparent)',
-          color: shown.offline ? 'var(--critical)' : 'var(--medium)',
+          // The raw --critical token measured under 4.1:1 on this tint in
+          // the light theme, and a tight 4.68:1 in dark (a live-pass defect,
+          // #751 phase 4 review) — a local fix, not a change to --critical
+          // itself, which stays the shared severity token. Mixed toward the
+          // theme's own body text colour (in oklab, so the shift stays a
+          // clean lightness change rather than the "muddy midpoint" a plain
+          // sRGB mix gives) so it improves in both themes from the same
+          // rule, applied to --medium too for the same reason even though it
+          // already passed (one formula, not a conditional exception).
+          color: shown.offline
+            ? 'color-mix(in oklab, var(--critical) 80%, var(--fg-primary))'
+            : 'color-mix(in oklab, var(--medium) 80%, var(--fg-primary))',
           borderBottom: '1px solid var(--border)',
         }}
       >
