@@ -21,7 +21,11 @@ import { useMFAStatus } from './useMfa';
 import { daysUntilDeadline, type MFAStatus } from './mfaPolicyService';
 import { MFAEnrollmentDialog } from './MFAEnrollmentDialog';
 import { useUIStore } from '../../store/uiStore';
+import { useExitTimer } from '../../shared/ds';
 import { catalogs, translate, DEFAULT_LOCALE, type LocaleCode } from '../../i18n';
+
+/** Matches --dur-fast (src/styles/primitives.css) — the dismiss collapse's exit. */
+const MFA_DISMISS_EXIT_MS = 120;
 
 /**
  * Session-scoped dismissal for the soft prompt.
@@ -59,7 +63,8 @@ export function copyFor(
   const days = daysUntilDeadline(status);
   // "1 jour" / "2 jours" / "0 days" — the plural rule belongs to the language,
   // not to a `days > 1` written into a French sentence.
-  const dayCount = (n: number) => translate(catalogs, locale, 'common.days', { params: { count: n } });
+  const dayCount = (n: number) =>
+    translate(catalogs, locale, 'common.days', { params: { count: n } });
 
   switch (status.state) {
     case 'configured':
@@ -143,6 +148,17 @@ export function MFAEnrollmentBanner() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dismissed, setDismissed] = useState(() => sessionStorage.getItem(DISMISS_KEY) === '1');
 
+  // Computed unconditionally, before any early return, because useExitTimer
+  // is a hook: `copy` is null whenever there is nothing to show at all
+  // (loading/error/configured), in which case collapseOpen defaults open and
+  // the timer never has anything to do.
+  const copy = status ? copyFor(status, tr, lang) : null;
+  const collapseOpen = !(copy?.dismissible && dismissed);
+  // #751 phase 4 — the dismiss button used to unmount this instantly. Now it
+  // collapses (.or-collapse, index.css) over --motion-exit first, same
+  // mechanism and same reduced-motion behaviour as the notif panel's close.
+  const mounted = useExitTimer(collapseOpen, MFA_DISMISS_EXIT_MS);
+
   // Loading: say nothing rather than flashing a security warning that may not
   // apply. A banner that appears and vanishes on every page load is noise, and
   // noise is what people learn to skip.
@@ -188,66 +204,74 @@ export function MFAEnrollmentBanner() {
   }
 
   if (!status) return null;
-
-  const copy = copyFor(status, tr, lang);
   if (!copy) return null;
-  if (copy.dismissible && dismissed) return null;
+  // Past its exit animation and dismissed for the session: gone for real.
+  if (!mounted) return null;
 
   const tone = TONE_STYLE[copy.tone];
   const Icon = copy.tone === 'info' ? ShieldCheck : ShieldAlert;
+  // While collapsing out, the section keeps its visual content (so there is
+  // something for the height/opacity transition to shrink) but drops the
+  // attributes that make it findable/announced — a dismissed banner is, from
+  // that instant, no longer "the mfa enrollment banner" to a test or a screen
+  // reader, even though its pixels are still fading for --dur-fast.
+  const closing = !collapseOpen;
 
   return (
     <>
-      <section
-        // A deadline that has passed is an alert; a recommendation is a status.
-        // Screen readers should interrupt for the first and not for the second.
-        role={copy.tone === 'critical' ? 'alert' : 'status'}
-        aria-live={copy.tone === 'critical' ? 'assertive' : 'polite'}
-        aria-labelledby="mfa-banner-title"
-        data-testid="mfa-enrollment-banner"
-        data-mfa-state={status.state}
-        className="flex items-start gap-3 px-4 py-3.5 rounded-[13px] mb-4"
-        style={{ background: tone.bg, border: `1px solid ${tone.border}` }}
-      >
-        <span className="mt-px shrink-0" style={{ color: tone.accent }} aria-hidden="true">
-          <Icon size={18} />
-        </span>
+      <div data-open={collapseOpen} className="or-collapse mb-4">
+        <section
+          // A deadline that has passed is an alert; a recommendation is a status.
+          // Screen readers should interrupt for the first and not for the second.
+          role={closing ? undefined : copy.tone === 'critical' ? 'alert' : 'status'}
+          aria-live={closing ? undefined : copy.tone === 'critical' ? 'assertive' : 'polite'}
+          aria-labelledby={closing ? undefined : 'mfa-banner-title'}
+          aria-hidden={closing || undefined}
+          data-testid={closing ? undefined : 'mfa-enrollment-banner'}
+          data-mfa-state={status.state}
+          className="flex items-start gap-3 px-4 py-3.5 rounded-[13px] overflow-hidden"
+          style={{ background: tone.bg, border: `1px solid ${tone.border}` }}
+        >
+          <span className="mt-px shrink-0" style={{ color: tone.accent }} aria-hidden="true">
+            <Icon size={18} />
+          </span>
 
-        <div className="flex-1 min-w-0">
-          <div id="mfa-banner-title" className="text-[13.5px] font-semibold text-ink mb-0.5">
-            {copy.title}
+          <div className="flex-1 min-w-0">
+            <div id="mfa-banner-title" className="text-[13.5px] font-semibold text-ink mb-0.5">
+              {copy.title}
+            </div>
+            <div className="text-[12.5px] text-ink-soft leading-relaxed">{copy.body}</div>
           </div>
-          <div className="text-[12.5px] text-ink-soft leading-relaxed">{copy.body}</div>
-        </div>
 
-        <div className="flex items-center gap-1.5 shrink-0">
-          <button
-            type="button"
-            onClick={() => setDialogOpen(true)}
-            className="h-8 px-3.5 rounded-[9px] text-[12.5px] font-semibold text-fg-primary transition-all"
-            style={{
-              border: 'none',
-              background: 'var(--accent-solid)',
-              color: 'var(--fg-on-solid)',
-            }}
-          >
-            {copy.cta}
-          </button>
-          {copy.dismissible && (
+          <div className="flex items-center gap-1.5 shrink-0">
             <button
               type="button"
-              onClick={() => {
-                sessionStorage.setItem(DISMISS_KEY, '1');
-                setDismissed(true);
+              onClick={() => setDialogOpen(true)}
+              className="h-8 px-3.5 rounded-[9px] text-[12.5px] font-semibold text-fg-primary transition-all"
+              style={{
+                border: 'none',
+                background: 'var(--accent-solid)',
+                color: 'var(--fg-on-solid)',
               }}
-              className="w-8 h-8 rounded-[9px] flex items-center justify-center text-ink-muted hover:text-ink transition-colors"
-              aria-label={tr('Masquer ce rappel', 'Dismiss this reminder')}
             >
-              <X size={16} aria-hidden="true" />
+              {copy.cta}
             </button>
-          )}
-        </div>
-      </section>
+            {copy.dismissible && (
+              <button
+                type="button"
+                onClick={() => {
+                  sessionStorage.setItem(DISMISS_KEY, '1');
+                  setDismissed(true);
+                }}
+                className="w-8 h-8 rounded-[9px] flex items-center justify-center text-ink-muted hover:text-ink transition-colors"
+                aria-label={tr('Masquer ce rappel', 'Dismiss this reminder')}
+              >
+                <X size={16} aria-hidden="true" />
+              </button>
+            )}
+          </div>
+        </section>
+      </div>
 
       {dialogOpen && <MFAEnrollmentDialog onClose={() => setDialogOpen(false)} />}
     </>

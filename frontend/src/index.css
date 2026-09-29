@@ -405,6 +405,36 @@ layer(base);
   .notif-panel[data-open='true'] {
     animation: or-notif-enter var(--motion-enter) both;
   }
+
+  /* Shared height-collapse (#751 phase 4): OfflineBanner and
+     MFAEnrollmentBanner's dismiss both use this rather than each inventing
+     its own. `grid-template-rows: 0fr -> 1fr` animates a track that has no
+     fixed height to animate any other way — a plain `height` transition needs
+     a concrete pixel value, which neither banner's content has (it wraps at
+     different widths). The `> *` child needs `min-height: 0` so the grid item
+     can actually shrink below its content's intrinsic height; without it a
+     grid item's default `min-height: auto` refuses to go below content size
+     and the row never visually collapses at all. Same asymmetric-duration
+     technique as .notif-badge above: exit timing on the base rule, enter
+     timing on the open state. */
+  .or-collapse {
+    display: grid;
+    grid-template-rows: 0fr;
+    opacity: 0;
+    transition:
+      grid-template-rows var(--motion-exit),
+      opacity var(--motion-exit);
+  }
+  .or-collapse[data-open='true'] {
+    grid-template-rows: 1fr;
+    opacity: 1;
+    transition:
+      grid-template-rows var(--motion-enter),
+      opacity var(--motion-enter);
+  }
+  .or-collapse > * {
+    min-height: 0;
+  }
 }
 
 /* ── Elevated primitives (docs/UI_ELEVATION_PROPOSAL.md §5/§6/§7) ─────────── */
