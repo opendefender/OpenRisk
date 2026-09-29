@@ -449,12 +449,16 @@ function MFAEnrollment({ token }: { token: string }) {
 
   const qrSrc = qr.startsWith('data:') ? qr : `data:image/jpeg;base64,${qr}`;
 
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // `codeOverride`: onComplete below fires synchronously inside the same
+  // commit as the `setCode` it follows, before React applies that update —
+  // reading the `code` closure here would still see the PREVIOUS value.
+  // Passing the just-completed value directly sidesteps the stale read.
+  const submit = async (e?: React.FormEvent, codeOverride?: string) => {
+    e?.preventDefault();
     setBusy(true);
     setError('');
     try {
-      const result = await verifyMFA(code.trim(), token);
+      const result = await verifyMFA((codeOverride ?? code).trim(), token);
       // Mandated enrolment completes the login: the server issues the session in
       // the same response, so the user is not asked for their password again.
       if (result.token_pair?.access_token) {
@@ -526,7 +530,13 @@ function MFAEnrollment({ token }: { token: string }) {
             id="enrol-code"
             testId="mfa-enrol-code"
             value={code}
-            onValueChange={setCode}
+            onValueChange={(next) => {
+              setCode(next);
+              if (error) setError('');
+            }}
+            onComplete={(value) => {
+              if (!busy) void submit(undefined, value);
+            }}
             length={6}
             invalid={Boolean(error)}
           />

@@ -185,7 +185,11 @@ export const OtpField = forwardRef<HTMLInputElement, OtpFieldProps>(function Otp
                   'flex w-10 items-center justify-center rounded-md border',
                   'h-(--control-h-lg) bg-surface-1',
                   'font-mono text-base tabular-nums text-fg-primary',
-                  'transition-[border-color] duration-fast ease-out',
+                  /* --motion-hover (border-color + box-shadow together): the
+                     active ring now SLIDES from one box to the next instead
+                     of jumping, because both properties settle on the same
+                     transition rather than only the border being animated. */
+                  'transition-[border-color,box-shadow] duration-fast ease-out',
                   status === 'invalid' ? 'border-danger' : 'border-control',
                   /* The focus ring is drawn on the SEGMENT, not the input: the
                      input is transparent and spans all of them, so a ring on it
@@ -195,7 +199,22 @@ export const OtpField = forwardRef<HTMLInputElement, OtpFieldProps>(function Otp
                   disabled && 'opacity-55',
                 )}
               >
-                {char}
+                {/* Always rendered, even when empty, so filling the segment is
+                    a transition rather than the character popping in. Fades
+                    on --motion-press (90ms): fast enough that typing quickly
+                    never feels like it is waiting on its own animation, and
+                    deleting a character is instant either way — reduced
+                    motion aside, opacity 1->0 has no visible transition on a
+                    glyph that is disappearing in the same frame its box goes
+                    empty. */}
+                <span
+                  className={cn(
+                    'transition-opacity duration-instant ease-out',
+                    char ? 'opacity-100' : 'opacity-0',
+                  )}
+                >
+                  {char}
+                </span>
               </span>
             );
           })}
