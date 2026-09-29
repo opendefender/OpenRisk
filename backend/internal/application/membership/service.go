@@ -79,10 +79,15 @@ type InvitationMail struct {
 	SendersEmail string
 }
 
-// SessionRevoker ends a member's sessions when their access is withdrawn.
-// Satisfied by the auth TokenManager's RevokeAllUserTokens.
+// SessionRevoker ends a member's sessions in one organization when that
+// organization changes or withdraws their access. Satisfied by the auth
+// TokenManager's RevokeUserTokensInTenant.
+//
+// It is deliberately scoped: a decision of organization A must not sign the
+// person out of organization B (#831). Their sessions in B are re-checked
+// against their B membership on every refresh anyway.
 type SessionRevoker interface {
-	RevokeAllUserTokens(ctx context.Context, userID uuid.UUID) error
+	RevokeUserTokensInTenant(ctx context.Context, userID, tenantID uuid.UUID) error
 }
 
 // PasswordHasher hashes the password an invitee chooses on acceptance.
