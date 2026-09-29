@@ -1,56 +1,14 @@
 // Copyright (c) 2026 OpenDefender Contributors
 // SPDX-License-Identifier: AGPL-3.0-only
 //
-// Data hooks for the admin features consolidated into Settings. Members, API
-// Tokens and Custom Fields are live; Roles / Organizations / Audit-log endpoints
-// currently 500 (their tables aren't migrated in this schema) so their hooks
-// surface an error the UI degrades on gracefully.
+// Data hooks for the admin features consolidated into Settings. API Tokens and
+// Custom Fields are live; Members use /organization/members (#807). Roles /
+// Organizations / Audit-log endpoints currently 500 (their tables aren't
+// migrated in this schema) so their hooks surface an error the UI degrades on
+// gracefully.
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../lib/api';
-
-/* ---------------- Members (/users) ---------------- */
-export interface AdminUser {
-  id: string;
-  email: string;
-  username: string;
-  full_name: string;
-  role: string;
-  is_active: boolean;
-  created_at: string;
-  last_login?: string;
-}
-
-export function useUsers() {
-  const qc = useQueryClient();
-  const query = useQuery({
-    queryKey: ['admin', 'users'],
-    queryFn: async () => (await api.get<AdminUser[]>('/users')).data ?? [],
-  });
-  const invalidate = () => qc.invalidateQueries({ queryKey: ['admin', 'users'] });
-  const setStatus = useMutation({
-    mutationFn: ({ id, is_active }: { id: string; is_active: boolean }) =>
-      api.patch(`/users/${id}/status`, { is_active }),
-    onSuccess: invalidate,
-  });
-  const setRole = useMutation({
-    mutationFn: ({ id, role }: { id: string; role: string }) =>
-      api.patch(`/users/${id}/role`, { role }),
-    onSuccess: invalidate,
-  });
-  const remove = useMutation({
-    mutationFn: (id: string) => api.delete(`/users/${id}`),
-    onSuccess: invalidate,
-  });
-  return {
-    users: query.data ?? [],
-    isLoading: query.isLoading,
-    isError: query.isError,
-    setStatus,
-    setRole,
-    remove,
-  };
-}
 
 /* ---------------- API Tokens (/tokens) ---------------- */
 export interface ApiToken {
