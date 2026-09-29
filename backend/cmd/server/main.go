@@ -2049,9 +2049,11 @@ func main() {
 	adminRole := middleware.RequireRole("admin")
 	protected.Get("/users", adminRole, handlers.GetUsers)
 	protected.Post("/users", adminRole, handlers.CreateUser)
-	protected.Patch("/users/:id/status", adminRole, handlers.UpdateUserStatus)
-	protected.Patch("/users/:id/role", adminRole, handlers.UpdateUserRole)
-	protected.Delete("/users/:id", adminRole, handlers.DeleteUser)
+	// PATCH /users/:id/status, PATCH /users/:id/role and DELETE /users/:id were
+	// removed (#807). They wrote the global users row, so an admin of one
+	// organization could lock a person out of every other one, or delete them
+	// everywhere. A member's role and status are per organization and live on
+	// /organization/members/:memberId/{role,status}.
 	// Self-service profile, preferences and avatar (#719, replaces the
 	// misleading PATCH /users/:id of #574). Every verb acts on the session's
 	// own user, so the session is the authorization. The avatar read is gated
