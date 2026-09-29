@@ -97,7 +97,7 @@ export function HistoryTimeline({
             key={e.id}
             className="flex gap-3"
             style={{
-              animation: 'or-fadeup .3s ease both',
+              animation: 'or-fadeup var(--dur-slow) var(--ease-out) both',
               animationDelay: `${Math.min(i * 0.03, 0.24)}s`,
             }}
           >

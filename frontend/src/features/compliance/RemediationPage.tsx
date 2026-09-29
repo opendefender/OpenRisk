@@ -201,7 +201,7 @@ export function RemediationPage() {
                         className="text-[13px] text-ink"
                         style={{
                           borderTop: i === 0 ? 'none' : '1px solid var(--border)',
-                          animation: 'or-fadeup .35s ease both',
+                          animation: 'or-fadeup var(--dur-slow) var(--ease-out) both',
                           animationDelay: `${Math.min(i * 0.03, 0.25)}s`,
                         }}
                       >

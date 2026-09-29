@@ -22,6 +22,14 @@
  * to the end behind a separator. An irreversible action adjacent to a benign one
  * is a mis-click waiting to happen, and the visual difference alone does not
  * help someone navigating by keyboard — the separation does.
+ *
+ * MOTION (#751) The surface grows from its trigger: scale 0.97 → 1 with a fade
+ * on --motion-enter, and leaves on --motion-exit to 0.99, so closing is quicker
+ * and smaller than opening. The origin follows the RESOLVED placement, so a menu
+ * that flipped above its trigger grows upward. It animates `scale`, not
+ * `transform`, because floating-ui positions the layer with `transform` and the
+ * two would overwrite each other. Reduced motion drops the transition through the
+ * global rule in index.css; the menu still opens and closes.
  */
 
 import { cloneElement, useRef, useState, type ReactElement } from 'react';
@@ -38,7 +46,9 @@ import {
   useInteractions,
   useListNavigation,
   useRole,
+  useTransitionStatus,
   useTypeahead,
+  type Placement,
 } from '@floating-ui/react';
 import { type LucideIcon } from 'lucide-react';
 import { cn } from './cn';
@@ -67,6 +77,19 @@ export interface MenuProps {
   className?: string;
 }
 
+/* Must match --dur-fast, the duration inside --motion-exit: it is how long the
+   layer stays mounted once closed. Shorter clips the exit; longer leaves an
+   invisible menu catching nothing for a beat (pointer-events are off). */
+const EXIT_MS = 120;
+
+/* The corner of the menu nearest its trigger. */
+function originFor(placement: Placement): string {
+  const [side, align] = placement.split('-');
+  const y = side === 'top' ? 'bottom' : 'top';
+  const x = align === 'end' ? 'right' : align === 'start' ? 'left' : 'center';
+  return `${y} ${x}`;
+}
+
 export function Menu({ trigger, items, placement = 'bottom-end', label, className }: MenuProps) {
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
@@ -90,6 +113,8 @@ export function Menu({ trigger, items, placement = 'bottom-end', label, classNam
     whileElementsMounted: autoUpdate,
     middleware: [offset(6), flip({ padding: 8 }), shift({ padding: 8 })],
   });
+
+  const { isMounted, status } = useTransitionStatus(context, { duration: EXIT_MS });
 
   const listNav = useListNavigation(context, {
     listRef,
@@ -125,20 +150,32 @@ export function Menu({ trigger, items, placement = 'bottom-end', label, classNam
         ...getReferenceProps(trigger.props),
       })}
 
-      {open && (
+      {isMounted && (
         <FloatingPortal>
           {/* A menu DOES trap focus while open: unlike a popover it holds only
               actions, and tabbing out of a half-open action list into the page
               behind is how a user loses the menu without meaning to. Escape and
-              selecting both return focus to the trigger. */}
-          <FloatingFocusManager context={context} modal returnFocus>
+              selecting both return focus to the trigger. The manager is
+              disabled once `open` drops, not at unmount: during the exit the
+              layer is invisible and inert, and a trap held on it would swallow
+              Tab for 120ms with no visible focus (found in QA, #751). */}
+          <FloatingFocusManager context={context} modal returnFocus disabled={!open}>
             <div
               ref={setFloating}
-              style={floatingStyles}
+              data-status={status}
+              style={{
+                ...floatingStyles,
+                transformOrigin: originFor(context.placement),
+                transition:
+                  status === 'close'
+                    ? 'opacity var(--motion-exit), scale var(--motion-exit)'
+                    : 'opacity var(--motion-enter), scale var(--motion-enter)',
+              }}
               className={cn(
                 'z-dropdown min-w-44 overflow-hidden rounded-md border border-default',
                 'bg-surface-2 py-1 shadow-overlay outline-none',
-                'motion-safe:animate-or-fadein',
+                'data-[status=initial]:scale-97 data-[status=initial]:opacity-0',
+                'data-[status=close]:pointer-events-none data-[status=close]:scale-99 data-[status=close]:opacity-0',
                 className,
               )}
               {...getFloatingProps()}

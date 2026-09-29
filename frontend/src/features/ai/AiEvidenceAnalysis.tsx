@@ -56,7 +56,7 @@ export function AiEvidenceAnalysis({ evidenceId }: { evidenceId: string }) {
           style={{
             background: 'var(--bg-elevated)',
             border: '1px solid var(--border)',
-            animation: 'or-fadeup .2s ease',
+            animation: 'or-fadeup var(--dur-slow) var(--ease-out)',
           }}
         >
           <div className="flex items-center gap-2 mb-1.5">

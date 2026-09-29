@@ -36,6 +36,7 @@ import {
   HelpCircle,
 } from 'lucide-react';
 import { PageFrame, PageHeader, Btn, Card, SkeletonRows, EmptyState } from '../../shared/ui';
+import { Collapse, TabPanel, Tabs } from '../../shared/ds';
 import { useUIStore } from '../../store/uiStore';
 import { useAuthStore } from '../../hooks/useAuthStore';
 import {
@@ -124,21 +125,6 @@ export function AutomationPage() {
     setEditorOpen(true);
   };
 
-  const TabBtn = ({ id, label, count }: { id: Tab; label: string; count?: number }) => (
-    <button
-      onClick={() => setTab(id)}
-      className="h-9 px-3.5 rounded-[9px] text-[12.5px] font-semibold inline-flex items-center gap-1.5"
-      style={{
-        background: tab === id ? 'var(--accent-solid)' : 'transparent',
-        color: tab === id ? 'var(--fg-on-solid)' : 'var(--fg-secondary)',
-        border: tab === id ? 'none' : '1px solid var(--border-strong)',
-      }}
-    >
-      {label}
-      {typeof count === 'number' && <span className="mono opacity-80">{count}</span>}
-    </button>
-  );
-
   return (
     <PageFrame wide>
       <PageHeader
@@ -151,33 +137,42 @@ export function AutomationPage() {
         }
       />
 
-      <div className="flex gap-2 mb-4 flex-wrap">
-        <TabBtn id="rules" label={tr('Règles', 'Rules')} count={rules.length} />
-        <TabBtn
-          id="sla"
-          label={tr('SLA en cours', 'Live SLA')}
-          count={stats ? stats.open + stats.breached + stats.escalated : undefined}
-        />
-        <TabBtn id="history" label={tr('Historique', 'History')} />
-        <TabBtn id="channels" label={tr('Canaux', 'Channels')} />
-      </div>
+      <Tabs<Tab>
+        id="automation"
+        label={tr('Sections de l’automatisation', 'Automation sections')}
+        className="mb-4"
+        value={tab}
+        onChange={setTab}
+        items={[
+          { id: 'rules', label: tr('Règles', 'Rules'), count: rules.length },
+          {
+            id: 'sla',
+            label: tr('SLA en cours', 'Live SLA'),
+            count: stats ? stats.open + stats.breached + stats.escalated : undefined,
+          },
+          { id: 'history', label: tr('Historique', 'History') },
+          { id: 'channels', label: tr('Canaux', 'Channels') },
+        ]}
+      />
 
-      <p className="text-[12.5px] mb-3" style={{ color: 'var(--fg-secondary)' }}>
-        {tr(TAB_PURPOSE[tab].fr, TAB_PURPOSE[tab].en)}
-      </p>
+      <TabPanel tabsId="automation" id={tab} active>
+        <p className="text-[12.5px] mb-3" style={{ color: 'var(--fg-secondary)' }}>
+          {tr(TAB_PURPOSE[tab].fr, TAB_PURPOSE[tab].en)}
+        </p>
 
-      {tab === 'rules' && (
-        <RulesView
-          rules={rules}
-          loading={rulesLoading}
-          canWrite={canWrite}
-          onEdit={openEdit}
-          onNew={openNew}
-        />
-      )}
-      {tab === 'sla' && <SLAView />}
-      {tab === 'history' && <HistoryView />}
-      {tab === 'channels' && <ChannelsView canWrite={canWrite} />}
+        {tab === 'rules' && (
+          <RulesView
+            rules={rules}
+            loading={rulesLoading}
+            canWrite={canWrite}
+            onEdit={openEdit}
+            onNew={openNew}
+          />
+        )}
+        {tab === 'sla' && <SLAView />}
+        {tab === 'history' && <HistoryView />}
+        {tab === 'channels' && <ChannelsView canWrite={canWrite} />}
+      </TabPanel>
 
       {editorOpen && (
         <RuleEditorModal
@@ -775,11 +770,13 @@ function HistoryView() {
             <div className="flex items-center gap-2.5">
               <button
                 onClick={() => setOpenId(open ? null : e.id)}
+                aria-expanded={open}
+                aria-controls={`exec-${e.id}`}
                 className="flex-1 min-w-0 flex items-center gap-2.5 text-left"
               >
                 <ChevronRight
                   size={14}
-                  className="text-ink-muted transition-transform"
+                  className="text-ink-muted transition-transform duration-slow ease-out"
                   style={{ transform: open ? 'rotate(90deg)' : 'none' }}
                 />
                 <span
@@ -818,78 +815,74 @@ function HistoryView() {
               )}
             </div>
 
-            {open && (
-              <div className="mt-3 pl-6 space-y-3">
-                {e.error && (
-                  <div
-                    className="text-[12px] rounded-[8px] px-2.5 py-1.5"
-                    style={{
-                      background: 'color-mix(in srgb, var(--critical) 8%, transparent)',
-                      color: 'var(--critical)',
-                    }}
+            <Collapse id={`exec-${e.id}`} open={open} className="pt-3 pl-6 space-y-3">
+              {e.error && (
+                <div
+                  className="text-[12px] rounded-[8px] px-2.5 py-1.5"
+                  style={{
+                    background: 'color-mix(in srgb, var(--critical) 8%, transparent)',
+                    color: 'var(--critical)',
+                  }}
+                >
+                  {e.error}
+                </div>
+              )}
+              <div className="grid gap-3 md:grid-cols-2">
+                <div>
+                  <p
+                    className="text-[11px] font-bold uppercase tracking-wide mb-1"
+                    style={{ color: 'var(--fg-secondary)' }}
                   >
-                    {e.error}
-                  </div>
-                )}
-                <div className="grid gap-3 md:grid-cols-2">
-                  <div>
-                    <p
-                      className="text-[11px] font-bold uppercase tracking-wide mb-1"
-                      style={{ color: 'var(--fg-secondary)' }}
-                    >
-                      {tr('Entrée', 'Input')}
-                    </p>
-                    <pre
-                      className="text-[11px] mono overflow-x-auto p-2 rounded-[8px]"
-                      style={{ background: 'var(--bg)', color: 'var(--fg-primary)' }}
-                    >
-                      {JSON.stringify(e.input ?? {}, null, 2)}
-                    </pre>
-                  </div>
-                  <div>
-                    <p
-                      className="text-[11px] font-bold uppercase tracking-wide mb-1"
-                      style={{ color: 'var(--fg-secondary)' }}
-                    >
-                      {tr('Sortie', 'Output')}
-                    </p>
-                    <pre
-                      className="text-[11px] mono overflow-x-auto p-2 rounded-[8px]"
-                      style={{ background: 'var(--bg)', color: 'var(--fg-primary)' }}
-                    >
-                      {JSON.stringify(e.output ?? {}, null, 2)}
-                    </pre>
-                  </div>
-                </div>
-                <div className="space-y-1">
-                  {(e.steps ?? []).map((st, i) => (
-                    <div key={i} className="flex items-start gap-2 text-[12px]">
-                      <span className="mono text-[10.5px] w-4 text-ink-muted">{i + 1}</span>
-                      <span
-                        className="font-semibold shrink-0"
-                        style={{ color: stepColor(st.status), minWidth: 96 }}
-                      >
-                        {st.action}
-                      </span>
-                      <span className="text-ink-muted flex-1">{st.detail}</span>
-                      <span className="mono text-[10.5px] text-ink-muted shrink-0">
-                        {st.duration_ms} ms
-                      </span>
-                    </div>
-                  ))}
-                  {(e.steps ?? []).length === 0 && (
-                    <div className="text-[12px] text-ink-muted">
-                      {tr('Aucune étape', 'No steps')}
-                    </div>
-                  )}
-                </div>
-                {e.replayed_from && (
-                  <p className="text-[11.5px]" style={{ color: 'var(--fg-secondary)' }}>
-                    {tr('Rejeu d’une exécution antérieure.', 'Replay of an earlier run.')}
+                    {tr('Entrée', 'Input')}
                   </p>
+                  <pre
+                    className="text-[11px] mono overflow-x-auto p-2 rounded-[8px]"
+                    style={{ background: 'var(--bg)', color: 'var(--fg-primary)' }}
+                  >
+                    {JSON.stringify(e.input ?? {}, null, 2)}
+                  </pre>
+                </div>
+                <div>
+                  <p
+                    className="text-[11px] font-bold uppercase tracking-wide mb-1"
+                    style={{ color: 'var(--fg-secondary)' }}
+                  >
+                    {tr('Sortie', 'Output')}
+                  </p>
+                  <pre
+                    className="text-[11px] mono overflow-x-auto p-2 rounded-[8px]"
+                    style={{ background: 'var(--bg)', color: 'var(--fg-primary)' }}
+                  >
+                    {JSON.stringify(e.output ?? {}, null, 2)}
+                  </pre>
+                </div>
+              </div>
+              <div className="space-y-1">
+                {(e.steps ?? []).map((st, i) => (
+                  <div key={i} className="flex items-start gap-2 text-[12px]">
+                    <span className="mono text-[10.5px] w-4 text-ink-muted">{i + 1}</span>
+                    <span
+                      className="font-semibold shrink-0"
+                      style={{ color: stepColor(st.status), minWidth: 96 }}
+                    >
+                      {st.action}
+                    </span>
+                    <span className="text-ink-muted flex-1">{st.detail}</span>
+                    <span className="mono text-[10.5px] text-ink-muted shrink-0">
+                      {st.duration_ms} ms
+                    </span>
+                  </div>
+                ))}
+                {(e.steps ?? []).length === 0 && (
+                  <div className="text-[12px] text-ink-muted">{tr('Aucune étape', 'No steps')}</div>
                 )}
               </div>
-            )}
+              {e.replayed_from && (
+                <p className="text-[11.5px]" style={{ color: 'var(--fg-secondary)' }}>
+                  {tr('Rejeu d’une exécution antérieure.', 'Replay of an earlier run.')}
+                </p>
+              )}
+            </Collapse>
           </Card>
         );
       })}

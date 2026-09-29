@@ -402,7 +402,7 @@ export function IncidentsScreen() {
             key={k.label}
             style={{
               padding: '16px 18px',
-              animation: 'or-fadeup .4s ease both',
+              animation: 'or-fadeup var(--dur-slow) var(--ease-out) both',
               animationDelay: `${i * 0.05}s`,
             }}
           >

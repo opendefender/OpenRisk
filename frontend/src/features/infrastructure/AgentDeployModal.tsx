@@ -76,7 +76,7 @@ export function AgentDeployModal({ config, onClose }: { config: ScanConfig; onCl
         aria-modal="true"
         aria-labelledby="agent-deploy-title"
         className="relative w-full max-w-[520px] max-h-[90vh] flex flex-col rounded-2xl glass-strong overflow-hidden"
-        style={{ border: '1px solid var(--border-strong)', animation: 'or-scalein .22s ease' }}
+        style={{ border: '1px solid var(--border-strong)', animation: 'or-scalein var(--motion-enter)' }}
       >
         <div
           className="flex items-center justify-between px-5 py-4"

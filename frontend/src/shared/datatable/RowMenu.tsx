@@ -131,7 +131,7 @@ export function RowMenu<T>({ row, actions, label }: RowMenuProps<T>) {
                 borderRadius: 11,
                 boxShadow: 'var(--shadow-lg)',
                 padding: 4,
-                animation: 'or-scalein .12s cubic-bezier(.2,.8,.2,1)',
+                animation: 'or-scalein var(--motion-enter)',
               }}
               data-testid="row-menu"
               {...getFloatingProps({ onClick: (e) => e.stopPropagation() })}

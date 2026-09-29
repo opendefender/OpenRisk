@@ -72,7 +72,7 @@ export function AiAuditReportButton({ auditId, title }: { auditId: string; title
               background: 'var(--bg-secondary)',
               border: '1px solid var(--border)',
               boxShadow: 'var(--shadow-lg)',
-              animation: 'or-scalein .2s ease',
+              animation: 'or-scalein var(--motion-enter)',
             }}
           >
             <div

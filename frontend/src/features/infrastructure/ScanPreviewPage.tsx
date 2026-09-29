@@ -31,6 +31,7 @@ import {
   EmptyState,
   ErrorState,
 } from '../../shared/ui';
+import { TabPanel, Tabs } from '../../shared/ds';
 import { useUIStore } from '../../store/uiStore';
 import { useAuthStore } from '../../hooks/useAuthStore';
 import { useScanPreview } from './useScanner';
@@ -224,218 +225,213 @@ export function ScanPreviewPage() {
         </div>
       )}
 
-      {/* tabs */}
-      <div className="flex items-center gap-1.5 mb-4">
-        {tabs.map((t) => (
-          <button
-            key={t.key}
-            onClick={() => setTab(t.key)}
-            className="h-9 px-3.5 rounded-[10px] text-[13px] font-semibold inline-flex items-center gap-2 transition-all"
-            style={{
-              background: tab === t.key ? 'var(--accent-soft)' : 'transparent',
-              color: tab === t.key ? 'var(--accent)' : 'var(--fg-secondary)',
-              border: `1px solid ${tab === t.key ? 'transparent' : 'var(--border)'}`,
-            }}
-          >
-            <t.icon size={15} /> {t.label}
-            <span
-              className="text-[11px] font-bold px-1.5 py-px rounded-full"
-              style={{ background: 'var(--bg-hover)' }}
-            >
-              {t.n}
-            </span>
-          </button>
-        ))}
-      </div>
+      <Tabs<Tab>
+        id="scan-preview"
+        label={tr('Résultats du scan', 'Scan results')}
+        className="mb-4"
+        value={tab}
+        onChange={setTab}
+        items={tabs.map((t) => ({
+          id: t.key,
+          label: t.label,
+          icon: <t.icon size={15} aria-hidden="true" />,
+          count: t.n,
+        }))}
+      />
 
-      <Card style={{ padding: 0 }}>
-        {tab === 'assets' &&
-          (assets.length === 0 ? (
-            <EmptyState icon={Boxes} title={tr('Aucun actif découvert', 'No assets discovered')} />
-          ) : (
-            <div>
-              <div
-                className="flex items-center gap-3 px-4 py-2.5 text-[11.5px] font-semibold text-ink-soft uppercase tracking-wide"
-                style={{ borderBottom: '1px solid var(--border)' }}
-              >
-                {canImport && (
-                  <input
-                    type="checkbox"
-                    checked={allSelected}
-                    onChange={toggleAll}
-                    className="accent-(--accent)"
-                  />
-                )}
-                <span className="flex-1">{tr('Actif', 'Asset')}</span>
-                <span className="w-24 hidden sm:block">{tr('Type', 'Type')}</span>
-                <span className="w-28">{tr('Criticité', 'Criticality')}</span>
+      <TabPanel tabsId="scan-preview" id={tab} active>
+        <Card style={{ padding: 0 }}>
+          {tab === 'assets' &&
+            (assets.length === 0 ? (
+              <EmptyState
+                icon={Boxes}
+                title={tr('Aucun actif découvert', 'No assets discovered')}
+              />
+            ) : (
+              <div>
+                <div
+                  className="flex items-center gap-3 px-4 py-2.5 text-[11.5px] font-semibold text-ink-soft uppercase tracking-wide"
+                  style={{ borderBottom: '1px solid var(--border)' }}
+                >
+                  {canImport && (
+                    <input
+                      type="checkbox"
+                      checked={allSelected}
+                      onChange={toggleAll}
+                      className="accent-(--accent)"
+                    />
+                  )}
+                  <span className="flex-1">{tr('Actif', 'Asset')}</span>
+                  <span className="w-24 hidden sm:block">{tr('Type', 'Type')}</span>
+                  <span className="w-28">{tr('Criticité', 'Criticality')}</span>
+                </div>
+                {assets.map((a) => {
+                  const inferred = criticalityFromFactor(a.criticality);
+                  const sel = selected[a.external_id];
+                  const crit = sel ?? inferred;
+                  return (
+                    <div
+                      key={a.external_id}
+                      className="flex items-center gap-3 px-4 py-3"
+                      style={{ borderBottom: '1px solid var(--border)' }}
+                    >
+                      {canImport && (
+                        <input
+                          type="checkbox"
+                          checked={!!sel}
+                          onChange={() => toggle(a.external_id, inferred)}
+                          className="accent-(--accent)"
+                        />
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <div className="text-[13px] font-semibold text-ink truncate">
+                          {a.name || a.external_id}
+                        </div>
+                        <div className="text-[11.5px] text-ink-soft truncate">
+                          {[a.ip, a.os, a.environment].filter(Boolean).join(' · ') || a.external_id}
+                          {a.cpe?.length ? ` · ${a.cpe.length} CPE` : ''}
+                        </div>
+                      </div>
+                      <span className="w-24 hidden sm:block text-[12px] text-ink-soft truncate">
+                        {a.type}
+                      </span>
+                      <div className="w-28">
+                        {canImport && sel ? (
+                          <select
+                            value={crit}
+                            onChange={(e) =>
+                              setCrit(a.external_id, e.target.value as AssetCriticality)
+                            }
+                            className="text-[12px] font-semibold rounded-lg px-2 py-1.5 w-full"
+                            style={{
+                              background: 'var(--bg-elevated)',
+                              border: `1px solid ${CRIT_COLOR[crit]}`,
+                              color: CRIT_COLOR[crit],
+                            }}
+                          >
+                            {CRITS.map((c) => (
+                              <option key={c} value={c}>
+                                {c}
+                              </option>
+                            ))}
+                          </select>
+                        ) : (
+                          <span
+                            className="inline-flex items-center gap-1.5 text-[11.5px] font-semibold px-2 py-1 rounded-full"
+                            style={{
+                              color: CRIT_COLOR[inferred],
+                              background: `color-mix(in srgb,${CRIT_COLOR[inferred]} 14%,transparent)`,
+                            }}
+                          >
+                            <span
+                              className="w-1.5 h-1.5 rounded-full"
+                              style={{ background: CRIT_COLOR[inferred] }}
+                            />
+                            {inferred}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
-              {assets.map((a) => {
-                const inferred = criticalityFromFactor(a.criticality);
-                const sel = selected[a.external_id];
-                const crit = sel ?? inferred;
-                return (
+            ))}
+
+          {tab === 'findings' &&
+            (findings.length === 0 ? (
+              <EmptyState icon={Bug} title={tr('Aucune vulnérabilité', 'No findings')} />
+            ) : (
+              <div>
+                {findings.map((f, i) => (
                   <div
-                    key={a.external_id}
-                    className="flex items-center gap-3 px-4 py-3"
+                    key={`${f.asset_external_id}-${f.cve ?? f.title}-${i}`}
+                    className="flex items-start gap-3 px-4 py-3.5"
                     style={{ borderBottom: '1px solid var(--border)' }}
                   >
-                    {canImport && (
-                      <input
-                        type="checkbox"
-                        checked={!!sel}
-                        onChange={() => toggle(a.external_id, inferred)}
-                        className="accent-(--accent)"
-                      />
-                    )}
+                    <span
+                      className="mt-1.5 w-2 h-2 rounded-full shrink-0"
+                      style={{ background: severityColor(f.severity) }}
+                    />
                     <div className="min-w-0 flex-1">
-                      <div className="text-[13px] font-semibold text-ink truncate">
-                        {a.name || a.external_id}
-                      </div>
-                      <div className="text-[11.5px] text-ink-soft truncate">
-                        {[a.ip, a.os, a.environment].filter(Boolean).join(' · ') || a.external_id}
-                        {a.cpe?.length ? ` · ${a.cpe.length} CPE` : ''}
-                      </div>
-                    </div>
-                    <span className="w-24 hidden sm:block text-[12px] text-ink-soft truncate">
-                      {a.type}
-                    </span>
-                    <div className="w-28">
-                      {canImport && sel ? (
-                        <select
-                          value={crit}
-                          onChange={(e) =>
-                            setCrit(a.external_id, e.target.value as AssetCriticality)
-                          }
-                          className="text-[12px] font-semibold rounded-lg px-2 py-1.5 w-full"
-                          style={{
-                            background: 'var(--bg-elevated)',
-                            border: `1px solid ${CRIT_COLOR[crit]}`,
-                            color: CRIT_COLOR[crit],
-                          }}
-                        >
-                          {CRITS.map((c) => (
-                            <option key={c} value={c}>
-                              {c}
-                            </option>
-                          ))}
-                        </select>
-                      ) : (
-                        <span
-                          className="inline-flex items-center gap-1.5 text-[11.5px] font-semibold px-2 py-1 rounded-full"
-                          style={{
-                            color: CRIT_COLOR[inferred],
-                            background: `color-mix(in srgb,${CRIT_COLOR[inferred]} 14%,transparent)`,
-                          }}
-                        >
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-[13px] font-semibold text-ink">{f.title}</span>
+                        {f.cve && (
                           <span
-                            className="w-1.5 h-1.5 rounded-full"
-                            style={{ background: CRIT_COLOR[inferred] }}
-                          />
-                          {inferred}
-                        </span>
-                      )}
+                            className="mono text-[11px] font-semibold px-1.5 py-px rounded"
+                            style={{ background: 'var(--bg-hover)', color: 'var(--fg-secondary)' }}
+                          >
+                            {f.cve}
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-[11.5px] text-ink-soft mt-0.5">
+                        {f.asset_external_id} · {f.evidence}
+                      </div>
                     </div>
+                    <span
+                      className="text-[11px] font-semibold uppercase shrink-0"
+                      style={{ color: severityColor(f.severity) }}
+                    >
+                      {f.severity}
+                    </span>
                   </div>
-                );
-              })}
-            </div>
-          ))}
+                ))}
+              </div>
+            ))}
 
-        {tab === 'findings' &&
-          (findings.length === 0 ? (
-            <EmptyState icon={Bug} title={tr('Aucune vulnérabilité', 'No findings')} />
-          ) : (
-            <div>
-              {findings.map((f, i) => (
-                <div
-                  key={`${f.asset_external_id}-${f.cve ?? f.title}-${i}`}
-                  className="flex items-start gap-3 px-4 py-3.5"
-                  style={{ borderBottom: '1px solid var(--border)' }}
-                >
-                  <span
-                    className="mt-1.5 w-2 h-2 rounded-full shrink-0"
-                    style={{ background: severityColor(f.severity) }}
-                  />
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-[13px] font-semibold text-ink">{f.title}</span>
-                      {f.cve && (
-                        <span
-                          className="mono text-[11px] font-semibold px-1.5 py-px rounded"
-                          style={{ background: 'var(--bg-hover)', color: 'var(--fg-secondary)' }}
-                        >
-                          {f.cve}
-                        </span>
-                      )}
-                    </div>
-                    <div className="text-[11.5px] text-ink-soft mt-0.5">
-                      {f.asset_external_id} · {f.evidence}
-                    </div>
-                  </div>
-                  <span
-                    className="text-[11px] font-semibold uppercase shrink-0"
-                    style={{ color: severityColor(f.severity) }}
-                  >
-                    {f.severity}
-                  </span>
-                </div>
-              ))}
-            </div>
-          ))}
-
-        {tab === 'mitigations' &&
-          (mitigations.length === 0 ? (
-            <EmptyState
-              icon={Wrench}
-              title={tr('Aucune mitigation détectée', 'No auto-mitigations')}
-              description={tr(
-                'Comparé au scan précédent de cette config.',
-                'Compared against the previous scan of this config.',
-              )}
-            />
-          ) : (
-            <div>
-              {mitigations.map((mit, i) => (
-                <div
-                  key={`${mit.asset_external_id}-${mit.cve ?? mit.title}-${i}`}
-                  className="flex items-start gap-3 px-4 py-3.5"
-                  style={{ borderBottom: '1px solid var(--border)' }}
-                >
+          {tab === 'mitigations' &&
+            (mitigations.length === 0 ? (
+              <EmptyState
+                icon={Wrench}
+                title={tr('Aucune mitigation détectée', 'No auto-mitigations')}
+                description={tr(
+                  'Comparé au scan précédent de cette config.',
+                  'Compared against the previous scan of this config.',
+                )}
+              />
+            ) : (
+              <div>
+                {mitigations.map((mit, i) => (
                   <div
-                    className="mt-0.5 w-6 h-6 rounded-lg flex items-center justify-center shrink-0"
-                    style={{
-                      background: 'color-mix(in srgb,var(--low) 15%,transparent)',
-                      color: 'var(--low)',
-                    }}
+                    key={`${mit.asset_external_id}-${mit.cve ?? mit.title}-${i}`}
+                    className="flex items-start gap-3 px-4 py-3.5"
+                    style={{ borderBottom: '1px solid var(--border)' }}
                   >
-                    <Check size={14} />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-[13px] font-semibold text-ink">{mit.title}</span>
-                      {mit.cve && (
-                        <span
-                          className="mono text-[11px] font-semibold px-1.5 py-px rounded"
-                          style={{ background: 'var(--bg-hover)', color: 'var(--fg-secondary)' }}
-                        >
-                          {mit.cve}
-                        </span>
-                      )}
+                    <div
+                      className="mt-0.5 w-6 h-6 rounded-lg flex items-center justify-center shrink-0"
+                      style={{
+                        background: 'color-mix(in srgb,var(--low) 15%,transparent)',
+                        color: 'var(--low)',
+                      }}
+                    >
+                      <Check size={14} />
                     </div>
-                    <div className="text-[11.5px] text-ink-soft mt-0.5">{mit.evidence}</div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-[13px] font-semibold text-ink">{mit.title}</span>
+                        {mit.cve && (
+                          <span
+                            className="mono text-[11px] font-semibold px-1.5 py-px rounded"
+                            style={{ background: 'var(--bg-hover)', color: 'var(--fg-secondary)' }}
+                          >
+                            {mit.cve}
+                          </span>
+                        )}
+                      </div>
+                      <div className="text-[11.5px] text-ink-soft mt-0.5">{mit.evidence}</div>
+                    </div>
+                    <span
+                      className="text-[11px] font-semibold shrink-0"
+                      style={{ color: 'var(--low)' }}
+                    >
+                      {tr('Résolu', 'Resolved')}
+                    </span>
                   </div>
-                  <span
-                    className="text-[11px] font-semibold shrink-0"
-                    style={{ color: 'var(--low)' }}
-                  >
-                    {tr('Résolu', 'Resolved')}
-                  </span>
-                </div>
-              ))}
-            </div>
-          ))}
-      </Card>
+                ))}
+              </div>
+            ))}
+        </Card>
+      </TabPanel>
     </PageFrame>
   );
 }
