@@ -188,6 +188,33 @@ layer(base);
       transform: scale(1);
     }
   }
+  /* Notif panel open/close (#751 phase 4). A keyframe, not a transition,
+     because it has to play on the panel's very first paint (it mounts already
+     open) as well as on a later close — a `transition` only interpolates
+     between two already-rendered states, so it never plays on insertion.
+     Flipping which animation-name applies (base rule vs [data-open='true'])
+     restarts the animation fresh each time, which is what gives the "close"
+     leg its own timing distinct from "open" (see .notif-panel below). */
+  @keyframes or-notif-enter {
+    from {
+      opacity: 0;
+      transform: scale(0.96) translateY(-4px);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1) translateY(0);
+    }
+  }
+  @keyframes or-notif-exit {
+    from {
+      opacity: 1;
+      transform: scale(1) translateY(0);
+    }
+    to {
+      opacity: 0;
+      transform: scale(0.96) translateY(-4px);
+    }
+  }
   @keyframes or-spin {
     to {
       transform: rotate(360deg);
@@ -364,6 +391,19 @@ layer(base);
     transition:
       opacity var(--motion-enter),
       transform var(--motion-enter);
+  }
+
+  /* Notif panel (#751 phase 4). Replaces the hard-coded `or-scalein .16s`
+     inline style: same idea (scale in from the corner it's anchored to), but
+     timed on the shared motion tokens and with a real close leg. useExitTimer
+     keeps the panel mounted for --dur-fast after `open` goes false so this
+     exit animation has a frame to play before AppHeader stops rendering it. */
+  .notif-panel {
+    transform-origin: top right;
+    animation: or-notif-exit var(--motion-exit) both;
+  }
+  .notif-panel[data-open='true'] {
+    animation: or-notif-enter var(--motion-enter) both;
   }
 }
 

@@ -13,10 +13,10 @@
 // which claimed "Realtime" on every tenant regardless of anything, is now a real
 // connection indicator driven by lib/connection.
 
-import { useSyncExternalStore, useState, useEffect } from 'react';
+import { useSyncExternalStore, useState, useEffect, useId, useRef } from 'react';
 import { useNavigate } from 'react-router';
 import { Search, Bell, Sun, Moon, Menu, Rows2, Rows3, Rows4, Keyboard } from 'lucide-react';
-import { cn } from '../../shared/ds';
+import { cn, useDismissableLayer, useExitTimer } from '../../shared/ds';
 import { useUIStore } from '../../store/uiStore';
 import { useUIStrings } from '../../shared/uiStrings';
 import { Hint } from '../../shared/Hint';
@@ -54,6 +54,9 @@ interface AppHeaderProps {
 const iconBtn =
   'w-9 h-9 rounded-[9px] flex items-center justify-center text-ink-muted hover:bg-hover hover:text-ink transition-colors';
 
+/** Matches --dur-fast (src/styles/primitives.css) — the notif panel's exit. */
+const NOTIF_EXIT_MS = 120;
+
 export const AppHeader = ({ onOpenMobileNav }: AppHeaderProps) => {
   const setCmdkOpen = useUIStore((s) => s.setCmdkOpen);
   const toggleTheme = useUIStore((s) => s.toggleTheme);
@@ -78,6 +81,10 @@ export const AppHeader = ({ onOpenMobileNav }: AppHeaderProps) => {
     spacious: { Icon: Rows2, label: lang === 'fr' ? 'Densité : Spacieux' : 'Density: Spacious' },
   }[density];
   const [notifOpen, setNotifOpen] = useState(false);
+  // The panel keeps rendering for --dur-fast after notifOpen goes false, so
+  // its close animation (see .notif-panel in index.css) gets a frame to play
+  // instead of the panel just vanishing.
+  const notifMounted = useExitTimer(notifOpen, NOTIF_EXIT_MS);
   const { count: unreadCount, isFetched: unreadFetched } = useUnreadCount();
   // Gates the badge's entrance animation on the query's own data identity
   // rather than on this component's mount (#751 phase 4 spec, "armed follows
@@ -208,7 +215,7 @@ export const AppHeader = ({ onOpenMobileNav }: AppHeaderProps) => {
             <Bell size={18} strokeWidth={1.7} />
             <NotifBadge count={unreadCount} armed={badgeArmed} />
           </button>
-          {notifOpen && <NotifPanel onClose={() => setNotifOpen(false)} />}
+          {notifMounted && <NotifPanel open={notifOpen} onClose={() => setNotifOpen(false)} />}
         </div>
 
         <button onClick={toggleTheme} className={iconBtn} title="Theme" aria-label="Toggle theme">
@@ -276,7 +283,7 @@ function useArmedBadge(isFetched: boolean): boolean {
 // Reads the real /notifications feed. This panel used to render four invented
 // notifications on every tenant, which is how a fresh install came to report
 // incidents it had never had.
-function NotifPanel({ onClose }: { onClose: () => void }) {
+function NotifPanel({ open, onClose }: { open: boolean; onClose: () => void }) {
   const L = useUIStrings();
   const lang = useUIStore((s) => s.lang);
   const navigate = useNavigate();
@@ -284,6 +291,12 @@ function NotifPanel({ onClose }: { onClose: () => void }) {
   const [filter, setFilter] = useState<NotifCategory | 'all'>('all');
   const { notifications, isLoading, isError } = useNotifications(20);
   const { markRead, markAllRead } = useNotificationActions();
+  const titleId = useId();
+  const panelRef = useRef<HTMLDivElement>(null);
+  // Escape closes and returns focus to the bell; Tab is trapped inside while
+  // open. `lockScroll: false` — this is a popover over content, not a modal,
+  // so the page behind stays scrollable (ux spec: adopt useDismissableLayer).
+  useDismissableLayer(panelRef, { open, onClose, closeOnEscape: true, lockScroll: false });
 
   const items = notifications.map((n) => {
     const category = categoryForType(n.type);
@@ -322,12 +335,19 @@ function NotifPanel({ onClose }: { onClose: () => void }) {
       {/* invisible backdrop closes on outside click */}
       <div className="fixed inset-0 z-65" onClick={onClose} />
       <div
+        ref={panelRef}
         onClick={(e) => e.stopPropagation()}
-        className="glass-strong absolute top-[44px] right-0 w-[352px] rounded-[16px] overflow-hidden shadow-card-lg z-70"
-        style={{ animation: 'or-scalein .16s cubic-bezier(.2,.8,.2,1)' }}
+        data-open={open}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        tabIndex={-1}
+        className="notif-panel glass-strong absolute top-[44px] right-0 w-[352px] rounded-[16px] overflow-hidden shadow-card-lg z-70 outline-none"
       >
         <div className="flex items-center justify-between px-[17px] py-[15px] border-b border-border">
-          <span className="text-[14px] font-semibold text-ink">{L.notifTitle}</span>
+          <span id={titleId} className="text-[14px] font-semibold text-ink">
+            {L.notifTitle}
+          </span>
           {items.some((it) => it.unread) && (
             <button
               onClick={() => markAllRead.mutate()}
