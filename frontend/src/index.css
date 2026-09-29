@@ -562,3 +562,45 @@ layer(base);
 .or-den-rows td {
   padding-block: var(--den-cell-y) !important;
 }
+
+/* ── Toasts (#751 phase 4) — restyle sonner, don't replace it ────────────
+   Sonner ships its own unlayered stylesheet (injected at runtime, outside any
+   @layer), so a Tailwind utility living in @layer utilities would lose to it
+   regardless of source order — cascade layers always lose to unlayered rules.
+   These overrides are therefore plain CSS too, with one extra class
+   (`.or-toast` etc., via ThemedToaster's `toastOptions.classNames`) added to
+   push specificity above sonner's own `[data-sonner-toast][data-styled='true']`
+   (0,2,0) so ours (0,3,0) wins outright, no !important, no ordering games.
+
+   Only surface (background/border/radius/shadow) and type/text sizing are
+   touched. `transform`/`opacity` are deliberately left alone: sonner computes
+   them from --y, which also encodes the multi-toast stack offset (lift,
+   gap, expanded state) — overwriting that value to get a flat "8px rise"
+   would break the stack, not just the motion. What IS overridden is the
+   DURATION/EASING those properties transition on, via --motion-enter/-exit
+   in place of sonner's flat 400ms — see .or-toast below. */
+[data-sonner-toast][data-styled='true'].or-toast {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: var(--elev-3);
+}
+[data-sonner-toast].or-toast {
+  transition-duration: var(--dur-base);
+  transition-timing-function: var(--ease-out);
+}
+[data-sonner-toast][data-removed='true'].or-toast {
+  transition-duration: var(--dur-fast);
+  transition-timing-function: var(--ease-in);
+}
+[data-sonner-toast][data-styled='true'].or-toast [data-title].or-toast-title {
+  font-size: var(--text-base);
+  font-weight: 600;
+}
+[data-sonner-toast][data-styled='true'].or-toast [data-description].or-toast-description {
+  font-size: var(--text-sm);
+  color: var(--fg-secondary);
+}
+[data-sonner-toast][data-styled='true'].or-toast [data-icon].or-toast-icon {
+  margin-top: 1px;
+}
