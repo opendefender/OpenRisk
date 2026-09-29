@@ -339,6 +339,32 @@ layer(base);
     color: var(--low);
     background: color-mix(in srgb, var(--low) 15%, transparent);
   }
+
+  /* Notification bell badge (#751 phase 4). Exit values live on the base
+     rule, enter values override them on the armed+visible state — the same
+     asymmetric-duration technique the rest of the CSS-only motion uses (a
+     transition takes its duration/easing from the state being entered, not
+     the one being left), so one declaration block covers both directions
+     with no JS. Reduced motion is free: the global `* { transition: none }`
+     rule below still wins regardless of which state supplied the duration. */
+  .notif-badge {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  .notif-badge[data-armed='true'] {
+    transition:
+      opacity var(--motion-exit),
+      transform var(--motion-exit);
+  }
+  .notif-badge[data-visible='true'] {
+    opacity: 1;
+    transform: scale(1);
+  }
+  .notif-badge[data-armed='true'][data-visible='true'] {
+    transition:
+      opacity var(--motion-enter),
+      transform var(--motion-enter);
+  }
 }
 
 /* ── Elevated primitives (docs/UI_ELEVATION_PROPOSAL.md §5/§6/§7) ─────────── */

@@ -13,7 +13,7 @@
 // which claimed "Realtime" on every tenant regardless of anything, is now a real
 // connection indicator driven by lib/connection.
 
-import { useSyncExternalStore, useState } from 'react';
+import { useSyncExternalStore, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import { Search, Bell, Sun, Moon, Menu, Rows2, Rows3, Rows4, Keyboard } from 'lucide-react';
 import { cn } from '../../shared/ds';
@@ -78,7 +78,13 @@ export const AppHeader = ({ onOpenMobileNav }: AppHeaderProps) => {
     spacious: { Icon: Rows2, label: lang === 'fr' ? 'Densité : Spacieux' : 'Density: Spacious' },
   }[density];
   const [notifOpen, setNotifOpen] = useState(false);
-  const unreadCount = useUnreadCount();
+  const { count: unreadCount, isFetched: unreadFetched } = useUnreadCount();
+  // Gates the badge's entrance animation on the query's own data identity
+  // rather than on this component's mount (#751 phase 4 spec, "armed follows
+  // data identity"). Otherwise a page load — where unreadCount goes from
+  // nothing to a real number in the very first render pass — would always
+  // play the "just arrived" entrance, on every tenant, on every login.
+  const badgeArmed = useArmedBadge(unreadFetched);
 
   return (
     <header className="h-[58px] shrink-0 flex items-center gap-3 px-3 sm:px-[18px] border-b border-border sticky top-0 z-50 glass">
@@ -184,17 +190,23 @@ export const AppHeader = ({ onOpenMobileNav }: AppHeaderProps) => {
             onClick={() => setNotifOpen((v) => !v)}
             className={cn(iconBtn, 'relative')}
             title={L.notifTitle}
-            aria-label={L.notifTitle}
+            // The count is real server data (polled, never invented), so the
+            // accessible name carries it — the true number, not the "9+" the
+            // badge caps its own text at. A screen-reader user is entitled to
+            // "142 unread", the same information a sighted user reads off the
+            // badge glyph itself.
+            aria-label={
+              unreadCount > 0
+                ? lang === 'fr'
+                  ? `Notifications, ${unreadCount} non lues`
+                  : `Notifications, ${unreadCount} unread`
+                : L.notifTitle
+            }
+            aria-expanded={notifOpen}
+            aria-haspopup="dialog"
           >
             <Bell size={18} strokeWidth={1.7} />
-            {/* Lit only when the server reports unread items. This was static
-                markup, so it glowed on tenants with no notifications at all. */}
-            {unreadCount > 0 && (
-              <span
-                className="absolute top-[5px] right-[5px] w-[7px] h-[7px] rounded-full"
-                style={{ background: 'var(--critical)', border: '1.5px solid var(--glass)' }}
-              />
-            )}
+            <NotifBadge count={unreadCount} armed={badgeArmed} />
           </button>
           {notifOpen && <NotifPanel onClose={() => setNotifOpen(false)} />}
         </div>
@@ -210,6 +222,55 @@ export const AppHeader = ({ onOpenMobileNav }: AppHeaderProps) => {
     </header>
   );
 };
+
+/* ---------- Notification badge (#751 phase 4) ---------- */
+// Replaces the old presence dot: the server already sends a real integer
+// (useUnreadCount), so throwing it away and drawing a dot invented nothing —
+// it just hid data the API already provides. Capped at "9+" for the glyph
+// itself; the bell's aria-label above carries the true number regardless of
+// the cap.
+//
+// Motion: always mounted, gated by data-armed/data-visible (see .notif-badge
+// in index.css) rather than a JS timer, so a poll that repeats the same count
+// is structurally silent — no attribute changes, so no transition fires.
+function NotifBadge({ count, armed }: { count: number; armed: boolean }) {
+  const visible = count > 0;
+  return (
+    <span
+      aria-hidden="true"
+      data-armed={armed}
+      data-visible={visible}
+      className="notif-badge absolute top-[4px] right-[4px] min-w-[16px] h-[16px] px-1 rounded-full flex items-center justify-center text-[11px] font-semibold tabular-nums"
+      style={{
+        background: 'var(--accent-solid)',
+        color: 'var(--fg-on-solid)',
+        boxShadow: '0 0 0 2px var(--glass)',
+      }}
+    >
+      {count > 9 ? '9+' : count}
+    </span>
+  );
+}
+
+/**
+ * True once `useUnreadCount`'s first fetch has resolved, flipped a macrotask
+ * later so the browser always paints one "unarmed" frame before it — even
+ * when the query resolves from cache and `isFetched` is already true on the
+ * very first render. Without that deferral, mount and "armed" would land in
+ * the same paint and the badge's very first appearance would animate exactly
+ * like every later one, which is what the spec forbids ("no animation on
+ * first data"). Not a visual duration, so no prefers-reduced-motion branch —
+ * it gates a state, not a timing.
+ */
+function useArmedBadge(isFetched: boolean): boolean {
+  const [armed, setArmed] = useState(false);
+  useEffect(() => {
+    if (armed || !isFetched) return;
+    const timer = setTimeout(() => setArmed(true), 0);
+    return () => clearTimeout(timer);
+  }, [armed, isFetched]);
+  return armed;
+}
 
 /* ---------- Notifications panel (glass, anchored right) ---------- */
 // Reads the real /notifications feed. This panel used to render four invented
@@ -283,7 +344,8 @@ function NotifPanel({ onClose }: { onClose: () => void }) {
           <div className="flex gap-1.5 px-[15px] py-2.5 border-b border-border overflow-x-auto">
             {cats.map((c) => {
               const active = filter === c;
-              const label = c === 'all' ? tr('Tout', 'All') : pickLocalized(lang, categoryMeta(c).label);
+              const label =
+                c === 'all' ? tr('Tout', 'All') : pickLocalized(lang, categoryMeta(c).label);
               return (
                 <button
                   key={c}

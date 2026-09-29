@@ -21,15 +21,26 @@ export function useNotifications(limit = 20) {
   return { notifications: data ?? [], isLoading, isError };
 }
 
-export function useUnreadCount() {
-  const { data } = useQuery({
+export interface UnreadCount {
+  count: number;
+  /**
+   * True once this query's first fetch has resolved (cache hit or network),
+   * false on every render before that. The bell badge gates its entrance
+   * animation on this rather than on its own mount, so a page load never
+   * "arrives" visually — see AppHeader's useArmedBadge (#751 phase 4).
+   */
+  isFetched: boolean;
+}
+
+export function useUnreadCount(): UnreadCount {
+  const { data, isFetched } = useQuery({
     queryKey: UNREAD_KEY,
     queryFn: () => notificationService.unreadCount(),
     refetchInterval: 60_000,
   });
   // 0 until the server says otherwise. The bell's unread dot used to be a static
   // element in the markup, so it was lit on a tenant with no notifications at all.
-  return data ?? 0;
+  return { count: data ?? 0, isFetched };
 }
 
 export function useNotificationActions() {
