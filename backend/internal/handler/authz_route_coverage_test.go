@@ -337,3 +337,26 @@ func TestProtectedRoutes_MostRoutesCarryAPermissionGuard(t *testing.T) {
 	assert.Greater(t, guarded*100/len(routes), 60,
 		"fewer than 60%% of protected routes carry a permission guard — something was dropped wholesale")
 }
+
+// #807 — these routes wrote the global users row, so an administrator of one
+// organization could deactivate or delete a person in every organization they
+// belong to. They were removed, not guarded; per-organization role and status
+// live on /organization/members/:memberId. Mounting any of them again, under
+// any guard, fails here.
+var removedGlobalAccountRoutes = []string{
+	"PATCH /users/:id/status",
+	"PATCH /users/:id/role",
+	"DELETE /users/:id",
+}
+
+func TestProtectedRoutes_GlobalAccountWritesStayRemoved(t *testing.T) {
+	mounted := map[string]bool{}
+	for _, r := range parseProtectedRoutes(t) {
+		mounted[routeKey(r)] = true
+	}
+	for _, k := range removedGlobalAccountRoutes {
+		assert.False(t, mounted[k], "%s acts on the global account, not the caller's membership (#807)", k)
+	}
+	// Guard against a parser that silently matches nothing.
+	assert.True(t, mounted["GET /users"], "the parser no longer sees the /users block")
+}
