@@ -7,6 +7,11 @@
 // policy, as registration and reset: a password this card calls acceptable is
 // one the API accepts. The current password is the proof of identity, so a
 // wrong one is reported on that field and nowhere else.
+//
+// An account that signs in through an identity provider has no password here
+// (#850): it is told so up front instead of being handed a form that can only
+// fail. If that cannot be read, the form shows and the server's
+// no_local_password answer switches the card, as before.
 
 import { useState } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
@@ -18,11 +23,13 @@ import { toast } from 'sonner';
 import { useNavigate } from 'react-router';
 
 import { Button, Field, Input, useSuccessFeedback } from '../../shared/ds';
+import { SkeletonRows } from '../../shared/ui';
 import { useUIStore } from '../../store/uiStore';
 import { useI18n } from '../../hooks/useI18n';
 import { useAuthStore } from '../../hooks/useAuthStore';
 import { setAccessToken } from '../../lib/session';
 import { PasswordStrength } from './PasswordStrength';
+import { useHasLocalPassword } from './useHasLocalPassword';
 import {
   changePassword,
   type ChangePasswordErrorBody,
@@ -59,7 +66,10 @@ export function ChangePasswordCard() {
   const [visible, setVisible] = useState(false);
   const [acceptable, setAcceptable] = useState(false);
   const [assessment, setAssessment] = useState<PasswordAssessment | null>(null);
-  const [managedByIdp, setManagedByIdp] = useState<string | null>(null);
+  const [refusedByServer, setRefusedByServer] = useState<string | null>(null);
+  const hasPassword = useHasLocalPassword();
+  // The server's own refusal wins; otherwise what /auth/me said.
+  const managedByIdp = refusedByServer ?? (hasPassword.data === false ? '' : null);
   const { feedback, flashSuccess } = useSuccessFeedback();
 
   const {
@@ -107,7 +117,7 @@ export function ChangePasswordCard() {
           setError('next', { message: body.error });
           return;
         case 'no_local_password':
-          setManagedByIdp(body.error ?? '');
+          setRefusedByServer(body.error ?? '');
           return;
         default:
           if (isAxiosError(err) && err.response?.status === 429) {
@@ -138,10 +148,12 @@ export function ChangePasswordCard() {
         <h3 id="change-password-title" className="text-[14px] font-semibold text-ink">
           {t('accountSecurity.title')}
         </h3>
-        {!managedByIdp && toggle}
+        {managedByIdp === null && !hasPassword.isLoading && toggle}
       </div>
 
-      {managedByIdp !== null ? (
+      {hasPassword.isLoading && refusedByServer === null ? (
+        <SkeletonRows rows={3} height={36} />
+      ) : managedByIdp !== null ? (
         <p
           className="text-[12.5px] text-ink-soft leading-relaxed"
           data-testid="password-managed-by-idp"
