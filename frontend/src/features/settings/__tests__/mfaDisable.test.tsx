@@ -23,10 +23,15 @@ vi.mock('../../auth/mfaPolicyService', async () => {
 });
 
 const disableMFA = vi.fn();
+const fetchDisableMFAProof = vi.fn();
 vi.mock('../../auth/authService', async () => {
   const actual =
     await vi.importActual<typeof import('../../auth/authService')>('../../auth/authService');
-  return { ...actual, disableMFA: (...a: unknown[]) => disableMFA(...a) };
+  return {
+    ...actual,
+    disableMFA: (...a: unknown[]) => disableMFA(...a),
+    fetchDisableMFAProof: (...a: unknown[]) => fetchDisableMFAProof(...a),
+  };
 });
 
 vi.mock('../../../hooks/useAuthStore', () => ({
@@ -82,6 +87,7 @@ async function openDialog() {
 beforeEach(() => {
   vi.clearAllMocks();
   fetchMFAStatus.mockResolvedValue(status());
+  fetchDisableMFAProof.mockResolvedValue('password');
 });
 
 describe('turning MFA off', () => {
@@ -154,7 +160,10 @@ describe('turning MFA off', () => {
     await userEvent.click(screen.getByTestId('mfa-disable-submit'));
 
     await waitFor(() =>
-      expect(disableMFA).toHaveBeenCalledWith('Ancre-Vitrail7-Cobalt', expect.any(String)),
+      expect(disableMFA).toHaveBeenCalledWith(
+        { password: 'Ancre-Vitrail7-Cobalt' },
+        expect.any(String),
+      ),
     );
     await waitFor(() =>
       expect(screen.queryByTestId('mfa-disable-password')).not.toBeInTheDocument(),
@@ -163,5 +172,66 @@ describe('turning MFA off', () => {
     expect(
       await screen.findByRole('button', { name: /enable mfa|activer le mfa/i }),
     ).toBeInTheDocument();
+  });
+
+  describe('an account that signs in through an identity provider', () => {
+    it('asks for an authenticator code, not a password, and sends the code', async () => {
+      fetchDisableMFAProof.mockResolvedValue('code');
+      disableMFA.mockResolvedValue({ message: 'Two-factor authentication turned off.' });
+      renderPanel();
+      await userEvent.click(await screen.findByTestId('mfa-disable-open'));
+
+      const code = await screen.findByTestId('mfa-disable-code');
+      expect(screen.queryByTestId('mfa-disable-password')).not.toBeInTheDocument();
+      await userEvent.type(code, '123456');
+      await userEvent.click(screen.getByTestId('mfa-disable-submit'));
+
+      await waitFor(() =>
+        expect(disableMFA).toHaveBeenCalledWith({ code: '123456' }, expect.any(String)),
+      );
+    });
+
+    it('sends nothing until the code has six digits', async () => {
+      fetchDisableMFAProof.mockResolvedValue('code');
+      renderPanel();
+      await userEvent.click(await screen.findByTestId('mfa-disable-open'));
+      await userEvent.type(await screen.findByTestId('mfa-disable-code'), '123');
+
+      await userEvent.click(screen.getByTestId('mfa-disable-submit'));
+
+      expect((await screen.findByRole('alert')).textContent).toMatch(/6-digit code|6 chiffres/i);
+      expect(disableMFA).not.toHaveBeenCalled();
+    });
+
+    it('reports a wrong code on the code field', async () => {
+      fetchDisableMFAProof.mockResolvedValue('code');
+      disableMFA.mockRejectedValue(refusal('wrong_code', 'Incorrect code.', 401));
+      renderPanel();
+      await userEvent.click(await screen.findByTestId('mfa-disable-open'));
+      await userEvent.type(await screen.findByTestId('mfa-disable-code'), '000000');
+
+      await userEvent.click(screen.getByTestId('mfa-disable-submit'));
+
+      expect(await screen.findByText('Incorrect code.')).toBeInTheDocument();
+      expect(disableMFA).toHaveBeenCalledTimes(1);
+    });
+
+    it('switches to the code when the server says the account has no password', async () => {
+      // /auth/me could not be read, so the dialog guessed "password".
+      fetchDisableMFAProof.mockRejectedValue(new Error('offline'));
+      disableMFA.mockRejectedValue(refusal('wrong_code', 'Incorrect code.', 401));
+      renderPanel();
+      await userEvent.click(await screen.findByTestId('mfa-disable-open'));
+      // One retry (1 s) before the dialog falls back to asking for a password.
+      await userEvent.type(
+        await screen.findByTestId('mfa-disable-password', {}, { timeout: 3000 }),
+        'not-mine',
+      );
+
+      await userEvent.click(screen.getByTestId('mfa-disable-submit'));
+
+      expect(await screen.findByTestId('mfa-disable-code')).toBeInTheDocument();
+      expect(screen.queryByTestId('mfa-disable-password')).not.toBeInTheDocument();
+    });
   });
 });

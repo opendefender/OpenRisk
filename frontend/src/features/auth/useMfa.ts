@@ -5,7 +5,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchMFAStatus, fetchMFAPolicy, saveMFAPolicy, type MFAStatus } from './mfaPolicyService';
-import { disableMFA } from './authService';
+import { disableMFA, fetchDisableMFAProof } from './authService';
 import type { Lang } from '../../store/uiStore';
 
 /** Shared key so any flow that changes MFA state can invalidate the banner. */
@@ -65,8 +65,13 @@ export function useInvalidateMFAStatus() {
 export function useDisableMFA() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ password, locale }: { password: string; locale: Lang }) =>
-      disableMFA(password, locale),
+    mutationFn: ({
+      proof,
+      locale,
+    }: {
+      proof: { password: string } | { code: string };
+      locale: Lang;
+    }) => disableMFA(proof, locale),
     // Never replay: every request is a password guess the server counts against
     // a five-per-quarter-hour budget. The app-wide retry of 3 would spend four
     // of them on one wrong password and lock the user out on their second try.
@@ -77,5 +82,15 @@ export function useDisableMFA() {
       );
       void qc.invalidateQueries({ queryKey: MFA_STATUS_KEY });
     },
+  });
+}
+
+/** Which proof the disable dialog asks for (#754). Read fresh on every open. */
+export function useDisableMFAProof() {
+  return useQuery({
+    queryKey: ['auth', 'mfa-disable-proof'],
+    queryFn: fetchDisableMFAProof,
+    staleTime: 0,
+    retry: 1,
   });
 }
