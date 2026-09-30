@@ -692,7 +692,11 @@ func main() {
 	// MFA use cases + handler.
 	setupMFAUseCase := auth.NewSetupMFAUseCase(mfaRepo, mfaKey[:])
 	verifyMFAUseCase := auth.NewVerifyMFAUseCase(mfaRepo, *userRepo, mfaKey[:])
-	disableMFAUseCase := auth.NewDisableMFAUseCase(mfaRepo, passwordHasher)
+	// #754 — removing the factor re-proves the password, is refused for the
+	// roles login requires MFA for, and mails the owner.
+	disableMFAUseCase := auth.NewDisableMFAUseCase(mfaRepo, userRepo, passwordHasher).
+		RequireMFAForRoles(mfaRequiredRoles, mfaRequiredBusinessRoles).
+		WithMailer(securityMailer)
 	challengeMFAUseCase := auth.NewChallengeMFAUseCase(mfaRepo, mfaKey[:])
 	// OR26-03 — one resolver answers "must this member enrol now?" for /auth/me
 	// and for the request-time guard, so the banner and the enforcement can never
@@ -701,7 +705,9 @@ func main() {
 	mfaStatusResolver := auth.NewMFAStatusResolver(mfaRepo, userRepo, mfaRequiredRoles, mfaRequiredBusinessRoles).
 		WithPolicies(mfaPolicyRepo)
 	mfaHandler := authhandler.NewMFAHandler(setupMFAUseCase, verifyMFAUseCase, disableMFAUseCase, challengeMFAUseCase, tokenManager, userRepo, authAudit).
-		WithMFAStatus(mfaStatusResolver)
+		WithMFAStatus(mfaStatusResolver).
+		// #754 — per-account budget on disabling MFA, shared across instances.
+		WithDisableAttemptLimit(middleware.NewRedisRateLimitStore(redisClientInstance))
 	mfaPolicyHandler := authhandler.NewMFAPolicyHandler(
 		auth.NewGetMFAPolicyUseCase(mfaPolicyRepo, mfaRequiredRoles, mfaRequiredBusinessRoles),
 		auth.NewUpdateMFAPolicyUseCase(mfaPolicyRepo, mfaRequiredRoles, mfaRequiredBusinessRoles).
@@ -1113,7 +1119,8 @@ func main() {
 	mfaEnrollmentGuard := middleware.MFAEnrollmentMiddleware(rsaKeys, jtiBlacklistChecker)
 	api.Post("/auth/mfa/setup", mfaEnrollmentGuard, mfaHandler.Setup)
 	api.Post("/auth/mfa/verify", mfaEnrollmentGuard, mfaHandler.Verify)
-	protected.Post("/auth/mfa/disable", mfaHandler.Disable)
+	// Throttled like /auth/password/change: the body carries a password guess.
+	protected.Post("/auth/mfa/disable", authRateLimit, mfaHandler.Disable)
 
 	// --- MFA policy (OR26-03) — "force MFA after N days" -----------------------
 	// Reading is open to any authenticated member: everyone subject to a deadline
@@ -2245,6 +2252,13 @@ func main() {
 	// --- Notifications (Protected routes) ---
 	notificationRepo := repository.NewNotificationRepository(database.DB)
 	notificationUseCase := notificationapp.NewUseCase(notificationRepo)
+	// #754 — the MFA deactivation notice lands in the bell as well as the inbox.
+	disableMFAUseCase.WithInAppNotifier(func(ctx context.Context, tenantID, userID uuid.UUID, subject, message string) {
+		if err := notificationUseCase.NotifyInApp(userID, tenantID,
+			domain.NotificationTypeMFADisabled, subject, message, nil, ""); err != nil && !errors.Is(err, notificationapp.ErrSuppressed) {
+			zeroLogger.Warn().Err(err).Msg("mfa disable: in-app notification failed")
+		}
+	})
 	notificationHandler := handlers.NewNotificationHandler(notificationUseCase)
 
 	// Attack Surface §4: tell the tenant's admins when the vuln→risk rule

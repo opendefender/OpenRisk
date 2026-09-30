@@ -54,6 +54,8 @@ type deferredFixture struct {
 	keys       *authpkg.RSAKeys
 	policyRepo *repository.GormMFAPolicyRepository
 	resolver   *appauth.MFAStatusResolver
+	// trail captures what the tamper-evident audit middleware would chain.
+	trail *capturedTrail
 
 	now time.Time
 
@@ -173,6 +175,8 @@ func newDeferredFixture(t *testing.T) *deferredFixture {
 	// then the MFA guard reads it, then everything else.
 	protected := api.Use(middleware.Protected(keys, nil))
 	protected.Use(middleware.MFAPolicyGuard(f.resolver))
+	f.trail = &capturedTrail{}
+	protected.Use(middleware.AuditMutations(f.trail))
 
 	protected.Get("/auth/me", h.Me)
 	protected.Get("/security/mfa-policy", policyHandler.Get)
@@ -183,6 +187,13 @@ func newDeferredFixture(t *testing.T) *deferredFixture {
 	protected.Post("/risks", ok)
 	protected.Post("/auth/pat", ok)
 	protected.Post("/auth/mfa/setup", ok)
+	// #754 — the real disable path: use case, handler, repository.
+	disableUC := appauth.NewDisableMFAUseCase(mfaRepo, userRepo, deferredHasher{}).
+		RequireMFAForRoles(orgRoles, businessRoles)
+	mfaHandler := authhandler.NewMFAHandler(nil, nil, disableUC, nil, tokens, userRepo, nil).
+		WithMFAStatus(f.resolver).
+		WithDisableAttemptLimit(middleware.NewRateLimitStore())
+	protected.Post("/auth/mfa/disable", mfaHandler.Disable)
 
 	f.app = app
 	return f

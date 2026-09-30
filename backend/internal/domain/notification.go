@@ -29,6 +29,10 @@ const (
 	// only, with no per-event preference column: Allows lets it through unless
 	// the user silenced everything, as it does risk_review and automation.
 	NotificationTypeVendorAssessmentReminder NotificationType = "vendor_assessment_reminder"
+	// NotificationTypeMFADisabled tells the owner their second factor was
+	// removed (#754). A security notice: someone at an unlocked workstation who
+	// knew the password is exactly who would do this.
+	NotificationTypeMFADisabled NotificationType = "mfa_disabled"
 )
 
 const (

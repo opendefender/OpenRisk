@@ -6,6 +6,9 @@
 package auth
 
 import (
+	"errors"
+	"time"
+
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 
@@ -29,6 +32,25 @@ type MFAHandler struct {
 	// mfaStatus is the cache the request-time guard reads. Optional; when set,
 	// a completed enrolment drops the caller's entry immediately (OR26-03).
 	mfaStatus *appauth.MFAStatusResolver
+	// disableAttempts counts disable attempts per account (#754). Optional.
+	disableAttempts middleware.RateLimitBackend
+}
+
+// Per-account budget for POST /auth/mfa/disable. The per-IP limiter on the
+// route does not stop a session thief who rotates addresses; this does, because
+// the key is the account the stolen session belongs to. Five tries in fifteen
+// minutes is ample for someone who knows their password.
+const (
+	mfaDisableMaxAttempts = 5
+	mfaDisableWindow      = 15 * time.Minute
+)
+
+// WithDisableAttemptLimit counts every disable attempt against the caller's
+// account. Pass the shared (Redis-backed) store so the budget holds across
+// instances.
+func (h *MFAHandler) WithDisableAttemptLimit(store middleware.RateLimitBackend) *MFAHandler {
+	h.disableAttempts = store
+	return h
 }
 
 // WithMFAStatus lets a completed enrolment take effect on the very next request
@@ -158,7 +180,11 @@ func (h *MFAHandler) issueSessionResponse(c *fiber.Ctx, userID uuid.UUID, device
 	return c.JSON(LoginResponse{TokenPair: pair, CSRFToken: csrfToken})
 }
 
-// Disable turns MFA off for the current user.
+// Disable turns MFA off for the current user (#754).
+//
+// The session is not proof enough: the body must carry the current password.
+// Neither the password nor anything derived from it is logged or echoed; audit
+// failures carry a reason code only.
 func (h *MFAHandler) Disable(c *fiber.Ctx) error {
 	userID := ctxUUID(c, "user_id")
 	tenantID := ctxUUID(c, "tenant_id")
@@ -168,18 +194,81 @@ func (h *MFAHandler) Disable(c *fiber.Ctx) error {
 
 	var req struct {
 		Password string `json:"password"`
+		Locale   string `json:"locale,omitempty"`
 	}
-	_ = c.BodyParser(&req)
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request body"})
+	}
+	locale := resolveLocale(c, req.Locale)
 
-	out, err := h.disable.Execute(c.UserContext(), appauth.DisableMFAInput{UserID: userID, TenantID: tenantID, Password: req.Password})
-	if err != nil {
-		return mapAuthError(c, err)
+	orgRole := ""
+	if claims := middleware.GetUserClaims(c); claims != nil {
+		orgRole = claims.OrgRoles[tenantID]
 	}
+
+	fail := func(status int, reason, message string) error {
+		h.logDisable(c, userID, tenantID, false, &reason)
+		return c.Status(status).JSON(fiber.Map{"error": message, "code": reason})
+	}
+
+	// Checked before the password is: a refused attempt must not reach the hasher.
+	if h.disableAttempts != nil &&
+		!h.disableAttempts.IsAllowed("mfa-disable:"+userID.String(), mfaDisableMaxAttempts, mfaDisableWindow) {
+		return fail(fiber.StatusTooManyRequests, "too_many_attempts",
+			pick(locale,
+				"Trop de tentatives. Réessayez dans quelques minutes.",
+				"Too many attempts. Try again in a few minutes."))
+	}
+
+	_, err := h.disable.Execute(c.UserContext(), appauth.DisableMFAInput{
+		UserID:      userID,
+		TenantID:    tenantID,
+		Password:    req.Password,
+		OrgRoleHint: orgRole,
+		Locale:      locale,
+	})
+
+	var appErr *domain.AppError
+	switch {
+	case errors.Is(err, appauth.ErrMFADisablePasswordIncorrect):
+		// 401 without a token error code: the SPA reads that as "this request
+		// was refused", not "your session is over".
+		return fail(fiber.StatusUnauthorized, "wrong_password",
+			pick(locale, "Mot de passe incorrect.", "Incorrect password."))
+	case errors.Is(err, appauth.ErrMFARequiredByRole):
+		return fail(fiber.StatusForbidden, "mfa_required_by_role",
+			pick(locale,
+				"Votre rôle impose la double authentification : elle ne peut pas être désactivée.",
+				"Your role requires two-factor authentication: it cannot be turned off."))
+	case errors.Is(err, appauth.ErrNoLocalPassword):
+		return fail(fiber.StatusConflict, "no_local_password",
+			pick(locale,
+				"Ce compte se connecte via votre fournisseur d'identité et n'a pas de mot de passe à confirmer.",
+				"This account signs in through your identity provider and has no password to confirm."))
+	case errors.As(err, &appErr) && errors.Is(appErr.Err, domain.ErrNotFound):
+		return fail(fiber.StatusNotFound, "not_enrolled",
+			pick(locale, "La double authentification n'est pas activée.", "Two-factor authentication is not enabled."))
+	case errors.As(err, &appErr):
+		return fail(appErr.Code, "rejected", domain.MessageFromError(err))
+	case err != nil:
+		return fail(fiber.StatusInternalServerError, "internal", genericFailure(locale))
+	}
+
+	h.logDisable(c, userID, tenantID, true, nil)
 	// Turning MFA off must re-arm the requirement immediately: a privileged
 	// account that disables its authenticator past the deadline has to be
 	// stopped on its next request, not after the cache expires.
 	h.mfaStatus.Invalidate(userID, tenantID)
-	return c.JSON(out)
+	return c.JSON(fiber.Map{
+		"message": pick(locale, "Double authentification désactivée.", "Two-factor authentication turned off."),
+	})
+}
+
+func (h *MFAHandler) logDisable(c *fiber.Ctx, userID, tenantID uuid.UUID, success bool, reason *string) {
+	if h.audit == nil {
+		return
+	}
+	_ = h.audit.LogFiber(c, &userID, &tenantID, coreauth.AuditActionMfaDisable, success, reason)
 }
 
 // Challenge is the second leg of an MFA login. It is reached with an
