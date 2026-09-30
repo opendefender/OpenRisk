@@ -186,8 +186,13 @@ func (uc *VerifyMFAUseCase) Execute(ctx context.Context, input VerifyMFAInput) (
 		return nil, fmt.Errorf("failed to decrypt secret: %w", err)
 	}
 
-	// Verify TOTP code (±1 window)
-	if !otp.VerifyTOTP(decryptedSecret, input.Code) {
+	// Verify TOTP code (±1 window), once: the enrolment code cannot then open
+	// a login (#849).
+	accepted, err := acceptTOTP(ctx, uc.mfaRepo, input.UserID, input.TenantID, decryptedSecret, input.Code)
+	if err != nil {
+		return nil, err
+	}
+	if !accepted {
 		return nil, domain.NewValidationError("invalid TOTP code")
 	}
 
@@ -350,7 +355,14 @@ func (uc *DisableMFAUseCase) Execute(ctx context.Context, input DisableMFAInput)
 		if err != nil {
 			return nil, fmt.Errorf("auth.DisableMFA: decrypt secret: %w", err)
 		}
-		if input.Code == "" || !otp.VerifyTOTP(plain, input.Code) {
+		if input.Code == "" {
+			return nil, ErrMFADisableCodeIncorrect
+		}
+		accepted, err := acceptTOTP(ctx, uc.mfaRepo, input.UserID, input.TenantID, plain, input.Code)
+		if err != nil {
+			return nil, err
+		}
+		if !accepted {
 			return nil, ErrMFADisableCodeIncorrect
 		}
 	}
@@ -447,13 +459,13 @@ func (uc *ChallengeMFAUseCase) Execute(ctx context.Context, input ChallengeMFAIn
 		return nil, fmt.Errorf("failed to decrypt secret: %w", err)
 	}
 
-	// Try TOTP first
-	if otp.VerifyTOTP(decryptedSecret, input.Code) {
-		// Mark as last used
-		now := time.Now()
-		mfaSecret.LastUsedAt = &now
-		_ = uc.mfaRepo.UpdateMFASecret(ctx, mfaSecret)
-
+	// Try TOTP first. Accepting it also records its step and last_used_at, so
+	// the same code cannot open a second session (#849).
+	accepted, err := acceptTOTP(ctx, uc.mfaRepo, input.UserID, input.TenantID, decryptedSecret, input.Code)
+	if err != nil {
+		return nil, err
+	}
+	if accepted {
 		return &ChallengeMFAOutput{
 			Verified: true,
 			Message:  "MFA verified successfully",
@@ -481,4 +493,20 @@ func (uc *ChallengeMFAUseCase) Execute(ctx context.Context, input ChallengeMFAIn
 	}
 
 	return nil, domain.NewValidationError("invalid MFA code")
+}
+
+// acceptTOTP accepts a TOTP code at most once (#849). A code that matches but
+// whose step was already used, or is older than the last one used, is refused
+// exactly like a wrong code: telling them apart would tell an observer the
+// code they replayed was once valid.
+func acceptTOTP(ctx context.Context, repo repository.MFARepository, userID, tenantID uuid.UUID, plainSecret, code string) (bool, error) {
+	step, ok := otp.MatchTOTPStep(plainSecret, code, time.Now())
+	if !ok {
+		return false, nil
+	}
+	consumed, err := repo.ConsumeTOTPStep(ctx, userID, tenantID, step)
+	if err != nil {
+		return false, fmt.Errorf("auth: record TOTP step: %w", err)
+	}
+	return consumed, nil
 }

@@ -47,6 +47,15 @@ func (m *MockMFARepository) UpdateMFASecret(ctx context.Context, secret *domain.
 	return nil
 }
 
+func (m *MockMFARepository) ConsumeTOTPStep(ctx context.Context, userID, tenantID uuid.UUID, step int64) (bool, error) {
+	secret := m.secrets[userID.String()+":"+tenantID.String()]
+	if secret == nil || (secret.LastTOTPStep != nil && *secret.LastTOTPStep >= step) {
+		return false, nil
+	}
+	secret.LastTOTPStep = &step
+	return true, nil
+}
+
 func (m *MockMFARepository) DisableMFA(ctx context.Context, userID, tenantID uuid.UUID) error {
 	key := userID.String() + ":" + tenantID.String()
 	delete(m.secrets, key)

@@ -10,6 +10,7 @@ package authmfa
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/opendefender/openrisk/internal/infrastructure/repository"
@@ -43,7 +44,17 @@ func (g *Gate) VerifyRequired(ctx context.Context, user, tenant uuid.UUID, code 
 	if err != nil {
 		return ErrInvalidCode
 	}
-	if !otp.VerifyTOTP(plain, code) {
+	// Once only (#849): a code already accepted — here, at login, anywhere —
+	// cannot confirm a second sensitive action.
+	step, ok := otp.MatchTOTPStep(plain, code, time.Now())
+	if !ok {
+		return ErrInvalidCode
+	}
+	consumed, err := g.mfaRepo.ConsumeTOTPStep(ctx, user, tenant, step)
+	if err != nil {
+		return err
+	}
+	if !consumed {
 		return ErrInvalidCode
 	}
 	return nil
