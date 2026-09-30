@@ -365,6 +365,101 @@ paths:
         '429':
           description: Rate limited
 
+  /auth/me:
+    get:
+      tags:
+        - Authentication
+      summary: The signed-in user, their MFA state and how they can prove who they are
+      description: >
+        Re-read on every call, never taken from the token alone. `mfa` is
+        omitted when the server cannot resolve it (read that as unknown, not as
+        "fine"). `has_password` is false for an account that signs in through
+        an identity provider; such an account confirms sensitive changes, like
+        turning MFA off, with an authenticator code instead (#754, D-061). It is
+        a boolean, never the hash.
+      operationId: getMe
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: The current session's user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MeResponse'
+        '401':
+          description: No session
+        '404':
+          description: The session's user no longer exists
+
+  /auth/mfa/disable:
+    post:
+      tags:
+        - Authentication
+      summary: Turn off two-factor authentication for the signed-in user
+      description: >
+        An open session is not enough (#754). The body carries the current
+        `password`, or, when `/auth/me` says `has_password: false`, a current
+        six-digit `code` from the authenticator app; backup codes are not
+        accepted, and a code never replaces the password of an account that has
+        one. Refused for roles the deployment requires MFA for. Each attempt
+        counts against a per-account budget of 5 per 15 minutes (on top of the
+        per-IP limit). On success the TOTP secret and every backup code are
+        deleted in one transaction, the attempt is audited, and the owner is
+        notified by email and in-app. Neither the password nor the code is ever
+        logged or echoed. Errors carry a stable `code` (see DisableMFAError).
+      operationId: disableMfa
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DisableMFAInput'
+      responses:
+        '200':
+          description: MFA is off
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [message]
+                properties:
+                  message: { type: string }
+        '400':
+          description: The body is not JSON
+        '401':
+          description: "`wrong_password` or `wrong_code`. Not a session error: the session stays valid."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DisableMFAError'
+        '403':
+          description: "`mfa_required_by_role`"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DisableMFAError'
+        '404':
+          description: "`not_enrolled`"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DisableMFAError'
+        '409':
+          description: "`no_local_password`: no password and no way to check a code on this deployment"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DisableMFAError'
+        '429':
+          description: "`too_many_attempts`, or the per-IP limit"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DisableMFAError'
+
   # ==================== ORGANIZATION ====================
   /organization:
     get:
@@ -6053,6 +6148,47 @@ components:
         transferred_at:
           type: string
           format: date-time
+    MeResponse:
+      type: object
+      required: [user, organization_id, has_password]
+      properties:
+        user:
+          $ref: '#/components/schemas/User'
+        organization_id:
+          type: string
+          format: uuid
+        has_password:
+          type: boolean
+          description: False for an identity-provider account with no local password.
+        mfa:
+          $ref: '#/components/schemas/MFAStatus'
+        business_role:
+          type: string
+          description: The caller's current business role in this organization, when they have one.
+    DisableMFAInput:
+      type: object
+      properties:
+        password:
+          type: string
+          format: password
+          description: Required when the account has a password.
+        code:
+          type: string
+          pattern: '^[0-9]{6}$'
+          description: Current authenticator code. Required instead of `password` when `has_password` is false.
+        locale:
+          type: string
+          enum: [fr, en]
+    DisableMFAError:
+      type: object
+      required: [error, code]
+      properties:
+        error:
+          type: string
+          description: Localised message, safe to show as is.
+        code:
+          type: string
+          enum: [wrong_password, wrong_code, mfa_required_by_role, no_local_password, not_enrolled, too_many_attempts, rejected, internal]
     ErrorResponse:
       type: object
       properties:
