@@ -9,6 +9,29 @@ Nothing open.
 
 ## Resolved
 
+### D-061 — SSO accounts turn MFA off with an authenticator code · decided 2026-09-30
+**Decided (owner)** — An account with no local password (identity-provider sign-in)
+confirms turning MFA off with a **current TOTP code** from its authenticator app. Backup
+codes are not accepted for this. Accounts with a password keep confirming with the
+password, and a code does not replace it.
+
+**Why it came here** — #754 made the disable endpoint re-verify the password. An SSO account
+has no password to re-verify, so the first version refused it outright (409
+`no_local_password`). Letting it through some other way changes the auth design, which
+CLAUDE.md says the owner decides. The owner asked for it directly on 2026-09-30.
+
+**Consequence** — `DisableMFAUseCase.WithTOTPKey` decrypts the stored secret and checks the
+code. A wrong or missing code gets 401 `wrong_code` and counts against the same 5-per-15-minute
+per-account budget. Without the key wired, SSO accounts are still refused, so a
+misconfiguration fails closed. `/auth/me` now returns `has_password` (a boolean, never the
+hash) so the dialog asks for the right proof. Backup codes are left out because they are the
+factor most often written down next to the workstation, which is the threat #754 is about.
+A TOTP code is valid for about 90 s (±1 step) and is not marked as used, the same as at login:
+someone who watched a code being typed could replay it inside that window. That matches the
+existing login challenge and is not made worse here.
+
+**Unblocked** — #754, PR #848.
+
 ### D-060 — animated KPI counters: an in-house rolling counter on the three KPIs of #751 · decided 2026-09-28
 **Decided (owner)** — **A, against the recommendation** (B, change once).
 An in-house slot-reel counter (transitions.dev `spinning-counter`) goes on the three KPIs of
