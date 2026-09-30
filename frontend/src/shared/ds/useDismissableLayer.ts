@@ -102,6 +102,10 @@ export function useDismissableLayer<T extends HTMLElement>(
     // Focus after paint: the panel animates in, and focusing an element that
     // is still mid-transform makes some browsers scroll the container.
     const focusFrame = requestAnimationFrame(() => {
+      // A field inside the panel that took focus itself (autoFocus) is where the
+      // user expects to type; pulling focus to the close button would swallow
+      // their first keystrokes.
+      if (panelRef.current?.contains(document.activeElement)) return;
       const target =
         initialFocusRef?.current ??
         panelRef.current?.querySelector<HTMLElement>(FOCUSABLE) ??
