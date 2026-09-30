@@ -18,6 +18,7 @@ type MFARepository interface {
 	CreateMFASecret(ctx context.Context, secret *domain.MFASecret) error
 	GetMFASecret(ctx context.Context, userID, tenantID uuid.UUID) (*domain.MFASecret, error)
 	UpdateMFASecret(ctx context.Context, secret *domain.MFASecret) error
+	// DisableMFA deletes the secret AND the backup codes, atomically.
 	DisableMFA(ctx context.Context, userID, tenantID uuid.UUID) error
 
 	// Backup Codes
