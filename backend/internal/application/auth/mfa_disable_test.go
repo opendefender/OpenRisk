@@ -9,12 +9,16 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
+	"github.com/pquerna/otp/totp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/pkg/crypto"
+	"github.com/opendefender/openrisk/pkg/otp"
 )
 
 // #754 — disabling MFA re-proves the password, is refused for roles that
@@ -193,10 +197,80 @@ func TestDisableMFA_NoRolePolicyAllowsAnAdmin(t *testing.T) {
 	require.NoError(t, f.run(disablePassword, "admin"))
 }
 
-func TestDisableMFA_AccountWithoutLocalPasswordIsRefused(t *testing.T) {
+// An account that signs in through an identity provider has no password to
+// re-prove; it proves possession of the factor it removes instead.
+
+var disableTOTPKey = []byte("0123456789abcdef0123456789abcdef")
+
+// ssoAccount turns the fixture's user into an identity-provider account whose
+// stored secret is real, and returns that secret.
+func (f *disableFixture) ssoAccount(t *testing.T) string {
+	t.Helper()
+	f.user.Password = ""
+	plain, err := otp.GenerateTOTPSecret()
+	require.NoError(t, err)
+	enc, err := crypto.EncryptAES256GCM(plain, disableTOTPKey)
+	require.NoError(t, err)
+	secret, _ := f.repo.GetMFASecret(context.Background(), f.user.ID, f.tenant)
+	secret.SecretEncrypted = enc
+	f.uc.WithTOTPKey(disableTOTPKey)
+	return plain
+}
+
+func (f *disableFixture) runWithCode(password, code string) error {
+	_, err := f.uc.Execute(context.Background(), DisableMFAInput{
+		UserID: f.user.ID, TenantID: f.tenant, Password: password, Code: code, Locale: "en",
+	})
+	return err
+}
+
+func TestDisableMFA_AccountWithoutLocalPasswordConfirmsWithACode(t *testing.T) {
+	f := newDisableFixture(t, domain.RoleUser, "")
+	plain := f.ssoAccount(t)
+	code, err := totp.GenerateCode(plain, time.Now())
+	require.NoError(t, err)
+
+	require.NoError(t, f.runWithCode("", code))
+
+	secret, _ := f.repo.GetMFASecret(context.Background(), f.user.ID, f.tenant)
+	assert.Nil(t, secret)
+	assert.Empty(t, f.repo.codes[f.codeKey])
+	assert.Equal(t, 1, f.mailer.calls)
+}
+
+func TestDisableMFA_AccountWithoutLocalPasswordRejectsAWrongOrMissingCode(t *testing.T) {
+	for name, code := range map[string]string{"wrong": "000000", "missing": ""} {
+		t.Run(name, func(t *testing.T) {
+			f := newDisableFixture(t, domain.RoleUser, "")
+			plain := f.ssoAccount(t)
+			if name == "wrong" {
+				// Make sure "000000" is not, by chance, the current code.
+				if ok, _ := totp.ValidateCustom(code, plain, time.Now(), totp.ValidateOpts{Period: 30, Skew: 1, Digits: 6}); ok {
+					t.Skip("000000 happens to be valid right now")
+				}
+			}
+
+			assert.ErrorIs(t, f.runWithCode("anything", code), ErrMFADisableCodeIncorrect)
+			f.assertStillEnrolled(t)
+		})
+	}
+}
+
+func TestDisableMFA_AccountWithoutLocalPasswordIsRefusedWithoutAKey(t *testing.T) {
 	f := newDisableFixture(t, domain.RoleUser, "")
 	f.user.Password = ""
 
 	assert.ErrorIs(t, f.run("", ""), ErrNoLocalPassword)
+	f.assertStillEnrolled(t)
+}
+
+func TestDisableMFA_ACodeDoesNotReplaceThePasswordOfAPasswordAccount(t *testing.T) {
+	f := newDisableFixture(t, domain.RoleUser, "")
+	plain := f.ssoAccount(t)
+	f.user.Password = "hashed:" + disablePassword // back to a password account
+	code, err := totp.GenerateCode(plain, time.Now())
+	require.NoError(t, err)
+
+	assert.ErrorIs(t, f.runWithCode("", code), ErrMFADisablePasswordIncorrect)
 	f.assertStillEnrolled(t)
 }

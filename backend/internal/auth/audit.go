@@ -35,9 +35,9 @@ const (
 	AuditActionPatUse       AuditAction = "pat_use"
 
 	// AuditActionMfaDisable records a request to remove the second factor
-	// (#754). Failures carry a reason ("wrong_password", "mfa_required_by_role",
-	// "no_local_password", "not_enrolled"): repeated wrong passwords here are a
-	// session thief guessing.
+	// (#754). Failures carry a reason ("wrong_password", "wrong_code",
+	// "mfa_required_by_role", "no_local_password", "not_enrolled"): repeated
+	// wrong passwords or codes here are a session thief guessing.
 	AuditActionMfaDisable AuditAction = "mfa_disable"
 
 	// Password reset. Both halves are recorded, and failures carry a reason

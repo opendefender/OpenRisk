@@ -692,9 +692,11 @@ func main() {
 	// MFA use cases + handler.
 	setupMFAUseCase := auth.NewSetupMFAUseCase(mfaRepo, mfaKey[:])
 	verifyMFAUseCase := auth.NewVerifyMFAUseCase(mfaRepo, *userRepo, mfaKey[:])
-	// #754 — removing the factor re-proves the password, is refused for the
-	// roles login requires MFA for, and mails the owner.
+	// #754 — removing the factor re-proves the password (or, with no local
+	// password, a current authenticator code), is refused for the roles login
+	// requires MFA for, and mails the owner.
 	disableMFAUseCase := auth.NewDisableMFAUseCase(mfaRepo, userRepo, passwordHasher).
+		WithTOTPKey(mfaKey[:]).
 		RequireMFAForRoles(mfaRequiredRoles, mfaRequiredBusinessRoles).
 		WithMailer(securityMailer)
 	challengeMFAUseCase := auth.NewChallengeMFAUseCase(mfaRepo, mfaKey[:])

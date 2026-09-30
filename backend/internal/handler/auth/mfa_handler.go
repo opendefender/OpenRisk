@@ -182,9 +182,10 @@ func (h *MFAHandler) issueSessionResponse(c *fiber.Ctx, userID uuid.UUID, device
 
 // Disable turns MFA off for the current user (#754).
 //
-// The session is not proof enough: the body must carry the current password.
-// Neither the password nor anything derived from it is logged or echoed; audit
-// failures carry a reason code only.
+// The session is not proof enough: the body must carry the current password,
+// or, for an account that signs in through an identity provider, a current
+// authenticator code. Neither is logged or echoed; audit failures carry a
+// reason code only.
 func (h *MFAHandler) Disable(c *fiber.Ctx) error {
 	userID := ctxUUID(c, "user_id")
 	tenantID := ctxUUID(c, "tenant_id")
@@ -194,6 +195,7 @@ func (h *MFAHandler) Disable(c *fiber.Ctx) error {
 
 	var req struct {
 		Password string `json:"password"`
+		Code     string `json:"code,omitempty"`
 		Locale   string `json:"locale,omitempty"`
 	}
 	if err := c.BodyParser(&req); err != nil {
@@ -224,6 +226,7 @@ func (h *MFAHandler) Disable(c *fiber.Ctx) error {
 		UserID:      userID,
 		TenantID:    tenantID,
 		Password:    req.Password,
+		Code:        req.Code,
 		OrgRoleHint: orgRole,
 		Locale:      locale,
 	})
@@ -235,6 +238,9 @@ func (h *MFAHandler) Disable(c *fiber.Ctx) error {
 		// was refused", not "your session is over".
 		return fail(fiber.StatusUnauthorized, "wrong_password",
 			pick(locale, "Mot de passe incorrect.", "Incorrect password."))
+	case errors.Is(err, appauth.ErrMFADisableCodeIncorrect):
+		return fail(fiber.StatusUnauthorized, "wrong_code",
+			pick(locale, "Code incorrect.", "Incorrect code."))
 	case errors.Is(err, appauth.ErrMFARequiredByRole):
 		return fail(fiber.StatusForbidden, "mfa_required_by_role",
 			pick(locale,

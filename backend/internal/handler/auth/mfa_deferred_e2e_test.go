@@ -72,6 +72,9 @@ func (deferredHasher) NeedsRehash(string) bool        { return false }
 
 const deferredPassword = "Ancre-Vitrail7-Cobalt"
 
+// deferredTOTPKey encrypts the secrets of the identity-provider accounts (#754).
+var deferredTOTPKey = []byte("0123456789abcdef0123456789abcdef")
+
 func newDeferredFixture(t *testing.T) *deferredFixture {
 	t.Helper()
 
@@ -189,6 +192,7 @@ func newDeferredFixture(t *testing.T) *deferredFixture {
 	protected.Post("/auth/mfa/setup", ok)
 	// #754 — the real disable path: use case, handler, repository.
 	disableUC := appauth.NewDisableMFAUseCase(mfaRepo, userRepo, deferredHasher{}).
+		WithTOTPKey(deferredTOTPKey).
 		RequireMFAForRoles(orgRoles, businessRoles)
 	mfaHandler := authhandler.NewMFAHandler(nil, nil, disableUC, nil, tokens, userRepo, nil).
 		WithMFAStatus(f.resolver).

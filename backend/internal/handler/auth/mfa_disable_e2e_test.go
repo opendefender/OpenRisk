@@ -10,12 +10,16 @@ import (
 	"net/http"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
+	"github.com/pquerna/otp/totp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/pkg/crypto"
+	"github.com/opendefender/openrisk/pkg/otp"
 )
 
 // ---------------------------------------------------------------------------
@@ -124,6 +128,57 @@ func TestMFADisableE2E_CorrectPasswordDisablesAndIsChained(t *testing.T) {
 	status, resp = f.do(t, http.MethodPost, disablePath, token, jsonBody{"password": deferredPassword})
 	assert.Equal(t, http.StatusNotFound, status)
 	assert.Equal(t, "not_enrolled", resp["code"])
+}
+
+// ssoSessionThenEnrol opens a session, then turns the member into an
+// identity-provider account (no local password) enrolled with a real secret.
+func (f *deferredFixture) ssoSessionThenEnrol(t *testing.T, m *domain.OrganizationMember) (token, plain string) {
+	t.Helper()
+	_, token = f.login(t, m.User.Email)
+	require.NotEmpty(t, token)
+	require.NoError(t, f.db.Model(&domain.User{}).Where("id = ?", m.UserID).Update("password", "").Error)
+	plain, err := otp.GenerateTOTPSecret()
+	require.NoError(t, err)
+	enc, err := crypto.EncryptAES256GCM(plain, deferredTOTPKey)
+	require.NoError(t, err)
+	require.NoError(t, f.db.Create(&domain.MFASecret{
+		ID: uuid.New(), UserID: m.UserID, TenantID: m.OrganizationID, SecretEncrypted: enc, IsVerified: true,
+	}).Error)
+	return token, plain
+}
+
+func TestMFADisableE2E_AccountWithoutPasswordConfirmsWithACode(t *testing.T) {
+	f := newDeferredFixture(t)
+	token, plain := f.ssoSessionThenEnrol(t, f.memberA)
+
+	status, me := f.do(t, http.MethodGet, "/api/v1/auth/me", token, nil)
+	require.Equal(t, http.StatusOK, status)
+	assert.Equal(t, false, me["has_password"], "the dialog must know to ask for a code")
+
+	status, resp := f.do(t, http.MethodPost, disablePath, token, jsonBody{"code": "000000"})
+	if status != http.StatusOK { // "000000" could, once in a million, be the live code
+		assert.Equal(t, http.StatusUnauthorized, status)
+		assert.Equal(t, "wrong_code", resp["code"])
+		secrets, _ := f.factorRows(t, f.memberA)
+		assert.EqualValues(t, 1, secrets, "a wrong code removes nothing")
+	}
+
+	code, err := totp.GenerateCode(plain, time.Now())
+	require.NoError(t, err)
+	status, resp = f.do(t, http.MethodPost, disablePath, token, jsonBody{"code": code})
+	require.Equal(t, http.StatusOK, status, "%v", resp)
+	secrets, codes := f.factorRows(t, f.memberA)
+	assert.Zero(t, secrets)
+	assert.Zero(t, codes)
+}
+
+func TestMFADisableE2E_MeSaysAPasswordAccountHasAPassword(t *testing.T) {
+	f := newDeferredFixture(t)
+	token := f.sessionThenEnrol(t, f.memberA)
+
+	status, me := f.do(t, http.MethodGet, "/api/v1/auth/me", token, nil)
+	require.Equal(t, http.StatusOK, status)
+	assert.Equal(t, true, me["has_password"])
 }
 
 func TestMFADisableE2E_PrivilegedRoleIsRefused(t *testing.T) {

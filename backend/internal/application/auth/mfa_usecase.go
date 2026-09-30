@@ -211,7 +211,10 @@ func (uc *VerifyMFAUseCase) Execute(ctx context.Context, input VerifyMFAInput) (
 //
 // Removing a factor is the one MFA operation an attacker at an unlocked
 // workstation wants most, so the session alone is not enough: the caller must
-// prove the password again. Privileged roles cannot remove it at all — the
+// prove the password again. An account that signs in through an identity
+// provider has no password here, so it proves possession of the factor it is
+// removing instead: a current code from the authenticator app. Backup codes do
+// not count — they are the factor most often written down next to the desk. Privileged roles cannot remove it at all — the
 // login policy would demand it back on the next sign-in, and in between the
 // account would sit on a password alone.
 // ---------------------------------------------------------------------------
@@ -223,6 +226,9 @@ var (
 	// ErrMFARequiredByRole refuses the removal for a role the deployment requires
 	// MFA for.
 	ErrMFARequiredByRole = errors.New("two-factor authentication is required for this role")
+	// ErrMFADisableCodeIncorrect covers a wrong and a missing authenticator code
+	// alike, for an account without a local password.
+	ErrMFADisableCodeIncorrect = errors.New("authentication code is incorrect")
 )
 
 // DisableMFAUserLookup reads the account and its membership. Satisfied by
@@ -246,6 +252,9 @@ type DisableMFAInput struct {
 	UserID   uuid.UUID
 	TenantID uuid.UUID
 	Password string // Current password (required for security)
+	// Code is a current TOTP code. Required instead of Password when the account
+	// has no local password (identity-provider sign-in); ignored otherwise.
+	Code string
 	// OrgRoleHint is the org role in the caller's signed token. It can only
 	// widen the privileged check, never narrow it (same rule as MFAStatusResolver).
 	OrgRoleHint string
@@ -265,6 +274,9 @@ type DisableMFAUseCase struct {
 	privileged     domain.MFAPrivilegeSet
 	mailer         MFADisabledMailer
 	inApp          MFADisabledInAppNotifier
+	// totpKey decrypts the stored secret to check Code. Without it an account
+	// with no local password cannot prove anything and is refused.
+	totpKey []byte
 }
 
 // NewDisableMFAUseCase creates a new disable MFA use case
@@ -280,6 +292,13 @@ func NewDisableMFAUseCase(mfaRepo repository.MFARepository, users DisableMFAUser
 // same lists login enforces, so the two can never disagree.
 func (uc *DisableMFAUseCase) RequireMFAForRoles(orgRoles, businessRoles []string) *DisableMFAUseCase {
 	uc.privileged = domain.NewMFAPrivilegeSet(orgRoles, businessRoles)
+	return uc
+}
+
+// WithTOTPKey lets an account without a local password confirm with a current
+// authenticator code. Pass the same key the secrets were encrypted with.
+func (uc *DisableMFAUseCase) WithTOTPKey(key []byte) *DisableMFAUseCase {
+	uc.totpKey = key
 	return uc
 }
 
@@ -309,12 +328,13 @@ func (uc *DisableMFAUseCase) Execute(ctx context.Context, input DisableMFAInput)
 	if user == nil || !user.IsActive {
 		return nil, domain.NewNotFoundError("user", input.UserID)
 	}
-	if user.Password == "" {
-		// An identity-provider account has no password to prove. Refusing is the
-		// safe answer until it can prove a factor another way.
+	hasPassword := user.Password != ""
+	if !hasPassword && uc.totpKey == nil {
+		// Nothing this account could prove. Refuse rather than let the session
+		// alone remove the factor.
 		return nil, ErrNoLocalPassword
 	}
-	if input.Password == "" || !uc.passwordHasher.Verify(user.Password, input.Password) {
+	if hasPassword && (input.Password == "" || !uc.passwordHasher.Verify(user.Password, input.Password)) {
 		return nil, ErrMFADisablePasswordIncorrect
 	}
 
@@ -324,6 +344,15 @@ func (uc *DisableMFAUseCase) Execute(ctx context.Context, input DisableMFAInput)
 	}
 	if secret == nil {
 		return nil, domain.NewNotFoundError("MFA secret", input.UserID)
+	}
+	if !hasPassword {
+		plain, err := crypto.DecryptAES256GCM(secret.SecretEncrypted, uc.totpKey)
+		if err != nil {
+			return nil, fmt.Errorf("auth.DisableMFA: decrypt secret: %w", err)
+		}
+		if input.Code == "" || !otp.VerifyTOTP(plain, input.Code) {
+			return nil, ErrMFADisableCodeIncorrect
+		}
 	}
 
 	if !uc.privileged.Empty() {
@@ -361,10 +390,10 @@ func (uc *DisableMFAUseCase) Execute(ctx context.Context, input DisableMFAInput)
 func mfaDisabledInAppCopy(locale string) (string, string) {
 	if locale == "en" {
 		return "Two-factor authentication turned off",
-			"Two-factor authentication was turned off on your account after your password was confirmed. If this wasn't you, change your password and turn it back on from Settings → Security."
+			"Two-factor authentication was turned off on your account after your identity was confirmed. If this wasn't you, secure your account and turn it back on from Settings → Security."
 	}
 	return "Double authentification désactivée",
-		"La double authentification a été désactivée sur votre compte après confirmation de votre mot de passe. Si ce n'est pas vous, changez votre mot de passe et réactivez-la depuis Paramètres → Sécurité."
+		"La double authentification a été désactivée sur votre compte après confirmation de votre identité. Si ce n'est pas vous, sécurisez votre compte et réactivez-la depuis Paramètres → Sécurité."
 }
 
 // ChallengeMFAInput represents MFA challenge request (after login)
