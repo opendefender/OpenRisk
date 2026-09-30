@@ -218,6 +218,28 @@ export async function verifyMFA(
   return data;
 }
 
+/** Why the server refused to turn MFA off (#754). */
+export type DisableMFAErrorCode =
+  | 'wrong_password'
+  | 'mfa_required_by_role'
+  | 'no_local_password'
+  | 'not_enrolled'
+  | 'too_many_attempts';
+
+export interface DisableMFAErrorBody {
+  error?: string;
+  code?: DisableMFAErrorCode;
+}
+
+/**
+ * Turns MFA off for the signed-in user. The session is not enough: the server
+ * re-checks the current password and refuses roles that require MFA (#754).
+ */
+export async function disableMFA(password: string, locale: Lang): Promise<{ message: string }> {
+  const { data } = await api.post<{ message: string }>('/auth/mfa/disable', { password, locale });
+  return data;
+}
+
 export interface MFAChallengeResult {
   token_pair?: { access_token: string; refresh_token: string };
   csrf_token?: string;

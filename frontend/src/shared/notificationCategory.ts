@@ -89,6 +89,7 @@ export function categoryForType(type: string): NotifCategory {
     case 'risk_resolved':
     case 'scan_complete':
     case 'sla_breach':
+    case 'mfa_disabled':
     case 'automation':
     default:
       return 'security';

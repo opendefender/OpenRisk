@@ -19,7 +19,9 @@ export type NotificationType =
   | 'automation'
   | 'sla_breach'
   // A J-7 / J-3 / J-1 questionnaire reminder went to a vendor, or could not (#672).
-  | 'vendor_assessment_reminder';
+  | 'vendor_assessment_reminder'
+  // Two-factor authentication was turned off on the account (#754).
+  | 'mfa_disabled';
 
 export interface Notification {
   id: string;

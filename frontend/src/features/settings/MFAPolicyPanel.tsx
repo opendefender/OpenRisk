@@ -20,6 +20,7 @@ import { useUIStore } from '../../store/uiStore';
 import { useAuthStore } from '../../hooks/useAuthStore';
 import { useMFAPolicy, useSaveMFAPolicy, useMFAStatus } from '../auth/useMfa';
 import { MFAEnrollmentDialog } from '../auth/MFAEnrollmentDialog';
+import { MFADisableDialog } from '../auth/MFADisableDialog';
 import { useI18n } from '../../hooks/useI18n';
 
 export function MFAPolicyPanel() {
@@ -210,6 +211,7 @@ export function MFAAccountPanel() {
   const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
   const { data: status, isLoading, isError, refetch } = useMFAStatus();
   const [enrolling, setEnrolling] = useState(false);
+  const [disabling, setDisabling] = useState(false);
 
   const body = () => {
     if (isLoading) return <SkeletonRows rows={1} height={30} />;
@@ -233,9 +235,31 @@ export function MFAAccountPanel() {
     }
     if (status?.state === 'configured') {
       return (
-        <div className="flex items-center gap-2 text-[13px]" style={{ color: 'var(--low)' }}>
-          <ShieldCheck size={16} aria-hidden="true" />
-          {tr('Le MFA est activé sur votre compte.', 'MFA is enabled on your account.')}
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div className="flex items-center gap-2 text-[13px]" style={{ color: 'var(--low)' }}>
+            <ShieldCheck size={16} aria-hidden="true" />
+            {tr('Le MFA est activé sur votre compte.', 'MFA is enabled on your account.')}
+          </div>
+          {/* #754 — a role the deployment requires MFA for cannot turn it off;
+              the server refuses it, so no button is offered. */}
+          {status.privileged ? (
+            <span className="text-[12.5px] text-ink-muted" data-testid="mfa-disable-locked">
+              {tr(
+                'Votre rôle impose le MFA : il ne peut pas être désactivé.',
+                'Your role requires MFA: it cannot be turned off.',
+              )}
+            </span>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setDisabling(true)}
+              className="h-9 px-4 rounded-[10px] text-[13px] font-semibold transition-colors"
+              style={{ border: '1px solid var(--border-strong)', color: 'var(--critical)' }}
+              data-testid="mfa-disable-open"
+            >
+              {tr('Désactiver', 'Turn off')}
+            </button>
+          )}
         </div>
       );
     }
@@ -266,6 +290,7 @@ export function MFAAccountPanel() {
       </div>
       {body()}
       {enrolling && <MFAEnrollmentDialog onClose={() => setEnrolling(false)} />}
+      {disabling && <MFADisableDialog onClose={() => setDisabling(false)} />}
     </Card>
   );
 }
