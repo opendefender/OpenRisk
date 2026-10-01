@@ -1713,6 +1713,19 @@ func main() {
 	// must be registered BEFORE /assets/:id, or "statistics" is parsed as an
 	// asset UUID and the route answers 400 for a request that is perfectly valid.
 	protected.Get("/assets/statistics", assetRead, assetHandler.GetAssetStatistics)
+	// #861 — CSV import of the inventory: every row or none, one transaction,
+	// and the plan cap checked against the whole file.
+	assetImportHandler := handlers.NewAssetImportHandler(
+		assetapp.NewImportAssetsUseCase(repository.RunAssetTx(database.DB), repository.ListAssetNames(database.DB)).
+			WithActivation(activationRecorder).
+			WithCapacity(func(ctx context.Context, tenant uuid.UUID) (int, error) {
+				_, limit, used, _, err := entitlementService.Capacity(ctx, tenant, ent.LimitAssets)
+				if err != nil || limit == ent.Unlimited || used < 0 {
+					return -1, err
+				}
+				return max(limit-used, 0), nil
+			}))
+	protected.Post("/assets/import", assetCreate, capAssets, assetImportHandler.ImportAssets)
 	protected.Get("/asset-dependencies", assetRead, assetDepHandler.ListAssetDependencies)
 	protected.Post("/asset-dependencies", assetUpdate, assetDepHandler.CreateAssetDependency)
 	protected.Delete("/asset-dependencies/:id", assetUpdate, assetDepHandler.DeleteAssetDependency)
