@@ -34,6 +34,17 @@ type GormRiskRepository struct {
 	db *gorm.DB
 }
 
+// RunRiskTx runs fn inside one transaction with a risk repository bound to it,
+// for use cases that must write several risks or none (the CSV import, #755).
+// It satisfies application/risk.RiskTxRunner.
+func RunRiskTx(db *gorm.DB) func(ctx context.Context, fn func(repo domain.RiskRepository) error) error {
+	return func(ctx context.Context, fn func(repo domain.RiskRepository) error) error {
+		return db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+			return fn(NewGormRiskRepository(tx))
+		})
+	}
+}
+
 // NewGormRiskRepository creates a new GORM-backed risk repository.
 func NewGormRiskRepository(db *gorm.DB) *GormRiskRepository {
 	return &GormRiskRepository{db: db}
