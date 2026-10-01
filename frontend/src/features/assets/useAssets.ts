@@ -8,7 +8,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { assetService, type AssetSearchFilter } from '../../services/assetService';
 import type { Asset, CreateAssetInput, UpdateAssetInput } from '../../types/asset';
 
-const ASSETS_QUERY_KEY = ['assets'];
+export const ASSETS_QUERY_KEY = ['assets'];
 const historyQueryKey = (assetId: string) => ['assets', assetId, 'history'];
 
 /**

@@ -963,7 +963,10 @@
       "unknown_asset": "Aucun actif « {value} » dans l’inventaire.",
       "ambiguous_asset": "{count} actifs s’appellent « {value} » : indiquez son identifiant.",
       "assets_unavailable": "La liaison aux actifs n’est pas disponible sur ce serveur : retirez la colonne assets.",
-      "legacy_scale": "Ce fichier utilise l’ancienne échelle 1–5. OpenRisk attend une probabilité entre 0 et 1 et un impact entre 0 et 10. Téléchargez le modèle actuel et convertissez les valeurs (probabilité 3/5 → 0,6 ; impact 4/5 → 8)."
+      "legacy_scale": "Ce fichier utilise l’ancienne échelle 1–5. OpenRisk attend une probabilité entre 0 et 1 et un impact entre 0 et 10. Téléchargez le modèle actuel et convertissez les valeurs (probabilité 3/5 → 0,6 ; impact 4/5 → 8).",
+      "asset_exists": "Un actif « {value} » existe déjà dans l’inventaire.",
+      "duplicate_in_file": "« {value} » figure déjà ligne {line}.",
+      "invalid_criticality": "« {value} » n’est pas une criticité : LOW, MEDIUM, HIGH ou CRITICAL (ou FAIBLE, MOYENNE, ÉLEVÉE, CRITIQUE)."
     },
     "risks": {
       "back": "Registre des risques",
@@ -981,6 +984,21 @@
       "forbidden": "Vous n’avez pas le droit de créer des risques.",
       "limitTitle": "Rien n’a été importé : ce fichier dépasse la limite de risques de votre plan.",
       "limitDetail": "Le fichier contient {requested} risque(s) ; votre plan en permet encore {remaining}."
+    },
+    "assets": {
+      "back": "Inventaire",
+      "title": "Importer des actifs",
+      "intro": "Un fichier CSV, une ligne par actif. Toutes les lignes sont vérifiées avant l’import : si une seule est invalide, rien n’est importé et chaque erreur vous est indiquée.",
+      "colName": "Obligatoire, 255 caractères au plus, absent de l’inventaire et unique dans le fichier.",
+      "colCriticality": "Facultatif : LOW, MEDIUM, HIGH ou CRITICAL (ou FAIBLE, MOYENNE, ÉLEVÉE, CRITIQUE). MEDIUM par défaut.",
+      "colOptional": "Facultatifs, texte libre.",
+      "note": "Les exports Excel en « ; » sont acceptés. Les attributs typés se renseignent ensuite dans l’inventaire. Une fois les actifs importés, le fichier de risques peut les citer dans sa colonne assets.",
+      "open": "Voir l’inventaire",
+      "created": "{count} actif(s) importé(s)",
+      "emptyFile": "Le fichier ne contenait aucun actif.",
+      "forbidden": "Vous n’avez pas le droit d’ajouter des actifs.",
+      "limitTitle": "Rien n’a été importé : ce fichier dépasse la limite d’actifs de votre plan.",
+      "limitDetail": "Le fichier contient {requested} actif(s) ; votre plan en permet encore {remaining}."
     }
   }
 }

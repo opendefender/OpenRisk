@@ -3,7 +3,8 @@
 // This program is free software: you can redistribute it and/or modify it under
 // the terms of the GNU Affero General Public License v3.0 (see LICENSE).
 //
-// Contract of the CSV imports, starting with POST /risks/import (#755). The server is the authority on
+// Contract of the CSV imports: POST /risks/import (#755) and POST
+// /assets/import (#861) answer the same shapes. The server is the authority on
 // every row; the client only refuses what it can know without reading the file,
 // and parses every response so the page never shows a number it was not sent.
 
@@ -54,6 +55,9 @@ const KNOWN_CODES = new Set([
   'ambiguous_asset',
   'assets_unavailable',
   'legacy_scale',
+  'asset_exists',
+  'duplicate_in_file',
+  'invalid_criticality',
 ]);
 
 /**
