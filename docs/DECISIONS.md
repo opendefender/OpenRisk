@@ -5,7 +5,31 @@ recommends, and surfaces these in the daily brief. Run `/decide` to clear them.
 
 ## Open
 
-Nothing open.
+### D-061 — 3D tilt on the overall score card (#751 phase 5) · raised 2026-09-29
+**Question** — #751 phase 5 lists "`3d-tilt` reserved for high-value visual elements (e.g.
+overall score card)". Do we ship it?
+
+**Recommendation — B, drop it.** art-director and ux-designer reached the same answer
+independently:
+- The tilt skews the score arc, which is the data itself, on the one figure a CISO reads at
+  a glance and an auditor screenshots.
+- A card that follows the pointer signals "the whole card is clickable". Only the button
+  inside `ScoreGauge` is.
+- It works only with a mouse, which is a second rendering path with no keyboard or touch
+  equivalent, and pointer-tracked parallax is a vestibular trigger.
+- It would touch `ScoreGauge`, which #824 (phase 3) owns.
+
+**Options**
+- **A — ship a restrained tilt.** At most 2° per axis and an 800px perspective, only on
+  `(hover:hover) and (pointer:fine)` under `motion-safe`, with no glare and no moving
+  shadow. It goes on the `DashboardPage.tsx` wrapper, never inside `ScoreGauge`. About half
+  a day, plus a live pass.
+- **B — drop it (recommended).** The item is closed as "evaluated, rejected" on #751.
+
+**Cost of delay** — none. Phase 5 ships without it, and A can be added later without
+rework.
+
+**Raised by** — #751 phase 5 (art-director + ux-designer specs, 2026-09-29).
 
 ## Resolved
 

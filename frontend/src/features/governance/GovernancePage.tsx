@@ -1506,7 +1506,7 @@ function ModalShell({
   const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 motion-safe:animate-or-fadein"
       style={{ background: 'var(--surface-overlay)' }}
       onClick={onClose}
     >
@@ -1514,7 +1514,12 @@ function ModalShell({
         role="dialog"
         aria-modal="true"
         aria-labelledby="governance-modal-title"
-        className="or-scalein w-full max-w-lg flex flex-col rounded-[14px]"
+        /* Stopgap (#751 phase 5): `or-scalein` had no matching CSS rule, so
+           this panel popped in with no motion at all. The house enter class
+           is the fix here, not an exit — this hand-rolled dialog has no exit
+           timer, same as before. Moving it onto the ds `Modal` (with its own
+           `data-state`-driven exit, see Modal.tsx) is its own issue. */
+        className="motion-safe:animate-or-rise w-full max-w-lg flex flex-col rounded-[14px]"
         style={{
           maxHeight: '90vh',
           background: 'var(--surface-2)',

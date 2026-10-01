@@ -16,25 +16,40 @@
  *
  * SIZES     sm 380 | md 520 (default) | lg 720 | xl 960
  *
- * MOTION    Scrim fades; panel fades and rises 8px, both on --motion-enter.
- *           The panel does NOT scale from 0.9 — a dialog that zooms reads as a
- *           notification. Under prefers-reduced-motion it appears, in place.
+ * MOTION    Scrim fades; panel fades and rises 8px, on --motion-enter in and
+ *           --motion-exit out. The panel does NOT scale from 0.9 — a dialog
+ *           that zooms reads as a notification. Under prefers-reduced-motion
+ *           it appears, in place (index.css's global kill switch zeroes every
+ *           transition, so the state flip below lands instantly).
+ *
+ *           `open` going false does not unmount the panel: it stays mounted
+ *           at `data-state="closed"` for its exit transition and is only
+ *           removed once `useExitTimer` reports it gone (#751 phase 5 — the
+ *           previous `if (!open) return null` cut every close instantly,
+ *           which is why a create/edit modal that closed on mutation success
+ *           never had an exit to play). Driving the CSS off `data-state`
+ *           rather than a mount/unmount keyframe means a reopen mid-exit
+ *           reverses the same transition instead of restarting one.
  *
  * A11Y      role="dialog" aria-modal, labelled by its title and described by
  *           its subtitle; focus trapped, restored on close; Escape closes;
  *           the page behind is frozen. All of that comes from
- *           useDismissableLayer, so it is identical in every dialog.
+ *           useDismissableLayer, keyed on `open` (not the exit timer) so the
+ *           trap releases and focus returns at the START of the close, not
+ *           after the panel finishes fading out.
  *
  * Rendered in a portal to document.body so no ancestor's overflow, transform
  * or stacking context can clip it — the reason "the dropdown is cut off inside
  * the drawer" happens.
  */
 
-import { useId, useRef, type ReactNode } from 'react';
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { cn } from './cn';
 import { useDismissableLayer } from './useDismissableLayer';
+import { useExitTimer } from './useExitTimer';
+import { MODAL_EXIT_MS } from './overlayMotion';
 import { Button } from './Button';
 
 export type ModalSize = 'sm' | 'md' | 'lg' | 'xl';
@@ -93,11 +108,28 @@ export function Modal({
 
   useDismissableLayer(panelRef, { open, onClose, closeOnEscape: dismissable });
 
-  if (!open) return null;
+  // Stays mounted through its own exit transition instead of cutting the
+  // instant `open` goes false.
+  const mounted = useExitTimer(open, MODAL_EXIT_MS);
+  // `data-state`, not `open` directly, drives the CSS: closing is applied
+  // synchronously (same render `open` goes false, matching
+  // useDismissableLayer's own immediate focus release), while opening is
+  // deferred a frame so the browser paints the closed state at least once —
+  // without that the enter transition has nothing to animate from.
+  const [state, setState] = useState<'open' | 'closed'>('closed');
+  if (!open && state === 'open') setState('closed');
+  useEffect(() => {
+    if (!open) return;
+    const frame = requestAnimationFrame(() => setState('open'));
+    return () => cancelAnimationFrame(frame);
+  }, [open]);
+
+  if (!mounted) return null;
 
   return createPortal(
     <div
-      className="fixed inset-0 z-modal flex items-center justify-center p-4 motion-safe:animate-or-fadein"
+      className="or-scrim fixed inset-0 z-modal flex items-center justify-center p-4"
+      data-state={state}
       style={{
         background: 'var(--surface-overlay)',
         backdropFilter: 'blur(var(--overlay-blur))',
@@ -118,10 +150,10 @@ export function Modal({
         aria-labelledby={titleId}
         aria-describedby={subtitleId}
         tabIndex={-1}
+        data-state={state}
         className={cn(
-          'flex w-full flex-col overflow-hidden bg-surface-2 shadow-overlay outline-none',
+          'or-modal-panel flex w-full flex-col overflow-hidden bg-surface-2 shadow-overlay outline-none',
           'rounded-(--modal-radius) border border-default',
-          'motion-safe:animate-or-rise',
           'max-h-(--modal-max-h)',
           SIZE[size],
           className,

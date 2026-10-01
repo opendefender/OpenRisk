@@ -10,7 +10,7 @@
 // from Settings → Security.
 
 import { useEffect, useRef, useState } from 'react';
-import { OtpField } from '../../shared/ds';
+import { OtpField, cn } from '../../shared/ds';
 import { createPortal } from 'react-dom';
 import { ShieldCheck, X, Loader2, Copy, Check } from 'lucide-react';
 import { toast } from 'sonner';
@@ -70,13 +70,17 @@ export function MFAEnrollmentDialog({
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
 
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // `codeOverride`: onComplete below fires synchronously inside the same
+  // commit as the `setCode` it follows, before React applies that update —
+  // reading the `code` closure here would still see the PREVIOUS value.
+  // Passing the just-completed value directly sidesteps the stale read.
+  const submit = async (e?: React.FormEvent, codeOverride?: string) => {
+    e?.preventDefault();
     if (busy) return;
     setBusy(true);
     setError('');
     try {
-      await verifyMFA(code.trim());
+      await verifyMFA((codeOverride ?? code).trim());
       await invalidateStatus();
       toast.success(
         tr('Authentification à deux facteurs activée', 'Two-factor authentication enabled'),
@@ -106,6 +110,10 @@ export function MFAEnrollmentDialog({
     try {
       await navigator.clipboard.writeText(setup.secret);
       setCopied(true);
+      // The icon swap alone does not tell a screen-reader user anything
+      // happened — the toast is the announcement, same live region every
+      // other confirmation in the product uses.
+      toast.success(tr('Clé copiée', 'Key copied'));
       setTimeout(() => setCopied(false), 2000);
     } catch {
       toast.error(tr('Copie impossible', 'Could not copy'));
@@ -114,7 +122,7 @@ export function MFAEnrollmentDialog({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-80 flex items-center justify-center p-4"
+      className="fixed inset-0 z-80 flex items-center justify-center p-4 motion-safe:animate-or-fadein"
       style={{ background: 'var(--surface-overlay)', backdropFilter: 'blur(var(--overlay-blur))' }}
       onClick={onClose}
     >
@@ -126,7 +134,10 @@ export function MFAEnrollmentDialog({
         tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
         onSubmit={submit}
-        className="w-full max-w-[440px] max-h-[90vh] flex flex-col rounded-[16px] overflow-hidden outline-none"
+        /* Stopgap (#751 phase 5): this dialog was hand-rolled with no
+           entrance at all. The house enter class is the fix here, not an
+           exit — moving it onto the ds `Modal` needs its own issue. */
+        className="motion-safe:animate-or-rise w-full max-w-[440px] max-h-[90vh] flex flex-col rounded-[16px] overflow-hidden outline-none"
         style={{
           background: 'var(--bg-secondary)',
           border: '1px solid var(--border)',
@@ -210,11 +221,33 @@ export function MFAEnrollmentDialog({
                 <button
                   type="button"
                   onClick={copySecret}
-                  className="h-9 w-9 rounded-[9px] flex items-center justify-center text-ink-soft hover:text-ink transition-colors shrink-0"
+                  className="h-9 w-9 rounded-[9px] grid place-items-center text-ink-soft hover:text-ink transition-colors shrink-0"
                   style={{ background: 'var(--bg-hover)' }}
-                  aria-label={tr('Copier la clé', 'Copy the key')}
+                  /* The accessible name follows the state, the same way the
+                     icon does — the icon alone is silent to a screen reader. */
+                  aria-label={copied ? tr('Copié', 'Copied') : tr('Copier la clé', 'Copy the key')}
                 >
-                  {copied ? <Check size={16} /> : <Copy size={16} />}
+                  {/* Both icons stacked in one grid cell and cross-faded, not
+                      swapped outright — no rotation, no pop, just opacity and
+                      a slight scale on --motion-hover. */}
+                  <span className="grid">
+                    <Copy
+                      aria-hidden="true"
+                      size={16}
+                      className={cn(
+                        '[grid-area:1/1] transition-[opacity,transform] duration-fast ease-out',
+                        copied ? 'opacity-0 scale-75' : 'opacity-100 scale-100',
+                      )}
+                    />
+                    <Check
+                      aria-hidden="true"
+                      size={16}
+                      className={cn(
+                        '[grid-area:1/1] transition-[opacity,transform] duration-fast ease-out',
+                        copied ? 'opacity-100 scale-100' : 'opacity-0 scale-75',
+                      )}
+                    />
+                  </span>
                 </button>
               </div>
 
@@ -246,21 +279,30 @@ export function MFAEnrollmentDialog({
                 </div>
               )}
 
-              <label className="flex flex-col gap-1.5">
+              {/* A plain div, not a wrapping <label>: OtpField labels itself
+                  via the `label` prop (the exact case its doc comment names
+                  this dialog for), so there is one accessible name rather than
+                  an implicit association that would be fragile to a future
+                  refactor un-nesting the input. */}
+              <div className="flex flex-col gap-1.5">
                 <span className="text-[11px] font-semibold uppercase tracking-[.04em] text-ink-muted">
                   {tr('Code à 6 chiffres', '6-digit code')}
                 </span>
                 <OtpField
+                  label={tr('Code à 6 chiffres', '6-digit code')}
                   value={code}
                   onValueChange={(next) => {
                     setCode(next);
                     setError('');
                   }}
+                  onComplete={(value) => {
+                    if (!busy) void submit(undefined, value);
+                  }}
                   length={6}
                   invalid={!!error}
                   describedBy={error ? 'mfa-enrol-error' : undefined}
                 />
-              </label>
+              </div>
 
               {error && (
                 <div
