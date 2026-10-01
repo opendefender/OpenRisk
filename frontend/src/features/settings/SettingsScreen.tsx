@@ -3,7 +3,7 @@
 //
 // Settings (OpenRisk.dc.html §6.16) — the consolidation point for every admin
 // feature. Internal nav + tabs: General, Members (real /users), RBAC, API Tokens
-// (real /tokens), Organizations, Audit log, Custom Fields (real /custom-fields),
+// (real /auth/pat), Organizations, Audit log, Custom Fields (real /custom-fields),
 // Integrations, Notifications, Security, Billing, Danger. Endpoints whose tables
 // aren't migrated yet (roles/tenants/audit) degrade to an honest unavailable state.
 
@@ -48,7 +48,8 @@ import { ChangePasswordCard } from '../auth/ChangePasswordCard';
 import { MembersView } from '../organization/MembersView';
 import { relTime } from '../risks/riskMap';
 import { api } from '../../lib/api';
-import { useTokens, useCustomFields, useTenants, type ApiToken } from './adminData';
+import { useCustomFields, useTenants } from './adminData';
+import { ApiTokensPanel } from './ApiTokensPanel';
 import {
   useNotificationPreferences,
   useUpdateNotificationPreferences,
@@ -366,7 +367,7 @@ export function SettingsScreen() {
           {tab === 'profile' && <ProfileTab tr={tr} />}
           {tab === 'general' && <GeneralTab tr={tr} />}
           {tab === 'members' && <MembersView />}
-          {tab === 'tokens' && <TokensTab tr={tr} lang={lang} />}
+          {tab === 'tokens' && <ApiTokensPanel tr={tr} lang={lang} />}
           {tab === 'orgs' && <OrgsTab tr={tr} />}
           {tab === 'fields' && <CustomFieldsTab tr={tr} />}
           {tab === 'integrations' && <IntegrationsTab tr={tr} />}
@@ -381,233 +382,6 @@ export function SettingsScreen() {
 }
 
 /* ==================== real tabs ==================== */
-
-// The token prefix cell used to render a Copy glyph that copied nothing. Module
-// scope keeps the handler stable so the columns memo survives.
-function copyPrefix(prefix: string, tr: Tr) {
-  navigator.clipboard
-    ?.writeText(prefix)
-    .then(() => toast.success(tr('Préfixe copié', 'Prefix copied')))
-    .catch(() => toast.error(tr('Copie impossible', 'Could not copy')));
-}
-
-function TokensTab({ tr, lang }: { tr: Tr; lang: LocaleCode }) {
-  const { tokens, isLoading, isError, refetch, create, revoke } = useTokens();
-  const [name, setName] = useState('');
-  // Revoking a token breaks any integration using it → impact-radiography confirm.
-  const [revokingToken, setRevokingToken] = useState<null | {
-    id: string;
-    name: string;
-    lastUsed?: string | null;
-  }>(null);
-  const table = useTableState({
-    defaultSort: { key: 'created', dir: 'desc' },
-    defaultPageSize: 25,
-    urlPrefix: 'tok_',
-  });
-
-  const doCreate = () => {
-    const n = name.trim() || tr('Nouveau jeton', 'New token');
-    create.mutate(n, {
-      onSuccess: (res) => {
-        setName('');
-        const secret = res.data?.token;
-        if (secret) {
-          navigator.clipboard?.writeText(secret).catch(() => {});
-          toast.success(
-            tr(
-              'Jeton créé et copié dans le presse-papiers',
-              'Token created and copied to clipboard',
-            ),
-          );
-        } else toast.success(tr('Jeton créé', 'Token created'));
-      },
-      onError: () => toast.error(tr('Création échouée', 'Creation failed')),
-    });
-  };
-
-  const facets: Facet<ApiToken>[] = useMemo(
-    () => [
-      {
-        key: 'state',
-        label: tr('État', 'State'),
-        single: true,
-        options: [
-          { value: 'active', label: tr('Actifs', 'Active'), color: 'var(--low)' },
-          { value: 'revoked', label: tr('Révoqués', 'Revoked'), color: 'var(--critical)' },
-        ],
-        matches: (t, selected) => (selected.includes('revoked') ? !!t.revoked : !t.revoked),
-      },
-    ],
-    [tr],
-  );
-
-  const columns: Column<ApiToken>[] = useMemo(
-    () => [
-      {
-        key: 'name',
-        header: tr('Nom', 'Name'),
-        frozen: true,
-        hideable: false,
-        sortValue: (t) => t.name.toLowerCase(),
-        exportValue: (t) => t.name,
-        render: (t) => (
-          <span
-            className="text-[13.5px] font-medium text-ink"
-            style={{ opacity: t.revoked ? 0.55 : 1 }}
-          >
-            {t.name}
-            {t.revoked ? ` · ${tr('révoqué', 'revoked')}` : ''}
-          </span>
-        ),
-      },
-      {
-        key: 'prefix',
-        header: tr('Préfixe', 'Prefix'),
-        exportValue: (t) => t.token_prefix ?? '',
-        render: (t) =>
-          t.token_prefix ? (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                copyPrefix(t.token_prefix as string, tr);
-              }}
-              className="mono text-[12px] text-ink-soft inline-flex items-center gap-1.5 rounded px-1 -mx-1 hover:bg-hover"
-              title={tr('Copier le préfixe', 'Copy prefix')}
-            >
-              {t.token_prefix}… <Copy size={12} className="text-ink-muted" />
-            </button>
-          ) : (
-            <span className="text-ink-muted text-[12px]">—</span>
-          ),
-      },
-      {
-        key: 'created',
-        header: tr('Créé', 'Created'),
-        sortValue: (t) => new Date(t.created_at ?? 0).getTime(),
-        exportValue: (t) => t.created_at ?? '',
-        render: (t) => (
-          <span className="text-[12px] text-ink-soft">{relTime(t.created_at, lang)}</span>
-        ),
-      },
-      {
-        key: 'used',
-        header: tr('Dernière util.', 'Last used'),
-        sortValue: (t) => new Date(t.last_used_at ?? 0).getTime(),
-        exportValue: (t) => t.last_used_at ?? '',
-        render: (t) => (
-          <span className="text-[12px] text-ink-soft">
-            {t.last_used_at ? relTime(t.last_used_at, lang) : tr('jamais', 'never')}
-          </span>
-        ),
-      },
-    ],
-    [tr, lang],
-  );
-
-  const rowActions: RowAction<ApiToken>[] = useMemo(
-    () => [
-      {
-        key: 'revoke',
-        label: tr('Révoquer', 'Revoke'),
-        icon: Trash2,
-        danger: true,
-        hidden: (t) => !!t.revoked,
-        onSelect: (t) => setRevokingToken({ id: t.id, name: t.name, lastUsed: t.last_used_at }),
-      },
-    ],
-    [tr],
-  );
-
-  return (
-    <>
-      <div className="flex items-center gap-2.5 mb-4 flex-wrap">
-        <input
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder={tr('Nom du jeton (ex. CI/CD)', 'Token name (e.g. CI/CD)')}
-          aria-label={tr('Nom du jeton', 'Token name')}
-          className="flex-1 min-w-[200px] h-9 px-3.5 rounded-[10px] text-[13px] text-ink outline-none"
-          style={{ border: '1px solid var(--border-strong)', background: 'var(--bg-elevated)' }}
-        />
-        <Btn
-          label={tr('Générer un jeton', 'Generate token')}
-          icon={Plus}
-          primary
-          onClick={doCreate}
-          disabled={create.isPending}
-        />
-      </div>
-
-      <DataTable
-        id="api-tokens"
-        ariaLabel={tr('Jetons API', 'API tokens')}
-        rows={tokens}
-        columns={columns}
-        rowKey={(t) => t.id}
-        api={table}
-        mode="client"
-        loading={isLoading}
-        error={isError}
-        onRetry={() => void refetch()}
-        facets={facets}
-        clientSearch={(t, q) => `${t.name} ${t.token_prefix ?? ''}`.toLowerCase().includes(q)}
-        searchPlaceholder={tr('Nom ou préfixe…', 'Name or prefix…')}
-        rowActions={rowActions}
-        exportFilename="jetons-api"
-        minWidth={620}
-        pageSizeOptions={[10, 25, 50]}
-        empty={
-          <EmptyState
-            icon={KeyRound}
-            title={tr('Aucun jeton API', 'No API tokens')}
-            description={tr(
-              'Créez un jeton pour authentifier vos intégrations et scripts.',
-              'Create a token to authenticate your integrations and scripts.',
-            )}
-          />
-        }
-      />
-
-      <DangerConfirm
-        open={!!revokingToken}
-        onClose={() => setRevokingToken(null)}
-        title={tr('Révoquer le jeton API', 'Revoke API token')}
-        subject={revokingToken?.name}
-        intro={tr(
-          'Toute intégration ou script utilisant ce jeton cessera immédiatement de fonctionner. Cette action est irréversible.',
-          'Any integration or script using this token stops working immediately. This action is irreversible.',
-        )}
-        impact={
-          revokingToken
-            ? [
-                {
-                  label: tr('Dernière utilisation', 'Last used'),
-                  value: revokingToken.lastUsed
-                    ? relTime(revokingToken.lastUsed, lang)
-                    : tr('jamais', 'never'),
-                },
-              ]
-            : []
-        }
-        confirmLabel={tr('Révoquer le jeton', 'Revoke token')}
-        onConfirm={() => {
-          if (revokingToken)
-            revoke.mutate(revokingToken.id, {
-              onSuccess: () => {
-                toast.success(tr('Jeton révoqué', 'Token revoked'));
-                setRevokingToken(null);
-              },
-              onError: () =>
-                toast.error(tr('Révocation échouée — réessayez.', 'Revocation failed — retry.')),
-            });
-        }}
-        busy={revoke.isPending}
-      />
-    </>
-  );
-}
 
 function CustomFieldsTab({ tr }: { tr: Tr }) {
   const { fields, isLoading, isError } = useCustomFields();

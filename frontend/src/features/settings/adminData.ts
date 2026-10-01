@@ -52,31 +52,57 @@ export function useUsers() {
   };
 }
 
-/* ---------------- API Tokens (/tokens) ---------------- */
+/* ---------------- API Tokens (/auth/pat) ---------------- */
+// Personal access tokens (#782). Stored hashed in PostgreSQL, bound to the
+// organization they were created in, and accepted by the PAT middleware on
+// every /api/v1 route as `Authorization: Bearer orsk_…`.
 export interface ApiToken {
   id: string;
   name: string;
-  token_prefix?: string;
-  expires_at?: string;
+  token_prefix: string;
+  expires_at?: string | null;
   created_at: string;
-  last_used_at?: string;
-  revoked?: boolean;
+  last_used_at?: string | null;
 }
+
+/** POST /auth/pat answer. `token` is the secret, returned this once only. */
+export interface CreatedApiToken {
+  id: string;
+  name: string;
+  token_prefix: string;
+  created_at: string;
+  token: string;
+}
+
+const TOKENS_KEY = ['admin', 'tokens'] as const;
 
 export function useTokens() {
   const qc = useQueryClient();
   const query = useQuery({
-    queryKey: ['admin', 'tokens'],
-    queryFn: async () => (await api.get<{ tokens: ApiToken[] }>('/tokens')).data?.tokens ?? [],
+    queryKey: TOKENS_KEY,
+    queryFn: async () =>
+      (await api.get<{ tokens: ApiToken[] | null }>('/auth/pat')).data?.tokens ?? [],
   });
-  const invalidate = () => qc.invalidateQueries({ queryKey: ['admin', 'tokens'] });
+  const invalidate = () => qc.invalidateQueries({ queryKey: TOKENS_KEY });
   const create = useMutation({
-    mutationFn: (name: string) => api.post<{ token?: string }>('/tokens', { name }),
+    // "*" = everything the creator holds in this organization, never more: the
+    // server intersects it with the creator's own permissions on every request.
+    mutationFn: async (name: string) =>
+      (await api.post<CreatedApiToken>('/auth/pat', { name, scopes: ['*'] })).data,
     onSuccess: invalidate,
   });
   const revoke = useMutation({
-    mutationFn: (id: string) => api.post(`/tokens/${id}/revoke`),
-    onSuccess: invalidate,
+    mutationFn: (id: string) => api.delete(`/auth/pat/${id}`),
+    onMutate: async (id: string) => {
+      await qc.cancelQueries({ queryKey: TOKENS_KEY });
+      const previous = qc.getQueryData<ApiToken[]>(TOKENS_KEY);
+      qc.setQueryData<ApiToken[]>(TOKENS_KEY, (rows) => (rows ?? []).filter((t) => t.id !== id));
+      return { previous };
+    },
+    onError: (_err, _id, ctx) => {
+      if (ctx?.previous) qc.setQueryData(TOKENS_KEY, ctx.previous);
+    },
+    onSettled: invalidate,
   });
   return {
     tokens: query.data ?? [],
