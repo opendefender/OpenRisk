@@ -31,6 +31,30 @@ rework.
 
 **Raised by** — #751 phase 5 (art-director + ux-designer specs, 2026-09-29).
 
+### D-062 — Asset-criticality term of a risk with no linked asset: 1.0 · raised 2026-10-01
+**Question** — The frozen formula needs an asset-criticality term even when a risk has no
+linked asset. The code disagreed with itself. Everything that **stores** a score (Score
+Engine worker via `GetRisksByAssetID`, the risk handler's Redis event, the demo seed) used
+**1.0**. The score breakdown and score-working views, which only **display** a score,
+used **1.5** (medium). As a result, every risk without an asset read "stored score does
+not match the working". #792 needs exactly one value. Which one is it?
+
+**Applied on #792 (reversible) — A, 1.0.** It is now one constant,
+`domain.NoAssetCriticalityFactor`, and one function, `domain.RiskAssetCriticality`, used
+by every writer and reader. The formula is unchanged.
+
+**Options**
+- **A — 1.0, neutral (applied).** Score = P × I. Every score already stored for a risk
+  without an asset stays valid. No backfill is needed, and only the two read views change.
+- **B — 1.5, medium.** "Unknown counts as medium", like `AssetCriticality.ScoreFactor()`
+  does for an unknown value. Every risk without an asset would score 50% higher. That
+  needs a backfill of stored scores, and the change is visible to every tenant.
+
+**Cost of delay** — none. A is live on the #792 branch, and switching to B means changing
+one constant plus writing a backfill migration.
+
+**Raised by** — #792 (2026-10-01).
+
 ## Resolved
 
 ### D-061 — SSO accounts turn MFA off with an authenticator code · decided 2026-09-30

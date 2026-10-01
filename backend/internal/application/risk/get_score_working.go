@@ -76,26 +76,19 @@ func (uc *GetScoreWorkingUseCase) Execute(ctx context.Context, tenantID, riskID 
 		SourcesVisible:    canReadAudit && uc.audit != nil,
 	}
 
-	// Asset criticality: the average factor over every linked asset, medium when
-	// none — the same derivation the Score Engine is fed (GetScoreBreakdown,
-	// GormRiskRepository.GetRisksByAssetID).
-	ac := domain.CriticalityMedium.ScoreFactor()
-	if len(r.Assets) > 0 {
-		var sum float64
-		for _, a := range r.Assets {
-			f := a.Criticality.ScoreFactor()
-			sum += f
-			w.Assets = append(w.Assets, domain.ScoreWorkingAsset{
-				ID:          a.ID.String(),
-				Name:        a.Name,
-				Criticality: string(a.Criticality),
-				Factor:      f,
-			})
-		}
-		ac = sum / float64(len(r.Assets))
-	} else {
-		w.AssetCriticalityDefaulted = true
+	// Asset criticality: the same derivation every score writer uses
+	// (domain.RiskAssetCriticality) — the average factor over the linked
+	// assets, neutral when none is linked (#792).
+	for _, a := range r.Assets {
+		w.Assets = append(w.Assets, domain.ScoreWorkingAsset{
+			ID:          a.ID.String(),
+			Name:        a.Name,
+			Criticality: string(a.Criticality),
+			Factor:      a.Criticality.ScoreFactor(),
+		})
 	}
+	w.AssetCriticalityDefaulted = len(r.Assets) == 0
+	ac := domain.RiskAssetCriticality(domain.AssetCriticalities(r.Assets))
 
 	b, err := uc.engine.Breakdown(r.Probability, r.Impact, ac, nil)
 	if err != nil {
