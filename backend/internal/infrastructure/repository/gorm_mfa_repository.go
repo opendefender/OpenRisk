@@ -51,11 +51,26 @@ func (r *GormMFARepository) UpdateMFASecret(ctx context.Context, secret *domain.
 	return r.db.WithContext(ctx).Save(secret).Error
 }
 
-// DisableMFA disables MFA for user (soft delete)
+// DisableMFA removes the TOTP secret and every backup code of one user, in one
+// transaction (#754).
+//
+// Both or neither: backup codes that survive their secret are a second factor
+// nobody can see or revoke from the UI, and a secret that survives its codes
+// leaves an account the user believes is unprotected still demanding a code.
+//
+// The secret is hard-deleted. It is key material, so a soft-deleted copy has no
+// business lingering, and mfa_secrets.user_id is UNIQUE without a deleted_at
+// clause — a tombstone would make the next enrolment fail on that constraint.
 func (r *GormMFARepository) DisableMFA(ctx context.Context, userID, tenantID uuid.UUID) error {
-	return r.db.WithContext(ctx).
-		Where("user_id = ? AND tenant_id = ?", userID, tenantID).
-		Delete(&domain.MFASecret{}).Error
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Unscoped().
+			Where("user_id = ? AND tenant_id = ?", userID, tenantID).
+			Delete(&domain.MFASecret{}).Error; err != nil {
+			return err
+		}
+		return tx.Where("user_id = ? AND tenant_id = ?", userID, tenantID).
+			Delete(&domain.MFABackupCode{}).Error
+	})
 }
 
 // SaveBackupCodes saves backup codes in batch

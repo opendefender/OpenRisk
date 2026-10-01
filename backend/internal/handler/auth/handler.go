@@ -548,6 +548,10 @@ func (h *Handler) Me(c *fiber.Ctx) error {
 			if mfaBlock != nil {
 				body["mfa"] = mfaBlock
 			}
+			// #754 — whether the account can confirm with a password at all. An
+			// identity-provider account confirms sensitive changes (turning MFA
+			// off) with an authenticator code instead. A fact, not the hash.
+			body["has_password"] = user.Password != ""
 			// The CURRENT business role, re-read per call like everything else
 			// here. The client picks its persona and its landing route from
 			// this; before #338 the field did not exist on this response, so

@@ -218,6 +218,46 @@ export async function verifyMFA(
   return data;
 }
 
+/** Why the server refused to turn MFA off (#754). */
+export type DisableMFAErrorCode =
+  | 'wrong_password'
+  | 'wrong_code'
+  | 'mfa_required_by_role'
+  | 'no_local_password'
+  | 'not_enrolled'
+  | 'too_many_attempts';
+
+export interface DisableMFAErrorBody {
+  error?: string;
+  code?: DisableMFAErrorCode;
+}
+
+/**
+ * What the server will accept as proof when turning MFA off (#754): the
+ * password, or — for an account that signs in through an identity provider and
+ * has none — a current authenticator code. Unknown reads as "password"; the
+ * server answers `wrong_code` if that was wrong, and the dialog switches.
+ */
+export type DisableMFAProof = 'password' | 'code';
+
+export async function fetchDisableMFAProof(): Promise<DisableMFAProof> {
+  const { data } = await api.get<{ has_password?: boolean }>('/auth/me');
+  return data?.has_password === false ? 'code' : 'password';
+}
+
+/**
+ * Turns MFA off for the signed-in user. The session is not enough: the server
+ * re-checks the password (or the authenticator code for an account without
+ * one) and refuses roles that require MFA (#754).
+ */
+export async function disableMFA(
+  proof: { password: string } | { code: string },
+  locale: Lang,
+): Promise<{ message: string }> {
+  const { data } = await api.post<{ message: string }>('/auth/mfa/disable', { ...proof, locale });
+  return data;
+}
+
 export interface MFAChallengeResult {
   token_pair?: { access_token: string; refresh_token: string };
   csrf_token?: string;

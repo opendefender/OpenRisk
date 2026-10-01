@@ -7,6 +7,7 @@ package auth
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -205,11 +206,59 @@ func (uc *VerifyMFAUseCase) Execute(ctx context.Context, input VerifyMFAInput) (
 	}, nil
 }
 
-// DisableMFAInput represents MFA disable request
+// ---------------------------------------------------------------------------
+// Disabling MFA (#754).
+//
+// Removing a factor is the one MFA operation an attacker at an unlocked
+// workstation wants most, so the session alone is not enough: the caller must
+// prove the password again. An account that signs in through an identity
+// provider has no password here, so it proves possession of the factor it is
+// removing instead: a current code from the authenticator app. Backup codes do
+// not count — they are the factor most often written down next to the desk. Privileged roles cannot remove it at all — the
+// login policy would demand it back on the next sign-in, and in between the
+// account would sit on a password alone.
+// ---------------------------------------------------------------------------
+
+var (
+	// ErrMFADisablePasswordIncorrect covers a wrong and a missing password alike.
+	// Deliberately unspecific.
+	ErrMFADisablePasswordIncorrect = errors.New("password is incorrect")
+	// ErrMFARequiredByRole refuses the removal for a role the deployment requires
+	// MFA for.
+	ErrMFARequiredByRole = errors.New("two-factor authentication is required for this role")
+	// ErrMFADisableCodeIncorrect covers a wrong and a missing authenticator code
+	// alike, for an account without a local password.
+	ErrMFADisableCodeIncorrect = errors.New("authentication code is incorrect")
+)
+
+// DisableMFAUserLookup reads the account and its membership. Satisfied by
+// *repository.GormUserRepository.
+type DisableMFAUserLookup interface {
+	GetByID(ctx context.Context, id uuid.UUID) (*domain.User, error)
+	GetOrganizationMember(ctx context.Context, userID, orgID uuid.UUID) (*domain.OrganizationMember, error)
+}
+
+// MFADisabledMailer sends the deactivation notice.
+type MFADisabledMailer interface {
+	SendMFADisabled(ctx context.Context, to, fullName, locale string) error
+}
+
+// MFADisabledInAppNotifier records the in-app deactivation notice.
+type MFADisabledInAppNotifier func(ctx context.Context, tenantID, userID uuid.UUID, subject, message string)
+
+// DisableMFAInput represents MFA disable request. UserID, TenantID and
+// OrgRoleHint come from the session, never from the body.
 type DisableMFAInput struct {
 	UserID   uuid.UUID
 	TenantID uuid.UUID
 	Password string // Current password (required for security)
+	// Code is a current TOTP code. Required instead of Password when the account
+	// has no local password (identity-provider sign-in); ignored otherwise.
+	Code string
+	// OrgRoleHint is the org role in the caller's signed token. It can only
+	// widen the privileged check, never narrow it (same rule as MFAStatusResolver).
+	OrgRoleHint string
+	Locale      string
 }
 
 // DisableMFAOutput represents MFA disable response
@@ -220,37 +269,131 @@ type DisableMFAOutput struct {
 // DisableMFAUseCase handles MFA disable
 type DisableMFAUseCase struct {
 	mfaRepo        repository.MFARepository
+	users          DisableMFAUserLookup
 	passwordHasher PasswordHasher
+	privileged     domain.MFAPrivilegeSet
+	mailer         MFADisabledMailer
+	inApp          MFADisabledInAppNotifier
+	// totpKey decrypts the stored secret to check Code. Without it an account
+	// with no local password cannot prove anything and is refused.
+	totpKey []byte
 }
 
 // NewDisableMFAUseCase creates a new disable MFA use case
-func NewDisableMFAUseCase(mfaRepo repository.MFARepository, passwordHasher PasswordHasher) *DisableMFAUseCase {
+func NewDisableMFAUseCase(mfaRepo repository.MFARepository, users DisableMFAUserLookup, passwordHasher PasswordHasher) *DisableMFAUseCase {
 	return &DisableMFAUseCase{
 		mfaRepo:        mfaRepo,
+		users:          users,
 		passwordHasher: passwordHasher,
 	}
 }
 
-// Execute disables MFA for user
+// RequireMFAForRoles names the roles that may not remove their factor. Pass the
+// same lists login enforces, so the two can never disagree.
+func (uc *DisableMFAUseCase) RequireMFAForRoles(orgRoles, businessRoles []string) *DisableMFAUseCase {
+	uc.privileged = domain.NewMFAPrivilegeSet(orgRoles, businessRoles)
+	return uc
+}
+
+// WithTOTPKey lets an account without a local password confirm with a current
+// authenticator code. Pass the same key the secrets were encrypted with.
+func (uc *DisableMFAUseCase) WithTOTPKey(key []byte) *DisableMFAUseCase {
+	uc.totpKey = key
+	return uc
+}
+
+// WithMailer wires the deactivation notice. Optional.
+func (uc *DisableMFAUseCase) WithMailer(m MFADisabledMailer) *DisableMFAUseCase {
+	uc.mailer = m
+	return uc
+}
+
+// WithInAppNotifier wires the in-app deactivation notice. Optional.
+func (uc *DisableMFAUseCase) WithInAppNotifier(n MFADisabledInAppNotifier) *DisableMFAUseCase {
+	uc.inApp = n
+	return uc
+}
+
+// Execute verifies the password, refuses privileged roles, then deletes the
+// secret and the backup codes in one transaction and notifies the owner.
 func (uc *DisableMFAUseCase) Execute(ctx context.Context, input DisableMFAInput) (*DisableMFAOutput, error) {
 	if input.UserID == uuid.Nil || input.TenantID == uuid.Nil {
-		return nil, domain.NewValidationError("user_id and tenant_id required")
+		return nil, domain.NewUnauthorizedError("authentication required")
 	}
 
-	// TODO: Verify password before disabling (requires user repo + password verification)
+	user, err := uc.users.GetByID(ctx, input.UserID)
+	if err != nil {
+		return nil, fmt.Errorf("auth.DisableMFA: load user: %w", err)
+	}
+	if user == nil || !user.IsActive {
+		return nil, domain.NewNotFoundError("user", input.UserID)
+	}
+	hasPassword := user.Password != ""
+	if !hasPassword && uc.totpKey == nil {
+		// Nothing this account could prove. Refuse rather than let the session
+		// alone remove the factor.
+		return nil, ErrNoLocalPassword
+	}
+	if hasPassword && (input.Password == "" || !uc.passwordHasher.Verify(user.Password, input.Password)) {
+		return nil, ErrMFADisablePasswordIncorrect
+	}
 
-	// Delete MFA secret and backup codes
+	secret, err := uc.mfaRepo.GetMFASecret(ctx, input.UserID, input.TenantID)
+	if err != nil {
+		return nil, fmt.Errorf("auth.DisableMFA: load secret: %w", err)
+	}
+	if secret == nil {
+		return nil, domain.NewNotFoundError("MFA secret", input.UserID)
+	}
+	if !hasPassword {
+		plain, err := crypto.DecryptAES256GCM(secret.SecretEncrypted, uc.totpKey)
+		if err != nil {
+			return nil, fmt.Errorf("auth.DisableMFA: decrypt secret: %w", err)
+		}
+		if input.Code == "" || !otp.VerifyTOTP(plain, input.Code) {
+			return nil, ErrMFADisableCodeIncorrect
+		}
+	}
+
+	if !uc.privileged.Empty() {
+		member, err := uc.users.GetOrganizationMember(ctx, input.UserID, input.TenantID)
+		if err != nil {
+			// Cannot tell whether the role requires MFA: refuse rather than guess.
+			return nil, fmt.Errorf("auth.DisableMFA: load membership: %w", err)
+		}
+		privileged := uc.privileged.Includes(domain.MemberRole(input.OrgRoleHint), "")
+		if member != nil && uc.privileged.Includes(member.Role, member.BusinessRole) {
+			privileged = true
+		}
+		if privileged {
+			return nil, ErrMFARequiredByRole
+		}
+	}
+
 	if err := uc.mfaRepo.DisableMFA(ctx, input.UserID, input.TenantID); err != nil {
-		return nil, fmt.Errorf("failed to disable MFA: %w", err)
+		return nil, fmt.Errorf("auth.DisableMFA: %w", err)
 	}
 
-	if err := uc.mfaRepo.DeleteBackupCodes(ctx, input.UserID, input.TenantID); err != nil {
-		return nil, fmt.Errorf("failed to delete backup codes: %w", err)
+	if uc.mailer != nil {
+		_ = uc.mailer.SendMFADisabled(ctx, user.Email, user.FullName, normaliseLocale(input.Locale))
+	}
+	if uc.inApp != nil {
+		subject, message := mfaDisabledInAppCopy(normaliseLocale(input.Locale))
+		uc.inApp(ctx, input.TenantID, input.UserID, subject, message)
 	}
 
 	return &DisableMFAOutput{
 		Message: "MFA disabled successfully",
 	}, nil
+}
+
+func mfaDisabledInAppCopy(locale string) (string, string) {
+	if locale == "en" {
+		return "Two-factor authentication turned off",
+			"Two-factor authentication was turned off on your account after your identity was confirmed. If this wasn't you, secure your account and turn it back on from Settings → Security."
+	}
+	return "Double authentification désactivée",
+		"La double authentification a été désactivée sur votre compte après confirmation de votre identité. Si ce n'est pas vous, sécurisez votre compte et réactivez-la depuis Paramètres → Sécurité."
 }
 
 // ChallengeMFAInput represents MFA challenge request (after login)

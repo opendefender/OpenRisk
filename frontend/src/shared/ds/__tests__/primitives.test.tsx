@@ -494,6 +494,20 @@ describe('Modal', () => {
     expect(document.activeElement).toBe(trigger);
   });
 
+  it('leaves focus on a field that autofocused instead of pulling it to the first button', async () => {
+    render(
+      <Modal open onClose={() => {}} title="Confirm" closeLabel="Close">
+        <input aria-label="Password" autoFocus />
+      </Modal>,
+    );
+    const field = screen.getByLabelText('Password');
+    expect(document.activeElement).toBe(field);
+
+    // The deferred initial focus has run by now; it must not have moved.
+    await act(() => new Promise((r) => requestAnimationFrame(() => r(undefined))));
+    expect(document.activeElement).toBe(field);
+  });
+
   it('keeps Tab inside the dialog', async () => {
     const user = userEvent.setup();
     render(<ModalHarness />);

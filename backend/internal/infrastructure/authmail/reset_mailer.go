@@ -70,6 +70,19 @@ func (m *Mailer) SendPasswordChanged(ctx context.Context, to, fullName, locale s
 	return m.sender.SendEmail(ctx, to, c.subject, m.render(c))
 }
 
+// SendMFADisabled tells the owner that two-factor authentication was turned off
+// (#754).
+//
+// Losing a factor is exactly what someone at an unlocked workstation would do
+// first, so the notice goes to the mailbox, which that person does not hold.
+func (m *Mailer) SendMFADisabled(ctx context.Context, to, fullName, locale string) error {
+	if m == nil || m.sender == nil {
+		return nil
+	}
+	c := mfaDisabledCopy(locale, displayName(fullName, locale))
+	return m.sender.SendEmail(ctx, to, c.subject, m.render(c))
+}
+
 // SendNewSignInAlert warns about a sign-in from an unrecognised device.
 func (m *Mailer) SendNewSignInAlert(ctx context.Context, to, fullName, ip, userAgent string, when time.Time, locale string) error {
 	if m == nil || m.sender == nil {
@@ -167,6 +180,29 @@ func passwordChangedCopy(locale, name string) copyBlock {
 			"Le mot de passe de ce compte OpenRisk vient d'être modifié depuis une session ouverte. Cet appareil reste connecté ; tous les autres ont été déconnectés.",
 		},
 		footnote: "Si vous n'êtes pas à l'origine de ce changement, votre compte est compromis : réinitialisez immédiatement votre mot de passe depuis la page de connexion et contactez votre administrateur OpenRisk.",
+	}
+}
+
+func mfaDisabledCopy(locale, name string) copyBlock {
+	if locale == "en" {
+		return copyBlock{
+			subject: "Two-factor authentication was turned off on your OpenRisk account",
+			heading: "Two-factor authentication is off",
+			paragraphs: []string{
+				fmt.Sprintf("Hello %s,", name),
+				"Two-factor authentication was just turned off on this OpenRisk account, after the account holder's identity was confirmed (password, or a code from the authenticator app for accounts that sign in through an identity provider). Your authenticator app and your backup codes no longer work. A password alone now opens the account.",
+			},
+			footnote: "If this wasn't you, someone else can prove they are you: reset your password (or alert your identity provider's administrator), turn two-factor authentication back on, and contact your OpenRisk administrator.",
+		}
+	}
+	return copyBlock{
+		subject: "La double authentification a été désactivée sur votre compte OpenRisk",
+		heading: "La double authentification est désactivée",
+		paragraphs: []string{
+			fmt.Sprintf("Bonjour %s,", name),
+			"La double authentification vient d'être désactivée sur ce compte OpenRisk, après confirmation de l'identité du titulaire (mot de passe, ou code de l'application d'authentification pour les comptes connectés via un fournisseur d'identité). Votre application d'authentification et vos codes de secours ne fonctionnent plus. Le mot de passe seul suffit désormais pour ouvrir le compte.",
+		},
+		footnote: "Si vous n'êtes pas à l'origine de ce changement, quelqu'un d'autre peut se faire passer pour vous : réinitialisez votre mot de passe (ou alertez l'administrateur de votre fournisseur d'identité), réactivez la double authentification et contactez votre administrateur OpenRisk.",
 	}
 }
 

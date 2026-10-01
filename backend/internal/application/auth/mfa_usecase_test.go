@@ -50,6 +50,7 @@ func (m *MockMFARepository) UpdateMFASecret(ctx context.Context, secret *domain.
 func (m *MockMFARepository) DisableMFA(ctx context.Context, userID, tenantID uuid.UUID) error {
 	key := userID.String() + ":" + tenantID.String()
 	delete(m.secrets, key)
+	delete(m.codes, key)
 	return nil
 }
 
