@@ -128,7 +128,7 @@ var decisions = []Decision{
 	{"/api/v1/custom-fields/*", Covered,
 		"service/custom_field_service_test TestCustomField_TenantIsolation"},
 	{"/api/v1/teams/{id}", Covered,
-		"handler/team_isolation_test TestTeam_TenantIsolationPredicate"},
+		"handler/team_isolation_test TestTeam_TenantIsolationPredicate; handler/team_handler_test TestTeams_NotFound drives every /teams route and member path cross-tenant (#830)"},
 	{"/api/v1/teams/*", Covered,
 		"handler/team_isolation_test covers member add/remove paths"},
 	// /api/v1/users/{id} (status, role, delete) was removed in #807; the only

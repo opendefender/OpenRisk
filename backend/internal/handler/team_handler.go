@@ -10,10 +10,18 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
+	"gorm.io/gorm"
+
 	"github.com/opendefender/openrisk/internal/domain"
 	"github.com/opendefender/openrisk/internal/infrastructure/database"
 	"github.com/opendefender/openrisk/internal/middleware"
 )
+
+// Authorization for every /teams route is the RequireRole("admin") guard in
+// the composition root, which reads the caller's role in the ACTIVE
+// organization from the signed session. The handlers used to re-check the
+// global users.role_id, and looked the caller up by the token id rather than
+// the user id, so every call answered 404 (#830).
 
 type CreateTeamInput struct {
 	Name        string `json:"name" validate:"required"`
@@ -57,16 +65,6 @@ func CreateTeam(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized"})
 	}
 
-	// Check if user is admin
-	var currentUser domain.User
-	if err := database.DB.Preload("Role").First(&currentUser, "id = ?", claims.ID).Error; err != nil {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "User not found"})
-	}
-
-	if currentUser.Role.Name != "admin" {
-		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "Only admins can create teams"})
-	}
-
 	tenantID := safeGetUUID(c, "tenant_id")
 	if tenantID == uuid.Nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "invalid tenant"})
@@ -78,6 +76,7 @@ func CreateTeam(c *fiber.Ctx) error {
 	}
 
 	team := domain.Team{
+		ID:          uuid.New(),
 		TenantID:    tenantID,
 		Name:        input.Name,
 		Description: input.Description,
@@ -103,16 +102,6 @@ func GetTeams(c *fiber.Ctx) error {
 	claims := middleware.GetUserClaims(c)
 	if claims == nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized"})
-	}
-
-	// Check if user is admin
-	var currentUser domain.User
-	if err := database.DB.Preload("Role").First(&currentUser, "id = ?", claims.ID).Error; err != nil {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "User not found"})
-	}
-
-	if currentUser.Role.Name != "admin" {
-		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "Only admins can view teams"})
 	}
 
 	tenantID := safeGetUUID(c, "tenant_id")
@@ -145,16 +134,6 @@ func GetTeam(c *fiber.Ctx) error {
 	claims := middleware.GetUserClaims(c)
 	if claims == nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized"})
-	}
-
-	// Check if user is admin
-	var currentUser domain.User
-	if err := database.DB.Preload("Role").First(&currentUser, "id = ?", claims.ID).Error; err != nil {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "User not found"})
-	}
-
-	if currentUser.Role.Name != "admin" {
-		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "Only admins can view teams"})
 	}
 
 	tenantID := safeGetUUID(c, "tenant_id")
@@ -198,16 +177,6 @@ func UpdateTeam(c *fiber.Ctx) error {
 	claims := middleware.GetUserClaims(c)
 	if claims == nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized"})
-	}
-
-	// Check if user is admin
-	var currentUser domain.User
-	if err := database.DB.Preload("Role").First(&currentUser, "id = ?", claims.ID).Error; err != nil {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "User not found"})
-	}
-
-	if currentUser.Role.Name != "admin" {
-		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "Only admins can update teams"})
 	}
 
 	tenantID := safeGetUUID(c, "tenant_id")
@@ -255,16 +224,6 @@ func DeleteTeam(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized"})
 	}
 
-	// Check if user is admin
-	var currentUser domain.User
-	if err := database.DB.Preload("Role").First(&currentUser, "id = ?", claims.ID).Error; err != nil {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "User not found"})
-	}
-
-	if currentUser.Role.Name != "admin" {
-		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "Only admins can delete teams"})
-	}
-
 	tenantID := safeGetUUID(c, "tenant_id")
 	teamID := c.Params("id")
 	var team domain.Team
@@ -272,13 +231,13 @@ func DeleteTeam(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Team not found"})
 	}
 
-	// Delete team members first
-	if err := database.DB.Where("team_id = ?", team.ID).Delete(&domain.TeamMember{}).Error; err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to delete team members"})
-	}
-
-	// Delete team
-	if err := database.DB.Delete(&team).Error; err != nil {
+	// Members and team go together or not at all (RULE #7).
+	if err := database.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("team_id = ?", team.ID).Delete(&domain.TeamMember{}).Error; err != nil {
+			return err
+		}
+		return tx.Delete(&team).Error
+	}); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to delete team"})
 	}
 
@@ -292,19 +251,15 @@ func AddTeamMember(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized"})
 	}
 
-	// Check if user is admin
-	var currentUser domain.User
-	if err := database.DB.Preload("Role").First(&currentUser, "id = ?", claims.ID).Error; err != nil {
+	tenantID := safeGetUUID(c, "tenant_id")
+	teamID, errTeam := uuid.Parse(c.Params("id"))
+	userID, errUser := uuid.Parse(c.Params("userId"))
+	if errTeam != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Team not found"})
+	}
+	if errUser != nil {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "User not found"})
 	}
-
-	if currentUser.Role.Name != "admin" {
-		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "Only admins can add team members"})
-	}
-
-	tenantID := safeGetUUID(c, "tenant_id")
-	teamID := c.Params("id")
-	userID := c.Params("userId")
 
 	// Verify team exists in this tenant
 	var team domain.Team
@@ -318,11 +273,12 @@ func AddTeamMember(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "User not found"})
 	}
 
-	// The target user must belong to this tenant — never let an admin pull a
-	// member from another organization into their team.
+	// The target user must be an ACTIVE member of this tenant — never let an
+	// admin pull a member from another organization, or one whose access was
+	// withdrawn, into their team. Both answer exactly like an unknown id.
 	var orgMemberCount int64
 	if err := database.DB.Model(&domain.OrganizationMember{}).
-		Where("organization_id = ? AND user_id = ?", tenantID, userID).
+		Where("organization_id = ? AND user_id = ? AND is_active = ?", tenantID, userID, true).
 		Count(&orgMemberCount).Error; err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to verify membership"})
 	}
@@ -338,8 +294,9 @@ func AddTeamMember(c *fiber.Ctx) error {
 
 	// Add member
 	member := domain.TeamMember{
-		TeamID:   uuid.MustParse(teamID),
-		UserID:   uuid.MustParse(userID),
+		ID:       uuid.New(),
+		TeamID:   teamID,
+		UserID:   userID,
 		Role:     "member",
 		JoinedAt: time.Now(),
 	}
@@ -356,16 +313,6 @@ func RemoveTeamMember(c *fiber.Ctx) error {
 	claims := middleware.GetUserClaims(c)
 	if claims == nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized"})
-	}
-
-	// Check if user is admin
-	var currentUser domain.User
-	if err := database.DB.Preload("Role").First(&currentUser, "id = ?", claims.ID).Error; err != nil {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "User not found"})
-	}
-
-	if currentUser.Role.Name != "admin" {
-		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "Only admins can remove team members"})
 	}
 
 	tenantID := safeGetUUID(c, "tenant_id")
