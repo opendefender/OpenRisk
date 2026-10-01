@@ -444,12 +444,18 @@ func oauthLocale(c *fiber.Ctx) string {
 // Only a root-relative path is accepted. Anything absolute, protocol-relative
 // ("//evil.com") or backslash-prefixed is dropped — an open redirect on a login
 // endpoint is a phishing primitive, since the URL a victim sees is genuinely ours.
+//
+// Control characters and backslashes are refused anywhere, not only up front:
+// browsers strip tab and newline from a URL, so "/\t/evil.com" becomes
+// "//evil.com" by the time it is followed (#803).
 func sanitiseReturnTo(raw string) string {
-	if raw == "" || !strings.HasPrefix(raw, "/") {
+	if raw == "" || !strings.HasPrefix(raw, "/") || strings.HasPrefix(raw, "//") {
 		return ""
 	}
-	if strings.HasPrefix(raw, "//") || strings.HasPrefix(raw, "/\\") {
-		return ""
+	for _, r := range raw {
+		if r < 0x20 || r == 0x7f || r == '\\' {
+			return ""
+		}
 	}
 	return raw
 }
