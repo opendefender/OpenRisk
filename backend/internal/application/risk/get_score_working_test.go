@@ -149,14 +149,14 @@ func TestGetScoreWorking_InconsistentStoredScoreIsSaidSo(t *testing.T) {
 	assert.InDelta(t, 6.0, w.Computed, 1e-9)
 }
 
-func TestGetScoreWorking_NoAssetUsesTheDocumentedDefault(t *testing.T) {
+func TestGetScoreWorking_NoAssetUsesTheNeutralFactor(t *testing.T) {
 	tenant, r, trail, _ := scoreWorkingFixture(t)
 	r.Assets = nil
 	w, err := NewGetScoreWorkingUseCase(repoReturning(r), trail, pkgscoring.NewEngine()).
 		Execute(context.Background(), tenant, r.ID, true)
 	require.NoError(t, err)
 	assert.True(t, w.AssetCriticalityDefaulted)
-	assert.InDelta(t, domain.CriticalityMedium.ScoreFactor(), w.Terms[2].Value, 1e-9)
+	assert.InDelta(t, domain.NoAssetCriticalityFactor, w.Terms[2].Value, 1e-9)
 	assert.Nil(t, w.Terms[2].Source)
 }
 

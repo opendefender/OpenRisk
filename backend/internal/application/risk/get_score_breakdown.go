@@ -44,18 +44,10 @@ func (uc *GetScoreBreakdownUseCase) Execute(ctx context.Context, tenantID uuid.U
 		return nil, domain.NewNotFoundError("risk", riskID)
 	}
 
-	// 2. Calculate asset criticality — average domain.AssetCriticality.ScoreFactor()
-	// across every linked asset (not just the first one), consistent with how
-	// GormRiskRepository.GetRisksByAssetID/RiskHandler now derive it. Defaults
-	// to MEDIUM's factor (1.5) if no asset is linked.
-	assetCriticality := domain.CriticalityMedium.ScoreFactor()
-	if len(risk.Assets) > 0 {
-		var sum float64
-		for _, a := range risk.Assets {
-			sum += a.Criticality.ScoreFactor()
-		}
-		assetCriticality = sum / float64(len(risk.Assets))
-	}
+	// 2. Asset criticality — the one derivation every score writer uses
+	// (domain.RiskAssetCriticality): average factor of the linked assets,
+	// neutral when none is linked (#792).
+	assetCriticality := domain.RiskAssetCriticality(domain.AssetCriticalities(risk.Assets))
 
 	// 3. Use Score Engine to compute breakdown
 	// IMPORTANT: All score calculations go through the Score Engine

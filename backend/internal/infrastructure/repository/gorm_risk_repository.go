@@ -606,19 +606,14 @@ func (r *GormRiskRepository) GetRisksByAssetID(ctx context.Context, assetID uuid
 		return nil, fmt.Errorf("failed to load linked asset criticalities: %w", err)
 	}
 
-	factorSums := make(map[uuid.UUID]float64, len(riskIDs))
-	factorCounts := make(map[uuid.UUID]int, len(riskIDs))
+	crits := make(map[uuid.UUID][]domain.AssetCriticality, len(riskIDs))
 	for _, link := range links {
-		factorSums[link.RiskID] += link.Criticality.ScoreFactor()
-		factorCounts[link.RiskID]++
+		crits[link.RiskID] = append(crits[link.RiskID], link.Criticality)
 	}
 
 	risks := make([]domain.RiskForScoring, 0, len(riskRows))
 	for _, row := range riskRows {
-		factor := 1.0
-		if count := factorCounts[row.ID]; count > 0 {
-			factor = factorSums[row.ID] / float64(count)
-		}
+		factor := domain.RiskAssetCriticality(crits[row.ID])
 		risks = append(risks, domain.RiskForScoring{
 			ID:               row.ID,
 			TenantID:         row.TenantID,
