@@ -77,6 +77,9 @@ const VendorQuestionnairePage = lazy(() =>
 const ForgotPasswordScreen = lazy(() =>
   import('./features/auth/ForgotPasswordScreen').then((m) => ({ default: m.ForgotPasswordScreen })),
 );
+const SSOCompleteScreen = lazy(() =>
+  import('./features/auth/SSOCompleteScreen').then((m) => ({ default: m.SSOCompleteScreen })),
+);
 const ResetPasswordScreen = lazy(() =>
   import('./features/auth/ResetPasswordScreen').then((m) => ({ default: m.ResetPasswordScreen })),
 );
@@ -567,6 +570,10 @@ function App() {
             and the reset link in the email lands directly on /reset-password. */}
           <Route path="/forgot-password" element={<ForgotPasswordScreen />} />
           <Route path="/reset-password" element={<ResetPasswordScreen />} />
+          {/* SSO landing (#803). Public: the user holds session cookies but the
+            SPA has no profile yet, so ProtectedRoute would bounce them to /login.
+            The screen loads the session from the cookies and moves on. */}
+          <Route path="/auth/sso/complete" element={<SSOCompleteScreen />} />
           {/* Public status page (task §4) — reachable without a session. */}
           <Route path="/status" element={<StatusPage />} />
           {/* Invitation acceptance. Public by necessity: the person following the

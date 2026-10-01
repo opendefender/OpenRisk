@@ -258,6 +258,23 @@ export async function disableMFA(
   return data;
 }
 
+/**
+ * Picks up the session an SSO callback left in the cookies (#803).
+ *
+ * The OAuth and SAML callbacks answer a browser navigation, so they put the
+ * session in HttpOnly cookies and redirect here without any token in the URL.
+ * The SPA still needs the access token in memory, because its permissions are
+ * read from the token's claims. One refresh, authenticated by the refresh cookie
+ * and the CSRF cookie the callback set, hands it over the same way password
+ * login does.
+ */
+export async function claimSSOSession(): Promise<string> {
+  const { data } = await api.post<{ token_pair?: { access_token?: string } }>('/auth/refresh', {});
+  const token = data.token_pair?.access_token;
+  if (!token) throw new Error('refresh returned no access token');
+  return token;
+}
+
 export interface MFAChallengeResult {
   token_pair?: { access_token: string; refresh_token: string };
   csrf_token?: string;
