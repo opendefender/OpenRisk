@@ -274,9 +274,6 @@ func main() {
 		log.Fatalf("Failed to initialize default permission roles: %v", err)
 	}
 
-	// Initialize Token Service for API token management
-	tokenService := service.NewTokenService()
-
 	// Initialize Score Engine Service for automatic risk score calculation
 	scoreEngineService := service.NewScoreEngineService(database.DB)
 	log.Println("Score Engine: Service initialized with default configuration")
@@ -2090,20 +2087,6 @@ func main() {
 	protected.Get("/audit-logs", adminRole, auditHandler.GetAuditLogs)
 	protected.Get("/audit-logs/user/:user_id", adminRole, auditHandler.GetUserAuditLogs)
 	protected.Get("/audit-logs/action/:action", adminRole, auditHandler.GetAuditLogsByAction)
-
-	// --- API Token Management (Protected routes) ---
-	// Tokens can be managed by any authenticated user for their own tokens
-	tokenHandler := handlers.NewTokenHandler(tokenService)
-
-	// API tokens are personal: every verb below loads the token and refuses when
-	// token.UserID is not the caller. The session is the authorization (#529).
-	protected.Post("/tokens", tokenHandler.CreateToken)
-	protected.Get("/tokens", tokenHandler.ListTokens)
-	protected.Get("/tokens/:id", tokenHandler.GetToken)
-	protected.Put("/tokens/:id", tokenHandler.UpdateToken)
-	protected.Post("/tokens/:id/revoke", tokenHandler.RevokeToken)
-	protected.Post("/tokens/:id/rotate", tokenHandler.RotateToken)
-	protected.Delete("/tokens/:id", tokenHandler.DeleteToken)
 
 	// --- Custom Fields Management (Protected routes) ---
 	customFieldHandler := handlers.NewCustomFieldHandler()
