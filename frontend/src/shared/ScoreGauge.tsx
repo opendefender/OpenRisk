@@ -12,10 +12,11 @@
 // DashboardPage, one exported from features/dashboard/shared), each with its own
 // colour thresholds.
 
-import { useCountUp } from '../features/dashboard/shared';
 import { useUIStore } from '../store/uiStore';
 import { bandColor, bandLabel, unmeasuredReason, type ScoreResult } from '../services/scoreService';
 import { ScoreExplainerButton } from './ScoreExplainer';
+import { SlotReel } from './ds/SlotReel';
+import { useArcReveal } from './ds/useArcReveal';
 
 function polar(cx: number, cy: number, r: number, deg: number): [number, number] {
   const a = ((deg - 90) * Math.PI) / 180;
@@ -36,6 +37,7 @@ export function ScoreGauge({
   onDetails,
   loading,
   error,
+  fresh,
 }: {
   /** Undefined while loading, or when the endpoint failed. */
   score: ScoreResult | undefined;
@@ -45,6 +47,13 @@ export function ScoreGauge({
   loading?: boolean;
   /** The request failed: say so, rather than "not measured". */
   error?: boolean;
+  /**
+   * True when `score` was genuinely fetched during THIS mount — pass a
+   * query's `isFetchedAfterMount` (e.g. `useScore('tenant')`). Rolls the
+   * number in from 0 once, per D-060; a value already sitting in the cache
+   * from an earlier visit renders plain. Read once, at mount.
+   */
+  fresh?: boolean;
 }) {
   const lang = useUIStore((s) => s.lang);
   const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
@@ -53,13 +62,15 @@ export function ScoreGauge({
   // undefined, so no null can leak into the arithmetic or the band.
   const measuredScore = score?.measured ? score : undefined;
   const value = measuredScore?.value ?? 0;
-  const animated = Math.round(useCountUp(value));
   const cx = 110,
     cy = 112,
     r = 76;
   const track = arcPath(cx, cy, r, -115, 115);
-  const pct = Math.max(0, Math.min(1, animated / 100));
-  const prog = arcPath(cx, cy, r, -115, -115 + 230 * pct);
+  const pct = Math.max(0, Math.min(1, value / 100));
+  // Same `fresh` signal SlotReel's number reads — the arc and the number
+  // must agree on whether this is a fresh load, or a screenshot catches one
+  // rolling in while the other has already snapped to its final sweep.
+  const arcRevealed = useArcReveal(fresh);
 
   // The colour follows the SERVER's band. No thresholds here.
   const color = bandColor(measuredScore?.band);
@@ -91,12 +102,26 @@ export function ScoreGauge({
           />
           {measured && (
             <path
-              d={prog}
+              // Same path as the track — the FULL arc, always. `pathLength`
+              // normalises it to a 0..1 coordinate space so the reveal is a
+              // plain `strokeDashoffset` transition to the final `pct`, not a
+              // `d` recomputed every animation frame from a JS-counted value.
+              d={track}
               fill="none"
               stroke={color}
               strokeWidth={14}
               strokeLinecap="round"
-              style={{ filter: `drop-shadow(0 0 6px ${color})` }}
+              pathLength={1}
+              strokeDasharray={1}
+              // Fully undrawn (1) for the one render before `arcRevealed`
+              // flips — a fresh mount only, see useArcReveal — then the real
+              // sweep, which the path's own transition draws in.
+              strokeDashoffset={arcRevealed ? 1 - pct : 1}
+              data-testid="score-arc"
+              style={{
+                filter: `drop-shadow(0 0 6px ${color})`,
+                transition: 'stroke-dashoffset var(--dur-panel) var(--ease-out)',
+              }}
             />
           )}
         </svg>
@@ -105,7 +130,17 @@ export function ScoreGauge({
             className="disp mono text-[44px] font-bold text-ink leading-none"
             data-testid="score-value"
           >
-            {loading ? '…' : measured ? animated : '—'}
+            {loading ? (
+              '…'
+            ) : measured ? (
+              <SlotReel
+                value={value}
+                rollOnMount={fresh}
+                formatOptions={{ maximumFractionDigits: 0 }}
+              />
+            ) : (
+              '—'
+            )}
           </div>
           <div className="text-[12px] text-ink-muted mt-0.5" data-testid="score-state">
             {loading

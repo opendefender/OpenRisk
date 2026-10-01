@@ -17,7 +17,7 @@ import { Eye, EyeOff } from 'lucide-react';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router';
 
-import { Button, Field, Input } from '../../shared/ds';
+import { Button, Field, Input, useSuccessFeedback } from '../../shared/ds';
 import { useUIStore } from '../../store/uiStore';
 import { useI18n } from '../../hooks/useI18n';
 import { useAuthStore } from '../../hooks/useAuthStore';
@@ -60,6 +60,7 @@ export function ChangePasswordCard() {
   const [acceptable, setAcceptable] = useState(false);
   const [assessment, setAssessment] = useState<PasswordAssessment | null>(null);
   const [managedByIdp, setManagedByIdp] = useState<string | null>(null);
+  const { feedback, flashSuccess } = useSuccessFeedback();
 
   const {
     register,
@@ -79,6 +80,9 @@ export function ChangePasswordCard() {
     try {
       const res = await changePassword(v.current, v.next, lang);
       reset();
+      // The check is a claim the SERVER accepted the write, so it fires only
+      // once the request has resolved.
+      flashSuccess();
       toast.success(res.message);
       if (res.token_pair?.access_token) {
         // The server ended every session, this one included, and minted a new
@@ -194,6 +198,7 @@ export function ChangePasswordCard() {
             <Button
               type="submit"
               variant="primary"
+              feedback={feedback}
               disabled={isSubmitting || (next.length > 0 && !acceptable)}
               data-testid="change-password-submit"
             >

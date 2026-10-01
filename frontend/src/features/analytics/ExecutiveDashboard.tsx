@@ -134,6 +134,7 @@ export function ExecutiveDashboard() {
           score={tenantScore.data}
           loading={tenantScore.isLoading}
           error={tenantScore.isError}
+          fresh={tenantScore.isFetchedAfterMount}
           title={tr('Score de sécurité', 'Security score')}
           ctaLabel={tr('Voir le détail', 'View details')}
           onDetails={() => navigate('/score')}

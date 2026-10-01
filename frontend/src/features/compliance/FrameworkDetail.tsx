@@ -415,7 +415,7 @@ function EvidenceDrawer({ control, onClose }: { control: ComplianceControl; onCl
       style={{
         background: 'var(--surface-overlay)',
         backdropFilter: 'blur(var(--overlay-blur))',
-        animation: 'or-fadein .2s ease',
+        animation: 'or-fadein var(--motion-enter)',
       }}
       onClick={onClose}
     >
@@ -427,7 +427,7 @@ function EvidenceDrawer({ control, onClose }: { control: ComplianceControl; onCl
           background: 'var(--bg-secondary)',
           borderLeft: '1px solid var(--border)',
           boxShadow: 'var(--shadow-lg)',
-          animation: 'or-slidein .3s cubic-bezier(.2,.8,.2,1)',
+          animation: 'or-slidein var(--motion-panel)',
         }}
       >
         <div className="px-[22px] pt-5 pb-4" style={{ borderBottom: '1px solid var(--border)' }}>

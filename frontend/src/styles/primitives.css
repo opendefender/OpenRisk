@@ -82,6 +82,13 @@
   --dur-slow: 260ms;
   --dur-panel: 400ms;
 
+  /* The gap between staggered starts in a small group of like elements —
+     a KPI's digit columns rolling left to right, an Empty state's title
+     then description rising in. Capped use only: three steps (120ms) is the
+     most any single sequence may spend on stagger before the movement reads
+     as sluggish rather than choreographed. */
+  --stagger-step: 40ms;
+
   /* The four curves moved into @theme (src/styles/theme.css), which is what
      generates ease-out / ease-emphasized. The DURATIONS stay here: v4 has no
      transition-duration namespace, so duration-fast is an explicit @utility

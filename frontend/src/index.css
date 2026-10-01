@@ -170,6 +170,19 @@ layer(base);
       transform: translateY(0);
     }
   }
+  /* The Empty state's title/description reveal (#751 phase 3) — or-rise's
+     4px sibling. A full 8px is a panel arriving; a line of text inside a
+     state that is already on screen only needs to settle, not travel. */
+  @keyframes or-rise-xs {
+    from {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
   @keyframes or-slidein-left {
     from {
       transform: translateX(-100%);
@@ -238,6 +251,45 @@ layer(base);
     40%,
     80% {
       transform: translateX(4px);
+    }
+  }
+  /* The Button success glyph (feedback="success"), split into two independent
+     one-shot animations on two different nodes — the svg fades in, the path
+     inside it draws — so each can carry its own duration/delay without a hand
+     -rolled percentage timeline. Both rely on fill-mode "both": with motion
+     off, the whole rule is stripped by the block below and the glyph falls
+     back to its default opacity (1) and dashoffset (0), i.e. fully drawn and
+     visible immediately rather than stuck at its start frame. */
+  @keyframes or-checkfade {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+  @keyframes or-checkdraw {
+    from {
+      stroke-dashoffset: 1;
+    }
+    to {
+      stroke-dashoffset: 0;
+    }
+  }
+  /* The search-clear snapshot (DataTable / AttributeSearchBar-style clear
+     affordances, #751 phase 2): the OLD text falls ≤4px and fades out while
+     the real, already-empty input's placeholder fades in underneath via
+     `or-fadein` (already above). Never rendered at all under reduced motion
+     — see the JS guard at the call site — so this keyframe has no reduced-
+     motion special case of its own. */
+  @keyframes or-clearexit {
+    from {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    to {
+      opacity: 0;
+      transform: translateY(4px);
     }
   }
   @media (prefers-reduced-motion: reduce) {

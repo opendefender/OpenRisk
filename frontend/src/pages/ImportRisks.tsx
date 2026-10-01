@@ -5,7 +5,7 @@
 
 import { useState, useRef, useCallback } from 'react';
 import { Link } from 'react-router';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from '../shared/motion';
 import {
   Upload,
   AlertCircle,

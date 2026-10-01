@@ -3,8 +3,8 @@
 // This program is free software: you can redistribute it and/or modify it under
 // the terms of the GNU Affero General Public License v3.0 (see LICENSE).
 
-import { useEffect, useMemo, useState } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { AnimatePresence, dialogMotion, motion } from '../../shared/motion';
 import { Controller, useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -17,7 +17,7 @@ import { taxonomyService } from '../../services/taxonomyService';
 import { ComplianceMappingField, type MappingDraft } from './ComplianceMappingField';
 import { useRiskCategories, IMPORTED_FRAMEWORKS_KEY } from './useTaxonomy';
 import { ImportFrameworkDialog } from '../compliance/ComplianceModals';
-import { Button, Field, Input, TagInput } from '../../shared/ds';
+import { Button, Field, Input, TagInput, Textarea } from '../../shared/ds';
 import { useRiskTagLabels } from './useRiskTagLabels';
 import { useI18n } from '../../hooks/useI18n';
 import { useEscapeToClose } from '../../shared/useBackTo';
@@ -73,6 +73,10 @@ export const CreateRiskModal = ({ isOpen, onClose, onCreated }: CreateRiskModalP
   const refreshActivation = useInvalidateActivation();
 
   const tagLabels = useRiskTagLabels();
+  // Bumped from the form's own onInvalid handler, once per failed submit —
+  // never from onChange, or every keystroke before the user has even
+  // submitted would shake the field (see Shake).
+  const [shakeNonce, setShakeNonce] = useState(0);
 
   const {
     register,
@@ -106,6 +110,8 @@ export const CreateRiskModal = ({ isOpen, onClose, onCreated }: CreateRiskModalP
   // the form without unmounting it.
   const [mappings, setMappings] = useState<MappingDraft[]>([]);
   const [importOpen, setImportOpen] = useState(false);
+  // The scrolling body, for the progress keyline under the header.
+  const bodyRef = useRef<HTMLDivElement>(null);
   const { data: categories } = useRiskCategories();
   const queryClient = useQueryClient();
   const watchedAssetIds = watch('asset_ids') ?? [];
@@ -201,10 +207,7 @@ export const CreateRiskModal = ({ isOpen, onClose, onCreated }: CreateRiskModalP
           />
 
           <motion.div
-            initial={{ opacity: 0, scale: 0.96, y: 40 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.96, y: 40 }}
-            transition={{ duration: 0.22, type: 'spring', stiffness: 240 }}
+            {...dialogMotion}
             className="fixed inset-0 z-50 flex items-center justify-center p-4"
             // The app's primary creation flow was a bare <div>: no dialog role,
             // no aria-modal, no accessible name. Assistive technology never
@@ -234,8 +237,13 @@ export const CreateRiskModal = ({ isOpen, onClose, onCreated }: CreateRiskModalP
                   <X size={20} />
                 </button>
               </div>
+              {/* Sits on the header's bottom rule and fills as the body scrolls. */}
+              <ScrollProgress target={bodyRef} className="-mt-px shrink-0" />
 
-              <form onSubmit={handleSubmit(onSubmit)} className="flex min-h-0 flex-1 flex-col">
+              <form
+                onSubmit={handleSubmit(onSubmit, () => setShakeNonce((n) => n + 1))}
+                className="flex min-h-0 flex-1 flex-col"
+              >
                 <div className="flex-1 space-y-6 overflow-y-auto px-6 py-6 scrollbar-thin">
                   {/* Guided first risk (spec §5). Three drafts drawn from the
                     sector chosen at signup. We do NOT create anything: clicking
@@ -259,27 +267,24 @@ export const CreateRiskModal = ({ isOpen, onClose, onCreated }: CreateRiskModalP
                     label={t('risks.riskName')}
                     message={errors.title?.message}
                     status={errors.title?.message ? 'invalid' : 'default'}
+                    shakeKey={errors.title?.message ? shakeNonce : undefined}
                   >
                     <Input {...register('title')} disabled={isSubmitting} />
                   </Field>
-                  <div className="space-y-1.5">
-                    <label
-                      htmlFor="create-risk-description"
-                      className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted"
-                    >
-                      {t('risks.riskDescription')}
-                    </label>
-                    <textarea
+                  <Field
+                    label={t('risks.riskDescription')}
+                    htmlFor="create-risk-description"
+                    message={errors.description?.message}
+                    status={errors.description?.message ? 'invalid' : 'default'}
+                    shakeKey={errors.description?.message ? shakeNonce : undefined}
+                  >
+                    <Textarea
                       id="create-risk-description"
                       {...register('description')}
                       rows={5}
-                      className="w-full rounded-3xl border border-border bg-elevated px-4 py-3 text-sm text-ink outline-none focus:ring-2 focus:ring-primary/40"
                       disabled={isSubmitting}
                     />
-                    {errors.description && (
-                      <p className="text-xs text-danger-text">{errors.description.message}</p>
-                    )}
-                  </div>
+                  </Field>
 
                   <div className="grid gap-4 sm:grid-cols-3">
                     <div className="space-y-2">

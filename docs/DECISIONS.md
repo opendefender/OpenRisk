@@ -5,7 +5,329 @@ recommends, and surfaces these in the daily brief. Run `/decide` to clear them.
 
 ## Open
 
-### D-049 — force a password change at the first administrator's first sign-in · raised 2026-09-24
+Nothing open.
+
+## Resolved
+
+### D-060 — animated KPI counters: an in-house rolling counter on the three KPIs of #751 · decided 2026-09-28
+**Decided (owner)** — **A, against the recommendation** (B, change once).
+An in-house slot-reel counter (transitions.dev `spinning-counter`) goes on the three KPIs of
+#751 phase 3. RareUI stays excluded (D-059). The `@number-flow/react` ban in
+`frontend/eslint.config.js` stays, because it is a third-party dependency, but the phase 3
+PR rewords its message so that an in-house ticker is allowed. With reduced motion the final
+value shows at once. Whether `useCountUp` and its duplicate are replaced by the new counter
+is left to the phase 3 implementation.
+
+**Consequence, stated plainly** — for about a second after load, each of the three KPIs shows
+a number that is not the data; a screenshot taken in that window is wrong. The owner accepted
+that cost.
+
+**Raised by** — #751, phase 3. It asks for "KPIs (risk score, open findings, % compliance) →
+`animatedcounter` + `spinning-counter`". The house rule points the other way, so the choice
+belongs to the owner before any phase 3 code.
+
+**Context** — Three facts pull in different directions:
+- `frontend/eslint.config.js:178` bans `@number-flow/react` because "animated number tickers
+  make a figure unreadable while it settles. Render the value; if it must change visibly,
+  change it once."
+- A count-up already ships anyway. `useCountUp` (1100 ms ease-out from 0, reduced-motion
+  shows the value at once) runs on the dashboard KPIs (`features/dashboard/DashboardPage.tsx:431`,
+  `features/dashboard/shared.tsx:120`), `shared/ScoreGauge.tsx:56`, `shared/ui.tsx:338` and two
+  onboarding pages. There are two copies of it (`shared/ui.tsx:19`, `features/dashboard/shared.tsx:17`).
+- D-059 makes any counter an in-house build; RareUI's `animatedcounter` is out either way.
+
+**Options**
+- **A — follow the issue.** Build a slot-reel counter (transitions.dev `spinning-counter`) and
+  put it on the three KPIs. Relax the lint message to allow in-house tickers. For about a
+  second, every KPI shows a number that isn't the data.
+- **B — change once (the lint rule's wording).** No counting. When a KPI's value changes,
+  swap it with the transitions.dev `number-pop-in` (a short blur-slide of the new digits,
+  about 250 ms), and render it plainly on first paint. Remove `useCountUp` and its duplicate
+  (shrinks the code; rule-consistent).
+- **C — status quo.** Keep `useCountUp` where it is, add nothing, and strike the KPI line from
+  #751.
+
+**Recommendation** — **B.** A GRC dashboard gets screenshotted into board decks and read by
+auditors. A figure that is mid-count when the page is captured is wrong in the capture. B
+still gives the "premium" moment the issue wants on the event that matters, a value changing,
+and it resolves the contradiction instead of papering over it.
+
+**Cost of delay** — Low. Phase 3 is the only thing waiting, and phase 2 can go first.
+
+**Blocks** — #751 phase 3 KPI line.
+
+### D-057 — CIS Controls and PCI DSS stay at family level for the launch; licence question later · decided 2026-09-28
+**Decided (owner)** — **C for the launch, then A or B, matching the recommendation.**
+`cis-v8` (18 rows) and `pci-dss-4.0` (12 rows) stay at family level for January, and the
+product and the README say so. After the launch the question is revisited: reference-only
+rows reviewed by counsel (A), or a licence from CIS / PCI SSC (B). #809 deepens NIST 800-53,
+NIS2 and DORA only.
+
+**Raised by** — #809. Licensing is the owner's call (CLAUDE.md).
+
+**Context** — `cis-v8` ships 18 rows and `pci-dss-4.0` ships 12, against 153 safeguards and
+about 250 sub-requirements. CIS Controls v8 is published under CC BY-NC-ND 4.0, and OpenRisk is
+also sold under `LICENSE.commercial`. The PCI DSS text is copyrighted by PCI SSC. Going deeper
+means either reproducing text we may not have the right to ship, or writing our own wording
+against their identifiers.
+
+**Options**
+- **A — reference-only rows**: identifier plus our own short wording, no reproduced text,
+  reviewed by counsel.
+- **B — ask CIS and PCI SSC** for a licence or a membership that covers the use.
+- **C — leave both at top level**, and state it in the product and the README.
+
+**Recommendation** — **C for the launch, then A or B.** NIST, NIS2 and DORA (#809) can be
+deepened without a licence question; CIS and PCI wait for a written answer.
+
+**Cost of delay** — Low for the launch. Medium for payment-sector prospects.
+
+**Blocks** — any extension of #809 to CIS or PCI.
+
+### D-056 — the legacy `control_evidences` table is dropped, once #813 criterion 1 is proven · decided 2026-09-28
+**Decided (owner)** — **A, matching the recommendation.** The table is dropped, on one
+condition: #813 criterion 1, a SQL check on a production-like database proving every row
+exists in the evidence library, is pasted on the issue first. The migration `down` recreates
+an empty table; the data loss that implies is accepted. #813 is unblocked.
+
+**Raised by** — #813. Dropping a table is irreversible (CLAUDE.md: "any schema migration
+that drops or renames a column").
+
+**Context** — The evidence library (`domain.Evidence`, migration 0052) is the only register
+the product reads. `control_evidences` is backfilled into it at every boot
+(`cmd/server/main.go:1408-1415`) and kept "for a release" (`cmd/server/schema.go:155-158`).
+The Evidence Fabric (#554) adds a hash and a chain of custody, and a second table outside
+that chain would be a gap an auditor can find.
+
+**Options**
+- **A — drop it** once a SQL check proves every row exists in the library on a
+  production-like database, with a migration `down` that recreates the empty table.
+- **B — keep it read-only** (revoke writes, keep the rows) for one more release.
+- **C — keep as is.**
+
+**Recommendation** — **A**, gated by the SQL proof of #813 criterion 1. B only if a
+self-hosted customer is known to run a version older than migration 0052.
+
+**Cost of delay** — Low now, higher once #554 seals evidence.
+
+**Blocks** — #813.
+
+### D-055 — structural tenant guard: a GORM callback now, Postgres RLS after the launch · decided 2026-09-28
+**Decided (owner)** — **C, matching the recommendation.** The GORM callback (A) is built
+inside #808 before the launch. Postgres Row-Level Security (B) comes after the launch, behind
+its own ADR. Neither covers #807 (P0, `status:ready`): a query that is filtered but acts on
+the wrong scope passes both. #807 stays a separate fix.
+
+**Raised by** — #808. It touches the design of tenant isolation, which CLAUDE.md reserves to
+the owner.
+
+**Context** — Tenant filtering is enforced by review. On `master` `6a8c964` there are 100
+direct `database.DB` calls in `internal/handler`. #807 is a defect that passed that review:
+each query was fine, but the effect crossed the tenant boundary.
+
+**Options**
+- **A — a GORM callback (tests and staging)** that fails any query on a tenant-scoped table
+  whose `WHERE` has no `tenant_id`, with an explicit allowlist. Reversible and cheap. It catches
+  missing filters, not wrong ones.
+- **B — Postgres Row-Level Security** with `SET app.tenant_id` per transaction. It is enforced
+  by the database even against a buggy query, but it touches every connection, the workers
+  and the migrations, and it needs an ADR.
+- **C — both, A now and B after the launch.**
+
+**Recommendation** — **C.** A fits in #808 before the launch at no design risk. B is the
+defence-in-depth a regulated buyer's security review asks about. It gets its own ADR after
+January.
+
+**Cost of delay** — Medium. Each new handler written the old way adds to the debt.
+
+**Blocks** — criterion 5 of #808 (RLS evaluated, not implemented).
+
+### D-054 — the January 2027 launch keeps every release train in scope · decided 2026-09-28
+**Decided (owner)** — **C, keep everything, against the recommendation** (A, Trust +
+Engine + Evidence Fabric). No issue moves to `tier:5-deferred`, and the `v1.0 — Launch`
+milestone is not created.
+
+**Consequence, stated plainly** — the entry below said twelve sprints; the real figure is
+**eight two-week sprints** (16 weeks from 2026-09-28 to mid-January). With four release
+trains sharing that capacity, none of them is expected to be finished in January. The scope
+question will come back, and the brief will raise it again as soon as the burn-down shows it.
+
+**Raised by** — the direction audit of 2026-09-25 and the launch board #815. Cutting a
+milestone's scope is the owner's call (CLAUDE.md, Autonomy).
+
+**Context** — 298 issues are open. The engine the differentiating workflows sit on is not
+specified yet: #541 and #553 are `status:needs-refinement`, and the Closed-loop and Evidence
+Automation KPIs are at 0 % (ROADMAP, "L'étoile polaire"). Twelve two-week sprints separate
+28 September from mid-January (wrong: it is eight, see above). What does not fit has to be named, not left to slip silently.
+
+**Options**
+- **A — launch on Trust + Engine + Evidence Fabric (killer workflow B).** trust-v1 complete,
+  the GRC slice of the canonical model (#541, #553), then #554, #555, #811, #809, #556, #489.
+  Release 1.3 (auto-draft), 1.5 (governed AI) and 1.6 (ecosystem) come after the launch.
+  The vision issues (no-code #385-#389, marketplace/SDK #390-#393, predictive AI #394-#401,
+  Wave 2/3/5 features #202-#221) move to `tier:5-deferred`.
+- **B — launch on Trust + killer workflow A (Signal → Risk).** Needs #541-#545 (ingestion,
+  normalisation) plus #547-#550 (auto-draft, validation queue). More differentiating, but it
+  depends on connectors and on the canonical model shipping in the same window: higher risk.
+- **C — keep every release train in scope for January.** Not achievable. It spreads the
+  capacity over the four trains and ends with none of them finished.
+
+**Recommendation** — **A.** Evidence and time-bound decisions are what the regulated buyers
+of #494 (a COBAC-supervised bank, a microfinance institution) test first. It reuses what
+already exists (evidence library, crosswalks, governed acceptance) and it is the part where
+Vanta and Drata win today. Workflow A remains the first release after the launch.
+
+**Also needed from the owner** — (1) the GA date: the proposal is the week of
+**18 January 2027**; (2) a `v1.0 — Launch` milestone with that due date, because the session
+that built #815 could not create milestones; (3) confirmation to apply `tier:5-deferred` to
+the vision issues listed in option A (nothing is closed, D-031 is the precedent).
+
+**Cost of delay** — High. Every week without a scope decision is a week the board orders but
+does not bind.
+
+**Blocks** — the binding order of #815; the `tier:5-deferred` sweep.
+
+### D-053 — the audit journal's retention floor goes from 30 to 365 days · decided 2026-09-28
+**Decided (owner)** — **B, matching the recommendation.** The floor rises from 30 to 365
+days; 0 (keep forever) stays the default. The implementation is follow-up issue #821, since
+#486 is closed. The check is `AuditRetentionPolicy.Validate` in `internal/domain/audit_chain.go`
+(lines 211-224 on 2026-09-28), and the panel copy in `AuditIntegrityPanel.tsx` still says
+"Minimum 30 days". No customer-facing claim is written before a compliance check.
+
+**Raised by** — #486 task 3 ("a configurable retention policy, with a floor configuration
+cannot lower"). Choosing the value is a compliance and product decision.
+
+**Context** — The floor exists and is in code, not configuration: `AuditRetentionPolicy.Validate`
+accepts 0 (keep forever, the default) or 30 to 3 650 days. Nothing in the environment or the API
+can go below 30. But 30 days is short for the markets we sell to: banking supervisors commonly
+expect several years of records.
+
+**Options**
+- **A — keep 30 days.** The floor is a safety net against mistakes, not a legal minimum.
+- **B — raise it to 365 days.**
+- **C — raise it to 5 years (1 825 days)**, closer to what a supervised bank keeps.
+
+**Recommendation** — **B.** It stops the obvious mistake without imposing a banking rule on
+every customer; a stricter tenant can already set a longer window. Needs a compliance check
+before it is written into any customer-facing claim.
+
+**Cost of delay** — Low. The default is "keep forever".
+
+**Blocks** — nothing; task 3 of #486 is met as the code stands.
+
+### D-052 — legacy Postgres audit rows get tolerant verification; nothing is rewritten · decided 2026-09-28
+**Decided (owner)** — **A, matching the recommendation.** For a row sealed before #486
+that fails verification, the verifier tries the sub-microsecond values Postgres may have
+rounded away (±500 ns). No stored row is rewritten. #486 is closed, so the work is
+follow-up issue #820.
+
+**Raised by** — #486. It touches the tamper-evidence design and any fix to past rows is
+irreversible, so it is the owner's call.
+
+**Context** — `AuditEvent.SealChain` hashed `created_at` with Go's nanoseconds. Postgres stores
+microseconds, so no row read back from Postgres could re-hash to its sealed value: on a real
+database `GET /governance/audit-events/verify` reported **every** entry as `hash_mismatch`.
+Every earlier proof of the chain ran on sqlite, which keeps nanoseconds, so nobody saw it.
+#486 truncates to the microsecond before hashing (`internal/domain/audit_chain.go`) and adds
+`audit_chain_pg_test.go`, which fails without the fix and passes with it. New entries verify.
+Entries already written on a Postgres deployment still carry hashes over nanoseconds that the
+database threw away; they will keep failing verification.
+
+**Options**
+- **A — tolerant verification for legacy rows.** For a row that fails, try the 1 000 possible
+  sub-microsecond values (Postgres rounds to the nearest microsecond, so the lost part is in
+  ±500 ns). A row whose content was edited still fails: only the timestamp's lost digits are
+  searched. Cost: up to 1 000 SHA-256 per legacy row, once per verification. Rewrites nothing.
+- **B — seal the past.** Write one `AuditChainSeal` per tenant marking every entry up to the
+  fix as "sealed before verification was sound", and verify only after it. Honest, but it
+  declares a stretch of history unverifiable.
+- **C — re-hash legacy rows.** Rewrites the audit trail. Not recommended: it is exactly the
+  operation the chain exists to make detectable.
+
+**Recommendation** — **A.** It recovers the integrity proof for existing customers' history
+without touching a single stored row, and it does not widen what an attacker can change.
+
+**Cost of delay** — On any existing Postgres deployment the integrity panel shows the whole
+journal as altered. An auditor who opens it before this is settled sees a false alarm.
+
+**Blocks** — the Definition of Done of #486 on existing deployments (new ones are fine).
+
+### D-051 — pilots start on synthetic data; an external pentest comes before any production data · decided 2026-09-28
+**Decided (owner)** — **B, with A's scope fixed now, matching the recommendation.**
+The pilots of #494 start on synthetic or non-sensitive data. An external penetration test
+happens before any production data enters the platform. Its scope is fixed today so quotes can
+be collected: authentication and sessions, tenant isolation, the file and import endpoints,
+the Helm and self-host deployments. No spend is committed today.
+
+**Raised by** — #485 task 6, linked to #494 (recruiting three pilot organisations: a bank under
+COBAC supervision, a microfinance institution, a GRC consultancy). It costs money, so it is
+the owner's call.
+
+**Context** — No external penetration test has ever been run; SECURITY.md now says so
+openly. The internal audit (`docs/security/AUDIT_2026-07.md`) is not independent, and it marked
+finding F-08 (example credentials in the guides) as fixed while about fifteen guides still
+showed `admin123` until #485. A supervised bank will almost certainly ask for a recent
+third-party report during procurement.
+
+**Options**
+- **A — budget a scoped test before the first pilot handles real data.** Scope: authentication
+  and sessions, tenant isolation, the file and import endpoints, the Helm and self-host
+  deployments. Quotes need to be collected; no amount is assumed here.
+- **B — start the pilots on synthetic or non-sensitive data, and test before any production
+  data.** Keeps the calendar of #494, and moves the cost a few months later.
+- **C — no test for now.** Rely on the disclosure policy and the internal audits. Likely to block
+  the banking pilot at procurement.
+
+**Recommendation** — **B, with A's scope fixed now.** It keeps #494 moving without putting
+real customer data on an untested platform, and gives time to collect quotes.
+
+**Cost of delay** — The bank pilot in #494 may stall at the security questionnaire; the other
+two are less likely to ask.
+
+**Blocks** — #485 task 6; possibly the banking pilot in #494.
+
+### D-050 — no history rewrite for the old default credentials; they are rotated · decided 2026-09-28
+**Decided (owner)** — **A, matching the recommendation.** History is not rewritten.
+**Owner action**: rotate the administrator password on staging, on the demo, and on the
+2026-09-09 manual install.
+
+**Raised by** — #485 task 2 ("décider si une réécriture d'historique est nécessaire").
+A rewrite is irreversible, so it is not an agent's call.
+
+**What `git log -S` and a full gitleaks scan found** (gitleaks 8.21.2 over 1 496 commits, 2026-09-24)
+- `admin123`: present since 2025-11-24 (`df7ab12b`) in the seed, the E2E workflow, and about
+  fifteen guides. It is a default, not a secret: anyone who has read the source knows it. It is
+  gone from every live path since #485; only a detection constant and the history still hold it.
+- Two 32-character example passwords in README.md and docs/SELF_HOSTING.md (`8xKq2m…`,
+  `e7733bb5`/`16d60194`, then `ccsc7T…`, `95695f79`, 2026-09-09). The second was added the
+  day the self-host install was "verified by hand on a clean stack", so it may be a password an
+  installer actually printed. Replaced with a placeholder in #485.
+- 33 other hits, all checked by hand: documentation placeholders (`YOUR_TOKEN`, truncated JWTs,
+  `opnrsk_abcd1234…`), test fixtures, a `k8s/secret.yaml` whose value decodes to the text
+  `base64encodedvalue`, and a local invitation token in a `.playwright-mcp/` snapshot
+  (localhost, test domain, expired after 72 h). No live key, token or cloud credential.
+
+**Options**
+- **A — no rewrite, rotate.** Change the administrator password on every instance seeded before
+  #485, and on any instance that ever used the `ccsc7T…` password. The backend now logs a
+  `SECURITY WARNING` at every boot while `admin@opendefender.io` still accepts `admin123`.
+- **B — rewrite history** (`git filter-repo`) to drop those values. It does not unpublish them
+  (forks, clones, caches and archives keep them), it invalidates every clone, fork and open PR,
+  and it breaks the commit references in `docs/JOURNAL.md`, the CHANGELOG and the issues.
+
+**Recommendation** — **A.** Once published, a credential is neutralised by rotating it, not
+by editing history. B has a certain cost and no security benefit.
+
+**Owner action needed either way** — rotate the administrator password of every instance you
+run that was first started before #485 (staging, demo, the 2026-09-09 manual install).
+
+### D-049 — the first administrator must change the generated password, enforced server-side · decided 2026-09-28
+**Decided (owner)** — **A, matching the recommendation.** A `password_change_required`
+flag on the user, set by the seed and enforced by a server-side middleware: until the password
+changes, the session only reaches `POST /auth/password/change` (#720) and `/auth/me`. One
+column is added, nothing is dropped. Clearing the flag deletes the generated password file.
+#485 is closed, so the work is follow-up issue #822.
+
 **Raised by** — #485. The issue asks that "le premier démarrage génère un mot de passe aléatoire
 et impose son changement". The first half is implemented; the second is auth design, so it
 comes here instead of into the PR.
@@ -39,226 +361,118 @@ may never be rotated.
 
 **Blocks** — #485 task 1, second half ("impose son changement").
 
-### D-050 — no history rewrite for the old default credentials; rotate instead · raised 2026-09-24
-**Raised by** — #485 task 2 ("décider si une réécriture d'historique est nécessaire").
-A rewrite is irreversible, so it is not an agent's call.
+### D-059 — RareUI's real licence is MIT + Commons Clause + Attribution: declined, the six components are built in-house · decided 2026-09-25
+**Decided (owner)** — **A, matching the recommendation.** No RareUI code enters the repository. The six
+components #751 names are built in-house on `framer-motion` and transitions.dev. RareUI
+may be used as a visual reference only: no file, no line and no port of its source.
 
-**What `git log -S` and a full gitleaks scan found** (gitleaks 8.21.2 over 1 496 commits, 2026-09-24)
-- `admin123`: present since 2025-11-24 (`df7ab12b`) in the seed, the E2E workflow, and about
-  fifteen guides. It is a default, not a secret: anyone who has read the source knows it. It is
-  gone from every live path since #485; only a detection constant and the history still hold it.
-- Two 32-character example passwords in README.md and docs/SELF_HOSTING.md (`8xKq2m…`,
-  `e7733bb5`/`16d60194`, then `ccsc7T…`, `95695f79`, 2026-09-09). The second was added the
-  day the self-host install was "verified by hand on a clean stack", so it may be a password an
-  installer actually printed. Replaced with a placeholder in #485.
-- 33 other hits, all checked by hand: documentation placeholders (`YOUR_TOKEN`, truncated JWTs,
-  `opnrsk_abcd1234…`), test fixtures, a `k8s/secret.yaml` whose value decodes to the text
-  `base64encodedvalue`, and a local invitation token in a `.playwright-mcp/` snapshot
-  (localhost, test domain, expired after 72 h). No live key, token or cloud credential.
+**What this does to D-058** — its RareUI half is **void**. The `motion` ban at
+`frontend/eslint.config.js:183` **stays** (D-024 §2 is not lifted, since nothing needs
+`motion`), and D-019 is not amended: the six components are in-house builds like every other
+primitive. What D-058 still decides is that #751 proceeds with its phases as written, with
+in-house components wherever the issue names a RareUI one.
 
-**Options**
-- **A — no rewrite, rotate.** Change the administrator password on every instance seeded before
-  #485, and on any instance that ever used the `ccsc7T…` password. The backend now logs a
-  `SECURITY WARNING` at every boot while `admin@opendefender.io` still accepts `admin123`.
-- **B — rewrite history** (`git filter-repo`) to drop those values. It does not unpublish them
-  (forks, clones, caches and archives keep them), it invalidates every clone, fork and open PR,
-  and it breaks the commit references in `docs/JOURNAL.md`, the CHANGELOG and the issues.
+**Raised by** — #751, Step 0. The install was stopped before any file was copied. D-058 was
+decided on the licence of the wrong repository, and the correct one changes the question.
 
-**Recommendation** — **A.** Once published, a credential is neutralised by rotating it, not
-by editing history. B has a certain cost and no security benefit.
+**Facts, checked 2026-09-25**
+- The source of rareui.com is **`swamimalode07/rare-ui`**: 1455 stars, pushed
+  2026-09-25, homepage `rareui.com`. It is not `Codewithswappy/RareUI`, the MIT repo cited
+  in D-058. That repo has none of the six components.
+- Its `LICENSE` is **"MIT + Commons Clause License Condition v1.0 + Attribution"**,
+  © 2026 Swami Malode. On top of MIT's terms it adds two conditions:
+  - *Attribution*: any project that ships part of it must carry "a visible link to
+    https://rareui.com", in a footer, an about page, a credits screen or the README.
+  - *Commons Clause*: "you do not sell, sublicense, or redistribute the components
+    themselves, whether alone, in a bundle, or as a ported version."
+- `registry.json`: all six components depend on `motion`, and `notification-bell` also on
+  `@radix-ui/react-slot`. Each one is a single file under `components/ui/`.
 
-**Owner action needed either way** — rotate the administrator password of every instance you
-run that was first started before #485 (staging, demo, the 2026-09-09 manual install).
-
-### D-051 — external penetration test before the first pilots? · raised 2026-09-24
-**Raised by** — #485 task 6, linked to #494 (recruiting three pilot organisations: a bank under
-COBAC supervision, a microfinance institution, a GRC consultancy). It costs money, so it is
-the owner's call.
-
-**Context** — No external penetration test has ever been run; SECURITY.md now says so
-openly. The internal audit (`docs/security/AUDIT_2026-07.md`) is not independent, and it marked
-finding F-08 (example credentials in the guides) as fixed while about fifteen guides still
-showed `admin123` until #485. A supervised bank will almost certainly ask for a recent
-third-party report during procurement.
+**Why this can't be settled by an agent**
+- OpenRisk is published as source under **AGPL-3.0-only**, with an EE under
+  `LicenseRef-OpenRisk-Commercial`, and `shared/ds/` is Apache-2.0 (D-014/D-016).
+  Committing these files to a public repository redistributes the components' source.
+  That looks like exactly what the Commons Clause forbids. AGPL-3.0 §7 and §10 also forbid
+  imposing "further restrictions" on recipients, which the Commons Clause is. The two
+  licences look incompatible whichever directory the files land in.
+- The EE is sold, and "sell … in a bundle" is also restricted.
+- This is licensing, so it goes to the owner under CLAUDE.md, and to `legal-counsel` for
+  an opinion. It isn't a decision about the design.
 
 **Options**
-- **A — budget a scoped test before the first pilot handles real data.** Scope: authentication
-  and sessions, tenant isolation, the file and import endpoints, the Helm and self-host
-  deployments. Quotes need to be collected; no amount is assumed here.
-- **B — start the pilots on synthetic or non-sensitive data, and test before any production
-  data.** Keeps the calendar of #494, and moves the cost a few months later.
-- **C — no test for now.** Rely on the disclosure policy and the internal audits. Likely to block
-  the banking pilot at procurement.
+- **A — decline RareUI and build the six in-house** on `framer-motion` and transitions.dev.
+  RareUI can serve as a visual reference, but no code is copied. No new dependency, and
+  the `motion` ban stays useful.
+- **B — ask the author for a written exception** (a dual licence or an MIT grant for
+  OpenRisk), then vendor under D-020 with the notice. #751 stays blocked until the reply.
+- **C — vendor anyway, with the attribution link.** This is not recommended: it looks like
+  an infringement in a public repository, and it can't be withdrawn once published.
 
-**Recommendation** — **B, with A's scope fixed now.** It keeps #494 moving without putting
-real customer data on an untested platform, and gives time to collect quotes.
+**Recommendation** — **A**, with B in parallel if the owner wants a specific RareUI
+component. Every component in the list is buildable in-house at a few hundred lines. The
+AGPL is not negotiable; the author's goodwill is.
 
-**Cost of delay** — The bank pilot in #494 may stall at the security questionnaire; the other
-two are less likely to ask.
+**Cost of delay** — Low. Phases 1–5 of #751 that rely only on transitions.dev (CSS, no
+licence issue) can go ahead. The six RareUI components are blocked.
 
-**Blocks** — #485 task 6; possibly the banking pilot in #494.
+**Reversible** — A and B, yes. C is not, once pushed to the public repository.
 
-### D-052 — audit entries sealed on Postgres before #486 never verify · raised 2026-09-24
-**Raised by** — #486. It touches the tamper-evidence design and any fix to past rows is
-irreversible, so it is the owner's call.
+**Blocks** — #751, Step 0 (the RareUI half), and every phase item that names a RareUI
+component.
 
-**Context** — `AuditEvent.SealChain` hashed `created_at` with Go's nanoseconds. Postgres stores
-microseconds, so no row read back from Postgres could re-hash to its sealed value: on a real
-database `GET /governance/audit-events/verify` reported **every** entry as `hash_mismatch`.
-Every earlier proof of the chain ran on sqlite, which keeps nanoseconds, so nobody saw it.
-#486 truncates to the microsecond before hashing (`internal/domain/audit_chain.go`) and adds
-`audit_chain_pg_test.go`, which fails without the fix and passes with it. New entries verify.
-Entries already written on a Postgres deployment still carry hashes over nanoseconds that the
-database threw away; they will keep failing verification.
+### D-058 — #751 "premium visual overhaul": RareUI adopted as written · decided 2026-09-25
+**Decided (owner)** — **Option C, as written.** RareUI goes in through the shadcn CLI, as
+#751 specifies.
 
-**Options**
-- **A — tolerant verification for legacy rows.** For a row that fails, try the 1 000 possible
-  sub-microsecond values (Postgres rounds to the nearest microsecond, so the lost part is in
-  ±500 ns). A row whose content was edited still fails: only the timestamp's lost digits are
-  searched. Cost: up to 1 000 SHA-256 per legacy row, once per verification. Rewrites nothing.
-- **B — seal the past.** Write one `AuditChainSeal` per tenant marking every entry up to the
-  fix as "sealed before verification was sound", and verify only after it. Honest, but it
-  declares a stretch of history unverifiable.
-- **C — re-hash legacy rows.** Rewrites the audit trail. Not recommended: it is exactly the
-  operation the chain exists to make detectable.
+**Rationale (owner)** — Chosen **over the recommendation**, which was A: transitions.dev
+only, on the existing `shared/ds/` primitives, with no new dependency. The owner accepts
+the cost of a second animation runtime and duplicated primitives in exchange for the
+RareUI components as they are published. This is recorded plainly because the argument
+runs the other way. A future reader shouldn't have to work out that it was considered.
 
-**Recommendation** — **A.** It recovers the integrity proof for existing customers' history
-without touching a single stored row, and it does not widen what an attacker can change.
+> **Correction, 2026-09-25, same day** — the licence facts below are about the wrong
+> repository. rareui.com is `swamimalode07/rare-ui`, licensed **MIT + Commons Clause +
+> Attribution**, not plain MIT. Nothing was installed. The question this raises is
+> open as **D-059** and suspends the RareUI half of this decision until it is answered.
+> **D-059 = A (same day)**: the RareUI half is void, and the `motion` ban stays. See D-059.
 
-**Cost of delay** — On any existing Postgres deployment the integrity panel shows the whole
-journal as altered. An auditor who opens it before this is settled sees a false alarm.
+**Facts this was decided on, checked 2026-09-25**
+- The only public RareUI repository found, `Codewithswappy/RareUI`, is MIT ("Copyright (c)
+  2025 Swapnil Kalambe (RareUI)") and `"private": true`. It depends on
+  **`motion ^12.23.24`** and **`three ^0.181.2`**.
+- Its homepage is `rareui.in`. #751 links `rareui.com`, whose registry (`/r/*.json`) was
+  behind a Vercel bot checkpoint and couldn't be read.
+- `shared/ds/` already ships `Tabs`, `Menu`, `Modal`, `Tooltip`, `Checkbox`, `OtpField`
+  and `Drawer` (D-019, D-023).
+- transitions.dev is CSS only. Its skills are already installed.
 
-**Blocks** — the Definition of Done of #486 on existing deployments (new ones are fine).
+**What this amends**
+- **D-024 consequence 2 is lifted for `motion`.** The `no-restricted-imports` entry for
+  `motion` in `frontend/eslint.config.js` may be removed by the PR that first installs a
+  RareUI component. `@number-flow/react` stays banned; nothing here concerns it.
+- **D-019 is amended for the RareUI components #751 names**: `tasklist`,
+  `animatedcounter`, `proximitysidebar`, `otpinput`, `deletebutton` and
+  `notificationbell`. Everything else is still built in-house.
 
-### D-053 — the retention floor for the audit journal · raised 2026-09-24
-**Raised by** — #486 task 3 ("a configurable retention policy, with a floor configuration
-cannot lower"). Choosing the value is a compliance and product decision.
+**What still binds, because it isn't a design choice**
+- **MIT notice retention (D-020).** MIT requires the copyright line and permission notice
+  to travel with the code. Each installed RareUI file keeps its notice, and a row goes into
+  `frontend/design-system/NOTICE` when the file lands under the Apache-2.0 boundary. The
+  first PR confirms that the `rareui.com` registry is the `Codewithswappy/RareUI` source,
+  or records where it actually comes from.
+- **The 180 KB preloaded budget may only be lowered**
+  (`frontend/scripts/check-bundle-budget.mjs`). `motion` and `three` stay out of the
+  preloaded graph, in a lazy chunk if needed. If a component can't be loaded lazily, that
+  goes back to the owner; the ceiling isn't raised by default.
+- **`prefers-reduced-motion` and AA contrast**, as #751 already requires. The keyboard and
+  focus contract of any `shared/ds/` primitive that is replaced must hold. Its existing
+  tests are kept and must still pass against the RareUI version.
 
-**Context** — The floor exists and is in code, not configuration: `AuditRetentionPolicy.Validate`
-accepts 0 (keep forever, the default) or 30 to 3 650 days. Nothing in the environment or the API
-can go below 30. But 30 days is short for the markets we sell to: banking supervisors commonly
-expect several years of records.
+**Reversible** — yes, while it stays uncommitted to a release: uninstall the components and
+restore the lint rule. After that the cost grows with every call site.
 
-**Options**
-- **A — keep 30 days.** The floor is a safety net against mistakes, not a legal minimum.
-- **B — raise it to 365 days.**
-- **C — raise it to 5 years (1 825 days)**, closer to what a supervised bank keeps.
-
-**Recommendation** — **B.** It stops the obvious mistake without imposing a banking rule on
-every customer; a stricter tenant can already set a longer window. Needs a compliance check
-before it is written into any customer-facing claim.
-
-**Cost of delay** — Low. The default is "keep forever".
-
-**Blocks** — nothing; task 3 of #486 is met as the code stands.
-
-### D-054 — the January 2027 launch scope, and what waits until after it · raised 2026-09-25
-**Raised by** — the direction audit of 2026-09-25 and the launch board #815. Cutting a
-milestone's scope is the owner's call (CLAUDE.md, Autonomy).
-
-**Context** — 298 issues are open. The engine the differentiating workflows sit on is not
-specified yet: #541 and #553 are `status:needs-refinement`, and the Closed-loop and Evidence
-Automation KPIs are at 0 % (ROADMAP, "L'étoile polaire"). Twelve two-week sprints separate
-28 September from mid-January. What does not fit has to be named, not left to slip silently.
-
-**Options**
-- **A — launch on Trust + Engine + Evidence Fabric (killer workflow B).** trust-v1 complete,
-  the GRC slice of the canonical model (#541, #553), then #554, #555, #811, #809, #556, #489.
-  Release 1.3 (auto-draft), 1.5 (governed AI) and 1.6 (ecosystem) come after the launch.
-  The vision issues (no-code #385-#389, marketplace/SDK #390-#393, predictive AI #394-#401,
-  Wave 2/3/5 features #202-#221) move to `tier:5-deferred`.
-- **B — launch on Trust + killer workflow A (Signal → Risk).** Needs #541-#545 (ingestion,
-  normalisation) plus #547-#550 (auto-draft, validation queue). More differentiating, but it
-  depends on connectors and on the canonical model shipping in the same window: higher risk.
-- **C — keep every release train in scope for January.** Not achievable. It spreads the
-  capacity over the four trains and ends with none of them finished.
-
-**Recommendation** — **A.** Evidence and time-bound decisions are what the regulated buyers
-of #494 (a COBAC-supervised bank, a microfinance institution) test first. It reuses what
-already exists (evidence library, crosswalks, governed acceptance) and it is the part where
-Vanta and Drata win today. Workflow A remains the first release after the launch.
-
-**Also needed from the owner** — (1) the GA date: the proposal is the week of
-**18 January 2027**; (2) a `v1.0 — Launch` milestone with that due date, because the session
-that built #815 could not create milestones; (3) confirmation to apply `tier:5-deferred` to
-the vision issues listed in option A (nothing is closed, D-031 is the precedent).
-
-**Cost of delay** — High. Every week without a scope decision is a week the board orders but
-does not bind.
-
-**Blocks** — the binding order of #815; the `tier:5-deferred` sweep.
-
-### D-055 — structural tenant guard: a GORM callback now, Postgres RLS later? · raised 2026-09-25
-**Raised by** — #808. It touches the design of tenant isolation, which CLAUDE.md reserves to
-the owner.
-
-**Context** — Tenant filtering is enforced by review. On `master` `6a8c964` there are 100
-direct `database.DB` calls in `internal/handler`. #807 is a defect that passed that review:
-each query was fine, but the effect crossed the tenant boundary.
-
-**Options**
-- **A — a GORM callback (tests and staging)** that fails any query on a tenant-scoped table
-  whose `WHERE` has no `tenant_id`, with an explicit allowlist. Reversible and cheap. It catches
-  missing filters, not wrong ones.
-- **B — Postgres Row-Level Security** with `SET app.tenant_id` per transaction. It is enforced
-  by the database even against a buggy query, but it touches every connection, the workers
-  and the migrations, and it needs an ADR.
-- **C — both, A now and B after the launch.**
-
-**Recommendation** — **C.** A fits in #808 before the launch at no design risk. B is the
-defence-in-depth a regulated buyer's security review asks about. It gets its own ADR after
-January.
-
-**Cost of delay** — Medium. Each new handler written the old way adds to the debt.
-
-**Blocks** — criterion 5 of #808 (RLS evaluated, not implemented).
-
-### D-056 — drop the legacy `control_evidences` table · raised 2026-09-25
-**Raised by** — #813. Dropping a table is irreversible (CLAUDE.md: "any schema migration
-that drops or renames a column").
-
-**Context** — The evidence library (`domain.Evidence`, migration 0052) is the only register
-the product reads. `control_evidences` is backfilled into it at every boot
-(`cmd/server/main.go:1408-1415`) and kept "for a release" (`cmd/server/schema.go:155-158`).
-The Evidence Fabric (#554) adds a hash and a chain of custody, and a second table outside
-that chain would be a gap an auditor can find.
-
-**Options**
-- **A — drop it** once a SQL check proves every row exists in the library on a
-  production-like database, with a migration `down` that recreates the empty table.
-- **B — keep it read-only** (revoke writes, keep the rows) for one more release.
-- **C — keep as is.**
-
-**Recommendation** — **A**, gated by the SQL proof of #813 criterion 1. B only if a
-self-hosted customer is known to run a version older than migration 0052.
-
-**Cost of delay** — Low now, higher once #554 seals evidence.
-
-**Blocks** — #813.
-
-### D-057 — CIS Controls and PCI DSS content: licence before depth · raised 2026-09-25
-**Raised by** — #809. Licensing is the owner's call (CLAUDE.md).
-
-**Context** — `cis-v8` ships 18 rows and `pci-dss-4.0` ships 12, against 153 safeguards and
-about 250 sub-requirements. CIS Controls v8 is published under CC BY-NC-ND 4.0, and OpenRisk is
-also sold under `LICENSE.commercial`. The PCI DSS text is copyrighted by PCI SSC. Going deeper
-means either reproducing text we may not have the right to ship, or writing our own wording
-against their identifiers.
-
-**Options**
-- **A — reference-only rows**: identifier plus our own short wording, no reproduced text,
-  reviewed by counsel.
-- **B — ask CIS and PCI SSC** for a licence or a membership that covers the use.
-- **C — leave both at top level**, and state it in the product and the README.
-
-**Recommendation** — **C for the launch, then A or B.** NIST, NIS2 and DORA (#809) can be
-deepened without a licence question; CIS and PCI wait for a written answer.
-
-**Cost of delay** — Low for the launch. Medium for payment-sector prospects.
-
-**Blocks** — any extension of #809 to CIS or PCI.
-
-## Resolved
+**Unblocked** — #751, back to `status:ready`. As #751 itself says, each phase lands as
+atomic commits and is reviewed before merge.
 
 ### D-047 — authenticated password change: kept as built · decided 2026-09-24
 **Decided (owner)** — **A, keep as built.** The owner asked for a test before closing it; the

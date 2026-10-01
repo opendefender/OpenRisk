@@ -6,37 +6,13 @@
 // statusPill()/avatar() helpers. Every screen composes from these so spacing,
 // radii and motion stay identical across the app.
 
-import { useEffect, useRef, useState } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import { Clock } from 'lucide-react';
 import { critColor, frameworkColor, softFill, type Criticality } from './riskColors';
-import { Button, type ButtonVariant } from './ds';
+import { Button, SlotReel, useArcReveal, type ButtonVariant } from './ds';
 import { useUIStrings } from './uiStrings';
 
 /* ---------------- math + motion ---------------- */
-
-/** Numeric count-up over ~1.1s, ease-out cubic. Re-runs when target changes. */
-export function useCountUp(target: number, duration = 1100): number {
-  const [value, setValue] = useState(0);
-  const raf = useRef<number>(0);
-  useEffect(() => {
-    const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-    if (reduce) {
-      setValue(target);
-      return;
-    }
-    const t0 = performance.now();
-    const tick = (now: number) => {
-      let p = Math.min(1, (now - t0) / duration);
-      p = 1 - Math.pow(1 - p, 3);
-      setValue(target * p);
-      if (p < 1) raf.current = requestAnimationFrame(tick);
-    };
-    raf.current = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf.current);
-  }, [target, duration]);
-  return value;
-}
 
 export function polar(cx: number, cy: number, r: number, deg: number): [number, number] {
   const a = ((deg - 90) * Math.PI) / 180;
@@ -326,6 +302,7 @@ export function RadialGauge({
   suffix,
   color,
   countUp = true,
+  fresh,
 }: {
   value: number;
   max?: number;
@@ -334,19 +311,28 @@ export function RadialGauge({
   suffix?: string;
   color?: string;
   countUp?: boolean;
+  /** True when `value` was genuinely fetched during THIS mount (a query's
+   *  `isFetchedAfterMount`) — rolls the number in from 0 once, per D-060.
+   *  Cached data renders plain. Read once, at mount. No effect if `countUp`
+   *  is false. */
+  fresh?: boolean;
 }) {
-  const shown = useCountUp(countUp ? value : 0);
-  const v = countUp ? shown : value;
-  const pct = Math.max(0, Math.min(1, v / max));
+  const pct = Math.max(0, Math.min(1, value / max));
   const h = size * 0.68;
   const cx = size / 2,
     cy = size * 0.51,
     r = size * 0.345;
   const track = arcPath(cx, cy, r, -115, 115);
-  const prog = arcPath(cx, cy, r, -115, -115 + 230 * pct);
   const col =
     color ?? (pct >= 0.7 ? 'var(--low)' : pct >= 0.45 ? 'var(--high)' : 'var(--critical)');
-  const display = max === 100 ? Math.round(v).toString() : v.toFixed(1);
+  // Same `fresh` signal the number reads (and, like the number, irrelevant
+  // when `countUp` is off) — the arc and the number must agree on whether
+  // this is a fresh load.
+  const arcRevealed = useArcReveal(countUp && fresh);
+  const formatOptions: Intl.NumberFormatOptions =
+    max === 100
+      ? { maximumFractionDigits: 0 }
+      : { minimumFractionDigits: 1, maximumFractionDigits: 1 };
   return (
     <div className="relative flex justify-center" style={{ width: size, height: h }}>
       <svg viewBox={`0 0 ${size} ${h}`} width={size} height={h}>
@@ -358,17 +344,31 @@ export function RadialGauge({
           strokeLinecap="round"
         />
         <path
-          d={prog}
+          // Same path as the track, always — `pathLength` normalises it to a
+          // 0..1 space so the reveal is one `strokeDashoffset` transition to
+          // the final `pct`, never a `d` recomputed from a counted value.
+          d={track}
           fill="none"
           stroke={col}
           strokeWidth={size * 0.064}
           strokeLinecap="round"
-          style={{ filter: `drop-shadow(0 0 6px ${col})` }}
+          pathLength={1}
+          strokeDasharray={1}
+          strokeDashoffset={arcRevealed ? 1 - pct : 1}
+          data-testid="radial-gauge-arc"
+          style={{
+            filter: `drop-shadow(0 0 6px ${col})`,
+            transition: 'stroke-dashoffset var(--dur-panel) var(--ease-out)',
+          }}
         />
       </svg>
       <div className="absolute left-0 right-0 text-center" style={{ top: h * 0.34 }}>
         <div className="disp mono font-bold text-ink leading-none" style={{ fontSize: size * 0.2 }}>
-          {display}
+          {countUp ? (
+            <SlotReel value={value} rollOnMount={fresh} formatOptions={formatOptions} />
+          ) : (
+            new Intl.NumberFormat(undefined, formatOptions).format(value)
+          )}
           {suffix}
         </div>
         {label && <div className="text-[12px] text-ink-muted mt-1">{label}</div>}

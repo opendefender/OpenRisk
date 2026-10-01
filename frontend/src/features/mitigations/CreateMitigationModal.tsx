@@ -5,7 +5,7 @@
 
 import { useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, dialogMotion, motion } from '../../shared/motion';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -123,10 +123,7 @@ export const CreateMitigationModal = ({
           />
 
           <motion.div
-            initial={{ opacity: 0, scale: 0.96, y: 40 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.96, y: 40 }}
-            transition={{ duration: 0.22, type: 'spring', stiffness: 240 }}
+            {...dialogMotion}
             className="fixed inset-0 z-90 flex items-center justify-center p-4"
           >
             {/* Announced as a dialog and named by its heading; the board behind

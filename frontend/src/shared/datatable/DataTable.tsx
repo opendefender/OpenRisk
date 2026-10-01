@@ -483,6 +483,9 @@ export function DataTable<T>({
     if (state.q !== searchDraftRef.current) {
       searchDraftRef.current = state.q;
       setSearchDraft(state.q);
+      // A value change from outside must not leave a stale snapshot fading
+      // over the newly synced text — same rule as the user typing below.
+      setClearedSnapshot(null);
     }
   }, [state.q]);
   useEffect(() => {
@@ -493,6 +496,25 @@ export function DataTable<T>({
     }, 220);
     return () => window.clearTimeout(t);
   }, [searchDraft, state.q, api]);
+
+  // The × clears the value immediately; `clearedSnapshot` is only the OLD text,
+  // kept around long enough to fade/fall out on --motion-exit while the real
+  // input (now empty) shows its placeholder underneath. Never set under
+  // reduced motion, since nothing will fire `onAnimationEnd` to take it back
+  // off — the clear is just instant there, which is the correct fallback.
+  // It is dropped on ANY later value change (typed, synced from the URL) so
+  // old and new text can never overlap in the DOM.
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const [clearedSnapshot, setClearedSnapshot] = useState<string | null>(null);
+  const clearSearch = () => {
+    const reduced = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true;
+    if (searchDraft && !reduced) setClearedSnapshot(searchDraft);
+    setSearchDraft('');
+    // The × has its mousedown prevented below, so focus never actually left
+    // the input on most platforms — this call is what makes it true on the
+    // rest, and after a remount.
+    searchInputRef.current?.focus();
+  };
 
   /* -------------------------------------------------------------- rendering */
   const sortableKey = (col: Column<T>) =>
@@ -510,8 +532,15 @@ export function DataTable<T>({
           className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted pointer-events-none"
         />
         <input
+          ref={searchInputRef}
           value={searchDraft}
-          onChange={(e) => setSearchDraft(e.target.value)}
+          onChange={(e) => {
+            // Drop any still-fading snapshot the instant the value changes —
+            // typing before the exit animation finishes must never leave old
+            // and new text overlapping in the DOM.
+            setClearedSnapshot(null);
+            setSearchDraft(e.target.value);
+          }}
           placeholder={searchPlaceholder ?? L.search}
           aria-label={L.searchAria}
           data-testid="table-search"
@@ -519,10 +548,26 @@ export function DataTable<T>({
           className="w-full h-9 pl-9 pr-8 rounded-[10px] text-[13px] text-ink outline-none focus:ring-2 focus:ring-(--accent)/40"
           style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-strong)' }}
         />
+        {/* A snapshot of the cleared text, fading/falling out on --motion-exit
+            over the real input underneath — already empty, showing its
+            placeholder with no transition of its own. The snapshot's exit is
+            the only motion here; the input itself is never animated, so its
+            border/background never flashes. aria-hidden: the live value is
+            the input's, already announced by its own change. */}
+        {clearedSnapshot !== null && (
+          <span
+            aria-hidden="true"
+            onAnimationEnd={() => setClearedSnapshot(null)}
+            className="pointer-events-none absolute inset-y-0 left-9 right-8 flex items-center truncate text-[13px] text-ink-muted motion-safe:animate-or-clearexit"
+          >
+            {clearedSnapshot}
+          </span>
+        )}
         {searchDraft && (
           <button
             type="button"
-            onClick={() => setSearchDraft('')}
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={clearSearch}
             aria-label={L.clearSearch}
             className="absolute right-2 top-1/2 -translate-y-1/2 text-ink-muted hover:text-ink"
           >

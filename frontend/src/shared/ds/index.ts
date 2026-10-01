@@ -15,6 +15,7 @@
 export { cn } from './cn';
 
 export { Button, type ButtonVariant, type ButtonSize } from './Button';
+export { DeleteButton, type DeleteButtonProps } from './DeleteButton';
 export {
   Field,
   Input,
@@ -27,6 +28,7 @@ export {
   type SelectProps,
 } from './Field';
 export { Label, type LabelProps } from './Label';
+export { Shake } from './Shake';
 export { Fieldset, type FieldsetProps } from './Fieldset';
 export { InputGroup, type InputGroupProps, type InputGroupSize } from './InputGroup';
 export { Checkbox, CheckboxGroup, type CheckboxProps, type CheckboxGroupProps } from './Checkbox';
@@ -43,8 +45,12 @@ export { Modal, type ModalProps, type ModalSize } from './Modal';
 export { AlertDialog, type AlertDialogProps } from './AlertDialog';
 export { Spinner, type SpinnerProps, type SpinnerSize } from './Spinner';
 export { Empty, type EmptyProps, type EmptyVariant } from './Empty';
+export { SlotReel, type SlotReelProps } from './SlotReel';
+export { useArcReveal } from './useArcReveal';
 export { Drawer, type DrawerProps, type DrawerSide, type DrawerSize } from './Drawer';
 export { Tabs, TabPanel, type TabItem, type TabsProps } from './Tabs';
+export { Collapse, type CollapseProps } from './Collapse';
+export { ScrollProgress, type ScrollProgressProps } from './ScrollProgress';
 export { Tooltip, type TooltipProps, type TooltipPlacement } from './Tooltip';
 export { Popover, type PopoverProps, type PopoverPlacement } from './Popover';
 export { Menu, type MenuProps, type MenuItem } from './Menu';

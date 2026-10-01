@@ -8,7 +8,7 @@
 
 import { localeTag } from '../../i18n/locales';
 import { useMemo, useState } from 'react';
-import { Wrench, Plus, Trash2, AlertCircle, ArrowLeft } from 'lucide-react';
+import { Wrench, Plus, AlertCircle, ArrowLeft } from 'lucide-react';
 import { useNavigate, Link } from 'react-router';
 import { toast } from 'sonner';
 import {
@@ -21,6 +21,7 @@ import {
   ErrorState,
   Chip,
 } from '../../shared/ui';
+import { DeleteButton } from '../../shared/ds';
 import { useUIStore } from '../../store/uiStore';
 import { useAuthStore } from '../../hooks/useAuthStore';
 import { useUndoableRemove } from '../../shared/useUndoableRemove';
@@ -201,7 +202,7 @@ export function RemediationPage() {
                         className="text-[13px] text-ink"
                         style={{
                           borderTop: i === 0 ? 'none' : '1px solid var(--border)',
-                          animation: 'or-fadeup .35s ease both',
+                          animation: 'or-fadeup var(--dur-slow) var(--ease-out) both',
                           animationDelay: `${Math.min(i * 0.03, 0.25)}s`,
                         }}
                       >
@@ -292,18 +293,10 @@ export function RemediationPage() {
                         </td>
                         <td className="px-4 py-3 text-right">
                           {canWrite && (
-                            <button
+                            <DeleteButton
                               onClick={() => remove(p)}
-                              className="w-8 h-8 rounded-[8px] inline-flex items-center justify-center transition-colors hover:brightness-110"
-                              style={{
-                                border:
-                                  '1px solid color-mix(in srgb,var(--critical) 30%,transparent)',
-                                color: 'var(--critical)',
-                              }}
-                              title={tr('Supprimer', 'Delete')}
-                            >
-                              <Trash2 size={14} />
-                            </button>
+                              aria-label={tr(`Supprimer « ${p.title} »`, `Delete "${p.title}"`)}
+                            />
                           )}
                         </td>
                       </tr>

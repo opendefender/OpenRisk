@@ -40,8 +40,39 @@
  */
 
 import { forwardRef, type ButtonHTMLAttributes, type ReactNode } from 'react';
-import { Check, Loader2, TriangleAlert, type LucideIcon } from 'lucide-react';
+import { Loader2, TriangleAlert, type LucideIcon } from 'lucide-react';
 import { cn } from './cn';
+
+/**
+ * The drawn check for `feedback="success"`. Two nodes, two one-shot
+ * animations (`--animate-or-checkfade` / `--animate-or-checkdraw`, both
+ * `both`-fill so reduced motion falls back to the fully-drawn end state
+ * rather than the invisible start frame — see the keyframe comment in
+ * index.css). It never competes with `loading`: Button picks loading first.
+ */
+function SuccessCheck() {
+  return (
+    <svg
+      width={16}
+      height={16}
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+      className="motion-safe:animate-or-checkfade text-success-text"
+    >
+      <path
+        d="M20 6 9 17l-5-5"
+        pathLength={1}
+        strokeDasharray={1}
+        stroke="currentColor"
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className="motion-safe:animate-or-checkdraw"
+      />
+    </svg>
+  );
+}
 
 export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'destructive' | 'link';
 export type ButtonSize = 'sm' | 'md' | 'lg';
@@ -128,21 +159,14 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
 
   /* Precedence: in flight beats the previous result. A spinner and a tick at
      the same time is a lie about one of them. */
-  const LeadIcon = loading
-    ? Loader2
-    : feedback === 'success'
-      ? Check
-      : feedback === 'error'
-        ? TriangleAlert
-        : Icon;
+  const LeadIcon = feedback === 'error' ? TriangleAlert : Icon;
 
-  const glyph = LeadIcon ? (
-    <LeadIcon
-      size={px}
-      strokeWidth={1.9}
-      aria-hidden="true"
-      className={loading ? 'motion-safe:animate-spin' : undefined}
-    />
+  const glyph = loading ? (
+    <Loader2 size={px} strokeWidth={1.9} aria-hidden="true" className="motion-safe:animate-spin" />
+  ) : feedback === 'success' ? (
+    <SuccessCheck />
+  ) : LeadIcon ? (
+    <LeadIcon size={px} strokeWidth={1.9} aria-hidden="true" />
   ) : null;
 
   return (

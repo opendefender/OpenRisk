@@ -118,7 +118,7 @@ export function ColumnsMenu<T>({
                 borderRadius: 14,
                 boxShadow: 'var(--shadow-lg)',
                 padding: 6,
-                animation: 'or-scalein .14s cubic-bezier(.2,.8,.2,1)',
+                animation: 'or-scalein var(--motion-enter)',
               }}
               data-testid="columns-panel"
               aria-label={labels.columns}

@@ -6,41 +6,17 @@
 
 import { AlertCircle } from 'lucide-react';
 
+// Promoted into the design system (#751 phase 2): shared/ds/Field now hosts
+// the same shake for every form, not only these auth screens. Re-exported
+// here so the six existing `import { Shake } from './fields'` call sites keep
+// working unchanged.
+export { Shake } from '../../shared/ds/Shake';
+
 export function Label({ htmlFor, children }: { htmlFor?: string; children: React.ReactNode }) {
   return (
     <label htmlFor={htmlFor} className="block text-[12.5px] font-medium text-ink-soft mb-[7px]">
       {children}
     </label>
-  );
-}
-
-/**
- * Shakes its children once whenever `errorKey` changes to a new truthy value.
- *
- * Implemented by using errorKey as the React `key`: a changed key remounts the
- * wrapper, and a fresh mount restarts the CSS animation. That is why callers
- * pass an incrementing nonce rather than the message itself — a SECOND failure
- * with identical wording still has to shake, or someone retyping the same wrong
- * password gets no feedback at all and concludes the button is dead.
- *
- * Deriving the animation from the key rather than from an effect also keeps this
- * render-pure: no state, no effect, nothing to get out of step.
- *
- * The shake is decoration layered on top of the message and the red border.
- * Under `prefers-reduced-motion` the global CSS rule strips the animation and
- * the other two still carry the meaning.
- */
-export function Shake({
-  errorKey,
-  children,
-}: {
-  errorKey: string | number;
-  children: React.ReactNode;
-}) {
-  return (
-    <div key={String(errorKey)} style={errorKey ? { animation: 'or-shake 300ms ease' } : undefined}>
-      {children}
-    </div>
   );
 }
 

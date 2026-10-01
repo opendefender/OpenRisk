@@ -14,7 +14,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
 
-import { Button, Field, Input, Select, Textarea } from '../../shared/ds';
+import { Button, Field, Input, Select, Textarea, useSuccessFeedback } from '../../shared/ds';
 import { apiErrorMessage } from '../../lib/apiError';
 import { ENABLED_LOCALES, LOCALES } from '../../i18n/locales';
 import { ACCENT_LABELS, ACCENT_PRESETS } from '../../shared/accentPresets';
@@ -64,6 +64,7 @@ function valuesOf(org: OrganizationView): OrganizationProfileValues {
 
 export function OrganizationProfileForm({ org, tr }: { org: OrganizationView; tr: Tr }) {
   const update = useUpdateOrganization();
+  const { feedback, flashSuccess } = useSuccessFeedback();
   const schema = useMemo(() => organizationProfileSchema(tr), [tr]);
   const zones = useMemo(() => timeZones(), []);
   const {
@@ -87,6 +88,9 @@ export function OrganizationProfileForm({ org, tr }: { org: OrganizationView; tr
     update.mutate(patch, {
       onSuccess: (saved) => {
         reset(valuesOf(saved));
+        // The check is a claim the SERVER accepted the write, so it fires
+        // only from this callback, never optimistically.
+        flashSuccess();
         toast.success(tr('Profil de l’organisation enregistré', 'Organization profile saved'));
       },
       onError: (err) => {
@@ -246,6 +250,7 @@ export function OrganizationProfileForm({ org, tr }: { org: OrganizationView; tr
         <Button
           type="submit"
           variant="primary"
+          feedback={feedback}
           disabled={!isDirty || update.isPending}
           data-testid="org-profile-save"
         >

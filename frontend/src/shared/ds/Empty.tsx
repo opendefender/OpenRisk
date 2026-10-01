@@ -118,7 +118,7 @@ export function Empty({
       // every caller's override was silently ignored and those surfaces rendered
       // 64px of padding top and bottom instead of the 32px asked for.
       className={cn('flex flex-col items-center justify-center text-center py-16 px-6', className)}
-      style={{ animation: 'or-fadein .3s ease' }}
+      style={{ animation: 'or-fadein var(--dur-slow) var(--ease-out)' }}
     >
       <div
         className="w-16 h-16 rounded-2xl flex items-center justify-center mb-5"
@@ -130,10 +130,34 @@ export function Empty({
         <Icon size={28} strokeWidth={1.7} />
       </div>
 
-      <div className="text-md font-semibold text-ink mb-1.5">{title}</div>
+      {/* `key`s the text: a title or description that changes while this
+          exact Empty instance stays mounted (variant/props updated in place,
+          rather than a remount) replays the reveal for the NEW text instead
+          of sitting frozen mid-animation-in-the-past or not moving at all.
+          4px rise, no blur, `--motion-enter` (`or-rise-xs` uses the same
+          duration/easing pair), the description a `--stagger-step` behind
+          the title so the two don't land in the same beat. Reduced motion
+          is the app-wide `* { animation: none !important }` rule — nothing
+          extra needed here for it to show final, in place, at once. */}
+      <div
+        key={title}
+        className="text-md font-semibold text-ink mb-1.5"
+        style={{ animation: 'or-rise-xs var(--dur-base) var(--ease-out) both' }}
+      >
+        {title}
+      </div>
 
       {description && (
-        <div className="text-sm text-ink-soft max-w-sm leading-relaxed">{description}</div>
+        <div
+          key={description}
+          className="text-sm text-ink-soft max-w-sm leading-relaxed"
+          style={{
+            animation: 'or-rise-xs var(--dur-base) var(--ease-out) both',
+            animationDelay: 'var(--stagger-step)',
+          }}
+        >
+          {description}
+        </div>
       )}
 
       {hasActions && (
