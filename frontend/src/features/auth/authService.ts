@@ -4,7 +4,8 @@
 // Typed client for the unauthenticated auth endpoints (password reset, strength
 // checking) and for session management. No `any`.
 
-import { api } from '../../lib/api';
+import { api, refreshSession } from '../../lib/api';
+import { getAccessToken } from '../../lib/session';
 import type { Lang } from '../../store/uiStore';
 
 // ---------------------------------------------------------------------------
@@ -269,9 +270,10 @@ export async function disableMFA(
  * login does.
  */
 export async function claimSSOSession(): Promise<string> {
-  const { data } = await api.post<{ token_pair?: { access_token?: string } }>('/auth/refresh', {});
-  const token = data.token_pair?.access_token;
-  if (!token) throw new Error('refresh returned no access token');
+  // The shared single flight, never a refresh of its own (see refreshSession).
+  const ok = await refreshSession();
+  const token = getAccessToken();
+  if (!ok || !token) throw new Error('could not load the SSO session');
   return token;
 }
 
