@@ -60,13 +60,13 @@
 ### 6. SAML2 Login
 - **Endpoint**: `GET /auth/saml2/login`
 - **Auth**: ❌ No
-- **Response**: Redirects to SAML IdP
+- **Response**: `302` to `/login?error=provider_not_configured&provider=saml2`. SAML sign-in is turned off until signed assertions are verified
 
 ### 7. SAML2 ACS
 - **Endpoint**: `POST /auth/saml2/acs`
 - **Auth**: ❌ No
 - **Body**: SAML response from IdP
-- **Response**: Redirects with JWT token
+- **Response**: `302` to `/login?error=provider_not_configured&provider=saml2`, whatever the body. No user or session is created
 
 ### 8. SAML2 Metadata
 - **Endpoint**: `GET /auth/saml2/metadata`

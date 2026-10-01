@@ -23,7 +23,7 @@ Last updated: 2026-07-13.
 | POST | `/api/v1/auth/logout` | Revoke the current session |
 | GET  | `/api/v1/auth/me` | Current user claims |
 | GET  | `/api/v1/auth/oauth2/login/:provider` · `/auth/oauth2/callback/:provider` | OAuth2 (design/partial) |
-| GET  | `/api/v1/auth/saml2/login` · `/auth/saml2/metadata` · POST `/auth/saml2/acs` | SAML2 (design/partial) |
+| GET  | `/api/v1/auth/saml2/login` · `/auth/saml2/metadata` · POST `/auth/saml2/acs` | SAML2, turned off: login and ACS redirect to `/login?error=provider_not_configured` |
 | GET  | `/api/v1/health` | Liveness → `{db,status,version}` (public) |
 
 ## Risks

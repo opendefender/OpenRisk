@@ -54,7 +54,7 @@ OpenRisk allows every organization to:
 ### Key Capabilities
 - 🎲 **Risk Assessment** - Comprehensive risk identification and scoring
 - 🛡️ **Mitigation Tracking** - Monitor and track risk mitigations in real-time
-- 🔐 **Enterprise Security** - RBAC, audit logging, OAuth2/SAML2 SSO
+- 🔐 **Enterprise Security** - RBAC, audit logging, OAuth2 SSO
 - 🗂️ **Asset Inventory** - Track assets, their criticality and dependencies
 - 📋 **Compliance Management** - Manage controls, evidence and compliance reports
 - 💶 **Financial Risk Quantification** - Quantify exposure using SLE, ARO, ALE and ROSI
@@ -343,7 +343,7 @@ PATCH  /api/mitigations/:id/sub-actions/:aid - Toggle completion
 POST   /auth/login             - JWT authentication
 POST   /auth/register          - User registration
 POST   /auth/oauth2/:provider  - OAuth2 login
-POST   /auth/saml/acs          - SAML assertion endpoint
+POST   /auth/saml2/acs         - SAML assertion endpoint (turned off, see below)
 
 GET    /api/tokens             - List API tokens
 POST   /api/tokens             - Create new token
@@ -382,7 +382,7 @@ OpenRisk implements enterprise-grade security:
 - **Password Hashing**: Argon2id (m=64MB, t=3, p=4) - never SHA256 or bcrypt alone
 - **Encryption**: AES-256-GCM for sensitive data at rest
 - **Audit Trail**: Complete audit logging for all operations (append-only)
-- **SSO**: OAuth2 (Google, GitHub) and SAML2 support
+- **SSO**: OAuth2 (Google, GitHub, Microsoft Entra). SAML2 is turned off until signed assertions are verified; its endpoints redirect to the login screen
 - **Rate Limiting**: Per-IP and per-tenant quotas across the API, with a stricter throttle on credential endpoints
 - **Security Headers**: CSP, HSTS, X-Frame-Options, Referrer-Policy and nosniff
 - **Input Validation**: Server-side request validation (go-playground/validator); Zod on the frontend
