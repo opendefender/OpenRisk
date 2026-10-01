@@ -157,7 +157,7 @@ func (s *Service) ChangeRole(ctx context.Context, tenantID uuid.UUID, in ChangeR
 	// to re-derive claims, so a demotion actually takes effect rather than
 	// waiting for whatever session they happen to hold to lapse on its own.
 	if s.revoker != nil {
-		_ = s.revoker.RevokeAllUserTokens(ctx, m.UserID)
+		_ = s.revoker.RevokeUserTokensInTenant(ctx, m.UserID, tenantID)
 	}
 
 	v := toMemberView(m)
@@ -233,7 +233,7 @@ func (s *Service) SetStatus(ctx context.Context, tenantID uuid.UUID, in SetStatu
 	if !in.Status.GrantsAccess() && s.revoker != nil {
 		// Best-effort: a revoker outage must not leave the membership half-changed
 		// in the database. The membership itself already refuses new sessions.
-		_ = s.revoker.RevokeAllUserTokens(ctx, m.UserID)
+		_ = s.revoker.RevokeUserTokensInTenant(ctx, m.UserID, tenantID)
 	}
 
 	v := toMemberView(m)

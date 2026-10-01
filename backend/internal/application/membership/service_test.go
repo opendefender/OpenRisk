@@ -346,21 +346,24 @@ func (m *stubMailer) SendInvitation(_ context.Context, mail InvitationMail) erro
 
 type stubRevoker struct {
 	mu      sync.Mutex
-	revoked []uuid.UUID
+	revoked []revocation
 }
 
-func (s *stubRevoker) RevokeAllUserTokens(_ context.Context, id uuid.UUID) error {
+type revocation struct{ user, tenant uuid.UUID }
+
+func (s *stubRevoker) RevokeUserTokensInTenant(_ context.Context, id, tenant uuid.UUID) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.revoked = append(s.revoked, id)
+	s.revoked = append(s.revoked, revocation{id, tenant})
 	return nil
 }
 
-func (s *stubRevoker) has(id uuid.UUID) bool {
+// hasIn reports a revocation for the user in that tenant.
+func (s *stubRevoker) hasIn(id, tenant uuid.UUID) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	for _, x := range s.revoked {
-		if x == id {
+		if x.user == id && x.tenant == tenant {
 			return true
 		}
 	}
@@ -553,8 +556,8 @@ func TestChangeRole_AppliesAndAudits(t *testing.T) {
 	}
 	// A demotion the member is still holding a token for has not taken effect
 	// until their refresh lineage is gone.
-	if !h.revoker.has(target.UserID) {
-		t.Error("a role change must end the member's refresh lineage")
+	if !h.revoker.hasIn(target.UserID, h.tenantA) {
+		t.Error("a role change must end the member's refresh lineage in this organization")
 	}
 }
 
@@ -635,8 +638,8 @@ func TestSetStatus_DeactivateReactivateRevoke(t *testing.T) {
 		t.Fatalf("deactivation did not take: %+v", v)
 	}
 	// Withdrawing access is not a UI state — the sessions have to go.
-	if !h.revoker.has(target.UserID) {
-		t.Error("deactivation must end the member's sessions")
+	if !h.revoker.hasIn(target.UserID, h.tenantA) {
+		t.Error("deactivation must end the member's sessions in this organization")
 	}
 	if ev := h.audit.find("organization_member", "update"); ev == nil || ev.After["reason"] != "leave of absence" {
 		t.Errorf("deactivation must be audited with its reason: %+v", ev)
