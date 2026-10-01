@@ -60,7 +60,15 @@ export function DemoBanner() {
       style={{
         background: 'color-mix(in srgb, var(--high) 16%, transparent)',
         borderBottom: '1px solid color-mix(in srgb, var(--high) 34%, transparent)',
-        color: 'var(--high)',
+        // The raw --high token measures under 4:1 on this tint in the light
+        // theme (a live-pass defect, #751 phase 4 review) — this is a local
+        // fix, not a change to --high itself, which stays the shared
+        // severity token. Mixed toward the theme's own body text colour
+        // (in oklab, so the blend stays a clean shift in lightness rather
+        // than the "muddy midpoint" a plain sRGB mix gives) rather than a
+        // flat darken/lighten, so it improves in both themes from the same
+        // rule instead of needing a light/dark branch.
+        color: 'color-mix(in oklab, var(--high) 80%, var(--fg-primary))',
       }}
     >
       <FlaskConical size={15} strokeWidth={2} />

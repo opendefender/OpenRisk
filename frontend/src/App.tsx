@@ -42,6 +42,7 @@ const CommandPalette = lazy(() =>
   import('./components/layout/CommandPalette').then((m) => ({ default: m.CommandPalette })),
 );
 import { GlobalShortcuts } from './components/layout/GlobalShortcuts';
+import { BannerStack } from './shared/BannerStack';
 import { DemoBanner } from './shared/DemoBanner';
 import { OfflineBanner } from './shared/OfflineBanner';
 import { ProductTour } from './features/onboarding/ProductTour';
@@ -431,10 +432,12 @@ const DashboardLayout = () => {
         className="flex-1 flex flex-col h-screen overflow-hidden relative min-w-0"
         style={{ background: 'var(--bg-primary)' }}
       >
-        {/* Renders only when the server reports DEMO_MODE. Not dismissible by
-            design — see shared/DemoBanner. */}
-        <DemoBanner />
-        <OfflineBanner />
+        {/* Demo (permanent, not dismissible by design — see shared/DemoBanner)
+            on top; Offline below it, closest to the header it pushes. */}
+        <BannerStack>
+          <DemoBanner />
+          <OfflineBanner />
+        </BannerStack>
         <AppHeader onOpenMobileNav={() => setMobileNavOpen(true)} />
         <main
           id="main-content"

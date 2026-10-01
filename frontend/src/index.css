@@ -391,6 +391,93 @@ layer(base);
     color: var(--low);
     background: color-mix(in srgb, var(--low) 15%, transparent);
   }
+
+  /* Notification bell badge (#751 phase 4). Exit values live on the base
+     rule, enter values override them on the armed+visible state — the same
+     asymmetric-duration technique the rest of the CSS-only motion uses (a
+     transition takes its duration/easing from the state being entered, not
+     the one being left), so one declaration block covers both directions
+     with no JS. Reduced motion is free: the global `* { transition: none }`
+     rule below still wins regardless of which state supplied the duration. */
+  .notif-badge {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  .notif-badge[data-armed='true'] {
+    transition:
+      opacity var(--motion-exit),
+      transform var(--motion-exit);
+  }
+  .notif-badge[data-visible='true'] {
+    opacity: 1;
+    transform: scale(1);
+  }
+  .notif-badge[data-armed='true'][data-visible='true'] {
+    transition:
+      opacity var(--motion-enter),
+      transform var(--motion-enter);
+  }
+
+  /* Notif panel (#751 phase 4). Replaces the hard-coded `or-scalein .16s`
+     inline style: scale/rise in from the corner it's anchored to, timed on
+     the shared motion tokens, with a real close leg. useExitTimer keeps the
+     panel mounted for --dur-fast after `open` goes false so this exit
+     animation has a frame to play before AppHeader stops rendering it.
+     A `transition`, not a keyframe (review fix, motion-designer): a keyframe
+     restarts from its 0% every time `data-open` flips, so reopening the
+     panel mid-exit snapped it back to fully closed before replaying the
+     enter — a `transition` instead continues smoothly from whatever value is
+     current. Same asymmetric-duration technique as .notif-badge above: exit
+     timing lives on the base rule, enter timing overrides it on the open
+     state. AppHeader's useEnterGate keeps this working on first mount too
+     (a transition never plays on an element's very first style resolution),
+     by holding `data-open` at "false" for one macrotask before it can ever
+     read "true". */
+  .notif-panel {
+    transform-origin: top right;
+    opacity: 0;
+    transform: scale(0.96) translateY(-4px);
+    transition:
+      opacity var(--motion-exit),
+      transform var(--motion-exit);
+  }
+  .notif-panel[data-open='true'] {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+    transition:
+      opacity var(--motion-enter),
+      transform var(--motion-enter);
+  }
+
+  /* Shared height-collapse (#751 phase 4): OfflineBanner and
+     MFAEnrollmentBanner's dismiss both use this rather than each inventing
+     its own. `grid-template-rows: 0fr -> 1fr` animates a track that has no
+     fixed height to animate any other way — a plain `height` transition needs
+     a concrete pixel value, which neither banner's content has (it wraps at
+     different widths). The `> *` child needs `min-height: 0` so the grid item
+     can actually shrink below its content's intrinsic height; without it a
+     grid item's default `min-height: auto` refuses to go below content size
+     and the row never visually collapses at all. Same asymmetric-duration
+     technique as .notif-badge above: exit timing on the base rule, enter
+     timing on the open state. */
+  .or-collapse {
+    display: grid;
+    grid-template-rows: 0fr;
+    opacity: 0;
+    transition:
+      grid-template-rows var(--motion-exit),
+      opacity var(--motion-exit);
+  }
+  .or-collapse[data-open='true'] {
+    grid-template-rows: 1fr;
+    opacity: 1;
+    transition:
+      grid-template-rows var(--motion-enter),
+      opacity var(--motion-enter);
+  }
+  .or-collapse > * {
+    min-height: 0;
+  }
 }
 
 /* ── Elevated primitives (docs/UI_ELEVATION_PROPOSAL.md §5/§6/§7) ─────────── */
@@ -547,4 +634,46 @@ layer(base);
    Tailwind row padding so the header density control reaches the flagship. */
 .or-den-rows td {
   padding-block: var(--den-cell-y) !important;
+}
+
+/* ── Toasts (#751 phase 4) — restyle sonner, don't replace it ────────────
+   Sonner ships its own unlayered stylesheet (injected at runtime, outside any
+   @layer), so a Tailwind utility living in @layer utilities would lose to it
+   regardless of source order — cascade layers always lose to unlayered rules.
+   These overrides are therefore plain CSS too, with one extra class
+   (`.or-toast` etc., via ThemedToaster's `toastOptions.classNames`) added to
+   push specificity above sonner's own `[data-sonner-toast][data-styled='true']`
+   (0,2,0) so ours (0,3,0) wins outright, no !important, no ordering games.
+
+   Only surface (background/border/radius/shadow) and type/text sizing are
+   touched. `transform`/`opacity` are deliberately left alone: sonner computes
+   them from --y, which also encodes the multi-toast stack offset (lift,
+   gap, expanded state) — overwriting that value to get a flat "8px rise"
+   would break the stack, not just the motion. What IS overridden is the
+   DURATION/EASING those properties transition on, via --motion-enter/-exit
+   in place of sonner's flat 400ms — see .or-toast below. */
+[data-sonner-toast][data-styled='true'].or-toast {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: var(--elev-3);
+}
+[data-sonner-toast].or-toast {
+  transition-duration: var(--dur-base);
+  transition-timing-function: var(--ease-out);
+}
+[data-sonner-toast][data-removed='true'].or-toast {
+  transition-duration: var(--dur-fast);
+  transition-timing-function: var(--ease-in);
+}
+[data-sonner-toast][data-styled='true'].or-toast [data-title].or-toast-title {
+  font-size: var(--text-base);
+  font-weight: 600;
+}
+[data-sonner-toast][data-styled='true'].or-toast [data-description].or-toast-description {
+  font-size: var(--text-sm);
+  color: var(--fg-secondary);
+}
+[data-sonner-toast][data-styled='true'].or-toast [data-icon].or-toast-icon {
+  margin-top: 1px;
 }
