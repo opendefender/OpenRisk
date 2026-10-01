@@ -41,7 +41,6 @@ import { AppHeader } from './components/layout/AppHeader';
 const CommandPalette = lazy(() =>
   import('./components/layout/CommandPalette').then((m) => ({ default: m.CommandPalette })),
 );
-import { GlobalShortcuts } from './components/layout/GlobalShortcuts';
 import { BannerStack } from './shared/BannerStack';
 import { DemoBanner } from './shared/DemoBanner';
 import { OfflineBanner } from './shared/OfflineBanner';
@@ -356,14 +355,23 @@ const DashboardLayout = () => {
   // The activation checklist's primary step deep-links to /risks?guided=1. Honour
   // it by opening the create-risk modal (which offers the three sector drafts),
   // then strip the parameter so a reload or a Back does not reopen it.
+  //
+  // The modal opens while rendering, when the parameter appears, rather than
+  // from the effect below: a setState in an effect body costs a second render.
+  // The effect only syncs the URL, which is what effects are for.
   const location = useLocation();
+  const guided = new URLSearchParams(location.search).has('guided');
+  const [prevGuided, setPrevGuided] = useState(false);
+  if (guided !== prevGuided) {
+    setPrevGuided(guided);
+    if (guided && useAuthStore.getState().hasPermission('risks:create')) setNewRiskOpen(true);
+  }
   useEffect(() => {
-    if (!new URLSearchParams(location.search).has('guided')) return;
-    if (useAuthStore.getState().hasPermission('risks:create')) setNewRiskOpen(true);
+    if (!guided) return;
     const next = new URLSearchParams(location.search);
     next.delete('guided');
     navigate({ pathname: location.pathname, search: next.toString() }, { replace: true });
-  }, [location.search, location.pathname, navigate]);
+  }, [guided, location.search, location.pathname, navigate]);
 
   // The sidebar quick action and command palette dispatch this to open the modal.
   // A header button dispatches openrisk:shortcuts to reveal the shortcuts overlay.
