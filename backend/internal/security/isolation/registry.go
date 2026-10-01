@@ -90,7 +90,7 @@ var decisions = []Decision{
 
 	// --- Caller's own identity -------------------------------------------
 	{"/api/v1/auth/pat/{id}", SelfScoped,
-		"PAT CRUD is scoped to the authenticated owner via claims, not the path"},
+		"revoke deletes WHERE tenant_id AND user_id AND id from the session, never the path alone; a foreign token answers 404. Pinned by TestPATRepo_TenantIsolation (#782)"},
 	{"/api/v1/auth/sessions/{id}", SelfScoped,
 		"session revocation is scoped to the authenticated owner: GormSessionRepository.Revoke " +
 			"filters id AND user_id, so a foreign session id affects 0 rows and reads back as " +

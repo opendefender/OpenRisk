@@ -17,7 +17,8 @@ import (
 // PATMiddleware authenticates Personal Access Tokens (L5) and is designed to run
 // BEFORE the RS256 JWT middleware, alongside it:
 //
-//   - If the bearer credential is a PAT ("<prefix>_<secret>", no dots) and valid,
+//   - If the bearer credential is a PAT ("orsk_<prefix>_<secret>", or the older
+//     "<prefix>_<secret>"; never dots) and valid,
 //     it populates the SAME request context a JWT login would (user_id, tenant_id,
 //     org_roles, permissions, RequestContext) — but with permissions narrowed to
 //     the PAT's scopes — then continues.
@@ -27,7 +28,12 @@ import (
 //
 // The JWT middleware, in turn, skips when a PAT has already authenticated the
 // request (c.Locals("is_pat") == true), so the two coexist cleanly.
-func PATMiddleware(patService *auth.PersonalAccessTokenService, resolve auth.SessionResolver) fiber.Handler {
+//
+// The session is resolved for the token's OWN tenant (#782) through the org
+// resolver, which refuses a user who is no longer an active member there. A
+// token minted in organization A therefore never acts in B, and stops working
+// the moment its owner leaves A.
+func PATMiddleware(patService *auth.PersonalAccessTokenService, resolve auth.OrgSessionResolver) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		// Already authenticated (defensive) — don't double-process.
 		if c.Locals("user_id") != nil {
@@ -44,7 +50,7 @@ func PATMiddleware(patService *auth.PersonalAccessTokenService, resolve auth.Ses
 		}
 		raw := parts[1]
 
-		// A JWT is dot-delimited base64url; a PAT is "<8-hex>_<hex>" with no dots.
+		// A JWT is dot-delimited base64url; a PAT is "[orsk_]<8-hex>_<hex>" with no dots.
 		// Only attempt PAT validation on the PAT shape so we never eat a JWT.
 		if !looksLikePAT(raw) {
 			return c.Next()
@@ -57,15 +63,13 @@ func PATMiddleware(patService *auth.PersonalAccessTokenService, resolve auth.Ses
 			return c.Next()
 		}
 
-		// PAT is valid — resolve the owning user's tenant + permissions so the token
-		// carries a real tenant context (without this, every tenant-scoped handler
-		// would fall back to uuid.Nil).
+		// PAT is valid — resolve the owner's permissions in the token's tenant.
 		if resolve == nil {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"code": "PAT_MISCONFIGURED", "message": "PAT resolver not configured"})
 		}
-		sc, err := resolve(c.UserContext(), pat.UserID)
-		if err != nil || sc == nil || sc.TenantID == uuid.Nil {
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"code": "UNAUTHORIZED", "message": "token owner has no organization"})
+		sc, err := resolve(c.UserContext(), pat.UserID, pat.TenantID)
+		if err != nil || sc == nil || sc.TenantID != pat.TenantID {
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"code": "UNAUTHORIZED", "message": "token owner is not an active member of the token's organization"})
 		}
 
 		// Respect PAT scopes: the effective permission set is the INTERSECTION of the
@@ -74,12 +78,7 @@ func PATMiddleware(patService *auth.PersonalAccessTokenService, resolve auth.Ses
 		// entitled to (so an owner with "*" keeps exactly the scoped permissions,
 		// while a limited owner cannot widen their PAT beyond what they hold).
 		scopes := patService.GetScopes(pat)
-		effective := make([]string, 0, len(scopes))
-		for _, scope := range scopes {
-			if permsGrant(sc.Permissions, scope) {
-				effective = append(effective, scope)
-			}
-		}
+		effective := effectivePATPermissions(sc.Permissions, scopes)
 
 		c.Locals("user_id", pat.UserID)
 		c.Locals("userID", pat.UserID)
@@ -95,6 +94,25 @@ func PATMiddleware(patService *auth.PersonalAccessTokenService, resolve auth.Ses
 
 		return c.Next()
 	}
+}
+
+// effectivePATPermissions narrows the owner's permissions to the token's scopes.
+// The "*" scope means "everything the owner holds": without that rule a full
+// access token minted by a non-admin intersected to nothing, because a member's
+// permission list never contains "*" itself.
+func effectivePATPermissions(owner, scopes []string) []string {
+	for _, scope := range scopes {
+		if scope == "*" {
+			return append([]string(nil), owner...)
+		}
+	}
+	effective := make([]string, 0, len(scopes))
+	for _, scope := range scopes {
+		if permsGrant(owner, scope) {
+			effective = append(effective, scope)
+		}
+	}
+	return effective
 }
 
 // permsGrant reports whether a permission list grants `required`, honoring the
@@ -114,14 +132,14 @@ func permsGrant(perms []string, required string) bool {
 	return false
 }
 
-// looksLikePAT reports whether a bearer value has the PAT shape "<8-hex>_<secret>"
-// and is therefore not a JWT (which is always dot-delimited).
+// looksLikePAT reports whether a bearer value has the PAT shape
+// "[orsk_]<8-hex>_<secret>" and is therefore not a JWT (always dot-delimited).
 func looksLikePAT(raw string) bool {
 	if strings.Contains(raw, ".") {
 		return false
 	}
-	parts := strings.Split(raw, "_")
-	return len(parts) == 2 && len(parts[0]) == 8
+	_, _, ok := auth.SplitPATValue(raw)
+	return ok
 }
 
 // RequireTokenScope checks if PAT has required scope

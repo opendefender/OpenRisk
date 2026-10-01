@@ -592,8 +592,9 @@ func main() {
 	tokenManager.SetOrgSessionResolver(resolveSessionForOrg)
 
 	// L5 — Personal Access Tokens. DB-backed service (survives restarts, scoped),
-	// its auth middleware, and a management handler. The same resolveSession gives a
-	// PAT the owner's tenant + permissions (narrowed to the token's scopes).
+	// its auth middleware, and a management handler. resolveSessionForOrg gives a
+	// PAT its owner's permissions in the token's own tenant (narrowed to the
+	// token's scopes), and refuses once the owner is no longer a member there.
 	patService := coreauth.NewPersonalAccessTokenService(repository.NewGormPersonalAccessTokenRepository(database.DB))
 
 	// L7 — full-fidelity auth audit trail (auth_audit_logs: IP, UA, geo, device
@@ -969,7 +970,7 @@ func main() {
 	// L5 — PAT authentication runs BEFORE the JWT gate: it authenticates PAT-shaped
 	// bearers and is a no-op for JWTs (which the RS256 middleware then handles). The
 	// JWT middleware skips when a PAT already authenticated the request.
-	api.Use(middleware.PATMiddleware(patService, resolveSession))
+	api.Use(middleware.PATMiddleware(patService, resolveSessionForOrg))
 	protected := api.Use(middleware.Protected(rsaKeys, jtiBlacklistChecker))
 
 	// Response-cache invalidation (#337). Mounted here, right after the gate that

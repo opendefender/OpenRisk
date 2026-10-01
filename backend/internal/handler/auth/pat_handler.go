@@ -6,12 +6,14 @@
 package auth
 
 import (
+	"errors"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 
 	coreauth "github.com/opendefender/openrisk/internal/auth"
+	"github.com/opendefender/openrisk/internal/domain"
 )
 
 // PATHandler exposes DB-backed Personal Access Token management (L5): create, list,
@@ -38,7 +40,7 @@ type createPATRequest struct {
 func (h *PATHandler) Create(c *fiber.Ctx) error {
 	userID := ctxUUID(c, "user_id")
 	tenantID := ctxUUID(c, "tenant_id")
-	if userID == uuid.Nil {
+	if userID == uuid.Nil || tenantID == uuid.Nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "not authenticated"})
 	}
 	if c.Locals("is_pat") == true {
@@ -62,7 +64,7 @@ func (h *PATHandler) Create(c *fiber.Ctx) error {
 		expiresAt = &t
 	}
 
-	pat, raw, err := h.svc.CreateToken(c.UserContext(), userID, req.Name, req.Description, req.Scopes, expiresAt)
+	pat, raw, err := h.svc.CreateToken(c.UserContext(), userID, tenantID, req.Name, req.Description, req.Scopes, expiresAt)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to create token"})
 	}
@@ -83,13 +85,15 @@ func (h *PATHandler) Create(c *fiber.Ctx) error {
 	})
 }
 
-// List returns the caller's tokens (metadata only, never the secret).
+// List returns the tokens the caller minted in the current organization
+// (metadata only, never the secret).
 func (h *PATHandler) List(c *fiber.Ctx) error {
 	userID := ctxUUID(c, "user_id")
-	if userID == uuid.Nil {
+	tenantID := ctxUUID(c, "tenant_id")
+	if userID == uuid.Nil || tenantID == uuid.Nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "not authenticated"})
 	}
-	tokens, err := h.svc.ListUserTokens(c.UserContext(), userID)
+	tokens, err := h.svc.ListUserTokens(c.UserContext(), tenantID, userID)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to list tokens"})
 	}
@@ -100,15 +104,18 @@ func (h *PATHandler) List(c *fiber.Ctx) error {
 func (h *PATHandler) Revoke(c *fiber.Ctx) error {
 	userID := ctxUUID(c, "user_id")
 	tenantID := ctxUUID(c, "tenant_id")
-	if userID == uuid.Nil {
+	if userID == uuid.Nil || tenantID == uuid.Nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "not authenticated"})
 	}
 	tokenID, err := uuid.Parse(c.Params("id"))
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid token id"})
 	}
-	if err := h.svc.RevokeToken(c.UserContext(), tokenID, userID); err != nil {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "token not found"})
+	if err := h.svc.RevokeToken(c.UserContext(), tenantID, tokenID, userID); err != nil {
+		if errors.Is(err, domain.ErrNotFound) {
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "token not found"})
+		}
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to revoke token"})
 	}
 	if h.audit != nil {
 		uid, tid := userID, tenantID
