@@ -16,6 +16,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
@@ -25,6 +26,7 @@ import (
 	"github.com/opendefender/openrisk/internal/infrastructure/database"
 	"github.com/opendefender/openrisk/internal/infrastructure/repository"
 	"github.com/opendefender/openrisk/internal/middleware"
+	"github.com/opendefender/openrisk/internal/testsupport/sqliteschema"
 	"github.com/opendefender/openrisk/pkg/crq"
 )
 
@@ -43,8 +45,14 @@ func newImportApp(t *testing.T) *importApp {
 	dsn := "file:risk_import_" + uuid.New().String() + "?mode=memory&cache=private"
 	db, err := gorm.Open(sqlite.Open(dsn), &gorm.Config{})
 	require.NoError(t, err)
-	require.NoError(t, db.AutoMigrate(&UserT{}, &MitigationT{}, &AssetT{}, &RiskHistoryT{}))
+	require.NoError(t, db.AutoMigrate(&UserT{}, &MitigationT{}, &RiskHistoryT{}))
 	createRisksTable(t, db)
+	// The import resolves assets tenant-scoped and links them, so the assets
+	// table needs its tenant and criticality columns, and the join table.
+	require.NoError(t, db.Exec(`CREATE TABLE assets (id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, name TEXT NOT NULL,
+		criticality TEXT NOT NULL DEFAULT 'MEDIUM', created_at DATETIME, updated_at DATETIME, deleted_at DATETIME)`).Error)
+	require.NoError(t, sqliteschema.Reconcile(db, "assets", &domain.Asset{}))
+	require.NoError(t, db.Exec(`CREATE TABLE risk_assets (risk_id TEXT NOT NULL, asset_id TEXT NOT NULL)`).Error)
 
 	orig := database.DB
 	database.DB = db
@@ -69,7 +77,8 @@ func newImportApp(t *testing.T) *importApp {
 		applicationrisk.NewTransitionRiskStateUseCase(riskRepo),
 		nil,
 		crq.NewQuantifier(0, crq.Reference{}),
-	).WithImport(applicationrisk.NewImportRisksUseCase(repository.RunRiskTx(db)))
+	).WithImport(applicationrisk.NewImportRisksUseCase(repository.RunRiskTx(db)).
+		WithAssets(repository.ListImportAssetRefs(db)))
 
 	app.Post("/api/v1/risks/import", middleware.RequirePermission("risks:create"), handler.ImportRisks)
 	h.app = app
@@ -187,4 +196,33 @@ func TestRiskImportHTTP_RowsLandOnlyInCallersTenant(t *testing.T) {
 	bRows := h.risksOf(t, tenantB)
 	require.Len(t, bRows, 1, "tenant A's import must not land in tenant B")
 	require.Equal(t, "B own", bRows[0].Title)
+}
+
+// The "assets" column resolves names inside the caller's tenant only, links
+// through the same transaction, and a name from another tenant refuses the file.
+func TestRiskImportHTTP_AssetsResolveOnlyInCallersTenant(t *testing.T) {
+	h := newImportApp(t)
+	tenantA, tenantB := uuid.New(), uuid.New()
+	ownAsset, foreignAsset := uuid.New(), uuid.New()
+	require.NoError(t, h.db.Exec(`INSERT INTO assets (id, tenant_id, name, criticality) VALUES (?, ?, 'Core DB', 'CRITICAL'), (?, ?, 'Payroll', 'HIGH')`,
+		ownAsset, tenantA, foreignAsset, tenantB).Error)
+
+	*h.tenant = tenantA
+	status, body := h.upload(t, "x.csv", "title,probability,impact,assets\nLeak,0.5,6,Payroll\n")
+	require.Equal(t, fiber.StatusUnprocessableEntity, status, "%v", body)
+	require.Empty(t, h.risksOf(t, tenantA))
+
+	status, body = h.upload(t, "ok.csv", "title,probability,impact,assets\nLeak,0.5,6,core db\nOther,0.5,6,\n")
+	require.Equal(t, fiber.StatusOK, status, "%v", body)
+
+	var links []struct{ RiskID, AssetID string }
+	require.NoError(t, h.db.Raw(`SELECT risk_id, asset_id FROM risk_assets`).Scan(&links).Error)
+	require.Len(t, links, 1)
+	assert.Equal(t, ownAsset.String(), links[0].AssetID)
+
+	scores := map[string]float64{}
+	for _, r := range h.risksOf(t, tenantA) {
+		scores[r.Title] = r.Score
+	}
+	assert.Greater(t, scores["Leak"], scores["Other"], "the critical asset is in the stored score")
 }

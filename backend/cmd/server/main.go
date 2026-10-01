@@ -1256,6 +1256,7 @@ func main() {
 		// in one transaction through CreateRiskUseCase, or none. The plan cap is
 		// checked against the whole file, not just the first row.
 		WithImport(risk.NewImportRisksUseCase(repository.RunRiskTx(database.DB)).
+			WithAssets(repository.ListImportAssetRefs(database.DB)).
 			WithActivation(activationRecorder).
 			WithCapacity(func(ctx context.Context, tenant uuid.UUID) (int, error) {
 				_, limit, used, _, err := entitlementService.Capacity(ctx, tenant, ent.LimitRisks)

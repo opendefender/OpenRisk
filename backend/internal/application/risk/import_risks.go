@@ -60,6 +60,7 @@ const (
 	importColImpact      = "impact"
 	importColTags        = "tags"
 	importColFrameworks  = "frameworks"
+	importColAssets      = "assets"
 )
 
 var importColumnAliases = map[string]string{
@@ -71,21 +72,36 @@ var importColumnAliases = map[string]string{
 	"tags":        importColTags,
 	"frameworks":  importColFrameworks,
 	"framework":   importColFrameworks,
+	"assets":      importColAssets,
+	"asset":       importColAssets,
 }
 
 // ImportColumns is the accepted header, in template order.
 var ImportColumns = []string{
 	importColTitle, importColDescription, importColProbability,
-	importColImpact, importColTags, importColFrameworks,
+	importColImpact, importColTags, importColFrameworks, importColAssets,
 }
 
 // RiskTxRunner runs fn inside one database transaction and hands it a risk
 // repository bound to that transaction. An error from fn rolls everything back.
-type RiskTxRunner func(ctx context.Context, fn func(repo domain.RiskRepository) error) error
+// The asset store is bound to the same transaction, so a risk and its asset
+// links are written or rolled back together.
+type RiskTxRunner func(ctx context.Context, fn func(repo domain.RiskRepository, assets RiskAssetStore) error) error
 
 // ImportCapacity reports how many more risks the tenant's plan allows.
 // A negative value means unlimited.
 type ImportCapacity func(ctx context.Context, tenantID uuid.UUID) (remaining int, err error)
+
+// ImportAssetRef is one of the tenant's assets as the "assets" column can name
+// it: by name (case-insensitive) or by id.
+type ImportAssetRef struct {
+	ID   uuid.UUID
+	Name string
+}
+
+// ImportAssetLister lists the tenant's live assets, tenant-scoped, so the
+// "assets" column can be resolved before anything is written.
+type ImportAssetLister func(ctx context.Context, tenantID uuid.UUID) ([]ImportAssetRef, error)
 
 // ImportRisksInput is one uploaded file.
 type ImportRisksInput struct {
@@ -152,6 +168,7 @@ type ImportRisksUseCase struct {
 	inTx       RiskTxRunner
 	capacity   ImportCapacity
 	activation ActivationRecorder
+	listAssets ImportAssetLister
 }
 
 // NewImportRisksUseCase builds the use case over a transaction runner.
@@ -166,6 +183,13 @@ func (uc *ImportRisksUseCase) WithCapacity(c ImportCapacity) *ImportRisksUseCase
 	return uc
 }
 
+// WithAssets attaches the lister that resolves the "assets" column. Without
+// it, a file that fills that column is refused rather than imported unlinked.
+func (uc *ImportRisksUseCase) WithAssets(l ImportAssetLister) *ImportRisksUseCase {
+	uc.listAssets = l
+	return uc
+}
+
 // WithActivation attaches the activation recorder, fed after commit only.
 func (uc *ImportRisksUseCase) WithActivation(rec ActivationRecorder) *ImportRisksUseCase {
 	uc.activation = rec
@@ -174,8 +198,12 @@ func (uc *ImportRisksUseCase) WithActivation(rec ActivationRecorder) *ImportRisk
 
 // importRow is one parsed, validated data row.
 type importRow struct {
-	line  int
-	input CreateRiskInput
+	line      int
+	input     CreateRiskInput
+	assetRefs []string
+	// invalid rows are kept only so their assets are checked too, and every
+	// error in the file is reported in one pass.
+	invalid bool
 }
 
 // Execute validates the whole file, then creates every row in one transaction.
@@ -187,10 +215,16 @@ func (uc *ImportRisksUseCase) Execute(ctx context.Context, tenantID uuid.UUID, i
 		return nil, domain.NewValidationError(fmt.Sprintf("file is larger than %d MB", MaxImportBytes>>20))
 	}
 
-	rows, errs := parseImportCSV(input.CSV, input.ImportedBy)
+	parsed, errs := parseImportCSV(input.CSV, input.ImportedBy)
+	assetErrs, err := uc.resolveAssets(ctx, tenantID, parsed)
+	if err != nil {
+		return nil, domain.NewInternalError(fmt.Sprintf("failed to list assets: %v", err))
+	}
+	errs = append(errs, assetErrs...)
 	if len(errs) > 0 {
 		return nil, &ImportRejectedError{Result: rejected(errs)}
 	}
+	rows := parsed
 
 	if uc.capacity != nil {
 		remaining, err := uc.capacity(ctx, tenantID)
@@ -201,8 +235,8 @@ func (uc *ImportRisksUseCase) Execute(ctx context.Context, tenantID uuid.UUID, i
 	}
 
 	created := make([]*domain.Risk, 0, len(rows))
-	err := uc.inTx(ctx, func(repo domain.RiskRepository) error {
-		create := NewCreateRiskUseCase(repo)
+	err = uc.inTx(ctx, func(repo domain.RiskRepository, assets RiskAssetStore) error {
+		create := NewCreateRiskUseCase(repo).WithAssets(assets)
 		for _, row := range rows {
 			r, err := create.Execute(ctx, tenantID, row.input)
 			if err != nil {
@@ -257,8 +291,72 @@ func rejected(errs []ImportRowError) *ImportRisksResult {
 	return &ImportRisksResult{Created: 0, Rejected: len(lines), RiskIDs: []uuid.UUID{}, Errors: errs}
 }
 
-// parseImportCSV reads and validates the file. It returns either rows or
-// errors, never both.
+// resolveAssets turns each row's "assets" cell into the tenant's asset ids.
+// A name must match exactly one live asset of the tenant (case-insensitive);
+// an id must be one of the tenant's assets. Anything else is a row error, never
+// a silently unlinked risk: the link is a term of the score.
+func (uc *ImportRisksUseCase) resolveAssets(ctx context.Context, tenantID uuid.UUID, rows []importRow) ([]ImportRowError, error) {
+	needed := false
+	for _, r := range rows {
+		if len(r.assetRefs) > 0 {
+			needed = true
+			break
+		}
+	}
+	if !needed {
+		return nil, nil
+	}
+	if uc.listAssets == nil {
+		return []ImportRowError{{Line: 0, Column: importColAssets, Code: "assets_unavailable",
+			Message: "linking assets is not available on this server; remove the assets column"}}, nil
+	}
+	refs, err := uc.listAssets(ctx, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	byID := map[uuid.UUID]bool{}
+	byName := map[string][]uuid.UUID{}
+	for _, a := range refs {
+		byID[a.ID] = true
+		key := strings.ToLower(strings.TrimSpace(a.Name))
+		byName[key] = append(byName[key], a.ID)
+	}
+
+	var errs []ImportRowError
+	for i := range rows {
+		seen := map[uuid.UUID]bool{}
+		for _, ref := range rows[i].assetRefs {
+			var id uuid.UUID
+			if parsed, perr := uuid.Parse(ref); perr == nil && byID[parsed] {
+				id = parsed
+			} else {
+				switch ids := byName[strings.ToLower(ref)]; len(ids) {
+				case 1:
+					id = ids[0]
+				case 0:
+					errs = append(errs, ImportRowError{Line: rows[i].line, Column: importColAssets, Code: "unknown_asset",
+						Params:  map[string]string{"value": ref},
+						Message: fmt.Sprintf("no asset named %q in the inventory", ref)})
+					continue
+				default:
+					errs = append(errs, ImportRowError{Line: rows[i].line, Column: importColAssets, Code: "ambiguous_asset",
+						Params:  map[string]string{"value": ref, "count": strconv.Itoa(len(ids))},
+						Message: fmt.Sprintf("%d assets are named %q; use the asset's id instead", len(ids), ref)})
+					continue
+				}
+			}
+			if !seen[id] {
+				seen[id] = true
+				rows[i].input.AssetIDs = append(rows[i].input.AssetIDs, id)
+			}
+		}
+	}
+	return errs, nil
+}
+
+// parseImportCSV reads and validates the file. With errors it may still
+// return the rows it could read, so their assets are checked in the same pass;
+// such a file is never written.
 func parseImportCSV(data []byte, importedBy uuid.UUID) ([]importRow, []ImportRowError) {
 	data = bytes.TrimPrefix(data, []byte("\xef\xbb\xbf")) // Excel's UTF-8 BOM
 	if len(bytes.TrimSpace(data)) == 0 {
@@ -404,10 +502,7 @@ func parseImportCSV(data []byte, importedBy uuid.UUID) ([]importRow, []ImportRow
 		if perr != nil || ierr != nil || !onLegacyScale(prob) || !onLegacyScale(imp) {
 			legacy = false
 		}
-		if !rowOK {
-			continue
-		}
-		rows = append(rows, importRow{line: line, input: CreateRiskInput{
+		rows = append(rows, importRow{line: line, invalid: !rowOK, assetRefs: splitList(cell(rec, importColAssets)), input: CreateRiskInput{
 			Title:       title,
 			Description: cell(rec, importColDescription),
 			Probability: prob,
@@ -430,7 +525,7 @@ func parseImportCSV(data []byte, importedBy uuid.UUID) ([]importRow, []ImportRow
 			"Download the current template and convert the values (for example probability 3/5 → 0.6, impact 4/5 → 8)"}}
 	}
 	if len(errs) > 0 {
-		return nil, errs
+		return rows, errs
 	}
 	return rows, nil
 }

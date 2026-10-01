@@ -14,6 +14,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 
 	"github.com/opendefender/openrisk/internal/application/risk"
+	"github.com/opendefender/openrisk/internal/domain"
 	"github.com/opendefender/openrisk/pkg/events"
 )
 
@@ -90,9 +91,9 @@ func (h *RiskHandler) ImportRisks(c *fiber.Ctx) error {
 		return writeAppError(c, err)
 	}
 
-	// Same contract as CreateRisk: the Score Engine refines each score
-	// asynchronously. Imported risks have no linked asset yet, so the asset
-	// factor is neutral.
+	// Same contract as CreateRisk: the stored score is already the engine's,
+	// linked assets included; the event lets the Score Engine fold in the
+	// signals it computes asynchronously.
 	if h.redisClient != nil {
 		for _, r := range result.Risks {
 			_ = h.redisClient.Publish(c.Context(), events.RiskUpdated, events.RiskUpdatedEvent{
@@ -100,7 +101,7 @@ func (h *RiskHandler) ImportRisks(c *fiber.Ctx) error {
 				TenantID:         tenant.String(),
 				Probability:      r.Probability,
 				Impact:           r.Impact,
-				AssetCriticality: averageAssetCriticalityFactor(nil),
+				AssetCriticality: domain.RiskAssetCriticality(domain.AssetCriticalities(r.Assets)),
 				TriggeredBy:      actor.String(),
 			})
 		}

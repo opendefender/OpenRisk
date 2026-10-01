@@ -173,6 +173,13 @@ export const ImportRisksPage = () => {
               'Optional. Separate several values with ";".',
             )}
           </dd>
+          <dt className="font-mono text-fg-primary">assets</dt>
+          <dd>
+            {tr(
+              'Facultatif. Noms ou identifiants d’actifs de votre inventaire, séparés par « ; ». Leur criticité entre dans le score ; un nom inconnu ou porté par plusieurs actifs fait refuser la ligne.',
+              'Optional. Names or ids of assets in your inventory, separated by ";". Their criticality is part of the score; a name that is unknown or shared by several assets refuses the row.',
+            )}
+          </dd>
         </dl>
         <p className="mt-3 text-xs text-fg-tertiary">
           {tr(

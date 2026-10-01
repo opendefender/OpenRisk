@@ -102,6 +102,21 @@ export function importErrorMessage(e: ImportRowError, tr: Tr): string {
         'Le fichier a un en-tête mais aucune ligne de risque.',
         'The file has a header but no risk rows.',
       );
+    case 'unknown_asset':
+      return tr(
+        `Aucun actif « ${p.value ?? ''} » dans l’inventaire.`,
+        `No asset named "${p.value ?? ''}" in the inventory.`,
+      );
+    case 'ambiguous_asset':
+      return tr(
+        `${p.count ?? ''} actifs s’appellent « ${p.value ?? ''} » : indiquez son identifiant.`,
+        `${p.count ?? ''} assets are named "${p.value ?? ''}": use its id instead.`,
+      );
+    case 'assets_unavailable':
+      return tr(
+        'La liaison aux actifs n’est pas disponible sur ce serveur : retirez la colonne assets.',
+        'Linking assets is not available on this server: remove the assets column.',
+      );
     case 'legacy_scale':
       return tr(
         'Ce fichier utilise l’ancienne échelle 1–5. OpenRisk attend une probabilité entre 0 et 1 et un impact entre 0 et 10. Téléchargez le modèle actuel et convertissez les valeurs (probabilité 3/5 → 0,6 ; impact 4/5 → 8).',
@@ -139,7 +154,7 @@ export type ImportLimit = z.infer<typeof importLimitSchema>;
 
 /** The current template: the product's scales, P in [0,1] and I in [0,10]. */
 export const IMPORT_TEMPLATE = [
-  'title,description,probability,impact,tags,frameworks',
+  'title,description,probability,impact,tags,frameworks,assets',
   '"Phishing campaign against finance staff","Credential theft leading to fraudulent transfers",0.6,8,"email;people","ISO27001"',
   '"Ransomware on file servers","Encryption of shared drives, no tested restore",0.3,10,"backup","ISO27001;NIST CSF"',
   '"Cloud provider outage","Loss of the hosted CRM for more than 24 hours",0.2,5,"supplier",',

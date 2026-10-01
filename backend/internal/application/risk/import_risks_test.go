@@ -24,24 +24,59 @@ import (
 type fakeTx struct {
 	committed []*domain.Risk
 	failOn    int // 1-based create call that errors; 0 never
+	assets    []*domain.Asset
 }
 
-func (f *fakeTx) run(ctx context.Context, fn func(repo domain.RiskRepository) error) error {
+func (f *fakeTx) run(ctx context.Context, fn func(repo domain.RiskRepository, assets RiskAssetStore) error) error {
 	var staged []*domain.Risk
 	calls := 0
-	repo := &MockRiskRepository{createFunc: func(_ context.Context, r *domain.Risk) error {
+	write := func(r *domain.Risk) error {
 		calls++
 		if calls == f.failOn {
 			return errors.New("disk full")
 		}
 		staged = append(staged, r)
 		return nil
-	}}
-	if err := fn(repo); err != nil {
+	}
+	repo := &MockRiskRepository{createFunc: func(_ context.Context, r *domain.Risk) error { return write(r) }}
+	if err := fn(repo, &fakeImportAssetStore{tx: f, write: write}); err != nil {
 		return err
 	}
 	f.committed = append(f.committed, staged...)
 	return nil
+}
+
+// list is the ImportAssetLister over the fake's assets, tenant-scoped.
+func (f *fakeTx) list(_ context.Context, tenantID uuid.UUID) ([]ImportAssetRef, error) {
+	var out []ImportAssetRef
+	for _, a := range f.assets {
+		if a.TenantID == tenantID {
+			out = append(out, ImportAssetRef{ID: a.ID, Name: a.Name})
+		}
+	}
+	return out, nil
+}
+
+type fakeImportAssetStore struct {
+	tx    *fakeTx
+	write func(*domain.Risk) error
+}
+
+func (s *fakeImportAssetStore) FindByIDs(_ context.Context, tenantID uuid.UUID, ids []uuid.UUID) ([]*domain.Asset, error) {
+	var out []*domain.Asset
+	for _, a := range s.tx.assets {
+		for _, id := range ids {
+			if a.ID == id && a.TenantID == tenantID {
+				out = append(out, a)
+			}
+		}
+	}
+	return out, nil
+}
+
+func (s *fakeImportAssetStore) SaveWithAssets(_ context.Context, r *domain.Risk, assets []*domain.Asset, _ bool) error {
+	r.Assets = assets
+	return s.write(r)
 }
 
 func importCSV(t *testing.T, tx *fakeTx, csv string) (*ImportRisksResult, error) {
@@ -244,5 +279,68 @@ func TestImportRisks_ErrorsCarryCodesForTranslation(t *testing.T) {
 	assert.Equal(t, "legacy_scale", rejectedErrors(t, err)[0].Code)
 	_, err = importCSV(t, tx, "titre,probability,impact\n")
 	assert.Equal(t, "unknown_column", rejectedErrors(t, err)[0].Code)
+	assert.Empty(t, tx.committed)
+}
+
+// #755 + #792: the "assets" column links each risk to the tenant's assets by
+// name or id, and the stored score is the engine's with their criticality.
+func TestImportRisks_AssetsColumnLinksAndScores(t *testing.T) {
+	tenant := uuid.New()
+	critical := &domain.Asset{ID: uuid.New(), TenantID: tenant, Name: "Core banking DB", Criticality: domain.CriticalityCritical}
+	low := &domain.Asset{ID: uuid.New(), TenantID: tenant, Name: "Kiosk", Criticality: domain.CriticalityLow}
+	tx := &fakeTx{assets: []*domain.Asset{critical, low}}
+
+	res, err := NewImportRisksUseCase(tx.run).WithAssets(tx.list).Execute(context.Background(), tenant, ImportRisksInput{
+		CSV: []byte("title,probability,impact,assets\n" +
+			"Fraud,0.5,6,core banking db\n" +
+			"Theft,0.5,6," + low.ID.String() + "\n" +
+			"Unlinked,0.5,6,\n"),
+		ImportedBy: uuid.New(),
+	})
+	require.NoError(t, err)
+	require.Equal(t, 3, res.Created)
+	require.Len(t, tx.committed, 3)
+
+	fraud, theft, unlinked := tx.committed[0], tx.committed[1], tx.committed[2]
+	require.Len(t, fraud.Assets, 1)
+	assert.Equal(t, critical.ID, fraud.Assets[0].ID, "names match case-insensitively")
+	require.Len(t, theft.Assets, 1)
+	assert.Equal(t, low.ID, theft.Assets[0].ID, "ids are accepted")
+	assert.Empty(t, unlinked.Assets)
+	assert.Greater(t, fraud.Score, unlinked.Score, "a critical asset raises the score")
+	assert.Less(t, theft.Score, unlinked.Score, "a low-criticality asset lowers it")
+}
+
+func TestImportRisks_UnknownOrAmbiguousAssetImportsNothing(t *testing.T) {
+	tenant := uuid.New()
+	other := uuid.New()
+	tx := &fakeTx{assets: []*domain.Asset{
+		{ID: uuid.New(), TenantID: tenant, Name: "Web"},
+		{ID: uuid.New(), TenantID: tenant, Name: "web"},
+		{ID: uuid.New(), TenantID: other, Name: "Payroll"},
+	}}
+	_, err := NewImportRisksUseCase(tx.run).WithAssets(tx.list).Execute(context.Background(), tenant, ImportRisksInput{
+		CSV:        []byte("title,probability,impact,assets\nA,0.5,6,Web\nB,0.5,6,Payroll\nC,2,6,Ghost\n"),
+		ImportedBy: uuid.New(),
+	})
+	errs := rejectedErrors(t, err)
+	assert.Empty(t, tx.committed)
+
+	codes := map[string]bool{}
+	for _, e := range errs {
+		codes[fmt.Sprintf("%d:%s:%s", e.Line, e.Column, e.Code)] = true
+	}
+	assert.Equal(t, map[string]bool{
+		"2:assets:ambiguous_asset":   true,
+		"3:assets:unknown_asset":     true, // another tenant's asset is not visible
+		"4:probability:out_of_range": true,
+		"4:assets:unknown_asset":     true, // checked even on a row with other errors
+	}, codes)
+}
+
+func TestImportRisks_AssetsColumnWithoutResolverIsRefused(t *testing.T) {
+	tx := &fakeTx{}
+	_, err := importCSV(t, tx, "title,probability,impact,assets\nA,0.5,6,Web\n")
+	assert.Equal(t, "assets_unavailable", rejectedErrors(t, err)[0].Code)
 	assert.Empty(t, tx.committed)
 }
