@@ -211,6 +211,17 @@ func (uc *LoginUseCase) Execute(ctx context.Context, input LoginInput) (*LoginOu
 	if err != nil {
 		return nil, fmt.Errorf("failed to get organization membership: %w", err)
 	}
+	if member != nil && !member.IsActive {
+		// The default organization withdrew this person's access. That is its
+		// decision about itself only: if another organization still grants
+		// access, sign them in there. Otherwise one organization could lock a
+		// person out of every other one just by being their default (#807).
+		if alt, altErr := uc.fallbackMembership(ctx, user.ID, org.ID); altErr != nil {
+			return nil, altErr
+		} else if alt != nil {
+			org, member = alt.Organization, alt
+		}
+	}
 	if member != nil {
 		// A revoked (deactivated) membership must not yield a session, even though
 		// the user account itself is active: being removed from an organization is
@@ -376,6 +387,39 @@ func (uc *LoginUseCase) decideMFA(ctx context.Context, member *domain.Organizati
 		in.GraceStartedAt = member.MFAGraceAnchor()
 	}
 	return domain.DecideMFA(in)
+}
+
+// activeMembershipLister is the optional read login uses to find another
+// organization to sign a person into when their default one withdrew access.
+// GormUserRepository implements it; a repository without it keeps the old
+// behavior of refusing the sign-in.
+type activeMembershipLister interface {
+	ListActiveMemberships(ctx context.Context, userID uuid.UUID) ([]*domain.OrganizationMember, error)
+}
+
+// fallbackMembership returns the user's earliest-joined active membership in
+// an active organization other than exclude, or nil when there is none.
+func (uc *LoginUseCase) fallbackMembership(ctx context.Context, userID, exclude uuid.UUID) (*domain.OrganizationMember, error) {
+	lister, ok := uc.userRepo.(activeMembershipLister)
+	if !ok {
+		return nil, nil
+	}
+	memberships, err := lister.ListActiveMemberships(ctx, userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list organization memberships: %w", err)
+	}
+	var best *domain.OrganizationMember
+	for _, m := range memberships {
+		if m == nil || !m.IsActive || m.OrganizationID == exclude ||
+			m.Organization == nil || !m.Organization.IsActive {
+			continue
+		}
+		if best == nil || m.JoinedAt.Before(best.JoinedAt) ||
+			(m.JoinedAt.Equal(best.JoinedAt) && m.OrganizationID.String() < best.OrganizationID.String()) {
+			best = m
+		}
+	}
+	return best, nil
 }
 
 // UserRepository interface for user operations

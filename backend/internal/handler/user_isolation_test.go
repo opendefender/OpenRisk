@@ -40,9 +40,9 @@ func addUser(t *testing.T, db *gorm.DB, org, user uuid.UUID) {
 		uuid.NewString(), org.String(), user.String(), "user").Error)
 }
 
-// TestUser_TenantScoping proves the legacy /users management surface is scoped to
-// the caller's organization. It previously operated on domain.User globally, so
-// an admin of tenant A could list, modify or delete tenant B's users.
+// TestUser_TenantScoping proves the legacy /users list is scoped to the caller's
+// organization. It previously returned every user in the deployment. The write
+// routes that used to sit beside it were removed in #807.
 func TestUser_TenantScoping(t *testing.T) {
 	db := withUserDB(t)
 	tenantA := uuid.New()
@@ -51,12 +51,6 @@ func TestUser_TenantScoping(t *testing.T) {
 	userB := uuid.New()
 	addUser(t, db, tenantA, userA)
 	addUser(t, db, tenantB, userB)
-
-	// userInTenant gates every write path (status/role/delete).
-	require.True(t, userInTenant(userA, tenantA))
-	require.False(t, userInTenant(userA, tenantB), "A's user is not in tenant B")
-	require.False(t, userInTenant(userB, tenantA), "B's user is not in tenant A")
-	require.False(t, userInTenant(userA, uuid.Nil), "nil tenant is denied (fail closed)")
 
 	// GetUsers list predicate: the pluck-then-IN scoping returns only the caller's
 	// members, never every user in the deployment.
