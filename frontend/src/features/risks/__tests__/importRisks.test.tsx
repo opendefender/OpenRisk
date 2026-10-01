@@ -27,9 +27,12 @@ vi.mock('../../../hooks/useRiskStore', () => ({
 
 import { ImportRisksPage } from '../../../pages/ImportRisks';
 import { importErrorMessage, importFileSchema } from '../importRisksSchema';
+import { catalogs, translate } from '../../../i18n';
 import { useUIStore } from '../../../store/uiStore';
 
-const tr = (_fr: string, en: string) => en;
+// The catalogue translator the page gets from useI18n, bound to one locale.
+const tIn = (locale: 'fr' | 'en') => (key: string, params?: Record<string, string | number>) =>
+  translate(catalogs, locale, key, { params });
 
 function httpError(status: number, data: unknown): AxiosError {
   const response = {
@@ -132,7 +135,7 @@ describe('ImportRisksPage', () => {
 
 describe('importFileSchema', () => {
   it('accepts a CSV and refuses empty or oversized files', () => {
-    const schema = importFileSchema(tr);
+    const schema = importFileSchema(tIn('en'));
     expect(schema.safeParse(new File(['a'], 'r.CSV')).success).toBe(true);
     expect(schema.safeParse(new File([], 'r.csv')).success).toBe(false);
     expect(schema.safeParse(new File([new Uint8Array(2 * 1024 * 1024 + 1)], 'r.csv')).success).toBe(
@@ -141,7 +144,7 @@ describe('importFileSchema', () => {
   });
 
   it('renders server error codes in the reader’s language and falls back to the server text', () => {
-    const fr = (f: string) => f;
+    const fr = tIn('fr');
     expect(
       importErrorMessage(
         {
