@@ -9,6 +9,7 @@ import (
 	"crypto/rsa"
 	"errors"
 	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -351,4 +352,64 @@ func TestIssueSSOSession_SAMLExitFailureRedirectsToLogin(t *testing.T) {
 	fx := setupSSOSession(t, errors.New("resolver down"))
 
 	requireInternalFailure(t, samlExit(t, fx.user), "saml2")
+}
+
+// Over a real keep-alive connection, not app.Test: fasthttp reuses the request
+// buffer between requests on one connection, and Fiber's c.Query/c.Params
+// return strings that point into it. A flow that stored them as-is came back
+// at the callback holding whatever the callback's own URL had at those bytes,
+// so ReturnTo was silently lost. app.Test uses a fresh buffer per request and
+// never showed it.
+func TestOAuthCallback_ReturnToSurvivesBufferReuse(t *testing.T) {
+	fx := setupSSOSession(t, nil)
+
+	p := newStubProvider(t)
+	p.userInfo = map[string]any{"id": "google-sub-1", "email": fx.user.Email, "verified_email": true, "name": "Member"}
+	app := newOAuthTestApp(t, "google", p)
+	oauthAppBaseURL = ssoTestBase
+	prevResolver := oauthResolver
+	t.Cleanup(func() { oauthResolver = prevResolver })
+	oauthResolver = appauth.NewResolveOAuthIdentityUseCase(linkedUserRepo{fx.user}, linkedRepo{fx.user.ID})
+
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	go func() { _ = app.Listener(ln) }()
+	t.Cleanup(func() { _ = app.Shutdown() })
+	base := "http://" + ln.Addr().String()
+
+	// One client, one connection, no redirects followed: both requests share
+	// the server-side buffer exactly as a browser's keep-alive connection does.
+	client := &http.Client{CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
+
+	resp, err := client.Get(base + "/api/v1/auth/oauth2/login/google?return_to=" + url.QueryEscape("/risks?focus=7"))
+	require.NoError(t, err)
+	_, _ = io.Copy(io.Discard, resp.Body)
+	_ = resp.Body.Close()
+	authURL, err := url.Parse(resp.Header.Get("Location"))
+	require.NoError(t, err)
+	state := authURL.Query().Get("state")
+	code := "auth-code-" + state
+	registerChallengeForCode(t, p, "google", state, code)
+
+	// Other traffic in between, as a live server always has: each request
+	// recycles a pooled context and overwrites the bytes the flow pointed at.
+	for i := 0; i < 20; i++ {
+		noise, err := client.Get(base + "/api/v1/auth/oauth2/login/google?return_to=" + url.QueryEscape("/zzzzzzzzzzzzzzzzz"))
+		require.NoError(t, err)
+		_, _ = io.Copy(io.Discard, noise.Body)
+		_ = noise.Body.Close()
+	}
+
+	req, err := http.NewRequest(http.MethodGet, base+"/api/v1/auth/oauth2/callback/google?state="+state+"&code="+code, nil)
+	require.NoError(t, err)
+	req.AddCookie(&http.Cookie{Name: OAuthStateCookie, Value: state})
+	resp, err = client.Do(req)
+	require.NoError(t, err)
+	_ = resp.Body.Close()
+
+	require.Equal(t, http.StatusFound, resp.StatusCode)
+	loc, err := url.Parse(resp.Header.Get("Location"))
+	require.NoError(t, err)
+	require.Equal(t, "/auth/sso/complete", loc.Path)
+	require.Equal(t, "/risks?focus=7", loc.Query().Get("next"))
 }

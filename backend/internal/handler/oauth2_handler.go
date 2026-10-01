@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/utils"
 	"github.com/google/uuid"
 
 	appauth "github.com/opendefender/openrisk/internal/application/auth"
@@ -247,13 +248,17 @@ func OAuth2Login(c *fiber.Ctx) error {
 		return oauthFailure(c, "internal", provider, locale)
 	}
 
+	// The flow outlives this request, so everything taken from it is copied.
+	// Fiber's c.Params and c.Query return strings backed by a request buffer
+	// that the next request reuses; stored as-is, ReturnTo came back at the
+	// callback holding bytes from someone else's request (#803).
 	state := uuid.NewString()
 	oauthStateService.StoreFlow(&service.OAuthState{
 		State:        state,
-		Provider:     provider,
+		Provider:     utils.CopyString(provider),
 		CodeVerifier: pkce.Verifier,
 		Locale:       locale,
-		ReturnTo:     sanitiseReturnTo(c.Query("return_to")),
+		ReturnTo:     sanitiseReturnTo(utils.CopyString(c.Query("return_to"))),
 	}, oauthStateTTL)
 	setOAuthStateCookie(c, config, state)
 
