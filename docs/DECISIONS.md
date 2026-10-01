@@ -5,57 +5,33 @@ recommends, and surfaces these in the daily brief. Run `/decide` to clear them.
 
 ## Open
 
-### D-061 — 3D tilt on the overall score card (#751 phase 5) · raised 2026-09-29
-**Question** — #751 phase 5 lists "`3d-tilt` reserved for high-value visual elements (e.g.
-overall score card)". Do we ship it?
-
-**Recommendation — B, drop it.** art-director and ux-designer reached the same answer
-independently:
-- The tilt skews the score arc, which is the data itself, on the one figure a CISO reads at
-  a glance and an auditor screenshots.
-- A card that follows the pointer signals "the whole card is clickable". Only the button
-  inside `ScoreGauge` is.
-- It works only with a mouse, which is a second rendering path with no keyboard or touch
-  equivalent, and pointer-tracked parallax is a vestibular trigger.
-- It would touch `ScoreGauge`, which #824 (phase 3) owns.
-
-**Options**
-- **A — ship a restrained tilt.** At most 2° per axis and an 800px perspective, only on
-  `(hover:hover) and (pointer:fine)` under `motion-safe`, with no glare and no moving
-  shadow. It goes on the `DashboardPage.tsx` wrapper, never inside `ScoreGauge`. About half
-  a day, plus a live pass.
-- **B — drop it (recommended).** The item is closed as "evaluated, rejected" on #751.
-
-**Cost of delay** — none. Phase 5 ships without it, and A can be added later without
-rework.
-
-**Raised by** — #751 phase 5 (art-director + ux-designer specs, 2026-09-29).
-
-### D-062 — Asset-criticality term of a risk with no linked asset: 1.0 · raised 2026-10-01
-**Question** — The frozen formula needs an asset-criticality term even when a risk has no
-linked asset. The code disagreed with itself. Everything that **stores** a score (Score
-Engine worker via `GetRisksByAssetID`, the risk handler's Redis event, the demo seed) used
-**1.0**. The score breakdown and score-working views, which only **display** a score,
-used **1.5** (medium). As a result, every risk without an asset read "stored score does
-not match the working". #792 needs exactly one value. Which one is it?
-
-**Applied on #792 (reversible) — A, 1.0.** It is now one constant,
-`domain.NoAssetCriticalityFactor`, and one function, `domain.RiskAssetCriticality`, used
-by every writer and reader. The formula is unchanged.
-
-**Options**
-- **A — 1.0, neutral (applied).** Score = P × I. Every score already stored for a risk
-  without an asset stays valid. No backfill is needed, and only the two read views change.
-- **B — 1.5, medium.** "Unknown counts as medium", like `AssetCriticality.ScoreFactor()`
-  does for an unknown value. Every risk without an asset would score 50% higher. That
-  needs a backfill of stored scores, and the change is visible to every tenant.
-
-**Cost of delay** — none. A is live on the #792 branch, and switching to B means changing
-one constant plus writing a backfill migration.
-
-**Raised by** — #792 (2026-10-01).
-
 ## Resolved
+
+### D-063 — 3D tilt on the overall score card: ship it · decided 2026-10-01
+**Decided (owner)** — Option A: ship a restrained tilt now. The owner's answer was
+"livre maintenant la phase 5", read as "ship the tilt", so the agents' recommendation (B,
+drop it) is overruled.
+**Rationale (owner)** — The tilt was part of the phase 5 plan, and the restraints in option
+A answer the objections raised: at most 2° per axis, 800px perspective, only with
+`(hover:hover) and (pointer:fine)` under `motion-safe`, no glare and no moving shadow.
+It sits on the `DashboardPage.tsx` wrapper and never inside `ScoreGauge`.
+**Consequence** — #751 is closed (phase 5 merged in #847), so the work is tracked in
+**#856** (`status:ready`, milestone `ds-v1`) with those restraints as acceptance criteria.
+**Numbering** — This entry was raised as "D-061" on 2026-09-29, a number already used by
+the SSO/MFA decision below. It was renumbered D-063 so every number is unique.
+**Unblocked** — #856.
+
+### D-062 — Asset-criticality term of a risk with no linked asset: 1.0 · decided 2026-10-01
+**Decided (owner)** — Option A: 1.0, neutral. A risk with no linked asset scores P × I.
+**Rationale (owner)** — Matches the recommendation. It is what the Score Engine worker,
+the handlers and the demo seed have always stored, so no stored score moves and no
+backfill is needed. Only the breakdown and score-working views, which displayed 1.5,
+change.
+**Consequence** — `domain.NoAssetCriticalityFactor = 1.0` and
+`domain.RiskAssetCriticality` are the single derivation for every score writer and
+reader (PR #855). Moving to 1.5 later means changing that constant and writing a backfill
+of stored scores.
+**Unblocked** — PR #855 / #792 can merge with no open question.
 
 ### D-061 — SSO accounts turn MFA off with an authenticator code · decided 2026-09-30
 **Decided (owner)** — An account with no local password (identity-provider sign-in)
