@@ -384,7 +384,7 @@ func (h *RiskHandler) CreateRisk(c *fiber.Ctx) error {
 	}
 
 	var out domain.Risk
-	if err := database.DB.Preload("Mitigations").Preload("Mitigations.SubActions").Preload("Assets").First(&out, "id = ?", domainRisk.ID).Error; err != nil {
+	if err := database.DB.Preload("Mitigations").Preload("Mitigations.SubActions").Preload("Assets").First(&out, "id = ? AND tenant_id = ?", domainRisk.ID, orgID).Error; err != nil {
 		h.quantify(domainRisk)
 		return c.Status(201).JSON(domainRisk)
 	}
@@ -630,7 +630,7 @@ func (h *RiskHandler) UpdateRisk(c *fiber.Ctx) error {
 	}
 
 	var out domain.Risk
-	hasOut := database.DB.Preload("Mitigations").Preload("Mitigations.SubActions").Preload("Assets").First(&out, "id = ?", riskID).Error == nil
+	hasOut := database.DB.Preload("Mitigations").Preload("Mitigations.SubActions").Preload("Assets").First(&out, "id = ? AND tenant_id = ?", riskID, orgID).Error == nil
 
 	// RULE #12: Score Engine is NEVER called directly from handler.
 	// Always publish Redis event → ScoreWorker listens and recalculates async.
