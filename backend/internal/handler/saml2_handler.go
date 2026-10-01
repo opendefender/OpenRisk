@@ -236,8 +236,9 @@ func SAML2ACS(c *fiber.Ctx) error {
 
 	// Issue an RS256 access+refresh pair via the SAME TokenManager as password
 	// login (previously HS256, rejected by the RS256 middleware). Onboarding +
-	// audit happen inside issueSSOSession.
-	return issueSSOSession(c, user, "saml2")
+	// audit happen inside issueSSOSession. SAML carries no sanitised return
+	// target (RelayState is not read), so the browser lands on the SPA home.
+	return issueSSOSession(c, user, "saml2", "", oauthLocale(c))
 }
 
 // provisionSAML2User finds or creates a user from SAML2 assertion

@@ -354,8 +354,9 @@ func OAuth2Callback(c *fiber.Ctx) error {
 
 	// Issue an RS256 access+refresh pair via the SAME TokenManager as password
 	// login (this once minted an HS256 token that the RS256 middleware rejected
-	// on every protected route). Onboarding + audit happen inside.
-	return issueSSOSession(c, result.User, provider)
+	// on every protected route). Onboarding + audit happen inside, and the
+	// browser leaves with the session in cookies, bound for flow.ReturnTo.
+	return issueSSOSession(c, result.User, provider, flow.ReturnTo, locale)
 }
 
 // ---------------------------------------------------------------------------
