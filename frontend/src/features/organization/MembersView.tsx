@@ -31,7 +31,7 @@ import {
   Search,
 } from 'lucide-react';
 import { Card, Chip, SkeletonRows, ErrorState } from '../../shared/ui';
-import { TabPanel, Tabs } from '../../shared/ds';
+import { DeleteButton, TabPanel, Tabs } from '../../shared/ds';
 import { EmptyState } from '../../shared/EmptyState';
 import { DangerConfirm } from '../../shared/DangerConfirm';
 import { useUIStore } from '../../store/uiStore';
