@@ -7,47 +7,12 @@
 // own real data into these.
 
 import { localeTag, type LocaleCode } from '../../i18n/locales';
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { FileText, type LucideIcon } from 'lucide-react';
 import { MFAEnrollmentBanner } from '../auth/MFAEnrollmentBanner';
 import { MFAPostAhaPrompt } from '../auth/MFAPostAhaPrompt';
 import { ActionCenterPanel } from '../action-center/ActionCenterPanel';
-
-/** Numeric count-up over ~1.1s, ease-out cubic. Re-runs when target changes. */
-export function useCountUp(target: number, duration = 1100): number {
-  const [value, setValue] = useState(0);
-  const raf = useRef<number>(0);
-  useEffect(() => {
-    // The count-up is decoration. The number it lands on is data. Show the real
-    // number immediately — without animating from 0 — whenever animation is
-    // unavailable or unwanted:
-    //   • prefers-reduced-motion: a WCAG 2.3.3 accessibility requirement.
-    //   • requestAnimationFrame absent (SSR / non-DOM test envs).
-    // requestAnimationFrame is also throttled to zero when the page is not
-    // being composited (a background tab, an off-screen render), which would
-    // otherwise freeze the displayed value at 0 — so falling back to the target
-    // keeps the figure correct rather than merely un-animated.
-    const reduce =
-      typeof window !== 'undefined' &&
-      typeof window.matchMedia === 'function' &&
-      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (reduce || typeof requestAnimationFrame === 'undefined') {
-      setValue(target);
-      return;
-    }
-    setValue(0);
-    const t0 = performance.now();
-    const tick = (now: number) => {
-      let p = Math.min(1, (now - t0) / duration);
-      p = 1 - Math.pow(1 - p, 3);
-      setValue(target * p);
-      if (p < 1) raf.current = requestAnimationFrame(tick);
-    };
-    raf.current = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf.current);
-  }, [target, duration]);
-  return value;
-}
+import { SlotReel } from '../../shared/ds/SlotReel';
 
 export const Card = ({
   children,
@@ -110,14 +75,20 @@ export interface KpiSpec {
   /** Optional value suffix (e.g. "%", "j"). */
   suffix?: string;
   onClick?: () => void;
+  /**
+   * True when `val` was genuinely fetched during THIS mount, not served from
+   * cache — pass the source query's `isFetchedAfterMount`. Rolls the number
+   * in from 0 once, per D-060; cached data (a revisit) renders plain. Read
+   * once, at mount.
+   */
+  fresh?: boolean;
 }
 
 function softFill(col: string, pct: number): string {
   return `color-mix(in srgb, ${col} ${pct}%, transparent)`;
 }
 
-export function KpiCard({ label, val, icon: Icon, col, suffix, onClick }: KpiSpec) {
-  const shown = Math.round(useCountUp(val));
+export function KpiCard({ label, val, icon: Icon, col, suffix, onClick, fresh }: KpiSpec) {
   const inner = (
     <>
       <div className="flex items-center mb-3.5">
@@ -129,7 +100,12 @@ export function KpiCard({ label, val, icon: Icon, col, suffix, onClick }: KpiSpe
         </div>
       </div>
       <div className="disp mono text-[32px] font-bold text-ink leading-none">
-        {shown.toLocaleString()}
+        {/* No `locale` prop: the count-up this replaces called the bare,
+            argument-less `.toLocaleString()` (runtime-default locale), and
+            this KpiCard has no `lang` prop to do better with — matching the
+            prior behaviour exactly rather than widening this component's
+            contract for a cosmetic locale match. */}
+        <SlotReel value={val} rollOnMount={fresh} formatOptions={{ maximumFractionDigits: 0 }} />
         {suffix && <span className="text-[18px] text-ink-soft ml-0.5">{suffix}</span>}
       </div>
       <div className="text-[12.5px] text-ink-soft mt-[5px]">{label}</div>

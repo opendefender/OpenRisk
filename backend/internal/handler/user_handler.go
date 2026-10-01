@@ -18,14 +18,6 @@ import (
 	"github.com/opendefender/openrisk/internal/service"
 )
 
-type UpdateUserStatusInput struct {
-	IsActive bool `json:"is_active"`
-}
-
-type UpdateUserRoleInput struct {
-	Role string `json:"role" validate:"required"`
-}
-
 type CreateUserInput struct {
 	Email      string `json:"email" validate:"required,email"`
 	Username   string `json:"username" validate:"required,min=3"`
@@ -60,22 +52,6 @@ func auditTenant(c *fiber.Ctx) *uuid.UUID {
 		return &id
 	}
 	return nil
-}
-
-// userInTenant reports whether the target user is a member of the caller's
-// organization. domain.User is many-to-many with organizations via
-// OrganizationMember, so the legacy /users management endpoints must scope every
-// action to the caller's tenant — an admin may only see/modify/delete users who
-// share their tenant (RULE #2), never every user in the deployment.
-func userInTenant(userID, tenantID uuid.UUID) bool {
-	if tenantID == uuid.Nil {
-		return false
-	}
-	var count int64
-	database.DB.Model(&domain.OrganizationMember{}).
-		Where("organization_id = ? AND user_id = ?", tenantID, userID).
-		Count(&count)
-	return count > 0
 }
 
 // GetUsers retrieves the users in the caller's tenant (admin only)
@@ -128,174 +104,6 @@ func GetUsers(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusOK).JSON(response)
 }
 
-// UpdateUserStatus enables or disables a user (admin only)
-func UpdateUserStatus(c *fiber.Ctx) error {
-	ipAddress := c.IP()
-	userAgent := c.Get("User-Agent")
-
-	claims := middleware.GetUserClaims(c)
-	if claims == nil {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized"})
-	}
-
-	// Check if user is admin
-	var currentUser domain.User
-	if err := database.DB.Preload("Role").First(&currentUser, "id = ?", claims.Sub).Error; err != nil {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "User not found"})
-	}
-
-	if currentUser.Role.Name != "admin" {
-		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "Only admins can update user status"})
-	}
-
-	userID := c.Params("id")
-	input := new(UpdateUserStatusInput)
-	if err := c.BodyParser(input); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid input"})
-	}
-
-	var targetUser domain.User
-	if err := database.DB.First(&targetUser, "id = ?", userID).Error; err != nil {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "User not found"})
-	}
-
-	// The target must belong to the caller's tenant.
-	if !userInTenant(targetUser.ID, safeGetUUID(c, "tenant_id")) {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "User not found"})
-	}
-
-	targetUser.IsActive = input.IsActive
-	if err := database.DB.Save(&targetUser).Error; err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to update user"})
-	}
-
-	// Log the action
-	var action domain.AuditLogAction
-	if input.IsActive {
-		action = domain.ActionUserActivate
-	} else {
-		action = domain.ActionUserDeactivate
-	}
-
-	_ = auditService.LogAction(&domain.AuditLog{
-		TenantID:   auditTenant(c),
-		UserID:     &claims.Sub,
-		Action:     action,
-		Resource:   domain.ResourceUser,
-		ResourceID: &targetUser.ID,
-		Result:     domain.ResultSuccess,
-		IPAddress:  parseIPAddressHelper(ipAddress),
-		UserAgent:  userAgent,
-	})
-
-	return c.Status(fiber.StatusOK).JSON(fiber.Map{"message": "User status updated"})
-}
-
-// UpdateUserRole changes a user's role (admin only)
-func UpdateUserRole(c *fiber.Ctx) error {
-	ipAddress := c.IP()
-	userAgent := c.Get("User-Agent")
-
-	claims := middleware.GetUserClaims(c)
-	if claims == nil {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized"})
-	}
-
-	// Check if user is admin
-	var currentUser domain.User
-	if err := database.DB.Preload("Role").First(&currentUser, "id = ?", claims.Sub).Error; err != nil {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "User not found"})
-	}
-
-	if currentUser.Role.Name != "admin" {
-		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "Only admins can update user roles"})
-	}
-
-	userID := c.Params("id")
-	input := new(UpdateUserRoleInput)
-	if err := c.BodyParser(input); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid input"})
-	}
-
-	// Get the role
-	var role domain.Role
-	if err := database.DB.Where("name = ?", input.Role).First(&role).Error; err != nil {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Role not found"})
-	}
-
-	var targetUser domain.User
-	if err := database.DB.Preload("Role").First(&targetUser, "id = ?", userID).Error; err != nil {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "User not found"})
-	}
-
-	// The target must belong to the caller's tenant.
-	if !userInTenant(targetUser.ID, safeGetUUID(c, "tenant_id")) {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "User not found"})
-	}
-
-	oldRole := ""
-	if targetUser.Role != nil {
-		oldRole = targetUser.Role.Name
-	}
-	targetUser.RoleID = role.ID
-	if err := database.DB.Save(&targetUser).Error; err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to update user role"})
-	}
-
-	// Log the role change
-	_ = auditService.LogRoleChange(auditTenant(c), claims.Sub, targetUser.ID, oldRole, input.Role, ipAddress, userAgent)
-
-	return c.Status(fiber.StatusOK).JSON(fiber.Map{"message": "User role updated"})
-}
-
-// DeleteUser deletes a user (admin only)
-func DeleteUser(c *fiber.Ctx) error {
-	ipAddress := c.IP()
-	userAgent := c.Get("User-Agent")
-
-	claims := middleware.GetUserClaims(c)
-	if claims == nil {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized"})
-	}
-
-	// Check if user is admin
-	var currentUser domain.User
-	if err := database.DB.Preload("Role").First(&currentUser, "id = ?", claims.Sub).Error; err != nil {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "User not found"})
-	}
-
-	if currentUser.Role.Name != "admin" {
-		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "Only admins can delete users"})
-	}
-
-	userID := c.Params("id")
-
-	// Prevent admin from deleting their own account
-	if userID == claims.Sub.String() {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Cannot delete your own account"})
-	}
-
-	// Get the target user to pass to audit log
-	var targetUser domain.User
-	if err := database.DB.First(&targetUser, "id = ?", userID).Error; err != nil {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "User not found"})
-	}
-
-	// The target must belong to the caller's tenant.
-	if !userInTenant(targetUser.ID, safeGetUUID(c, "tenant_id")) {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "User not found"})
-	}
-
-	if err := database.DB.Delete(&domain.User{}, "id = ?", userID).Error; err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to delete user"})
-	}
-
-	// Log the user deletion
-	_ = auditService.LogUserDelete(auditTenant(c), claims.Sub, targetUser.ID, ipAddress, userAgent)
-
-	return c.Status(fiber.StatusNoContent).Send([]byte{})
-}
-
 // Helper function to parse IP address
 func parseIPAddressHelper(ipStr string) *net.IP {
 	if ipStr == "" {
@@ -312,15 +120,10 @@ func CreateUser(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized"})
 	}
 
-	// Check if user is admin
-	var currentUser domain.User
-	if err := database.DB.Preload("Role").First(&currentUser, "id = ?", claims.Sub).Error; err != nil {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "User not found"})
-	}
-
-	if currentUser.Role.Name != "admin" {
-		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "Only admins can create users"})
-	}
+	// Authorization is the RequireRole("admin") route guard, which reads the
+	// caller's role in the ACTIVE organization from the signed session. The
+	// in-handler check this replaced read users.role_id, a global column no
+	// session derives its role from (#807).
 
 	input := new(CreateUserInput)
 	if err := c.BodyParser(input); err != nil {

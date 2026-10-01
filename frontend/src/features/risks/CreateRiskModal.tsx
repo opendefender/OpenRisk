@@ -3,7 +3,7 @@
 // This program is free software: you can redistribute it and/or modify it under
 // the terms of the GNU Affero General Public License v3.0 (see LICENSE).
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, dialogMotion, motion } from '../../shared/motion';
 import { Controller, useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -17,7 +17,7 @@ import { taxonomyService } from '../../services/taxonomyService';
 import { ComplianceMappingField, type MappingDraft } from './ComplianceMappingField';
 import { useRiskCategories, IMPORTED_FRAMEWORKS_KEY } from './useTaxonomy';
 import { ImportFrameworkDialog } from '../compliance/ComplianceModals';
-import { Button, Field, Input, TagInput, Textarea } from '../../shared/ds';
+import { Button, Field, Input, ScrollProgress, TagInput, Textarea } from '../../shared/ds';
 import { useRiskTagLabels } from './useRiskTagLabels';
 import { useI18n } from '../../hooks/useI18n';
 import { useEscapeToClose } from '../../shared/useBackTo';

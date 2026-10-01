@@ -566,6 +566,19 @@ func (tm *TokenManager) RevokeAllUserTokens(ctx context.Context, userID uuid.UUI
 	return nil
 }
 
+// RevokeUserTokensInTenant revokes the user's refresh tokens for ONE
+// organization. It is what an organization's own decision about a member (a
+// role change, a deactivation) may end: that member's sessions in that
+// organization, never their sessions elsewhere (#831). Account-level events
+// (password change or reset) use RevokeAllUserTokens instead.
+func (tm *TokenManager) RevokeUserTokensInTenant(ctx context.Context, userID, tenantID uuid.UUID) error {
+	result := tm.db.WithContext(ctx).Where("user_id = ? AND tenant_id = ?", userID, tenantID).Delete(&RefreshToken{})
+	if result.Error != nil {
+		return fmt.Errorf("failed to revoke user tokens in tenant: %w", result.Error)
+	}
+	return nil
+}
+
 // generateRefreshToken generates a cryptographically secure random refresh token
 func generateRefreshToken() (string, error) {
 	bytes := make([]byte, 32)

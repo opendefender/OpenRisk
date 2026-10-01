@@ -15,11 +15,21 @@ export interface ToastOptions {
   };
 }
 
+/**
+ * A toast carrying an action must not expire on its own (WCAG 2.2.1): a user
+ * who has not yet reacted to it must not lose the chance to. `Infinity` is
+ * sonner's own documented way to say "stays until dismissed".
+ */
+function resolveDuration(base: number, options?: ToastOptions): number {
+  if (options?.duration !== undefined) return options.duration;
+  return options?.action ? Infinity : base;
+}
+
 export function useToast() {
   const success = useCallback((message: string, options?: ToastOptions) => {
     return sonnerToast.success(message, {
       description: options?.description,
-      duration: options?.duration ?? 3000,
+      duration: resolveDuration(4000, options),
       action: options?.action,
     });
   }, []);
@@ -27,7 +37,7 @@ export function useToast() {
   const error = useCallback((message: string, options?: ToastOptions) => {
     return sonnerToast.error(message, {
       description: options?.description,
-      duration: options?.duration ?? 4000,
+      duration: resolveDuration(8000, options),
       action: options?.action,
     });
   }, []);
@@ -35,7 +45,7 @@ export function useToast() {
   const warning = useCallback((message: string, options?: ToastOptions) => {
     return sonnerToast.warning(message, {
       description: options?.description,
-      duration: options?.duration ?? 3500,
+      duration: resolveDuration(6000, options),
       action: options?.action,
     });
   }, []);
@@ -43,7 +53,7 @@ export function useToast() {
   const info = useCallback((message: string, options?: ToastOptions) => {
     return sonnerToast.info(message, {
       description: options?.description,
-      duration: options?.duration ?? 3000,
+      duration: resolveDuration(4000, options),
       action: options?.action,
     });
   }, []);
