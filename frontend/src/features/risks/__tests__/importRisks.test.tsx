@@ -26,7 +26,7 @@ vi.mock('../../../hooks/useRiskStore', () => ({
 }));
 
 import { ImportRisksPage } from '../../../pages/ImportRisks';
-import { importFileSchema } from '../importRisksSchema';
+import { importErrorMessage, importFileSchema } from '../importRisksSchema';
 import { useUIStore } from '../../../store/uiStore';
 
 const tr = (_fr: string, en: string) => en;
@@ -138,5 +138,24 @@ describe('importFileSchema', () => {
     expect(schema.safeParse(new File([new Uint8Array(2 * 1024 * 1024 + 1)], 'r.csv')).success).toBe(
       false,
     );
+  });
+
+  it('renders server error codes in the reader’s language and falls back to the server text', () => {
+    const fr = (f: string) => f;
+    expect(
+      importErrorMessage(
+        {
+          line: 3,
+          column: 'probability',
+          code: 'out_of_range',
+          params: { min: '0', max: '1', value: '3' },
+          message: 'probability must be between 0 and 1 (got 3)',
+        },
+        fr,
+      ),
+    ).toBe('Doit être entre 0 et 1 (valeur : 3).');
+    expect(
+      importErrorMessage({ line: 2, code: 'some_future_code', message: 'server text' }, fr),
+    ).toBe('server text');
   });
 });

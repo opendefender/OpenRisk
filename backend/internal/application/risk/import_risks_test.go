@@ -217,3 +217,32 @@ func TestImportRisks_OverCapacityWritesNothing(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 2, res.Created)
 }
+
+// The page translates errors from Code and Params, so every error carries a
+// code and the codes below are a contract with importRisksSchema.ts.
+func TestImportRisks_ErrorsCarryCodesForTranslation(t *testing.T) {
+	tx := &fakeTx{}
+	_, err := importCSV(t, tx, "title,probability,impact\n"+
+		",1.5,abc\n"+
+		"Too big,0.2,11\n")
+	errs := rejectedErrors(t, err)
+
+	got := map[string]ImportRowError{}
+	for _, e := range errs {
+		require.NotEmpty(t, e.Code, "error without a code: %+v", e)
+		got[fmt.Sprintf("%d:%s", e.Line, e.Column)] = e
+	}
+	assert.Equal(t, "required", got["2:title"].Code)
+	assert.Equal(t, "out_of_range", got["2:probability"].Code)
+	assert.Equal(t, map[string]string{"min": "0", "max": "1", "value": "1.5"}, got["2:probability"].Params)
+	assert.Equal(t, "not_a_number", got["2:impact"].Code)
+	assert.Equal(t, "abc", got["2:impact"].Params["value"])
+	assert.Equal(t, "out_of_range", got["3:impact"].Code)
+	assert.Equal(t, "10", got["3:impact"].Params["max"])
+
+	_, err = importCSV(t, tx, "title,probability,impact\nA,3,4\n")
+	assert.Equal(t, "legacy_scale", rejectedErrors(t, err)[0].Code)
+	_, err = importCSV(t, tx, "titre,probability,impact\n")
+	assert.Equal(t, "unknown_column", rejectedErrors(t, err)[0].Code)
+	assert.Empty(t, tx.committed)
+}

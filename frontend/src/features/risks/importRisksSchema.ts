@@ -32,9 +32,85 @@ export function importFileSchema(tr: Tr) {
 export const importRowErrorSchema = z.object({
   line: z.number().int(),
   column: z.string().optional(),
+  /** Stable code; the page renders it in the reader's language. */
+  code: z.string().optional(),
+  params: z.record(z.string(), z.string()).optional(),
+  /** The server's English rendering, shown when a code is unknown. */
   message: z.string(),
 });
 export type ImportRowError = z.infer<typeof importRowErrorSchema>;
+
+/**
+ * Renders one server error in the reader's language. The codes mirror
+ * risk.ImportRowError on the server (TestImportRisks_ErrorsCarryCodesForTranslation);
+ * an unknown code falls back to the server's English message rather than to
+ * nothing.
+ */
+export function importErrorMessage(e: ImportRowError, tr: Tr): string {
+  const p = e.params ?? {};
+  const col = p.column ?? e.column ?? '';
+  switch (e.code) {
+    case 'file_empty':
+      return tr('Le fichier est vide.', 'The file is empty.');
+    case 'not_utf8':
+      return tr(
+        'Le fichier n’est pas en UTF-8 : enregistrez-le au format « CSV UTF-8 ».',
+        'The file is not UTF-8 text: save it as "CSV UTF-8".',
+      );
+    case 'header_unreadable':
+      return tr('L’en-tête est illisible.', 'The header cannot be read.');
+    case 'unknown_column':
+      return tr(
+        `Colonne inconnue « ${col} ». Colonnes acceptées : ${p.accepted ?? ''}.`,
+        `Unknown column "${col}". Accepted columns: ${p.accepted ?? ''}.`,
+      );
+    case 'duplicate_column':
+      return tr(`La colonne « ${col} » apparaît deux fois.`, `Column "${col}" appears twice.`);
+    case 'missing_column':
+      return tr(
+        `La colonne obligatoire « ${col} » est absente.`,
+        `Required column "${col}" is missing.`,
+      );
+    case 'line_unreadable':
+      return tr(
+        'Cette ligne est illisible (guillemet non fermé ?).',
+        'This line cannot be read (unclosed quote?).',
+      );
+    case 'too_many_rows':
+      return tr(
+        `Le fichier dépasse ${p.max ?? ''} lignes : découpez-le en plusieurs fichiers.`,
+        `The file has more than ${p.max ?? ''} rows: split it into several files.`,
+      );
+    case 'cell_count':
+      return tr(
+        `La ligne a ${p.cells ?? ''} cellules, l’en-tête en a ${p.header ?? ''}.`,
+        `The line has ${p.cells ?? ''} cells but the header has ${p.header ?? ''}.`,
+      );
+    case 'required':
+      return tr('Valeur obligatoire.', 'A value is required.');
+    case 'too_long':
+      return tr(`${p.max ?? ''} caractères au plus.`, `At most ${p.max ?? ''} characters.`);
+    case 'not_a_number':
+      return tr(`« ${p.value ?? ''} » n’est pas un nombre.`, `"${p.value ?? ''}" is not a number.`);
+    case 'out_of_range':
+      return tr(
+        `Doit être entre ${p.min ?? ''} et ${p.max ?? ''} (valeur : ${p.value ?? ''}).`,
+        `Must be between ${p.min ?? ''} and ${p.max ?? ''} (got ${p.value ?? ''}).`,
+      );
+    case 'no_rows':
+      return tr(
+        'Le fichier a un en-tête mais aucune ligne de risque.',
+        'The file has a header but no risk rows.',
+      );
+    case 'legacy_scale':
+      return tr(
+        'Ce fichier utilise l’ancienne échelle 1–5. OpenRisk attend une probabilité entre 0 et 1 et un impact entre 0 et 10. Téléchargez le modèle actuel et convertissez les valeurs (probabilité 3/5 → 0,6 ; impact 4/5 → 8).',
+        'This file uses the old 1–5 scale. OpenRisk expects probability between 0 and 1 and impact between 0 and 10. Download the current template and convert the values (probability 3/5 → 0.6, impact 4/5 → 8).',
+      );
+    default:
+      return e.message;
+  }
+}
 
 /** 200: every row was written. */
 export const importSuccessSchema = z.object({

@@ -97,10 +97,16 @@ type ImportRisksInput struct {
 // the file as a spreadsheet shows it (the header is line 1); 0 means the
 // problem concerns the file as a whole. Column is the header name, empty when
 // the problem is not about one cell.
+//
+// Code and Params are the contract: the page renders them in the reader's
+// language. Message is the English rendering, for API callers and as the
+// page's fallback when it does not know a code.
 type ImportRowError struct {
-	Line    int    `json:"line"`
-	Column  string `json:"column,omitempty"`
-	Message string `json:"message"`
+	Line    int               `json:"line"`
+	Column  string            `json:"column,omitempty"`
+	Code    string            `json:"code"`
+	Params  map[string]string `json:"params,omitempty"`
+	Message string            `json:"message"`
 }
 
 // ImportRisksResult is what the caller is told. Under all-or-nothing, either
@@ -202,7 +208,7 @@ func (uc *ImportRisksUseCase) Execute(ctx context.Context, tenantID uuid.UUID, i
 			if err != nil {
 				var appErr *domain.AppError
 				if errors.As(err, &appErr) && errors.Is(err, domain.ErrValidation) {
-					return &ImportRejectedError{Result: rejected([]ImportRowError{{Line: row.line, Message: appErr.Message}})}
+					return &ImportRejectedError{Result: rejected([]ImportRowError{{Line: row.line, Code: "rejected_by_rules", Message: appErr.Message}})}
 				}
 				return err
 			}
@@ -256,10 +262,10 @@ func rejected(errs []ImportRowError) *ImportRisksResult {
 func parseImportCSV(data []byte, importedBy uuid.UUID) ([]importRow, []ImportRowError) {
 	data = bytes.TrimPrefix(data, []byte("\xef\xbb\xbf")) // Excel's UTF-8 BOM
 	if len(bytes.TrimSpace(data)) == 0 {
-		return nil, []ImportRowError{{Line: 0, Message: "the file is empty"}}
+		return nil, []ImportRowError{{Line: 0, Code: "file_empty", Message: "the file is empty"}}
 	}
 	if !utf8.Valid(data) {
-		return nil, []ImportRowError{{Line: 0, Message: "the file is not UTF-8 text; save it as \"CSV UTF-8\""}}
+		return nil, []ImportRowError{{Line: 0, Code: "not_utf8", Message: "the file is not UTF-8 text; save it as \"CSV UTF-8\""}}
 	}
 
 	// French-locale spreadsheets export CSV with ";" and a decimal comma.
@@ -275,7 +281,7 @@ func parseImportCSV(data []byte, importedBy uuid.UUID) ([]importRow, []ImportRow
 
 	header, err := reader.Read()
 	if err != nil {
-		return nil, []ImportRowError{{Line: 1, Message: fmt.Sprintf("the header cannot be read: %v", err)}}
+		return nil, []ImportRowError{{Line: 1, Code: "header_unreadable", Params: map[string]string{"detail": err.Error()}, Message: fmt.Sprintf("the header cannot be read: %v", err)}}
 	}
 
 	var errs []ImportRowError
@@ -285,12 +291,12 @@ func parseImportCSV(data []byte, importedBy uuid.UUID) ([]importRow, []ImportRow
 		raw := strings.TrimSpace(h)
 		canon, ok := importColumnAliases[strings.ToLower(raw)]
 		if !ok {
-			errs = append(errs, ImportRowError{Line: 1, Column: raw, Message: fmt.Sprintf(
+			errs = append(errs, ImportRowError{Line: 1, Column: raw, Code: "unknown_column", Params: map[string]string{"column": raw, "accepted": strings.Join(ImportColumns, ", ")}, Message: fmt.Sprintf(
 				"unknown column %q; accepted columns are %s", raw, strings.Join(ImportColumns, ", "))})
 			continue
 		}
 		if _, dup := cols[canon]; dup {
-			errs = append(errs, ImportRowError{Line: 1, Column: raw, Message: fmt.Sprintf("column %q appears twice", canon)})
+			errs = append(errs, ImportRowError{Line: 1, Column: raw, Code: "duplicate_column", Params: map[string]string{"column": canon}, Message: fmt.Sprintf("column %q appears twice", canon)})
 			continue
 		}
 		cols[canon] = i
@@ -298,7 +304,7 @@ func parseImportCSV(data []byte, importedBy uuid.UUID) ([]importRow, []ImportRow
 	}
 	for _, required := range []string{importColTitle, importColProbability, importColImpact} {
 		if _, ok := cols[required]; !ok {
-			errs = append(errs, ImportRowError{Line: 1, Column: required, Message: fmt.Sprintf("required column %q is missing", required)})
+			errs = append(errs, ImportRowError{Line: 1, Column: required, Code: "missing_column", Params: map[string]string{"column": required}, Message: fmt.Sprintf("required column %q is missing", required)})
 		}
 	}
 	if len(errs) > 0 {
@@ -339,7 +345,7 @@ func parseImportCSV(data []byte, importedBy uuid.UUID) ([]importRow, []ImportRow
 			if errors.As(err, &pe) {
 				line = pe.StartLine
 			}
-			errs = append(errs, ImportRowError{Line: line, Message: fmt.Sprintf("the line cannot be read: %v", err)})
+			errs = append(errs, ImportRowError{Line: line, Code: "line_unreadable", Params: map[string]string{"detail": err.Error()}, Message: fmt.Sprintf("the line cannot be read: %v", err)})
 			legacy = false
 			// A broken quote can swallow the rest of the file; stop here rather
 			// than report a cascade of phantom errors.
@@ -351,10 +357,10 @@ func parseImportCSV(data []byte, importedBy uuid.UUID) ([]importRow, []ImportRow
 		}
 		dataRows++
 		if dataRows > MaxImportRows {
-			return nil, []ImportRowError{{Line: 0, Message: fmt.Sprintf("the file has more than %d rows; split it into several files", MaxImportRows)}}
+			return nil, []ImportRowError{{Line: 0, Code: "too_many_rows", Params: map[string]string{"max": strconv.Itoa(MaxImportRows)}, Message: fmt.Sprintf("the file has more than %d rows; split it into several files", MaxImportRows)}}
 		}
 		if len(rec) > len(header) {
-			errs = append(errs, ImportRowError{Line: line, Message: fmt.Sprintf("the line has %d cells but the header has %d", len(rec), len(header))})
+			errs = append(errs, ImportRowError{Line: line, Code: "cell_count", Params: map[string]string{"cells": strconv.Itoa(len(rec)), "header": strconv.Itoa(len(header))}, Message: fmt.Sprintf("the line has %d cells but the header has %d", len(rec), len(header))})
 			continue
 		}
 
@@ -362,36 +368,36 @@ func parseImportCSV(data []byte, importedBy uuid.UUID) ([]importRow, []ImportRow
 		title := cell(rec, importColTitle)
 		switch {
 		case title == "":
-			errs = append(errs, ImportRowError{Line: line, Column: importColTitle, Message: "title is required"})
+			errs = append(errs, ImportRowError{Line: line, Column: importColTitle, Code: "required", Message: "title is required"})
 			rowOK = false
 		case utf8.RuneCountInString(title) > 255:
-			errs = append(errs, ImportRowError{Line: line, Column: importColTitle, Message: "title must be 255 characters or less"})
+			errs = append(errs, ImportRowError{Line: line, Column: importColTitle, Code: "too_long", Params: map[string]string{"max": "255"}, Message: "title must be 255 characters or less"})
 			rowOK = false
 		}
 
 		prob, perr := number(cell(rec, importColProbability))
 		switch {
 		case cell(rec, importColProbability) == "":
-			errs = append(errs, ImportRowError{Line: line, Column: importColProbability, Message: "probability is required"})
+			errs = append(errs, ImportRowError{Line: line, Column: importColProbability, Code: "required", Message: "probability is required"})
 			rowOK = false
 		case perr != nil:
-			errs = append(errs, ImportRowError{Line: line, Column: importColProbability, Message: fmt.Sprintf("%q is not a number", cell(rec, importColProbability))})
+			errs = append(errs, ImportRowError{Line: line, Column: importColProbability, Code: "not_a_number", Params: map[string]string{"value": cell(rec, importColProbability)}, Message: fmt.Sprintf("%q is not a number", cell(rec, importColProbability))})
 			rowOK = false
 		case prob < 0 || prob > 1:
-			errs = append(errs, ImportRowError{Line: line, Column: importColProbability, Message: fmt.Sprintf("probability must be between 0 and 1 (got %s)", cell(rec, importColProbability))})
+			errs = append(errs, ImportRowError{Line: line, Column: importColProbability, Code: "out_of_range", Params: map[string]string{"min": "0", "max": "1", "value": cell(rec, importColProbability)}, Message: fmt.Sprintf("probability must be between 0 and 1 (got %s)", cell(rec, importColProbability))})
 			rowOK = false
 		}
 
 		imp, ierr := number(cell(rec, importColImpact))
 		switch {
 		case cell(rec, importColImpact) == "":
-			errs = append(errs, ImportRowError{Line: line, Column: importColImpact, Message: "impact is required"})
+			errs = append(errs, ImportRowError{Line: line, Column: importColImpact, Code: "required", Message: "impact is required"})
 			rowOK = false
 		case ierr != nil:
-			errs = append(errs, ImportRowError{Line: line, Column: importColImpact, Message: fmt.Sprintf("%q is not a number", cell(rec, importColImpact))})
+			errs = append(errs, ImportRowError{Line: line, Column: importColImpact, Code: "not_a_number", Params: map[string]string{"value": cell(rec, importColImpact)}, Message: fmt.Sprintf("%q is not a number", cell(rec, importColImpact))})
 			rowOK = false
 		case imp < 0 || imp > 10:
-			errs = append(errs, ImportRowError{Line: line, Column: importColImpact, Message: fmt.Sprintf("impact must be between 0 and 10 (got %s)", cell(rec, importColImpact))})
+			errs = append(errs, ImportRowError{Line: line, Column: importColImpact, Code: "out_of_range", Params: map[string]string{"min": "0", "max": "10", "value": cell(rec, importColImpact)}, Message: fmt.Sprintf("impact must be between 0 and 10 (got %s)", cell(rec, importColImpact))})
 			rowOK = false
 		}
 
@@ -414,12 +420,12 @@ func parseImportCSV(data []byte, importedBy uuid.UUID) ([]importRow, []ImportRow
 	}
 
 	if dataRows == 0 && len(errs) == 0 {
-		return nil, []ImportRowError{{Line: 0, Message: "the file has a header but no risk rows"}}
+		return nil, []ImportRowError{{Line: 0, Code: "no_rows", Message: "the file has a header but no risk rows"}}
 	}
 	if legacy && dataRows > 0 {
 		// Reported alone: the per-row range errors it also triggers would only
 		// repeat the same cause once per line.
-		return nil, []ImportRowError{{Line: 0, Column: importColProbability, Message: "this file uses the old 1–5 scale for probability and impact; " +
+		return nil, []ImportRowError{{Line: 0, Column: importColProbability, Code: "legacy_scale", Message: "this file uses the old 1–5 scale for probability and impact; " +
 			"OpenRisk expects probability between 0 and 1 and impact between 0 and 10. " +
 			"Download the current template and convert the values (for example probability 3/5 → 0.6, impact 4/5 → 8)"}}
 	}

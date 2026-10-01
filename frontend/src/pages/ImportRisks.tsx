@@ -26,6 +26,7 @@ import {
   importLimitSchema,
   importRejectedSchema,
   importSuccessSchema,
+  importErrorMessage,
   type ImportRowError,
 } from '../features/risks/importRisksSchema';
 
@@ -366,7 +367,7 @@ function OutcomePanel({
                           {e.line > 0 ? e.line : tr('Fichier', 'File')}
                         </td>
                         <td className="px-3 py-2 font-mono text-fg-secondary">{e.column ?? '—'}</td>
-                        <td className="px-3 py-2 text-fg-secondary">{e.message}</td>
+                        <td className="px-3 py-2 text-fg-secondary">{importErrorMessage(e, tr)}</td>
                       </tr>
                     ))}
                   </tbody>
