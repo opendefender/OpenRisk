@@ -699,7 +699,12 @@ func main() {
 		WithTOTPKey(mfaKey[:]).
 		RequireMFAForRoles(mfaRequiredRoles, mfaRequiredBusinessRoles).
 		WithMailer(securityMailer)
-	challengeMFAUseCase := auth.NewChallengeMFAUseCase(mfaRepo, mfaKey[:])
+	// #689 — five codes per challenge token, ten failures per account in
+	// fifteen minutes before a fixed fifteen-minute lock, counted in Redis so
+	// the budget holds across instances. The owner is mailed when a lock is set.
+	challengeMFAUseCase := auth.NewChallengeMFAUseCase(mfaRepo, mfaKey[:]).
+		WithAttemptLimits(authmfa.NewAttemptStore(redisClientInstance), tokenBlacklistManager).
+		WithLockNotice(userRepo, securityMailer)
 	// OR26-03 — one resolver answers "must this member enrol now?" for /auth/me
 	// and for the request-time guard, so the banner and the enforcement can never
 	// disagree. Cached per (user, tenant) for a minute; enrolment, disabling and
@@ -895,7 +900,19 @@ func main() {
 	// on `api` BEFORE the Protected group: MFATokenMiddleware validates the special
 	// token itself and rejects full/absent tokens. On a valid code the handler
 	// mints the real access+refresh pair.
-	api.Post("/auth/mfa/challenge", middleware.MFATokenMiddleware(rsaKeys, jtiBlacklistChecker), mfaHandler.Challenge)
+	//
+	// #689 — the per-IP limit runs first, in its own bucket: a flood is refused
+	// before any token is parsed, and it never spends the login budget. The
+	// per-token and per-account limits live in the use case.
+	mfaChallengeRateLimit := middleware.RateLimit(middleware.RateLimitConfig{
+		MaxRequests: 20,
+		WindowSize:  5 * time.Minute,
+		Store: handlers.PrefixedRateLimitBackend{
+			Prefix: "mfa-challenge-ip:",
+			Inner:  authLimiterStore,
+		},
+	})
+	api.Post("/auth/mfa/challenge", mfaChallengeRateLimit, middleware.MFATokenMiddleware(rsaKeys, jtiBlacklistChecker), mfaHandler.Challenge)
 
 	// Scanner AGENT endpoints (register/stream/push) are mounted on `app` HERE —
 	// deliberately BEFORE the /api/v1 user-token middleware below — so they are
