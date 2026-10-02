@@ -18,6 +18,7 @@ import { landingForBusinessRole } from '../../shared/navModel';
 import { useUIStore } from '../../store/uiStore';
 import { authCopy, providerLabel, type OAuthErrorCode } from './authStrings';
 import { challengeMFA, setupMFA, verifyMFA } from './authService';
+import { classifyChallengeRefusal, minutesToWait } from './challengeRefusal';
 import { OtpField, sanitiseCode } from '../../shared/ds';
 import { AuthLayout } from './AuthLayout';
 import { cascade, usePrefersReducedMotion } from './motion';
@@ -35,12 +36,21 @@ const OAUTH_PROVIDERS: { id: 'google' | 'github' | 'azure'; label: string }[] = 
 
 export function AuthScreen({ initialView = 'login' }: { initialView?: View }) {
   const [view, setView] = useState<View>(initialView);
+  // Why the login form is showing, when another screen sent the user to it:
+  // a challenge that cannot take another code ends on the password (#872).
+  const [notice, setNotice] = useState('');
   return (
     <AuthLayout>
       {view === 'login' ? (
-        <LoginForm onRegister={() => setView('register')} />
+        <LoginForm notice={notice} onRegister={() => setView('register')} />
       ) : (
-        <RegisterForm onLogin={() => setView('login')} />
+        <RegisterForm
+          onLogin={() => setView('login')}
+          onRestart={(message) => {
+            setNotice(message);
+            setView('login');
+          }}
+        />
       )}
     </AuthLayout>
   );
@@ -57,7 +67,7 @@ function isPasswordResetRequired(err: unknown): boolean {
   return body?.code === 'password_reset_required';
 }
 
-function LoginForm({ onRegister }: { onRegister: () => void }) {
+function LoginForm({ notice = '', onRegister }: { notice?: string; onRegister: () => void }) {
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const lang = useUIStore((s) => s.lang);
@@ -69,7 +79,7 @@ function LoginForm({ onRegister }: { onRegister: () => void }) {
   const [password, setPassword] = useState('');
   const [show, setShow] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState(notice);
   // Bumped on every failure so the shake fires again even for an identical
   // message — otherwise retyping the same wrong password gives no feedback.
   const [errorNonce, setErrorNonce] = useState(0);
@@ -159,7 +169,16 @@ function LoginForm({ onRegister }: { onRegister: () => void }) {
     return mfa.enrolling ? (
       <MFAEnrollment token={mfa.token} />
     ) : (
-      <MFAChallenge token={mfa.token} onCancel={() => setMfa(null)} />
+      <MFAChallenge
+        token={mfa.token}
+        onCancel={() => setMfa(null)}
+        onRestart={(message) => {
+          // The address and password stay filled in: signing in again is one
+          // click, and the banner says why it is needed.
+          setMfa(null);
+          fail(message);
+        }}
+      />
     );
   }
 
@@ -297,7 +316,19 @@ function LoginForm({ onRegister }: { onRegister: () => void }) {
 // MFA — challenge
 // ---------------------------------------------------------------------------
 
-function MFAChallenge({ token, onCancel }: { token: string; onCancel: () => void }) {
+/** Disables the field this long when the server gave no wait (per-address limit). */
+const UNKNOWN_LOCK_MS = 60_000;
+
+function MFAChallenge({
+  token,
+  onCancel,
+  onRestart,
+}: {
+  token: string;
+  onCancel: () => void;
+  /** The sign-in attempt is over; only the password can start another one. */
+  onRestart: (message: string) => void;
+}) {
   const navigate = useNavigate();
   const lang = useUIStore((s) => s.lang);
   const copy = authCopy(lang);
@@ -308,9 +339,36 @@ function MFAChallenge({ token, onCancel }: { token: string; onCancel: () => void
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [nonce, setNonce] = useState(0);
+  // Set while the account refuses codes (#872). The field is disabled until
+  // then: a code typed during the lock is refused without being read.
+  const [lockedUntil, setLockedUntil] = useState<number | null>(null);
+  const codeInput = useRef<HTMLInputElement>(null);
+  const locked = lockedUntil !== null;
+
+  useEffect(() => {
+    if (lockedUntil === null) return;
+    const timer = window.setTimeout(
+      () => {
+        setLockedUntil(null);
+        setError('');
+      },
+      Math.max(0, lockedUntil - Date.now()),
+    );
+    return () => window.clearTimeout(timer);
+  }, [lockedUntil]);
+
+  // Focus returns to the field once it is enabled again. It cannot be done in
+  // the timer above: the field is still disabled until React re-renders, and a
+  // disabled input ignores focus().
+  const wasLocked = useRef(false);
+  useEffect(() => {
+    if (wasLocked.current && !locked) codeInput.current?.focus();
+    wasLocked.current = locked;
+  }, [locked]);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (locked) return;
     setBusy(true);
     setError('');
     try {
@@ -321,8 +379,26 @@ function MFAChallenge({ token, onCancel }: { token: string; onCancel: () => void
         await adoptSession(result.token_pair.access_token);
       }
       navigate(landingForBusinessRole(useAuthStore.getState().user?.business_role));
-    } catch {
-      setError(copy.mfaInvalid);
+    } catch (err) {
+      const refusal = classifyChallengeRefusal(err);
+      switch (refusal.kind) {
+        case 'restart':
+          onRestart(refusal.reason === 'exhausted' ? copy.mfaExhausted : copy.mfaExpired);
+          return;
+        case 'locked':
+          setLockedUntil(
+            Date.now() +
+              (refusal.retryAfterSeconds === null ? UNKNOWN_LOCK_MS : refusal.retryAfterSeconds * 1000),
+          );
+          setError(
+            refusal.retryAfterSeconds === null
+              ? copy.mfaLockedUnknown
+              : copy.mfaLocked(minutesToWait(refusal.retryAfterSeconds)),
+          );
+          break;
+        default:
+          setError(copy.mfaInvalid);
+      }
       setNonce((n) => n + 1);
     } finally {
       setBusy(false);
@@ -358,8 +434,10 @@ function MFAChallenge({ token, onCancel }: { token: string; onCancel: () => void
               pasted with spaces, or with the words around it, used to be
               rejected while the user could plainly read the digits. */}
           <input
+            ref={codeInput}
             id="mfa-code"
             data-testid="mfa-code"
+            disabled={locked}
             inputMode="numeric"
             autoComplete="one-time-code"
             autoCapitalize="off"
@@ -379,9 +457,9 @@ function MFAChallenge({ token, onCancel }: { token: string; onCancel: () => void
         <button
           type="submit"
           data-testid="mfa-submit"
-          disabled={busy || !code.trim()}
+          disabled={busy || locked || !code.trim()}
           className={primaryBtn}
-          style={{ ...primaryStyle, opacity: busy || !code.trim() ? 0.6 : 1 }}
+          style={{ ...primaryStyle, opacity: busy || locked || !code.trim() ? 0.6 : 1 }}
         >
           {busy ? copy.signingIn : copy.mfaSubmit}
         </button>
@@ -560,7 +638,13 @@ function MFAEnrollment({ token }: { token: string }) {
 // Register
 // ---------------------------------------------------------------------------
 
-function RegisterForm({ onLogin }: { onLogin: () => void }) {
+function RegisterForm({
+  onLogin,
+  onRestart,
+}: {
+  onLogin: () => void;
+  onRestart: (message: string) => void;
+}) {
   const navigate = useNavigate();
   const lang = useUIStore((s) => s.lang);
   const copy = authCopy(lang);
@@ -661,7 +745,9 @@ function RegisterForm({ onLogin }: { onLogin: () => void }) {
     return mfa.enrolling ? (
       <MFAEnrollment token={mfa.token} />
     ) : (
-      <MFAChallenge token={mfa.token} onCancel={() => setMfa(null)} />
+      // The account exists by now, so starting over means signing in, not
+      // registering again.
+      <MFAChallenge token={mfa.token} onCancel={() => setMfa(null)} onRestart={onRestart} />
     );
   }
 
