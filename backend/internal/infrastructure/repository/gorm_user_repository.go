@@ -10,6 +10,7 @@ import (
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"github.com/opendefender/openrisk/internal/domain"
 )
@@ -72,8 +73,24 @@ func (r *GormUserRepository) EmailsByIDs(ctx context.Context, ids []uuid.UUID) (
 // GetByEmail retrieves a user by email
 func (r *GormUserRepository) GetByEmail(ctx context.Context, email string) (*domain.User, error) {
 	var user domain.User
+	// Case-insensitive (#688). Sign-up and reset normalise the address, so login
+	// and every other lookup must too, or the account reached depends on the
+	// casing typed that day. Rows written before #687 may still hold a mixed-case
+	// address, possibly next to a lowercase twin: the row spelled exactly as asked
+	// wins, then the oldest, so the same address always reaches the same account.
+	//
+	// No lower(email) index yet; a scan of users is cheap at today's sizes.
+	normalised := domain.NormaliseEmail(email)
 	// Preload Role: the login response serializes it, and the frontend needs the role name for RBAC.
-	err := r.db.WithContext(ctx).Preload("Role").Where("email = ?", email).First(&user).Error
+	err := r.db.WithContext(ctx).Preload("Role").
+		Where("LOWER(email) = ?", normalised).
+		Order(clause.OrderBy{Expression: clause.Expr{
+			SQL:  "CASE WHEN email = ? THEN 0 ELSE 1 END, created_at ASC, id ASC",
+			Vars: []interface{}{email},
+		}}).
+		// Take, not First: First appends its own ORDER BY id and the merge
+		// drops the expression above.
+		Take(&user).Error
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, nil

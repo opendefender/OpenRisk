@@ -675,10 +675,15 @@ func main() {
 	// OR26-03 — the tenant's grace window. Deployment decides WHO is privileged;
 	// each tenant decides HOW LONG they may defer (default 7 days).
 	mfaPolicyRepo := repository.NewGormMFAPolicyRepository(database.DB)
+	// #688 — ten failed sign-ins on one address, from any source, pause it for
+	// fifteen minutes; a password reset ends the pause. Counted in Redis (the
+	// store #689 built) so the budget holds across instances.
+	loginAttemptStore := authmfa.NewAttemptStore(redisClientInstance)
 	loginUseCase := auth.NewLoginUseCase(userRepo, tokenManager, passwordHasher).
 		WithMFA(mfaRepo).
 		RequireMFAForRoles(mfaRequiredRoles, mfaRequiredBusinessRoles).
-		WithMFAPolicies(mfaPolicyRepo)
+		WithMFAPolicies(mfaPolicyRepo).
+		WithAttemptLimits(loginAttemptStore)
 	registerUseCase := auth.NewRegisterUseCase(userRepo, orgRepo, notificationService, passwordHasher).
 		// Anchors t0 for the time-to-Aha histogram.
 		WithActivation(activationRecorder).
@@ -726,7 +731,7 @@ func main() {
 	requestResetUseCase := auth.NewRequestPasswordResetUseCase(userRepo, passwordResetRepo, securityMailer)
 	confirmResetUseCase := auth.NewConfirmPasswordResetUseCase(
 		userRepo, passwordResetRepo, passwordHasher, passwordPolicy, tokenManager, securityMailer,
-	)
+	).WithLoginLockClearer(loginAttemptStore)
 	passwordHandler := authhandler.NewPasswordHandler(
 		requestResetUseCase, confirmResetUseCase, passwordPolicy, appBaseURL, authAudit,
 	).WithChangePassword(auth.NewChangePasswordUseCase(
@@ -848,25 +853,16 @@ func main() {
 		})
 	})
 
-	// Brute-force protection on credential endpoints (5 attempts / 15 min per IP).
-	// Backed by Redis so the counter is shared across every instance of a
-	// horizontally-scaled deployment; degrades gracefully to a per-instance
-	// in-memory limiter if Redis is unreachable.
+	// Per-IP throttles on the auth routes, one bucket per purpose (#688). Backed
+	// by Redis so the counters are shared across every instance; degrades to a
+	// per-instance in-memory limiter if Redis is unreachable. Guessing against
+	// one account is bounded per address in the login use case, not here.
 	authLimiterStore := middleware.NewRedisRateLimitStore(redisClientInstance)
-	// Per-IP throttle on auth endpoints. 5/15min locked out legitimate users (a
-	// couple of mistyped passwords, MFA re-auth, or shared-NAT colleagues) for a
-	// quarter hour (OR-BUG-008). 15/5min still blocks rapid brute force (~3/min
-	// sustained) without punishing normal use. Per-account lockout + captcha are
-	// the stronger long-term controls (tracked separately).
-	authRateLimit := middleware.RateLimit(middleware.RateLimitConfig{
-		MaxRequests: 15,
-		WindowSize:  5 * time.Minute,
-		Store:       authLimiterStore,
-	})
+	authLimits := middleware.NewAuthLimiters(authLimiterStore)
 
 	// Clean Architecture Auth Routes
-	api.Post("/auth/login", authRateLimit, cleanAuthHandler.Login)
-	api.Post("/auth/register", authRateLimit, cleanAuthHandler.Register)
+	api.Post("/auth/login", authLimits.Login, cleanAuthHandler.Login)
+	api.Post("/auth/register", authLimits.Register, cleanAuthHandler.Register)
 	api.Post("/auth/refresh", cleanAuthHandler.RefreshToken)
 	api.Post("/auth/logout", cleanAuthHandler.Logout)
 
@@ -876,16 +872,16 @@ func main() {
 	// path. /users/me is served by the profile handler (#719).
 
 	// --- Password reset (public) ---
-	// Both legs sit behind the per-IP auth limiter on top of the per-address cap
+	// Both legs share the per-IP reset bucket, on top of the per-address cap
 	// the use case enforces: the address cap stops targeting one account, the IP
 	// limiter stops sweeping many.
 	//
 	// /password/check is unauthenticated by necessity — it serves the strength
 	// meter on the registration and reset screens, where there is no session. It
 	// discloses nothing: the caller already knows the password they typed.
-	api.Post("/auth/password/forgot", authRateLimit, passwordHandler.ForgotPassword)
-	api.Post("/auth/password/reset", authRateLimit, passwordHandler.ResetPassword)
-	api.Post("/auth/password/check", authRateLimit, passwordHandler.CheckPassword)
+	api.Post("/auth/password/forgot", authLimits.Reset, passwordHandler.ForgotPassword)
+	api.Post("/auth/password/reset", authLimits.Reset, passwordHandler.ResetPassword)
+	api.Post("/auth/password/check", authLimits.Check, passwordHandler.CheckPassword)
 
 	// --- OAuth2 Routes ---
 	api.Get("/auth/oauth2/login/:provider", handlers.OAuth2Login)
@@ -1140,7 +1136,7 @@ func main() {
 	api.Post("/auth/mfa/setup", mfaEnrollmentGuard, mfaHandler.Setup)
 	api.Post("/auth/mfa/verify", mfaEnrollmentGuard, mfaHandler.Verify)
 	// Throttled like /auth/password/change: the body carries a password guess.
-	protected.Post("/auth/mfa/disable", authRateLimit, mfaHandler.Disable)
+	protected.Post("/auth/mfa/disable", authLimits.Reauth, mfaHandler.Disable)
 
 	// --- MFA policy (OR26-03) — "force MFA after N days" -----------------------
 	// Reading is open to any authenticated member: everyone subject to a deadline
@@ -1158,7 +1154,7 @@ func main() {
 	// In-session password change (#720, D-047). Acts on the session's own user;
 	// behind the auth rate limiter so a wrong current password spends the same
 	// budget a failed sign-in does.
-	protected.Post("/auth/password/change", authRateLimit, passwordHandler.ChangePassword)
+	protected.Post("/auth/password/change", authLimits.Reauth, passwordHandler.ChangePassword)
 	protected.Delete("/auth/sessions/:id", sessionHandler.RevokeSession)
 
 	// Organization switching — list the orgs the user may enter, and switch into

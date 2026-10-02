@@ -227,6 +227,10 @@ export interface AuthCopy {
   // OAuth failures — keyed to the backend's ?error= codes.
   oauth: Record<OAuthErrorCode, string>;
   oauthConflictWith: (existing: string) => string;
+
+  // Throttled sign-in or sign-up (#688). `minutes` is null when the server did
+  // not say how long; the message then stays vague rather than guess.
+  tooManyAttempts: (minutes: number | null) => string;
 }
 
 /** The error codes internal/handler/oauth2_handler.go can redirect with. */
@@ -362,6 +366,10 @@ const fr: AuthCopy = {
   },
   oauthConflictWith: (existing) =>
     `Cette adresse se connecte déjà avec ${existing}. Utilisez ${existing} ou votre mot de passe.`,
+  tooManyAttempts: (minutes) =>
+    minutes === null
+      ? 'Trop de tentatives. Réessayez dans quelques minutes.'
+      : `Trop de tentatives. Réessayez dans ${minutes} minute${minutes > 1 ? 's' : ''}.`,
 };
 
 const en: AuthCopy = {
@@ -474,6 +482,10 @@ const en: AuthCopy = {
   },
   oauthConflictWith: (existing) =>
     `This address already signs in with ${existing}. Use ${existing} or your password.`,
+  tooManyAttempts: (minutes) =>
+    minutes === null
+      ? 'Too many attempts. Try again in a few minutes.'
+      : `Too many attempts. Try again in ${minutes} minute${minutes === 1 ? '' : 's'}.`,
 };
 
 // Partial: a registered language without auth copy falls back in `authCopy`.

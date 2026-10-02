@@ -57,6 +57,26 @@ function isPasswordResetRequired(err: unknown): boolean {
   return body?.code === 'password_reset_required';
 }
 
+/**
+ * For a throttled call (429), the whole minutes to wait, rounded up; null when
+ * the server gave no figure. Undefined when the error is not a throttle.
+ *
+ * The body's retry_after is read first: a cross-origin SPA cannot see the
+ * Retry-After header unless CORS exposes it (#688).
+ */
+function throttleMinutes(err: unknown): number | null | undefined {
+  if (!axios.isAxiosError(err) || err.response?.status !== 429) return undefined;
+  const body = err.response.data as { retry_after?: unknown } | undefined;
+  const header = Number(err.response.headers?.['retry-after']);
+  const seconds =
+    typeof body?.retry_after === 'number' && body.retry_after > 0
+      ? body.retry_after
+      : Number.isFinite(header) && header > 0
+        ? header
+        : null;
+  return seconds === null ? null : Math.max(1, Math.ceil(seconds / 60));
+}
+
 function LoginForm({ onRegister }: { onRegister: () => void }) {
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
@@ -137,9 +157,12 @@ function LoginForm({ onRegister }: { onRegister: () => void }) {
     } catch (err) {
       // The server only says password_reset_required to someone who typed the
       // right password; everything else keeps the one generic message.
+      const wait = throttleMinutes(err);
       if (isPasswordResetRequired(err)) {
         setResetRequired(true);
         fail(copy.signInResetRequired);
+      } else if (wait !== undefined) {
+        fail(copy.tooManyAttempts(wait));
       } else {
         fail(copy.signInFailed);
       }
@@ -635,9 +658,15 @@ function RegisterForm({ onLogin }: { onLogin: () => void }) {
       const body = axios.isAxiosError(err)
         ? (err.response?.data as { error?: string; code?: string } | undefined)
         : undefined;
+      const wait = throttleMinutes(err);
       // Only an email conflict may be told as one (#687). Any other 409 — a
       // username taken, say — shows what the server actually said.
-      if (status === 409 && body?.code && body.code !== 'EMAIL_ALREADY_REGISTERED') {
+      if (wait !== undefined) {
+        // Sign-up or the sign-in right after it was throttled (#688). Saying
+        // "registration failed" here sent people to retry, which only extended
+        // the wait.
+        setError(copy.tooManyAttempts(wait));
+      } else if (status === 409 && body?.code && body.code !== 'EMAIL_ALREADY_REGISTERED') {
         setError(body.error || copy.registerFailed);
       } else if (status === 409) {
         setError(copy.registerEmailExists);
