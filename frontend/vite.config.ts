@@ -25,6 +25,12 @@ export default defineConfig({
     },
   },
   build: {
+    // NOT Vite's default `assets`: that puts a real `dist/assets/` directory
+    // where the app has its `/assets` inventory route. nginx's
+    // `try_files $uri $uri/` then matches the directory, redirects `/assets` to
+    // `/assets/` and answers 403 (no index, autoindex off), so a reload or a
+    // shared link to the inventory broke (#758). No route starts with `static`.
+    assetsDir: 'static',
     // Perf budget (task §2): keep the INITIAL bundle small. Feature pages are
     // already route-split with React.lazy; here we additionally split the heavy
     // vendors into their own long-cached chunks so the entry chunk stays lean and
