@@ -46,9 +46,29 @@ func (r *GormMFARepository) GetMFASecret(ctx context.Context, userID, tenantID u
 	return &secret, nil
 }
 
-// UpdateMFASecret updates an existing MFA secret
+// UpdateMFASecret updates an existing MFA secret.
+//
+// last_totp_step is left out: the struct in hand may predate the last accepted
+// code, and writing it back would lower the mark and re-open the replay #849
+// closes. ConsumeTOTPStep is its only writer.
 func (r *GormMFARepository) UpdateMFASecret(ctx context.Context, secret *domain.MFASecret) error {
-	return r.db.WithContext(ctx).Save(secret).Error
+	return r.db.WithContext(ctx).Omit("last_totp_step").Save(secret).Error
+}
+
+// ConsumeTOTPStep records that a code for step was accepted, and reports false
+// when a code for that step or a later one already was (#849).
+//
+// One conditional UPDATE does the check and the write, so two requests racing
+// with the same code cannot both win: Postgres serialises them on the row, and
+// the second re-evaluates the WHERE after the first commits.
+func (r *GormMFARepository) ConsumeTOTPStep(ctx context.Context, userID, tenantID uuid.UUID, step int64) (bool, error) {
+	res := r.db.WithContext(ctx).Model(&domain.MFASecret{}).
+		Where("user_id = ? AND tenant_id = ? AND (last_totp_step IS NULL OR last_totp_step < ?)", userID, tenantID, step).
+		Updates(map[string]any{"last_totp_step": step, "last_used_at": time.Now()})
+	if res.Error != nil {
+		return false, res.Error
+	}
+	return res.RowsAffected == 1, nil
 }
 
 // DisableMFA removes the TOTP secret and every backup code of one user, in one

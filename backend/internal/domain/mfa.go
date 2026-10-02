@@ -24,6 +24,11 @@ type MFASecret struct {
 	CreatedAt       time.Time      `gorm:"autoCreateTime" json:"created_at"`
 	UpdatedAt       time.Time      `gorm:"autoUpdateTime" json:"updated_at"`
 	DeletedAt       gorm.DeletedAt `gorm:"index" json:"-"`
+
+	// LastTOTPStep is the time step of the last code accepted (#849). A code is
+	// only accepted for a later step, so a code seen on screen cannot be used
+	// twice. Written only by MFARepository.ConsumeTOTPStep, never by a Save.
+	LastTOTPStep *int64 `gorm:"column:last_totp_step" json:"-"`
 }
 
 // TableName specifies the table name for MFASecret
