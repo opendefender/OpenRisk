@@ -162,12 +162,27 @@ curl -H "Authorization: Bearer orsk_a1b2c3d4_<secret>" \
    - Supported providers: google, github, azure
    - Mints a `state` and a PKCE verifier, both kept server-side, and sets the
      `or_oauth_state` cookie (see below)
+   - Optional `return_to`: a root-relative path to open after sign-in. Anything
+     absolute, protocol-relative (`//host`) or backslash-prefixed is dropped.
 2. User authenticates with provider
 3. Callback to: `GET /api/v1/auth/oauth2/callback/:provider`
    - Refused with `error=state_invalid` unless the `or_oauth_state` cookie
      matches the `state` query parameter
 4. OpenRisk creates/links user account
-5. JWT token issued
+5. The session is set in cookies, exactly as for password login: `or_access`
+   (HttpOnly, 15 minutes), `or_refresh` (HttpOnly, 30 days, path
+   `/api/v1/auth/refresh` only) and `or_csrf` (readable, for the double-submit
+   check). The response is a `302` to the SPA at `/auth/sso/complete`, with
+   `?next=<return_to>` when one was given. No token appears in the response
+   body or in the redirect URL.
+6. `/auth/sso/complete` calls `POST /api/v1/auth/refresh` once (refresh cookie
+   plus `X-CSRF-Token`) to get the access token the SPA keeps in memory, loads
+   the profile from `/auth/me`, then opens `next` or the user's usual landing
+   page.
+
+Any failure from step 3 on redirects to `/login?error=<code>`, which the login
+screen renders in the user's language. A failure while creating the session is
+`error=internal`; the detail stays in the server log.
 
 **State cookie `or_oauth_state`.** This cookie ties the callback to the browser
 that started the flow. Without it, an attacker could send someone a callback
@@ -193,7 +208,10 @@ forged request cannot use up the real user's flow.
 3. User authenticates
 4. SAML assertion posted to: `POST /api/v1/auth/saml2/acs`
 5. OpenRisk creates/links user account
-6. JWT token issued
+6. Same exit as OAuth2 steps 5 and 6: session cookies, then a `302` to
+   `/auth/sso/complete`. SAML carries no return target, so the user lands on
+   their usual page. A failure while creating the session redirects to
+   `/login?error=internal`.
 
 #### Enterprise SSO Setup
 

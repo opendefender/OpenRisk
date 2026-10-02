@@ -221,6 +221,9 @@ export interface AuthCopy {
   mfaEnrolBackupBody: string;
   mfaEnrolDone: string;
 
+  // SSO landing (#803): shown while the session from the provider is loaded.
+  ssoCompleting: string;
+
   // OAuth failures — keyed to the backend's ?error= codes.
   oauth: Record<OAuthErrorCode, string>;
   oauthConflictWith: (existing: string) => string;
@@ -330,6 +333,8 @@ const fr: AuthCopy = {
   mfaEnrolBackupBody:
     'Conservez-les hors ligne. Chacun ne fonctionne qu’une fois et ils sont votre seul recours si vous perdez votre téléphone.',
   mfaEnrolDone: "J'ai enregistré mes codes",
+
+  ssoCompleting: 'Connexion en cours…',
 
   oauth: {
     access_denied: 'Connexion annulée. Vous pouvez réessayer ou utiliser votre mot de passe.',
@@ -442,6 +447,8 @@ const en: AuthCopy = {
   mfaEnrolBackupBody:
     'Keep them somewhere offline. Each works once, and they are your only way back in if you lose your phone.',
   mfaEnrolDone: 'I’ve saved my codes',
+
+  ssoCompleting: 'Signing you in…',
 
   oauth: {
     access_denied: 'Sign-in cancelled. You can try again or use your password.',

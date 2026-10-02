@@ -4,7 +4,8 @@
 // Typed client for the unauthenticated auth endpoints (password reset, strength
 // checking) and for session management. No `any`.
 
-import { api } from '../../lib/api';
+import { api, refreshSession } from '../../lib/api';
+import { getAccessToken } from '../../lib/session';
 import type { Lang } from '../../store/uiStore';
 
 // ---------------------------------------------------------------------------
@@ -256,6 +257,24 @@ export async function disableMFA(
 ): Promise<{ message: string }> {
   const { data } = await api.post<{ message: string }>('/auth/mfa/disable', { ...proof, locale });
   return data;
+}
+
+/**
+ * Picks up the session an SSO callback left in the cookies (#803).
+ *
+ * The OAuth and SAML callbacks answer a browser navigation, so they put the
+ * session in HttpOnly cookies and redirect here without any token in the URL.
+ * The SPA still needs the access token in memory, because its permissions are
+ * read from the token's claims. One refresh, authenticated by the refresh cookie
+ * and the CSRF cookie the callback set, hands it over the same way password
+ * login does.
+ */
+export async function claimSSOSession(): Promise<string> {
+  // The shared single flight, never a refresh of its own (see refreshSession).
+  const ok = await refreshSession();
+  const token = getAccessToken();
+  if (!ok || !token) throw new Error('could not load the SSO session');
+  return token;
 }
 
 export interface MFAChallengeResult {

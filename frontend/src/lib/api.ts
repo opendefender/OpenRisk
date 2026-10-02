@@ -81,7 +81,13 @@ const REFRESHABLE_CODES = new Set(['TOKEN_EXPIRED', 'UNAUTHORIZED']);
 // again. Returns whether a usable session was re-established.
 let refreshInFlight: Promise<boolean> | null = null;
 
-function refreshSession(): Promise<boolean> {
+/**
+ * Rotates the session from the refresh cookie and records the new access
+ * token. Exported for the SSO landing page (#803), which must go through this
+ * same single flight: the refresh token is single-use, so two refreshes racing
+ * with one cookie read as token reuse and revoke the session.
+ */
+export function refreshSession(): Promise<boolean> {
   if (!refreshInFlight) {
     // Bare axios (not `api`) so the refresh call never recurses through this
     // interceptor. Cookie-based: the HttpOnly refresh cookie authenticates it;
