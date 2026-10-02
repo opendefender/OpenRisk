@@ -227,6 +227,10 @@ const fr = {
   act_emptyNoneDesc:
     'Au fur et à mesure que des enregistrements sont créés et modifiés, ce qui a été fait apparaît ici.',
   act_clearFilter: 'Effacer le filtre',
+  // --- #751 phase 5: the theme toggle's name follows the state, naming the
+  // result of pressing it rather than a static "toggle theme" ---
+  themeToLight: 'Passer au thème clair',
+  themeToDark: 'Passer au thème sombre',
 };
 
 const en: typeof fr = {
@@ -445,6 +449,8 @@ const en: typeof fr = {
   act_emptyFilteredDesc: 'No changes of this kind are visible to you in this period.',
   act_emptyNoneDesc: 'As people create and change records, what they did appears here.',
   act_clearFilter: 'Clear filter',
+  themeToLight: 'Switch to light theme',
+  themeToDark: 'Switch to dark theme',
 };
 
 export type UIStrings = typeof fr;

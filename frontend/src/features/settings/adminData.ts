@@ -1,10 +1,11 @@
 // Copyright (c) 2026 OpenDefender Contributors
 // SPDX-License-Identifier: AGPL-3.0-only
 //
-// Data hooks for the admin features consolidated into Settings. Members, API
-// Tokens and Custom Fields are live; Roles / Organizations / Audit-log endpoints
-// currently 500 (their tables aren't migrated in this schema) so their hooks
-// surface an error the UI degrades on gracefully.
+// Data hooks for the admin features consolidated into Settings. API Tokens and
+// Custom Fields are live; Members use /organization/members (#807). Roles /
+// Organizations / Audit-log endpoints currently 500 (their tables aren't
+// migrated in this schema) so their hooks surface an error the UI degrades on
+// gracefully.
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../lib/api';

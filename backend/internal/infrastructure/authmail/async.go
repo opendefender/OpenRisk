@@ -33,6 +33,7 @@ type ResetMailerLike interface {
 	SendResetConfirmation(ctx context.Context, to, fullName, locale string) error
 	SendNewSignInAlert(ctx context.Context, to, fullName, ip, userAgent string, when time.Time, locale string) error
 	SendPasswordChanged(ctx context.Context, to, fullName, locale string) error
+	SendMFADisabled(ctx context.Context, to, fullName, locale string) error
 }
 
 // NewAsync wraps a mailer so every send returns immediately.
@@ -55,6 +56,12 @@ func (a *Async) SendResetConfirmation(_ context.Context, to, fullName, locale st
 // SendPasswordChanged queues the in-session password change notice.
 func (a *Async) SendPasswordChanged(_ context.Context, to, fullName, locale string) error {
 	a.dispatch(func(ctx context.Context) { _ = a.inner.SendPasswordChanged(ctx, to, fullName, locale) })
+	return nil
+}
+
+// SendMFADisabled queues the two-factor deactivation notice.
+func (a *Async) SendMFADisabled(_ context.Context, to, fullName, locale string) error {
+	a.dispatch(func(ctx context.Context) { _ = a.inner.SendMFADisabled(ctx, to, fullName, locale) })
 	return nil
 }
 

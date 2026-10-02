@@ -4,7 +4,9 @@
 // OR26-03 — MFA state and policy hooks.
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { fetchMFAStatus, fetchMFAPolicy, saveMFAPolicy } from './mfaPolicyService';
+import { fetchMFAStatus, fetchMFAPolicy, saveMFAPolicy, type MFAStatus } from './mfaPolicyService';
+import { disableMFA, fetchDisableMFAProof } from './authService';
+import type { Lang } from '../../store/uiStore';
 
 /** Shared key so any flow that changes MFA state can invalidate the banner. */
 export const MFA_STATUS_KEY = ['auth', 'mfa-status'] as const;
@@ -50,4 +52,45 @@ export function useSaveMFAPolicy() {
 export function useInvalidateMFAStatus() {
   const qc = useQueryClient();
   return () => qc.invalidateQueries({ queryKey: MFA_STATUS_KEY });
+}
+
+/**
+ * Turns MFA off (#754).
+ *
+ * Not optimistic: the server has to check the password first, and showing
+ * "MFA off" before it agrees would tell the user an unprotected account is
+ * what they have when it is not. Once the server says yes, the panel changes
+ * at once and a refetch confirms it.
+ */
+export function useDisableMFA() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      proof,
+      locale,
+    }: {
+      proof: { password: string } | { code: string };
+      locale: Lang;
+    }) => disableMFA(proof, locale),
+    // Never replay: every request is a password guess the server counts against
+    // a five-per-quarter-hour budget. The app-wide retry of 3 would spend four
+    // of them on one wrong password and lock the user out on their second try.
+    retry: false,
+    onSuccess: () => {
+      qc.setQueryData<MFAStatus | null>(MFA_STATUS_KEY, (prev) =>
+        prev ? { ...prev, state: 'recommended', configured: false } : prev,
+      );
+      void qc.invalidateQueries({ queryKey: MFA_STATUS_KEY });
+    },
+  });
+}
+
+/** Which proof the disable dialog asks for (#754). Read fresh on every open. */
+export function useDisableMFAProof() {
+  return useQuery({
+    queryKey: ['auth', 'mfa-disable-proof'],
+    queryFn: fetchDisableMFAProof,
+    staleTime: 0,
+    retry: 1,
+  });
 }

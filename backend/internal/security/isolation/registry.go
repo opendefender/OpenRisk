@@ -128,13 +128,13 @@ var decisions = []Decision{
 	{"/api/v1/custom-fields/*", Covered,
 		"service/custom_field_service_test TestCustomField_TenantIsolation"},
 	{"/api/v1/teams/{id}", Covered,
-		"handler/team_isolation_test TestTeam_TenantIsolationPredicate"},
+		"handler/team_isolation_test TestTeam_TenantIsolationPredicate; handler/team_handler_test TestTeams_NotFound drives every /teams route and member path cross-tenant (#830)"},
 	{"/api/v1/teams/*", Covered,
 		"handler/team_isolation_test covers member add/remove paths"},
-	{"/api/v1/users/{id}", Covered,
-		"handler/user_isolation_test TestUser_TenantScoping"},
+	// /api/v1/users/{id} (status, role, delete) was removed in #807; the only
+	// sub-route left is the avatar read.
 	{"/api/v1/users/*", Covered,
-		"handler/user_isolation_test covers status/role/delete by id"},
+		"application/profile TestGetAvatar_CrossTenantIsIndistinguishableFromMissing: the avatar read is gated by the target's membership in the caller's tenant"},
 	{"/api/v1/notifications/{id}", Covered,
 		"repository/notification_repository_test scopes by user and tenant"},
 	{"/api/v1/notifications/{id}/read", Covered,

@@ -5,9 +5,56 @@ recommends, and surfaces these in the daily brief. Run `/decide` to clear them.
 
 ## Open
 
-Nothing open.
+### D-061 — 3D tilt on the overall score card (#751 phase 5) · raised 2026-09-29
+**Question** — #751 phase 5 lists "`3d-tilt` reserved for high-value visual elements (e.g.
+overall score card)". Do we ship it?
+
+**Recommendation — B, drop it.** art-director and ux-designer reached the same answer
+independently:
+- The tilt skews the score arc, which is the data itself, on the one figure a CISO reads at
+  a glance and an auditor screenshots.
+- A card that follows the pointer signals "the whole card is clickable". Only the button
+  inside `ScoreGauge` is.
+- It works only with a mouse, which is a second rendering path with no keyboard or touch
+  equivalent, and pointer-tracked parallax is a vestibular trigger.
+- It would touch `ScoreGauge`, which #824 (phase 3) owns.
+
+**Options**
+- **A — ship a restrained tilt.** At most 2° per axis and an 800px perspective, only on
+  `(hover:hover) and (pointer:fine)` under `motion-safe`, with no glare and no moving
+  shadow. It goes on the `DashboardPage.tsx` wrapper, never inside `ScoreGauge`. About half
+  a day, plus a live pass.
+- **B — drop it (recommended).** The item is closed as "evaluated, rejected" on #751.
+
+**Cost of delay** — none. Phase 5 ships without it, and A can be added later without
+rework.
+
+**Raised by** — #751 phase 5 (art-director + ux-designer specs, 2026-09-29).
 
 ## Resolved
+
+### D-061 — SSO accounts turn MFA off with an authenticator code · decided 2026-09-30
+**Decided (owner)** — An account with no local password (identity-provider sign-in)
+confirms turning MFA off with a **current TOTP code** from its authenticator app. Backup
+codes are not accepted for this. Accounts with a password keep confirming with the
+password, and a code does not replace it.
+
+**Why it came here** — #754 made the disable endpoint re-verify the password. An SSO account
+has no password to re-verify, so the first version refused it outright (409
+`no_local_password`). Letting it through some other way changes the auth design, which
+CLAUDE.md says the owner decides. The owner asked for it directly on 2026-09-30.
+
+**Consequence** — `DisableMFAUseCase.WithTOTPKey` decrypts the stored secret and checks the
+code. A wrong or missing code gets 401 `wrong_code` and counts against the same 5-per-15-minute
+per-account budget. Without the key wired, SSO accounts are still refused, so a
+misconfiguration fails closed. `/auth/me` now returns `has_password` (a boolean, never the
+hash) so the dialog asks for the right proof. Backup codes are left out because they are the
+factor most often written down next to the workstation, which is the threat #754 is about.
+A TOTP code is valid for about 90 s (±1 step) and is not marked as used, the same as at login:
+someone who watched a code being typed could replay it inside that window. That matches the
+existing login challenge and is not made worse here.
+
+**Unblocked** — #754, PR #848.
 
 ### D-060 — animated KPI counters: an in-house rolling counter on the three KPIs of #751 · decided 2026-09-28
 **Decided (owner)** — **A, against the recommendation** (B, change once).

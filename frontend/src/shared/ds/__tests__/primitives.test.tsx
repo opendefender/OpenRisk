@@ -31,9 +31,39 @@ import { Shake } from '../Shake';
 import { useSuccessFeedback } from '../useSuccessFeedback';
 import { Modal } from '../Modal';
 import { Drawer } from '../Drawer';
+import { MODAL_EXIT_MS, DRAWER_EXIT_MS } from '../overlayMotion';
 import { TabPanel, Tabs } from '../Tabs';
 import { PermissionDenied } from '../States';
 import { categorical, seriesColor, severity, chartAccessibleProps } from '../chart';
+
+/**
+ * Switches `window.matchMedia` to report `prefers-reduced-motion: reduce`,
+ * for the "unmounts at once" exit-timer tests, and returns a function that
+ * puts it back.
+ *
+ * Not `vi.spyOn(...).mockRestore()`: the base mock in src/test/setup.ts is
+ * itself a `vi.fn().mockImplementation(...)`, and restoring a spy wrapped
+ * around an already-mocked function clears that implementation rather than
+ * bringing it back — every test after the first one to do this then got
+ * `window.matchMedia(...)` returning `undefined`. Saving and reassigning the
+ * reference directly sidesteps that.
+ */
+function withReducedMotion(): () => void {
+  const original = window.matchMedia;
+  window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+    matches: query.includes('reduce'),
+    media: query,
+    onchange: null,
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    dispatchEvent: vi.fn(),
+  })) as typeof window.matchMedia;
+  return () => {
+    window.matchMedia = original;
+  };
+}
 
 /* ------------------------------------------------------------------ Button -- */
 
@@ -464,6 +494,20 @@ describe('Modal', () => {
     expect(document.activeElement).toBe(trigger);
   });
 
+  it('leaves focus on a field that autofocused instead of pulling it to the first button', async () => {
+    render(
+      <Modal open onClose={() => {}} title="Confirm" closeLabel="Close">
+        <input aria-label="Password" autoFocus />
+      </Modal>,
+    );
+    const field = screen.getByLabelText('Password');
+    expect(document.activeElement).toBe(field);
+
+    // The deferred initial focus has run by now; it must not have moved.
+    await act(() => new Promise((r) => requestAnimationFrame(() => r(undefined))));
+    expect(document.activeElement).toBe(field);
+  });
+
   it('keeps Tab inside the dialog', async () => {
     const user = userEvent.setup();
     render(<ModalHarness />);
@@ -502,6 +546,85 @@ describe('Modal', () => {
     await user.keyboard('{Escape}');
     expect(document.body.style.overflow).not.toBe('hidden');
   });
+
+  /* #751 phase 5 — the previous `if (!open) return null` cut every close
+     instantly, so a create/edit modal that closed on mutation success never
+     had an exit to play. */
+  it('stays mounted at data-state="closed" after close, and unmounts once the exit timer fires', () => {
+    vi.useFakeTimers();
+    try {
+      render(<ModalHarness />);
+      fireEvent.click(screen.getByRole('button', { name: 'Open dialog' }));
+      const dialog = screen.getByRole('dialog');
+
+      fireEvent.click(within(dialog).getByRole('button', { name: /close/i }));
+
+      expect(screen.getByRole('dialog')).toHaveAttribute('data-state', 'closed');
+
+      act(() => {
+        vi.advanceTimersByTime(MODAL_EXIT_MS - 1);
+      });
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
+
+      act(() => {
+        vi.advanceTimersByTime(1);
+      });
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('unmounts at once under prefers-reduced-motion, with no lingering exit timer', () => {
+    vi.useFakeTimers();
+    const restoreMatchMedia = withReducedMotion();
+    try {
+      render(<ModalHarness />);
+      fireEvent.click(screen.getByRole('button', { name: 'Open dialog' }));
+      const dialog = screen.getByRole('dialog');
+
+      fireEvent.click(within(dialog).getByRole('button', { name: /close/i }));
+      expect(screen.getByRole('dialog')).toHaveAttribute('data-state', 'closed');
+
+      // Reduced motion collapses the exit timer to 0 — no wait needed for the
+      // fake clock to reach it, only for the already-queued timer to flush.
+      act(() => {
+        vi.advanceTimersByTime(0);
+      });
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    } finally {
+      restoreMatchMedia();
+      vi.useRealTimers();
+    }
+  });
+
+  it('reopening mid-exit reverses the same panel instead of restarting a new one', () => {
+    vi.useFakeTimers();
+    try {
+      render(<ModalHarness />);
+      const trigger = screen.getByRole('button', { name: 'Open dialog' });
+      fireEvent.click(trigger);
+      const dialog = screen.getByRole('dialog');
+
+      fireEvent.click(within(dialog).getByRole('button', { name: /close/i }));
+      expect(dialog).toHaveAttribute('data-state', 'closed');
+
+      // Reopen before MODAL_EXIT_MS elapses.
+      fireEvent.click(trigger);
+
+      // Same DOM node throughout — the close was reversed, not remounted.
+      expect(screen.getByRole('dialog')).toBe(dialog);
+
+      // The exit timer that was already queued must not unmount a dialog
+      // that is open again by the time it fires.
+      act(() => {
+        vi.advanceTimersByTime(MODAL_EXIT_MS + 10);
+      });
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });
 
 /* ------------------------------------------------------------------ Drawer -- */
@@ -531,8 +654,136 @@ describe('Drawer', () => {
     expect(screen.getByRole('dialog', { name: 'web-prod-01' })).toBeInTheDocument();
 
     await user.keyboard('{Escape}');
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    // Focus returns at the start of the close (useDismissableLayer releases
+    // on `open`, not on the exit timer) — the panel itself lingers a beat
+    // longer for its exit transition, see the tests below.
     expect(document.activeElement).toBe(trigger);
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  });
+
+  /* #751 phase 5 — same contract as Modal, on the drawer's own exit timing
+     (--dur-base, not --motion-exit's --dur-fast). */
+  it('stays mounted at data-state="closed" after close, and unmounts once the exit timer fires', () => {
+    vi.useFakeTimers();
+    try {
+      function Harness() {
+        const [open, setOpen] = useState(false);
+        return (
+          <>
+            <button type="button" onClick={() => setOpen(true)}>
+              Open asset
+            </button>
+            <Drawer
+              open={open}
+              onClose={() => setOpen(false)}
+              title="web-prod-01"
+              subtitle="Server"
+            >
+              <p>Detail</p>
+            </Drawer>
+          </>
+        );
+      }
+      render(<Harness />);
+      fireEvent.click(screen.getByRole('button', { name: 'Open asset' }));
+      const dialog = screen.getByRole('dialog');
+
+      fireEvent.click(within(dialog).getByRole('button', { name: /close/i }));
+      expect(screen.getByRole('dialog')).toHaveAttribute('data-state', 'closed');
+
+      act(() => {
+        vi.advanceTimersByTime(DRAWER_EXIT_MS - 1);
+      });
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
+
+      act(() => {
+        vi.advanceTimersByTime(1);
+      });
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('unmounts at once under prefers-reduced-motion', () => {
+    vi.useFakeTimers();
+    const restoreMatchMedia = withReducedMotion();
+    try {
+      function Harness() {
+        const [open, setOpen] = useState(false);
+        return (
+          <>
+            <button type="button" onClick={() => setOpen(true)}>
+              Open asset
+            </button>
+            <Drawer
+              open={open}
+              onClose={() => setOpen(false)}
+              title="web-prod-01"
+              subtitle="Server"
+            >
+              <p>Detail</p>
+            </Drawer>
+          </>
+        );
+      }
+      render(<Harness />);
+      fireEvent.click(screen.getByRole('button', { name: 'Open asset' }));
+      const dialog = screen.getByRole('dialog');
+
+      fireEvent.click(within(dialog).getByRole('button', { name: /close/i }));
+      expect(screen.getByRole('dialog')).toHaveAttribute('data-state', 'closed');
+
+      act(() => {
+        vi.advanceTimersByTime(0);
+      });
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    } finally {
+      restoreMatchMedia();
+      vi.useRealTimers();
+    }
+  });
+
+  it('reopening mid-exit reverses the same panel instead of restarting a new one', () => {
+    vi.useFakeTimers();
+    try {
+      function Harness() {
+        const [open, setOpen] = useState(false);
+        return (
+          <>
+            <button type="button" onClick={() => setOpen(true)}>
+              Open asset
+            </button>
+            <Drawer
+              open={open}
+              onClose={() => setOpen(false)}
+              title="web-prod-01"
+              subtitle="Server"
+            >
+              <p>Detail</p>
+            </Drawer>
+          </>
+        );
+      }
+      render(<Harness />);
+      const trigger = screen.getByRole('button', { name: 'Open asset' });
+      fireEvent.click(trigger);
+      const dialog = screen.getByRole('dialog');
+
+      fireEvent.click(within(dialog).getByRole('button', { name: /close/i }));
+      expect(dialog).toHaveAttribute('data-state', 'closed');
+
+      // Reopen before DRAWER_EXIT_MS elapses: same node, and the timer that
+      // was already queued must not unmount a drawer that is open again.
+      fireEvent.click(trigger);
+      expect(screen.getByRole('dialog')).toBe(dialog);
+      act(() => {
+        vi.advanceTimersByTime(DRAWER_EXIT_MS + 10);
+      });
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 
