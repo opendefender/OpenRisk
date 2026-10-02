@@ -7,7 +7,7 @@ package handler
 
 import (
 	"context"
-	"log"
+	"fmt"
 	"strconv"
 	"strings"
 
@@ -334,6 +334,10 @@ func (h *RiskHandler) CreateRisk(c *fiber.Ctx) error {
 	if err != nil {
 		return c.Status(400).JSON(fiber.Map{"error": "validation_failed", "details": err.Error()})
 	}
+	assetIDs, err := parseAssetIDs(input.AssetIDs)
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "validation_failed", "details": err.Error()})
+	}
 
 	ucInput := risk.CreateRiskInput{
 		Title:       input.Title,
@@ -344,6 +348,7 @@ func (h *RiskHandler) CreateRisk(c *fiber.Ctx) error {
 		Frameworks:  input.Frameworks,
 		Ownership:   input.OwnershipPatch,
 		CategoryID:  categoryID,
+		AssetIDs:    assetIDs,
 		CreatedBy:   createdBy,
 		SLEXAF:      input.SLEXAF,
 		ARO:         input.ARO,
@@ -362,41 +367,24 @@ func (h *RiskHandler) CreateRisk(c *fiber.Ctx) error {
 		return c.Status(400).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	// Link Assets (fallback until AssetRepo introduced)
-	var linkedAssets []*domain.Asset
-	if len(input.AssetIDs) > 0 {
-		// Tenant-scoped unconditionally: this filter used to apply only when the
-		// middleware context was present, so its absence meant no filter at all.
-		// The request context is passed so the audit trail attributes the link to
-		// the caller instead of recording an unattributed write (#486).
-		query := database.DB.WithContext(stdCtx).Where("organization_id = ?", orgID)
-		if err := query.Where("id IN ?", input.AssetIDs).Find(&linkedAssets).Error; err == nil {
-			domainRisk.Assets = linkedAssets
-			// Save relationships (no direct score compute — publish Redis event instead)
-			if err := database.DB.WithContext(stdCtx).Model(&domainRisk).Association("Assets").Replace(linkedAssets); err != nil {
-				log.Printf("Warning: failed to update asset associations for risk %s: %v", domainRisk.ID, err)
-			}
-		}
-	}
-
 	// RULE #12: Score Engine is NEVER called directly from handler.
-	// Always publish Redis event → ScoreWorker listens and recalculates async,
-	// using the real criticality of whichever assets were just linked instead
-	// of a hardcoded placeholder.
+	// The use case already stored the engine's score with the linked assets
+	// (#792); the event still drives the worker's audit entry and the
+	// risk.score_updated fan-out, with the same asset term.
 	if h.redisClient != nil {
 		event := events.RiskUpdatedEvent{
 			RiskID:           domainRisk.ID.String(),
 			TenantID:         orgID.String(),
 			Probability:      float64(domainRisk.Probability),
 			Impact:           float64(domainRisk.Impact),
-			AssetCriticality: averageAssetCriticalityFactor(linkedAssets),
+			AssetCriticality: domain.RiskAssetCriticality(domain.AssetCriticalities(domainRisk.Assets)),
 			TriggeredBy:      createdBy.String(),
 		}
 		_ = h.redisClient.Publish(c.Context(), events.RiskUpdated, event)
 	}
 
 	var out domain.Risk
-	if err := database.DB.Preload("Mitigations").Preload("Mitigations.SubActions").Preload("Assets").First(&out, "id = ?", domainRisk.ID).Error; err != nil {
+	if err := database.DB.Preload("Mitigations").Preload("Mitigations.SubActions").Preload("Assets").First(&out, "id = ? AND tenant_id = ?", domainRisk.ID, orgID).Error; err != nil {
 		h.quantify(domainRisk)
 		return c.Status(201).JSON(domainRisk)
 	}
@@ -585,6 +573,13 @@ func (h *RiskHandler) UpdateRisk(c *fiber.Ctx) error {
 		actorID = mwCtx.UserID
 	}
 
+	var assetIDs []uuid.UUID
+	if len(input.AssetIDs) > 0 {
+		if assetIDs, err = parseAssetIDs(input.AssetIDs); err != nil {
+			return c.Status(400).JSON(fiber.Map{"error": "validation_failed", "details": err.Error()})
+		}
+	}
+
 	ucInput := risk.UpdateRiskInput{
 		Title:              &input.Title,
 		Description:        &input.Description,
@@ -594,6 +589,7 @@ func (h *RiskHandler) UpdateRisk(c *fiber.Ctx) error {
 		Frameworks:         input.Frameworks,
 		Ownership:          input.OwnershipPatch,
 		Category:           input.Category,
+		AssetIDs:           assetIDs,
 		Actor:              actorID,
 		Locale:             c.Query("locale", "fr"),
 		SLEXAF:             input.SLEXAF,
@@ -633,35 +629,13 @@ func (h *RiskHandler) UpdateRisk(c *fiber.Ctx) error {
 		return writeAppError(c, err)
 	}
 
-	if len(input.AssetIDs) > 0 {
-		var linkedAssets []*domain.Asset
-		query := database.DB
-		if mwCtx != nil {
-			query = query.Where("organization_id = ?", mwCtx.OrganizationID)
-		}
-		if err := query.Where("id IN ?", input.AssetIDs).Find(&linkedAssets).Error; err == nil {
-			domainRisk.Assets = linkedAssets
-			// No direct score compute here (RULE #12) — save the association,
-			// then publish a Redis event below so the ScoreWorker recalculates
-			// via the real Score Engine, same as CreateRisk.
-			if err := database.DB.Model(&domainRisk).Association("Assets").Replace(linkedAssets); err != nil {
-				log.Printf("Warning: failed to update asset associations for risk %s: %v", domainRisk.ID, err)
-			}
-		}
-	}
-
 	var out domain.Risk
-	hasOut := database.DB.Preload("Mitigations").Preload("Mitigations.SubActions").Preload("Assets").First(&out, "id = ?", riskID).Error == nil
+	hasOut := database.DB.Preload("Mitigations").Preload("Mitigations.SubActions").Preload("Assets").First(&out, "id = ? AND tenant_id = ?", riskID, orgID).Error == nil
 
 	// RULE #12: Score Engine is NEVER called directly from handler.
 	// Always publish Redis event → ScoreWorker listens and recalculates async.
-	// Uses the risk's currently linked assets — freshly replaced above if this
-	// update touched asset_ids, or its pre-existing ones otherwise — so an
-	// Impact/Probability-only edit still gets a criticality-adjusted score.
-	assetsForScoring := domainRisk.Assets
-	if hasOut {
-		assetsForScoring = out.Assets
-	}
+	// Uses the risk's linked assets as the use case scored them — replaced if
+	// this update sent asset_ids, its existing ones otherwise (#792).
 	if h.redisClient != nil {
 		userID := uuid.Nil
 		if mwCtx != nil {
@@ -672,7 +646,7 @@ func (h *RiskHandler) UpdateRisk(c *fiber.Ctx) error {
 			TenantID:         orgID.String(),
 			Probability:      float64(domainRisk.Probability),
 			Impact:           float64(domainRisk.Impact),
-			AssetCriticality: averageAssetCriticalityFactor(assetsForScoring),
+			AssetCriticality: domain.RiskAssetCriticality(domain.AssetCriticalities(domainRisk.Assets)),
 			TriggeredBy:      userID.String(),
 		}
 		_ = h.redisClient.Publish(c.Context(), events.RiskUpdated, event)
@@ -686,18 +660,18 @@ func (h *RiskHandler) UpdateRisk(c *fiber.Ctx) error {
 	return c.JSON(out)
 }
 
-// averageAssetCriticalityFactor averages domain.AssetCriticality.ScoreFactor()
-// across a risk's linked assets, for the Redis event consumed by ScoreWorker.
-// Defaults to 1.0 (neutral) when a risk has no linked assets yet.
-func averageAssetCriticalityFactor(assets []*domain.Asset) float64 {
-	if len(assets) == 0 {
-		return 1.0
+// parseAssetIDs parses the asset_ids of a create or update body. A malformed
+// id is a 400: it used to fail the lookup silently and drop every link.
+func parseAssetIDs(raw []string) ([]uuid.UUID, error) {
+	ids := make([]uuid.UUID, 0, len(raw))
+	for _, s := range raw {
+		id, err := uuid.Parse(s)
+		if err != nil {
+			return nil, fmt.Errorf("asset_ids: %q is not a valid id", s)
+		}
+		ids = append(ids, id)
 	}
-	var sum float64
-	for _, a := range assets {
-		sum += a.Criticality.ScoreFactor()
-	}
-	return sum / float64(len(assets))
+	return ids, nil
 }
 
 // DeleteRisk godoc
@@ -725,7 +699,6 @@ func (h *RiskHandler) DeleteRisk(c *fiber.Ctx) error {
 
 	return c.SendStatus(204)
 }
-
 
 // ---------------------------------------------------------------------------
 // Bulk actions — POST /api/v1/risks/bulk (#581)

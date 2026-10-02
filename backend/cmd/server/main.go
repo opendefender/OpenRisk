@@ -1197,16 +1197,20 @@ func main() {
 	// Initialize clean architecture risk module
 	riskRepo := repository.NewGormRiskRepository(database.DB)
 	riskControlMappingRepo := repository.NewGormRiskControlMappingRepository(database.DB)
+	riskAssetStore := repository.NewGormRiskAssetStore(database.DB)
 	createRiskUseCase := risk.NewCreateRiskUseCase(riskRepo).
 		WithActivation(activationRecorder).
-		WithOwnership(ownershipService)
+		WithOwnership(ownershipService).
+		WithAssets(riskAssetStore)
 	getRiskUseCase := risk.NewGetRiskUseCase(riskRepo).
 		WithMappings(riskControlMappingRepo).
 		WithOwnership(ownershipService)
 	listRisksUseCase := risk.NewListRisksUseCase(riskRepo).
 		WithMappings(riskControlMappingRepo).
 		WithOwnership(ownershipService)
-	updateRiskUseCase := risk.NewUpdateRiskUseCase(riskRepo).WithOwnership(ownershipService)
+	updateRiskUseCase := risk.NewUpdateRiskUseCase(riskRepo).
+		WithOwnership(ownershipService).
+		WithAssets(riskAssetStore)
 	deleteRiskUseCase := risk.NewDeleteRiskUseCase(riskRepo)
 	// Cyber Risk Quantification: XAF→USD rate configurable via XAF_USD_RATE
 	// (default ≈ 600 FCFA/USD). Reference ALE bands match the board ExposureModel.

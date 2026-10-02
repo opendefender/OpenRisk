@@ -42,6 +42,38 @@ func (c AssetCriticality) ScoreFactor() float64 {
 	}
 }
 
+// NoAssetCriticalityFactor is the asset-criticality term of a risk with no
+// linked asset: neutral, so the score is P × I. It is what the Score Engine
+// worker, the handlers and the demo seed have always stored for such a risk.
+const NoAssetCriticalityFactor = 1.0
+
+// RiskAssetCriticality is THE asset-criticality term of the frozen formula for
+// a risk: the average ScoreFactor of its linked assets, or
+// NoAssetCriticalityFactor when none is linked. Every writer and every reader
+// of a risk score derives the term here, so a stored score and its displayed
+// working can never disagree on it (#792).
+func RiskAssetCriticality(crits []AssetCriticality) float64 {
+	if len(crits) == 0 {
+		return NoAssetCriticalityFactor
+	}
+	var sum float64
+	for _, c := range crits {
+		sum += c.ScoreFactor()
+	}
+	return sum / float64(len(crits))
+}
+
+// AssetCriticalities lists the criticality of each asset, for RiskAssetCriticality.
+func AssetCriticalities(assets []*Asset) []AssetCriticality {
+	out := make([]AssetCriticality, 0, len(assets))
+	for _, a := range assets {
+		if a != nil {
+			out = append(out, a.Criticality)
+		}
+	}
+	return out
+}
+
 type Asset struct {
 	ID             uuid.UUID        `gorm:"type:uuid;default:gen_random_uuid();primaryKey" json:"id"`
 	TenantID       uuid.UUID        `gorm:"type:uuid;index" json:"tenant_id"`
