@@ -7,8 +7,11 @@ package middleware
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
+	"net/http/httptest"
+	"strconv"
 	"testing"
 	"time"
 
@@ -273,5 +276,64 @@ func BenchmarkRateLimitStore_IsAllowed(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		store.IsAllowed("bench-key", 1000, 1*time.Minute)
+	}
+}
+
+// #688 — a throttled caller must be told how long to wait, in a header for
+// HTTP clients and in the body for a browser app that cannot read headers
+// CORS does not expose.
+func TestRateLimit_RefusalCarriesRetryAfterAndCode(t *testing.T) {
+	app := fiber.New()
+	window := 5 * time.Minute
+	app.Post("/x", RateLimit(RateLimitConfig{MaxRequests: 1, WindowSize: window, Store: NewRateLimitStore()}),
+		func(c *fiber.Ctx) error { return c.SendStatus(fiber.StatusNoContent) })
+
+	first, _ := app.Test(httptest.NewRequest(http.MethodPost, "/x", nil))
+	if first.StatusCode != fiber.StatusNoContent {
+		t.Fatalf("first request: got %d", first.StatusCode)
+	}
+	resp, _ := app.Test(httptest.NewRequest(http.MethodPost, "/x", nil))
+	if resp.StatusCode != fiber.StatusTooManyRequests {
+		t.Fatalf("second request: got %d, want 429", resp.StatusCode)
+	}
+
+	header, err := strconv.Atoi(resp.Header.Get("Retry-After"))
+	if err != nil || header < 1 || header > int(window.Seconds()) {
+		t.Fatalf("Retry-After = %q, want 1..%d seconds", resp.Header.Get("Retry-After"), int(window.Seconds()))
+	}
+
+	var body struct {
+		Error      bool   `json:"error"`
+		Msg        string `json:"msg"`
+		Code       string `json:"code"`
+		RetryAfter int    `json:"retry_after"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&body); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if body.Code != "RATE_LIMITED" || body.RetryAfter != header {
+		t.Fatalf("body = %+v, want code RATE_LIMITED and retry_after %d", body, header)
+	}
+	// Existing clients read these two; they stay.
+	if !body.Error || body.Msg != "Rate limit exceeded" {
+		t.Fatalf("legacy fields changed: %+v", body)
+	}
+}
+
+func TestRetryAfter_IsTheRestOfTheFixedWindow(t *testing.T) {
+	window := 5 * time.Minute
+	start := time.Unix(0, 0).Add(1000 * window) // a bucket boundary
+	cases := []struct {
+		at   time.Duration
+		want time.Duration
+	}{
+		{0, window},
+		{time.Minute, 4 * time.Minute},
+		{window - 300*time.Millisecond, time.Second}, // never below one second
+	}
+	for _, tc := range cases {
+		if got := retryAfter(start.Add(tc.at), window); got != tc.want {
+			t.Errorf("at +%v: got %v, want %v", tc.at, got, tc.want)
+		}
 	}
 }
