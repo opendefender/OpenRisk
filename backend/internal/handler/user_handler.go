@@ -7,6 +7,8 @@ package handler
 
 import (
 	"net"
+	"strings"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
@@ -16,14 +18,19 @@ import (
 	"github.com/opendefender/openrisk/internal/infrastructure/database"
 	"github.com/opendefender/openrisk/internal/middleware"
 	"github.com/opendefender/openrisk/internal/service"
+	"gorm.io/gorm"
 )
 
 type CreateUserInput struct {
-	Email      string `json:"email" validate:"required,email"`
-	Username   string `json:"username" validate:"required,min=3"`
-	FullName   string `json:"full_name" validate:"required"`
-	Password   string `json:"password" validate:"required,min=8"`
-	Role       string `json:"role" validate:"required"` // admin, analyst, viewer
+	Email    string `json:"email" validate:"required,email"`
+	Username string `json:"username" validate:"required,min=3"`
+	FullName string `json:"full_name" validate:"required"`
+	Password string `json:"password" validate:"required,min=8"`
+	// Role is the account's global role, matched case-insensitively against the
+	// roles table (Admin, Manager, Analyst, Viewer). It is NOT the role in the
+	// organization: the account joins the caller's organization as a member
+	// ("user"), and an admin promotes it with PUT /organization/members/:id/role.
+	Role       string `json:"role" validate:"required"`
 	Department string `json:"department,omitempty"`
 }
 
@@ -125,6 +132,13 @@ func CreateUser(c *fiber.Ctx) error {
 	// in-handler check this replaced read users.role_id, a global column no
 	// session derives its role from (#807).
 
+	// The account is created INTO the caller's active organization. Without one
+	// it would belong nowhere and could never sign in (#870).
+	tenantID := safeGetUUID(c, "tenant_id")
+	if tenantID == uuid.Nil {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "No active organization in session"})
+	}
+
 	input := new(CreateUserInput)
 	if err := c.BodyParser(input); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid input"})
@@ -143,8 +157,10 @@ func CreateUser(c *fiber.Ctx) error {
 
 	// Get the role
 	var role domain.Role
-	if err := database.DB.Where("name = ?", input.Role).First(&role).Error; err != nil {
-		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Role not found"})
+	if err := database.DB.Where("LOWER(name) = LOWER(?)", strings.TrimSpace(input.Role)).First(&role).Error; err != nil {
+		var names []string
+		_ = database.DB.Model(&domain.Role{}).Order("name").Pluck("name", &names).Error
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Role not found", "accepted_roles": names})
 	}
 
 	// Hash password using Argon2id (OWASP recommended)
@@ -155,6 +171,10 @@ func CreateUser(c *fiber.Ctx) error {
 	}
 
 	newUser := domain.User{
+		// Set here, not left to the column default, so the membership written
+		// in the same transaction points at it on every database (as the
+		// invitation flow does).
+		ID:         uuid.New(),
 		Email:      input.Email,
 		Username:   input.Username,
 		FullName:   input.FullName,
@@ -162,21 +182,31 @@ func CreateUser(c *fiber.Ctx) error {
 		RoleID:     role.ID,
 		Department: input.Department,
 		IsActive:   true,
+		// Login resolves the organization from default_org_id. Leaving it empty
+		// made every account created here unable to sign in (#870).
+		DefaultOrgID: &tenantID,
 	}
 
-	if err := database.DB.Create(&newUser).Error; err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to create user"})
-	}
-
-	// Attach the new user to the caller's organization so it belongs to this
-	// tenant (and is visible to /users, which is now org-scoped) rather than
-	// floating globally with no membership.
-	if tenantID := safeGetUUID(c, "tenant_id"); tenantID != uuid.Nil {
-		_ = database.DB.Create(&domain.OrganizationMember{
+	// The account and its membership are one fact: written together or not at
+	// all, as an invitation acceptance does (rule 7). The membership used to be
+	// written after the user, with its error discarded.
+	now := time.Now().UTC()
+	err = database.DB.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(&newUser).Error; err != nil {
+			return err
+		}
+		return tx.Create(&domain.OrganizationMember{
+			ID:             uuid.New(),
 			OrganizationID: tenantID,
 			UserID:         newUser.ID,
 			Role:           domain.RoleUser,
+			Status:         domain.MembershipActive,
+			IsActive:       true,
+			JoinedAt:       now,
 		}).Error
+	})
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to create user"})
 	}
 
 	// Log the action
