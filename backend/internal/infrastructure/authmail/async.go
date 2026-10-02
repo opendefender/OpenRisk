@@ -34,6 +34,7 @@ type ResetMailerLike interface {
 	SendNewSignInAlert(ctx context.Context, to, fullName, ip, userAgent string, when time.Time, locale string) error
 	SendPasswordChanged(ctx context.Context, to, fullName, locale string) error
 	SendMFADisabled(ctx context.Context, to, fullName, locale string) error
+	SendMFALocked(ctx context.Context, to, fullName, locale string) error
 }
 
 // NewAsync wraps a mailer so every send returns immediately.
@@ -62,6 +63,12 @@ func (a *Async) SendPasswordChanged(_ context.Context, to, fullName, locale stri
 // SendMFADisabled queues the two-factor deactivation notice.
 func (a *Async) SendMFADisabled(_ context.Context, to, fullName, locale string) error {
 	a.dispatch(func(ctx context.Context) { _ = a.inner.SendMFADisabled(ctx, to, fullName, locale) })
+	return nil
+}
+
+// SendMFALocked queues the second-factor lock notice (#689).
+func (a *Async) SendMFALocked(_ context.Context, to, fullName, locale string) error {
+	a.dispatch(func(ctx context.Context) { _ = a.inner.SendMFALocked(ctx, to, fullName, locale) })
 	return nil
 }
 
