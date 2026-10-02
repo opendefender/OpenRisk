@@ -21,6 +21,10 @@ type MFARepository interface {
 	// ConsumeTOTPStep marks a TOTP step as used; false means it (or a later one)
 	// already was, i.e. a replay (#849).
 	ConsumeTOTPStep(ctx context.Context, userID, tenantID uuid.UUID, step int64) (bool, error)
+	// ReplaceUnverifiedMFASecret swaps the key material of a secret that was
+	// never verified, for an enrolment started over (#889). false means there
+	// is no unverified secret to replace, e.g. it was verified meanwhile.
+	ReplaceUnverifiedMFASecret(ctx context.Context, userID, tenantID uuid.UUID, secretEncrypted string) (bool, error)
 	// DisableMFA deletes the secret AND the backup codes, atomically.
 	DisableMFA(ctx context.Context, userID, tenantID uuid.UUID) error
 

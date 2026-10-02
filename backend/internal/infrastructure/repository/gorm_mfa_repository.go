@@ -71,6 +71,27 @@ func (r *GormMFARepository) ConsumeTOTPStep(ctx context.Context, userID, tenantI
 	return res.RowsAffected == 1, nil
 }
 
+// ReplaceUnverifiedMFASecret gives an unfinished enrolment a new key (#889).
+//
+// One conditional UPDATE, not a read and a Save: the is_verified = false guard
+// makes it lose cleanly against a verification that lands at the same moment,
+// and last_totp_step is reset here explicitly rather than by a Save, which
+// ConsumeTOTPStep's contract forbids (#849). The step and last use belonged to
+// the abandoned key, so they start over with the new one.
+func (r *GormMFARepository) ReplaceUnverifiedMFASecret(ctx context.Context, userID, tenantID uuid.UUID, secretEncrypted string) (bool, error) {
+	res := r.db.WithContext(ctx).Model(&domain.MFASecret{}).
+		Where("user_id = ? AND tenant_id = ? AND is_verified = ?", userID, tenantID, false).
+		Updates(map[string]any{
+			"secret_encrypted": secretEncrypted,
+			"last_totp_step":   nil,
+			"last_used_at":     nil,
+		})
+	if res.Error != nil {
+		return false, res.Error
+	}
+	return res.RowsAffected == 1, nil
+}
+
 // DisableMFA removes the TOTP secret and every backup code of one user, in one
 // transaction (#754).
 //
