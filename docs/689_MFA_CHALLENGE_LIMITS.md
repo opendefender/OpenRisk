@@ -161,34 +161,34 @@ Live check: throwaway pg + redis on spare ports, run the server from the repo ro
 
 Each task ends green on its own `go test` and is one commit (`fix(auth): … (#689)`).
 
-- [ ] **T1 — Attempt store.** Adds the `MFAAttemptStore` port in `application/auth`, and `infrastructure/authmfa/attempts.go`: Redis (`INCR` + `EXPIRE` on the first increment, `SET` with TTL, `EXISTS`, `DEL`) with an in-memory fallback.
+- [x] **T1 — Attempt store.** Adds the `MFAAttemptStore` port in `application/auth`, and `infrastructure/authmfa/attempts.go`: Redis (`INCR` + `EXPIRE` on the first increment, `SET` with TTL, `EXISTS`, `DEL`) with an in-memory fallback.
   - Accept: counts, expires, falls back when Redis errors.
   - Verify: `go test ./internal/infrastructure/authmfa/ -race`
   - Files: `application/auth/mfa_limits.go` (new), `infrastructure/authmfa/attempts.go`, `attempts_test.go`
 
-- [ ] **T2 — Per-token and per-account limits in the use case.**
+- [x] **T2 — Per-token and per-account limits in the use case.**
   - `WithAttemptLimits(store, revoker)`; input `ChallengeJTI` and `ChallengeExpiresAt`; `ErrMFAChallengeExhausted` and `ErrMFAChallengeLocked{RetryAfter}`.
   - Checks the lock and the token count before verifying. Counts failures, blacklists the token at 5, locks at 10, clears the user counter on success.
   - Accept: success criteria 1, 2 and 4 at the use-case level.
   - Verify: `go test ./internal/application/auth/ -run MFAChallenge -race -v`
   - Files: `mfa_usecase.go`, `mfa_limits.go`, `mfa_challenge_limits_test.go`
 
-- [ ] **T3 — Lock email.** `MFALockedMailer` port, sent once when the lock is set; FR/EN template in `authmail`.
+- [x] **T3 — Lock email.** `MFALockedMailer` port, sent once when the lock is set; FR/EN template in `authmail`.
   - Accept: one email per lock, not per refused attempt; a mail failure does not change the result.
   - Verify: `go test ./internal/application/auth/ ./internal/infrastructure/authmail/ -race`
   - Files: `mfa_limits.go`, `authmail/` mailer and its test
 
-- [ ] **T4 — Handler and route.** `Challenge` passes the JTI and expiry and maps the errors (401 `MFA_CHALLENGE_EXHAUSTED`, 429 `MFA_LOCKED` with `Retry-After`). In `main.go`: wiring plus the per-IP `RateLimit` with the `mfa-challenge` prefix, mounted before `MFATokenMiddleware`.
+- [x] **T4 — Handler and route.** `Challenge` passes the JTI and expiry and maps the errors (401 `MFA_CHALLENGE_EXHAUSTED`, 429 `MFA_LOCKED` with `Retry-After`). In `main.go`: wiring plus the per-IP `RateLimit` with the `mfa-challenge` prefix, mounted before `MFATokenMiddleware`.
   - Accept: success criteria 1, 2 and 3 over HTTP.
   - Verify: `go test ./internal/handler/auth/ -run MFAChallenge -race -v`
   - Files: `mfa_handler.go`, `main.go`, `mfa_challenge_e2e_test.go`
 
-- [ ] **T5 — Logout revokes the access token.** A `TokenRevoker` in `LogoutUseCase` (input `AccessJTI` and `AccessExpiresAt`); the handler extracts and validates the bearer or cookie token; wiring in `main.go`.
+- [x] **T5 — Logout revokes the access token.** A `TokenRevoker` in `LogoutUseCase` (input `AccessJTI` and `AccessExpiresAt`); the handler extracts and validates the bearer or cookie token; wiring in `main.go`.
   - Accept: success criterion 5, for both bearer and cookie.
   - Verify: `go test ./internal/application/auth/ ./internal/handler/auth/ -run Logout -race -v`
   - Files: `logout.go`, `handler.go`, `main.go`, tests
 
-- [ ] **T6 — Full gate and live proof.**
+- [x] **T6 — Full gate and live proof.**
   - Run `go build ./... && go vet ./... && go test ./... -race`.
   - Live boot with an enrolled account: criteria 1, 2 and 5 by curl, plus the lock email in the mail log.
   - Open the frontend follow-up issue, post the progress comment, open the PR with `Closes #689`, set `status:in-review`.
