@@ -92,10 +92,10 @@ func (s *AuditService) LogEvent(ctx context.Context, userID *uuid.UUID, tenantID
 // userID/tenantID are passed explicitly because most auth events (login, refresh,
 // OAuth/SAML callbacks) fire BEFORE any auth middleware populates the context.
 func (s *AuditService) LogFiber(c *fiber.Ctx, userID, tenantID *uuid.UUID, action AuditAction, success bool, failureReason *string) error {
+	// c.IP() only, never the raw X-Forwarded-For (#877). Fiber resolves the
+	// forwarded address only when the peer is a trusted proxy (F-04); reading the
+	// header directly let any client write the IP of its choice into the trail.
 	ip := c.IP()
-	if xff := c.Get("X-Forwarded-For"); xff != "" {
-		ip = xff
-	}
 	userAgent := c.Get("User-Agent")
 
 	var deviceFP *string
