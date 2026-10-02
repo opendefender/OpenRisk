@@ -401,6 +401,10 @@ type ChallengeMFAInput struct {
 	UserID   uuid.UUID
 	TenantID uuid.UUID
 	Code     string // TOTP code OR backup code
+	// ChallengeJTI and ChallengeExpiresAt identify the MFA_REQUIRED token the
+	// request came with. Attempts are counted against it (#689).
+	ChallengeJTI       string
+	ChallengeExpiresAt time.Time
 }
 
 // ChallengeMFAOutput represents MFA challenge response
@@ -413,6 +417,7 @@ type ChallengeMFAOutput struct {
 type ChallengeMFAUseCase struct {
 	mfaRepo repository.MFARepository
 	encKey  []byte
+	limits  *challengeLimits
 }
 
 // NewChallengeMFAUseCase creates a new challenge MFA use case
@@ -423,7 +428,11 @@ func NewChallengeMFAUseCase(mfaRepo repository.MFARepository, encKey []byte) *Ch
 	}
 }
 
-// Execute verifies TOTP or backup code during login
+// Execute verifies TOTP or backup code during login.
+//
+// With limits wired, every attempt is reserved against the challenge token and
+// the account before the code is checked, so parallel requests cannot all slip
+// under the limit together. A TOTP code and a backup code are the same attempt.
 func (uc *ChallengeMFAUseCase) Execute(ctx context.Context, input ChallengeMFAInput) (*ChallengeMFAOutput, error) {
 	if input.UserID == uuid.Nil || input.TenantID == uuid.Nil {
 		return nil, domain.NewValidationError("user_id and tenant_id required")
@@ -432,6 +441,35 @@ func (uc *ChallengeMFAUseCase) Execute(ctx context.Context, input ChallengeMFAIn
 		return nil, domain.NewValidationError("code required")
 	}
 
+	if uc.limits != nil {
+		if err := uc.limits.reserve(ctx, input); err != nil {
+			return nil, err
+		}
+	}
+
+	out, err := uc.verify(ctx, input)
+	if errors.Is(err, errMFACodeMismatch) {
+		if uc.limits != nil {
+			if limitErr := uc.limits.recordFailure(ctx, input); limitErr != nil {
+				return nil, limitErr
+			}
+		}
+		return nil, domain.NewValidationError("invalid MFA code")
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	if uc.limits != nil {
+		uc.limits.recordSuccess(ctx, input)
+	}
+	return out, nil
+}
+
+// errMFACodeMismatch is the one outcome that counts as a failed guess.
+var errMFACodeMismatch = errors.New("mfa code mismatch")
+
+func (uc *ChallengeMFAUseCase) verify(ctx context.Context, input ChallengeMFAInput) (*ChallengeMFAOutput, error) {
 	// Get MFA secret
 	mfaSecret, err := uc.mfaRepo.GetMFASecret(ctx, input.UserID, input.TenantID)
 	if err != nil {
@@ -480,5 +518,5 @@ func (uc *ChallengeMFAUseCase) Execute(ctx context.Context, input ChallengeMFAIn
 		}
 	}
 
-	return nil, domain.NewValidationError("invalid MFA code")
+	return nil, errMFACodeMismatch
 }
