@@ -99,10 +99,11 @@ func newChallengeStack(t *testing.T, ipLimit int) *challengeStack {
 		RequireMFAForRoles(orgRoles, businessRoles).
 		WithMFAPolicies(f.policyRepo).
 		WithClock(func() time.Time { return f.now })
-	logoutUC := appauth.NewLogoutUseCase(tokens)
+	logoutUC := appauth.NewLogoutUseCase(tokens).WithAccessTokenRevocation(blacklist)
 	h := authhandler.NewHandler(loginUC, nil, nil, logoutUC, deferredHasher{}, nil).
 		WithUserLookup(userRepo).
-		WithMFAStatus(f.resolver)
+		WithMFAStatus(f.resolver).
+		WithAccessTokenRevocation(f.keys)
 
 	challengeUC := appauth.NewChallengeMFAUseCase(mfaRepo, deferredTOTPKey).
 		WithAttemptLimits(authmfa.NewMemoryAttemptStore(), blacklist)
