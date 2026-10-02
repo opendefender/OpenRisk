@@ -11,9 +11,12 @@ import { useUIStore, type Theme, type Variant } from '../../store/uiStore';
 import { ACCENT_LABELS, ACCENT_PRESETS } from '../../shared/accentPresets';
 
 // Swatch colours only; the list of accents comes from shared/accentPresets.
+// The preview tokens in tokens.css (--swatch-*), which mirror each variant's
+// real accent per theme. The literals that stood here (#0a84ff, #7c6cff)
+// matched neither theme's accent.
 const SWATCH: Record<Variant, string> = {
-  azure: '#0a84ff',
-  iris: '#7c6cff',
+  azure: 'var(--swatch-azure)',
+  iris: 'var(--swatch-iris)',
 };
 const ACCENTS = ACCENT_PRESETS.map((key) => ({
   key,
