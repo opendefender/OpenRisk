@@ -274,9 +274,6 @@ func main() {
 		log.Fatalf("Failed to initialize default permission roles: %v", err)
 	}
 
-	// Initialize Token Service for API token management
-	tokenService := service.NewTokenService()
-
 	// Initialize Score Engine Service for automatic risk score calculation
 	scoreEngineService := service.NewScoreEngineService(database.DB)
 	log.Println("Score Engine: Service initialized with default configuration")
@@ -592,8 +589,9 @@ func main() {
 	tokenManager.SetOrgSessionResolver(resolveSessionForOrg)
 
 	// L5 — Personal Access Tokens. DB-backed service (survives restarts, scoped),
-	// its auth middleware, and a management handler. The same resolveSession gives a
-	// PAT the owner's tenant + permissions (narrowed to the token's scopes).
+	// its auth middleware, and a management handler. resolveSessionForOrg gives a
+	// PAT its owner's permissions in the token's own tenant (narrowed to the
+	// token's scopes), and refuses once the owner is no longer a member there.
 	patService := coreauth.NewPersonalAccessTokenService(repository.NewGormPersonalAccessTokenRepository(database.DB))
 
 	// L7 — full-fidelity auth audit trail (auth_audit_logs: IP, UA, geo, device
@@ -977,7 +975,7 @@ func main() {
 	// L5 — PAT authentication runs BEFORE the JWT gate: it authenticates PAT-shaped
 	// bearers and is a no-op for JWTs (which the RS256 middleware then handles). The
 	// JWT middleware skips when a PAT already authenticated the request.
-	api.Use(middleware.PATMiddleware(patService, resolveSession))
+	api.Use(middleware.PATMiddleware(patService, resolveSessionForOrg))
 	protected := api.Use(middleware.Protected(rsaKeys, jtiBlacklistChecker))
 
 	// Response-cache invalidation (#337). Mounted here, right after the gate that
@@ -1199,16 +1197,20 @@ func main() {
 	// Initialize clean architecture risk module
 	riskRepo := repository.NewGormRiskRepository(database.DB)
 	riskControlMappingRepo := repository.NewGormRiskControlMappingRepository(database.DB)
+	riskAssetStore := repository.NewGormRiskAssetStore(database.DB)
 	createRiskUseCase := risk.NewCreateRiskUseCase(riskRepo).
 		WithActivation(activationRecorder).
-		WithOwnership(ownershipService)
+		WithOwnership(ownershipService).
+		WithAssets(riskAssetStore)
 	getRiskUseCase := risk.NewGetRiskUseCase(riskRepo).
 		WithMappings(riskControlMappingRepo).
 		WithOwnership(ownershipService)
 	listRisksUseCase := risk.NewListRisksUseCase(riskRepo).
 		WithMappings(riskControlMappingRepo).
 		WithOwnership(ownershipService)
-	updateRiskUseCase := risk.NewUpdateRiskUseCase(riskRepo).WithOwnership(ownershipService)
+	updateRiskUseCase := risk.NewUpdateRiskUseCase(riskRepo).
+		WithOwnership(ownershipService).
+		WithAssets(riskAssetStore)
 	deleteRiskUseCase := risk.NewDeleteRiskUseCase(riskRepo)
 	// Cyber Risk Quantification: XAF→USD rate configurable via XAF_USD_RATE
 	// (default ≈ 600 FCFA/USD). Reference ALE bands match the board ExposureModel.
@@ -1247,7 +1249,20 @@ func main() {
 		// implementation accepted a performedBy and discarded it, so a supervisor
 		// asking "who reassigned these and when" had no answer. auditChainRepo is
 		// the same hash-chained, append-only store the rest of the trail uses.
-		WithBulkAction(risk.NewBulkActionUseCase(riskRepo, auditChainRepo))
+		WithBulkAction(risk.NewBulkActionUseCase(riskRepo, auditChainRepo)).
+		// #755 — CSV import: every row validated first, then all of them written
+		// in one transaction through CreateRiskUseCase, or none. The plan cap is
+		// checked against the whole file, not just the first row.
+		WithImport(risk.NewImportRisksUseCase(repository.RunRiskTx(database.DB)).
+			WithAssets(repository.ListImportAssetRefs(database.DB)).
+			WithActivation(activationRecorder).
+			WithCapacity(func(ctx context.Context, tenant uuid.UUID) (int, error) {
+				_, limit, used, _, err := entitlementService.Capacity(ctx, tenant, ent.LimitRisks)
+				if err != nil || limit == ent.Unlimited || used < 0 {
+					return -1, err
+				}
+				return max(limit-used, 0), nil
+			}))
 
 	// Financial Risk Quantification (spec §9): tenant-wide CFO/CISO dashboard
 	// (portfolio FAIR-lite P10/P50/P90, ALE, worst-case, residual, remediation
@@ -1318,6 +1333,9 @@ func main() {
 	protected.Post("/risks/bulk", riskUpdate, riskHandler.BulkAction)
 
 	protected.Post("/risks", riskCreate, capRisks, riskHandler.CreateRisk)
+	// #755 — CSV import. capRisks refuses a tenant already at its limit; the use
+	// case then refuses a file that would carry it past.
+	protected.Post("/risks/import", riskCreate, capRisks, riskHandler.ImportRisks)
 	protected.Patch("/risks/:id", riskUpdate, riskHandler.UpdateRisk)
 	protected.Post("/risks/:id/review", riskUpdate, riskHandler.MarkReviewed)
 	protected.Post("/risks/:id/transfer-owner", riskUpdate, ownershipTransferHandler.TransferRiskOwner)
@@ -2100,20 +2118,6 @@ func main() {
 	protected.Get("/audit-logs", adminRole, auditHandler.GetAuditLogs)
 	protected.Get("/audit-logs/user/:user_id", adminRole, auditHandler.GetUserAuditLogs)
 	protected.Get("/audit-logs/action/:action", adminRole, auditHandler.GetAuditLogsByAction)
-
-	// --- API Token Management (Protected routes) ---
-	// Tokens can be managed by any authenticated user for their own tokens
-	tokenHandler := handlers.NewTokenHandler(tokenService)
-
-	// API tokens are personal: every verb below loads the token and refuses when
-	// token.UserID is not the caller. The session is the authorization (#529).
-	protected.Post("/tokens", tokenHandler.CreateToken)
-	protected.Get("/tokens", tokenHandler.ListTokens)
-	protected.Get("/tokens/:id", tokenHandler.GetToken)
-	protected.Put("/tokens/:id", tokenHandler.UpdateToken)
-	protected.Post("/tokens/:id/revoke", tokenHandler.RevokeToken)
-	protected.Post("/tokens/:id/rotate", tokenHandler.RotateToken)
-	protected.Delete("/tokens/:id", tokenHandler.DeleteToken)
 
 	// --- Custom Fields Management (Protected routes) ---
 	customFieldHandler := handlers.NewCustomFieldHandler()

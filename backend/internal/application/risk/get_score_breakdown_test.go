@@ -29,9 +29,10 @@ func TestGetScoreBreakdown_Success_NoLinkedAssets(t *testing.T) {
 	breakdown, err := uc.Execute(context.Background(), tenantID, riskID)
 
 	require.NoError(t, err)
-	// No linked assets → defaults to MEDIUM's factor (1.5): 0.5 * 8.0 * 1.5 = 6.0
-	assert.Equal(t, 6.0, breakdown.Score)
-	assert.Equal(t, 1.5, breakdown.AssetCriticality)
+	// No linked assets → the neutral factor every score writer stores (#792):
+	// 0.5 * 8.0 * 1.0 = 4.0
+	assert.Equal(t, 4.0, breakdown.Score)
+	assert.Equal(t, domain.NoAssetCriticalityFactor, breakdown.AssetCriticality)
 }
 
 func TestGetScoreBreakdown_AveragesAcrossAllLinkedAssets(t *testing.T) {

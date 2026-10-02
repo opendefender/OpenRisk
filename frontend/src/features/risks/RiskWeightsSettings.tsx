@@ -7,7 +7,7 @@
 // multifactor smart-risk model (spec §8). Weights are relative; the panel shows
 // the live-normalised effective share of each factor. Read-only for non-admins.
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { toast } from 'sonner';
 import { SlidersHorizontal, RotateCcw, Save, ArrowLeft } from 'lucide-react';
@@ -73,21 +73,27 @@ export function RiskWeightsSettings() {
   const { data, isLoading, isError, refetch } = useRiskWeights();
   const update = useUpdateRiskWeights();
 
-  const [w, setW] = useState<FactorWeightsInput | null>(null);
-  useEffect(() => {
-    if (data) {
-      setW({
-        business_criticality: data.business_criticality,
-        internet_exposure: data.internet_exposure,
-        vulnerabilities: data.vulnerabilities,
-        control_maturity: data.control_maturity,
-        incident_history: data.incident_history,
-        exploitability: data.exploitability,
-        financial_value: data.financial_value,
-        threat_intel: data.threat_intel,
-      });
-    }
-  }, [data]);
+  // The admin's unsaved edits. Null means "show what the server holds": the
+  // weights are derived from the query on render, not copied into state by an
+  // effect, which cost a second render on every load.
+  const [edits, setEdits] = useState<FactorWeightsInput | null>(null);
+  const w = useMemo<FactorWeightsInput | null>(
+    () =>
+      edits ??
+      (data
+        ? {
+            business_criticality: data.business_criticality,
+            internet_exposure: data.internet_exposure,
+            vulnerabilities: data.vulnerabilities,
+            control_maturity: data.control_maturity,
+            incident_history: data.incident_history,
+            exploitability: data.exploitability,
+            financial_value: data.financial_value,
+            threat_intel: data.threat_intel,
+          }
+        : null),
+    [edits, data],
+  );
 
   const total = useMemo(() => (w ? FACTOR_KEYS.reduce((s, k) => s + (w[k] || 0), 0) : 0), [w]);
 
@@ -113,8 +119,7 @@ export function RiskWeightsSettings() {
     );
   }
 
-  const setFactor = (k: FactorKey, val: number) =>
-    setW((prev) => (prev ? { ...prev, [k]: val } : prev));
+  const setFactor = (k: FactorKey, val: number) => setEdits({ ...w, [k]: val });
   const dirty = FACTOR_KEYS.some((k) => Math.abs((w[k] || 0) - (data?.[k] ?? 0)) > 1e-6);
 
   const save = async () => {
@@ -124,6 +129,8 @@ export function RiskWeightsSettings() {
     }
     try {
       await update.mutateAsync(w);
+      // Saved: show the server's copy again, as the old effect did on refetch.
+      setEdits(null);
       toast.success(tr('Pondérations enregistrées.', 'Weights saved.'));
     } catch {
       toast.error(tr('Échec de l’enregistrement.', 'Failed to save.'));
@@ -150,7 +157,7 @@ export function RiskWeightsSettings() {
               <Btn
                 label={tr('Défauts', 'Defaults')}
                 icon={RotateCcw}
-                onClick={() => setW({ ...DEFAULT_WEIGHTS })}
+                onClick={() => setEdits({ ...DEFAULT_WEIGHTS })}
               />
             )}
             {isAdmin && (

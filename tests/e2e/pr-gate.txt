@@ -12,6 +12,7 @@
 
 tests/e2e/journey.members.spec.ts
 tests/e2e/journey.rbac.spec.ts
+tests/e2e/deep-link.reload.spec.ts
 
 # Held out — failing in CI, re-admitted when green:
 #   tests/e2e/a11y.spec.ts              #662

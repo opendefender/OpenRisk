@@ -75,8 +75,8 @@ type ScoreWorking struct {
 	Formula string             `json:"formula"`
 	Terms   []ScoreWorkingTerm `json:"terms"`
 	// Assets are averaged into asset_criticality. Empty with
-	// AssetCriticalityDefaulted=true means no asset is linked and the engine's
-	// documented default (medium) applied.
+	// AssetCriticalityDefaulted=true means no asset is linked and the neutral
+	// factor NoAssetCriticalityFactor (1.0) applied.
 	Assets                    []ScoreWorkingAsset `json:"assets"`
 	AssetCriticalityDefaulted bool                `json:"asset_criticality_defaulted"`
 

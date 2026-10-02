@@ -12,6 +12,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/opendefender/openrisk/internal/domain"
+	pkgscoring "github.com/opendefender/openrisk/pkg/scoring"
 )
 
 // UpdateRiskInput represents the input for updating a risk.
@@ -33,6 +34,9 @@ type UpdateRiskInput struct {
 	// CategoryID is tri-state via NullableUUID for the same reason ownership is:
 	// omitting it must not clear it.
 	Category domain.NullableUUID
+	// AssetIDs, when non-nil, replaces the risk's asset links. nil leaves them
+	// alone. Ids that are not the tenant's assets are dropped.
+	AssetIDs []uuid.UUID
 	// CRQ monetary inputs (XAF). Pointers so a partial update can set or clear them.
 	SLEXAF *float64
 	ARO    *float64
@@ -58,10 +62,19 @@ type UpdateRiskInput struct {
 type UpdateRiskUseCase struct {
 	riskRepo  domain.RiskRepository
 	ownership OwnershipManager
+	assets    RiskAssetStore
+	engine    pkgscoring.Engine
 }
 
 func NewUpdateRiskUseCase(riskRepo domain.RiskRepository) *UpdateRiskUseCase {
-	return &UpdateRiskUseCase{riskRepo: riskRepo}
+	return &UpdateRiskUseCase{riskRepo: riskRepo, engine: pkgscoring.NewEngine()}
+}
+
+// WithAssets attaches the asset store that resolves and links input.AssetIDs.
+// Without it, AssetIDs is ignored and the risk keeps its current links.
+func (uc *UpdateRiskUseCase) WithAssets(s RiskAssetStore) *UpdateRiskUseCase {
+	uc.assets = s
+	return uc
 }
 
 // WithOwnership attaches the optional ownership manager (membership validation
@@ -195,14 +208,35 @@ func (uc *UpdateRiskUseCase) Execute(ctx context.Context, orgID uuid.UUID, riskI
 		risk.AssignedTo = risk.AssigneeID
 	}
 
-	// 3. Recompute score + band it synchronously so the update response is
-	// self-consistent (score and criticality agree) rather than showing a stale
-	// band until the async ScoreWorker runs (audit-2026 #246).
-	risk.Score = risk.Impact * risk.Probability
-	risk.Criticality = domain.CriticalityFromScore(risk.Score)
+	// 2c. Replace the asset links when the caller sent them; otherwise the
+	// links GetByID preloaded stay, and still feed the score below.
+	relink := uc.assets != nil && input.AssetIDs != nil
+	var linked []*domain.Asset
+	if relink {
+		linked = []*domain.Asset{}
+		if len(input.AssetIDs) > 0 {
+			linked, err = uc.assets.FindByIDs(ctx, orgID, input.AssetIDs)
+			if err != nil {
+				return nil, domain.NewInternalError(fmt.Sprintf("failed to resolve assets: %v", err))
+			}
+		}
+		risk.Assets = linked
+	}
 
-	// 4. Persist
-	if err := uc.riskRepo.Update(ctx, risk); err != nil {
+	// 3. Recompute the score through the Score Engine with the risk's current
+	// terms, asset criticality included, so the update response and the row
+	// both carry the formula's score before the async worker runs (#792).
+	if err := applyScore(uc.engine, risk); err != nil {
+		return nil, err
+	}
+
+	// 4. Persist, with the new asset links in the same transaction.
+	if relink {
+		err = uc.assets.SaveWithAssets(ctx, risk, linked, false)
+	} else {
+		err = uc.riskRepo.Update(ctx, risk)
+	}
+	if err != nil {
 		return nil, domain.NewInternalError(fmt.Sprintf("failed to update risk: %v", err))
 	}
 

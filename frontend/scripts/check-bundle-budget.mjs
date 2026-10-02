@@ -36,7 +36,7 @@ if (!existsSync(indexHtml)) {
 
 const html = readFileSync(indexHtml, 'utf8');
 // Collect every JS asset the entry HTML references (script src + modulepreload).
-const refs = [...html.matchAll(/assets\/[A-Za-z0-9_-]+\.js/g)].map((m) => m[0]);
+const refs = [...html.matchAll(/static\/[A-Za-z0-9_-]+\.js/g)].map((m) => m[0]);
 const initial = [...new Set(refs)];
 
 if (initial.length === 0) {
@@ -63,14 +63,14 @@ console.log(`  ${kb(total).padStart(7)} KB  TOTAL`);
 console.log(`Budget: ${BUDGET_KB} KB`);
 
 // Report the largest lazy chunks too, for visibility (not counted).
-const lazy = readdirSync(join(DIST, 'assets'))
-  .filter((f) => f.endsWith('.js') && !initial.includes(`assets/${f}`))
-  .map((f) => ({ f, gz: gzipSync(readFileSync(join(DIST, 'assets', f))).length }))
+const lazy = readdirSync(join(DIST, 'static'))
+  .filter((f) => f.endsWith('.js') && !initial.includes(`static/${f}`))
+  .map((f) => ({ f, gz: gzipSync(readFileSync(join(DIST, 'static', f))).length }))
   .sort((a, b) => b.gz - a.gz)
   .slice(0, 5);
 if (lazy.length) {
   console.log('\nLargest lazy chunks (loaded on demand, not in the budget):');
-  for (const l of lazy) console.log(`  ${kb(l.gz).padStart(7)} KB  assets/${l.f}`);
+  for (const l of lazy) console.log(`  ${kb(l.gz).padStart(7)} KB  static/${l.f}`);
 }
 
 if (total > BUDGET_KB * 1024) {

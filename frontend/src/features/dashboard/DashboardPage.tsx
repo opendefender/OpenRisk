@@ -12,7 +12,7 @@
 // See docs/W0-06_SECURITY_COMMAND_CENTER.md for the contract inventory.
 
 import { localeTag } from '../../i18n/locales';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import {
   ShieldAlert,
@@ -44,6 +44,7 @@ import { WidgetState } from './WidgetState';
 import { SlotReel } from '../../shared/ds/SlotReel';
 import { useScore } from '../../hooks/useScore';
 import { ScoreGauge } from '../../shared/ScoreGauge';
+import { useScoreCardTilt } from './useScoreCardTilt';
 import { EmptyState } from '../../shared/EmptyState';
 import { Btn } from '../../shared/ui';
 import { useIncidents } from '../incidents/useIncidents';
@@ -150,6 +151,8 @@ function PostureDashboard() {
     isError: scoreError,
     isFetchedAfterMount: scoreFresh,
   } = useScore('tenant');
+  const scoreCardRef = useRef<HTMLDivElement>(null);
+  useScoreCardTilt(scoreCardRef);
   const user = useAuthStore((s) => s.user);
   const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
   const firstName = (user?.full_name || '').trim().split(/\s+/)[0] || user?.username || '';
@@ -258,15 +261,21 @@ function PostureDashboard() {
               two quantities on two scales pointing in opposite directions,
               both labelled "score". Both now read the same query key, and the
               competing formula has been removed from /stats entirely. */}
-          <ScoreGauge
-            score={tenantScore}
-            loading={scoreLoading}
-            error={scoreError}
-            fresh={scoreFresh}
-            title={L.globalScore}
-            ctaLabel={L.viewDetails}
-            onDetails={() => navigate('/score')}
-          />
+          {/* #856 — the tilt lives on this wrapper, never inside ScoreGauge, so
+              the arc and the figure move with the card as one surface. `grid`
+              keeps the card stretched to the row height it had as a direct
+              grid item. */}
+          <div ref={scoreCardRef} className="grid" data-testid="score-card-tilt">
+            <ScoreGauge
+              score={tenantScore}
+              loading={scoreLoading}
+              error={scoreError}
+              fresh={scoreFresh}
+              title={L.globalScore}
+              ctaLabel={L.viewDetails}
+              onDetails={() => navigate('/score')}
+            />
+          </div>
           <KpiGrid
             values={kpis}
             fmt={fmt}

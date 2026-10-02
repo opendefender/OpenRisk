@@ -148,8 +148,12 @@ func (AuthAuditLog) TableName() string {
 
 // PersonalAccessToken represents a PAT for API access
 type PersonalAccessToken struct {
-	ID          uuid.UUID      `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
-	UserID      uuid.UUID      `gorm:"type:uuid;index;not null" json:"user_id"`
+	ID     uuid.UUID `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
+	UserID uuid.UUID `gorm:"type:uuid;index;not null" json:"user_id"`
+	// TenantID is the organization the token was minted in and the only one it
+	// can act in (#782). Before it existed a PAT followed its owner's default
+	// organization, so changing that default silently moved every token.
+	TenantID    uuid.UUID      `gorm:"type:uuid;index;not null" json:"tenant_id"`
 	Name        string         `gorm:"not null" json:"name"`
 	Description string         `json:"description"`
 	TokenHash   string         `gorm:"type:varchar(64);uniqueIndex;not null" json:"-"` // SHA256 hash

@@ -22,7 +22,7 @@
 // Measured on this branch with `createScope` + `animate` + `stagger` (no SVG
 // module — `createDrawable` is deliberately unused, see CartesianChart):
 //
-//     dist/assets/anime-*.js    37.31 KB raw    14.95 KB gzip
+//     dist/static/anime-*.js    37.31 KB raw    14.95 KB gzip
 //
 // 15.5 KB is that measurement plus ~0.5 KB of headroom. This is a NEW gate where
 // none existed, set at the measured floor — not a relaxation of an existing one.
@@ -44,18 +44,18 @@ if (!existsSync(indexHtml)) {
   process.exit(2);
 }
 
-const assets = join(DIST, 'assets');
+const assets = join(DIST, 'static');
 const files = readdirSync(assets).filter((f) => f.endsWith('.js'));
 const animeChunks = files.filter((f) => /^anime-/.test(f));
 
 /* ---------------------------------------------- 1. never preloaded -------- */
 const html = readFileSync(indexHtml, 'utf8');
-const preloaded = new Set([...html.matchAll(/assets\/([A-Za-z0-9_-]+\.js)/g)].map((m) => m[1]));
+const preloaded = new Set([...html.matchAll(/static\/([A-Za-z0-9_-]+\.js)/g)].map((m) => m[1]));
 
 const leaked = animeChunks.filter((f) => preloaded.has(f));
 if (leaked.length > 0) {
   console.error('✗ anime.js is in the PRELOADED graph:\n');
-  for (const f of leaked) console.error(`    assets/${f}`);
+  for (const f of leaked) console.error(`    static/${f}`);
   console.error(
     '\nanime.js is admitted for entry animation on lazily-routed screens only.\n' +
       'Something on the preloaded path now imports it — most likely a barrel:\n' +
@@ -72,7 +72,7 @@ const contaminated = [...preloaded].filter((f) => {
 });
 if (contaminated.length > 0) {
   console.error('✗ anime.js source appears inside a PRELOADED chunk:\n');
-  for (const f of contaminated) console.error(`    assets/${f}`);
+  for (const f of contaminated) console.error(`    static/${f}`);
   console.error('\nThe manualChunks rule in vite.config.ts should isolate it as `anime`.');
   process.exit(1);
 }
@@ -88,7 +88,7 @@ let total = 0;
 for (const f of animeChunks) {
   const gz = gzipSync(readFileSync(join(assets, f))).length;
   total += gz;
-  console.log(`  ${(gz / 1000).toFixed(1).padStart(6)} KB  assets/${f}`);
+  console.log(`  ${(gz / 1000).toFixed(1).padStart(6)} KB  static/${f}`);
 }
 
 const totalKB = total / 1000;
