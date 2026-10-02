@@ -7,6 +7,7 @@ package auth
 
 import (
 	"errors"
+	"strconv"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -17,6 +18,7 @@ import (
 	"github.com/opendefender/openrisk/internal/domain"
 	"github.com/opendefender/openrisk/internal/infrastructure/repository"
 	"github.com/opendefender/openrisk/internal/middleware"
+	authpkg "github.com/opendefender/openrisk/pkg/auth"
 )
 
 // MFAHandler exposes the /auth/mfa/* endpoints: setup + verify (enrollment, under
@@ -296,12 +298,17 @@ func (h *MFAHandler) Challenge(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request body"})
 	}
 
-	if _, err := h.challenge.Execute(c.UserContext(), appauth.ChallengeMFAInput{UserID: userID, TenantID: tenantID, Code: req.Code}); err != nil {
-		if h.audit != nil {
-			reason := "invalid MFA code"
-			_ = h.audit.LogFiber(c, &userID, &tenantID, coreauth.AuditActionMfaVerify, false, &reason)
-		}
-		return mapAuthError(c, err)
+	input := appauth.ChallengeMFAInput{UserID: userID, TenantID: tenantID, Code: req.Code}
+	// The token's own identity, so attempts are counted against it (#689).
+	if jti, ok := c.Locals("jti").(string); ok {
+		input.ChallengeJTI = jti
+	}
+	if claims, ok := c.Locals("user").(*authpkg.Claims); ok && claims.ExpiresAt != nil {
+		input.ChallengeExpiresAt = claims.ExpiresAt.Time
+	}
+
+	if _, err := h.challenge.Execute(c.UserContext(), input); err != nil {
+		return h.challengeFailed(c, userID, tenantID, err)
 	}
 
 	fp := req.DeviceFingerprint
@@ -334,6 +341,56 @@ func (h *MFAHandler) Challenge(c *fiber.Ctx) error {
 	}
 
 	return c.JSON(LoginResponse{TokenPair: pair, CSRFToken: csrfToken})
+}
+
+// challengeFailed answers a refused challenge and audits it. The codes let the
+// sign-in screen tell "wrong code" from "start again" from "wait".
+func (h *MFAHandler) challengeFailed(c *fiber.Ctx, userID, tenantID uuid.UUID, err error) error {
+	locale := resolveLocale(c, "")
+	audit := func(reason string) {
+		if h.audit != nil {
+			_ = h.audit.LogFiber(c, &userID, &tenantID, coreauth.AuditActionMfaVerify, false, &reason)
+		}
+	}
+
+	var locked *appauth.MFAChallengeLockedError
+	var appErr *domain.AppError
+	switch {
+	case errors.As(err, &locked):
+		// Audited once, when the lock is set. The refusals that follow are the
+		// lock working, and would drown the event that matters.
+		if locked.JustLocked {
+			audit("mfa_locked")
+		}
+		seconds := int(locked.RetryAfter.Round(time.Second) / time.Second)
+		if seconds < 1 {
+			seconds = 1
+		}
+		c.Set(fiber.HeaderRetryAfter, strconv.Itoa(seconds))
+		return c.Status(fiber.StatusTooManyRequests).JSON(fiber.Map{
+			"code":        "MFA_LOCKED",
+			"retry_after": seconds,
+			"error": pick(locale,
+				"Trop de codes erronés. La connexion à deux facteurs est suspendue pour ce compte, réessayez plus tard.",
+				"Too many wrong codes. Two-factor sign-in is paused for this account, try again later."),
+		})
+	case errors.Is(err, appauth.ErrMFAChallengeExhausted):
+		audit("mfa_challenge_exhausted")
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"code": "MFA_CHALLENGE_EXHAUSTED",
+			"error": pick(locale,
+				"Trop de codes erronés pour cette connexion. Reconnectez-vous avec votre mot de passe.",
+				"Too many wrong codes for this sign-in. Sign in again with your password."),
+		})
+	case errors.As(err, &appErr):
+		audit("invalid MFA code")
+		return mapAuthError(c, err)
+	default:
+		// A store or decryption failure: nothing the caller can fix, and its
+		// text is not theirs to read.
+		audit("internal")
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": genericFailure(locale)})
+	}
 }
 
 // mapAuthError maps typed domain errors to HTTP status codes.

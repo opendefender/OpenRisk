@@ -83,6 +83,17 @@ func (m *Mailer) SendMFADisabled(ctx context.Context, to, fullName, locale strin
 	return m.sender.SendEmail(ctx, to, c.subject, m.render(c))
 }
 
+// SendMFALocked tells the owner that two-factor sign-in was locked after
+// repeated wrong codes (#689). Reaching the code step takes the password, so
+// the message says so plainly: the remedy is a password reset.
+func (m *Mailer) SendMFALocked(ctx context.Context, to, fullName, locale string) error {
+	if m == nil || m.sender == nil {
+		return nil
+	}
+	c := mfaLockedCopy(locale, displayName(fullName, locale))
+	return m.sender.SendEmail(ctx, to, c.subject, m.render(c))
+}
+
 // SendNewSignInAlert warns about a sign-in from an unrecognised device.
 func (m *Mailer) SendNewSignInAlert(ctx context.Context, to, fullName, ip, userAgent string, when time.Time, locale string) error {
 	if m == nil || m.sender == nil {
@@ -203,6 +214,32 @@ func mfaDisabledCopy(locale, name string) copyBlock {
 			"La double authentification vient d'être désactivée sur ce compte OpenRisk, après confirmation de l'identité du titulaire (mot de passe, ou code de l'application d'authentification pour les comptes connectés via un fournisseur d'identité). Votre application d'authentification et vos codes de secours ne fonctionnent plus. Le mot de passe seul suffit désormais pour ouvrir le compte.",
 		},
 		footnote: "Si vous n'êtes pas à l'origine de ce changement, quelqu'un d'autre peut se faire passer pour vous : réinitialisez votre mot de passe (ou alertez l'administrateur de votre fournisseur d'identité), réactivez la double authentification et contactez votre administrateur OpenRisk.",
+	}
+}
+
+func mfaLockedCopy(locale, name string) copyBlock {
+	minutes := 15 // mirrors application/auth.MFAChallengeLockDuration
+	if locale == "en" {
+		return copyBlock{
+			subject: "Too many wrong codes: two-factor sign-in to your OpenRisk account is paused",
+			heading: "Two-factor sign-in is paused",
+			paragraphs: []string{
+				fmt.Sprintf("Hello %s,", name),
+				fmt.Sprintf("Someone entered your password correctly, then a wrong two-factor code too many times. To stop them guessing, OpenRisk refuses codes for this account for %d minutes. Your account was not opened.", minutes),
+				"Getting to the code step takes your password. If these attempts were not yours, someone else knows it.",
+			},
+			footnote: "If this wasn't you, reset your password now and tell your OpenRisk administrator. If it was you, wait a few minutes and sign in again.",
+		}
+	}
+	return copyBlock{
+		subject: "Trop de codes erronés : la connexion à deux facteurs de votre compte OpenRisk est suspendue",
+		heading: "La connexion à deux facteurs est suspendue",
+		paragraphs: []string{
+			fmt.Sprintf("Bonjour %s,", name),
+			fmt.Sprintf("Quelqu'un a saisi votre mot de passe correctement, puis un code de double authentification erroné trop de fois. Pour l'empêcher de deviner, OpenRisk refuse les codes pour ce compte pendant %d minutes. Votre compte n'a pas été ouvert.", minutes),
+			"Pour arriver à l'étape du code, il faut votre mot de passe. Si ces tentatives ne viennent pas de vous, quelqu'un d'autre le connaît.",
+		},
+		footnote: "Si ce n'était pas vous, réinitialisez votre mot de passe dès maintenant et prévenez votre administrateur OpenRisk. Si c'était vous, patientez quelques minutes et reconnectez-vous.",
 	}
 }
 
