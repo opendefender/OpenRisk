@@ -242,8 +242,16 @@ export interface DisableMFAErrorBody {
 export type DisableMFAProof = 'password' | 'code';
 
 export async function fetchDisableMFAProof(): Promise<DisableMFAProof> {
+  return (await fetchHasLocalPassword()) === false ? 'code' : 'password';
+}
+
+/**
+ * Whether the signed-in account has a password in OpenRisk (#754, #850). False
+ * for an identity-provider account; null when the server did not say.
+ */
+export async function fetchHasLocalPassword(): Promise<boolean | null> {
   const { data } = await api.get<{ has_password?: boolean }>('/auth/me');
-  return data?.has_password === false ? 'code' : 'password';
+  return typeof data?.has_password === 'boolean' ? data.has_password : null;
 }
 
 /**
