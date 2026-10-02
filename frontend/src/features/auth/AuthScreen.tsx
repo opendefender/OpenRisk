@@ -18,6 +18,7 @@ import { landingForBusinessRole } from '../../shared/navModel';
 import { useUIStore } from '../../store/uiStore';
 import { authCopy, providerLabel, type OAuthErrorCode } from './authStrings';
 import { challengeMFA, setupMFA, verifyMFA } from './authService';
+import { classifyChallengeRefusal, minutesToWait } from './challengeRefusal';
 import { OtpField, sanitiseCode } from '../../shared/ds';
 import { AuthLayout } from './AuthLayout';
 import { cascade, usePrefersReducedMotion } from './motion';
@@ -35,12 +36,21 @@ const OAUTH_PROVIDERS: { id: 'google' | 'github' | 'azure'; label: string }[] = 
 
 export function AuthScreen({ initialView = 'login' }: { initialView?: View }) {
   const [view, setView] = useState<View>(initialView);
+  // Why the login form is showing, when another screen sent the user to it:
+  // a challenge that cannot take another code ends on the password (#872).
+  const [notice, setNotice] = useState('');
   return (
     <AuthLayout>
       {view === 'login' ? (
-        <LoginForm onRegister={() => setView('register')} />
+        <LoginForm notice={notice} onRegister={() => setView('register')} />
       ) : (
-        <RegisterForm onLogin={() => setView('login')} />
+        <RegisterForm
+          onLogin={() => setView('login')}
+          onRestart={(message) => {
+            setNotice(message);
+            setView('login');
+          }}
+        />
       )}
     </AuthLayout>
   );
@@ -89,7 +99,7 @@ function LoginForm({ onRegister }: { onRegister: () => void }) {
   const [password, setPassword] = useState('');
   const [show, setShow] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState(notice);
   // Bumped on every failure so the shake fires again even for an identical
   // message — otherwise retyping the same wrong password gives no feedback.
   const [errorNonce, setErrorNonce] = useState(0);
@@ -179,10 +189,16 @@ function LoginForm({ onRegister }: { onRegister: () => void }) {
   };
 
   if (mfa) {
+    // The address and password stay filled in: signing in again is one click,
+    // and the banner says why it is needed.
+    const restart = (message: string) => {
+      setMfa(null);
+      fail(message);
+    };
     return mfa.enrolling ? (
-      <MFAEnrollment token={mfa.token} />
+      <MFAEnrollment token={mfa.token} onRestart={restart} />
     ) : (
-      <MFAChallenge token={mfa.token} onCancel={() => setMfa(null)} />
+      <MFAChallenge token={mfa.token} onCancel={() => setMfa(null)} onRestart={restart} />
     );
   }
 
@@ -320,7 +336,19 @@ function LoginForm({ onRegister }: { onRegister: () => void }) {
 // MFA — challenge
 // ---------------------------------------------------------------------------
 
-function MFAChallenge({ token, onCancel }: { token: string; onCancel: () => void }) {
+/** Disables the field this long when the server gave no wait (per-address limit). */
+const UNKNOWN_LOCK_MS = 60_000;
+
+function MFAChallenge({
+  token,
+  onCancel,
+  onRestart,
+}: {
+  token: string;
+  onCancel: () => void;
+  /** The sign-in attempt is over; only the password can start another one. */
+  onRestart: (message: string) => void;
+}) {
   const navigate = useNavigate();
   const lang = useUIStore((s) => s.lang);
   const copy = authCopy(lang);
@@ -331,9 +359,36 @@ function MFAChallenge({ token, onCancel }: { token: string; onCancel: () => void
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [nonce, setNonce] = useState(0);
+  // Set while the account refuses codes (#872). The field is disabled until
+  // then: a code typed during the lock is refused without being read.
+  const [lockedUntil, setLockedUntil] = useState<number | null>(null);
+  const codeInput = useRef<HTMLInputElement>(null);
+  const locked = lockedUntil !== null;
+
+  useEffect(() => {
+    if (lockedUntil === null) return;
+    const timer = window.setTimeout(
+      () => {
+        setLockedUntil(null);
+        setError('');
+      },
+      Math.max(0, lockedUntil - Date.now()),
+    );
+    return () => window.clearTimeout(timer);
+  }, [lockedUntil]);
+
+  // Focus returns to the field once it is enabled again. It cannot be done in
+  // the timer above: the field is still disabled until React re-renders, and a
+  // disabled input ignores focus().
+  const wasLocked = useRef(false);
+  useEffect(() => {
+    if (wasLocked.current && !locked) codeInput.current?.focus();
+    wasLocked.current = locked;
+  }, [locked]);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (locked) return;
     setBusy(true);
     setError('');
     try {
@@ -344,8 +399,26 @@ function MFAChallenge({ token, onCancel }: { token: string; onCancel: () => void
         await adoptSession(result.token_pair.access_token);
       }
       navigate(landingForBusinessRole(useAuthStore.getState().user?.business_role));
-    } catch {
-      setError(copy.mfaInvalid);
+    } catch (err) {
+      const refusal = classifyChallengeRefusal(err);
+      switch (refusal.kind) {
+        case 'restart':
+          onRestart(refusal.reason === 'exhausted' ? copy.mfaExhausted : copy.mfaExpired);
+          return;
+        case 'locked':
+          setLockedUntil(
+            Date.now() +
+              (refusal.retryAfterSeconds === null ? UNKNOWN_LOCK_MS : refusal.retryAfterSeconds * 1000),
+          );
+          setError(
+            refusal.retryAfterSeconds === null
+              ? copy.mfaLockedUnknown
+              : copy.mfaLocked(minutesToWait(refusal.retryAfterSeconds)),
+          );
+          break;
+        default:
+          setError(copy.mfaInvalid);
+      }
       setNonce((n) => n + 1);
     } finally {
       setBusy(false);
@@ -381,8 +454,10 @@ function MFAChallenge({ token, onCancel }: { token: string; onCancel: () => void
               pasted with spaces, or with the words around it, used to be
               rejected while the user could plainly read the digits. */}
           <input
+            ref={codeInput}
             id="mfa-code"
             data-testid="mfa-code"
+            disabled={locked}
             inputMode="numeric"
             autoComplete="one-time-code"
             autoCapitalize="off"
@@ -402,9 +477,9 @@ function MFAChallenge({ token, onCancel }: { token: string; onCancel: () => void
         <button
           type="submit"
           data-testid="mfa-submit"
-          disabled={busy || !code.trim()}
+          disabled={busy || locked || !code.trim()}
           className={primaryBtn}
-          style={{ ...primaryStyle, opacity: busy || !code.trim() ? 0.6 : 1 }}
+          style={{ ...primaryStyle, opacity: busy || locked || !code.trim() ? 0.6 : 1 }}
         >
           {busy ? copy.signingIn : copy.mfaSubmit}
         </button>
@@ -431,7 +506,14 @@ function MFAChallenge({ token, onCancel }: { token: string; onCancel: () => void
  * completes the login in the same step, so the user is not asked for the
  * password they typed a minute ago.
  */
-function MFAEnrollment({ token }: { token: string }) {
+function MFAEnrollment({
+  token,
+  onRestart,
+}: {
+  token: string;
+  /** The enrolment token is spent or expired; only the password gets a new one. */
+  onRestart: (message: string) => void;
+}) {
   const navigate = useNavigate();
   const lang = useUIStore((s) => s.lang);
   const copy = authCopy(lang);
@@ -462,13 +544,19 @@ function MFAEnrollment({ token }: { token: string }) {
         setQr(r.qr_code);
         setBackupCodes(r.backup_codes ?? []);
       })
-      .catch(() => {
+      .catch((err: unknown) => {
+        // An enrolment token that has expired cannot be retried; send the user
+        // back to the password for a new one (#872).
+        if (classifyChallengeRefusal(err).kind === 'restart') {
+          onRestart(copy.mfaExpired);
+          return;
+        }
         // A setup failure is not a registration failure: the account is already
         // created. Say what actually went wrong, and allow another attempt.
         requested.current = null;
         setError(copy.mfaSetupFailed);
       });
-  }, [token, copy.mfaSetupFailed]);
+  }, [token, copy.mfaSetupFailed, copy.mfaExpired, onRestart]);
 
   const qrSrc = qr.startsWith('data:') ? qr : `data:image/jpeg;base64,${qr}`;
 
@@ -488,7 +576,13 @@ function MFAEnrollment({ token }: { token: string }) {
         await adoptSession(result.token_pair.access_token);
       }
       navigate(landingForBusinessRole(useAuthStore.getState().user?.business_role));
-    } catch {
+    } catch (err) {
+      // The enrolment token lives 15 minutes. Past that, every code is refused
+      // whatever it is, so "incorrect code" would be a lie (#872).
+      if (classifyChallengeRefusal(err).kind === 'restart') {
+        onRestart(copy.mfaExpired);
+        return;
+      }
       setError(copy.mfaInvalid);
       setNonce((n) => n + 1);
     } finally {
@@ -583,7 +677,13 @@ function MFAEnrollment({ token }: { token: string }) {
 // Register
 // ---------------------------------------------------------------------------
 
-function RegisterForm({ onLogin }: { onLogin: () => void }) {
+function RegisterForm({
+  onLogin,
+  onRestart,
+}: {
+  onLogin: () => void;
+  onRestart: (message: string) => void;
+}) {
   const navigate = useNavigate();
   const lang = useUIStore((s) => s.lang);
   const copy = authCopy(lang);
@@ -686,11 +786,13 @@ function RegisterForm({ onLogin }: { onLogin: () => void }) {
 
   // Hand off to the same enrolment/challenge screens the login form uses, rather
   // than a second implementation that would drift from it.
+  // The account exists by now, so starting over means signing in, not
+  // registering again.
   if (mfa) {
     return mfa.enrolling ? (
-      <MFAEnrollment token={mfa.token} />
+      <MFAEnrollment token={mfa.token} onRestart={onRestart} />
     ) : (
-      <MFAChallenge token={mfa.token} onCancel={() => setMfa(null)} />
+      <MFAChallenge token={mfa.token} onCancel={() => setMfa(null)} onRestart={onRestart} />
     );
   }
 

@@ -157,3 +157,58 @@ describe('api interceptor — an expired access cookie (issue 691)', () => {
     expect(window.location.href).toBe('/login');
   });
 });
+
+// #872 — the MFA challenge and mandated enrolment are authenticated by a
+// short-lived token of their own, not by the session. Their 401s say "this
+// sign-in attempt is over", which the screen explains. Refreshing an unrelated
+// session or reloading /login wiped that explanation and left the user on a
+// blank password form. The request says so with `ownCredential`, set by
+// authService when it sends an MFA token.
+describe('api interceptor — requests with their own credential keep their 401s (issue 872)', () => {
+  for (const code of ['TOKEN_REVOKED', 'TOKEN_EXPIRED', 'TOKEN_INVALID', 'UNAUTHORIZED']) {
+    it(`neither refreshes nor redirects on ${code}`, async () => {
+      const post = vi.spyOn(axios, 'post');
+      let calls = 0;
+      const adapter: MockCall = async (config) => {
+        calls += 1;
+        throw expired(config, code);
+      };
+      api.defaults.adapter = adapter as never;
+
+      const err = await api
+        .post('/auth/mfa/verify', { code: '123456' }, { ownCredential: true })
+        .catch((e: unknown) => e);
+      expect((err as { response?: { data?: { code?: string } } }).response?.data?.code).toBe(code);
+      expect(post).not.toHaveBeenCalled();
+      expect(calls).toBe(1);
+      expect(window.location.href).toBe('');
+    });
+  }
+
+  it('still refreshes the same endpoint when it runs on the session (Settings)', async () => {
+    const post = vi
+      .spyOn(axios, 'post')
+      .mockResolvedValue({ status: 200, data: { token_pair: { access_token: 't' } } } as never);
+    let calls = 0;
+    const adapter: MockCall = async (config) => {
+      calls += 1;
+      if (calls === 1) throw expired(config, 'TOKEN_EXPIRED');
+      return ok(config, { verified: true });
+    };
+    api.defaults.adapter = adapter as never;
+
+    await api.post('/auth/mfa/verify', { code: '123456' });
+    expect(post).toHaveBeenCalledTimes(1);
+    expect(calls).toBe(2);
+  });
+
+  it('still sends an ordinary request with a revoked token to /login', async () => {
+    const adapter: MockCall = async (config) => {
+      throw expired(config, 'TOKEN_REVOKED');
+    };
+    api.defaults.adapter = adapter as never;
+
+    await expect(api.get('/auth/mfa/status')).rejects.toBeTruthy();
+    expect(window.location.href).toBe('/login');
+  });
+});

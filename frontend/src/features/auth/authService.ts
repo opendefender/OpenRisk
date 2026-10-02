@@ -305,7 +305,14 @@ export async function challengeMFA(code: string, mfaToken: string): Promise<MFAC
  * These are the one place the SPA still carries a token in memory: they exist
  * precisely because no session cookie has been issued yet. They are
  * permission-less, live for minutes, and are never persisted.
+ *
+ * `ownCredential` tells the response interceptor this request is not on the
+ * session, so an expired or revoked MFA token reaches the screen instead of
+ * triggering a session refresh and a reload of /login (#872). Without a token
+ * (enrolment from Settings) the request runs on the session as usual.
  */
 function authHeaders(token?: string) {
-  return token ? { headers: { Authorization: `Bearer ${token}` } } : undefined;
+  return token
+    ? { headers: { Authorization: `Bearer ${token}` }, ownCredential: true }
+    : undefined;
 }

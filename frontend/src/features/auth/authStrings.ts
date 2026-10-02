@@ -211,6 +211,11 @@ export interface AuthCopy {
   mfaSubmit: string;
   mfaUseBackup: string;
   mfaInvalid: string;
+  // #872 — refusals that a new code cannot fix.
+  mfaExhausted: string;
+  mfaExpired: string;
+  mfaLocked: (minutes: number) => string;
+  mfaLockedUnknown: string;
   mfaSetupFailed: string;
   mfaEnrolTitle: string;
   mfaEnrolSubtitle: string;
@@ -323,6 +328,12 @@ const fr: AuthCopy = {
   mfaSubmit: 'Vérifier',
   mfaUseBackup: 'Utiliser un code de récupération',
   mfaInvalid: 'Code incorrect. Vérifiez votre application et réessayez.',
+  mfaExhausted:
+    'Trop de codes erronés pour cette connexion. Reconnectez-vous avec votre mot de passe.',
+  mfaExpired: 'Cette étape de connexion a expiré. Reconnectez-vous avec votre mot de passe.',
+  mfaLocked: (m) =>
+    `Trop de codes erronés. La vérification est suspendue pour ce compte : réessayez dans ${m} minute${m > 1 ? 's' : ''}.`,
+  mfaLockedUnknown: 'Trop de tentatives. Réessayez dans quelques minutes.',
   // Distinct from registerFailed on purpose: at this point the account EXISTS.
   // Telling the user their sign-up failed sends them back to create it again.
   mfaSetupFailed:
@@ -443,6 +454,11 @@ const en: AuthCopy = {
   mfaSubmit: 'Verify',
   mfaUseBackup: 'Use a recovery code',
   mfaInvalid: 'Incorrect code. Check your app and try again.',
+  mfaExhausted: 'Too many wrong codes for this sign-in. Sign in again with your password.',
+  mfaExpired: 'This sign-in step has expired. Sign in again with your password.',
+  mfaLocked: (m) =>
+    `Too many wrong codes. Verification is paused for this account: try again in ${m} minute${m > 1 ? 's' : ''}.`,
+  mfaLockedUnknown: 'Too many attempts. Try again in a few minutes.',
   mfaSetupFailed:
     'Could not set up two-factor authentication. Your account exists — reload the page to try again.',
   mfaEnrolTitle: 'Turn on two-factor authentication',

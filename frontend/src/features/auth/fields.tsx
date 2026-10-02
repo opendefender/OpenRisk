@@ -29,7 +29,10 @@ export function ErrorBanner({ children }: { children: React.ReactNode }) {
       data-testid="auth-error"
       className="flex items-start gap-2 mb-4 px-3 py-2.5 rounded-[11px] text-[12.5px] leading-snug"
       style={{
-        background: 'color-mix(in srgb, var(--critical) 10%, transparent)',
+        // 7%, not 10%: at 10% the 12.5px text measured 4.46:1 on the light
+        // theme, under the 4.5:1 floor (axe color-contrast, #872). 7% gives
+        // 4.68:1 light and 5.20:1 dark.
+        background: 'color-mix(in srgb, var(--critical) 7%, transparent)',
         border: '1px solid color-mix(in srgb, var(--critical) 35%, transparent)',
         color: 'var(--critical)',
       }}

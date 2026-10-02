@@ -21,6 +21,18 @@ import { markApiFailure, markApiSuccess } from './connection';
  */
 const baseURL = import.meta.env.VITE_API_URL ?? '/api/v1';
 
+declare module 'axios' {
+  interface AxiosRequestConfig {
+    /**
+     * The request authenticates with a credential of its own (an MFA token),
+     * not the session: its 401s are for the caller to explain, and the
+     * session recovery in the response interceptor leaves them alone (#872).
+     * Client-side only; never sent.
+     */
+    ownCredential?: boolean;
+  }
+}
+
 export const api = axios.create({
   baseURL,
   headers: { 'Content-Type': 'application/json' },
@@ -133,6 +145,16 @@ api.interceptors.response.use(
     const status = error.response?.status;
     const code = error.response?.data?.code;
     const original = error.config as (typeof error.config & { _retried?: boolean }) | undefined;
+
+    // A request that carries its own short-lived MFA token (the challenge, or
+    // mandated enrolment) is not on the session. Its 401s mean "this sign-in
+    // attempt is over", and the screen says so and sends the user back to the
+    // password (#872). Refreshing an unrelated session, or reloading /login,
+    // would wipe that explanation. The same endpoints called from Settings run
+    // on the session and keep the recovery below.
+    if (original?.ownCredential) {
+      return Promise.reject(error);
+    }
 
     // Transparent refresh-and-retry: an access token that merely EXPIRED is
     // recoverable from the long-lived refresh cookie. Without this, every
