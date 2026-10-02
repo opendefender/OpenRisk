@@ -203,6 +203,11 @@ forged request cannot use up the real user's flow.
 
 #### SAML2 Flow
 
+> **Turned off.** `GET /saml2/login` and `POST /saml2/acs` redirect to
+> `/login?error=provider_not_configured&provider=saml2` and create nothing. SAML
+> returns through a library that verifies signed assertions. The steps below
+> describe that intended flow, not current behaviour.
+
 1. Initiate: `GET /api/v1/auth/saml2/login`
 2. Redirects to SAML IdP
 3. User authenticates

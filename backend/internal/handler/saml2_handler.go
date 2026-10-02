@@ -6,152 +6,28 @@
 package handler
 
 import (
-	"encoding/base64"
-	"encoding/xml"
 	"fmt"
-	"log"
 	"os"
-	"strings"
-	"time"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/google/uuid"
-	"gorm.io/gorm"
-
-	"github.com/opendefender/openrisk/internal/domain"
-	"github.com/opendefender/openrisk/internal/infrastructure/database"
 )
 
-// SAMLAssertion represents a SAML2 assertion
-type SAMLAssertion struct {
-	XMLName            xml.Name               `xml:"urn:oasis:names:tc:SAML:2.0:assertion Assertion"`
-	ID                 string                 `xml:"ID,attr"`
-	Version            string                 `xml:"Version,attr"`
-	IssueInstant       string                 `xml:"IssueInstant,attr"`
-	Subject            SAMLSubject            `xml:"urn:oasis:names:tc:SAML:2.0:assertion Subject"`
-	Issuer             SAMLIssuer             `xml:"urn:oasis:names:tc:SAML:2.0:assertion Issuer"`
-	Conditions         SAMLConditions         `xml:"urn:oasis:names:tc:SAML:2.0:assertion Conditions"`
-	AttributeStatement SAMLAttributeStatement `xml:"urn:oasis:names:tc:SAML:2.0:assertion AttributeStatement"`
-	AuthnStatement     SAMLAuthnStatement     `xml:"urn:oasis:names:tc:SAML:2.0:assertion AuthnStatement"`
-}
+// SAML sign-in is turned off (#866).
+//
+// The assertion consumer service used to read the email out of whatever XML it
+// was posted and open a session for that account, with no signature, issuer,
+// audience, validity-window or InResponseTo check. Both entry points now refuse
+// every request and send the browser to the login screen, which already says
+// "this sign-in method is not configured". SAML comes back through a maintained
+// library that verifies signed assertions, not by patching a hand-rolled parser.
 
-type SAMLSubject struct {
-	NameID              string                  `xml:"urn:oasis:names:tc:SAML:2.0:assertion NameID"`
-	SubjectConfirmation SAMLSubjectConfirmation `xml:"urn:oasis:names:tc:SAML:2.0:assertion SubjectConfirmation"`
-}
-
-type SAMLSubjectConfirmation struct {
-	Method                  string                      `xml:"Method,attr"`
-	SubjectConfirmationData SAMLSubjectConfirmationData `xml:"urn:oasis:names:tc:SAML:2.0:assertion SubjectConfirmationData"`
-}
-
-type SAMLSubjectConfirmationData struct {
-	NotOnOrAfter string `xml:"NotOnOrAfter,attr"`
-	Recipient    string `xml:"Recipient,attr"`
-}
-
-type SAMLIssuer struct {
-	Format string `xml:"Format,attr"`
-	Text   string `xml:",chardata"`
-}
-
-type SAMLConditions struct {
-	NotBefore    string `xml:"NotBefore,attr"`
-	NotOnOrAfter string `xml:"NotOnOrAfter,attr"`
-}
-
-type SAMLAttributeStatement struct {
-	Attributes []SAMLAttribute `xml:"urn:oasis:names:tc:SAML:2.0:assertion Attribute"`
-}
-
-type SAMLAttribute struct {
-	Name   string               `xml:"Name,attr"`
-	Values []SAMLAttributeValue `xml:"urn:oasis:names:tc:SAML:2.0:assertion AttributeValue"`
-}
-
-type SAMLAttributeValue struct {
-	Text string `xml:",chardata"`
-}
-
-type SAMLAuthnStatement struct {
-	AuthnInstant string           `xml:"AuthnInstant,attr"`
-	SessionIndex string           `xml:"SessionIndex,attr"`
-	AuthnContext SAMLAuthnContext `xml:"urn:oasis:names:tc:SAML:2.0:assertion AuthnContext"`
-}
-
-type SAMLAuthnContext struct {
-	AuthnContextClassRef string `xml:"urn:oasis:names:tc:SAML:2.0:assertion AuthnContextClassRef"`
-}
-
-// SAMLResponse represents a SAML Response
-type SAMLResponse struct {
-	XMLName      xml.Name      `xml:"urn:oasis:names:tc:SAML:2.0:protocol Response"`
-	ID           string        `xml:"ID,attr"`
-	Version      string        `xml:"Version,attr"`
-	IssueInstant string        `xml:"IssueInstant,attr"`
-	Destination  string        `xml:"Destination,attr"`
-	InResponseTo string        `xml:"InResponseTo,attr"`
-	Status       SAMLStatus    `xml:"urn:oasis:names:tc:SAML:2.0:protocol Status"`
-	Assertion    SAMLAssertion `xml:"urn:oasis:names:tc:SAML:2.0:assertion Assertion"`
-}
-
-type SAMLStatus struct {
-	StatusCode SAMLStatusCode `xml:"urn:oasis:names:tc:SAML:2.0:protocol StatusCode"`
-}
-
-type SAMLStatusCode struct {
-	Value string `xml:"Value,attr"`
-}
-
-// SAML2InitiateLogin initiates SAML2 login flow
+// SAML2InitiateLogin refuses: there is no ACS that could finish the flow.
 func SAML2InitiateLogin(c *fiber.Ctx) error {
-	idpURL := os.Getenv("SAML2_IDP_URL")
-	entityID := os.Getenv("SAML2_SP_ENTITY_ID")
-	acsURL := os.Getenv("SAML2_ACS_URL")
-
-	if idpURL == "" || entityID == "" || acsURL == "" {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": "SAML2 not properly configured",
-		})
-	}
-
-	// Generate AuthnRequest
-	requestID := uuid.New().String()
-	now := time.Now().UTC()
-
-	// Build simple AuthnRequest (in production, use a proper SAML library)
-	authRequest := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
-<samlp:AuthnRequest 
-  xmlns:samlp="urn:oasis:names:tc:SAML:2.0:protocol"
-  xmlns:saml="urn:oasis:names:tc:SAML:2.0:assertion"
-  ID="%s"
-  Version="2.0"
-  IssueInstant="%s"
-  Destination="%s/app/login"
-  AssertionConsumerServiceURL="%s"
-  ProtocolBinding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST">
-  <saml:Issuer>%s</saml:Issuer>
-  <samlp:NameIDPolicy 
-    Format="urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress"
-    AllowCreate="true"/>
-  <samlp:RequestedAuthnContext Comparison="exact">
-    <saml:AuthnContextClassRef>urn:oasis:names:tc:SAML:2.0:ac:classes:Password</saml:AuthnContextClassRef>
-  </samlp:RequestedAuthnContext>
-</samlp:AuthnRequest>`, requestID, now.Format("2006-01-02T15:04:05Z"), idpURL, acsURL, entityID)
-
-	// Encode request
-	encodedRequest := base64.StdEncoding.EncodeToString([]byte(authRequest))
-
-	// Build redirect URL
-	redirectURL := fmt.Sprintf("%s/app/login?SAMLRequest=%s", idpURL, encodedRequest)
-
-	return c.JSON(fiber.Map{
-		"redirect_url": redirectURL,
-		"request_id":   requestID,
-	})
+	return oauthFailure(c, "provider_not_configured", "saml2", oauthLocale(c))
 }
 
-// SAML2ACS handles SAML2 Assertion Consumer Service (callback)
+// SAML2ACS refuses every assertion, well-formed or not. It creates no user and
+// no session.
 func SAML2ACS(c *fiber.Ctx) error {
 	// Get SAML Response from POST
 	samlResponse := c.FormValue("SAMLResponse")
