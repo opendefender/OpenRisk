@@ -12,7 +12,7 @@ import { X, ShieldAlert } from 'lucide-react';
 import { toast } from 'sonner';
 import { apiErrorMessage } from '../../../lib/apiError';
 
-import { useRiskStore } from '../../../hooks/useRiskStore';
+import { useRiskStore, type Risk } from '../../../hooks/useRiskStore';
 import { useAssetStore } from '../../../hooks/useAssetStore';
 import { Button, Field, Input, ScrollProgress, TagInput } from '../../../shared/ds';
 import { useI18n } from '../../../hooks/useI18n';
@@ -41,10 +41,18 @@ const riskSchema = z.object({
 
 type RiskFormData = z.infer<typeof riskSchema>;
 
+/** The fields this form reads. The register passes a full Risk; the tests pass
+ * only these, which is why the prop is not the whole Risk type. */
+export type EditableRisk = Pick<
+  Risk,
+  'id' | 'title' | 'description' | 'impact' | 'probability' | 'tags'
+> &
+  Partial<Pick<Risk, 'assets' | 'frameworks'>>;
+
 interface EditRiskModalProps {
   isOpen: boolean;
   onClose: () => void;
-  risk: any | null;
+  risk: EditableRisk | null;
   onSuccess?: () => void;
 }
 
@@ -86,7 +94,7 @@ export const EditRiskModal = ({ isOpen, onClose, risk, onSuccess }: EditRiskModa
       setValue('tags', risk.tags || []);
       setValue(
         'asset_ids',
-        (risk.assets || []).map((a: any) => a.id),
+        (risk.assets || []).map((a) => a.id),
       );
       setValue('frameworks', risk.frameworks || []);
     } else {
@@ -202,7 +210,7 @@ export const EditRiskModal = ({ isOpen, onClose, risk, onSuccess }: EditRiskModa
 
             <form
               ref={formRef}
-              onSubmit={handleSubmit((data: any) => onSubmit(data))}
+              onSubmit={handleSubmit(onSubmit)}
               className="space-y-4 overflow-y-auto pr-2 max-h-[calc(90vh-140px)]"
             >
               <Field
