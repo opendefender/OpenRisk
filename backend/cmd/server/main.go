@@ -677,10 +677,15 @@ func main() {
 	// OR26-03 — the tenant's grace window. Deployment decides WHO is privileged;
 	// each tenant decides HOW LONG they may defer (default 7 days).
 	mfaPolicyRepo := repository.NewGormMFAPolicyRepository(database.DB)
+	// #688 — ten failed sign-ins on one address, from any source, pause it for
+	// fifteen minutes; a password reset ends the pause. Counted in Redis (the
+	// store #689 built) so the budget holds across instances.
+	loginAttemptStore := authmfa.NewAttemptStore(redisClientInstance)
 	loginUseCase := auth.NewLoginUseCase(userRepo, tokenManager, passwordHasher).
 		WithMFA(mfaRepo).
 		RequireMFAForRoles(mfaRequiredRoles, mfaRequiredBusinessRoles).
-		WithMFAPolicies(mfaPolicyRepo)
+		WithMFAPolicies(mfaPolicyRepo).
+		WithAttemptLimits(loginAttemptStore)
 	registerUseCase := auth.NewRegisterUseCase(userRepo, orgRepo, notificationService, passwordHasher).
 		// Anchors t0 for the time-to-Aha histogram.
 		WithActivation(activationRecorder).
@@ -728,7 +733,7 @@ func main() {
 	requestResetUseCase := auth.NewRequestPasswordResetUseCase(userRepo, passwordResetRepo, securityMailer)
 	confirmResetUseCase := auth.NewConfirmPasswordResetUseCase(
 		userRepo, passwordResetRepo, passwordHasher, passwordPolicy, tokenManager, securityMailer,
-	)
+	).WithLoginLockClearer(loginAttemptStore)
 	passwordHandler := authhandler.NewPasswordHandler(
 		requestResetUseCase, confirmResetUseCase, passwordPolicy, appBaseURL, authAudit,
 	).WithChangePassword(auth.NewChangePasswordUseCase(

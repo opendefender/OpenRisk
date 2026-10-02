@@ -8,7 +8,9 @@ package auth
 import (
 	"context"
 	"errors"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
@@ -200,7 +202,25 @@ func (h *Handler) Login(c *fiber.Ctx) error {
 	})
 
 	if err != nil {
-		reason := "authentication failed"
+		// Every failure names the address it was against, hashed (#688): enough
+		// to see one address being hammered from many sources, without writing
+		// addresses that may not belong to any account into the audit trail.
+		addr := " email_sha256=" + domain.HashEmailForReset(req.Email)
+
+		var locked *auth.LoginLockedError
+		if errors.As(err, &locked) {
+			reason := "login_locked" + addr
+			h.logAudit(c, nil, nil, coreauth.AuditActionLogin, false, &reason)
+			wait := int((locked.RetryAfter + time.Second - 1) / time.Second)
+			c.Set(fiber.HeaderRetryAfter, strconv.Itoa(wait))
+			return c.Status(fiber.StatusTooManyRequests).JSON(fiber.Map{
+				"error":       "Too many failed sign-ins for this address",
+				"code":        "LOGIN_LOCKED",
+				"retry_after": wait,
+			})
+		}
+
+		reason := "authentication failed" + addr
 		h.logAudit(c, nil, nil, coreauth.AuditActionLogin, false, &reason)
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"error": "Authentication failed",

@@ -7,13 +7,17 @@ package auth
 
 import (
 	"context"
+	"errors"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/internal/infrastructure/authmfa"
+	"github.com/opendefender/openrisk/pkg/pwpolicy"
 )
 
 // exactUsers matches the address byte for byte, as the database used to, and
@@ -115,4 +119,125 @@ func TestLogin_Unauthorized(t *testing.T) {
 	uc, users, _ := newThrottleHarness(t)
 	_, err := uc.Execute(context.Background(), LoginInput{Email: users.user.Email, Password: "wrong"})
 	assert.ErrorIs(t, err, domain.ErrValidation)
+}
+
+func failLogin(t *testing.T, uc *LoginUseCase, email string) error {
+	t.Helper()
+	_, err := uc.Execute(context.Background(), LoginInput{Email: email, Password: "wrong"})
+	require.Error(t, err)
+	return err
+}
+
+// #688 criterion 3: wrong passwords on one address are bounded across every
+// source, not per IP.
+func TestLogin_PerAccountBackoff(t *testing.T) {
+	ctx := context.Background()
+	right := "Ancre-Vitrail7-Cobalt"
+
+	t.Run("ten failures lock the address, even against the right password", func(t *testing.T) {
+		uc, users, hasher := newThrottleHarness(t)
+		uc.WithAttemptLimits(authmfa.NewMemoryAttemptStore())
+
+		for i := 1; i <= LoginMaxFailuresPerAddress; i++ {
+			err := failLogin(t, uc, users.user.Email)
+			var locked *LoginLockedError
+			require.False(t, errors.As(err, &locked), "failure %d is evaluated, not refused", i)
+		}
+
+		before := len(hasher.verified)
+		_, err := uc.Execute(ctx, LoginInput{Email: users.user.Email, Password: right})
+		var locked *LoginLockedError
+		require.True(t, errors.As(err, &locked), "got %v", err)
+		assert.InDelta(t, LoginLockDuration.Seconds(), locked.RetryAfter.Seconds(), 1)
+		assert.Len(t, hasher.verified, before, "a refused attempt never reaches the hasher")
+	})
+
+	t.Run("the casing of the address does not buy more attempts", func(t *testing.T) {
+		uc, users, _ := newThrottleHarness(t)
+		uc.WithAttemptLimits(authmfa.NewMemoryAttemptStore())
+		for i := 0; i < LoginMaxFailuresPerAddress; i++ {
+			failLogin(t, uc, map[bool]string{true: "ADMIN@opendefender.io", false: "admin@OpenDefender.io"}[i%2 == 0])
+		}
+		_, err := uc.Execute(ctx, LoginInput{Email: users.user.Email, Password: right})
+		var locked *LoginLockedError
+		assert.True(t, errors.As(err, &locked))
+	})
+
+	t.Run("an unknown address locks exactly like a real one", func(t *testing.T) {
+		uc, _, _ := newThrottleHarness(t)
+		uc.WithAttemptLimits(authmfa.NewMemoryAttemptStore())
+		for i := 0; i < LoginMaxFailuresPerAddress; i++ {
+			failLogin(t, uc, "nobody@opendefender.io")
+		}
+		var locked *LoginLockedError
+		assert.True(t, errors.As(failLogin(t, uc, "nobody@opendefender.io"), &locked),
+			"otherwise a lock would tell which addresses hold an account")
+	})
+
+	t.Run("a success clears the count", func(t *testing.T) {
+		uc, users, _ := newThrottleHarness(t)
+		uc.WithAttemptLimits(authmfa.NewMemoryAttemptStore())
+		for i := 0; i < LoginMaxFailuresPerAddress-1; i++ {
+			failLogin(t, uc, users.user.Email)
+		}
+		_, err := uc.Execute(ctx, LoginInput{Email: users.user.Email, Password: right})
+		require.NoError(t, err)
+		for i := 0; i < LoginMaxFailuresPerAddress-1; i++ {
+			failLogin(t, uc, users.user.Email)
+		}
+		_, err = uc.Execute(ctx, LoginInput{Email: users.user.Email, Password: right})
+		assert.NoError(t, err, "nine failures after a success are not ten")
+	})
+
+	t.Run("the lock is bounded: refused attempts do not extend it", func(t *testing.T) {
+		uc, users, _ := newThrottleHarness(t)
+		store := authmfa.NewMemoryAttemptStore()
+		uc.WithAttemptLimits(store)
+		for i := 0; i < LoginMaxFailuresPerAddress; i++ {
+			failLogin(t, uc, users.user.Email)
+		}
+		first, err := store.LockedFor(ctx, loginLockKey(users.user.Email))
+		require.NoError(t, err)
+		time.Sleep(1100 * time.Millisecond)
+		for i := 0; i < 5; i++ {
+			failLogin(t, uc, users.user.Email)
+		}
+		later, err := store.LockedFor(ctx, loginLockKey(users.user.Email))
+		require.NoError(t, err)
+		assert.Less(t, later, first, "the lock only runs down")
+		assert.LessOrEqual(t, first, LoginLockDuration)
+	})
+}
+
+// A password reset proves control of the mailbox, which is what the owner of a
+// locked address needs to get back in at once.
+func TestConfirmPasswordReset_ClearsLoginLock(t *testing.T) {
+	ctx := context.Background()
+	user := activeUser("real@opendefender.io")
+	user.Password = "hashed:old"
+	store := authmfa.NewMemoryAttemptStore()
+
+	users, tokens := newFakeResetUsers(user), &fakeResetTokens{}
+	uc, _, _ := newThrottleHarness(t)
+	uc.userRepo = &loginUsers{user: user}
+	uc.WithAttemptLimits(store)
+	for i := 0; i < LoginMaxFailuresPerAddress; i++ {
+		failLogin(t, uc, "Real@OpenDefender.io")
+	}
+	locked, err := store.LockedFor(ctx, loginLockKey(user.Email))
+	require.NoError(t, err)
+	require.Positive(t, locked)
+
+	secret := issueToken(t, users, tokens, user.Email)
+	confirm := NewConfirmPasswordResetUseCase(users, tokens, fakeHasher{}, pwpolicy.New(), &fakeRevoker{}, &fakeMailer{}).
+		WithLoginLockClearer(store)
+	_, err = confirm.Execute(ctx, ConfirmPasswordResetInput{Token: secret, NewPassword: "Ancre-Vitrail7-Cobalt"})
+	require.NoError(t, err)
+
+	locked, err = store.LockedFor(ctx, loginLockKey(user.Email))
+	require.NoError(t, err)
+	assert.Zero(t, locked)
+	n, err := store.Count(ctx, loginFailKey(user.Email))
+	require.NoError(t, err)
+	assert.Zero(t, n)
 }

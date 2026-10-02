@@ -215,6 +215,8 @@ type ConfirmPasswordResetUseCase struct {
 	policy  PasswordAssessor
 	revoker SessionRevoker
 	mailer  ResetMailer
+	// loginAttempts lets a completed reset end a sign-in lock (#688). Optional.
+	loginAttempts LoginAttemptStore
 }
 
 // NewConfirmPasswordResetUseCase wires the confirm side.
@@ -308,6 +310,10 @@ func (uc *ConfirmPasswordResetUseCase) Execute(ctx context.Context, input Confir
 	// Any other reset links outstanding for this account are now stale — if an
 	// attacker requested one too, it must not survive the legitimate reset.
 	_ = uc.tokens.InvalidateOutstandingForUser(ctx, user.ID, record.ID)
+
+	// The new password is in place: whoever was hammering the old one has
+	// nothing left to guess, and the owner must not wait out their lock.
+	uc.clearLoginLock(ctx, user.Email)
 
 	// --- End every session ----------------------------------------------------
 	out := &ConfirmPasswordResetOutput{}

@@ -76,6 +76,8 @@ type LoginUseCase struct {
 	// dummyHash is compared against when there is no account to compare with,
 	// so an unknown address costs what a real one does (#688).
 	dummyHash string
+	// attempts bounds failed sign-ins per address (#688). Optional.
+	attempts LoginAttemptStore
 }
 
 // PasswordUpgrader is the half of the hasher that knows whether a stored hash
@@ -188,6 +190,12 @@ func (uc *LoginUseCase) Execute(ctx context.Context, input LoginInput) (*LoginOu
 	// One spelling of an address, as sign-up and reset use (#688).
 	email := domain.NormaliseEmail(input.Email)
 
+	// A locked address is refused before the database or the hasher is asked
+	// anything, so the refusal costs the same whether the account exists.
+	if left := uc.lockedFor(ctx, email); left > 0 {
+		return nil, &LoginLockedError{RetryAfter: left}
+	}
+
 	user, err := uc.userRepo.GetByEmail(ctx, email)
 	if err != nil {
 		return nil, fmt.Errorf("authentication failed")
@@ -199,15 +207,19 @@ func (uc *LoginUseCase) Execute(ctx context.Context, input LoginInput) (*LoginOu
 	// told an attacker which addresses held an account.
 	if user == nil {
 		uc.passwordHasher.Verify(uc.dummyHash, input.Password)
+		uc.recordFailure(ctx, email)
 		return nil, domain.NewValidationError("invalid credentials")
 	}
 	passwordOK := uc.passwordHasher.Verify(user.Password, input.Password)
 	if !user.IsActive {
+		uc.recordFailure(ctx, email)
 		return nil, domain.NewValidationError("account is disabled")
 	}
 	if !passwordOK {
+		uc.recordFailure(ctx, email)
 		return nil, domain.NewValidationError("invalid credentials")
 	}
+	uc.clearFailures(ctx, email)
 
 	// The password is correct and the plaintext is in hand: if the stored hash
 	// was written with a lower Argon2id cost than today's, rewrite it now.
