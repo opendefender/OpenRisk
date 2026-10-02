@@ -425,6 +425,14 @@ func (tm *TokenManager) RefreshTokenPair(ctx context.Context, refreshTokenValue 
 	// only a revocation (or an explicit logout) takes it away. If it is gone, the
 	// lineage was declared compromised — drop what we issued and refuse, the same
 	// answer the losing request got.
+	//
+	// Seeing the witness is not enough on its own (#725). On Postgres a revoking
+	// DELETE reads from the snapshot taken when it starts and its deletions stay
+	// invisible until it commits, so we can store our token after that snapshot
+	// and still find the witness here. The revokers close that case by sweeping
+	// until a pass finds nothing (sweepRefreshTokens): our token was committed
+	// before this read, this read came before their first pass committed, so
+	// their next pass sees our token and takes it.
 	if !tm.tokenExists(ctx, refreshToken.ID) {
 		tm.revokeFamily(ctx, refreshToken.FamilyID)
 		return nil, ErrRefreshTokenReuse
@@ -532,7 +540,44 @@ func (tm *TokenManager) revokeFamily(ctx context.Context, familyID uuid.UUID) {
 	if familyID == uuid.Nil {
 		return
 	}
-	tm.db.WithContext(ctx).Where("family_id = ?", familyID).Delete(&RefreshToken{})
+	_ = tm.sweepRefreshTokens(ctx, "family_id = ?", familyID)
+}
+
+// maxRevocationSweeps bounds sweepRefreshTokens. Each extra pass is only needed
+// when a rotation stored a token behind the previous one, which takes a client
+// round trip per step, so a handful is far more than a real race produces.
+const maxRevocationSweeps = 5
+
+// sweepRefreshTokens deletes the refresh tokens matching the condition, and
+// repeats until a pass removes nothing (#725).
+//
+// One DELETE is not enough on Postgres. Under READ COMMITTED it only sees rows
+// committed before it started, so a rotation that stores its successor while
+// the DELETE runs leaves that successor behind. The rotation cannot catch this
+// itself: it checks its witness row after storing the successor, and it still
+// sees the witness because the DELETE has not committed yet.
+//
+// The ordering argument. Let P be the last pass, the one that removed nothing.
+// When P started, every row revoked here was gone, witnesses included.
+//   - A successor committed before P started is visible to P, so it was
+//     already deleted.
+//   - A successor committed after P started is checked against its witness
+//     after that commit, so after the earlier passes committed. The rotation
+//     finds no witness, revokes the family itself and refuses (RefreshTokenPair).
+//
+// A pass that removes nothing costs one indexed DELETE, on revocation only. The
+// refresh path takes no lock and runs no extra query.
+func (tm *TokenManager) sweepRefreshTokens(ctx context.Context, query string, args ...interface{}) error {
+	for i := 0; i < maxRevocationSweeps; i++ {
+		res := tm.db.WithContext(ctx).Where(query, args...).Delete(&RefreshToken{})
+		if res.Error != nil {
+			return res.Error
+		}
+		if res.RowsAffected == 0 {
+			return nil
+		}
+	}
+	return nil
 }
 
 // PruneExpiredTokens removes refresh tokens past their TTL (both live and spent).
@@ -559,9 +604,8 @@ func (tm *TokenManager) RevokeRefreshToken(ctx context.Context, refreshTokenValu
 
 // RevokeAllUserTokens revokes all refresh tokens for a user
 func (tm *TokenManager) RevokeAllUserTokens(ctx context.Context, userID uuid.UUID) error {
-	result := tm.db.WithContext(ctx).Where("user_id = ?", userID).Delete(&RefreshToken{})
-	if result.Error != nil {
-		return fmt.Errorf("failed to revoke user tokens: %w", result.Error)
+	if err := tm.sweepRefreshTokens(ctx, "user_id = ?", userID); err != nil {
+		return fmt.Errorf("failed to revoke user tokens: %w", err)
 	}
 	return nil
 }
@@ -572,9 +616,8 @@ func (tm *TokenManager) RevokeAllUserTokens(ctx context.Context, userID uuid.UUI
 // organization, never their sessions elsewhere (#831). Account-level events
 // (password change or reset) use RevokeAllUserTokens instead.
 func (tm *TokenManager) RevokeUserTokensInTenant(ctx context.Context, userID, tenantID uuid.UUID) error {
-	result := tm.db.WithContext(ctx).Where("user_id = ? AND tenant_id = ?", userID, tenantID).Delete(&RefreshToken{})
-	if result.Error != nil {
-		return fmt.Errorf("failed to revoke user tokens in tenant: %w", result.Error)
+	if err := tm.sweepRefreshTokens(ctx, "user_id = ? AND tenant_id = ?", userID, tenantID); err != nil {
+		return fmt.Errorf("failed to revoke user tokens in tenant: %w", err)
 	}
 	return nil
 }

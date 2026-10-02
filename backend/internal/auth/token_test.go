@@ -417,3 +417,32 @@ func TestSuccessorSecret_IsKeyedAndBound(t *testing.T) {
 	require.NotEqual(t, presented, a.successorSecret(presented, family))
 	require.Len(t, a.successorSecret(presented, family), 64, "same shape as a random token")
 }
+
+// TestSweepRefreshTokens_TakesARowStoredBehindIt models what a Postgres DELETE
+// misses (#725): a row committed after the pass has started. The sweep must
+// take it on its next pass, and stop at the first pass that removes nothing.
+func TestSweepRefreshTokens_TakesARowStoredBehindIt(t *testing.T) {
+	tm, db, _ := newTokenHarness(t)
+	ctx := context.Background()
+	userID, orgID := uuid.New(), uuid.New()
+
+	_, err := tm.GenerateTokenPair(ctx, userID, orgID, nil, []string{"*"}, nil, DeviceContext{})
+	require.NoError(t, err)
+	var family uuid.UUID
+	require.NoError(t, db.Model(&RefreshToken{}).Select("family_id").Row().Scan(&family))
+
+	passes := 0
+	require.NoError(t, db.Callback().Delete().After("gorm:delete").Register("test:late_row", func(tx *gorm.DB) {
+		passes++
+		if passes == 1 {
+			// A rotation's successor, landing just behind the first pass.
+			late := RefreshToken{UserID: userID, TenantID: orgID, FamilyID: family,
+				TokenHash: hashToken(uuid.NewString()), ExpiresAt: time.Now().Add(time.Hour)}
+			require.NoError(t, db.Session(&gorm.Session{NewDB: true}).Create(&late).Error)
+		}
+	}))
+
+	tm.revokeFamily(ctx, family)
+	require.Equal(t, int64(0), countTokens(t, db), "the row stored behind the first pass must be swept")
+	require.Equal(t, 3, passes, "two passes that removed a row, then one that removed nothing")
+}
