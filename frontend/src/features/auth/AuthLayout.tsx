@@ -319,7 +319,7 @@ export function AuthLayout({ children }: AuthLayoutProps) {
           >
             {copy.footerCompany}
           </a>{' '}
-          · <span className="opacity-70">© {new Date().getFullYear()}</span>
+          · <span>© {new Date().getFullYear()}</span>
         </div>
       </div>
     </div>
