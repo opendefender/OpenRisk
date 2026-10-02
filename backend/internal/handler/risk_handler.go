@@ -37,6 +37,7 @@ type RiskHandler struct {
 	crq               *crq.Quantifier                 // Cyber Risk Quantification (XAF + USD)
 	presenters        *risk.FinancialPresenterFactory // optional: tenant currency + FX
 	bulkActionUC      *risk.BulkActionUseCase         // #581, attached via WithBulkAction
+	importRisksUC     *risk.ImportRisksUseCase        // #755, attached via WithImport
 }
 
 // WithBulkAction attaches the bulk-action use case behind POST /risks/bulk.

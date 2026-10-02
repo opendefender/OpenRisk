@@ -1249,7 +1249,20 @@ func main() {
 		// implementation accepted a performedBy and discarded it, so a supervisor
 		// asking "who reassigned these and when" had no answer. auditChainRepo is
 		// the same hash-chained, append-only store the rest of the trail uses.
-		WithBulkAction(risk.NewBulkActionUseCase(riskRepo, auditChainRepo))
+		WithBulkAction(risk.NewBulkActionUseCase(riskRepo, auditChainRepo)).
+		// #755 — CSV import: every row validated first, then all of them written
+		// in one transaction through CreateRiskUseCase, or none. The plan cap is
+		// checked against the whole file, not just the first row.
+		WithImport(risk.NewImportRisksUseCase(repository.RunRiskTx(database.DB)).
+			WithAssets(repository.ListImportAssetRefs(database.DB)).
+			WithActivation(activationRecorder).
+			WithCapacity(func(ctx context.Context, tenant uuid.UUID) (int, error) {
+				_, limit, used, _, err := entitlementService.Capacity(ctx, tenant, ent.LimitRisks)
+				if err != nil || limit == ent.Unlimited || used < 0 {
+					return -1, err
+				}
+				return max(limit-used, 0), nil
+			}))
 
 	// Financial Risk Quantification (spec §9): tenant-wide CFO/CISO dashboard
 	// (portfolio FAIR-lite P10/P50/P90, ALE, worst-case, residual, remediation
@@ -1320,6 +1333,9 @@ func main() {
 	protected.Post("/risks/bulk", riskUpdate, riskHandler.BulkAction)
 
 	protected.Post("/risks", riskCreate, capRisks, riskHandler.CreateRisk)
+	// #755 — CSV import. capRisks refuses a tenant already at its limit; the use
+	// case then refuses a file that would carry it past.
+	protected.Post("/risks/import", riskCreate, capRisks, riskHandler.ImportRisks)
 	protected.Patch("/risks/:id", riskUpdate, riskHandler.UpdateRisk)
 	protected.Post("/risks/:id/review", riskUpdate, riskHandler.MarkReviewed)
 	protected.Post("/risks/:id/transfer-owner", riskUpdate, ownershipTransferHandler.TransferRiskOwner)

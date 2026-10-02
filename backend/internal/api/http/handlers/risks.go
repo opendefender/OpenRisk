@@ -517,8 +517,6 @@ func (h *RiskHandler) ImportRisks(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "file is required"})
 	}
 
-	format := risk.ImportFormat(c.FormValue("format", "json"))
-
 	// Read file content
 	openFile, err := file.Open()
 	if err != nil {
@@ -533,7 +531,7 @@ func (h *RiskHandler) ImportRisks(c *fiber.Ctx) error {
 	}
 
 	// Execute import
-	result, err := h.importUC.Execute(c.Context(), tenantID, buffer, format, userID)
+	result, err := h.importUC.Execute(c.Context(), tenantID, risk.ImportRisksInput{CSV: buffer, ImportedBy: userID})
 	if err != nil {
 		h.logger.Error().Err(err).Msg("failed to import risks")
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to import risks"})

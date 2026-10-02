@@ -22,6 +22,7 @@ import (
 	"gorm.io/gorm/clause"
 
 	"github.com/opendefender/openrisk/internal/application/dashboard"
+	riskapp "github.com/opendefender/openrisk/internal/application/risk"
 	"github.com/opendefender/openrisk/internal/domain"
 )
 
@@ -32,6 +33,35 @@ import (
 // - Create audit entries on mutations
 type GormRiskRepository struct {
 	db *gorm.DB
+}
+
+// RunRiskTx runs fn inside one transaction with a risk repository bound to it,
+// for use cases that must write several risks or none (the CSV import, #755).
+// The asset store shares the transaction, so asset links roll back with the
+// risks. It satisfies application/risk.RiskTxRunner.
+func RunRiskTx(db *gorm.DB) func(ctx context.Context, fn func(repo domain.RiskRepository, assets riskapp.RiskAssetStore) error) error {
+	return func(ctx context.Context, fn func(repo domain.RiskRepository, assets riskapp.RiskAssetStore) error) error {
+		return db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+			return fn(NewGormRiskRepository(tx), NewGormRiskAssetStore(tx))
+		})
+	}
+}
+
+// ListImportAssetRefs lists a tenant's live assets by id and name, for the
+// "assets" column of the CSV import (#755). It satisfies
+// application/risk.ImportAssetLister.
+func ListImportAssetRefs(db *gorm.DB) func(ctx context.Context, tenantID uuid.UUID) ([]riskapp.ImportAssetRef, error) {
+	return func(ctx context.Context, tenantID uuid.UUID) ([]riskapp.ImportAssetRef, error) {
+		if tenantID == uuid.Nil {
+			return nil, fmt.Errorf("tenant_id is required")
+		}
+		var refs []riskapp.ImportAssetRef
+		err := db.WithContext(ctx).Model(&domain.Asset{}).
+			Select("id", "name").
+			Where("tenant_id = ?", tenantID).
+			Scan(&refs).Error
+		return refs, err
+	}
 }
 
 // NewGormRiskRepository creates a new GORM-backed risk repository.
