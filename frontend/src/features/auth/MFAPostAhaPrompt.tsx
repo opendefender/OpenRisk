@@ -57,13 +57,21 @@ export function MFAPostAhaPrompt() {
   // alert and the server is already refusing requests. A modal on top of that
   // is noise stacked on a blocker, not urgency.
   const alreadyBlocked = status?.state === 'required';
+  const eligible = ahaReached && notConfigured && !alreadyBlocked;
 
+  // Decided while rendering, not in an effect (#878): the prompt opens on the
+  // render where the user becomes eligible, without a second render pass. The
+  // decision is taken once per transition into eligibility, as the effect did.
+  const [wasEligible, setWasEligible] = useState(false);
+  if (eligible !== wasEligible) {
+    setWasEligible(eligible);
+    if (eligible && !withinCooldown()) setOpen(true);
+  }
+
+  // Starting the cooldown is the side effect, and it stays in an effect.
   useEffect(() => {
-    if (!ahaReached || !notConfigured || alreadyBlocked) return;
-    if (withinCooldown()) return;
-    setOpen(true);
-    localStorage.setItem(COOLDOWN_KEY, String(Date.now()));
-  }, [ahaReached, notConfigured, alreadyBlocked]);
+    if (open) localStorage.setItem(COOLDOWN_KEY, String(Date.now()));
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;

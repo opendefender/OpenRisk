@@ -58,7 +58,7 @@ interface Copy {
  * implementations of "are they required?" is how the banner and the guard end
  * up disagreeing, and the one the user believes is the wrong one.
  */
-export function copyFor(
+function copyFor(
   status: MFAStatus,
   tr: (fr: string, en: string) => string,
   /** Locale for the day count's plural form. Optional so existing callers hold. */
