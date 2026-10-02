@@ -25,6 +25,7 @@ import {
   History,
   Pencil,
   Trash2,
+  Upload,
   type LucideIcon,
 } from 'lucide-react';
 import { PageFrame, PageHeader, Btn, CritBadge, EmptyState } from '../../shared/ui';
@@ -364,6 +365,13 @@ export function InventoryPage() {
               icon={Atom}
               onClick={() => navigate('/assets/topology')}
             />
+            {canCreate && (
+              <Btn
+                label={tr('Importer', 'Import')}
+                icon={Upload}
+                onClick={() => navigate('/assets/import')}
+              />
+            )}
             {canCreate && (
               <Btn
                 label={tr('Nouvel actif', 'New asset')}

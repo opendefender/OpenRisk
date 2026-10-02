@@ -953,7 +953,10 @@
       "unknown_asset": "No asset named \"{value}\" in the inventory.",
       "ambiguous_asset": "{count} assets are named \"{value}\": use its id instead.",
       "assets_unavailable": "Linking assets is not available on this server: remove the assets column.",
-      "legacy_scale": "This file uses the old 1–5 scale. OpenRisk expects probability between 0 and 1 and impact between 0 and 10. Download the current template and convert the values (probability 3/5 → 0.6, impact 4/5 → 8)."
+      "legacy_scale": "This file uses the old 1–5 scale. OpenRisk expects probability between 0 and 1 and impact between 0 and 10. Download the current template and convert the values (probability 3/5 → 0.6, impact 4/5 → 8).",
+      "asset_exists": "An asset named \"{value}\" is already in the inventory.",
+      "duplicate_in_file": "\"{value}\" already appears on line {line}.",
+      "invalid_criticality": "\"{value}\" is not a criticality: use LOW, MEDIUM, HIGH or CRITICAL."
     },
     "risks": {
       "back": "Risk register",
@@ -971,6 +974,21 @@
       "forbidden": "You are not allowed to create risks.",
       "limitTitle": "Nothing was imported: this file exceeds your plan’s risk limit.",
       "limitDetail": "The file has {requested} risk(s); your plan allows {remaining} more."
+    },
+    "assets": {
+      "back": "Inventory",
+      "title": "Import assets",
+      "intro": "A CSV file, one row per asset. Every row is checked before anything is imported: if a single row is invalid, nothing is imported and every error is listed.",
+      "colName": "Required, at most 255 characters, not already in the inventory and unique in the file.",
+      "colCriticality": "Optional: LOW, MEDIUM, HIGH or CRITICAL. MEDIUM when empty.",
+      "colOptional": "Optional, free text.",
+      "note": "Excel exports using \";\" are accepted. Typed attributes are filled in afterwards in the inventory. Once imported, the risk file can name these assets in its assets column.",
+      "open": "Open the inventory",
+      "created": "{count} asset(s) imported",
+      "emptyFile": "The file contained no assets.",
+      "forbidden": "You are not allowed to add assets.",
+      "limitTitle": "Nothing was imported: this file exceeds your plan’s asset limit.",
+      "limitDetail": "The file has {requested} asset(s); your plan allows {remaining} more."
     }
   }
 }

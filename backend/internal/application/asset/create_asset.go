@@ -25,6 +25,8 @@ type CreateAssetInput struct {
 	// Attributes is the raw, unvalidated bag from the client. It is only ever
 	// persisted after AttributeValidator has checked and coerced it.
 	Attributes map[string]any
+	// Source records how the asset entered the inventory. Empty means MANUAL.
+	Source string
 }
 
 // AttributeValidator validates a raw attribute bag against the tenant's schema
@@ -97,6 +99,11 @@ func (uc *CreateAssetUseCase) Execute(ctx context.Context, tenantID uuid.UUID, i
 		return nil, domain.NewValidationError("attributes require an asset category — pick one so the values can be validated against its schema")
 	}
 
+	source := input.Source
+	if source == "" {
+		source = "MANUAL"
+	}
+
 	assetEntity := &domain.Asset{
 		ID:          uuid.New(),
 		TenantID:    tenantID,
@@ -104,7 +111,7 @@ func (uc *CreateAssetUseCase) Execute(ctx context.Context, tenantID uuid.UUID, i
 		Type:        input.Type,
 		Criticality: criticality,
 		Owner:       input.Owner,
-		Source:      "MANUAL",
+		Source:      source,
 		Category:    category,
 		Attributes:  attrs,
 	}

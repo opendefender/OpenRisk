@@ -148,6 +148,9 @@ const RemediationPage = lazy(() =>
 const InventoryPage = lazy(() =>
   import('./features/assets/InventoryPage').then((m) => ({ default: m.InventoryPage })),
 );
+const ImportAssetsPage = lazy(() =>
+  import('./features/assets/ImportAssetsPage').then((m) => ({ default: m.ImportAssetsPage })),
+);
 const QuestionnaireTemplatesPage = lazy(() =>
   import('./features/tprm/QuestionnaireTemplatesPage').then((m) => ({
     default: m.QuestionnaireTemplatesPage,
@@ -717,6 +720,7 @@ function App() {
 
             {/* ---------------- Assets ---------------- */}
             <Route path="assets" element={<InventoryPage />} />
+            <Route path="assets/import" element={<ImportAssetsPage />} />
             {/* The Asset Universe was superseded by the topology view (same graph,
               plus zoom/pan, zone clustering, typed edges, compromise chain and
               export). Kept as a redirect so existing links and bookmarks land
