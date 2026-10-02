@@ -16,7 +16,7 @@ const fixture: Partial<Record<'fr' | 'en' | 'ar', Catalog>> = {
   },
 };
 
-const norm = (s: string) => s.replace(/[  ‎‏]/g, ' ');
+const norm = (s: string) => s.replace(/[\u00a0\u202f\u200e\u200f]/g, ' ');
 
 describe('translate', () => {
   it('reads a dotted key', () => {

@@ -14,7 +14,7 @@ import {
 } from '../format';
 
 /** Intl inserts narrow/non-breaking spaces; compare on the digits and marks. */
-const norm = (s: string) => s.replace(/[  ‎‏]/g, ' ');
+const norm = (s: string) => s.replace(/[\u00a0\u202f\u200e\u200f]/g, ' ');
 
 describe('locale-aware formatting', () => {
   it('groups numbers in the reader’s conventions', () => {
