@@ -5,6 +5,76 @@ recommends, and surfaces these in the daily brief. Run `/decide` to clear them.
 
 ## Open
 
+### D-064 — Sign-in lock: anyone can keep an address locked · raised 2026-10-02
+
+**Raised by** — #688 (PR #874), tracked in #879. Since #688, 10 failed sign-ins on one
+address, from any source, lock that address for 15 minutes. The lock is bounded (refused
+attempts don't extend it) and a password reset ends it. Changing who gets through a lock
+changes the auth design, which CLAUDE.md reserves to the owner.
+
+**Context**
+- Anyone who knows an address can re-lock it every 15 minutes, without its password. They
+  gain nothing, but the owner is kept out until they reset their password.
+- The MFA challenge lock (#689) has the same property, already accepted. There it needs the
+  password; here it needs only the address, which is often public (a CISO's email address
+  appears on the bank's website).
+- The per-IP buckets don't help: the attacker controls their sources.
+
+**Options**
+- **A — keep it as is.** The way out is the password reset, already documented in the spec.
+  No code.
+- **B — trusted-device cookie (OWASP "device cookies").** A successful sign-in plants a
+  signed cookie tied to the account. A locked address still accepts attempts from a browser
+  carrying a valid cookie for that account, with its own small budget. The attacker locks
+  out only unknown devices. Cost: a new signed cookie (key, rotation, revocation with the
+  sessions), about one issue of backend work plus tests.
+- **C — progressive delay instead of a hard lock.** Each failure beyond N adds a growing
+  server-side delay for that address, capped. The owner can still get in, slowly. Still
+  denial-of-service-able, and it ties up a request worker for the length of the delay.
+- **D — CAPTCHA after N failures.** Turns the lock into a human check. Cost: an external
+  dependency (often paid, and it sends visitor data to a third party), a hard sell for a
+  self-hosted GRC product; poor accessibility.
+
+**Recommendation** — **B.** It removes the denial of service where it hurts (the owner on
+their usual device) without loosening anything for a new device. It is the mechanism OWASP
+recommends for exactly this case, and it needs no third party. A stays acceptable in the
+meantime: the lock is bounded and the reset works.
+
+**Cost of delay** — Low. No abuse observed; the reset is the workaround.
+
+**Blocks** — #879 criterion 1.
+
+### D-065 — Audit trail: hash the address with a key, not plain SHA-256 · raised 2026-10-02
+
+**Raised by** — #688 (PR #874), tracked in #879. Every failed sign-in is audited with
+`email_sha256=<hex>`. Changing that hash means a server key, so a crypto design choice.
+
+**Context**
+- An unsalted SHA-256 of an address can be reversed by anyone holding a list of candidate
+  addresses (the client directory, a LinkedIn export): hash each one and compare. Reading the
+  audit trail is already a privileged action, but an audit export travels (to auditors, to
+  a SIEM).
+- The same function, `domain.HashEmailForReset`, keys the password-reset limiter
+  (`password_reset_tokens.email_hash`) and the sign-in lock keys in Redis.
+
+**Options**
+- **A — keep SHA-256.** Consistent everywhere, no key to manage.
+- **B — HMAC-SHA256 with a dedicated server key** (for example `AUDIT_HASH_KEY`, required
+  in production) for the audit trail and the Redis keys. The reset limiter can follow: its
+  window is one hour, so switching only resets the counters in flight. Cost: one secret to
+  provision and keep. Rotating it breaks correlation between the old and new periods of the
+  trail.
+- **C — no address in the audit trail.** The "one address hammered from many IPs" signal is
+  lost, which is the reason #688 added it.
+
+**Recommendation** — **B.** It keeps the correlation signal while making the trail useless
+for re-identification without the key. It's a real cost for self-hosters (one more secret),
+so the boot should say clearly which variable is missing.
+
+**Cost of delay** — Low. The trail is only readable by privileged roles today.
+
+**Blocks** — #879 criterion 2.
+
 ## Resolved
 
 ### D-063 — 3D tilt on the overall score card: ship it · decided 2026-10-01
