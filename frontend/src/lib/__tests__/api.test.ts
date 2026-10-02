@@ -157,3 +157,37 @@ describe('api interceptor — an expired access cookie (issue 691)', () => {
     expect(window.location.href).toBe('/login');
   });
 });
+
+// #872 — the MFA challenge is authenticated by its own short-lived token, not by
+// the session. Its 401s say "this sign-in attempt is over", which the challenge
+// screen explains. Refreshing an unrelated session or reloading /login here
+// wiped that explanation and left the user on a blank password form.
+describe('api interceptor — the MFA challenge owns its 401s (issue 872)', () => {
+  for (const code of ['TOKEN_REVOKED', 'TOKEN_EXPIRED', 'TOKEN_INVALID', 'UNAUTHORIZED']) {
+    it(`neither refreshes nor redirects on ${code}`, async () => {
+      const post = vi.spyOn(axios, 'post');
+      let calls = 0;
+      const adapter: MockCall = async (config) => {
+        calls += 1;
+        throw expired(config, code);
+      };
+      api.defaults.adapter = adapter as never;
+
+      const err = await api.post('/auth/mfa/challenge', { code: '123456' }).catch((e: unknown) => e);
+      expect((err as { response?: { data?: { code?: string } } }).response?.data?.code).toBe(code);
+      expect(post).not.toHaveBeenCalled();
+      expect(calls).toBe(1);
+      expect(window.location.href).toBe('');
+    });
+  }
+
+  it('still sends an ordinary request with a revoked token to /login', async () => {
+    const adapter: MockCall = async (config) => {
+      throw expired(config, 'TOKEN_REVOKED');
+    };
+    api.defaults.adapter = adapter as never;
+
+    await expect(api.get('/auth/mfa/status')).rejects.toBeTruthy();
+    expect(window.location.href).toBe('/login');
+  });
+});

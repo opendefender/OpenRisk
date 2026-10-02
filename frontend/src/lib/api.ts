@@ -75,6 +75,15 @@ const TOKEN_ERROR_CODES = new Set([
 // A revoked or invalid token is not recoverable and still goes to /login.
 const REFRESHABLE_CODES = new Set(['TOKEN_EXPIRED', 'UNAUTHORIZED']);
 
+// Requests authenticated by a credential of their own rather than by the
+// session, whose 401s are for the caller to explain, not for the interceptor.
+const OWN_CREDENTIAL_PATHS = ['/auth/mfa/challenge'];
+
+function isOwnCredentialRequest(url: string | undefined): boolean {
+  const path = String(url ?? '');
+  return OWN_CREDENTIAL_PATHS.some((p) => path.includes(p));
+}
+
 // A single in-flight refresh shared by every request that 401s at once, so a
 // dashboard full of widgets that all expire together triggers ONE /auth/refresh,
 // not one per widget. Cleared when it settles so a later expiry can refresh
@@ -127,6 +136,14 @@ api.interceptors.response.use(
     const status = error.response?.status;
     const code = error.response?.data?.code;
     const original = error.config as (typeof error.config & { _retried?: boolean }) | undefined;
+
+    // The MFA challenge carries its own short-lived token, not the session. Its
+    // 401s mean "this sign-in attempt is over", and the challenge screen says so
+    // and sends the user back to the password (#872). Refreshing an unrelated
+    // session, or reloading /login, would wipe that explanation.
+    if (isOwnCredentialRequest(original?.url)) {
+      return Promise.reject(error);
+    }
 
     // Transparent refresh-and-retry: an access token that merely EXPIRED is
     // recoverable from the long-lived refresh cookie. Without this, every
