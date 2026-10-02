@@ -7,39 +7,70 @@ package auth
 
 import (
 	"context"
+	"errors"
 	"fmt"
-
-	"github.com/opendefender/openrisk/internal/auth"
+	"time"
 )
 
 // LogoutInput represents the input for user logout
 type LogoutInput struct {
 	RefreshToken string
+	// AccessJTI and AccessExpiresAt identify the access token the request came
+	// with, already verified by the caller. Revoking it is what makes logout
+	// end the session now rather than when the token expires (#689).
+	AccessJTI       string
+	AccessExpiresAt time.Time
+}
+
+// RefreshTokenRevoker deletes a refresh token. Satisfied by *auth.TokenManager.
+type RefreshTokenRevoker interface {
+	RevokeRefreshToken(ctx context.Context, refreshTokenValue string) error
 }
 
 // LogoutUseCase handles user logout
 type LogoutUseCase struct {
-	tokenManager *auth.TokenManager
+	tokenManager RefreshTokenRevoker
+	accessTokens TokenRevoker
 }
 
 // NewLogoutUseCase creates a new logout use case
-func NewLogoutUseCase(tokenManager *auth.TokenManager) *LogoutUseCase {
+func NewLogoutUseCase(tokenManager RefreshTokenRevoker) *LogoutUseCase {
 	return &LogoutUseCase{
 		tokenManager: tokenManager,
 	}
 }
 
-// Execute performs user logout
+// WithAccessTokenRevocation blacklists the access token on logout. Without it
+// the access token stays valid until it expires, up to AccessTokenTTL.
+func (uc *LogoutUseCase) WithAccessTokenRevocation(r TokenRevoker) *LogoutUseCase {
+	uc.accessTokens = r
+	return uc
+}
+
+// Execute performs user logout.
+//
+// The access token is revoked first: a refresh token that is already gone (a
+// second logout, a rotated cookie) must not leave the access token working.
+// Both revocations are always attempted, so a Redis outage on the first never
+// spares the refresh token.
 func (uc *LogoutUseCase) Execute(ctx context.Context, input LogoutInput) error {
-	// Validate input
-	if input.RefreshToken == "" {
+	if input.RefreshToken == "" && input.AccessJTI == "" {
 		return fmt.Errorf("refresh token is required")
 	}
 
-	// Revoke the refresh token
-	if err := uc.tokenManager.RevokeRefreshToken(ctx, input.RefreshToken); err != nil {
-		return fmt.Errorf("failed to revoke refresh token: %w", err)
+	var accessErr error
+	if input.AccessJTI != "" && uc.accessTokens != nil {
+		if ttl := time.Until(input.AccessExpiresAt); ttl > 0 {
+			if err := uc.accessTokens.BlacklistJTI(ctx, input.AccessJTI, ttl); err != nil {
+				accessErr = fmt.Errorf("failed to revoke access token: %w", err)
+			}
+		}
 	}
 
-	return nil
+	if input.RefreshToken != "" {
+		if err := uc.tokenManager.RevokeRefreshToken(ctx, input.RefreshToken); err != nil {
+			return errors.Join(fmt.Errorf("failed to revoke refresh token: %w", err), accessErr)
+		}
+	}
+	return accessErr
 }

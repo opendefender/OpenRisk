@@ -687,7 +687,9 @@ func main() {
 		// Organization + owner + root membership in one transaction (#687).
 		WithAccounts(repository.NewGormRegistrationRepository(database.DB))
 	refreshUseCase := auth.NewRefreshTokenUseCase(tokenManager)
-	logoutUseCase := auth.NewLogoutUseCase(tokenManager)
+	// #689 — logout also blacklists the access token it was called with, so the
+	// session ends now instead of at the end of the access TTL.
+	logoutUseCase := auth.NewLogoutUseCase(tokenManager).WithAccessTokenRevocation(tokenBlacklistManager)
 
 	// MFA use cases + handler.
 	setupMFAUseCase := auth.NewSetupMFAUseCase(mfaRepo, mfaKey[:])
@@ -764,7 +766,8 @@ func main() {
 		// The same repository resolveSessionForOrg reads at token mint time, so
 		// /auth/me's business role and the token's permissions come from one
 		// membership row and cannot disagree (#338).
-		WithMemberLookup(userRepo)
+		WithMemberLookup(userRepo).
+		WithAccessTokenRevocation(rsaKeys)
 
 	// OAuth identity resolution: known link → verified-email link → provision.
 	// No provisioner is wired, so an identity with no OpenRisk account is refused

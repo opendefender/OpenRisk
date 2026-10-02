@@ -8,6 +8,7 @@ package auth
 import (
 	"context"
 	"errors"
+	"strings"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
@@ -15,6 +16,7 @@ import (
 	coreauth "github.com/opendefender/openrisk/internal/auth"
 	"github.com/opendefender/openrisk/internal/domain"
 	"github.com/opendefender/openrisk/internal/middleware"
+	authpkg "github.com/opendefender/openrisk/pkg/auth"
 )
 
 // Handler handles authentication endpoints
@@ -39,6 +41,17 @@ type Handler struct {
 	// CURRENT business role. Optional; without it the field is omitted rather
 	// than guessed (#338).
 	memberLookup OrganizationMemberReader
+	// accessTokenKeys verifies the access token presented at logout so its
+	// JTI can be revoked (#689). Optional; without it logout ends only the
+	// refresh token, and the access token lives out its TTL.
+	accessTokenKeys *authpkg.RSAKeys
+}
+
+// WithAccessTokenRevocation lets logout verify and revoke the access token it
+// was called with. The use case must be wired with a revoker too.
+func (h *Handler) WithAccessTokenRevocation(keys *authpkg.RSAKeys) *Handler {
+	h.accessTokenKeys = keys
+	return h
 }
 
 // UserByIDReader resolves a user by id for /auth/me.
@@ -490,13 +503,19 @@ func (h *Handler) Logout(c *fiber.Ctx) error {
 	// cookies behind is worse than one that reports an error.
 	middleware.ClearSessionCookies(c)
 
-	if req.RefreshToken == "" {
+	input := auth.LogoutInput{RefreshToken: req.RefreshToken}
+	if claims := h.presentedAccessToken(c); claims != nil {
+		input.AccessJTI = claims.JTI
+		if claims.ExpiresAt != nil {
+			input.AccessExpiresAt = claims.ExpiresAt.Time
+		}
+	}
+
+	if input.RefreshToken == "" && input.AccessJTI == "" {
 		return c.JSON(fiber.Map{"message": "Logged out"})
 	}
 
-	err := h.logoutUseCase.Execute(c.UserContext(), auth.LogoutInput{
-		RefreshToken: req.RefreshToken,
-	})
+	err := h.logoutUseCase.Execute(c.UserContext(), input)
 
 	if err != nil {
 		reason := "logout failed"
@@ -510,6 +529,34 @@ func (h *Handler) Logout(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{
 		"message": "Logged out successfully",
 	})
+}
+
+// presentedAccessToken returns the verified claims of the access token sent
+// with the request, from the Authorization header or the session cookie, the
+// same order the auth middleware reads them. A missing, forged or expired
+// token yields nil: logout still clears the cookies, there is just nothing
+// left to revoke. A valid signature is required, so nobody can blacklist a
+// JTI they do not hold.
+func (h *Handler) presentedAccessToken(c *fiber.Ctx) *authpkg.Claims {
+	if h.accessTokenKeys == nil {
+		return nil
+	}
+	token := ""
+	if header := c.Get("Authorization"); header != "" {
+		if parts := strings.Split(header, " "); len(parts) == 2 && parts[0] == "Bearer" {
+			token = parts[1]
+		}
+	} else {
+		token = c.Cookies(middleware.AccessTokenCookie)
+	}
+	if token == "" {
+		return nil
+	}
+	claims, err := authpkg.ValidateAccessToken(h.accessTokenKeys, token, nil)
+	if err != nil || claims.JTI == "" {
+		return nil
+	}
+	return claims
 }
 
 // Me godoc
