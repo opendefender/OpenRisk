@@ -89,7 +89,7 @@ pause that address for a bounded time; unknown and real addresses cost the same;
 - **Port** `application/auth/login_limits.go`: `LoginAttemptStore { Increment; Lock; LockedFor; Delete }` — a subset of #689's `MFAAttemptStore`, satisfied by `authmfa.AttemptStore` without changes. Keys `login:fail:<sha256>` and `login:lock:<sha256>`.
 - **Use case** `LoginUseCase.WithAttemptLimits(store)` → sentinel `ErrLoginLocked` carrying `RetryAfter` (`errors.As`). Unwired = today's behaviour; existing tests untouched.
 - **Use case** `ConfirmPasswordResetUseCase.WithLoginLockClearer(store)` clears both keys after the new hash is written.
-- **Middleware** `RateLimit` sets `Retry-After` and the new body fields. The prefix wrapper moves to `middleware.PrefixedBackend`; `handler.PrefixedRateLimitBackend` becomes an alias, no churn elsewhere.
+- **Middleware** `RateLimit` sets `Retry-After` and the new body fields. The five limiters are built by `middleware.NewAuthLimiters` so their separation is testable; the prefix wrapper moves there as `middleware.PrefixedBackend`, and `handler.PrefixedRateLimitBackend` stays as an alias.
 - **Handler** `Login` maps `ErrLoginLocked` → 429; writes the hashed address in every failure audit row.
 - **main.go**: wiring only.
 
@@ -128,7 +128,8 @@ Live: throwaway pg + redis on spare ports, server from the repo root (live-boot 
 - **Redis down:** buckets and locks become per-instance.
 - **`Retry-After` in degraded mode:** computed from the Redis fixed window; the in-memory fallback slides, so the hint may be early by up to one window.
 - **Audit hash:** unsalted SHA-256 of an address is dictionary-reversible for a known address list. Kept for consistency with reset; HMAC is a follow-up if wanted.
-- **Legacy hashes:** accounts on a pre-upgrade hash verify at a different cost than the dummy until their next login migrates them.
+- ~~Legacy hashes~~ — not a limit: the Argon2id hasher already spends full cost on any hash it cannot parse (`spendArgon2idCost`).
+- **Redis keys** live under #689's `mfa-attempts:` namespace (`mfa-attempts:login:lock:<sha256>`), because the store is shared.
 - **`LogFiber` reads `X-Forwarded-For` raw** for the audit IP (spoofable). Pre-existing, out of scope; follow-up issue.
 
 ## Plan — one commit per task, `fix(auth): … (#688)`
