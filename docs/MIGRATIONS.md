@@ -78,3 +78,19 @@ vide : schéma de la version précédente, données de tous les âges et de tout
 NULL, lignes antérieures aux hooks), puis la séquence de boot (`PrepareForAutoMigrate`,
 AutoMigrate, couche SQL). Modèle : `backend/cmd/server/migration_0060_integration_test.go`.
 Procédure de montée de version et de retour arrière associée : `docs/runbooks/migration-0060.md`.
+
+**Adresses e-mail en double à la casse près** (`0068`, #876). `GetByEmail` compare
+`LOWER(email)` depuis #688, et `idx_users_email_lower` sert cette recherche. L'index n'est pas
+unique, parce que des comptes créés avant #687 peuvent exister en double à la casse près. Avant de
+proposer une contrainte unique, lister ces doublons (lecture seule) :
+```sql
+SELECT LOWER(email) AS adresse, COUNT(*) AS comptes,
+       array_agg(email ORDER BY created_at) AS graphies
+  FROM users
+ WHERE deleted_at IS NULL
+ GROUP BY LOWER(email)
+HAVING COUNT(*) > 1;
+```
+Sans ligne, la base est prête pour une contrainte unique. Sinon, la connexion atteint la ligne
+écrite exactement comme saisie, puis la plus ancienne : fusionner ou renommer les doublons est une
+décision de données, pas une migration.
