@@ -20,9 +20,13 @@ type AuthAuditLogRepository interface {
 
 type PersonalAccessTokenRepository interface {
 	Create(ctx context.Context, token *domain.PersonalAccessToken) error
-	GetByID(ctx context.Context, id uuid.UUID) (*domain.PersonalAccessToken, error)
+	// GetByTokenHash is the authentication lookup and is deliberately not
+	// tenant-filtered: no tenant is known until the token is found, and the row
+	// it returns carries the one tenant the token may act in.
 	GetByTokenHash(ctx context.Context, hash string) (*domain.PersonalAccessToken, error)
-	GetByUserID(ctx context.Context, userID uuid.UUID) ([]*domain.PersonalAccessToken, error)
-	UpdateLastUsed(ctx context.Context, id uuid.UUID) error
-	Delete(ctx context.Context, id uuid.UUID) error
+	ListByOwner(ctx context.Context, tenantID, userID uuid.UUID) ([]*domain.PersonalAccessToken, error)
+	UpdateLastUsed(ctx context.Context, tenantID, id uuid.UUID) error
+	// DeleteByOwner removes the token only when it belongs to userID in
+	// tenantID, and reports whether a row was removed.
+	DeleteByOwner(ctx context.Context, tenantID, userID, id uuid.UUID) (bool, error)
 }

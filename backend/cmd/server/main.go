@@ -274,9 +274,6 @@ func main() {
 		log.Fatalf("Failed to initialize default permission roles: %v", err)
 	}
 
-	// Initialize Token Service for API token management
-	tokenService := service.NewTokenService()
-
 	// Initialize Score Engine Service for automatic risk score calculation
 	scoreEngineService := service.NewScoreEngineService(database.DB)
 	log.Println("Score Engine: Service initialized with default configuration")
@@ -592,8 +589,9 @@ func main() {
 	tokenManager.SetOrgSessionResolver(resolveSessionForOrg)
 
 	// L5 — Personal Access Tokens. DB-backed service (survives restarts, scoped),
-	// its auth middleware, and a management handler. The same resolveSession gives a
-	// PAT the owner's tenant + permissions (narrowed to the token's scopes).
+	// its auth middleware, and a management handler. resolveSessionForOrg gives a
+	// PAT its owner's permissions in the token's own tenant (narrowed to the
+	// token's scopes), and refuses once the owner is no longer a member there.
 	patService := coreauth.NewPersonalAccessTokenService(repository.NewGormPersonalAccessTokenRepository(database.DB))
 
 	// L7 — full-fidelity auth audit trail (auth_audit_logs: IP, UA, geo, device
@@ -977,7 +975,7 @@ func main() {
 	// L5 — PAT authentication runs BEFORE the JWT gate: it authenticates PAT-shaped
 	// bearers and is a no-op for JWTs (which the RS256 middleware then handles). The
 	// JWT middleware skips when a PAT already authenticated the request.
-	api.Use(middleware.PATMiddleware(patService, resolveSession))
+	api.Use(middleware.PATMiddleware(patService, resolveSessionForOrg))
 	protected := api.Use(middleware.Protected(rsaKeys, jtiBlacklistChecker))
 
 	// Response-cache invalidation (#337). Mounted here, right after the gate that
@@ -2100,20 +2098,6 @@ func main() {
 	protected.Get("/audit-logs", adminRole, auditHandler.GetAuditLogs)
 	protected.Get("/audit-logs/user/:user_id", adminRole, auditHandler.GetUserAuditLogs)
 	protected.Get("/audit-logs/action/:action", adminRole, auditHandler.GetAuditLogsByAction)
-
-	// --- API Token Management (Protected routes) ---
-	// Tokens can be managed by any authenticated user for their own tokens
-	tokenHandler := handlers.NewTokenHandler(tokenService)
-
-	// API tokens are personal: every verb below loads the token and refuses when
-	// token.UserID is not the caller. The session is the authorization (#529).
-	protected.Post("/tokens", tokenHandler.CreateToken)
-	protected.Get("/tokens", tokenHandler.ListTokens)
-	protected.Get("/tokens/:id", tokenHandler.GetToken)
-	protected.Put("/tokens/:id", tokenHandler.UpdateToken)
-	protected.Post("/tokens/:id/revoke", tokenHandler.RevokeToken)
-	protected.Post("/tokens/:id/rotate", tokenHandler.RotateToken)
-	protected.Delete("/tokens/:id", tokenHandler.DeleteToken)
 
 	// --- Custom Fields Management (Protected routes) ---
 	customFieldHandler := handlers.NewCustomFieldHandler()

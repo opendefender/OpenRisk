@@ -37,9 +37,6 @@ import (
 // the issue that owns it. Adding a name requires an issue number (enforced
 // below); an entry must go as soon as its table is built (also enforced).
 var knownMissingTables = map[string]string{
-	// Stored in an in-process map by service.TokenService; the table is never
-	// read or written. The feature itself is broken, see the issue.
-	"APIToken": "#709",
 	// The marketplace is not built (ROADMAP 14.18): its models carry no gorm
 	// tags and cannot be migrated as they stand, and its routes are not
 	// mounted (main.go), so no request reaches these tables.

@@ -45,7 +45,49 @@ func PrepareForAutoMigrate(db *gorm.DB) error {
 	if err := prepareOnboardingProgressPerOrg(db); err != nil {
 		return fmt.Errorf("onboarding_progress: %w", err)
 	}
+	if err := backfillPersonalAccessTokenTenant(db); err != nil {
+		return fmt.Errorf("personal_access_tokens: %w", err)
+	}
 	return nil
+}
+
+// backfillPersonalAccessTokenTenant gives every pre-existing personal access
+// token the tenant it already acted in, before AutoMigrate makes tenant_id NOT
+// NULL (#782).
+//
+// Before tenant_id existed, the PAT middleware resolved a token's tenant from
+// its owner's default organization on every request. Copying
+// users.default_org_id therefore changes no token's behaviour. A token whose
+// owner has no default organization never authenticated a single request (the
+// resolver refused it), so it is deleted rather than guessed at: a credential
+// pinned to the wrong tenant is worse than one that is gone.
+// Mirrors migrations/0067_personal_access_tokens_tenant.up.sql. Idempotent; a
+// no-op outside Postgres and on a fresh database.
+func backfillPersonalAccessTokenTenant(db *gorm.DB) error {
+	if db.Dialector.Name() != "postgres" {
+		return nil
+	}
+	if !db.Migrator().HasTable("personal_access_tokens") {
+		return nil
+	}
+	stmts := []string{
+		`ALTER TABLE personal_access_tokens ADD COLUMN IF NOT EXISTS tenant_id uuid`,
+		`UPDATE personal_access_tokens p
+		    SET tenant_id = u.default_org_id
+		   FROM users u
+		  WHERE p.user_id = u.id
+		    AND p.tenant_id IS NULL
+		    AND u.default_org_id IS NOT NULL`,
+		`DELETE FROM personal_access_tokens WHERE tenant_id IS NULL`,
+	}
+	return db.Transaction(func(tx *gorm.DB) error {
+		for _, s := range stmts {
+			if err := tx.Exec(s).Error; err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 }
 
 // prepareOnboardingProgressPerOrg moves onboarding_progress from one row per

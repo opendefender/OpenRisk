@@ -21,6 +21,11 @@ import (
 	"github.com/opendefender/openrisk/internal/infrastructure/repository"
 )
 
+// PATValuePrefix opens every token value this service mints, so a leaked token
+// is recognisable on sight and by secret scanners: "orsk_<8-hex>_<64-hex>".
+// Tokens minted before #782 have no such prefix and still validate.
+const PATValuePrefix = "orsk_"
+
 // PersonalAccessTokenService handles PAT operations
 type PersonalAccessTokenService struct {
 	repo repository.PersonalAccessTokenRepository
@@ -55,8 +60,13 @@ func (s *PersonalAccessTokenService) generateTokenPrefix() (string, error) {
 	return hex.EncodeToString(bytes)[:8], nil
 }
 
-// CreateToken creates a new personal access token
-func (s *PersonalAccessTokenService) CreateToken(ctx context.Context, userID uuid.UUID, name, description string, scopes []string, expiresAt *time.Time) (*domain.PersonalAccessToken, string, error) {
+// CreateToken creates a personal access token for userID in tenantID. The token
+// can only ever act in that tenant. The raw value is returned once and is never
+// stored; only its SHA-256 hash is.
+func (s *PersonalAccessTokenService) CreateToken(ctx context.Context, userID, tenantID uuid.UUID, name, description string, scopes []string, expiresAt *time.Time) (*domain.PersonalAccessToken, string, error) {
+	if userID == uuid.Nil || tenantID == uuid.Nil {
+		return nil, "", fmt.Errorf("%w: token owner and tenant are required", domain.ErrValidation)
+	}
 	// Generate secure token
 	token, err := s.generateSecureToken()
 	if err != nil {
@@ -78,6 +88,7 @@ func (s *PersonalAccessTokenService) CreateToken(ctx context.Context, userID uui
 
 	pat := &domain.PersonalAccessToken{
 		UserID:      userID,
+		TenantID:    tenantID,
 		Name:        name,
 		Description: description,
 		TokenHash:   tokenHash,
@@ -93,24 +104,25 @@ func (s *PersonalAccessTokenService) CreateToken(ctx context.Context, userID uui
 		return nil, "", fmt.Errorf("failed to save token: %w", err)
 	}
 
-	// Return the GitHub-style "<prefix>_<secret>" value. ValidateToken splits on
-	// "_" and requires an 8-char prefix; previously CreateToken returned the bare
-	// secret with no prefix, so every token this service minted failed validation.
-	return pat, tokenPrefix + "_" + token, nil
+	return pat, PATValuePrefix + tokenPrefix + "_" + token, nil
+}
+
+// SplitPATValue parses "orsk_<8-hex>_<secret>" or the pre-#782 form
+// "<8-hex>_<secret>" into its lookup prefix and secret. ok is false for
+// anything else, including a JWT.
+func SplitPATValue(raw string) (prefix, secret string, ok bool) {
+	parts := strings.Split(strings.TrimPrefix(raw, PATValuePrefix), "_")
+	if len(parts) != 2 || len(parts[0]) != 8 || parts[1] == "" {
+		return "", "", false
+	}
+	return parts[0], parts[1], true
 }
 
 // ValidateToken validates a token and returns the PAT if valid
 func (s *PersonalAccessTokenService) ValidateToken(ctx context.Context, token string) (*domain.PersonalAccessToken, error) {
-	// Extract prefix and validate format
-	parts := strings.Split(token, "_")
-	if len(parts) != 2 {
-		return nil, fmt.Errorf("invalid token format")
-	}
-	prefix := parts[0]
-	tokenValue := parts[1]
-
-	if len(prefix) != 8 {
-		return nil, fmt.Errorf("invalid token prefix")
+	prefix, tokenValue, ok := SplitPATValue(token)
+	if !ok {
+		return nil, fmt.Errorf("%w: invalid token format", domain.ErrUnauthorized)
 	}
 
 	// Hash the token value
@@ -119,21 +131,26 @@ func (s *PersonalAccessTokenService) ValidateToken(ctx context.Context, token st
 	// Find token by hash
 	pat, err := s.repo.GetByTokenHash(ctx, tokenHash)
 	if err != nil {
-		return nil, fmt.Errorf("token not found")
+		return nil, fmt.Errorf("%w: unknown token", domain.ErrUnauthorized)
 	}
 
 	// Check if token belongs to the correct prefix
 	if pat.TokenPrefix != prefix {
-		return nil, fmt.Errorf("invalid token")
+		return nil, fmt.Errorf("%w: invalid token", domain.ErrUnauthorized)
 	}
 
 	// Check if token is expired
 	if pat.IsExpired() {
-		return nil, fmt.Errorf("token expired")
+		return nil, fmt.Errorf("%w: token expired", domain.ErrUnauthorized)
+	}
+
+	// A row from before #782 that the backfill could not attribute is unusable.
+	if pat.TenantID == uuid.Nil {
+		return nil, fmt.Errorf("%w: token has no tenant", domain.ErrUnauthorized)
 	}
 
 	// Update last used timestamp
-	if err := s.repo.UpdateLastUsed(ctx, pat.ID); err != nil {
+	if err := s.repo.UpdateLastUsed(ctx, pat.TenantID, pat.ID); err != nil {
 		// Log error but don't fail validation
 		fmt.Printf("Failed to update last used timestamp: %v\n", err)
 	}
@@ -175,22 +192,22 @@ func (s *PersonalAccessTokenService) HasScope(pat *domain.PersonalAccessToken, r
 	return false
 }
 
-// ListUserTokens gets all tokens for a user
-func (s *PersonalAccessTokenService) ListUserTokens(ctx context.Context, userID uuid.UUID) ([]*domain.PersonalAccessToken, error) {
-	return s.repo.GetByUserID(ctx, userID)
+// ListUserTokens lists the tokens userID minted in tenantID. Tokens the same
+// person minted in another organization are not shown.
+func (s *PersonalAccessTokenService) ListUserTokens(ctx context.Context, tenantID, userID uuid.UUID) ([]*domain.PersonalAccessToken, error) {
+	return s.repo.ListByOwner(ctx, tenantID, userID)
 }
 
-// RevokeToken revokes a token
-func (s *PersonalAccessTokenService) RevokeToken(ctx context.Context, tokenID uuid.UUID, userID uuid.UUID) error {
-	// First verify the token belongs to the user
-	pat, err := s.repo.GetByID(ctx, tokenID)
+// RevokeToken deletes a token userID owns in tenantID. Someone else's token, or
+// the caller's own token from another organization, is ErrNotFound: whether it
+// exists is not the caller's business.
+func (s *PersonalAccessTokenService) RevokeToken(ctx context.Context, tenantID, tokenID, userID uuid.UUID) error {
+	removed, err := s.repo.DeleteByOwner(ctx, tenantID, userID, tokenID)
 	if err != nil {
-		return fmt.Errorf("token not found")
+		return err
 	}
-
-	if pat.UserID != userID {
-		return fmt.Errorf("unauthorized")
+	if !removed {
+		return domain.ErrNotFound
 	}
-
-	return s.repo.Delete(ctx, tokenID)
+	return nil
 }
