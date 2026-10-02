@@ -11,6 +11,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/opendefender/openrisk/internal/domain"
+	pkgscoring "github.com/opendefender/openrisk/pkg/scoring"
 )
 
 // CreateRiskInput represents the input for creating a risk.
@@ -32,6 +33,11 @@ type CreateRiskInput struct {
 	// may be unclassified, and forcing a pick at creation only teaches people to
 	// choose the first entry.
 	CategoryID *uuid.UUID
+	// AssetIDs links the risk to the tenant's assets at creation. Their
+	// criticality is a term of the score, so they are linked before the score
+	// is computed and in the same write. Ids that are not the tenant's assets
+	// are dropped, as the handler always did.
+	AssetIDs   []uuid.UUID
 	Source     string // parsed into domain.RiskSource in Execute()
 	ExternalID string
 	CreatedBy  uuid.UUID // the authenticated user creating the risk
@@ -62,11 +68,20 @@ type CreateRiskUseCase struct {
 	riskRepo   domain.RiskRepository
 	activation ActivationRecorder
 	ownership  OwnershipManager
+	assets     RiskAssetStore
+	engine     pkgscoring.Engine
 }
 
 // NewCreateRiskUseCase creates a new CreateRiskUseCase.
 func NewCreateRiskUseCase(riskRepo domain.RiskRepository) *CreateRiskUseCase {
-	return &CreateRiskUseCase{riskRepo: riskRepo}
+	return &CreateRiskUseCase{riskRepo: riskRepo, engine: pkgscoring.NewEngine()}
+}
+
+// WithAssets attaches the asset store that resolves and links input.AssetIDs.
+// Without it, AssetIDs is ignored and the risk is scored with no asset.
+func (uc *CreateRiskUseCase) WithAssets(s RiskAssetStore) *CreateRiskUseCase {
+	uc.assets = s
+	return uc
 }
 
 // WithActivation attaches the optional activation recorder. Nil-safe.
@@ -156,20 +171,34 @@ func (uc *CreateRiskUseCase) Execute(ctx context.Context, orgID uuid.UUID, input
 		risk.AssignedTo = risk.AssigneeID
 	}
 
-	// 3. Compute score (Claude.md formula: P × I, score engine can override later)
-	risk.Score = risk.Impact * risk.Probability
-	// Band the score synchronously so the create response is self-consistent
-	// (score and criticality agree) instead of returning the default 'low' until
-	// the async ScoreWorker runs ~2s later. The worker refines it once asset
-	// criticality is folded in; both move together (audit-2026 #246).
-	risk.Criticality = domain.CriticalityFromScore(risk.Score)
+	// 3. Resolve the linked assets: their criticality is a term of the score.
+	var linked []*domain.Asset
+	if uc.assets != nil && len(input.AssetIDs) > 0 {
+		linked, err = uc.assets.FindByIDs(ctx, orgID, input.AssetIDs)
+		if err != nil {
+			return nil, domain.NewInternalError(fmt.Sprintf("failed to resolve assets: %v", err))
+		}
+		risk.Assets = linked
+	}
 
-	// 4. Persist
-	if err := uc.riskRepo.Create(ctx, risk); err != nil {
+	// 4. Score through the Score Engine, asset criticality included, so the
+	// stored score is the formula's from the first write — not P × I waiting
+	// for a Redis event that may never come (#792).
+	if err := applyScore(uc.engine, risk); err != nil {
+		return nil, err
+	}
+
+	// 5. Persist the risk and its asset links together.
+	if len(linked) > 0 {
+		err = uc.assets.SaveWithAssets(ctx, risk, linked, true)
+	} else {
+		err = uc.riskRepo.Create(ctx, risk)
+	}
+	if err != nil {
 		return nil, domain.NewInternalError(fmt.Sprintf("failed to create risk: %v", err))
 	}
 
-	// 5. Note the activation milestone. Every creation records an event; only the
+	// 6. Note the activation milestone. Every creation records an event; only the
 	// FIRST one ticks the checklist (the read model takes MIN(occurred_at)), so
 	// no counting or de-duplication is needed here.
 	if uc.activation != nil {
@@ -179,7 +208,7 @@ func (uc *CreateRiskUseCase) Execute(ctx context.Context, orgID uuid.UUID, input
 		})
 	}
 
-	// 6. Announce assignments made at creation (never to the creator themselves).
+	// 7. Announce assignments made at creation (never to the creator themselves).
 	if uc.ownership != nil && len(ownershipChanges) > 0 {
 		uc.ownership.Notify(ctx, orgID, ownershipChanges, domain.OwnershipSubject{
 			ResourceType: "risk",

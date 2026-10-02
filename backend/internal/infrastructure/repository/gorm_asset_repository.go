@@ -38,6 +38,33 @@ func (r *GormAssetRepository) Create(ctx context.Context, asset *domain.Asset) e
 	return r.db.WithContext(ctx).Create(asset).Error
 }
 
+// RunAssetTx runs fn inside one transaction with an asset repository bound to
+// it, for the CSV import that writes every asset or none (#861). It satisfies
+// application/asset.AssetTxRunner.
+func RunAssetTx(db *gorm.DB) func(ctx context.Context, fn func(repo domain.AssetRepository) error) error {
+	return func(ctx context.Context, fn func(repo domain.AssetRepository) error) error {
+		return db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+			return fn(NewGormAssetRepository(tx))
+		})
+	}
+}
+
+// ListAssetNames lists the names of a tenant's live assets, so the import can
+// refuse a name the inventory already holds (#861). It satisfies
+// application/asset.ExistingAssetNames.
+func ListAssetNames(db *gorm.DB) func(ctx context.Context, tenantID uuid.UUID) ([]string, error) {
+	return func(ctx context.Context, tenantID uuid.UUID) ([]string, error) {
+		if tenantID == uuid.Nil {
+			return nil, fmt.Errorf("tenant_id is required")
+		}
+		var names []string
+		err := db.WithContext(ctx).Model(&domain.Asset{}).
+			Where("tenant_id = ?", tenantID).
+			Pluck("name", &names).Error
+		return names, err
+	}
+}
+
 // GetByID retrieves an asset by ID scoped to a tenant, with linked risks preloaded.
 func (r *GormAssetRepository) GetByID(ctx context.Context, id uuid.UUID, tenantID uuid.UUID) (*domain.Asset, error) {
 	var asset domain.Asset

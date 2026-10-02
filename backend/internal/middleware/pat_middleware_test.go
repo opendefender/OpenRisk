@@ -7,14 +7,16 @@ package middleware
 
 import "testing"
 
-// looksLikePAT must accept the "<8-hex>_<secret>" PAT shape and reject JWTs
+// looksLikePAT must accept the "[orsk_]<8-hex>_<secret>" PAT shape and reject JWTs
 // (which are dot-delimited) so the PAT middleware never swallows a JWT.
 func TestLooksLikePAT(t *testing.T) {
 	cases := []struct {
 		in   string
 		want bool
 	}{
-		{"b3762387_deadbeefcafebabe", true},
+		{"orsk_b3762387_deadbeefcafebabe", true}, // #782 format
+		{"b3762387_deadbeefcafebabe", true},      // pre-#782 format
+		{"orsk_short_secret", false},
 		{"12345678_x", true},
 		{"eyJhbGciOi.J9.eyJzdWIi.sig", false}, // JWT: has dots
 		{"short_secret", false},               // prefix not 8 chars

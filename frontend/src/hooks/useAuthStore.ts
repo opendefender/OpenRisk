@@ -270,10 +270,18 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
   hasRole: (roleName: string) => {
     const { user } = get();
     if (!user) return false;
-    // Match either the org role (root/admin/user) or the business role preset.
     const target = roleName.toLowerCase();
+    // The role in the ACTIVE organization comes from the signed token's
+    // org_roles. user.role is a legacy field that is empty on every account
+    // created by registration or invitation, so reading it alone made
+    // hasRole('admin') false for everyone (#867).
+    const orgRole = (user.tenant_id ? user.org_roles?.[user.tenant_id] : undefined) ?? '';
+    // root outranks every role gate, as middleware.RequireRole does on the server.
+    if (orgRole.toLowerCase() === 'root') return true;
     return (
-      user.role.toLowerCase() === target || (user.business_role ?? '').toLowerCase() === target
+      orgRole.toLowerCase() === target ||
+      (user.role ?? '').toLowerCase() === target ||
+      (user.business_role ?? '').toLowerCase() === target
     );
   },
 }));

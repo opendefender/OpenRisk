@@ -500,13 +500,18 @@ func TestSanitiseReturnTo_RejectsOffsiteTargets(t *testing.T) {
 		"/\\evil.example.com",
 		"http://evil.example.com/path",
 		"javascript:alert(1)",
+		"/\t/evil.example.com",
+		"/\n/evil.example.com",
+		"/\r/evil.example.com",
+		"/risks\\..\\evil",
+		"/\x7f/evil.example.com",
 	} {
 		if got := sanitiseReturnTo(hostile); got != "" {
 			t.Errorf("sanitiseReturnTo(%q) = %q, want it dropped", hostile, got)
 		}
 	}
 
-	for _, ok := range []string{"/risks", "/settings?tab=sessions"} {
+	for _, ok := range []string{"/risks", "/settings?tab=sessions", "/risks?focus=7&tab=score#top", "/équipe"} {
 		if got := sanitiseReturnTo(ok); got != ok {
 			t.Errorf("sanitiseReturnTo(%q) = %q, want it kept", ok, got)
 		}

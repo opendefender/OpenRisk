@@ -60,13 +60,13 @@
 ### 6. SAML2 Login
 - **Endpoint**: `GET /auth/saml2/login`
 - **Auth**: ❌ No
-- **Response**: Redirects to SAML IdP
+- **Response**: `302` to `/login?error=provider_not_configured&provider=saml2`. SAML sign-in is turned off until signed assertions are verified
 
 ### 7. SAML2 ACS
 - **Endpoint**: `POST /auth/saml2/acs`
 - **Auth**: ❌ No
 - **Body**: SAML response from IdP
-- **Response**: Redirects with JWT token
+- **Response**: `302` to `/login?error=provider_not_configured&provider=saml2`, whatever the body. No user or session is created
 
 ### 8. SAML2 Metadata
 - **Endpoint**: `GET /auth/saml2/metadata`
@@ -454,44 +454,26 @@
 
 ---
 
-## API Tokens (7 endpoints)
+## API Tokens (3 endpoints)
+
+Personal access tokens, bound to the organization they were created in. Send one
+as `Authorization: Bearer orsk_…` on any `/api/v1` route.
 
 ### 1. Create Token
-- **Endpoint**: `POST /tokens`
-- **Auth**: ✅ Yes
-- **Body**: `{ "name": "CI/CD", "description": "...", "expires_at": "2026-12-31T..." }`
-- **Response**: `{ "id": "uuid", "token": "opnrsk_...", ... }`
+- **Endpoint**: `POST /auth/pat`
+- **Auth**: ✅ Yes (session only; a token cannot create tokens)
+- **Body**: `{ "name": "CI/CD", "scopes": ["*"], "expires_in_days": 90 }`
+- **Response**: `201 { "id": "uuid", "name": "...", "token_prefix": "a1b2c3d4", "token": "orsk_a1b2c3d4_...", ... }` (the secret is returned once)
 
 ### 2. List Tokens
-- **Endpoint**: `GET /tokens`
+- **Endpoint**: `GET /auth/pat`
 - **Auth**: ✅ Yes
-- **Response**: `[ { "id": "uuid", "name": "...", "created_at": "..." } ]`
+- **Response**: `{ "tokens": [ { "id": "uuid", "name": "...", "token_prefix": "...", "last_used_at": "...", "created_at": "..." } ] }` (the caller's tokens in the current organization)
 
-### 3. Get Token
-- **Endpoint**: `GET /tokens/:id`
+### 3. Revoke Token
+- **Endpoint**: `DELETE /auth/pat/:id`
 - **Auth**: ✅ Yes
-- **Response**: `{ "id": "uuid", ... }`
-
-### 4. Update Token
-- **Endpoint**: `PUT /tokens/:id`
-- **Auth**: ✅ Yes
-- **Body**: `{ "name": "...", "expires_at": "..." }`
-- **Response**: `{ "id": "uuid", ... }`
-
-### 5. Revoke Token
-- **Endpoint**: `POST /tokens/:id/revoke`
-- **Auth**: ✅ Yes
-- **Response**: `204 No Content`
-
-### 6. Rotate Token
-- **Endpoint**: `POST /tokens/:id/rotate`
-- **Auth**: ✅ Yes
-- **Response**: `{ "token": "opnrsk_new_token..." }`
-
-### 7. Delete Token
-- **Endpoint**: `DELETE /tokens/:id`
-- **Auth**: ✅ Yes
-- **Response**: `204 No Content`
+- **Response**: `204 No Content`; `404` for a token that is not the caller's in this organization
 
 ---
 

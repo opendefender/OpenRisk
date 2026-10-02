@@ -101,57 +101,58 @@ curl -X POST https://api.openrisk.io/api/v1/auth/refresh \
 
 #### API Token Generation
 
-Users can generate API tokens for programmatic access:
+Users create personal access tokens for scripts and CI pipelines, from
+Settings › API tokens or with a session token:
 
 ```bash
-curl -X POST https://api.openrisk.io/api/v1/tokens \
+curl -X POST https://api.openrisk.io/api/v1/auth/pat \
   -H "Authorization: Bearer <jwt_token>" \
   -H "Content-Type: application/json" \
   -d '{
     "name": "CI/CD Pipeline",
-    "description": "Token for automated deployments",
-    "expires_at": "2026-12-31T23:59:59Z"
+    "scopes": ["*"],
+    "expires_in_days": 90
   }'
 ```
 
-**Response**:
+**Response** (`201`):
 ```json
 {
   "id": "token_uuid",
-  "token": "opnrsk_abcd1234efgh5678ijkl9012",
   "name": "CI/CD Pipeline",
-  "created_at": "2026-03-10T10:00:00Z",
-  "expires_at": "2026-12-31T23:59:59Z"
+  "token_prefix": "a1b2c3d4",
+  "scopes": ["*"],
+  "expires_at": "2026-12-30T10:00:00Z",
+  "created_at": "2026-10-01T10:00:00Z",
+  "token": "orsk_a1b2c3d4_<64 hex characters>"
 }
 ```
 
+`token` is returned this once. Only its SHA-256 hash is stored.
+
 #### API Token Usage
 
-Use the token as a Bearer token:
+Use the token as a Bearer token on any `/api/v1` route:
 
 ```bash
-curl -H "Authorization: Bearer opnrsk_abcd1234efgh5678ijkl9012" \
+curl -H "Authorization: Bearer orsk_a1b2c3d4_<secret>" \
   https://api.openrisk.io/api/v1/risks
 ```
 
 #### API Token Management
 
-- Create: `POST /tokens`
-- List: `GET /tokens`
-- Get: `GET /tokens/:id`
-- Update: `PUT /tokens/:id`
-- Revoke: `POST /tokens/:id/revoke`
-- Rotate: `POST /tokens/:id/rotate`
-- Delete: `DELETE /tokens/:id`
+- Create: `POST /auth/pat` (requires a session; a token cannot create tokens)
+- List: `GET /auth/pat` (metadata only, never the secret)
+- Revoke: `DELETE /auth/pat/:id` (the token stops working immediately)
 
 #### API Token Security
 
-- ✅ Scoped to user account
-- ✅ Can be revoked immediately
-- ✅ Should be rotated regularly
-- ✅ Never commit to version control
-- ✅ Use `.gitignore` for token files
-- ✅ Rotate if compromised: `POST /tokens/:id/rotate`
+- Bound to the organization it was created in. It never acts in another
+  organization, and it stops working when its owner leaves that one.
+- Never exceeds its owner: the effective permissions are the owner's current
+  permissions narrowed to the token's scopes. `"*"` means all of the owner's.
+- Stored as a SHA-256 hash; the `orsk_` prefix makes a leaked token easy to spot.
+- Never commit a token to version control. Revoke and recreate one that leaked.
 
 ### OAuth2 & SAML2
 
@@ -161,12 +162,27 @@ curl -H "Authorization: Bearer opnrsk_abcd1234efgh5678ijkl9012" \
    - Supported providers: google, github, azure
    - Mints a `state` and a PKCE verifier, both kept server-side, and sets the
      `or_oauth_state` cookie (see below)
+   - Optional `return_to`: a root-relative path to open after sign-in. Anything
+     absolute, protocol-relative (`//host`) or backslash-prefixed is dropped.
 2. User authenticates with provider
 3. Callback to: `GET /api/v1/auth/oauth2/callback/:provider`
    - Refused with `error=state_invalid` unless the `or_oauth_state` cookie
      matches the `state` query parameter
 4. OpenRisk creates/links user account
-5. JWT token issued
+5. The session is set in cookies, exactly as for password login: `or_access`
+   (HttpOnly, 15 minutes), `or_refresh` (HttpOnly, 30 days, path
+   `/api/v1/auth/refresh` only) and `or_csrf` (readable, for the double-submit
+   check). The response is a `302` to the SPA at `/auth/sso/complete`, with
+   `?next=<return_to>` when one was given. No token appears in the response
+   body or in the redirect URL.
+6. `/auth/sso/complete` calls `POST /api/v1/auth/refresh` once (refresh cookie
+   plus `X-CSRF-Token`) to get the access token the SPA keeps in memory, loads
+   the profile from `/auth/me`, then opens `next` or the user's usual landing
+   page.
+
+Any failure from step 3 on redirects to `/login?error=<code>`, which the login
+screen renders in the user's language. A failure while creating the session is
+`error=internal`; the detail stays in the server log.
 
 **State cookie `or_oauth_state`.** This cookie ties the callback to the browser
 that started the flow. Without it, an attacker could send someone a callback
@@ -187,12 +203,20 @@ forged request cannot use up the real user's flow.
 
 #### SAML2 Flow
 
+> **Turned off.** `GET /saml2/login` and `POST /saml2/acs` redirect to
+> `/login?error=provider_not_configured&provider=saml2` and create nothing. SAML
+> returns through a library that verifies signed assertions. The steps below
+> describe that intended flow, not current behaviour.
+
 1. Initiate: `GET /api/v1/auth/saml2/login`
 2. Redirects to SAML IdP
 3. User authenticates
 4. SAML assertion posted to: `POST /api/v1/auth/saml2/acs`
 5. OpenRisk creates/links user account
-6. JWT token issued
+6. Same exit as OAuth2 steps 5 and 6: session cookies, then a `302` to
+   `/auth/sso/complete`. SAML carries no return target, so the user lands on
+   their usual page. A failure while creating the session redirects to
+   `/login?error=internal`.
 
 #### Enterprise SSO Setup
 
@@ -487,19 +511,6 @@ GET /api/v1/risks -H "Authorization: Bearer token_a"
 # User B has separate 100 requests
 GET /api/v1/risks -H "Authorization: Bearer token_b"
 # 100 remaining
-```
-
-### Custom Rate Limits
-
-Admins can set custom limits per user or API token:
-
-```bash
-curl -X PUT https://api.openrisk.io/api/v1/tokens/token_id \
-  -H "Authorization: Bearer <admin_token>" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "rate_limit": "1000/hour"
-  }'
 ```
 
 ---

@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/utils"
 	"github.com/google/uuid"
 
 	appauth "github.com/opendefender/openrisk/internal/application/auth"
@@ -247,13 +248,17 @@ func OAuth2Login(c *fiber.Ctx) error {
 		return oauthFailure(c, "internal", provider, locale)
 	}
 
+	// The flow outlives this request, so everything taken from it is copied.
+	// Fiber's c.Params and c.Query return strings backed by a request buffer
+	// that the next request reuses; stored as-is, ReturnTo came back at the
+	// callback holding bytes from someone else's request (#803).
 	state := uuid.NewString()
 	oauthStateService.StoreFlow(&service.OAuthState{
 		State:        state,
-		Provider:     provider,
+		Provider:     utils.CopyString(provider),
 		CodeVerifier: pkce.Verifier,
 		Locale:       locale,
-		ReturnTo:     sanitiseReturnTo(c.Query("return_to")),
+		ReturnTo:     sanitiseReturnTo(utils.CopyString(c.Query("return_to"))),
 	}, oauthStateTTL)
 	setOAuthStateCookie(c, config, state)
 
@@ -354,8 +359,9 @@ func OAuth2Callback(c *fiber.Ctx) error {
 
 	// Issue an RS256 access+refresh pair via the SAME TokenManager as password
 	// login (this once minted an HS256 token that the RS256 middleware rejected
-	// on every protected route). Onboarding + audit happen inside.
-	return issueSSOSession(c, result.User, provider)
+	// on every protected route). Onboarding + audit happen inside, and the
+	// browser leaves with the session in cookies, bound for flow.ReturnTo.
+	return issueSSOSession(c, result.User, provider, flow.ReturnTo, locale)
 }
 
 // ---------------------------------------------------------------------------
@@ -438,12 +444,18 @@ func oauthLocale(c *fiber.Ctx) string {
 // Only a root-relative path is accepted. Anything absolute, protocol-relative
 // ("//evil.com") or backslash-prefixed is dropped — an open redirect on a login
 // endpoint is a phishing primitive, since the URL a victim sees is genuinely ours.
+//
+// Control characters and backslashes are refused anywhere, not only up front:
+// browsers strip tab and newline from a URL, so "/\t/evil.com" becomes
+// "//evil.com" by the time it is followed (#803).
 func sanitiseReturnTo(raw string) string {
-	if raw == "" || !strings.HasPrefix(raw, "/") {
+	if raw == "" || !strings.HasPrefix(raw, "/") || strings.HasPrefix(raw, "//") {
 		return ""
 	}
-	if strings.HasPrefix(raw, "//") || strings.HasPrefix(raw, "/\\") {
-		return ""
+	for _, r := range raw {
+		if r < 0x20 || r == 0x7f || r == '\\' {
+			return ""
+		}
 	}
 	return raw
 }

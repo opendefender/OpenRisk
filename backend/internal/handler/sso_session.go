@@ -7,6 +7,8 @@ package handler
 
 import (
 	"fmt"
+	"log"
+	"net/url"
 	"strings"
 	"time"
 
@@ -17,6 +19,7 @@ import (
 	"github.com/opendefender/openrisk/internal/domain"
 	"github.com/opendefender/openrisk/internal/infrastructure/database"
 	"github.com/opendefender/openrisk/internal/infrastructure/repository"
+	"github.com/opendefender/openrisk/internal/middleware"
 )
 
 // SSO (OAuth2/SAML) share the exact token-issuance path as password login. These
@@ -89,17 +92,40 @@ func slugify(s string) string {
 	return s
 }
 
+// ssoCompletePath is the SPA route that finishes an SSO sign-in. The session is
+// already in the cookies when the browser gets there; the page only has to load
+// the profile and permissions, which the SPA cannot read from an HttpOnly cookie.
+const ssoCompletePath = "/auth/sso/complete"
+
+// ssoCompleteURL is where a successful sign-in sends the browser. The return
+// target goes through sanitiseReturnTo again here so that no caller can hand
+// this function an off-site URL, whatever it stored.
+func ssoCompleteURL(returnTo string) string {
+	target := oauthAppBaseURL + ssoCompletePath
+	if next := sanitiseReturnTo(returnTo); next != "" {
+		target += "?" + url.Values{"next": {next}}.Encode()
+	}
+	return target
+}
+
 // issueSSOSession is the single exit point for OAuth2/SAML callbacks: it onboards
 // the user into a tenant if needed, mints an RS256 access+refresh pair via the
-// shared TokenManager (identical to password login), audits the login, and writes
-// the standard token response.
-func issueSSOSession(c *fiber.Ctx, user *domain.User, provider string) error {
+// shared TokenManager (identical to password login), audits the login, and sets
+// the session cookies.
+//
+// Both callers answer a top-level navigation (the OAuth callback GET, the SAML
+// ACS POST), so every exit is a redirect. A JSON body here left the user on a
+// page of raw text, and put in a script-readable body the tokens that every
+// other sign-in path keeps in HttpOnly cookies (#803). Neither token is ever
+// written to the body or the redirect URL.
+func issueSSOSession(c *fiber.Ctx, user *domain.User, provider, returnTo, locale string) error {
 	if ssoTokenManager == nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "SSO token manager not configured"})
+		return oauthFailure(c, "internal", provider, locale)
 	}
 
 	if err := ensureUserOrganization(user); err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": fmt.Sprintf("failed to onboard user: %v", err)})
+		log.Printf("sso: onboarding failed for user %s: %v", user.ID, err)
+		return oauthFailure(c, "internal", provider, locale)
 	}
 
 	pair, err := ssoTokenManager.IssueSession(c.UserContext(), user.ID, coreauth.DeviceContext{
@@ -108,7 +134,16 @@ func issueSSOSession(c *fiber.Ctx, user *domain.User, provider string) error {
 		UserAgent:   c.Get("User-Agent"),
 	})
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to issue session"})
+		return oauthFailure(c, "internal", provider, locale)
+	}
+
+	// Same TTLs as password login. The CSRF token minted here reaches the SPA
+	// through its readable cookie, not through this response.
+	if _, err := middleware.IssueSessionCookies(
+		c, pair.AccessToken, pair.RefreshToken,
+		coreauth.AccessTokenTTL, coreauth.RefreshTokenTTL,
+	); err != nil {
+		return oauthFailure(c, "internal", provider, locale)
 	}
 
 	if ssoAudit != nil {
@@ -124,17 +159,5 @@ func issueSSOSession(c *fiber.Ctx, user *domain.User, provider string) error {
 		_ = ssoUserRepo.Update(c.UserContext(), user)
 	}
 
-	return c.JSON(fiber.Map{
-		"access_token":  pair.AccessToken,
-		"refresh_token": pair.RefreshToken,
-		"expires_in":    pair.ExpiresIn,
-		"token_type":    pair.TokenType,
-		"provider":      provider,
-		"user": fiber.Map{
-			"id":       user.ID.String(),
-			"email":    user.Email,
-			"username": user.Username,
-			"fullName": user.FullName,
-		},
-	})
+	return c.Redirect(ssoCompleteURL(returnTo), fiber.StatusFound)
 }

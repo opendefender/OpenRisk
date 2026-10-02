@@ -1,5 +1,10 @@
 # SAML/OAuth2 Enterprise SSO Integration Guide
 
+> **SAML2 is turned off.** Its login and assertion endpoints redirect to the
+> login screen and create no session, until OpenRisk verifies signed assertions
+> through a maintained SAML library. The OAuth2 sections of this guide apply
+> today; the SAML2 sections do not.
+
 ## Overview
 
 This guide covers integrating OpenRisk with enterprise authentication providers using:

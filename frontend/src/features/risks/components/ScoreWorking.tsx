@@ -179,8 +179,8 @@ export function ScoreWorking({ riskId, storedScore }: { riskId: string; storedSc
       return (
         <div className="text-[12px] text-ink-muted mt-1">
           {tr(
-            'Aucun actif lié : le moteur applique sa valeur par défaut (criticité moyenne).',
-            'No linked asset: the engine applies its default (medium criticality).',
+            'Aucun actif lié : le facteur est neutre (1,0), le score vaut P × I.',
+            'No linked asset: the factor is neutral (1.0), so the score is P × I.',
           )}
         </div>
       );

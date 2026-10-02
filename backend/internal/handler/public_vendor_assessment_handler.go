@@ -28,21 +28,10 @@ const (
 	publicSubmitsPerHour = 10
 )
 
-// PrefixedRateLimitBackend namespaces a shared counter store.
-//
-// middleware.RateLimit keys its counter by the raw client IP, and the Redis
-// store is shared by every limiter in the process. Without a prefix, the
-// questionnaire's 60/min counter and the login throttle's 15/5min counter would
-// be the SAME key, each consuming the other's budget.
-type PrefixedRateLimitBackend struct {
-	Prefix string
-	Inner  middleware.RateLimitBackend
-}
-
-// IsAllowed consults the inner store under the prefixed key.
-func (p PrefixedRateLimitBackend) IsAllowed(key string, maxRequests int, window time.Duration) bool {
-	return p.Inner.IsAllowed(p.Prefix+key, maxRequests, window)
-}
+// PrefixedRateLimitBackend namespaces a shared counter store. It moved to
+// middleware with the per-purpose auth limiters (#688); the name stays for its
+// callers.
+type PrefixedRateLimitBackend = middleware.PrefixedBackend
 
 // PublicVendorAssessmentHandler serves the questionnaire to a vendor contact who
 // holds no account (#670, ADR 0004 D4). No auth middleware runs in front of it;

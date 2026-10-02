@@ -186,8 +186,13 @@ func (uc *VerifyMFAUseCase) Execute(ctx context.Context, input VerifyMFAInput) (
 		return nil, fmt.Errorf("failed to decrypt secret: %w", err)
 	}
 
-	// Verify TOTP code (±1 window)
-	if !otp.VerifyTOTP(decryptedSecret, input.Code) {
+	// Verify TOTP code (±1 window), once: the enrolment code cannot then open
+	// a login (#849).
+	accepted, err := acceptTOTP(ctx, uc.mfaRepo, input.UserID, input.TenantID, decryptedSecret, input.Code)
+	if err != nil {
+		return nil, err
+	}
+	if !accepted {
 		return nil, domain.NewValidationError("invalid TOTP code")
 	}
 
@@ -350,7 +355,14 @@ func (uc *DisableMFAUseCase) Execute(ctx context.Context, input DisableMFAInput)
 		if err != nil {
 			return nil, fmt.Errorf("auth.DisableMFA: decrypt secret: %w", err)
 		}
-		if input.Code == "" || !otp.VerifyTOTP(plain, input.Code) {
+		if input.Code == "" {
+			return nil, ErrMFADisableCodeIncorrect
+		}
+		accepted, err := acceptTOTP(ctx, uc.mfaRepo, input.UserID, input.TenantID, plain, input.Code)
+		if err != nil {
+			return nil, err
+		}
+		if !accepted {
 			return nil, ErrMFADisableCodeIncorrect
 		}
 	}
@@ -401,6 +413,10 @@ type ChallengeMFAInput struct {
 	UserID   uuid.UUID
 	TenantID uuid.UUID
 	Code     string // TOTP code OR backup code
+	// ChallengeJTI and ChallengeExpiresAt identify the MFA_REQUIRED token the
+	// request came with. Attempts are counted against it (#689).
+	ChallengeJTI       string
+	ChallengeExpiresAt time.Time
 }
 
 // ChallengeMFAOutput represents MFA challenge response
@@ -413,6 +429,7 @@ type ChallengeMFAOutput struct {
 type ChallengeMFAUseCase struct {
 	mfaRepo repository.MFARepository
 	encKey  []byte
+	limits  *challengeLimits
 }
 
 // NewChallengeMFAUseCase creates a new challenge MFA use case
@@ -423,7 +440,11 @@ func NewChallengeMFAUseCase(mfaRepo repository.MFARepository, encKey []byte) *Ch
 	}
 }
 
-// Execute verifies TOTP or backup code during login
+// Execute verifies TOTP or backup code during login.
+//
+// With limits wired, every attempt is reserved against the challenge token and
+// the account before the code is checked, so parallel requests cannot all slip
+// under the limit together. A TOTP code and a backup code are the same attempt.
 func (uc *ChallengeMFAUseCase) Execute(ctx context.Context, input ChallengeMFAInput) (*ChallengeMFAOutput, error) {
 	if input.UserID == uuid.Nil || input.TenantID == uuid.Nil {
 		return nil, domain.NewValidationError("user_id and tenant_id required")
@@ -432,6 +453,35 @@ func (uc *ChallengeMFAUseCase) Execute(ctx context.Context, input ChallengeMFAIn
 		return nil, domain.NewValidationError("code required")
 	}
 
+	if uc.limits != nil {
+		if err := uc.limits.reserve(ctx, input); err != nil {
+			return nil, err
+		}
+	}
+
+	out, err := uc.verify(ctx, input)
+	if errors.Is(err, errMFACodeMismatch) {
+		if uc.limits != nil {
+			if limitErr := uc.limits.recordFailure(ctx, input); limitErr != nil {
+				return nil, limitErr
+			}
+		}
+		return nil, domain.NewValidationError("invalid MFA code")
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	if uc.limits != nil {
+		uc.limits.recordSuccess(ctx, input)
+	}
+	return out, nil
+}
+
+// errMFACodeMismatch is the one outcome that counts as a failed guess.
+var errMFACodeMismatch = errors.New("mfa code mismatch")
+
+func (uc *ChallengeMFAUseCase) verify(ctx context.Context, input ChallengeMFAInput) (*ChallengeMFAOutput, error) {
 	// Get MFA secret
 	mfaSecret, err := uc.mfaRepo.GetMFASecret(ctx, input.UserID, input.TenantID)
 	if err != nil {
@@ -447,13 +497,13 @@ func (uc *ChallengeMFAUseCase) Execute(ctx context.Context, input ChallengeMFAIn
 		return nil, fmt.Errorf("failed to decrypt secret: %w", err)
 	}
 
-	// Try TOTP first
-	if otp.VerifyTOTP(decryptedSecret, input.Code) {
-		// Mark as last used
-		now := time.Now()
-		mfaSecret.LastUsedAt = &now
-		_ = uc.mfaRepo.UpdateMFASecret(ctx, mfaSecret)
-
+	// Try TOTP first. Accepting it also records its step and last_used_at, so
+	// the same code cannot open a second session (#849).
+	accepted, err := acceptTOTP(ctx, uc.mfaRepo, input.UserID, input.TenantID, decryptedSecret, input.Code)
+	if err != nil {
+		return nil, err
+	}
+	if accepted {
 		return &ChallengeMFAOutput{
 			Verified: true,
 			Message:  "MFA verified successfully",
@@ -480,5 +530,21 @@ func (uc *ChallengeMFAUseCase) Execute(ctx context.Context, input ChallengeMFAIn
 		}
 	}
 
-	return nil, domain.NewValidationError("invalid MFA code")
+	return nil, errMFACodeMismatch
+}
+
+// acceptTOTP accepts a TOTP code at most once (#849). A code that matches but
+// whose step was already used, or is older than the last one used, is refused
+// exactly like a wrong code: telling them apart would tell an observer the
+// code they replayed was once valid.
+func acceptTOTP(ctx context.Context, repo repository.MFARepository, userID, tenantID uuid.UUID, plainSecret, code string) (bool, error) {
+	step, ok := otp.MatchTOTPStep(plainSecret, code, time.Now())
+	if !ok {
+		return false, nil
+	}
+	consumed, err := repo.ConsumeTOTPStep(ctx, userID, tenantID, step)
+	if err != nil {
+		return false, fmt.Errorf("auth: record TOTP step: %w", err)
+	}
+	return consumed, nil
 }

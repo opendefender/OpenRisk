@@ -226,9 +226,16 @@ export interface AuthCopy {
   mfaEnrolBackupBody: string;
   mfaEnrolDone: string;
 
+  // SSO landing (#803): shown while the session from the provider is loaded.
+  ssoCompleting: string;
+
   // OAuth failures — keyed to the backend's ?error= codes.
   oauth: Record<OAuthErrorCode, string>;
   oauthConflictWith: (existing: string) => string;
+
+  // Throttled sign-in or sign-up (#688). `minutes` is null when the server did
+  // not say how long; the message then stays vague rather than guess.
+  tooManyAttempts: (minutes: number | null) => string;
 }
 
 /** The error codes internal/handler/oauth2_handler.go can redirect with. */
@@ -342,6 +349,8 @@ const fr: AuthCopy = {
     'Conservez-les hors ligne. Chacun ne fonctionne qu’une fois et ils sont votre seul recours si vous perdez votre téléphone.',
   mfaEnrolDone: "J'ai enregistré mes codes",
 
+  ssoCompleting: 'Connexion en cours…',
+
   oauth: {
     access_denied: 'Connexion annulée. Vous pouvez réessayer ou utiliser votre mot de passe.',
     consent_required:
@@ -368,6 +377,10 @@ const fr: AuthCopy = {
   },
   oauthConflictWith: (existing) =>
     `Cette adresse se connecte déjà avec ${existing}. Utilisez ${existing} ou votre mot de passe.`,
+  tooManyAttempts: (minutes) =>
+    minutes === null
+      ? 'Trop de tentatives. Réessayez dans quelques minutes.'
+      : `Trop de tentatives. Réessayez dans ${minutes} minute${minutes > 1 ? 's' : ''}.`,
 };
 
 const en: AuthCopy = {
@@ -459,6 +472,8 @@ const en: AuthCopy = {
     'Keep them somewhere offline. Each works once, and they are your only way back in if you lose your phone.',
   mfaEnrolDone: 'I’ve saved my codes',
 
+  ssoCompleting: 'Signing you in…',
+
   oauth: {
     access_denied: 'Sign-in cancelled. You can try again or use your password.',
     consent_required:
@@ -483,6 +498,10 @@ const en: AuthCopy = {
   },
   oauthConflictWith: (existing) =>
     `This address already signs in with ${existing}. Use ${existing} or your password.`,
+  tooManyAttempts: (minutes) =>
+    minutes === null
+      ? 'Too many attempts. Try again in a few minutes.'
+      : `Too many attempts. Try again in ${minutes} minute${minutes === 1 ? '' : 's'}.`,
 };
 
 // Partial: a registered language without auth copy falls back in `authCopy`.

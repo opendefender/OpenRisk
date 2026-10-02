@@ -90,7 +90,7 @@ var decisions = []Decision{
 
 	// --- Caller's own identity -------------------------------------------
 	{"/api/v1/auth/pat/{id}", SelfScoped,
-		"PAT CRUD is scoped to the authenticated owner via claims, not the path"},
+		"revoke deletes WHERE tenant_id AND user_id AND id from the session, never the path alone; a foreign token answers 404. Pinned by TestPATRepo_TenantIsolation (#782)"},
 	{"/api/v1/auth/sessions/{id}", SelfScoped,
 		"session revocation is scoped to the authenticated owner: GormSessionRepository.Revoke " +
 			"filters id AND user_id, so a foreign session id affects 0 rows and reads back as " +
@@ -251,8 +251,6 @@ var decisions = []Decision{
 			"sabotage — the predicate was removed from each query and every one of these failed"},
 	{"/api/v1/rbac/*", Pending,
 		"admin-only tenant/user/role admin paths; GetTenantUsers gates on level, not pinned"},
-	{"/api/v1/tokens/*", Pending,
-		"API token management; ownership checks not pinned by a test"},
 	{"/api/v1/bulk-operations/{id}", Pending,
 		"service filters by tenant (see bulk_operation_service); not pinned by a test"},
 	{"/api/v1/integrations/{id}/test", Pending,
@@ -597,9 +595,7 @@ var decisions = []Decision{
 	{"/api/v1/auth/sessions", SelfScoped,
 		"the caller's own devices, keyed on mwCtx.UserID from the token; 401 when absent. The revoke sibling is already recorded SelfScoped with its cross-user test (TestRevoke_CrossUser_IsNotFound)"},
 	{"/api/v1/auth/pat", SelfScoped,
-		"ListUserTokens(callerUserID) — the caller's own personal access tokens, keyed on the token's user id; 401 when absent"},
-	{"/api/v1/tokens", SelfScoped,
-		"TokenService.ListTokens(callerUserID) — the caller's own API tokens. Note this listing is scoped by USER and not by tenant, so a person who belongs to two organisations sees all their own tokens in one list regardless of the session's organisation. That is a deliberate consequence of tokens belonging to a person rather than to a membership; it discloses nothing across the tenant boundary, because the person owns every row either way"},
+		"ListUserTokens(callerTenantID, callerUserID) — the tokens the caller minted in the session's organisation, filtered on tenant_id AND user_id; 401 when either is absent. Pinned by TestPATRepo_TenantIsolation (#782)"},
 	{"/api/v1/ownership/assignable", Pending,
 		"assessed, not pinned: ListAssignableUseCase refuses uuid.Nil with ErrValidation and reads members.ListMembers(ctx, tenantID); the search, permission and only_capable filters narrow that set in memory afterwards. Unresolved: this is a DIFFERENT ListMembers from the paginated one covered by TestMembershipRepo_ListMembers_TenantIsolationAndFilters, so that test does not reach it. Settled by a two-tenant assertion on the unpaginated ListMembers"},
 

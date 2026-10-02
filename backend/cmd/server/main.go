@@ -274,9 +274,6 @@ func main() {
 		log.Fatalf("Failed to initialize default permission roles: %v", err)
 	}
 
-	// Initialize Token Service for API token management
-	tokenService := service.NewTokenService()
-
 	// Initialize Score Engine Service for automatic risk score calculation
 	scoreEngineService := service.NewScoreEngineService(database.DB)
 	log.Println("Score Engine: Service initialized with default configuration")
@@ -592,8 +589,9 @@ func main() {
 	tokenManager.SetOrgSessionResolver(resolveSessionForOrg)
 
 	// L5 — Personal Access Tokens. DB-backed service (survives restarts, scoped),
-	// its auth middleware, and a management handler. The same resolveSession gives a
-	// PAT the owner's tenant + permissions (narrowed to the token's scopes).
+	// its auth middleware, and a management handler. resolveSessionForOrg gives a
+	// PAT its owner's permissions in the token's own tenant (narrowed to the
+	// token's scopes), and refuses once the owner is no longer a member there.
 	patService := coreauth.NewPersonalAccessTokenService(repository.NewGormPersonalAccessTokenRepository(database.DB))
 
 	// L7 — full-fidelity auth audit trail (auth_audit_logs: IP, UA, geo, device
@@ -677,17 +675,24 @@ func main() {
 	// OR26-03 — the tenant's grace window. Deployment decides WHO is privileged;
 	// each tenant decides HOW LONG they may defer (default 7 days).
 	mfaPolicyRepo := repository.NewGormMFAPolicyRepository(database.DB)
+	// #688 — ten failed sign-ins on one address, from any source, pause it for
+	// fifteen minutes; a password reset ends the pause. Counted in Redis (the
+	// store #689 built) so the budget holds across instances.
+	loginAttemptStore := authmfa.NewAttemptStore(redisClientInstance)
 	loginUseCase := auth.NewLoginUseCase(userRepo, tokenManager, passwordHasher).
 		WithMFA(mfaRepo).
 		RequireMFAForRoles(mfaRequiredRoles, mfaRequiredBusinessRoles).
-		WithMFAPolicies(mfaPolicyRepo)
+		WithMFAPolicies(mfaPolicyRepo).
+		WithAttemptLimits(loginAttemptStore)
 	registerUseCase := auth.NewRegisterUseCase(userRepo, orgRepo, notificationService, passwordHasher).
 		// Anchors t0 for the time-to-Aha histogram.
 		WithActivation(activationRecorder).
 		// Organization + owner + root membership in one transaction (#687).
 		WithAccounts(repository.NewGormRegistrationRepository(database.DB))
 	refreshUseCase := auth.NewRefreshTokenUseCase(tokenManager)
-	logoutUseCase := auth.NewLogoutUseCase(tokenManager)
+	// #689 — logout also blacklists the access token it was called with, so the
+	// session ends now instead of at the end of the access TTL.
+	logoutUseCase := auth.NewLogoutUseCase(tokenManager).WithAccessTokenRevocation(tokenBlacklistManager)
 
 	// MFA use cases + handler.
 	setupMFAUseCase := auth.NewSetupMFAUseCase(mfaRepo, mfaKey[:])
@@ -699,7 +704,12 @@ func main() {
 		WithTOTPKey(mfaKey[:]).
 		RequireMFAForRoles(mfaRequiredRoles, mfaRequiredBusinessRoles).
 		WithMailer(securityMailer)
-	challengeMFAUseCase := auth.NewChallengeMFAUseCase(mfaRepo, mfaKey[:])
+	// #689 — five codes per challenge token, ten failures per account in
+	// fifteen minutes before a fixed fifteen-minute lock, counted in Redis so
+	// the budget holds across instances. The owner is mailed when a lock is set.
+	challengeMFAUseCase := auth.NewChallengeMFAUseCase(mfaRepo, mfaKey[:]).
+		WithAttemptLimits(authmfa.NewAttemptStore(redisClientInstance), tokenBlacklistManager).
+		WithLockNotice(userRepo, securityMailer)
 	// OR26-03 — one resolver answers "must this member enrol now?" for /auth/me
 	// and for the request-time guard, so the banner and the enforcement can never
 	// disagree. Cached per (user, tenant) for a minute; enrolment, disabling and
@@ -721,7 +731,7 @@ func main() {
 	requestResetUseCase := auth.NewRequestPasswordResetUseCase(userRepo, passwordResetRepo, securityMailer)
 	confirmResetUseCase := auth.NewConfirmPasswordResetUseCase(
 		userRepo, passwordResetRepo, passwordHasher, passwordPolicy, tokenManager, securityMailer,
-	)
+	).WithLoginLockClearer(loginAttemptStore)
 	passwordHandler := authhandler.NewPasswordHandler(
 		requestResetUseCase, confirmResetUseCase, passwordPolicy, appBaseURL, authAudit,
 	).WithChangePassword(auth.NewChangePasswordUseCase(
@@ -759,7 +769,8 @@ func main() {
 		// The same repository resolveSessionForOrg reads at token mint time, so
 		// /auth/me's business role and the token's permissions come from one
 		// membership row and cannot disagree (#338).
-		WithMemberLookup(userRepo)
+		WithMemberLookup(userRepo).
+		WithAccessTokenRevocation(rsaKeys)
 
 	// OAuth identity resolution: known link → verified-email link → provision.
 	// No provisioner is wired, so an identity with no OpenRisk account is refused
@@ -842,25 +853,16 @@ func main() {
 		})
 	})
 
-	// Brute-force protection on credential endpoints (5 attempts / 15 min per IP).
-	// Backed by Redis so the counter is shared across every instance of a
-	// horizontally-scaled deployment; degrades gracefully to a per-instance
-	// in-memory limiter if Redis is unreachable.
+	// Per-IP throttles on the auth routes, one bucket per purpose (#688). Backed
+	// by Redis so the counters are shared across every instance; degrades to a
+	// per-instance in-memory limiter if Redis is unreachable. Guessing against
+	// one account is bounded per address in the login use case, not here.
 	authLimiterStore := middleware.NewRedisRateLimitStore(redisClientInstance)
-	// Per-IP throttle on auth endpoints. 5/15min locked out legitimate users (a
-	// couple of mistyped passwords, MFA re-auth, or shared-NAT colleagues) for a
-	// quarter hour (OR-BUG-008). 15/5min still blocks rapid brute force (~3/min
-	// sustained) without punishing normal use. Per-account lockout + captcha are
-	// the stronger long-term controls (tracked separately).
-	authRateLimit := middleware.RateLimit(middleware.RateLimitConfig{
-		MaxRequests: 15,
-		WindowSize:  5 * time.Minute,
-		Store:       authLimiterStore,
-	})
+	authLimits := middleware.NewAuthLimiters(authLimiterStore)
 
 	// Clean Architecture Auth Routes
-	api.Post("/auth/login", authRateLimit, cleanAuthHandler.Login)
-	api.Post("/auth/register", authRateLimit, cleanAuthHandler.Register)
+	api.Post("/auth/login", authLimits.Login, cleanAuthHandler.Login)
+	api.Post("/auth/register", authLimits.Register, cleanAuthHandler.Register)
 	api.Post("/auth/refresh", cleanAuthHandler.RefreshToken)
 	api.Post("/auth/logout", cleanAuthHandler.Logout)
 
@@ -870,16 +872,16 @@ func main() {
 	// path. /users/me is served by the profile handler (#719).
 
 	// --- Password reset (public) ---
-	// Both legs sit behind the per-IP auth limiter on top of the per-address cap
+	// Both legs share the per-IP reset bucket, on top of the per-address cap
 	// the use case enforces: the address cap stops targeting one account, the IP
 	// limiter stops sweeping many.
 	//
 	// /password/check is unauthenticated by necessity — it serves the strength
 	// meter on the registration and reset screens, where there is no session. It
 	// discloses nothing: the caller already knows the password they typed.
-	api.Post("/auth/password/forgot", authRateLimit, passwordHandler.ForgotPassword)
-	api.Post("/auth/password/reset", authRateLimit, passwordHandler.ResetPassword)
-	api.Post("/auth/password/check", authRateLimit, passwordHandler.CheckPassword)
+	api.Post("/auth/password/forgot", authLimits.Reset, passwordHandler.ForgotPassword)
+	api.Post("/auth/password/reset", authLimits.Reset, passwordHandler.ResetPassword)
+	api.Post("/auth/password/check", authLimits.Check, passwordHandler.CheckPassword)
 
 	// --- OAuth2 Routes ---
 	api.Get("/auth/oauth2/login/:provider", handlers.OAuth2Login)
@@ -895,7 +897,19 @@ func main() {
 	// on `api` BEFORE the Protected group: MFATokenMiddleware validates the special
 	// token itself and rejects full/absent tokens. On a valid code the handler
 	// mints the real access+refresh pair.
-	api.Post("/auth/mfa/challenge", middleware.MFATokenMiddleware(rsaKeys, jtiBlacklistChecker), mfaHandler.Challenge)
+	//
+	// #689 — the per-IP limit runs first, in its own bucket: a flood is refused
+	// before any token is parsed, and it never spends the login budget. The
+	// per-token and per-account limits live in the use case.
+	mfaChallengeRateLimit := middleware.RateLimit(middleware.RateLimitConfig{
+		MaxRequests: 20,
+		WindowSize:  5 * time.Minute,
+		Store: handlers.PrefixedRateLimitBackend{
+			Prefix: "mfa-challenge-ip:",
+			Inner:  authLimiterStore,
+		},
+	})
+	api.Post("/auth/mfa/challenge", mfaChallengeRateLimit, middleware.MFATokenMiddleware(rsaKeys, jtiBlacklistChecker), mfaHandler.Challenge)
 
 	// Scanner AGENT endpoints (register/stream/push) are mounted on `app` HERE —
 	// deliberately BEFORE the /api/v1 user-token middleware below — so they are
@@ -977,7 +991,7 @@ func main() {
 	// L5 — PAT authentication runs BEFORE the JWT gate: it authenticates PAT-shaped
 	// bearers and is a no-op for JWTs (which the RS256 middleware then handles). The
 	// JWT middleware skips when a PAT already authenticated the request.
-	api.Use(middleware.PATMiddleware(patService, resolveSession))
+	api.Use(middleware.PATMiddleware(patService, resolveSessionForOrg))
 	protected := api.Use(middleware.Protected(rsaKeys, jtiBlacklistChecker))
 
 	// Response-cache invalidation (#337). Mounted here, right after the gate that
@@ -1122,7 +1136,7 @@ func main() {
 	api.Post("/auth/mfa/setup", mfaEnrollmentGuard, mfaHandler.Setup)
 	api.Post("/auth/mfa/verify", mfaEnrollmentGuard, mfaHandler.Verify)
 	// Throttled like /auth/password/change: the body carries a password guess.
-	protected.Post("/auth/mfa/disable", authRateLimit, mfaHandler.Disable)
+	protected.Post("/auth/mfa/disable", authLimits.Reauth, mfaHandler.Disable)
 
 	// --- MFA policy (OR26-03) — "force MFA after N days" -----------------------
 	// Reading is open to any authenticated member: everyone subject to a deadline
@@ -1140,7 +1154,7 @@ func main() {
 	// In-session password change (#720, D-047). Acts on the session's own user;
 	// behind the auth rate limiter so a wrong current password spends the same
 	// budget a failed sign-in does.
-	protected.Post("/auth/password/change", authRateLimit, passwordHandler.ChangePassword)
+	protected.Post("/auth/password/change", authLimits.Reauth, passwordHandler.ChangePassword)
 	protected.Delete("/auth/sessions/:id", sessionHandler.RevokeSession)
 
 	// Organization switching — list the orgs the user may enter, and switch into
@@ -1199,16 +1213,20 @@ func main() {
 	// Initialize clean architecture risk module
 	riskRepo := repository.NewGormRiskRepository(database.DB)
 	riskControlMappingRepo := repository.NewGormRiskControlMappingRepository(database.DB)
+	riskAssetStore := repository.NewGormRiskAssetStore(database.DB)
 	createRiskUseCase := risk.NewCreateRiskUseCase(riskRepo).
 		WithActivation(activationRecorder).
-		WithOwnership(ownershipService)
+		WithOwnership(ownershipService).
+		WithAssets(riskAssetStore)
 	getRiskUseCase := risk.NewGetRiskUseCase(riskRepo).
 		WithMappings(riskControlMappingRepo).
 		WithOwnership(ownershipService)
 	listRisksUseCase := risk.NewListRisksUseCase(riskRepo).
 		WithMappings(riskControlMappingRepo).
 		WithOwnership(ownershipService)
-	updateRiskUseCase := risk.NewUpdateRiskUseCase(riskRepo).WithOwnership(ownershipService)
+	updateRiskUseCase := risk.NewUpdateRiskUseCase(riskRepo).
+		WithOwnership(ownershipService).
+		WithAssets(riskAssetStore)
 	deleteRiskUseCase := risk.NewDeleteRiskUseCase(riskRepo)
 	// Cyber Risk Quantification: XAF→USD rate configurable via XAF_USD_RATE
 	// (default ≈ 600 FCFA/USD). Reference ALE bands match the board ExposureModel.
@@ -1247,7 +1265,20 @@ func main() {
 		// implementation accepted a performedBy and discarded it, so a supervisor
 		// asking "who reassigned these and when" had no answer. auditChainRepo is
 		// the same hash-chained, append-only store the rest of the trail uses.
-		WithBulkAction(risk.NewBulkActionUseCase(riskRepo, auditChainRepo))
+		WithBulkAction(risk.NewBulkActionUseCase(riskRepo, auditChainRepo)).
+		// #755 — CSV import: every row validated first, then all of them written
+		// in one transaction through CreateRiskUseCase, or none. The plan cap is
+		// checked against the whole file, not just the first row.
+		WithImport(risk.NewImportRisksUseCase(repository.RunRiskTx(database.DB)).
+			WithAssets(repository.ListImportAssetRefs(database.DB)).
+			WithActivation(activationRecorder).
+			WithCapacity(func(ctx context.Context, tenant uuid.UUID) (int, error) {
+				_, limit, used, _, err := entitlementService.Capacity(ctx, tenant, ent.LimitRisks)
+				if err != nil || limit == ent.Unlimited || used < 0 {
+					return -1, err
+				}
+				return max(limit-used, 0), nil
+			}))
 
 	// Financial Risk Quantification (spec §9): tenant-wide CFO/CISO dashboard
 	// (portfolio FAIR-lite P10/P50/P90, ALE, worst-case, residual, remediation
@@ -1318,6 +1349,9 @@ func main() {
 	protected.Post("/risks/bulk", riskUpdate, riskHandler.BulkAction)
 
 	protected.Post("/risks", riskCreate, capRisks, riskHandler.CreateRisk)
+	// #755 — CSV import. capRisks refuses a tenant already at its limit; the use
+	// case then refuses a file that would carry it past.
+	protected.Post("/risks/import", riskCreate, capRisks, riskHandler.ImportRisks)
 	protected.Patch("/risks/:id", riskUpdate, riskHandler.UpdateRisk)
 	protected.Post("/risks/:id/review", riskUpdate, riskHandler.MarkReviewed)
 	protected.Post("/risks/:id/transfer-owner", riskUpdate, ownershipTransferHandler.TransferRiskOwner)
@@ -1693,6 +1727,19 @@ func main() {
 	// must be registered BEFORE /assets/:id, or "statistics" is parsed as an
 	// asset UUID and the route answers 400 for a request that is perfectly valid.
 	protected.Get("/assets/statistics", assetRead, assetHandler.GetAssetStatistics)
+	// #861 — CSV import of the inventory: every row or none, one transaction,
+	// and the plan cap checked against the whole file.
+	assetImportHandler := handlers.NewAssetImportHandler(
+		assetapp.NewImportAssetsUseCase(repository.RunAssetTx(database.DB), repository.ListAssetNames(database.DB)).
+			WithActivation(activationRecorder).
+			WithCapacity(func(ctx context.Context, tenant uuid.UUID) (int, error) {
+				_, limit, used, _, err := entitlementService.Capacity(ctx, tenant, ent.LimitAssets)
+				if err != nil || limit == ent.Unlimited || used < 0 {
+					return -1, err
+				}
+				return max(limit-used, 0), nil
+			}))
+	protected.Post("/assets/import", assetCreate, capAssets, assetImportHandler.ImportAssets)
 	protected.Get("/asset-dependencies", assetRead, assetDepHandler.ListAssetDependencies)
 	protected.Post("/asset-dependencies", assetUpdate, assetDepHandler.CreateAssetDependency)
 	protected.Delete("/asset-dependencies/:id", assetUpdate, assetDepHandler.DeleteAssetDependency)
@@ -2100,20 +2147,6 @@ func main() {
 	protected.Get("/audit-logs", adminRole, auditHandler.GetAuditLogs)
 	protected.Get("/audit-logs/user/:user_id", adminRole, auditHandler.GetUserAuditLogs)
 	protected.Get("/audit-logs/action/:action", adminRole, auditHandler.GetAuditLogsByAction)
-
-	// --- API Token Management (Protected routes) ---
-	// Tokens can be managed by any authenticated user for their own tokens
-	tokenHandler := handlers.NewTokenHandler(tokenService)
-
-	// API tokens are personal: every verb below loads the token and refuses when
-	// token.UserID is not the caller. The session is the authorization (#529).
-	protected.Post("/tokens", tokenHandler.CreateToken)
-	protected.Get("/tokens", tokenHandler.ListTokens)
-	protected.Get("/tokens/:id", tokenHandler.GetToken)
-	protected.Put("/tokens/:id", tokenHandler.UpdateToken)
-	protected.Post("/tokens/:id/revoke", tokenHandler.RevokeToken)
-	protected.Post("/tokens/:id/rotate", tokenHandler.RotateToken)
-	protected.Delete("/tokens/:id", tokenHandler.DeleteToken)
 
 	// --- Custom Fields Management (Protected routes) ---
 	customFieldHandler := handlers.NewCustomFieldHandler()

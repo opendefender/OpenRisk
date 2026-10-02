@@ -80,7 +80,6 @@ var routesWithoutPermissionGuard = []string{
 	"DELETE /auth/pat/:id",
 	"DELETE /auth/sessions/:id",
 	"DELETE /auth/sessions/others",
-	"DELETE /tokens/:id",
 	"GET /action-center",
 	"GET /activation/state",
 	// #438 — the Posture Reveal, the recognition screen and the starter
@@ -151,8 +150,6 @@ var routesWithoutPermissionGuard = []string{
 	"GET /stats",
 	"GET /telemetry",
 	"GET /timeline",
-	"GET /tokens",
-	"GET /tokens/:id",
 	// #719 — self-service on the session's own user; the avatar read is gated
 	// by tenant membership in the use case.
 	"DELETE /users/me/avatar",
@@ -180,11 +177,7 @@ var routesWithoutPermissionGuard = []string{
 	"POST /governance/delegations/:id/revoke",
 	"POST /onboarding/complete",
 	"POST /score/preview",
-	"POST /tokens",
-	"POST /tokens/:id/revoke",
-	"POST /tokens/:id/rotate",
 	"PUT /onboarding/steps/:step",
-	"PUT /tokens/:id",
 }
 
 // protectedRoute is one `protected.<Method>(...)` registration.

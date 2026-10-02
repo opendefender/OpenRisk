@@ -8,6 +8,7 @@ package otp
 import (
 	"bytes"
 	"crypto/rand"
+	"crypto/subtle"
 	"encoding/base64"
 	"fmt"
 	"image/jpeg"
@@ -100,6 +101,39 @@ func VerifyTOTPWithCustomWindow(secret, code string, window uint) bool {
 		Algorithm: otp.AlgorithmSHA1,
 	})
 	return valid
+}
+
+// totpPeriod is the step length every enrolled authenticator uses.
+const totpPeriod = 30
+
+// MatchTOTPStep reports which time step a code belongs to, checking the current
+// step and one on each side (the same ±30 s tolerance as VerifyTOTP).
+//
+// VerifyTOTP only answers yes or no, so a caller cannot tell a fresh code from
+// one it already accepted (#849). The step is what lets it refuse a replay: a
+// code is accepted only if its step is later than the last one accepted for
+// that secret. Codes are compared in constant time.
+func MatchTOTPStep(secret, code string, now time.Time) (int64, bool) {
+	if len(code) != 6 {
+		return 0, false
+	}
+	current := now.Unix() / totpPeriod
+	matched, found := int64(0), false
+	for _, step := range []int64{current - 1, current, current + 1} {
+		want, err := totp.GenerateCodeCustom(secret, time.Unix(step*totpPeriod, 0).UTC(), totp.ValidateOpts{
+			Period:    totpPeriod,
+			Digits:    otp.DigitsSix,
+			Algorithm: otp.AlgorithmSHA1,
+		})
+		if err != nil {
+			return 0, false
+		}
+		// No early return: every step costs the same whether or not it matches.
+		if subtle.ConstantTimeCompare([]byte(want), []byte(code)) == 1 {
+			matched, found = step, true
+		}
+	}
+	return matched, found
 }
 
 // backupCodeCount is how many single-use MFA backup codes are minted per user.
