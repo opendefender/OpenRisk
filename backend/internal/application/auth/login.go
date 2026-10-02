@@ -73,6 +73,9 @@ type LoginUseCase struct {
 	mfaPolicies MFAPolicyReader
 	// now is injectable so the grace arithmetic is testable without sleeping.
 	now func() time.Time
+	// dummyHash is compared against when there is no account to compare with,
+	// so an unknown address costs what a real one does (#688).
+	dummyHash string
 }
 
 // PasswordUpgrader is the half of the hasher that knows whether a stored hash
@@ -109,12 +112,25 @@ type MFAGraceAnchorWriter interface {
 
 // NewLoginUseCase creates a new login use case
 func NewLoginUseCase(userRepo UserRepository, tokenManager *auth.TokenManager, passwordHasher auth.PasswordHasher) *LoginUseCase {
-	return &LoginUseCase{
+	uc := &LoginUseCase{
 		userRepo:       userRepo,
 		tokenManager:   tokenManager,
 		passwordHasher: passwordHasher,
 	}
+	// Hashed once, with the live hasher, so it carries today's cost parameters.
+	// If hashing fails the comparison runs against an empty hash, which the
+	// Argon2id hasher refuses at full cost anyway (spendArgon2idCost).
+	if dummy, err := passwordHasher.Hash(loginTimingDummyPassword); err == nil {
+		uc.dummyHash = dummy
+	} else {
+		log.Printf("login: timing-equaliser hash unavailable: %v", err)
+	}
+	return uc
 }
+
+// loginTimingDummyPassword is hashed at start-up and never matches anything a
+// person can sign in with: it is compared only when there is no account.
+const loginTimingDummyPassword = "openrisk-login-timing-equaliser"
 
 // RequireMFAForRoles makes MFA mandatory for the named org roles and business
 // roles.
@@ -169,22 +185,27 @@ func (uc *LoginUseCase) Execute(ctx context.Context, input LoginInput) (*LoginOu
 		return nil, domain.NewValidationError("password is required")
 	}
 
-	// Find user by email
-	user, err := uc.userRepo.GetByEmail(ctx, input.Email)
+	// One spelling of an address, as sign-up and reset use (#688).
+	email := domain.NormaliseEmail(input.Email)
+
+	user, err := uc.userRepo.GetByEmail(ctx, email)
 	if err != nil {
 		return nil, fmt.Errorf("authentication failed")
 	}
+
+	// Every refusal for bad credentials costs one password comparison (#688).
+	// Answering an unknown address or a disabled account before hashing made
+	// those replies several times faster than a wrong password, and the clock
+	// told an attacker which addresses held an account.
 	if user == nil {
+		uc.passwordHasher.Verify(uc.dummyHash, input.Password)
 		return nil, domain.NewValidationError("invalid credentials")
 	}
-
-	// Check if user is active
+	passwordOK := uc.passwordHasher.Verify(user.Password, input.Password)
 	if !user.IsActive {
 		return nil, domain.NewValidationError("account is disabled")
 	}
-
-	// Verify password using Argon2id (OWASP recommended)
-	if !uc.passwordHasher.Verify(user.Password, input.Password) {
+	if !passwordOK {
 		return nil, domain.NewValidationError("invalid credentials")
 	}
 
