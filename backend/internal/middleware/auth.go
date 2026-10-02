@@ -390,10 +390,8 @@ func MFARateLimit(store *RateLimitStore) fiber.Handler {
 		var key string
 		if !ok || userID == uuid.Nil {
 			// Fallback to IP if no user ID (for MFA challenge endpoint)
+			// c.IP() only: it honours TrustedProxies (F-04, #877).
 			key = c.IP()
-			if forwarded := c.Get("X-Forwarded-For"); forwarded != "" {
-				key = forwarded
-			}
 		} else {
 			key = fmt.Sprintf("user:%s", userID.String())
 		}
@@ -419,10 +417,8 @@ func OAuthRateLimit(store *RateLimitStore) fiber.Handler {
 		}
 
 		// Use IP address for rate limiting
+		// c.IP() only: it honours TrustedProxies (F-04, #877).
 		key := c.IP()
-		if forwarded := c.Get("X-Forwarded-For"); forwarded != "" {
-			key = forwarded
-		}
 
 		// Check rate limit: 10 requests per minute per IP
 		if !store.IsAllowed(key, 10, 1*time.Minute) {
