@@ -83,16 +83,30 @@ func (uc *SetupMFAUseCase) Execute(ctx context.Context, input SetupMFAInput) (*S
 		return nil, fmt.Errorf("failed to encrypt secret: %w", err)
 	}
 
-	// Store encrypted secret (not yet verified)
-	mfaSecret := &domain.MFASecret{
-		UserID:          input.UserID,
-		TenantID:        input.TenantID,
-		SecretEncrypted: encryptedSecret,
-		IsVerified:      false,
-	}
-
-	if err := uc.mfaRepo.CreateMFASecret(ctx, mfaSecret); err != nil {
-		return nil, fmt.Errorf("failed to store MFA secret: %w", err)
+	// Store encrypted secret (not yet verified). An unverified secret left by
+	// an enrolment that was never finished (tab closed, token expired) is
+	// replaced: inserting a second row hit the unique user_id, and the account
+	// could never enrol again — locked out for good if its role requires MFA
+	// (#889). A verified secret was refused above and is never touched.
+	if existingSecret != nil {
+		replaced, err := uc.mfaRepo.ReplaceUnverifiedMFASecret(ctx, input.UserID, input.TenantID, encryptedSecret)
+		if err != nil {
+			return nil, fmt.Errorf("failed to replace unverified MFA secret: %w", err)
+		}
+		if !replaced {
+			// Verified between the read above and this write.
+			return nil, domain.NewConflictError("MFA", "already_enabled")
+		}
+	} else {
+		mfaSecret := &domain.MFASecret{
+			UserID:          input.UserID,
+			TenantID:        input.TenantID,
+			SecretEncrypted: encryptedSecret,
+			IsVerified:      false,
+		}
+		if err := uc.mfaRepo.CreateMFASecret(ctx, mfaSecret); err != nil {
+			return nil, fmt.Errorf("failed to store MFA secret: %w", err)
+		}
 	}
 
 	// Generate backup codes (CSPRNG, unique per user — see otp.GenerateBackupCodes).
