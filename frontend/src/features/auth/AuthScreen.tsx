@@ -166,19 +166,16 @@ function LoginForm({ notice = '', onRegister }: { notice?: string; onRegister: (
   };
 
   if (mfa) {
+    // The address and password stay filled in: signing in again is one click,
+    // and the banner says why it is needed.
+    const restart = (message: string) => {
+      setMfa(null);
+      fail(message);
+    };
     return mfa.enrolling ? (
-      <MFAEnrollment token={mfa.token} />
+      <MFAEnrollment token={mfa.token} onRestart={restart} />
     ) : (
-      <MFAChallenge
-        token={mfa.token}
-        onCancel={() => setMfa(null)}
-        onRestart={(message) => {
-          // The address and password stay filled in: signing in again is one
-          // click, and the banner says why it is needed.
-          setMfa(null);
-          fail(message);
-        }}
-      />
+      <MFAChallenge token={mfa.token} onCancel={() => setMfa(null)} onRestart={restart} />
     );
   }
 
@@ -486,7 +483,14 @@ function MFAChallenge({
  * completes the login in the same step, so the user is not asked for the
  * password they typed a minute ago.
  */
-function MFAEnrollment({ token }: { token: string }) {
+function MFAEnrollment({
+  token,
+  onRestart,
+}: {
+  token: string;
+  /** The enrolment token is spent or expired; only the password gets a new one. */
+  onRestart: (message: string) => void;
+}) {
   const navigate = useNavigate();
   const lang = useUIStore((s) => s.lang);
   const copy = authCopy(lang);
@@ -517,13 +521,19 @@ function MFAEnrollment({ token }: { token: string }) {
         setQr(r.qr_code);
         setBackupCodes(r.backup_codes ?? []);
       })
-      .catch(() => {
+      .catch((err: unknown) => {
+        // An enrolment token that has expired cannot be retried; send the user
+        // back to the password for a new one (#872).
+        if (classifyChallengeRefusal(err).kind === 'restart') {
+          onRestart(copy.mfaExpired);
+          return;
+        }
         // A setup failure is not a registration failure: the account is already
         // created. Say what actually went wrong, and allow another attempt.
         requested.current = null;
         setError(copy.mfaSetupFailed);
       });
-  }, [token, copy.mfaSetupFailed]);
+  }, [token, copy.mfaSetupFailed, copy.mfaExpired, onRestart]);
 
   const qrSrc = qr.startsWith('data:') ? qr : `data:image/jpeg;base64,${qr}`;
 
@@ -543,7 +553,13 @@ function MFAEnrollment({ token }: { token: string }) {
         await adoptSession(result.token_pair.access_token);
       }
       navigate(landingForBusinessRole(useAuthStore.getState().user?.business_role));
-    } catch {
+    } catch (err) {
+      // The enrolment token lives 15 minutes. Past that, every code is refused
+      // whatever it is, so "incorrect code" would be a lie (#872).
+      if (classifyChallengeRefusal(err).kind === 'restart') {
+        onRestart(copy.mfaExpired);
+        return;
+      }
       setError(copy.mfaInvalid);
       setNonce((n) => n + 1);
     } finally {
@@ -741,12 +757,12 @@ function RegisterForm({
 
   // Hand off to the same enrolment/challenge screens the login form uses, rather
   // than a second implementation that would drift from it.
+  // The account exists by now, so starting over means signing in, not
+  // registering again.
   if (mfa) {
     return mfa.enrolling ? (
-      <MFAEnrollment token={mfa.token} />
+      <MFAEnrollment token={mfa.token} onRestart={onRestart} />
     ) : (
-      // The account exists by now, so starting over means signing in, not
-      // registering again.
       <MFAChallenge token={mfa.token} onCancel={() => setMfa(null)} onRestart={onRestart} />
     );
   }

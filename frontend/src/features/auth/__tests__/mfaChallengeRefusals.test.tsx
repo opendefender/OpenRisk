@@ -18,6 +18,8 @@ const navigate = vi.fn();
 const login = vi.fn();
 const adoptSession = vi.fn();
 const challengeMFA = vi.fn();
+const setupMFA = vi.fn();
+const verifyMFA = vi.fn();
 
 vi.mock('react-router', async () => {
   const actual = await vi.importActual<typeof import('react-router')>('react-router');
@@ -27,8 +29,8 @@ vi.mock('../../../lib/api', () => ({
   api: { post: vi.fn(), defaults: { baseURL: '' } },
 }));
 vi.mock('../authService', () => ({
-  setupMFA: vi.fn(),
-  verifyMFA: vi.fn(),
+  setupMFA: (...a: unknown[]) => setupMFA(...a),
+  verifyMFA: (...a: unknown[]) => verifyMFA(...a),
   challengeMFA: (...a: unknown[]) => challengeMFA(...a),
 }));
 vi.mock('../../../hooks/useAuthStore', () => {
@@ -187,5 +189,57 @@ describe('MFA challenge refusals (#872)', () => {
     expect(await screen.findByTestId('auth-error')).toHaveTextContent(
       'Too many wrong codes for this sign-in. Sign in again with your password.',
     );
+  });
+});
+
+// Criterion 6: mandated enrolment runs on a 15-minute MFA_ENROLLMENT token.
+// Past that, every code is refused, and "incorrect code" would be a lie.
+describe('mandated enrolment with an expired token (#872)', () => {
+  async function reachEnrolment() {
+    const user = userEvent.setup();
+    login.mockResolvedValue({ status: 'mfa_enrollment_required', mfa_token: 'enrol-token' });
+    render(
+      <MemoryRouter>
+        <AuthScreen initialView="login" />
+      </MemoryRouter>,
+    );
+    await user.type(screen.getByTestId('login-email'), 'alix@example.com');
+    await user.type(screen.getByTestId('login-password'), 'MotDePasse2026!');
+    await user.click(screen.getByTestId('login-submit'));
+    return user;
+  }
+
+  beforeEach(() => {
+    setupMFA.mockResolvedValue({ secret: 'ABCDEF', qr_code: '/9j/raw', backup_codes: [] });
+  });
+
+  it('goes back to the password when the code is sent on an expired token', async () => {
+    const user = await reachEnrolment();
+    verifyMFA.mockRejectedValueOnce(refused(401, { code: 'TOKEN_EXPIRED' }));
+    await user.click(await screen.findByTestId('mfa-enrol-code'));
+    await user.paste('123456');
+
+    expect(await screen.findByTestId('login-password')).toHaveValue('MotDePasse2026!');
+    expect(screen.getByTestId('auth-error')).toHaveTextContent(copy().mfaExpired);
+  });
+
+  it('goes back to the password when setup itself meets an expired token', async () => {
+    setupMFA.mockReset();
+    setupMFA.mockRejectedValueOnce(refused(401, { code: 'TOKEN_EXPIRED' }));
+    await reachEnrolment();
+
+    expect(await screen.findByTestId('login-password')).toBeInTheDocument();
+    expect(screen.getByTestId('auth-error')).toHaveTextContent(copy().mfaExpired);
+    expect(setupMFA).toHaveBeenCalledTimes(1);
+  });
+
+  it('still says "incorrect code" for a wrong code on a live token', async () => {
+    const user = await reachEnrolment();
+    verifyMFA.mockRejectedValueOnce(refused(400, { error: 'invalid code' }));
+    await user.click(await screen.findByTestId('mfa-enrol-code'));
+    await user.paste('123456');
+
+    expect(await screen.findByTestId('auth-error')).toHaveTextContent(copy().mfaInvalid);
+    expect(screen.getByTestId('mfa-enrol-code')).toBeInTheDocument();
   });
 });
