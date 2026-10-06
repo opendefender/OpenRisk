@@ -7,9 +7,8 @@
 // Integrations, Notifications, Security, Billing, Danger. Endpoints whose tables
 // aren't migrated yet (roles/tenants/audit) degrade to an honest unavailable state.
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useSearchParams, useNavigate, useLocation } from 'react-router';
-import { toast } from 'sonner';
 import {
   Settings as SettingsIcon,
   Users,
@@ -22,13 +21,9 @@ import {
   Shield,
   CreditCard,
   AlertTriangle,
-  Plus,
   FileText,
   Check,
-  Trash2,
-  Copy,
   Database,
-  PowerOff,
   type LucideIcon,
 } from 'lucide-react';
 import {
@@ -46,8 +41,6 @@ import { useAuthStore } from '../../hooks/useAuthStore';
 import { SessionsPanel } from '../auth/SessionsPanel';
 import { ChangePasswordCard } from '../auth/ChangePasswordCard';
 import { MembersView } from '../organization/MembersView';
-import { relTime } from '../risks/riskMap';
-import { api } from '../../lib/api';
 import { useCustomFields, useTenants } from './adminData';
 import { ApiTokensPanel } from './ApiTokensPanel';
 import {
@@ -57,14 +50,6 @@ import {
 import type { NotificationPreferencePatch } from '../notifications/notificationService';
 import { useChannelConfig } from '../automation/useAutomation';
 import { useVulnIntegrations, useVulnTicketing } from '../vulnerabilities/useVulnIntegrations';
-import {
-  DataTable,
-  useTableState,
-  type Column,
-  type Facet,
-  type RowAction,
-} from '../../shared/datatable';
-import { DangerConfirm } from '../../shared/DangerConfirm';
 import { PersonalizeCard } from '../onboarding/PersonalizeCard';
 import { BillingPanel } from '../billing/BillingPanel';
 import { DangerZonePanel } from '../billing/DangerZonePanel';
@@ -74,7 +59,6 @@ import { OrganizationProfileForm } from './OrganizationProfileForm';
 import { OrganizationLogoField } from './OrganizationLogoField';
 import { OrgLogo } from '../organization/OrgLogo';
 import { ProfileTab } from '../profile/ProfileTab';
-import type { LocaleCode } from '../../i18n/locales';
 import { useI18n } from '../../hooks/useI18n';
 import { localeTag } from '../../i18n/locales';
 

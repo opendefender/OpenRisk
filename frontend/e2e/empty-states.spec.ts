@@ -164,7 +164,7 @@ async function assertNoNonZeroMetrics(page: Page, where: string) {
     if (!text) continue;
     // Strip thousands separators (space, NBSP, narrow NBSP, comma) so "1 200"
     // is read as 1200 rather than as 1 and 200.
-    const digits = text.replace(/[\s  ,]/g, '');
+    const digits = text.replace(/[\s\u00a0\u202f,]/g, '');
 
     // "N/M" ratios — "0/4 étapes", "0/12 risques chiffrés". Only the numerator
     // is tenant data; the denominator is a total (onboarding steps, registered

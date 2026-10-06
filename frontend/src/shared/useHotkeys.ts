@@ -8,7 +8,7 @@
 // while ⌘/Ctrl/Alt are held (those belong to the browser or ⌘K). Shift is allowed
 // because `?` is Shift+/. Modal-scoped keys (Esc, ⌘Enter) keep using useKeyboard.
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useLayoutEffect, useRef } from 'react';
 
 export interface Hotkey {
   /** Single key to match, case-insensitive: 'n', '/', '?', 't', 'g'. */
@@ -25,8 +25,13 @@ function isTyping(target: EventTarget | null): boolean {
 
 export function useHotkeys(hotkeys: Hotkey[], enabled = true): void {
   // Keep the latest handlers without re-binding the listener every render.
+  // Updated in a layout effect, not during render (react-hooks/refs): it runs
+  // after every commit and before any later keydown, so the listener never
+  // sees stale handlers.
   const ref = useRef(hotkeys);
-  ref.current = hotkeys;
+  useLayoutEffect(() => {
+    ref.current = hotkeys;
+  });
 
   useEffect(() => {
     if (!enabled) return;
