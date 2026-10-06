@@ -56,6 +56,18 @@ func (m *MockMFARepository) ConsumeTOTPStep(ctx context.Context, userID, tenantI
 	return true, nil
 }
 
+func (m *MockMFARepository) ReplaceUnverifiedMFASecret(ctx context.Context, userID, tenantID uuid.UUID, secretEncrypted string) (bool, error) {
+	key := userID.String() + ":" + tenantID.String()
+	s, ok := m.secrets[key]
+	if !ok || s.IsVerified {
+		return false, nil
+	}
+	s.SecretEncrypted = secretEncrypted
+	s.LastTOTPStep = nil
+	s.LastUsedAt = nil
+	return true, nil
+}
+
 func (m *MockMFARepository) DisableMFA(ctx context.Context, userID, tenantID uuid.UUID) error {
 	key := userID.String() + ":" + tenantID.String()
 	delete(m.secrets, key)
