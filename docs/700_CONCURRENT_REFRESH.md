@@ -86,7 +86,7 @@ for i, resp := range responses {
 
 The Playwright test lives in its own file, `e2e/session-tabs.spec.ts`, and not in `e2e/auth.spec.ts`.
 That suite probes `/health`, while the route is `/api/v1/health`, so it skips itself on every
-stack. That is tracked separately. The new file follows the same pattern: it creates an account over the API, skips when
+stack (#895). The new file follows the same pattern: it creates an account over the API, skips when
 the API is unreachable, and uses `context.clearCookies({ name: 'or_access' })`. It then runs
 `Promise.all([a.reload(), b.reload()])` and asserts that neither URL is `/login`, that
 `/auth/me` returns 200 from both tabs, and that the jar holds `or_access` and `or_refresh`.
@@ -133,8 +133,8 @@ the refresh handler as: burst succeeds, unknown token gives 401, reused token gi
 
 Found on the way, outside this issue:
 
-- the login screen crashes on master (`ReferenceError: notice is not defined`, `AuthScreen.tsx`). A merge of master into #872 (`990b93f3`) dropped the prop. The Playwright pass ran with the one-line fix applied locally; it ships in its own P0 issue;
-- `e2e/auth.spec.ts` probes `/health` instead of `/api/v1/health`, so the whole auth suite skips silently.
+- the login screen crashes on master (`ReferenceError: notice is not defined`, `AuthScreen.tsx`). A merge of master into #872 (`990b93f3`) dropped the prop. The Playwright pass ran with the one-line fix applied locally; it ships in #893 (PR #894);
+- `e2e/auth.spec.ts` probes `/health` instead of `/api/v1/health`, so the whole auth suite skips silently (#895).
 
 ## Open questions
 
