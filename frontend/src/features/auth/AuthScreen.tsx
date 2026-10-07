@@ -527,11 +527,10 @@ function MFAEnrollment({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [nonce, setNonce] = useState(0);
-  // POST /auth/mfa/setup is NOT idempotent: a second call for the same account
-  // answers 400 "duplicated key not allowed". React runs effects twice in
-  // development, so the second call failed and painted "la création du compte a
-  // échoué" over a screen that had already loaded its QR code perfectly — the
-  // account existed, nothing had failed, and the user was told to start over.
+  // Each POST /auth/mfa/setup issues a new key and voids the previous one
+  // (#714). React runs effects twice in development, and the two responses can
+  // land in either order, so a second call could leave on screen a QR code the
+  // server no longer accepts: the user scans it and every code is refused.
   // One call per token, tracked outside render so a re-render cannot repeat it.
   const requested = useRef<string | null>(null);
 
