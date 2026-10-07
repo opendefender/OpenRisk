@@ -457,8 +457,11 @@ func (h *Handler) RefreshToken(c *fiber.Ctx) error {
 	})
 
 	if err != nil {
-		// Reuse of a rotated token (or a lost concurrent-rotation race) has already
-		// revoked the whole family server-side. Clear the browser's cookies and
+		// Reuse of a rotated token has already revoked the whole family
+		// server-side. A concurrent refresh never lands here: inside the grace
+		// window it is served the same successor as the request it raced (D-048,
+		// #700), so the cookies are only cleared once the session is really dead,
+		// never under a winner in another tab. Clear the browser's cookies and
 		// record it as the distinct security event it is, so a leaked token shows
 		// up in the audit trail rather than as one more "refresh failed".
 		if errors.Is(err, coreauth.ErrRefreshTokenReuse) {
