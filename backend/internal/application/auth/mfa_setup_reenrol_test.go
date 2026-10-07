@@ -19,23 +19,10 @@ import (
 	"github.com/opendefender/openrisk/pkg/otp"
 )
 
-// uniqueMFARepository enforces mfa_secrets.user_id UNIQUE, which the plain mock
-// does not: it overwrote on Create, so the defect behind #889 never showed.
-type uniqueMFARepository struct{ *MockMFARepository }
-
-func (r uniqueMFARepository) CreateMFASecret(ctx context.Context, s *domain.MFASecret) error {
-	for _, existing := range r.secrets {
-		if existing.UserID == s.UserID {
-			return errors.New("duplicated key not allowed")
-		}
-	}
-	return r.MockMFARepository.CreateMFASecret(ctx, s)
-}
-
 func TestSetupMFA_ReplacesAnUnverifiedSecret(t *testing.T) {
 	ctx := context.Background()
 	key := make([]byte, 32)
-	repo := uniqueMFARepository{NewMockMFARepository()}
+	repo := NewMockMFARepository()
 	uc := NewSetupMFAUseCase(repo, key)
 	in := SetupMFAInput{UserID: uuid.New(), TenantID: uuid.New(), Email: "awa@example.test"}
 
@@ -77,10 +64,10 @@ func TestSetupMFA_ReplacesAnUnverifiedSecret(t *testing.T) {
 func TestSetupMFA_VerifiedSecretIsKept(t *testing.T) {
 	ctx := context.Background()
 	key := make([]byte, 32)
-	repo := uniqueMFARepository{NewMockMFARepository()}
+	repo := NewMockMFARepository()
 	userID, tenantID := uuid.New(), uuid.New()
 	enc, _ := crypto.EncryptAES256GCM("KEEPME", key)
-	_ = repo.MockMFARepository.CreateMFASecret(ctx, &domain.MFASecret{
+	_ = repo.CreateMFASecret(ctx, &domain.MFASecret{
 		ID: uuid.New(), UserID: userID, TenantID: tenantID, SecretEncrypted: enc, IsVerified: true,
 	})
 
