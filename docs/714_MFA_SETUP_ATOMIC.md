@@ -163,4 +163,5 @@ cd frontend && npx tsc -b --noEmit   # comments only, but cheap
 - [x] Use case tests: `Success` (strengthened), `NotFound`, `Unauthorized`, `StoreFailureIsNotAConflict`; mock updated — `mfa_usecase_test.go`, `mfa_setup_reenrol_test.go`
 - [x] `mapAuthError`: untyped error → 500, generic FR/EN text, logged — `mfa_handler.go`, `mfa_setup_http_test.go`
 - [x] Frontend guard comments rewritten — `AuthScreen.tsx`, `MFAEnrollmentDialog.tsx`
-- [x] Live check on a throwaway Postgres: setup ×3 → one row, 8 codes; first QR code refused, last accepted; verified → 409; forced code-insert failure → 500 generic, secret and codes unchanged
+- [x] Found while testing: a secret soft-deleted before #754 (a tombstone) still holds the unique `user_id`. The upsert now treats it as no secret and brings it back as a fresh, unverified enrolment, still tenant-scoped — `gorm_mfa_repository.go`, `gorm_mfa_enrolment_test.go` (`…ReusesATombstone`, SQLite and Postgres). On master such an account got 400 forever.
+- [x] Live check on a throwaway Postgres: setup ×3 → one row, 8 codes; first QR code refused, last accepted; verified → 409; forced code-insert failure → 500 generic, secret and codes unchanged; verified tombstone → setup 200, verify 200
