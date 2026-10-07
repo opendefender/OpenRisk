@@ -83,6 +83,11 @@ func (r *GormMFARepository) ConsumeTOTPStep(ctx context.Context, userID, tenantI
 // verified secret makes it affect nothing, and the call reports false and
 // rolls back, leaving that secret and its codes untouched.
 //
+// A soft-deleted row counts as no secret, as it does for every read. Before
+// #754, turning MFA off soft-deleted the secret, and that tombstone still
+// holds the unique user_id: it is brought back as a fresh, unverified
+// enrolment rather than updated out of sight or refused as "already enabled".
+//
 // last_totp_step and last_used_at are reset here explicitly rather than by a
 // Save, which ConsumeTOTPStep's contract forbids (#849): they belonged to the
 // abandoned key.
@@ -101,12 +106,18 @@ func (r *GormMFARepository) StartMFAEnrolment(ctx context.Context, userID, tenan
 			Columns: []clause.Column{{Name: "user_id"}},
 			DoUpdates: clause.Assignments(map[string]any{
 				"secret_encrypted": secretEncrypted,
+				"is_verified":      false,
+				"verified_at":      nil,
 				"last_totp_step":   nil,
 				"last_used_at":     nil,
+				"deleted_at":       nil,
 				"updated_at":       time.Now(),
 			}),
 			Where: clause.Where{Exprs: []clause.Expression{
-				clause.Expr{SQL: "mfa_secrets.is_verified = ? AND mfa_secrets.tenant_id = ?", Vars: []any{false, tenantID}},
+				clause.Expr{
+					SQL:  "(mfa_secrets.is_verified = ? OR mfa_secrets.deleted_at IS NOT NULL) AND mfa_secrets.tenant_id = ?",
+					Vars: []any{false, tenantID},
+				},
 			}},
 		}).Create(secret)
 		if res.Error != nil {

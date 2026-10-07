@@ -123,6 +123,53 @@ func checkStartEnrolment(t *testing.T, db *gorm.DB) {
 	assert.ElementsMatch(t, hashesOf(last), codeHashes(t, db, user, tenant), "a refused enrolment must not touch the codes")
 }
 
+// checkStartEnrolmentReusesATombstone covers accounts whose MFA was turned
+// off before #754, when disabling soft-deleted the secret: the tombstone
+// keeps the unique user_id, verified or not.
+func checkStartEnrolmentReusesATombstone(t *testing.T, db *gorm.DB) {
+	t.Helper()
+	repo := NewGormMFARepository(db)
+	ctx := context.Background()
+	tenant := uuid.New()
+	verifiedAt := time.Now()
+
+	for name, verified := range map[string]bool{"unverified": false, "verified": true} {
+		user := uuid.New()
+		row := &domain.MFASecret{ID: uuid.New(), UserID: user, TenantID: tenant, SecretEncrypted: "old", IsVerified: verified}
+		if verified {
+			row.VerifiedAt = &verifiedAt
+		}
+		require.NoError(t, db.Create(row).Error)
+		require.NoError(t, db.Delete(row).Error)
+		require.Nil(t, secretOf(t, db, user), "%s: the tombstone is invisible to reads", name)
+
+		codes := newCodes(8)
+		ok, err := repo.StartMFAEnrolment(ctx, user, tenant, "new", codes)
+		require.NoError(t, err)
+		assert.True(t, ok, "%s: a disabled factor must not block a new enrolment", name)
+
+		s := secretOf(t, db, user)
+		require.NotNil(t, s, "%s: the new secret must be visible, or it can never be verified", name)
+		assert.Equal(t, "new", s.SecretEncrypted)
+		assert.False(t, s.IsVerified, "%s: the new secret awaits verification", name)
+		assert.Nil(t, s.VerifiedAt)
+		assert.ElementsMatch(t, hashesOf(codes), codeHashes(t, db, user, tenant))
+	}
+
+	// Another tenant cannot take over a tombstone either.
+	user := uuid.New()
+	row := &domain.MFASecret{ID: uuid.New(), UserID: user, TenantID: tenant, SecretEncrypted: "old"}
+	require.NoError(t, db.Create(row).Error)
+	require.NoError(t, db.Delete(row).Error)
+	ok, err := repo.StartMFAEnrolment(ctx, user, uuid.New(), "intruder", newCodes(8))
+	require.NoError(t, err)
+	assert.False(t, ok)
+	var keys []string
+	require.NoError(t, db.Unscoped().Model(&domain.MFASecret{}).
+		Where("user_id = ? AND deleted_at IS NOT NULL", user).Pluck("secret_encrypted", &keys).Error)
+	assert.Equal(t, []string{"old"}, keys, "the tombstone is left as it was")
+}
+
 // checkStartEnrolmentRollsBack fails the backup-code insert, the last write of
 // the transaction, and expects every earlier write undone.
 func checkStartEnrolmentRollsBack(t *testing.T, db *gorm.DB) {
@@ -170,6 +217,10 @@ func TestGormMFARepository_StartMFAEnrolment(t *testing.T) {
 	checkStartEnrolment(t, sqliteEnrolmentRepo(t))
 }
 
+func TestGormMFARepository_StartMFAEnrolment_ReusesATombstone(t *testing.T) {
+	checkStartEnrolmentReusesATombstone(t, sqliteEnrolmentRepo(t))
+}
+
 func TestGormMFARepository_StartMFAEnrolment_RollsBackWhenTheCodesFail(t *testing.T) {
 	checkStartEnrolmentRollsBack(t, sqliteEnrolmentRepo(t))
 }
@@ -201,6 +252,10 @@ func inTempMFATables(t *testing.T, db *gorm.DB, check func(*testing.T, *gorm.DB)
 
 func TestGormMFARepository_StartMFAEnrolment_Postgres(t *testing.T) {
 	inTempMFATables(t, openMFAPostgres(t), checkStartEnrolment)
+}
+
+func TestGormMFARepository_StartMFAEnrolment_ReusesATombstone_Postgres(t *testing.T) {
+	inTempMFATables(t, openMFAPostgres(t), checkStartEnrolmentReusesATombstone)
 }
 
 func TestGormMFARepository_StartMFAEnrolment_RollsBackWhenTheCodesFail_Postgres(t *testing.T) {
