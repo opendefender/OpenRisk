@@ -39,10 +39,10 @@ export function MFAEnrollmentDialog({
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
   const dialogRef = useRef<HTMLFormElement | null>(null);
-  // POST /auth/mfa/setup is not idempotent — a second call for the same account
-  // answers 400. React runs effects twice in development, so without this guard
-  // a screen that had already loaded its QR code perfectly would paint an error
-  // over itself. Tracked outside render so a re-render cannot repeat it.
+  // Each POST /auth/mfa/setup issues a new key and voids the previous one
+  // (#714). React runs effects twice in development, so without this guard a
+  // second call could leave on screen a QR code the server no longer accepts.
+  // Tracked outside render so a re-render cannot repeat it.
   const requested = useRef(false);
 
   useEffect(() => {

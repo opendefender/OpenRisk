@@ -7,6 +7,7 @@ package auth
 
 import (
 	"errors"
+	"log"
 	"strconv"
 	"time"
 
@@ -394,6 +395,10 @@ func (h *MFAHandler) challengeFailed(c *fiber.Ctx, userID, tenantID uuid.UUID, e
 }
 
 // mapAuthError maps typed domain errors to HTTP status codes.
+//
+// Anything untyped is a server fault — a store, decryption or hashing failure —
+// that the caller can neither cause nor fix. Its text (a driver message, a
+// constraint name) is logged, never sent (#714).
 func mapAuthError(c *fiber.Ctx, err error) error {
 	if appErr, ok := err.(*domain.AppError); ok {
 		switch appErr.Err {
@@ -407,5 +412,6 @@ func mapAuthError(c *fiber.Ctx, err error) error {
 			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": appErr.Message})
 		}
 	}
-	return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
+	log.Printf("auth: %s failed: %v", c.Path(), err)
+	return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": genericFailure(resolveLocale(c, ""))})
 }

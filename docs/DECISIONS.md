@@ -5,6 +5,39 @@ recommends, and surfaces these in the daily brief. Run `/decide` to clear them.
 
 ## Open
 
+### D-066 — MFA: one authenticator per person, or one per organisation? · raised 2026-10-07
+
+**Raised by** — #714, tracked in #897. This is tenant-isolation design, so it is escalated rather
+than fixed in place.
+
+**Context**
+- `mfa_secrets.user_id` is unique on its own, but every read and write is scoped by
+  `(user_id, tenant_id)`: sign-in, the MFA gate, the status resolver and setup.
+- So a person enrolled in organisation A has, seen from organisation B, no factor. B's
+  setup can still never store one, because the `user_id` row already exists under A. If
+  their role in B requires MFA, they are locked out of B when the grace period ends. Since #714 setup answers
+  `409 already_enabled` there instead of a `400` with database text, but still refuses.
+- This comes from reading the code; it has not been reproduced live.
+
+**Options**
+- **A — per person.** One secret per user, valid in every organisation. Reads drop
+  `tenant_id` on `mfa_secrets` (gated by the user's own identity instead). The schema is
+  simplest, but an organisation's admin then relies on a factor that another
+  organisation's policy governs.
+- **B — per membership.** The unique index becomes `(user_id, tenant_id)`. Each
+  organisation enrols its own factor; the queries stay as they are. Cost: one migration,
+  and a person carries one authenticator entry per organisation.
+- **C — keep as is.** Multi-organisation members whose role requires MFA stay stuck.
+
+**Recommendation** — **B.** It matches every query already written and keeps each
+tenant's security posture its own. The migration relaxes one unique index, and
+`StartMFAEnrolment`'s upsert target moves from `(user_id)` to `(user_id, tenant_id)`.
+
+**Cost of delay** — Low today (multi-organisation accounts are rare), high for any MSP-style
+customer.
+
+**Blocks** — #897.
+
 ### D-064 — Sign-in lock: anyone can keep an address locked · raised 2026-10-02
 
 **Raised by** — #688 (PR #874), tracked in #879. Since #688, 10 failed sign-ins on one

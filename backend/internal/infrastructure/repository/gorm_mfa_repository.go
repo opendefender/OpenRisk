@@ -13,6 +13,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/opendefender/openrisk/internal/domain"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // GormMFARepository implements MFARepository using GORM
@@ -71,26 +72,89 @@ func (r *GormMFARepository) ConsumeTOTPStep(ctx context.Context, userID, tenantI
 	return res.RowsAffected == 1, nil
 }
 
-// ReplaceUnverifiedMFASecret gives an unfinished enrolment a new key (#889).
+// StartMFAEnrolment stores a new unverified secret and replaces every backup
+// code of the user, in one transaction (#714).
 //
-// One conditional UPDATE, not a read and a Save: the is_verified = false guard
-// makes it lose cleanly against a verification that lands at the same moment,
-// and last_totp_step is reset here explicitly rather than by a Save, which
-// ConsumeTOTPStep's contract forbids (#849). The step and last use belonged to
-// the abandoned key, so they start over with the new one.
-func (r *GormMFARepository) ReplaceUnverifiedMFASecret(ctx context.Context, userID, tenantID uuid.UUID, secretEncrypted string) (bool, error) {
-	res := r.db.WithContext(ctx).Model(&domain.MFASecret{}).
-		Where("user_id = ? AND tenant_id = ? AND is_verified = ?", userID, tenantID, false).
-		Updates(map[string]any{
-			"secret_encrypted": secretEncrypted,
-			"last_totp_step":   nil,
-			"last_used_at":     nil,
-		})
-	if res.Error != nil {
-		return false, res.Error
+// The secret is written by one upsert, not a read and then a write: a first
+// enrolment creates the row, and an unfinished one has its key replaced
+// (#889). Two setups racing on an account with no row therefore both land,
+// the later key winning, instead of the second hitting the unique user_id.
+// The update only applies to an unverified row of the same tenant; a
+// verified secret makes it affect nothing, and the call reports false and
+// rolls back, leaving that secret and its codes untouched.
+//
+// A soft-deleted row counts as no secret, as it does for every read. Before
+// #754, turning MFA off soft-deleted the secret, and that tombstone still
+// holds the unique user_id: it is brought back as a fresh, unverified
+// enrolment rather than updated out of sight or refused as "already enabled".
+//
+// last_totp_step and last_used_at are reset here explicitly rather than by a
+// Save, which ConsumeTOTPStep's contract forbids (#849): they belonged to the
+// abandoned key.
+//
+// The codes arrive already hashed. Hashing is slow, and must not happen while
+// the row is locked.
+func (r *GormMFARepository) StartMFAEnrolment(ctx context.Context, userID, tenantID uuid.UUID, secretEncrypted string, codes []*domain.MFABackupCode) (bool, error) {
+	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		secret := &domain.MFASecret{
+			ID:              uuid.New(),
+			UserID:          userID,
+			TenantID:        tenantID,
+			SecretEncrypted: secretEncrypted,
+		}
+		res := tx.Clauses(clause.OnConflict{
+			Columns: []clause.Column{{Name: "user_id"}},
+			DoUpdates: clause.Assignments(map[string]any{
+				"secret_encrypted": secretEncrypted,
+				"is_verified":      false,
+				"verified_at":      nil,
+				"last_totp_step":   nil,
+				"last_used_at":     nil,
+				"deleted_at":       nil,
+				"updated_at":       time.Now(),
+			}),
+			Where: clause.Where{Exprs: []clause.Expression{
+				clause.Expr{
+					SQL:  "(mfa_secrets.is_verified = ? OR mfa_secrets.deleted_at IS NOT NULL) AND mfa_secrets.tenant_id = ?",
+					Vars: []any{false, tenantID},
+				},
+			}},
+		}).Create(secret)
+		if res.Error != nil {
+			return res.Error
+		}
+		if res.RowsAffected == 0 {
+			return errEnrolmentRefused
+		}
+		if err := tx.Where("user_id = ? AND tenant_id = ?", userID, tenantID).
+			Delete(&domain.MFABackupCode{}).Error; err != nil {
+			return err
+		}
+		for _, c := range codes {
+			c.UserID, c.TenantID = userID, tenantID
+			if c.ID == uuid.Nil {
+				c.ID = uuid.New()
+			}
+		}
+		if len(codes) > 0 {
+			if err := tx.CreateInBatches(codes, 100).Error; err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if errors.Is(err, errEnrolmentRefused) {
+		return false, nil
 	}
-	return res.RowsAffected == 1, nil
+	if err != nil {
+		return false, err
+	}
+	return true, nil
 }
+
+// errEnrolmentRefused rolls StartMFAEnrolment back when a verified secret is
+// already in place. It never leaves the repository.
+var errEnrolmentRefused = errors.New("mfa enrolment refused: secret already verified")
 
 // DisableMFA removes the TOTP secret and every backup code of one user, in one
 // transaction (#754).

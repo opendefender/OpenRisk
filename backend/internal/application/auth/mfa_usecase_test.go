@@ -7,12 +7,14 @@ package auth
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/opendefender/openrisk/internal/domain"
 	"github.com/stretchr/testify/assert"
+	"golang.org/x/crypto/bcrypt"
 )
 
 // Mock MFA Repository
@@ -20,6 +22,9 @@ type MockMFARepository struct {
 	secrets        map[string]*domain.MFASecret
 	codes          map[string][]*domain.MFABackupCode
 	oauthProviders map[string]*domain.OAuthProvider
+	// enrolmentErr makes StartMFAEnrolment fail; enrolments counts its calls.
+	enrolmentErr error
+	enrolments   int
 }
 
 func NewMockMFARepository() *MockMFARepository {
@@ -56,15 +61,28 @@ func (m *MockMFARepository) ConsumeTOTPStep(ctx context.Context, userID, tenantI
 	return true, nil
 }
 
-func (m *MockMFARepository) ReplaceUnverifiedMFASecret(ctx context.Context, userID, tenantID uuid.UUID, secretEncrypted string) (bool, error) {
-	key := userID.String() + ":" + tenantID.String()
-	s, ok := m.secrets[key]
-	if !ok || s.IsVerified {
-		return false, nil
+// StartMFAEnrolment honours what the GORM version guarantees: user_id is
+// unique across tenants, a verified secret is never replaced, and the secret
+// and codes are written together or not at all.
+func (m *MockMFARepository) StartMFAEnrolment(ctx context.Context, userID, tenantID uuid.UUID, secretEncrypted string, codes []*domain.MFABackupCode) (bool, error) {
+	m.enrolments++
+	if m.enrolmentErr != nil {
+		return false, m.enrolmentErr
 	}
-	s.SecretEncrypted = secretEncrypted
-	s.LastTOTPStep = nil
-	s.LastUsedAt = nil
+	key := userID.String() + ":" + tenantID.String()
+	for k, s := range m.secrets {
+		if s.UserID == userID && (k != key || s.IsVerified) {
+			return false, nil
+		}
+	}
+	if s, ok := m.secrets[key]; ok {
+		s.SecretEncrypted = secretEncrypted
+		s.LastTOTPStep = nil
+		s.LastUsedAt = nil
+	} else {
+		m.secrets[key] = &domain.MFASecret{ID: uuid.New(), UserID: userID, TenantID: tenantID, SecretEncrypted: secretEncrypted}
+	}
+	m.codes[key] = codes
 	return true, nil
 }
 
@@ -182,6 +200,67 @@ func TestSetupMFA_Success(t *testing.T) {
 	assert.NotEmpty(t, output.Secret)
 	assert.NotEmpty(t, output.QRCode)
 	assert.Len(t, output.BackupCodes, 8)
+
+	// The secret and the codes go to the store in one call (#714), each code
+	// hashed and scoped to the caller.
+	assert.Equal(t, 1, mfaRepo.enrolments)
+	stored := mfaRepo.codes[userID.String()+":"+tenantID.String()]
+	assert.Len(t, stored, 8)
+	for i, c := range stored {
+		assert.Equal(t, userID, c.UserID)
+		assert.Equal(t, tenantID, c.TenantID)
+		assert.NoError(t, bcrypt.CompareHashAndPassword([]byte(c.CodeHash), []byte(output.BackupCodes[i])))
+	}
+}
+
+// No secret yet for this user and tenant: setup creates one rather than
+// failing on the missing row.
+func TestSetupMFA_NotFound(t *testing.T) {
+	ctx := context.Background()
+	mfaRepo := NewMockMFARepository()
+	userID, tenantID := uuid.New(), uuid.New()
+
+	_, err := NewSetupMFAUseCase(mfaRepo, make([]byte, 32)).
+		Execute(ctx, SetupMFAInput{UserID: userID, TenantID: tenantID, Email: "user@example.com"})
+
+	assert.NoError(t, err)
+	secret, _ := mfaRepo.GetMFASecret(ctx, userID, tenantID)
+	if assert.NotNil(t, secret) {
+		assert.False(t, secret.IsVerified, "a new secret awaits verification")
+	}
+}
+
+// Without a session identity nothing is generated or written.
+func TestSetupMFA_Unauthorized(t *testing.T) {
+	for name, in := range map[string]SetupMFAInput{
+		"no user":   {TenantID: uuid.New(), Email: "user@example.com"},
+		"no tenant": {UserID: uuid.New(), Email: "user@example.com"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			mfaRepo := NewMockMFARepository()
+			_, err := NewSetupMFAUseCase(mfaRepo, make([]byte, 32)).Execute(context.Background(), in)
+
+			var appErr *domain.AppError
+			assert.True(t, errors.As(err, &appErr) && errors.Is(appErr.Err, domain.ErrValidation), "got %v", err)
+			assert.Zero(t, mfaRepo.enrolments)
+			assert.Empty(t, mfaRepo.secrets)
+		})
+	}
+}
+
+// A store failure is a server fault, not a conflict or a validation error:
+// it stays untyped so the handler answers 500 without its text (#714).
+func TestSetupMFA_StoreFailureIsNotAConflict(t *testing.T) {
+	mfaRepo := NewMockMFARepository()
+	mfaRepo.enrolmentErr = errors.New(`ERROR: duplicate key value violates unique constraint "idx_mfa_secrets_user_id"`)
+
+	out, err := NewSetupMFAUseCase(mfaRepo, make([]byte, 32)).
+		Execute(context.Background(), SetupMFAInput{UserID: uuid.New(), TenantID: uuid.New(), Email: "user@example.com"})
+
+	assert.Nil(t, out)
+	assert.ErrorIs(t, err, mfaRepo.enrolmentErr)
+	var appErr *domain.AppError
+	assert.False(t, errors.As(err, &appErr), "a store failure must not be a typed error, got %v", err)
 }
 
 func TestSetupMFA_InvalidInput(t *testing.T) {

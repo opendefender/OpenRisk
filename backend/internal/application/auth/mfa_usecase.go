@@ -83,52 +83,20 @@ func (uc *SetupMFAUseCase) Execute(ctx context.Context, input SetupMFAInput) (*S
 		return nil, fmt.Errorf("failed to encrypt secret: %w", err)
 	}
 
-	// Store encrypted secret (not yet verified). An unverified secret left by
-	// an enrolment that was never finished (tab closed, token expired) is
-	// replaced: inserting a second row hit the unique user_id, and the account
-	// could never enrol again — locked out for good if its role requires MFA
-	// (#889). A verified secret was refused above and is never touched.
-	if existingSecret != nil {
-		replaced, err := uc.mfaRepo.ReplaceUnverifiedMFASecret(ctx, input.UserID, input.TenantID, encryptedSecret)
-		if err != nil {
-			return nil, fmt.Errorf("failed to replace unverified MFA secret: %w", err)
-		}
-		if !replaced {
-			// Verified between the read above and this write.
-			return nil, domain.NewConflictError("MFA", "already_enabled")
-		}
-	} else {
-		mfaSecret := &domain.MFASecret{
-			UserID:          input.UserID,
-			TenantID:        input.TenantID,
-			SecretEncrypted: encryptedSecret,
-			IsVerified:      false,
-		}
-		if err := uc.mfaRepo.CreateMFASecret(ctx, mfaSecret); err != nil {
-			return nil, fmt.Errorf("failed to store MFA secret: %w", err)
-		}
-	}
-
 	// Generate backup codes (CSPRNG, unique per user — see otp.GenerateBackupCodes).
 	backupCodes, err := otp.GenerateBackupCodes()
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate backup codes: %w", err)
 	}
 
-	// Replace any previously-issued codes for this user so re-enrolment
-	// invalidates the old set (defence in depth against a stale/compromised set).
-	if err := uc.mfaRepo.DeleteBackupCodes(ctx, input.UserID, input.TenantID); err != nil {
-		return nil, fmt.Errorf("failed to clear previous backup codes: %w", err)
-	}
-
-	// Hash and store backup codes
-	var hashedCodes []*domain.MFABackupCode
+	// Hashed before anything is written: bcrypt is slow, and the write below
+	// holds a row lock.
+	hashedCodes := make([]*domain.MFABackupCode, 0, len(backupCodes))
 	for _, code := range backupCodes {
 		hash, err := bcrypt.GenerateFromPassword([]byte(code), bcrypt.DefaultCost)
 		if err != nil {
 			return nil, fmt.Errorf("failed to hash backup code: %w", err)
 		}
-
 		hashedCodes = append(hashedCodes, &domain.MFABackupCode{
 			UserID:   input.UserID,
 			TenantID: input.TenantID,
@@ -136,8 +104,20 @@ func (uc *SetupMFAUseCase) Execute(ctx context.Context, input SetupMFAInput) (*S
 		})
 	}
 
-	if err := uc.mfaRepo.SaveBackupCodes(ctx, hashedCodes); err != nil {
-		return nil, fmt.Errorf("failed to store backup codes: %w", err)
+	// Store the unverified secret and the new codes together, or neither
+	// (#714): a secret saved without its codes leaves the user no way back if
+	// they lose the phone. An unverified secret left by an enrolment that was
+	// never finished (tab closed, token expired) is replaced, so the account
+	// can always start over (#889). Earlier codes are dropped, so re-enrolment
+	// invalidates a stale or compromised set.
+	stored, err := uc.mfaRepo.StartMFAEnrolment(ctx, input.UserID, input.TenantID, encryptedSecret, hashedCodes)
+	if err != nil {
+		return nil, fmt.Errorf("failed to store MFA enrolment: %w", err)
+	}
+	if !stored {
+		// Verified between the read above and this write, or the user's one
+		// secret (user_id is unique) belongs to another organisation.
+		return nil, domain.NewConflictError("MFA", "already_enabled")
 	}
 
 	return &SetupMFAOutput{
