@@ -10,6 +10,7 @@
 // user straight back to the login screen. Registration was broken for everyone,
 // not in an edge case.
 
+import { AxiosError, AxiosHeaders, type AxiosResponse } from 'axios';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -48,6 +49,7 @@ vi.mock('../../../hooks/useAuthStore', () => {
 });
 
 import { AuthScreen } from '../AuthScreen';
+import { authCopy } from '../authStrings';
 
 function renderSignup() {
   return render(
@@ -208,5 +210,29 @@ describe('signing up', () => {
 
     await waitFor(() => expect(navigate).toHaveBeenCalled());
     expect(setupMFA).not.toHaveBeenCalled();
+  });
+
+  it('lands on the sign-in form with the reason when enrolment meets an expired token (#893)', async () => {
+    // The sign-up path is the one that hands its reason UP to AuthScreen, which
+    // passes it to the sign-in form as `notice` (#872). A merge dropped that prop
+    // and the sign-in form crashed on render for everyone.
+    login.mockResolvedValue({ status: 'mfa_enrollment_required', mfa_token: 'enrol-token' });
+    const response = {
+      status: 401,
+      statusText: '',
+      data: { code: 'TOKEN_EXPIRED' },
+      headers: {},
+      config: { headers: new AxiosHeaders() },
+    } as AxiosResponse;
+    setupMFA.mockReset();
+    setupMFA.mockRejectedValueOnce(
+      new AxiosError('refused', '401', response.config, null, response),
+    );
+
+    renderSignup();
+    await fillAndSubmit();
+
+    expect(await screen.findByTestId('login-password')).toBeInTheDocument();
+    expect(screen.getByTestId('auth-error')).toHaveTextContent(authCopy('fr').mfaExpired);
   });
 });
