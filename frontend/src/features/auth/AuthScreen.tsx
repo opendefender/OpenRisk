@@ -87,7 +87,7 @@ function throttleMinutes(err: unknown): number | null | undefined {
   return seconds === null ? null : Math.max(1, Math.ceil(seconds / 60));
 }
 
-function LoginForm({ onRegister }: { onRegister: () => void }) {
+function LoginForm({ notice = '', onRegister }: { notice?: string; onRegister: () => void }) {
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const lang = useUIStore((s) => s.lang);
