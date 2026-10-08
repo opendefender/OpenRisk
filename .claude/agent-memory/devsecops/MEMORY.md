@@ -1,0 +1,2 @@
+- [SSRF / outbound posture](ssrf-outbound-posture.md) — netguard review of PR #743: zone-suffix bypass, unguarded tenant-URL sinks
+- [Recurring defect areas](recurring-defect-areas.md) — outbound HTTP, err.Error() echo, scanner collectors, test seams
