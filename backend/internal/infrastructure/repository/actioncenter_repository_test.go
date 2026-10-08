@@ -55,6 +55,9 @@ func newActionCenterTestDB(t *testing.T) *gorm.DB {
 		// fixture carries the table rather than disabling the hook, so seeding
 		// exercises the same write path production does.
 		`CREATE TABLE risk_histories (id TEXT PRIMARY KEY)`,
+		`CREATE TABLE vulnerabilities (id TEXT PRIMARY KEY)`,
+		`CREATE TABLE vendor_assessments (id TEXT PRIMARY KEY)`,
+		`CREATE TABLE assets (id TEXT PRIMARY KEY)`,
 	} {
 		if err := db.Exec(ddl).Error; err != nil {
 			t.Fatalf("create table: %v", err)
@@ -72,6 +75,9 @@ func newActionCenterTestDB(t *testing.T) *gorm.DB {
 		{"remediation_plans", &domain.RemediationPlan{}},
 		{"organization_members", &domain.OrganizationMember{}},
 		{"risk_histories", &domain.RiskHistory{}},
+		{"vulnerabilities", &domain.Vulnerability{}},
+		{"vendor_assessments", &domain.VendorAssessment{}},
+		{"assets", &domain.Asset{}},
 	} {
 		if err := sqliteschema.Reconcile(db, m.table, m.model); err != nil {
 			t.Fatalf("reconcile %s: %v", m.table, err)

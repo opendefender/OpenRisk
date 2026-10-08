@@ -35,6 +35,9 @@ type stubRepo struct {
 	incidents   []domain.Incident
 	evidence    []domain.Evidence
 	remediation []domain.RemediationPlan
+	vulns       []domain.Vulnerability
+	vendors     []VendorFollowUp
+	reviews     []domain.Mitigation
 
 	called map[string]bool
 	err    error
@@ -70,6 +73,19 @@ func (s *stubRepo) ExpiringEvidence(_ uuid.UUID, _ time.Time, _ int) ([]domain.E
 func (s *stubRepo) OverdueRemediationPlans(_ uuid.UUID, _ time.Time, _ int) ([]domain.RemediationPlan, error) {
 	s.mark("remediation")
 	return s.remediation, s.err
+}
+
+func (s *stubRepo) VulnerabilitiesDueBy(_ uuid.UUID, _ time.Time, _ int) ([]domain.Vulnerability, error) {
+	s.mark("vulns")
+	return s.vulns, s.err
+}
+func (s *stubRepo) VendorAssessmentsDueBy(_ uuid.UUID, _ time.Time, _ int) ([]VendorFollowUp, error) {
+	s.mark("vendors")
+	return s.vendors, s.err
+}
+func (s *stubRepo) MitigationsInReview(_ uuid.UUID, _ int) ([]domain.Mitigation, error) {
+	s.mark("reviews")
+	return s.reviews, s.err
 }
 
 var (

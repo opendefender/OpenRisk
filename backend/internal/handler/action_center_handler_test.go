@@ -44,6 +44,15 @@ func (s *acStubRepo) ExpiringEvidence(_ uuid.UUID, _ time.Time, _ int) ([]domain
 func (s *acStubRepo) OverdueRemediationPlans(_ uuid.UUID, _ time.Time, _ int) ([]domain.RemediationPlan, error) {
 	return nil, nil
 }
+func (s *acStubRepo) VulnerabilitiesDueBy(_ uuid.UUID, _ time.Time, _ int) ([]domain.Vulnerability, error) {
+	return nil, nil
+}
+func (s *acStubRepo) VendorAssessmentsDueBy(_ uuid.UUID, _ time.Time, _ int) ([]actioncenterapp.VendorFollowUp, error) {
+	return nil, nil
+}
+func (s *acStubRepo) MitigationsInReview(_ uuid.UUID, _ int) ([]domain.Mitigation, error) {
+	return nil, nil
+}
 
 // setupActionCenterApp mounts the route behind a stand-in for the auth
 // middleware. `authenticated=false` populates nothing, which is exactly what the

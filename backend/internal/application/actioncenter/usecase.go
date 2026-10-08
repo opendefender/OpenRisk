@@ -46,6 +46,10 @@ const (
 	ItemTypeOpenIncident       ItemType = "open_incident"
 	ItemTypeExpiringEvidence   ItemType = "expiring_evidence"
 	ItemTypeOverdueRemediation ItemType = "overdue_remediation"
+	// #902 — the redesign's vulnerability, third-party and review work.
+	ItemTypeVulnerabilitySLA ItemType = "vulnerability_sla"
+	ItemTypeVendorFollowUp   ItemType = "vendor_followup"
+	ItemTypeMitigationReview ItemType = "mitigation_review"
 )
 
 // Category ranks. Lower sorts first. These are the priority order itself, not a
@@ -59,7 +63,17 @@ const (
 	RankOpenIncident       = 4
 	RankExpiringEvidence   = 5
 	RankOverdueRemediation = 6
+	RankVulnerabilitySLA   = 7
+	RankVendorFollowUp     = 8
+	RankMitigationReview   = 9
 )
+
+// vulnSLAHorizon is how far ahead a remediation deadline becomes an action:
+// overdue findings and those due within the week.
+const vulnSLAHorizon = 7 * 24 * time.Hour
+
+// vendorHorizon is the same window for a questionnaire still unanswered.
+const vendorHorizon = 7 * 24 * time.Hour
 
 // CriticalScoreThreshold is the frozen `critical` cut from the Score Engine
 // (CLAUDE.md: critical >= 7.0). Read here, never recomputed — pkg/scoring owns
@@ -90,6 +104,10 @@ type ActionItem struct {
 	DueAt               *time.Time `json:"due_at"`
 	CategoryRank        int        `json:"category_rank"`
 	TenantID            uuid.UUID  `json:"tenant_id"`
+	// Meta carries facts about the record that the row shows beside its title
+	// (a CVE, an asset, the parent risk, a vendor, the record's status), keyed
+	// by name. Facts, never a generated sentence: the client words them.
+	Meta map[string]string `json:"meta,omitempty"`
 
 	// sortA/sortB are the per-category secondary keys, both ascending. They are
 	// unexported so the ordering rule cannot be contradicted by a client that
@@ -125,6 +143,17 @@ type Repository interface {
 	OpenIncidents(tenantID uuid.UUID, limit int) ([]domain.Incident, error)
 	ExpiringEvidence(tenantID uuid.UUID, now time.Time, limit int) ([]domain.Evidence, error)
 	OverdueRemediationPlans(tenantID uuid.UUID, now time.Time, limit int) ([]domain.RemediationPlan, error)
+
+	// #902. Each keyed on the tenant like the six above.
+	VulnerabilitiesDueBy(tenantID uuid.UUID, by time.Time, limit int) ([]domain.Vulnerability, error)
+	VendorAssessmentsDueBy(tenantID uuid.UUID, by time.Time, limit int) ([]VendorFollowUp, error)
+	MitigationsInReview(tenantID uuid.UUID, limit int) ([]domain.Mitigation, error)
+}
+
+// VendorFollowUp is an unanswered questionnaire and the vendor it was sent to.
+type VendorFollowUp struct {
+	Assessment domain.VendorAssessment
+	VendorName string
 }
 
 // Caller is everything the use case needs to know about who is asking. Built by
@@ -148,17 +177,29 @@ type Caller struct {
 // granting approvals to people who are not the approver and implying that
 // someone whose role is missing from this map cannot be one.
 //
-// A role that is not listed — asset_owner, executive, viewer, dsi,
-// internal_control, risk_owner, security_analyst, or a member with no business
-// role at all — sees ONLY their own pending approvals. That default is
+// A role that is not listed — asset_owner, executive, viewer,
+// internal_control, risk_owner, or a member with no business role at all —
+// sees ONLY their own pending approvals, unless they are an organisation
+// admin, who sees every category (allCategories). That default is
 // intentional and least-privilege: showing someone an "action" they have no
 // permission to complete is worse than showing them nothing, because the item
 // looks like a task and behaves like a locked door.
 var roleCategories = map[domain.BusinessRoleKey][]int{
-	domain.BusinessRoleRSSI:              {RankCriticalRisk, RankOpenIncident},
-	domain.BusinessRoleRiskManager:       {RankOverdueMitigation, RankCriticalRisk},
+	domain.BusinessRoleRSSI:              {RankCriticalRisk, RankOpenIncident, RankVulnerabilitySLA, RankMitigationReview},
+	domain.BusinessRoleRiskManager:       {RankOverdueMitigation, RankCriticalRisk, RankVendorFollowUp, RankMitigationReview},
 	domain.BusinessRoleAuditor:           {RankExpiringEvidence},
-	domain.BusinessRoleComplianceOfficer: {RankExpiringEvidence, RankOverdueRemediation},
+	domain.BusinessRoleComplianceOfficer: {RankExpiringEvidence, RankOverdueRemediation, RankVendorFollowUp},
+	domain.BusinessRoleSecurityAnalyst:   {RankVulnerabilitySLA, RankOpenIncident},
+	domain.BusinessRoleDSI:               {RankVulnerabilitySLA},
+}
+
+// allCategories is what an organisation admin or owner sees (#902, owner
+// decision 2026-10-08): the whole tenant's outstanding work, as the redesign's
+// RSSI view draws it. An admin can already open every one of these records, so
+// none of them is a locked door.
+var allCategories = []int{
+	RankOverdueMitigation, RankCriticalRisk, RankOpenIncident, RankExpiringEvidence,
+	RankOverdueRemediation, RankVulnerabilitySLA, RankVendorFollowUp, RankMitigationReview,
 }
 
 // UseCase is the read-only aggregation. It writes nothing, so it needs no
@@ -206,7 +247,11 @@ func (uc *UseCase) GetActionCenter(caller Caller, limit, offset int) (*Result, e
 		return nil, err
 	}
 
-	items, err := uc.gather(caller, role, now)
+	cats := roleCategories[role]
+	if caller.IsAdmin {
+		cats = allCategories
+	}
+	items, err := uc.gather(caller, role, cats, now)
 	if err != nil {
 		return nil, err
 	}
@@ -267,8 +312,8 @@ func paginate(items []ActionItem, limit, offset int) []ActionItem {
 	return page
 }
 
-func allows(role domain.BusinessRoleKey, rank int) bool {
-	for _, r := range roleCategories[role] {
+func allows(cats []int, rank int) bool {
+	for _, r := range cats {
 		if r == rank {
 			return true
 		}
@@ -280,10 +325,10 @@ func allows(role domain.BusinessRoleKey, rank int) bool {
 // officer never triggers the incident scan, which keeps the endpoint's cost
 // proportional to what the caller is allowed to see rather than to the size of
 // the tenant.
-func (uc *UseCase) gather(caller Caller, role domain.BusinessRoleKey, now time.Time) ([]ActionItem, error) {
+func (uc *UseCase) gather(caller Caller, role domain.BusinessRoleKey, cats []int, now time.Time) ([]ActionItem, error) {
 	items := make([]ActionItem, 0, 32)
 
-	if allows(role, RankOverdueMitigation) {
+	if allows(cats, RankOverdueMitigation) {
 		rows, err := uc.repo.OverdueMitigations(caller.TenantID, now, perSourceFetchLimit)
 		if err != nil {
 			return nil, err
@@ -293,7 +338,7 @@ func (uc *UseCase) gather(caller Caller, role domain.BusinessRoleKey, now time.T
 		}
 	}
 
-	if allows(role, RankCriticalRisk) {
+	if allows(cats, RankCriticalRisk) {
 		rows, err := uc.repo.CriticalRisksWithoutActiveMitigation(caller.TenantID, CriticalScoreThreshold, perSourceFetchLimit)
 		if err != nil {
 			return nil, err
@@ -333,7 +378,7 @@ func (uc *UseCase) gather(caller Caller, role domain.BusinessRoleKey, now time.T
 		items = append(items, approvalItem(req))
 	}
 
-	if allows(role, RankOpenIncident) {
+	if allows(cats, RankOpenIncident) {
 		rows, err := uc.repo.OpenIncidents(caller.TenantID, perSourceFetchLimit)
 		if err != nil {
 			return nil, err
@@ -343,7 +388,7 @@ func (uc *UseCase) gather(caller Caller, role domain.BusinessRoleKey, now time.T
 		}
 	}
 
-	if allows(role, RankExpiringEvidence) {
+	if allows(cats, RankExpiringEvidence) {
 		rows, err := uc.repo.ExpiringEvidence(caller.TenantID, now, perSourceFetchLimit)
 		if err != nil {
 			return nil, err
@@ -360,13 +405,43 @@ func (uc *UseCase) gather(caller Caller, role domain.BusinessRoleKey, now time.T
 		}
 	}
 
-	if allows(role, RankOverdueRemediation) {
+	if allows(cats, RankOverdueRemediation) {
 		rows, err := uc.repo.OverdueRemediationPlans(caller.TenantID, now, perSourceFetchLimit)
 		if err != nil {
 			return nil, err
 		}
 		for i := range rows {
 			items = append(items, remediationItem(&rows[i], now))
+		}
+	}
+
+	if allows(cats, RankVulnerabilitySLA) {
+		rows, err := uc.repo.VulnerabilitiesDueBy(caller.TenantID, now.Add(vulnSLAHorizon), perSourceFetchLimit)
+		if err != nil {
+			return nil, err
+		}
+		for i := range rows {
+			items = append(items, vulnerabilityItem(&rows[i]))
+		}
+	}
+
+	if allows(cats, RankVendorFollowUp) {
+		rows, err := uc.repo.VendorAssessmentsDueBy(caller.TenantID, now.Add(vendorHorizon), perSourceFetchLimit)
+		if err != nil {
+			return nil, err
+		}
+		for i := range rows {
+			items = append(items, vendorItem(&rows[i]))
+		}
+	}
+
+	if allows(cats, RankMitigationReview) {
+		rows, err := uc.repo.MitigationsInReview(caller.TenantID, perSourceFetchLimit)
+		if err != nil {
+			return nil, err
+		}
+		for i := range rows {
+			items = append(items, reviewItem(&rows[i]))
 		}
 	}
 
@@ -396,6 +471,7 @@ func mitigationItem(m *domain.Mitigation, now time.Time) ActionItem {
 		SubjectResourceID:   m.ID.String(),
 		DeepLink:            MitigationLink(m.ID.String()),
 		DueAt:               m.DueDate,
+		Meta:                map[string]string{"status": string(m.Status)},
 		CategoryRank:        RankOverdueMitigation,
 		TenantID:            m.TenantID,
 		sortA:               -overdue, // most overdue first
@@ -465,6 +541,7 @@ func incidentItem(i *domain.Incident) ActionItem {
 		SubjectResourceType: "incident",
 		SubjectResourceID:   id,
 		DeepLink:            IncidentLink(id),
+		Meta:                map[string]string{"status": i.Status, "severity": i.Severity},
 		CategoryRank:        RankOpenIncident,
 		// Incident.TenantID is a string on this table, unlike every other model
 		// here. Parsed rather than reinterpreted so a malformed value surfaces as
@@ -521,8 +598,82 @@ func remediationItem(p *domain.RemediationPlan, now time.Time) ActionItem {
 		SubjectResourceID:   p.ID.String(),
 		DeepLink:            RemediationLink(p.ID.String()),
 		DueAt:               p.DueDate,
+		Meta:                map[string]string{"status": string(p.Status)},
 		CategoryRank:        RankOverdueRemediation,
 		TenantID:            p.TenantID,
 		sortA:               -overdue,
+	}
+}
+
+func vulnerabilityItem(v *domain.Vulnerability) ActionItem {
+	due := 0.0
+	if v.SLADueAt != nil {
+		due = float64(v.SLADueAt.Unix())
+	}
+	kev := 1.0
+	if v.KEV {
+		kev = 0 // KEV first at equal deadline
+	}
+	meta := map[string]string{"status": string(v.Status), "severity": string(v.Severity)}
+	if v.CVEID != "" {
+		meta["cve_id"] = v.CVEID
+	}
+	if v.AssetName != "" {
+		meta["asset_name"] = v.AssetName
+	}
+	if v.KEV {
+		meta["kev"] = "true"
+	}
+	return ActionItem{
+		ID:                  "vulnerability:" + v.ID.String(),
+		Type:                ItemTypeVulnerabilitySLA,
+		Title:               v.Title,
+		SubjectResourceType: "vulnerability",
+		SubjectResourceID:   v.ID.String(),
+		DeepLink:            VulnerabilityLink(v.ID.String()),
+		DueAt:               v.SLADueAt,
+		CategoryRank:        RankVulnerabilitySLA,
+		TenantID:            v.TenantID,
+		Meta:                meta,
+		sortA:               due, // earliest deadline first
+		sortB:               kev,
+	}
+}
+
+func vendorItem(f *VendorFollowUp) ActionItem {
+	a := &f.Assessment
+	due := a.DueAt
+	return ActionItem{
+		ID:                  "vendor_assessment:" + a.ID.String(),
+		Type:                ItemTypeVendorFollowUp,
+		Title:               f.VendorName,
+		SubjectResourceType: "vendor_assessment",
+		SubjectResourceID:   a.ID.String(),
+		DeepLink:            VendorAssessmentLink(a.VendorAssetID.String(), a.ID.String()),
+		DueAt:               &due,
+		CategoryRank:        RankVendorFollowUp,
+		TenantID:            a.TenantID,
+		Meta: map[string]string{
+			"status":  string(a.Status),
+			"sent_at": a.SentAt.UTC().Format(time.RFC3339),
+		},
+		sortA: float64(a.DueAt.Unix()),
+	}
+}
+
+func reviewItem(m *domain.Mitigation) ActionItem {
+	updated := float64(m.UpdatedAt.Unix())
+	return ActionItem{
+		ID:                  "mitigation_review:" + m.ID.String(),
+		Type:                ItemTypeMitigationReview,
+		Title:               m.Title,
+		SubjectResourceType: "mitigation",
+		SubjectResourceID:   m.ID.String(),
+		DeepLink:            MitigationLink(m.ID.String()),
+		DueAt:               m.DueDate,
+		CategoryRank:        RankMitigationReview,
+		TenantID:            m.TenantID,
+		Meta:                map[string]string{"status": string(m.Status)},
+		sortA:               updated, // waiting longest first
 	}
 }

@@ -3627,12 +3627,15 @@ components:
             - open_incident
             - expiring_evidence
             - overdue_remediation
+            - vulnerability_sla
+            - vendor_followup
+            - mitigation_review
         title:
           type: string
           description: The underlying record's own title, never a generated sentence.
         subject_resource_type:
           type: string
-          enum: [mitigation, risk, approval_request, incident, evidence, remediation_plan]
+          enum: [mitigation, risk, approval_request, incident, evidence, remediation_plan, vulnerability, vendor_assessment]
         subject_resource_id:
           type: string
           description: The record's own id. A uuid for every type except incident, which is an integer rendered as a string.
@@ -3652,15 +3655,24 @@ components:
         category_rank:
           type: integer
           minimum: 1
-          maximum: 6
+          maximum: 9
           description: >
             1 overdue_mitigation, 2 critical_risk, 3 pending_approval,
-            4 open_incident, 5 expiring_evidence, 6 overdue_remediation.
+            4 open_incident, 5 expiring_evidence, 6 overdue_remediation,
+            7 vulnerability_sla, 8 vendor_followup, 9 mitigation_review.
             This is the primary sort key, exposed so a client can group without
             re-deriving the rule.
         tenant_id:
           type: string
           format: uuid
+        meta:
+          type: object
+          additionalProperties:
+            type: string
+          description: >
+            Facts about the record shown beside its title, keyed by name:
+            status, severity, cve_id, asset_name, kev ("true"), sent_at.
+            Facts only, never a generated sentence; absent keys are unknown.
     ActionCenterResponse:
       type: object
       required: [data, generated_at, limit, offset, total]
