@@ -82,6 +82,11 @@ export interface DashboardStats {
   risk_matrix: MatrixCell[];
   opened_in_period: number;
   risk_trend: RiskTrend;
+  /** Live counters (#901): closed risks excluded. */
+  live_risks: number;
+  critical_live: number;
+  without_mitigation: number;
+  reviews_due_30d: number;
   generated_at: string;
 }
 

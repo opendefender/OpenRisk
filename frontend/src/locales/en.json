@@ -990,5 +990,153 @@
       "limitTitle": "Nothing was imported: this file exceeds your plan’s asset limit.",
       "limitDetail": "The file has {requested} asset(s); your plan allows {remaining} more."
     }
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "eyebrow": "{date} · data as of {time}",
+    "incident": {
+      "running": "running for {elapsed}",
+      "join": "Join the war room",
+      "elapsed": "{h} h {m}",
+      "elapsedMin": "{m} min"
+    },
+    "score": {
+      "label": "Exposure score",
+      "detail": "Details",
+      "of100": "/100",
+      "delta": "{delta} pts in 30 d",
+      "noDelta": "30-day change from next month",
+      "weights": {
+        "one": "{count} factor measured, weights Σ = 1.00",
+        "other": "{count} factors measured, weights Σ = 1.00"
+      },
+      "notMeasured": "not measured",
+      "unmeasuredTitle": "No score yet",
+      "unmeasuredBody": "The score is computed as soon as there are risks, controls, vulnerabilities or incidents to measure.",
+      "factor": {
+        "vulnerability_pressure": "Vulnerabilities",
+        "risk_exposure": "Risks",
+        "control_gaps": "Compliance",
+        "incident_pressure": "Incidents"
+      },
+      "factorHint": "Pressure 0–100 (100 = worst), weight {weight}"
+    },
+    "exposure": {
+      "label": "Annualised exposure (ALE)",
+      "link": "CRQ",
+      "unit": "M {currency}",
+      "residual": "Residual after plan",
+      "p95": "Worst case (P95)",
+      "millions": "{value} M",
+      "empty": "No quantified risk. Enter a risk's single loss and frequency to see its exposure.",
+      "locked": "Financial quantification is part of the {plan} plan.",
+      "lockedCta": "See plans"
+    },
+    "band": {
+      "critical": "Critical",
+      "high": "High",
+      "medium": "Moderate",
+      "low": "Low"
+    },
+    "counters": {
+      "criticalRisks": "Critical risks",
+      "criticalRisksSub": "open or in treatment",
+      "kev": "KEV vulnerabilities",
+      "kevSub": "actively exploited",
+      "incidents": "Active incidents",
+      "incidentsSub": {
+        "exact": {
+          "0": "none critical"
+        },
+        "one": "{count} critical",
+        "other": "{count} critical"
+      },
+      "coverage": "Compliance coverage",
+      "coverageSub": {
+        "exact": {
+          "0": "no framework imported"
+        },
+        "one": "average of {count} framework",
+        "other": "average of {count} frameworks"
+      },
+      "openRisks": "Open risks",
+      "openRisksSub": "closed risks excluded",
+      "withoutMitigation": "Without mitigation",
+      "withoutMitigationSub": "to plan",
+      "inTreatment": "In treatment",
+      "inTreatmentSub": "active plans",
+      "reviews": "Due < 30 d",
+      "reviewsSub": "reviews to run",
+      "gaps": "Non-compliant controls",
+      "gapsSub": "all frameworks",
+      "expiring": "Evidence expiring < 30 d",
+      "expiringSub": "to renew",
+      "noEvidence": "Controls without evidence",
+      "noEvidenceSub": "to document",
+      "nextAudit": "Next audit",
+      "nextAuditNone": "no audit scheduled",
+      "ale": "Annualised exposure",
+      "aleSub": "M {currency}",
+      "reduction": "Targeted reduction",
+      "reductionSub": "M {currency} / yr",
+      "planCost": "Plan cost",
+      "planCostSub": "M {currency}, committed",
+      "appetite": "Risk appetite",
+      "appetiteSub": "M {currency}, set by the board",
+      "appetiteUnset": "to set in quantification",
+      "unavailable": "—"
+    },
+    "trend": {
+      "title": "Exposure score over {count} months",
+      "range": "from {from} to {to}",
+      "building": "The history builds up day by day. First reading: {date}.",
+      "aria": "Monthly exposure score, from {from} in {fromMonth} to {to} in {toMonth}"
+    },
+    "matrix": {
+      "title": "Risk matrix",
+      "open": "Open",
+      "probability": "↑ Probability",
+      "impact": "Impact →",
+      "cell": {
+        "exact": {
+          "0": "Probability {p} × impact {i} · {band} · no risk"
+        },
+        "one": "Probability {p} × impact {i} · {band} · {count} risk",
+        "other": "Probability {p} × impact {i} · {band} · {count} risks"
+      },
+      "empty": "The matrix fills in with your first risk."
+    },
+    "priorities": {
+      "rssi": "Top priorities",
+      "rm": "Risks and plans to move forward",
+      "audit": "Controls and evidence to handle",
+      "exec": "Decisions and risks to follow",
+      "link": "Action center",
+      "empty": "Nothing urgent. Actions show up here as soon as a deadline gets close.",
+      "type": {
+        "overdue_mitigation": "Mitigation",
+        "critical_risk": "Risk",
+        "pending_approval": "Approval",
+        "open_incident": "Incident",
+        "expiring_evidence": "Evidence",
+        "overdue_remediation": "Remediation"
+      },
+      "overdue": {
+        "one": "{count} d overdue",
+        "other": "{count} d overdue"
+      },
+      "today": "Today",
+      "tomorrow": "Tomorrow",
+      "inDays": "In {count} d",
+      "unknownType": "Action required"
+    },
+    "activity": {
+      "title": "Recent activity",
+      "all": "See all",
+      "empty": "Nothing yet. What gets done in the organisation shows up here.",
+      "system": "OpenRisk"
+    },
+    "retry": "Retry",
+    "loadError": "Could not load this block."
   }
 }

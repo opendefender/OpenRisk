@@ -157,7 +157,11 @@ export function RiskRegisterPage() {
   const { data: categories } = useRiskCategories();
   const canDelete = useAuthStore((s) => s.hasPermission('risks:delete'));
 
-  const [view, setView] = useState<'table' | 'map'>('table');
+  // ?view=matrix opens the register on the matrix: the dashboard's matrix
+  // links here (#901).
+  const [view, setView] = useState<'table' | 'map'>(() =>
+    new URLSearchParams(window.location.search).get('view') === 'matrix' ? 'map' : 'table',
+  );
   const [drawerId, setDrawerId] = useState<string | null>(null);
   const [editRaw, setEditRaw] = useState<UiRisk['raw'] | null>(null);
   const [mitiRiskId, setMitiRiskId] = useState<string | null>(null);

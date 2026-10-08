@@ -34,3 +34,18 @@ export const TYPES = [
 
 export const sevMeta = (s: IncidentSeverity) => SEV[s] ?? SEV.medium;
 export const statusMeta = (s: IncidentStatus) => STATUS[s] ?? STATUS.open;
+
+/**
+ * The redesign's priority code for an incident (#901): P1 critical, P2 high,
+ * P3 medium, P4 low. A display name for the existing severity, not a second
+ * scale.
+ */
+export const PRIORITY_CODE: Record<IncidentSeverity, string> = {
+  critical: 'P1',
+  high: 'P2',
+  medium: 'P3',
+  low: 'P4',
+};
+
+/** "INC-007": the reference an incident is quoted by in banners and lists. */
+export const incidentRef = (id: number) => `INC-${String(id).padStart(3, '0')}`;

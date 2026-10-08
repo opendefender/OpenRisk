@@ -990,5 +990,153 @@
       "limitTitle": "Rien n’a été importé : ce fichier dépasse la limite d’actifs de votre plan.",
       "limitDetail": "Le fichier contient {requested} actif(s) ; votre plan en permet encore {remaining}."
     }
+  },
+  "dashboard": {
+    "title": "Tableau de bord",
+    "eyebrow": "{date} · données à {time}",
+    "incident": {
+      "running": "en cours depuis {elapsed}",
+      "join": "Rejoindre la war room",
+      "elapsed": "{h} h {m}",
+      "elapsedMin": "{m} min"
+    },
+    "score": {
+      "label": "Score d'exposition",
+      "detail": "Détail",
+      "of100": "/100",
+      "delta": "{delta} pts en 30 j",
+      "noDelta": "Variation sur 30 j dès le prochain mois",
+      "weights": {
+        "one": "{count} facteur mesuré, pondérations Σ = 1,00",
+        "other": "{count} facteurs mesurés, pondérations Σ = 1,00"
+      },
+      "notMeasured": "non mesuré",
+      "unmeasuredTitle": "Pas encore de score",
+      "unmeasuredBody": "Le score se calcule dès qu'il y a des risques, des contrôles, des vulnérabilités ou des incidents à mesurer.",
+      "factor": {
+        "vulnerability_pressure": "Vulnérabilités",
+        "risk_exposure": "Risques",
+        "control_gaps": "Conformité",
+        "incident_pressure": "Incidents"
+      },
+      "factorHint": "Pression 0–100 (100 = pire), poids {weight}"
+    },
+    "exposure": {
+      "label": "Exposition annualisée (ALE)",
+      "link": "CRQ",
+      "unit": "M {currency}",
+      "residual": "Résiduelle après plan",
+      "p95": "Pire cas (P95)",
+      "millions": "{value} M",
+      "empty": "Aucun risque quantifié. Renseignez la perte unitaire et la fréquence d'un risque pour voir son exposition.",
+      "locked": "La quantification financière fait partie de l'offre {plan}.",
+      "lockedCta": "Voir les offres"
+    },
+    "band": {
+      "critical": "Critique",
+      "high": "Élevé",
+      "medium": "Modéré",
+      "low": "Faible"
+    },
+    "counters": {
+      "criticalRisks": "Risques critiques",
+      "criticalRisksSub": "ouverts ou en traitement",
+      "kev": "Vulnérabilités KEV",
+      "kevSub": "exploitées activement",
+      "incidents": "Incidents actifs",
+      "incidentsSub": {
+        "exact": {
+          "0": "aucun critique"
+        },
+        "one": "{count} critique",
+        "other": "{count} critiques"
+      },
+      "coverage": "Couverture conformité",
+      "coverageSub": {
+        "exact": {
+          "0": "aucun référentiel importé"
+        },
+        "one": "moyenne de {count} référentiel",
+        "other": "moyenne des {count} référentiels"
+      },
+      "openRisks": "Risques ouverts",
+      "openRisksSub": "hors risques clos",
+      "withoutMitigation": "Sans mitigation",
+      "withoutMitigationSub": "à planifier",
+      "inTreatment": "En traitement",
+      "inTreatmentSub": "plans actifs",
+      "reviews": "Échéances < 30 j",
+      "reviewsSub": "revues à mener",
+      "gaps": "Contrôles non conformes",
+      "gapsSub": "tous référentiels",
+      "expiring": "Preuves expirant < 30 j",
+      "expiringSub": "à renouveler",
+      "noEvidence": "Contrôles sans preuve",
+      "noEvidenceSub": "à documenter",
+      "nextAudit": "Prochain audit",
+      "nextAuditNone": "aucun audit planifié",
+      "ale": "Exposition annualisée",
+      "aleSub": "M {currency}",
+      "reduction": "Réduction visée",
+      "reductionSub": "M {currency} / an",
+      "planCost": "Coût du plan",
+      "planCostSub": "M {currency}, engagé",
+      "appetite": "Appétence",
+      "appetiteSub": "M {currency}, fixée par le conseil",
+      "appetiteUnset": "à fixer dans la quantification",
+      "unavailable": "—"
+    },
+    "trend": {
+      "title": "Score d'exposition sur {count} mois",
+      "range": "de {from} à {to}",
+      "building": "L'historique se construit jour après jour. Premier relevé : {date}.",
+      "aria": "Score d'exposition mensuel, de {from} en {fromMonth} à {to} en {toMonth}"
+    },
+    "matrix": {
+      "title": "Matrice des risques",
+      "open": "Ouvrir",
+      "probability": "↑ Probabilité",
+      "impact": "Impact →",
+      "cell": {
+        "exact": {
+          "0": "Probabilité {p} × impact {i} · {band} · aucun risque"
+        },
+        "one": "Probabilité {p} × impact {i} · {band} · {count} risque",
+        "other": "Probabilité {p} × impact {i} · {band} · {count} risques"
+      },
+      "empty": "La matrice se remplit avec votre premier risque."
+    },
+    "priorities": {
+      "rssi": "À traiter en priorité",
+      "rm": "Risques et plans à faire avancer",
+      "audit": "Contrôles et preuves à traiter",
+      "exec": "Décisions et risques à suivre",
+      "link": "Centre d'actions",
+      "empty": "Rien d'urgent. Les actions apparaissent ici dès qu'une échéance approche.",
+      "type": {
+        "overdue_mitigation": "Mitigation",
+        "critical_risk": "Risque",
+        "pending_approval": "Approbation",
+        "open_incident": "Incident",
+        "expiring_evidence": "Preuve",
+        "overdue_remediation": "Remédiation"
+      },
+      "overdue": {
+        "one": "En retard de {count} j",
+        "other": "En retard de {count} j"
+      },
+      "today": "Aujourd'hui",
+      "tomorrow": "Demain",
+      "inDays": "Dans {count} j",
+      "unknownType": "Action requise"
+    },
+    "activity": {
+      "title": "Activité récente",
+      "all": "Tout voir",
+      "empty": "Rien encore. Ce qui est fait dans l'organisation apparaît ici.",
+      "system": "OpenRisk"
+    },
+    "retry": "Réessayer",
+    "loadError": "Impossible de charger ce bloc."
   }
 }
