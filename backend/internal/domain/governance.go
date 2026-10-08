@@ -92,6 +92,7 @@ const (
 	AuditActionLogin    AuditAction = "login"
 	AuditActionExport   AuditAction = "export"
 	AuditActionTransfer AuditAction = "transfer" // ownership handed to another member
+	AuditActionDefer    AuditAction = "defer"    // approval request deferred to the next committee
 )
 
 // AuditEvent is one immutable row in the audit trail. There is intentionally no
@@ -368,6 +369,47 @@ type ApprovalDecision struct {
 	DecidedAt     time.Time `json:"decided_at"`
 }
 
+// ApprovalDeferral records that a committee pushed a request to its next
+// sitting (#903, owner decision 2026-10-08): who, when, and why.
+type ApprovalDeferral struct {
+	DeferredBy      string    `json:"deferred_by"`
+	DeferredByEmail string    `json:"deferred_by_email,omitempty"`
+	Comment         string    `json:"comment,omitempty"`
+	DeferredAt      time.Time `json:"deferred_at"`
+}
+
+// ApprovalDeferralList is a jsonb array of deferrals.
+type ApprovalDeferralList []ApprovalDeferral
+
+func (l ApprovalDeferralList) Value() (driver.Value, error) {
+	if l == nil {
+		return "[]", nil
+	}
+	return json.Marshal(l)
+}
+
+func (l *ApprovalDeferralList) Scan(value interface{}) error {
+	if value == nil {
+		*l = nil
+		return nil
+	}
+	switch v := value.(type) {
+	case []byte:
+		if len(v) == 0 {
+			*l = nil
+			return nil
+		}
+		return json.Unmarshal(v, l)
+	case string:
+		if v == "" {
+			*l = nil
+			return nil
+		}
+		return json.Unmarshal([]byte(v), l)
+	}
+	return nil
+}
+
 // ApprovalDecisionList is a jsonb array of decisions.
 type ApprovalDecisionList []ApprovalDecision
 
@@ -419,11 +461,15 @@ type ApprovalRequest struct {
 	CurrentStep  int            `gorm:"default:0" json:"current_step"`
 	// Mode and ExpiresAt are snapshotted from the workflow at submit time, like
 	// Steps: editing the workflow must never move an in-flight request's goalposts.
-	Mode             string               `gorm:"type:varchar(16);default:'sequential'" json:"mode"`
-	ExpiresAt        *time.Time           `gorm:"index" json:"expires_at,omitempty"`
-	RequestType      string               `gorm:"type:varchar(64);index" json:"request_type,omitempty"`
-	Steps            WorkflowStepList     `gorm:"type:jsonb" json:"steps"`
-	Decisions        ApprovalDecisionList `gorm:"type:jsonb" json:"decisions"`
+	Mode        string               `gorm:"type:varchar(16);default:'sequential'" json:"mode"`
+	ExpiresAt   *time.Time           `gorm:"index" json:"expires_at,omitempty"`
+	RequestType string               `gorm:"type:varchar(64);index" json:"request_type,omitempty"`
+	Steps       WorkflowStepList     `gorm:"type:jsonb" json:"steps"`
+	Decisions   ApprovalDecisionList `gorm:"type:jsonb" json:"decisions"`
+	// Deferrals are dated notes "deferred to the next committee" (#903). They
+	// never touch the signature circuit: the request stays pending, and the
+	// engine reads Decisions only.
+	Deferrals        ApprovalDeferralList `gorm:"type:jsonb;default:'[]'" json:"deferrals"`
 	RequestedBy      uuid.UUID            `gorm:"type:uuid;index" json:"requested_by"`
 	RequestedByEmail string               `gorm:"-" json:"requested_by_email,omitempty"`
 	ResolvedAt       *time.Time           `json:"resolved_at,omitempty"`

@@ -700,6 +700,25 @@ func (h *GovernanceHandler) DecideApproval(c *fiber.Ctx) error {
 	return c.JSON(req)
 }
 
+// DeferApproval POST /governance/approvals/:id/defer — "Reporter au prochain
+// comité" (#903). The request stays pending; a dated note is added.
+func (h *GovernanceHandler) DeferApproval(c *fiber.Ctx) error {
+	id, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "invalid request id"})
+	}
+	var body struct {
+		Comment string `json:"comment"`
+	}
+	// An empty body is fine: the comment is optional.
+	_ = c.BodyParser(&body)
+	req, err := h.decideApproval.Defer(govCtx(c), tenantID(c), id, approverFromCtx(c), body.Comment)
+	if err != nil {
+		return writeAppError(c, err)
+	}
+	return c.JSON(req)
+}
+
 func (h *GovernanceHandler) CancelApproval(c *fiber.Ctx) error {
 	id, err := uuid.Parse(c.Params("id"))
 	if err != nil {
