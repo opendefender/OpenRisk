@@ -1,21 +1,24 @@
 // Copyright (c) 2026 OpenDefender Contributors
 // SPDX-License-Identifier: AGPL-3.0-only
 //
-// Global glass header (OpenRisk.dc.html §5): breadcrumb · ⌘K search · connection
-// status · language · density · shortcuts · notifications · theme. Sticky,
-// backdrop-blurred, sits above the scrollable body. On < lg it collapses to a
-// hamburger + brand.
+// Global header (October 2026 redesign, #900): breadcrumb · ⌘K search ·
+// connection status · language · density · theme · notifications · help. It
+// keeps the redesign's layout (search, theme, bell, help on a solid canvas) and
+// adds the controls the redesign does not draw but the product relies on: the
+// live connection dot, the language switch and table density. On < lg it
+// collapses to a hamburger.
 //
 // Two controls were removed rather than kept as decoration (docs/ui/dead-controls.md):
 // the "Voice assistant" microphone (no speech feature exists anywhere in the
-// product) and the panel footer's "View all notifications" (there is no
-// all-notifications view; it merely closed the panel). The pulsing green dot,
+// product) and the old "View all notifications" footer, which merely closed the
+// panel. The redesign's footer link goes somewhere real, the activity feed, so
+// it is back with that destination. The pulsing green dot,
 // which claimed "Realtime" on every tenant regardless of anything, is now a real
 // connection indicator driven by lib/connection.
 
 import { useSyncExternalStore, useState, useEffect, useId, useRef } from 'react';
-import { useNavigate } from 'react-router';
-import { Search, Bell, Sun, Moon, Menu, Rows2, Rows3, Rows4, Keyboard } from 'lucide-react';
+import { Link, useNavigate } from 'react-router';
+import { Search, Bell, Sun, Moon, Menu, Rows2, Rows3, Rows4, CircleHelp } from 'lucide-react';
 import { cn, useDismissableLayer, useExitTimer } from '../../shared/ds';
 import { useUIStore } from '../../store/uiStore';
 import { useUIStrings } from '../../shared/uiStrings';
@@ -53,7 +56,7 @@ interface AppHeaderProps {
 }
 
 const iconBtn =
-  'w-9 h-9 rounded-[9px] flex items-center justify-center text-ink-muted hover:bg-hover hover:text-ink transition-colors';
+  'w-[34px] h-[34px] rounded-[10px] flex items-center justify-center text-fg-secondary hover:bg-surface-3 hover:text-ink transition-colors';
 
 export const AppHeader = ({ onOpenMobileNav }: AppHeaderProps) => {
   const setCmdkOpen = useUIStore((s) => s.setCmdkOpen);
@@ -92,7 +95,7 @@ export const AppHeader = ({ onOpenMobileNav }: AppHeaderProps) => {
   const badgeArmed = useArmedBadge(unreadFetched);
 
   return (
-    <header className="h-[58px] shrink-0 flex items-center gap-3 px-3 sm:px-[18px] border-b border-border sticky top-0 z-50 glass">
+    <header className="h-14 shrink-0 flex items-center gap-2.5 pl-3 pr-3 sm:pl-6 sm:pr-4 border-b border-border-subtle bg-surface-0 sticky top-0 z-50">
       {/* Mobile hamburger */}
       <button
         onClick={onOpenMobileNav}
@@ -104,31 +107,27 @@ export const AppHeader = ({ onOpenMobileNav }: AppHeaderProps) => {
 
       {/* Breadcrumb — a real clickable trail derived from the route tree, so
           every page at depth >= 2 renders its own way back. */}
-      <Breadcrumbs />
-
-      <div className="flex-1" />
+      <div className="flex-1 min-w-0">
+        <Breadcrumbs />
+      </div>
 
       {/* ⌘K search trigger */}
       <button
         data-tour="search"
         onClick={() => setCmdkOpen(true)}
-        className="hidden sm:flex items-center gap-[9px] h-[34px] px-3 rounded-[9px] text-ink-muted min-w-[230px] text-[13px] transition-colors"
-        style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)' }}
+        className="hidden sm:flex items-center gap-2 h-[34px] w-[300px] max-w-[32vw] shrink-0 pl-2.5 pr-1.5 rounded-[10px] border border-border-default bg-surface-1 text-ink-muted text-[13px] hover:border-border-strong hover:text-ink-soft transition-colors"
       >
         <Search size={15} strokeWidth={1.8} />
-        <span className="flex-1 text-left">{L.search}</span>
-        <span
-          className="mono text-[10.5px] px-1.5 py-0.5 rounded-[5px]"
-          style={{ background: 'var(--bg-hover)', border: '1px solid var(--border)' }}
-        >
+        <span className="flex-1 min-w-0 text-left whitespace-nowrap overflow-hidden text-ellipsis">
+          {L.searchHint}
+        </span>
+        <span className="mono text-[11px] px-1.5 py-0.5 rounded-[5px] border border-border-default text-ink-muted">
           ⌘K
         </span>
       </button>
 
-      <div className="flex-1" />
-
       {/* Actions */}
-      <div className="flex items-center gap-0.5">
+      <div className="flex items-center gap-0.5 shrink-0">
         <button
           onClick={() => setCmdkOpen(true)}
           className={cn(iconBtn, 'sm:hidden')}
@@ -163,37 +162,48 @@ export const AppHeader = ({ onOpenMobileNav }: AppHeaderProps) => {
             title={densityMeta.label}
             aria-label={densityMeta.label}
           >
-            <densityMeta.Icon size={18} strokeWidth={1.7} />
+            <densityMeta.Icon size={17} strokeWidth={1.7} />
           </button>
         </Hint>
 
-        {/* Replays the 3-coach-mark product tour (spec §8). A tour you cannot
-            replay is a tour you have to get right first time — and that nobody
-            can consult when they actually have the question. */}
-        <Hint
-          id="header-shortcuts"
-          side="bottom"
-          text={
-            lang === 'fr'
-              ? 'Raccourcis clavier — ou appuyez sur « ? » à tout moment.'
-              : 'Keyboard shortcuts — or press “?” anytime.'
-          }
+
+        <button
+          onClick={toggleTheme}
+          className={iconBtn}
+          title={theme === 'dark' ? L.themeToLight : L.themeToDark}
+          /* Names what pressing it DOES, not a static "toggle theme" — the
+             accessible name tracks state the same way the icon does. */
+          aria-label={theme === 'dark' ? L.themeToLight : L.themeToDark}
         >
-          <button
-            onClick={() => window.dispatchEvent(new CustomEvent('openrisk:shortcuts'))}
-            className={cn(iconBtn, 'hidden sm:flex')}
-            title={lang === 'fr' ? 'Raccourcis clavier (?)' : 'Keyboard shortcuts (?)'}
-            aria-label={lang === 'fr' ? 'Raccourcis clavier' : 'Keyboard shortcuts'}
-          >
-            <Keyboard size={18} strokeWidth={1.7} />
-          </button>
-        </Hint>
+          {/* Both icons stacked in one grid cell and cross-faded on
+              --motion-hover (opacity + a slight scale) — no rotation, no pop. */}
+          <span className="grid">
+            <Sun
+              aria-hidden="true"
+              size={17}
+              strokeWidth={1.7}
+              className={cn(
+                '[grid-area:1/1] transition-[opacity,transform] duration-fast ease-out',
+                theme === 'dark' ? 'opacity-100 scale-100' : 'opacity-0 scale-75',
+              )}
+            />
+            <Moon
+              aria-hidden="true"
+              size={17}
+              strokeWidth={1.7}
+              className={cn(
+                '[grid-area:1/1] transition-[opacity,transform] duration-fast ease-out',
+                theme === 'dark' ? 'opacity-0 scale-75' : 'opacity-100 scale-100',
+              )}
+            />
+          </span>
+        </button>
 
         {/* Notifications */}
         <div className="relative">
           <button
             onClick={() => setNotifOpen((v) => !v)}
-            className={cn(iconBtn, 'relative')}
+            className={cn(iconBtn, 'relative', notifOpen && 'bg-surface-3')}
             title={L.notifTitle}
             // The count is real server data (polled, never invented), so the
             // accessible name carries it — the true number, not the "9+" the
@@ -210,42 +220,21 @@ export const AppHeader = ({ onOpenMobileNav }: AppHeaderProps) => {
             aria-expanded={notifOpen}
             aria-haspopup="dialog"
           >
-            <Bell size={18} strokeWidth={1.7} />
+            <Bell size={17} strokeWidth={1.7} />
             <NotifBadge count={unreadCount} armed={badgeArmed} />
           </button>
           {notifMounted && <NotifPanel open={notifOpen} onClose={() => setNotifOpen(false)} />}
         </div>
 
+        {/* Help: the keyboard shortcuts sheet ("?" opens it from anywhere). */}
         <button
-          onClick={toggleTheme}
-          className={iconBtn}
-          title="Theme"
-          /* Names what pressing it DOES, not a static "toggle theme" — the
-             accessible name tracks state the same way the icon does. */
-          aria-label={theme === 'dark' ? L.themeToLight : L.themeToDark}
+          onClick={() => window.dispatchEvent(new CustomEvent('openrisk:shortcuts'))}
+          className={cn(iconBtn, 'hidden sm:flex')}
+          title={L.helpShortcutsTitle}
+          aria-label={L.helpShortcuts}
+          data-testid="header-help"
         >
-          {/* Both icons stacked in one grid cell and cross-faded on
-              --motion-hover (opacity + a slight scale) — no rotation, no pop. */}
-          <span className="grid">
-            <Sun
-              aria-hidden="true"
-              size={18}
-              strokeWidth={1.7}
-              className={cn(
-                '[grid-area:1/1] transition-[opacity,transform] duration-fast ease-out',
-                theme === 'dark' ? 'opacity-100 scale-100' : 'opacity-0 scale-75',
-              )}
-            />
-            <Moon
-              aria-hidden="true"
-              size={18}
-              strokeWidth={1.7}
-              className={cn(
-                '[grid-area:1/1] transition-[opacity,transform] duration-fast ease-out',
-                theme === 'dark' ? 'opacity-0 scale-75' : 'opacity-100 scale-100',
-              )}
-            />
-          </span>
+          <CircleHelp size={17} strokeWidth={1.7} />
         </button>
       </div>
     </header>
@@ -269,11 +258,11 @@ function NotifBadge({ count, armed }: { count: number; armed: boolean }) {
       aria-hidden="true"
       data-armed={armed}
       data-visible={visible}
-      className="notif-badge absolute top-[4px] right-[4px] min-w-[16px] h-[16px] px-1 rounded-full flex items-center justify-center text-[11px] font-semibold tabular-nums"
+      className="notif-badge absolute top-[5px] right-[5px] min-w-[15px] h-[15px] px-1 rounded-full flex items-center justify-center text-[9.5px] font-bold tabular-nums"
       style={{
-        background: 'var(--accent-solid)',
+        background: 'var(--danger-solid)',
         color: 'var(--fg-on-solid)',
-        boxShadow: '0 0 0 2px var(--glass)',
+        boxShadow: '0 0 0 2px var(--surface-0)',
       }}
     >
       {count > 9 ? '9+' : count}
@@ -324,7 +313,7 @@ function useEnterGate(open: boolean): boolean {
   return ready && open;
 }
 
-/* ---------- Notifications panel (glass, anchored right) ---------- */
+/* ---------- Notifications panel (anchored right) ---------- */
 // Reads the real /notifications feed. This panel used to render four invented
 // notifications on every tenant, which is how a fresh install came to report
 // incidents it had never had.
@@ -396,16 +385,17 @@ function NotifPanel({ open, onClose }: { open: boolean; onClose: () => void }) {
         aria-modal="true"
         aria-labelledby={titleId}
         tabIndex={-1}
-        className="notif-panel glass-strong absolute top-[44px] right-0 w-[352px] rounded-[16px] overflow-hidden shadow-card-lg z-70 outline-none"
+        className="notif-panel absolute top-[42px] right-0 w-[400px] max-w-[calc(100vw-24px)] rounded-[14px] overflow-hidden bg-surface-2 border border-border-default z-70 outline-none"
+        style={{ boxShadow: 'var(--elev-3)' }}
       >
-        <div className="flex items-center justify-between px-[17px] py-[15px] border-b border-border">
-          <span id={titleId} className="text-[14px] font-semibold text-ink">
+        <div className="flex items-center justify-between px-3.5 py-3 border-b border-border-subtle">
+          <span id={titleId} className="text-[13px] font-semibold text-ink">
             {L.notifTitle}
           </span>
           {items.some((it) => it.unread) && (
             <button
               onClick={() => markAllRead.mutate()}
-              className="text-[12px] font-medium text-accent hover:brightness-110"
+              className="text-[12px] font-semibold text-accent-strong px-1.5 py-1 rounded-[6px] hover:bg-accent-soft transition-colors"
             >
               {L.notifAll}
             </button>
@@ -415,7 +405,7 @@ function NotifPanel({ open, onClose }: { open: boolean; onClose: () => void }) {
         {/* category filter — separate the contexts (UX-6). Only rendered when
             there is something to filter; chips over an empty list are noise. */}
         {cats.length > 1 && (
-          <div className="flex gap-1.5 px-[15px] py-2.5 border-b border-border overflow-x-auto">
+          <div className="flex gap-1.5 px-3.5 py-2.5 border-b border-border-subtle overflow-x-auto">
             {cats.map((c) => {
               const active = filter === c;
               const label =
@@ -437,7 +427,7 @@ function NotifPanel({ open, onClose }: { open: boolean; onClose: () => void }) {
           </div>
         )}
 
-        <div className="max-h-[340px] overflow-y-auto">
+        <div className="max-h-[420px] overflow-y-auto">
           {isLoading ? (
             <div className="p-3">
               <SkeletonRows rows={3} height={44} />
@@ -487,26 +477,28 @@ function NotifPanel({ open, onClose }: { open: boolean; onClose: () => void }) {
                       openItem(it);
                     }
                   }}
-                  className="w-full text-left flex gap-3 px-[17px] py-[13px] border-b border-border cursor-pointer hover:bg-hover focus-visible:bg-hover outline-none transition-colors"
-                  style={{
-                    background: it.unread
-                      ? 'color-mix(in srgb,var(--accent) 4%,transparent)'
-                      : 'transparent',
-                  }}
+                  className="w-full text-left flex gap-3 px-3.5 py-3 border-b border-border-subtle cursor-pointer hover:bg-surface-3 focus-visible:bg-surface-3 outline-none transition-colors"
                 >
                   <div
-                    className="w-[34px] h-[34px] rounded-[10px] flex items-center justify-center shrink-0"
+                    className="w-[30px] h-[30px] rounded-[8px] flex items-center justify-center shrink-0"
                     style={{
                       background: `color-mix(in srgb,${it.color} 14%,transparent)`,
                       color: it.color,
                     }}
                   >
-                    <Icon size={17} strokeWidth={1.7} />
+                    <Icon size={15} strokeWidth={1.8} />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="text-[13px] font-semibold text-ink mb-0.5">{it.title}</div>
+                    <div
+                      className={cn(
+                        'text-[13px] leading-[1.35] text-ink',
+                        it.unread ? 'font-semibold' : 'font-medium',
+                      )}
+                    >
+                      {it.title}
+                    </div>
                     {it.body && (
-                      <div className="text-[12px] text-ink-soft leading-snug">{it.body}</div>
+                      <div className="text-[12px] text-ink-muted mt-0.5 leading-snug">{it.body}</div>
                     )}
                     <div className="text-[11px] text-ink-muted mt-1 flex items-center gap-1.5">
                       {it.time}
@@ -532,6 +524,13 @@ function NotifPanel({ open, onClose }: { open: boolean; onClose: () => void }) {
             })
           )}
         </div>
+        <Link
+          to="/activity"
+          onClick={onClose}
+          className="block text-center p-2.5 text-[12.5px] font-semibold text-accent-strong hover:bg-surface-3 transition-colors"
+        >
+          {L.notifSeeAll}
+        </Link>
       </div>
     </>
   );
