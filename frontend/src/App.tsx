@@ -397,6 +397,21 @@ const DashboardLayout = () => {
     };
   }, []);
 
+  // ⌘K / Ctrl+K opens the palette from anywhere. The palette is mounted only
+  // once opened, so its own listener cannot be the one that opens it: before
+  // #900 the shortcut did nothing until the search field had been clicked once.
+  // While it is open, the palette's listener handles the toggle.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey) || e.key.toLowerCase() !== 'k') return;
+      if (useUIStore.getState().cmdkOpen) return;
+      e.preventDefault();
+      setCmdkOpen(true);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [setCmdkOpen]);
+
   // Discoverable global shortcuts (UX-26). Rows shown in ShortcutsOverlay must
   // mirror these handlers. The hook ignores keys while typing / with ⌘/Ctrl/Alt.
   useHotkeys([
