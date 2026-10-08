@@ -12,7 +12,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useUIStore } from '../../../store/uiStore';
 import { variantFor } from '../dashboardVariant';
 import { bannerIncident } from '../console/incidentPick';
-import { daysUntil } from '../console/dates';
+import { daysUntil } from '../../action-center/dueDate';
 import type { Incident } from '../../incidents/incidentService';
 
 const STATS = {

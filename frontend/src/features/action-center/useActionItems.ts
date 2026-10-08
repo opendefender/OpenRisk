@@ -45,7 +45,9 @@ export interface UseActionItemsResult {
 export const PANEL_LIMIT = 8;
 
 /** Page size used by the full page at /action-center. */
-export const PAGE_LIMIT = 20;
+// The API's own ceiling (actioncenter.MaxLimit): the redesigned page reads the
+// whole queue at once so its chips and deadline groups count everything (#902).
+export const PAGE_LIMIT = 100;
 
 /**
  * The caller's prioritised outstanding work.

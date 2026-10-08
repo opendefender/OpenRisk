@@ -40,6 +40,8 @@ import { actionCenterService } from '../actionCenterService';
 
 const list = vi.mocked(actionCenterService.list);
 const TENANT = '3f1b0f9e-5a4c-4c7e-9a1d-8b2c6d5e4f30';
+/** One page and a bit: enough for the pager to appear. */
+const TOTAL = PAGE_LIMIT + 5;
 
 function item(overrides: Partial<ActionItem> & Pick<ActionItem, 'id' | 'type'>): ActionItem {
   return {
@@ -154,8 +156,8 @@ describe('ActionCenterPage', () => {
   it('reaches the second page through the pager, and asks the server for it', async () => {
     list.mockImplementation(async ({ offset = 0 } = {}) =>
       offset === 0
-        ? envelope(approvals(1, PAGE_LIMIT), 25, 0)
-        : envelope(approvals(21, 5), 25, PAGE_LIMIT),
+        ? envelope(approvals(1, PAGE_LIMIT), TOTAL, 0)
+        : envelope(approvals(PAGE_LIMIT + 1, 5), TOTAL, PAGE_LIMIT),
     );
 
     renderPage();
@@ -164,11 +166,11 @@ describe('ActionCenterPage', () => {
       expect(screen.getAllByTestId('action-center-item')).toHaveLength(PAGE_LIMIT),
     );
     expect(screen.getByText('Approval 1')).toBeInTheDocument();
-    expect(screen.queryByText('Approval 21')).not.toBeInTheDocument();
+    expect(screen.queryByText(`Approval ${PAGE_LIMIT + 1}`)).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByTestId('action-center-next'));
 
-    await waitFor(() => expect(screen.getByText('Approval 21')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(`Approval ${PAGE_LIMIT + 1}`)).toBeInTheDocument());
     expect(screen.getAllByTestId('action-center-item')).toHaveLength(5);
     expect(screen.queryByText('Approval 1')).not.toBeInTheDocument();
 
@@ -179,8 +181,8 @@ describe('ActionCenterPage', () => {
   it('puts the page in the URL so it is shareable and Back works', async () => {
     list.mockImplementation(async ({ offset = 0 } = {}) =>
       offset === 0
-        ? envelope(approvals(1, PAGE_LIMIT), 25, 0)
-        : envelope(approvals(21, 5), 25, PAGE_LIMIT),
+        ? envelope(approvals(1, PAGE_LIMIT), TOTAL, 0)
+        : envelope(approvals(PAGE_LIMIT + 1, 5), TOTAL, PAGE_LIMIT),
     );
 
     renderPage();
@@ -196,7 +198,7 @@ describe('ActionCenterPage', () => {
     // Let page 2 settle before going back: the pager is disabled while a page
     // is in flight, so clicking mid-fetch would be a no-op and this test would
     // pass or fail on timing rather than on behaviour.
-    await waitFor(() => expect(screen.getByText('Approval 21')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(`Approval ${PAGE_LIMIT + 1}`)).toBeInTheDocument());
 
     // Page 1 is the bare URL — two addresses for one view is how a stale link
     // ends up shared.
@@ -205,11 +207,11 @@ describe('ActionCenterPage', () => {
   });
 
   it('opens directly on the page named in the URL', async () => {
-    list.mockImplementation(async ({ offset = 0 } = {}) => envelope(approvals(21, 5), 25, offset));
+    list.mockImplementation(async ({ offset = 0 } = {}) => envelope(approvals(PAGE_LIMIT + 1, 5), TOTAL, offset));
 
     renderPage('/action-center?page=2');
 
-    await waitFor(() => expect(screen.getByText('Approval 21')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(`Approval ${PAGE_LIMIT + 1}`)).toBeInTheDocument());
     expect(list).toHaveBeenCalledWith({ limit: PAGE_LIMIT, offset: PAGE_LIMIT });
   });
 
@@ -225,8 +227,8 @@ describe('ActionCenterPage', () => {
   it('disables the pager at both ends', async () => {
     list.mockImplementation(async ({ offset = 0 } = {}) =>
       offset === 0
-        ? envelope(approvals(1, PAGE_LIMIT), 25, 0)
-        : envelope(approvals(21, 5), 25, PAGE_LIMIT),
+        ? envelope(approvals(1, PAGE_LIMIT), TOTAL, 0)
+        : envelope(approvals(PAGE_LIMIT + 1, 5), TOTAL, PAGE_LIMIT),
     );
 
     renderPage();
@@ -238,7 +240,7 @@ describe('ActionCenterPage', () => {
     expect(screen.getByTestId('action-center-next')).not.toBeDisabled();
 
     fireEvent.click(screen.getByTestId('action-center-next'));
-    await waitFor(() => expect(screen.getByText('Approval 21')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(`Approval ${PAGE_LIMIT + 1}`)).toBeInTheDocument());
     expect(screen.getByTestId('action-center-next')).toBeDisabled();
     expect(screen.getByTestId('action-center-prev')).not.toBeDisabled();
   });
@@ -345,7 +347,7 @@ describe('ActionCenterPage', () => {
 
   /* --- AC6: one guarded row implementation, no second path ---------------- */
 
-  it('drops an item whose deep link does not resolve, exactly as the panel does', async () => {
+  it('drops an item whose deep link does not resolve, exactly as the dashboard list does', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     list.mockResolvedValue(
       envelope(
@@ -367,7 +369,7 @@ describe('ActionCenterPage', () => {
     renderPage();
 
     await waitFor(() => expect(screen.getAllByTestId('action-center-item')).toHaveLength(1));
-    expect(screen.getByTestId('action-center-item').getAttribute('href')).toBe('/governance');
+    expect(screen.getByTestId('action-center-open').getAttribute('href')).toBe('/governance');
     expect(screen.queryByText('Points nowhere')).not.toBeInTheDocument();
     expect(warn).toHaveBeenCalledWith(expect.stringContaining('ghost:1'));
   });
@@ -376,7 +378,7 @@ describe('ActionCenterPage', () => {
 
   it('renders its own strings in French', async () => {
     useUIStore.setState({ lang: 'fr' });
-    list.mockResolvedValue(envelope(approvals(1, PAGE_LIMIT), 25, 0));
+    list.mockResolvedValue(envelope(approvals(1, PAGE_LIMIT), TOTAL, 0));
 
     renderPage();
 
@@ -393,11 +395,11 @@ describe('ActionCenterPage', () => {
   /* --- AC9: axe ----------------------------------------------------------- */
 
   it('has no serious or critical axe violations, pager included', async () => {
-    list.mockResolvedValue(envelope(approvals(1, PAGE_LIMIT), 25, 0));
+    list.mockResolvedValue(envelope(approvals(1, 20), TOTAL, 0));
 
     const { container } = renderPage();
     await waitFor(() =>
-      expect(screen.getAllByTestId('action-center-item')).toHaveLength(PAGE_LIMIT),
+      expect(screen.getAllByTestId('action-center-item')).toHaveLength(20),
     );
 
     const results = await axe.run(container, {

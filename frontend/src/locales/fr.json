@@ -391,8 +391,77 @@
       "open_incident": "Incident ouvert",
       "expiring_evidence": "Preuve bientôt expirée",
       "overdue_remediation": "Remédiation en retard",
-      "unknown": "Action requise"
-    }
+      "unknown": "Action requise",
+      "vulnerability_sla": "Échéance de vulnérabilité",
+      "vendor_followup": "Relance fournisseur",
+      "mitigation_review": "Mitigation à valider"
+    },
+    "summary": {
+      "exact": {
+        "0": "Aucune action ne vous attend"
+      },
+      "one": "{count} action vous attend",
+      "other": "{count} actions vous attendent"
+    },
+    "summaryLate": "{count} en retard",
+    "filters": {
+      "all": "Tout",
+      "approval": "Approbations",
+      "vuln": "Vulnérabilités",
+      "plans": "Risques et plans",
+      "incident": "Incidents",
+      "compliance": "Conformité",
+      "vendor": "Tiers",
+      "label": "Filtrer par type"
+    },
+    "groups": {
+      "late": "En retard",
+      "week": "Cette semaine",
+      "later": "Plus tard",
+      "none": "Sans échéance"
+    },
+    "kind": {
+      "overdue_mitigation": "Mitigation",
+      "mitigation_review": "Mitigation",
+      "critical_risk": "Risque",
+      "pending_approval": "Approbation",
+      "open_incident": "Incident",
+      "expiring_evidence": "Preuve",
+      "overdue_remediation": "Remédiation",
+      "vulnerability_sla": "Vulnérabilité",
+      "vendor_followup": "Tiers"
+    },
+    "cta": {
+      "overdue_mitigation": "Ouvrir",
+      "mitigation_review": "Valider",
+      "critical_risk": "Revoir",
+      "pending_approval": "Examiner",
+      "open_incident": "Ouvrir",
+      "expiring_evidence": "Renouveler",
+      "overdue_remediation": "Ouvrir",
+      "vulnerability_sla": "Ouvrir",
+      "vendor_followup": "Relancer",
+      "unknown": "Ouvrir"
+    },
+    "fact": {
+      "kev": "KEV",
+      "slaBreached": "SLA dépassé",
+      "slaDue": "SLA en cours",
+      "overdue": "échéance dépassée",
+      "inReview": "attend votre validation",
+      "noPlan": "aucune mitigation active",
+      "expired": "expirée",
+      "expiring": "expire bientôt",
+      "unanswered": {
+        "one": "sans réponse depuis {count} jour",
+        "other": "sans réponse depuis {count} jours"
+      }
+    },
+    "done": "Marquer comme fait",
+    "doneToast": "Action terminée : {title}",
+    "doneFailed": "L'action n'a pas pu être terminée. Elle est revenue dans la liste.",
+    "emptyFilterTitle": "Rien en attente dans cette catégorie",
+    "emptyFilterBody": "Les nouvelles demandes apparaîtront ici dès qu'elles vous seront assignées."
   },
   "savedViews": {
     "loading": "Chargement de vos vues…",
@@ -1113,22 +1182,13 @@
       "exec": "Décisions et risques à suivre",
       "link": "Centre d'actions",
       "empty": "Rien d'urgent. Les actions apparaissent ici dès qu'une échéance approche.",
-      "type": {
-        "overdue_mitigation": "Mitigation",
-        "critical_risk": "Risque",
-        "pending_approval": "Approbation",
-        "open_incident": "Incident",
-        "expiring_evidence": "Preuve",
-        "overdue_remediation": "Remédiation"
-      },
       "overdue": {
         "one": "En retard de {count} j",
         "other": "En retard de {count} j"
       },
       "today": "Aujourd'hui",
       "tomorrow": "Demain",
-      "inDays": "Dans {count} j",
-      "unknownType": "Action requise"
+      "inDays": "Dans {count} j"
     },
     "activity": {
       "title": "Activité récente",
