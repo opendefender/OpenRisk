@@ -18,19 +18,28 @@ interface OrgLogoProps {
   size: number;
   radius: number;
   className?: string;
+  /** Neutral initials tile (sidebar switcher) instead of the accent tint. */
+  neutral?: boolean;
 }
 
-export function OrgLogo({ name, hasLogo, size, radius, className = '' }: OrgLogoProps) {
+export function OrgLogo({
+  name,
+  hasLogo,
+  size,
+  radius,
+  className = '',
+  neutral = false,
+}: OrgLogoProps) {
   const src = useOrganizationLogoUrl(hasLogo);
   return (
     <div
-      className={`flex items-center justify-center font-bold shrink-0 overflow-hidden text-accent-strong ${className}`}
+      className={`flex items-center justify-center font-bold shrink-0 overflow-hidden ${neutral ? 'text-fg-secondary' : 'text-accent-strong'} ${className}`}
       style={{
         width: size,
         height: size,
         borderRadius: radius,
         fontSize: Math.round(size * 0.38),
-        background: src ? 'var(--bg-elevated)' : 'var(--accent-soft)',
+        background: src ? 'var(--bg-elevated)' : neutral ? 'var(--surface-3)' : 'var(--accent-soft)',
       }}
       aria-hidden="true"
       data-testid="org-logo"

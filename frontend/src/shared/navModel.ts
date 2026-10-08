@@ -24,7 +24,8 @@ import {
   Database,
   Atom,
   FileText,
-  Sparkles,
+  Lightbulb,
+  Radar,
   Settings,
   Bug,
   Coins,
@@ -41,7 +42,11 @@ import type { UIStrings } from './uiStrings';
 /** The named live counters a nav item may display. Each maps to a real
  *  tenant-scoped field the Sidebar resolves; there is no free-text option, so
  *  a badge cannot be invented. */
-export type NavCount = 'pending_invitations';
+export type NavCount = 'pending_invitations' | 'action_items' | 'kev_open' | 'open_incidents';
+
+/** Badge colour family. `neutral` is a count of work, `danger` is exposure that
+ *  needs attention, `info` is something waiting on someone else. */
+export type NavBadgeTone = 'neutral' | 'danger' | 'info';
 
 export interface NavItem {
   key: string;
@@ -73,7 +78,7 @@ export interface NavItem {
    * A counter is a claim about the user's data; there is no honest way to write
    * one as a constant.
    */
-  badge?: { count: NavCount; color?: string };
+  badge?: { count: NavCount; tone: NavBadgeTone };
   /** Placeholder screen (no backend yet). */
   soon?: boolean;
   /** Required permission to see this item. Mirrors the route guard on the
@@ -122,6 +127,7 @@ export const NAV_GROUPS: NavGroup[] = [
         labelKey: 'n_actionCenter',
         icon: ListChecks,
         path: '/action-center',
+        badge: { count: 'action_items', tone: 'neutral' },
       },
       {
         key: 'analytics',
@@ -169,6 +175,7 @@ export const NAV_GROUPS: NavGroup[] = [
         icon: Bug,
         path: '/vulnerabilities',
         perm: 'vulnerabilities:read',
+        badge: { count: 'kev_open', tone: 'danger' },
       },
       { key: 'cti', labelKey: 'n_cti', icon: Globe, path: '/threat-map', perm: 'risks:read' },
       {
@@ -204,6 +211,7 @@ export const NAV_GROUPS: NavGroup[] = [
         icon: Siren,
         path: '/incidents',
         perm: 'incidents:read',
+        badge: { count: 'open_incidents', tone: 'danger' },
       },
       {
         key: 'automation',
@@ -242,11 +250,11 @@ export const NAV_GROUPS: NavGroup[] = [
         path: '/reports',
         perm: 'reports:board:read',
       },
-      { key: 'ai', labelKey: 'n_ai', icon: Sparkles, path: '/recommendations', perm: 'risks:read' },
+      { key: 'ai', labelKey: 'n_ai', icon: Lightbulb, path: '/recommendations', perm: 'risks:read' },
       {
         key: 'emerging',
         labelKey: 'n_emerging',
-        icon: Sparkles,
+        icon: Radar,
         path: '/ai/emerging-risks',
         perm: 'risks:read',
       },
@@ -272,7 +280,7 @@ export const NAV_GROUPS: NavGroup[] = [
         icon: Users,
         path: '/settings/members',
         adminOnly: true,
-        badge: { count: 'pending_invitations', color: 'var(--info)' },
+        badge: { count: 'pending_invitations', tone: 'info' },
       },
       { key: 'settings', labelKey: 'n_settings', icon: Settings, path: '/settings' },
     ],
@@ -328,4 +336,30 @@ const BUSINESS_ROLE_LANDING: Record<string, string> = {
 export function landingForBusinessRole(businessRole?: string): string {
   if (!businessRole) return '/';
   return BUSINESS_ROLE_LANDING[businessRole] ?? '/';
+}
+
+/**
+ * The nav item a location belongs to: longest path prefix wins, so
+ * /assets/topology resolves to Topology and not Inventory. Items sharing a
+ * pathname are told apart by `?view=` exactly as the sidebar does.
+ */
+export function navItemFor(pathname: string, view: string | null): NavItem | undefined {
+  let best: NavItem | undefined;
+  let bestLen = -1;
+  for (const it of ALL_NAV_ITEMS) {
+    if ((it.view ?? null) !== (view || null)) continue;
+    const p = it.path;
+    const match = p === '/' ? pathname === '/' : pathname === p || pathname.startsWith(p + '/');
+    if (match && p.length > bestLen) {
+      best = it;
+      bestLen = p.length;
+    }
+  }
+  return best;
+}
+
+/** The intention group a location sits in, for the breadcrumb's first step. */
+export function navGroupFor(pathname: string, view: string | null): NavGroup | undefined {
+  const item = navItemFor(pathname, view);
+  return item ? NAV_GROUPS.find((g) => g.items.includes(item)) : undefined;
 }

@@ -11,7 +11,6 @@ import {
   Plus,
   Settings,
   LogOut,
-  Star,
   UserRound,
 } from 'lucide-react';
 import { cn } from '../../shared/ds';
@@ -27,18 +26,24 @@ import {
   pinnedItems,
   ALL_NAV_ITEMS,
   type NavItem,
-  type NavCount,
+  type NavBadgeTone,
 } from '../../shared/navModel';
 import { useScore } from '../../hooks/useScore';
-import {
-  useOrganizationBranding,
-  useOrganizationCounts,
-} from '../../features/organization/useOrganization';
+import { useOrganizationBranding } from '../../features/organization/useOrganization';
+import { useNavCounts } from './useNavCounts';
 import { bandColor, bandLabel, bandTextColor } from '../../services/scoreService';
 import { UserAvatar } from '../../shared/UserAvatar';
 import { useMyProfile } from '../../features/profile/useProfile';
 import { OrgLogo } from '../../features/organization/OrgLogo';
 import { useNavGlide } from './useNavGlide';
+
+// Badge colours from the redesign: a count of work is neutral, exposure is
+// danger, something waiting on someone else is info.
+const BADGE_TONE: Record<NavBadgeTone, { bg: string; fg: string }> = {
+  neutral: { bg: 'var(--surface-3)', fg: 'var(--fg-secondary)' },
+  danger: { bg: 'var(--danger-surface)', fg: 'var(--danger-text)' },
+  info: { bg: 'var(--info-surface)', fg: 'var(--info-text)' },
+};
 
 interface SidebarProps {
   /** Off-canvas drawer open on mobile (< lg). Ignored on desktop, where the
@@ -140,10 +145,7 @@ export const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => 
   // Live, tenant-scoped counters for the nav badges. A failed or refused read
   // leaves every count at zero, which renders no badge at all — the honest
   // outcome, since we do not know the number.
-  const { data: orgCounts } = useOrganizationCounts();
-  const navCounts: Record<NavCount, number> = {
-    pending_invitations: orgCounts?.pending_invitations ?? 0,
-  };
+  const navCounts = useNavCounts(can);
 
   const navItem = (item: NavItem) => {
     const active = item.key === activeKey;
@@ -169,26 +171,29 @@ export const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => 
         aria-current={active ? 'page' : undefined}
         title={L[item.labelKey]}
         className={cn(
-          'w-full flex items-center gap-[11px] px-[11px] py-2 rounded-[9px] relative mb-0.5 transition-colors',
-          // With the glide on, the shared backdrop is the hover; without it
-          // (touch, reduced motion) each entry keeps its own.
-          active ? 'bg-accent-soft' : !glide.enabled && 'hover:bg-hover',
+          'group/nav relative flex items-center gap-[11px] h-[34px] px-2.5 mb-px rounded-[8px] text-[13px] transition-colors',
+          active
+            ? 'bg-surface-3 text-fg-primary font-semibold'
+            : cn('text-fg-secondary font-medium hover:text-fg-primary', !glide.enabled && 'hover:bg-surface-3'),
+          collapsed && 'justify-center px-0',
         )}
       >
+        {/* Keyline on the active entry, flush with the nav's left edge. */}
         <span
-          className="flex shrink-0"
-          style={{ color: active ? 'var(--accent)' : 'var(--fg-secondary)' }}
-        >
-          <Icon size={19} strokeWidth={1.75} />
-        </span>
+          aria-hidden="true"
+          className="absolute -left-2.5 top-[7px] bottom-[7px] w-[2px] rounded-r-[2px]"
+          style={{ background: active ? 'var(--accent)' : 'transparent' }}
+        />
+        <Icon
+          size={17}
+          strokeWidth={1.75}
+          className={cn(
+            'shrink-0',
+            active ? 'text-accent' : 'text-fg-muted group-hover/nav:text-fg-primary',
+          )}
+        />
         {!collapsed && (
-          <span
-            className="text-[13px] whitespace-nowrap flex-1 text-left"
-            style={{
-              fontWeight: active ? 600 : 500,
-              color: active ? 'var(--fg-primary)' : 'var(--fg-secondary)',
-            }}
-          >
+          <span className="flex-1 min-w-0 whitespace-nowrap overflow-hidden text-ellipsis">
             {L[item.labelKey]}
           </span>
         )}
@@ -202,14 +207,21 @@ export const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => 
           navCounts[item.badge.count] > 0 &&
           (collapsed ? (
             <span
-              className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full"
-              style={{ background: item.badge.color ?? 'var(--critical)' }}
+              className="absolute top-[7px] left-[24px] w-[7px] h-[7px] rounded-full"
+              style={{
+                background: BADGE_TONE[item.badge.tone].fg,
+                boxShadow: '0 0 0 2px var(--surface-1)',
+              }}
               aria-label={`${navCounts[item.badge.count]}`}
             />
           ) : (
             <span
-              className="text-[10px] font-bold min-w-[17px] h-[17px] px-[5px] rounded-[9px] flex items-center justify-center text-fg-primary"
-              style={{ background: item.badge.color ?? 'var(--critical)' }}
+              className="mono text-[10.5px] font-semibold min-w-[18px] h-[18px] px-[5px] rounded-[9px] flex items-center justify-center"
+              style={{
+                background: BADGE_TONE[item.badge.tone].bg,
+                color: BADGE_TONE[item.badge.tone].fg,
+              }}
+              data-testid={`nav-badge-${item.key}`}
             >
               {navCounts[item.badge.count]}
             </span>
@@ -224,27 +236,28 @@ export const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => 
       {mobileOpen && (
         <div
           onClick={onMobileClose}
-          className="lg:hidden fixed inset-0 bg-surface-overlay backdrop-blur-sm z-40"
+          className="lg:hidden fixed inset-0 bg-surface-overlay backdrop-blur-sm z-55"
           aria-hidden="true"
         />
       )}
 
       <aside
-        style={{ background: 'var(--bg-secondary)', transition: 'width .25s ease' }}
+        style={{ transition: 'width 260ms var(--ease-out)' }}
         className={cn(
-          'h-screen border-r border-border flex flex-col z-50',
+          // Above the sticky header (z-50) when it slides in as a drawer on mobile.
+          'h-screen bg-surface-1 border-r border-border-subtle flex flex-col z-60 overflow-hidden',
           'lg:static lg:shrink-0 lg:translate-x-0',
-          collapsed ? 'lg:w-[66px]' : 'lg:w-[248px]',
+          collapsed ? 'lg:w-[64px]' : 'lg:w-[248px]',
           'fixed inset-y-0 left-0 w-[248px] max-w-[82vw]',
           mobileOpen ? 'translate-x-0 shadow-card-lg' : '-translate-x-full lg:translate-x-0',
         )}
       >
         <div className="flex flex-col h-full">
           {/* Logo + org switcher */}
-          <div className="px-[14px] pt-4 pb-2.5">
+          <div className="px-[14px] pt-[14px] pb-2.5">
             <div
               className={cn(
-                'flex items-center gap-2.5 px-1.5 pb-3.5',
+                'flex items-center gap-2.5 px-[3px] pb-[14px]',
                 collapsed && 'justify-center px-0',
               )}
             >
@@ -257,7 +270,9 @@ export const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => 
                 <OpenRiskLogo size={18} />
               </div>
               {!collapsed && (
-                <span className="disp text-[17px] font-bold tracking-tight text-ink">OpenRisk</span>
+                <span className="disp text-[17px] font-bold tracking-[-0.01em] whitespace-nowrap text-ink">
+                  OpenRisk
+                </span>
               )}
             </div>
 
@@ -270,6 +285,7 @@ export const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => 
                     hasLogo={branding?.has_logo ?? false}
                     size={26}
                     radius={7}
+                    neutral
                   />
                 }
               />
@@ -285,12 +301,12 @@ export const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => 
                   window.dispatchEvent(new CustomEvent('openrisk:new-risk'));
                   onMobileClose?.();
                 }}
-                className="w-full h-[38px] rounded-[10px] flex items-center justify-center gap-2 text-[13px] font-semibold text-fg-primary transition-[filter] hover:brightness-110"
+                className="w-full h-9 rounded-[10px] flex items-center justify-center gap-2 text-[13px] font-semibold transition-[filter,transform] hover:brightness-[1.08] active:translate-y-px"
                 style={{
                   background: 'var(--accent-solid)',
                   color: 'var(--fg-on-solid)',
                 }}
-                title={L.newRisk}
+                title={`${L.newRisk} (N)`}
               >
                 <Plus size={16} strokeWidth={2.2} />
                 {!collapsed && <span>{L.newRisk}</span>}
@@ -299,7 +315,11 @@ export const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => 
           )}
 
           {/* Navigation */}
-          <nav className="relative flex-1 overflow-y-auto px-2.5 pt-1.5 pb-2.5" {...glide.navProps}>
+          <nav
+            aria-label={tr('Navigation principale', 'Main navigation')}
+            className="relative flex-1 overflow-y-auto overflow-x-hidden px-2.5 pt-1 pb-2.5"
+            {...glide.navProps}
+          >
             {/* First child, so every entry paints above it. Glides on
                 --motion-hover, fades out on --motion-exit, never scales. */}
             {glide.enabled && (
@@ -309,7 +329,7 @@ export const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => 
                 data-testid="nav-glide"
                 data-visible="false"
                 className={cn(
-                  'pointer-events-none absolute top-0 left-0 rounded-[9px] bg-hover opacity-0',
+                  'pointer-events-none absolute top-0 left-0 rounded-[8px] bg-surface-3 opacity-0',
                   'transition-opacity duration-fast ease-in',
                   'data-[visible=true]:opacity-100 data-[visible=true]:ease-out',
                   'data-[visible=true]:transition-[transform,height,opacity] data-[visible=true]:duration-fast',
@@ -318,22 +338,18 @@ export const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => 
             )}
             {/* Pinned entries (Dashboard) hoisted above the intention groups. */}
             {pinned.length > 0 && (
-              <div className="mb-3 pb-3 border-b border-border">{pinned.map(navItem)}</div>
+              <>
+                {pinned.map(navItem)}
+                <div aria-hidden="true" className="h-px bg-border-subtle mt-2 mx-[2px] mb-[14px]" />
+              </>
             )}
             {navGroups.map((group) => {
               const items = group.items.filter((i) => !i.pinned);
               if (items.length === 0) return null;
               return (
-                <div key={group.groupKey} className="mb-4">
+                <div key={group.groupKey} className="mb-[14px]">
                   {!collapsed && (
-                    <div
-                      className={cn(
-                        'text-[10px] tracking-[0.09em] uppercase font-semibold px-3 pb-[7px] flex items-center gap-1.5',
-                        !group.core && 'text-ink-muted',
-                      )}
-                      style={group.core ? { color: 'var(--accent-500)' } : undefined}
-                    >
-                      {group.core && <Star size={10} strokeWidth={2.5} fill="var(--accent)" />}
+                    <div className="text-[10px] tracking-[0.09em] uppercase font-semibold text-ink-muted px-2.5 pb-1.5">
                       {L[group.groupKey]}
                     </div>
                   )}
@@ -346,13 +362,13 @@ export const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => 
           {/* Security score footer — the canonical tenant score; hidden until
               it has loaded, "not measured" when the tenant has nothing to score. */}
           {!collapsed && tenantScore !== undefined && (
-            <button
-              onClick={() => navigate('/?view=executive')}
-              className="w-full text-left px-[14px] py-3 border-t border-border hover:bg-hover transition-colors"
-              title={tr('Voir le tableau exécutif', 'Open the executive dashboard')}
+            <Link
+              to="/?view=executive"
+              className="block w-full text-left px-4 py-3 border-t border-border-subtle hover:bg-surface-2 transition-colors"
+              title={L.openExecutive}
             >
-              <div className="flex items-center justify-between mb-[7px]">
-                <span className="text-[10.5px] text-ink-soft font-medium">
+              <div className="flex items-baseline justify-between mb-[7px]">
+                <span className="text-[11px] text-ink-soft font-medium whitespace-nowrap">
                   {L.globalScore} · {bandLabel(measuredScore?.band, lang)}
                 </span>
                 <span
@@ -363,12 +379,9 @@ export const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => 
                   {score === undefined ? '—' : `${score}/100`}
                 </span>
               </div>
-              <div
-                className="h-[5px] rounded-[5px] overflow-hidden"
-                style={{ background: 'var(--bg-hover)' }}
-              >
+              <div className="h-1 rounded overflow-hidden bg-surface-3">
                 <div
-                  className="h-full rounded-[5px]"
+                  className="h-full rounded"
                   style={{
                     width: `${score ?? 0}%`,
                     background: scoreColor,
@@ -376,11 +389,11 @@ export const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => 
                   }}
                 />
               </div>
-            </button>
+            </Link>
           )}
 
           {/* User menu (account · settings · logout) + collapse */}
-          <div className="relative px-[14px] py-3 border-t border-border">
+          <div className="relative px-3 py-2.5 border-t border-border-subtle">
             {menuOpen && (
               <>
                 <div
@@ -410,7 +423,7 @@ export const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => 
                     }}
                     className="w-full flex items-center gap-2.5 px-3 py-2.5 text-[13px] font-medium text-ink hover:bg-hover transition-colors"
                   >
-                    <UserRound size={16} strokeWidth={1.8} /> {tr('Mon profil', 'My profile')}
+                    <UserRound size={16} strokeWidth={1.8} /> {L.myProfile}
                   </button>
                   <button
                     onClick={() => {
@@ -432,14 +445,15 @@ export const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => 
               </>
             )}
 
-            <div className={cn('flex items-center gap-2.5', collapsed && 'justify-center')}>
+            <div className={cn('flex items-center gap-2', collapsed && 'justify-center')}>
               <button
                 onClick={() => setMenuOpen((v) => !v)}
                 title={tr('Compte', 'Account')}
                 aria-label={tr('Menu du compte', 'Account menu')}
+                aria-expanded={menuOpen}
                 className={cn(
-                  'flex items-center gap-2.5 min-w-0 rounded-[9px] py-1 pr-1.5 hover:bg-hover transition-colors',
-                  collapsed ? 'px-1' : 'flex-1 pl-1',
+                  'flex items-center gap-2.5 min-w-0 rounded-[9px] p-1 hover:bg-surface-3 transition-colors',
+                  !collapsed && 'flex-1',
                 )}
               >
                 <UserAvatar
@@ -451,7 +465,7 @@ export const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => 
                 />
                 {!collapsed && (
                   <div className="flex-1 min-w-0 text-left">
-                    <div className="text-[12px] font-semibold leading-tight text-ink truncate">
+                    <div className="text-[12px] font-semibold text-ink truncate">
                       {user?.full_name || user?.username || 'Admin'}
                     </div>
                     <SidebarRoleLabel />
@@ -461,8 +475,9 @@ export const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => 
               {!collapsed && (
                 <button
                   onClick={toggleCollapse}
-                  className="w-[26px] h-[26px] rounded-[7px] flex items-center justify-center text-ink-muted hover:bg-hover hover:text-ink transition-colors shrink-0"
-                  aria-label="Collapse sidebar"
+                  className="hidden lg:flex w-7 h-7 rounded-[7px] items-center justify-center text-ink-muted hover:bg-surface-3 hover:text-ink transition-colors shrink-0"
+                  aria-label={L.collapseSidebar}
+                  title={L.collapseSidebar}
                 >
                   <PanelLeftClose size={16} strokeWidth={1.7} />
                 </button>
@@ -474,8 +489,9 @@ export const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => 
           {collapsed && (
             <button
               onClick={toggleCollapse}
-              className="hidden lg:flex mx-auto mb-3 w-[26px] h-[26px] rounded-[7px] items-center justify-center text-ink-muted hover:bg-hover hover:text-ink transition-colors"
-              aria-label="Expand sidebar"
+              className="hidden lg:flex mx-auto mb-3 w-7 h-7 rounded-[7px] items-center justify-center text-ink-muted hover:bg-surface-3 hover:text-ink transition-colors"
+              aria-label={L.expandSidebar}
+              title={L.expandSidebar}
             >
               <PanelLeftOpen size={16} strokeWidth={1.7} />
             </button>

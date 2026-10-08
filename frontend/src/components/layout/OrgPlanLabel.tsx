@@ -43,7 +43,7 @@ export function OrgPlanLabel() {
   if (!name) return null;
 
   return (
-    <div className="text-[10.5px] text-ink-soft" data-testid="org-plan">
+    <div className="text-[11px] text-ink-muted" data-testid="org-plan">
       {t('common.planName', { plan: name })}
     </div>
   );
