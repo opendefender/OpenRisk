@@ -1,0 +1,5 @@
+- [Worktree revert-check technique](technique_worktree_revert_check.md) — prove a new test fails pre-fix without touching the tracked tree
+- [ds/Menu exit-transition defect (#751)](project_ds_menu_exit_transition.md) — 120ms focus-trap-during-exit gap found in review, not yet filed
+- [#751 phase 2 defects](project_751_phase2_defects.md) — batched-unmount swallows Button success check in 2 of 4 forms; DataTable search-clear snapshot can overlap freshly typed text during the 120ms exit
+- [#751 phase 4 defects](project_751_phase4_defects.md) — light-theme --high/--critical 16%-tint banner text fails AA (3.99/4.03:1); Playwright MCP round-trip latency breaks naive manual timing checks, fix is single-evaluate in-page timers
+- [#751 phase 5 browser lock](project_751_phase5_browser_lock.md) — shared playwright-mcp Chrome profile can be locked by a concurrent sibling agent; check mtimes before assuming stale, never kill it, report honestly if it never frees

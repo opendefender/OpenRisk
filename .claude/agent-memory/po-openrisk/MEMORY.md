@@ -1,0 +1,8 @@
+- [Label taxonomy drift](label-taxonomy-drift.md) — D-003: both label families are permanent, every issue must be dual-labelled + status:, never strip either
+- [Verify agent claims before drafting](verify-agent-claims-before-drafting.md) — relayed and doc-sourced claims were wrong twice (#200 split, ds-v1 epic); falsify before it enters an issue
+- [Splitting bundled P0 issues](split-bundled-p0-issues.md) — OR-P0-xx issues bundle a small bug with a cross-cutting mechanism; split, park the mechanism in DECISIONS.md
+- [Rejection premises are claims](rejection-premises-are-claims.md) — bounced-issue rejection reasons need falsifying too; wave labels reported as invalid taxonomy twice
+- [Comments claiming guarantees](comments-claiming-guarantees.md) — bulk_action.go documents atomicity/audit it never implements; read the body, never cite the comment
+- [Cleanup PRs leave ratchets loose](cleanup-prs-leave-ratchets-loose.md) — #645 deleted 108 orphans but kept the <=110 test; grep the pin before closing as delivered
+- [Red CI gates are not gates](red-ci-gates-are-not-gates.md) — security jobs were red on master and non-required (#487); check runs + branch protection before drafting
+- [Owner overrides on scope and polish](owner-overrides-on-scope-and-polish.md) — owner rejects scope cuts/less-motion recs (D-054, D-058, D-060), follows security/licence recs; bring burn-down data

@@ -1,0 +1,2 @@
+- [Phase 3 (#751) dashboard spec — KPI counter, skeleton reveal, text reveal, heatmap eval](phase3-751-dashboard-spec.md) — D-060/D-059 in force, triple useCountUp duplication, heatmap-name collision risk
+- [Phase 5 (#751) War Room avatar stack spec](phase5-751-warroom-avatars.md) — no participants table, N capped at 2, initials-only, no presence data
