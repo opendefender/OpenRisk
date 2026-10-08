@@ -457,10 +457,7 @@ const DashboardLayout = () => {
       {/* The organization's accent, worn by every member (#718). */}
       <BrandingSync />
       <Sidebar mobileOpen={mobileNavOpen} onMobileClose={() => setMobileNavOpen(false)} />
-      <div
-        className="flex-1 flex flex-col h-screen overflow-hidden relative min-w-0"
-        style={{ background: 'var(--bg-primary)' }}
-      >
+      <div className="flex-1 flex flex-col h-screen overflow-hidden relative min-w-0 bg-surface-0">
         {/* Demo (permanent, not dismissible by design — see shared/DemoBanner)
             on top; Offline below it, closest to the header it pushes. */}
         <BannerStack>

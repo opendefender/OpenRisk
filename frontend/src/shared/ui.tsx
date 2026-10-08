@@ -41,41 +41,74 @@ export const Card = ({
   </div>
 );
 
-/** Standard scrollable page frame (fade-up in, max width, padding). */
-export const PageFrame = ({ children, wide }: { children: React.ReactNode; wide?: boolean }) => (
+/**
+ * Standard scrollable page frame (October 2026 redesign, #900): 24 px top,
+ * 32 px sides, 64 px bottom, centred at 1320 px. `narrow` is the 1180 px
+ * column the admin screens use; `wide` the 1400 px one of the treatment board.
+ */
+export const PageFrame = ({
+  children,
+  wide,
+  narrow,
+}: {
+  children: React.ReactNode;
+  wide?: boolean;
+  narrow?: boolean;
+}) => (
   <div className="flex-1 overflow-y-auto">
     <div
-      className="mx-auto px-5 sm:px-7 pt-6 pb-10 motion-safe:animate-or-fadeup"
-      style={{ maxWidth: wide ? 'var(--content-max-wide)' : 'var(--content-max)' }}
+      className="mx-auto px-5 sm:px-8 pt-6 pb-16 motion-safe:animate-or-fadeup"
+      style={{
+        maxWidth: wide ? 1400 : narrow ? 'var(--content-max)' : 'var(--content-max-wide)',
+      }}
     >
       {children}
     </div>
   </div>
 );
 
+/**
+ * Page title block: optional eyebrow (date, scope), the H1 in the display
+ * face, a one-line factual subtitle, and right-aligned actions sitting on the
+ * title's baseline.
+ */
 export function PageHeader({
   title,
   count,
   actions,
   badge,
+  eyebrow,
+  subtitle,
+  className = '',
 }: {
   title: string;
   count?: string | null;
   actions?: React.ReactNode;
   badge?: React.ReactNode;
+  eyebrow?: React.ReactNode;
+  subtitle?: React.ReactNode;
+  className?: string;
 }) {
   return (
-    <div className="flex items-center justify-between flex-wrap gap-3 mb-[18px]">
-      <div className="flex items-center gap-3">
-        <h1 className="disp text-2xl font-bold tracking-display text-ink">{title}</h1>
-        {count != null && (
-          <span className="text-xs font-semibold text-ink-soft px-2.5 py-1 rounded-full bg-surface-3">
-            {count}
-          </span>
+    <div className={`flex items-end justify-between flex-wrap gap-4 mb-[18px] ${className}`}>
+      <div className="min-w-0">
+        {eyebrow != null && (
+          <div className="text-[12.5px] text-ink-muted whitespace-nowrap mb-0.5">{eyebrow}</div>
         )}
-        {badge}
+        <div className="flex items-center gap-3">
+          <h1 className="disp text-[28px] leading-[1.15] font-semibold tracking-display text-ink m-0">
+            {title}
+          </h1>
+          {count != null && (
+            <span className="text-xs font-semibold text-ink-soft px-2.5 py-1 rounded-full bg-surface-3">
+              {count}
+            </span>
+          )}
+          {badge}
+        </div>
+        {subtitle != null && <p className="mt-1 mb-0 text-[13px] text-ink-soft">{subtitle}</p>}
       </div>
-      {actions && <div className="flex items-center gap-2.5 flex-wrap">{actions}</div>}
+      {actions && <div className="flex items-center gap-2 flex-wrap">{actions}</div>}
     </div>
   );
 }
