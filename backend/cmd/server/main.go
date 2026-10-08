@@ -2918,17 +2918,26 @@ func main() {
 	// The calculation itself lives in internal/domain/scoring and nowhere else:
 	// no formula, no threshold and no band mapping exists in the frontend.
 	// =========================================================================
-	scoreHandler := newScoreHandler(
+	scoreSnapshotRepo := repository.NewGormScoreSnapshotRepository(database.DB)
+	scoreHandler, scoreHistoryUC := newScoreHandler(
 		riskRepo, assetRepo, vulnRepo,
 		repository.NewGormMitigationRepository(database.DB),
 		getGapAnalysisUC, incidentService,
+		scoreSnapshotRepo,
 	)
+	// One snapshot per tenant per day, so the dashboard can draw the year and
+	// the 30-day movement even for a tenant nobody opened that day (#901).
+	go workers.NewScoreSnapshotWorker(scoreSnapshotRepo, scoreHistoryUC, zeroLogger).
+		Start(context.Background())
 	// Readable by any authenticated member: a posture score is what the product
 	// is FOR, and the underlying detail is already gated per source.
 	// Tenant-scoped score figures; every business role preset holds risks:read,
 	// and preview persists nothing. Session-sufficient (#529).
 	protected.Get("/score", scoreHandler.GetScore)
 	protected.Get("/score/model", scoreHandler.GetScoreModel)
+	// Month-by-month tenant score and its 30-day delta (#901). Same audience as
+	// /score: the history of a figure every member can already read.
+	protected.Get("/score/history", scoreHandler.GetScoreHistory)
 	// Live preview for forms (debounced client-side). Persists nothing, so it
 	// carries no write permission.
 	protected.Post("/score/preview", scoreHandler.PreviewScore)

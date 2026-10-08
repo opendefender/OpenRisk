@@ -27,6 +27,8 @@ func schemaModels() []interface{} {
 		// invitations model was never in AutoMigrate, so the table never existed
 		// and the invitation code that referenced it could not have run.
 		&domain.Invitation{},
+		// Daily tenant exposure score history (#901, migration 0069).
+		&domain.TenantScoreSnapshot{},
 		&coreauth.RefreshToken{},
 		// L2/L4/L5/L7 auth tables. Previously absent from AutoMigrate, so the whole
 		// feature set (MFA setup/challenge, PAT auth, SSO account linking, and the

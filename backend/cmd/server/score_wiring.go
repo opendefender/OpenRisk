@@ -54,7 +54,8 @@ func (a incidentPressureAdapter) OpenIncidentCounts(_ context.Context, tenantID 
 
 // newScoreHandler assembles the ONE score endpoint from the already-constructed,
 // tenant-scoped sources. Every source is optional in the use case, so a missing
-// one degrades its own factor instead of failing the request.
+// one degrades its own factor instead of failing the request. It also returns
+// the history use case, which the daily snapshot worker shares (#901).
 func newScoreHandler(
 	riskRepo *repository.GormRiskRepository,
 	assetRepo *repository.GormAssetRepository,
@@ -62,7 +63,8 @@ func newScoreHandler(
 	mitigationRepo repository.MitigationRepository,
 	gapUC *compliance.GetGapAnalysisUseCase,
 	incidentSvc *service.IncidentService,
-) *handlers.ScoreHandler {
+	snapshots *repository.GormScoreSnapshotRepository,
+) (*handlers.ScoreHandler, *score.HistoryUseCase) {
 	uc := score.New().
 		WithRiskCounts(riskRepo).
 		WithRisk(riskRepo).
@@ -73,5 +75,6 @@ func newScoreHandler(
 		WithMitigations(mitigationRepo).
 		WithCompliance(complianceCoverageAdapter{gaps: gapUC}).
 		WithIncidents(incidentPressureAdapter{svc: incidentSvc})
-	return handlers.NewScoreHandler(uc)
+	history := score.NewHistory(uc, snapshots)
+	return handlers.NewScoreHandler(uc).WithHistory(history), history
 }

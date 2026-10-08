@@ -530,6 +530,8 @@ var decisions = []Decision{
 		"assessed, not pinned: the handler passes mwCtx.OrganizationID (uuid.Nil when absent) into GetRiskWeights. Unresolved: whether the weights store falls back to a shared default row on a miss, which would be correct behaviour but must not be reachable by passing a zero tenant. Settled by a two-tenant test that also asserts what uuid.Nil returns"},
 	{"/api/v1/score", Pending,
 		"assessed, not pinned: fails CLOSED with 401 on uuid.Nil before anything is read, and the optional `id` query parameter is scoped by the `scope` vocabulary (tenant|risk|asset). Unresolved: for scope=risk and scope=asset the id names a record, so this route has a parameterised route's IDOR surface in a query string — the shape this gate does not model. Settled by a test that asks, as tenant A with scope=risk, for a risk id belonging to tenant B and asserts not-found"},
+	{"/api/v1/score/history", Covered,
+		"#901: the tenant comes from the token (401 on uuid.Nil) and takes no id. GormScoreSnapshotRepository.ListSince keys on tenant_id; repository TestScoreSnapshot_Unauthorized seeds two tenants and asserts each reads only its own rows, and application/score TestScoreHistory_Unauthorized asserts another tenant's snapshot never enters the history"},
 	{"/api/v1/score/model", PublicByDesign,
 		"returns scoring.Describe() — the frozen formula, its bands and its factor names. Requires a session (401 on a zero tenant) but reads no table, so there is nothing tenant-owned in the response"},
 
