@@ -53,6 +53,10 @@ func TestSimulate_Bounds(t *testing.T) {
 	if d.P10 < d.Min-1 || d.P90 > d.Max+1 {
 		t.Fatalf("percentiles outside observed range")
 	}
+	// P95 sits between P90 and the worst observed year.
+	if !(d.P90 <= d.P95 && d.P95 <= d.Max) {
+		t.Fatalf("P95 out of [P90, max]: P90=%.0f P95=%.0f max=%.0f", d.P90, d.P95, d.Max)
+	}
 	if d.FormulaVersion != FormulaVersion {
 		t.Fatalf("formula version not stamped: %q", d.FormulaVersion)
 	}
@@ -119,7 +123,7 @@ func TestSimulatePortfolio(t *testing.T) {
 	if a != b {
 		t.Fatalf("portfolio not deterministic")
 	}
-	if !(a.P10 <= a.P50 && a.P50 <= a.P90) {
+	if !(a.P10 <= a.P50 && a.P50 <= a.P90 && a.P90 <= a.P95) {
 		t.Fatalf("portfolio percentiles not ordered: %+v", a)
 	}
 	var want float64
