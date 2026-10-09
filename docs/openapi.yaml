@@ -906,6 +906,45 @@ paths:
         '401':
           description: Unauthorized
 
+  /analytics/financial/appetite:
+    put:
+      tags:
+        - Financial Quantification
+      summary: Set the tenant's risk appetite
+      description: >
+        Stores the annual loss the board accepts, drawn as the threshold on the
+        loss-exceedance curve. Amount in XAF, the canonical currency. Admin only.
+      operationId: setRiskAppetite
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [appetite_xaf]
+              properties:
+                appetite_xaf: { type: number, exclusiveMinimum: 0 }
+      responses:
+        '200':
+          description: Appetite stored (rounded to the unit)
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [appetite_xaf]
+                properties:
+                  appetite_xaf: { type: number }
+        '400':
+          description: Not a positive amount
+        '401':
+          description: Unauthorized
+        '403':
+          description: Not an administrator, or no organization in the session
+        '404':
+          description: Organization not found
+
   /risks/{id}/transfer-owner:
     post:
       tags:
@@ -3864,8 +3903,34 @@ components:
         criticality: { type: string }
         ale: { $ref: '#/components/schemas/Money' }
         ale_worst: { $ref: '#/components/schemas/Money' }
+        ale_after:
+          $ref: '#/components/schemas/Money'
+          description: Exposure targeted once the risk's treatment plan is in place.
         rosi: { type: number }
         rosi_computable: { type: boolean }
+    LossExceedance:
+      type: object
+      description: >
+        Loss-exceedance curve of the register in compact form: total annual
+        loss (XAF) at every percentile 0..100 from one shared Monte Carlo run,
+        before and after the treatment plans. P(loss > x) is the share of
+        percentiles above x.
+      required: [inherent, residual]
+      properties:
+        inherent: { type: array, items: { type: number }, minItems: 101, maxItems: 101 }
+        residual: { type: array, items: { type: number }, minItems: 101, maxItems: 101 }
+    TreatmentPayback:
+      type: object
+      description: One risk's treatment plan as an investment.
+      required: [risk_id, title, cost, reduction, payback_months]
+      properties:
+        risk_id: { type: string, format: uuid }
+        title: { type: string }
+        cost: { $ref: '#/components/schemas/Money' }
+        reduction:
+          $ref: '#/components/schemas/Money'
+          description: Annual loss avoided.
+        payback_months: { type: number }
     FinancialSummary:
       type: object
       description: Tenant-wide financial posture for the CFO/CISO dashboard.
@@ -3901,6 +3966,25 @@ components:
         top_risks:
           type: array
           items: { $ref: '#/components/schemas/TopRiskFinancial' }
+        portfolio_rosi_3y:
+          type: number
+          description: (3 × annual reduction − plan cost) / plan cost.
+        portfolio_rosi_3y_computable: { type: boolean }
+        treated_risks:
+          type: integer
+          description: Risks whose treatment plan has a cost.
+        loss_exceedance:
+          nullable: true
+          allOf: [{ $ref: '#/components/schemas/LossExceedance' }]
+          description: Null when the register is empty.
+        treatments:
+          type: array
+          description: Treatment plans with a measurable reduction, shortest payback first.
+          items: { $ref: '#/components/schemas/TreatmentPayback' }
+        risk_appetite_xaf:
+          type: number
+          nullable: true
+          description: Annual loss the board accepts (XAF); null until set.
 
     # ========== INPUT SCHEMAS ==========
     LoginInput:
