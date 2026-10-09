@@ -48,6 +48,33 @@ func (r *GormUserRepository) GetByID(ctx context.Context, id uuid.UUID) (*domain
 // absent from the result. Backs the asset history "who" column
 // (assetapp.UserLookup); intentionally not tenant-scoped — a snapshot's
 // changed_by is already tenant-bound and users span organizations.
+// NamesByIDs returns the display names of the given users (#905). Users are
+// global rows; the ids come from the caller's own tenant-scoped audit rows, the
+// same gate as EmailsByIDs. A user without a name is left out.
+func (r *GormUserRepository) NamesByIDs(ctx context.Context, ids []uuid.UUID) (map[uuid.UUID]string, error) {
+	result := make(map[uuid.UUID]string, len(ids))
+	if len(ids) == 0 {
+		return result, nil
+	}
+	var rows []struct {
+		ID       uuid.UUID
+		FullName string
+	}
+	if err := r.db.WithContext(ctx).
+		Model(&domain.User{}).
+		Select("id", "full_name").
+		Where("id IN ?", ids).
+		Find(&rows).Error; err != nil {
+		return nil, err
+	}
+	for _, row := range rows {
+		if row.FullName != "" {
+			result[row.ID] = row.FullName
+		}
+	}
+	return result, nil
+}
+
 func (r *GormUserRepository) EmailsByIDs(ctx context.Context, ids []uuid.UUID) (map[uuid.UUID]string, error) {
 	result := make(map[uuid.UUID]string, len(ids))
 	if len(ids) == 0 {

@@ -57,6 +57,14 @@ type UserLookup interface {
 	EmailsByIDs(ctx context.Context, ids []uuid.UUID) (map[uuid.UUID]string, error)
 }
 
+// NameLookup resolves actor ids to display names (#905: the journal reads
+// "Fatou Ndiaye a…", not an address). Optional: a UserLookup that also
+// satisfies it is used; without it, or for a user with no name, the email
+// stays the label.
+type NameLookup interface {
+	NamesByIDs(ctx context.Context, ids []uuid.UUID) (map[uuid.UUID]string, error)
+}
+
 // TimelineService reads history. It owns no table.
 type TimelineService struct {
 	audit  domain.AuditEventRepository
@@ -240,27 +248,28 @@ func (s *TimelineService) ForTenant(ctx context.Context, c Caller, cursor string
 		return nil, err
 	}
 
+	var types []string
+	if f.Domain != "" {
+		ts, ok := journalTypesFor(f.Domain)
+		if !ok {
+			return nil, domain.NewValidationError("unknown domain " + f.Domain)
+		}
+		types = ts
+	}
+
 	// Over-read: the permission filter below removes rows, and a page that comes
 	// back empty because the caller could see none of the last 25 rows would look
 	// like the end of the feed.
-	raw, err := s.auditEvents(ctx, c.TenantID, nil, "", cur, (limit+1)*3, f)
+	raw, err := s.auditEvents(ctx, c.TenantID, types, "", cur, (limit+1)*3, f)
 	if err != nil {
 		return nil, err
 	}
 
-	seeAll := CanReadAudit(c)
 	candidates := make([]TimelineEvent, 0, len(raw))
-	for _, e := range raw {
-		t, known := typeForAuditEntity(e.EntityType)
-		if !seeAll {
-			if !known || !c.CanRead(t) {
-				continue
-			}
-		}
-		ev := auditToTimeline(e)
-		if known {
-			ev.Target = Ref{Type: t, ID: e.EntityID}
-			ev.TargetURL = DeepLink(t, e.EntityID)
+	for _, e := range dropTwins(raw) {
+		ev, cls, ok := journalEvent(e)
+		if !ok || !cls.visible(c) {
+			continue
 		}
 		candidates = append(candidates, ev)
 	}
@@ -414,6 +423,11 @@ func (s *TimelineService) resolveActors(ctx context.Context, events []TimelineEv
 	if err != nil {
 		return err
 	}
+	var names map[uuid.UUID]string
+	if nl, ok := s.lookup.(NameLookup); ok {
+		// A failing name read leaves the email as the label.
+		names, _ = nl.NamesByIDs(ctx, ids)
+	}
 	for i := range events {
 		if events[i].Actor == nil {
 			continue
@@ -425,6 +439,9 @@ func (s *TimelineService) resolveActors(ctx context.Context, events []TimelineEv
 		if email := emails[id]; email != "" {
 			events[i].Actor.Email = email
 			events[i].Actor.Label = email
+		}
+		if name := strings.TrimSpace(names[id]); name != "" {
+			events[i].Actor.Label = name
 		}
 	}
 	return nil
