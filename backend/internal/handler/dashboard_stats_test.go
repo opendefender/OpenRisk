@@ -42,7 +42,16 @@ func newStatsDB(t *testing.T) *gorm.DB {
 			other_direct_cost_xaf REAL,
 			downtime_hours REAL,
 			hourly_downtime_cost_xaf REAL,
+			next_review_at DATETIME,
 			created_at DATETIME,
+			deleted_at DATETIME
+		);`).Error)
+	require.NoError(t, db.Exec(`
+		CREATE TABLE mitigations (
+			id TEXT PRIMARY KEY,
+			tenant_id TEXT,
+			risk_id TEXT,
+			status TEXT,
 			deleted_at DATETIME
 		);`).Error)
 	return db
@@ -302,4 +311,44 @@ func TestDashboardStats_RefusesWithoutTenant(t *testing.T) {
 	db := newStatsDB(t)
 	_, err := ComputeDashboardStats(context.Background(), db, uuid.Nil, windowFor(t, "all"))
 	require.Error(t, err)
+}
+
+// The live counters behind the redesigned dashboard (#901): closed risks drop
+// out, a cancelled plan does not count as a plan, a review is due within 30
+// days or already overdue, and another tenant's mitigation never covers this
+// tenant's risk.
+func TestDashboardStats_LiveCounters(t *testing.T) {
+	db := newStatsDB(t)
+	tenant, other := uuid.New(), uuid.New()
+	add := func(tn uuid.UUID, score float64, status string, review *time.Time) string {
+		id := uuid.NewString()
+		require.NoError(t, db.Exec(
+			`INSERT INTO risks (id, tenant_id, score, status, next_review_at, created_at) VALUES (?,?,?,?,?,?)`,
+			id, tn.String(), score, status, review, statsNow).Error)
+		return id
+	}
+	plan := func(tn uuid.UUID, riskID, status string) {
+		require.NoError(t, db.Exec(`INSERT INTO mitigations (id, tenant_id, risk_id, status) VALUES (?,?,?,?)`,
+			uuid.NewString(), tn.String(), riskID, status).Error)
+	}
+	soon := time.Now().UTC().AddDate(0, 0, 10)
+	overdue := time.Now().UTC().AddDate(0, 0, -3)
+	far := time.Now().UTC().AddDate(0, 0, 90)
+
+	a := add(tenant, 9, "open", &soon)       // critical, live, planned
+	b := add(tenant, 8, "in_progress", &far) // critical, live, cancelled plan only
+	_ = add(tenant, 7.5, "accepted", &overdue)
+	_ = add(tenant, 9, "closed", &soon) // closed: out of every live counter
+	c := add(tenant, 3, "open", nil)
+	plan(tenant, a, "IN_PROGRESS")
+	plan(tenant, b, "CANCELLED")
+	// Another tenant's plan on this tenant's risk id must not count.
+	plan(other, c, "PLANNED")
+
+	stats, err := ComputeDashboardStats(context.Background(), db, tenant, windowFor(t, "all"))
+	require.NoError(t, err)
+	assert.Equal(t, int64(4), stats.LiveRisks)
+	assert.Equal(t, int64(2), stats.CriticalLive, "open and in-treatment criticals; accepted and closed out")
+	assert.Equal(t, int64(3), stats.WithoutMitigation, "b (cancelled only), the accepted one, c (foreign plan)")
+	assert.Equal(t, int64(2), stats.ReviewsDue30d, "due in 10 days and overdue")
 }

@@ -110,6 +110,25 @@ so the boot should say clearly which variable is missing.
 
 ## Resolved
 
+### D-067 — Console redesign: four calls made at kick-off · decided 2026-10-08
+**Decided** — For the October 2026 redesign (#899), the owner chose:
+1. **Exposure score keeps its direction.** The design draws a security score
+   where higher is better; ours is an exposure score where 0 is no exposure.
+   It stays as it is and is labelled "Score d'exposition" everywhere. No
+   formula change, no ADR.
+2. **Automatic vulnerability scanning** goes through the agent's package
+   inventory (osquery) matched against OSV/NVD in the backend (#910). No paid
+   service, no new scanner embedded in the agent.
+3. **Blocks with no data source**: built when the backend work is small; when a
+   new source is needed (log ingestion for IOC matches) the block keeps the
+   design's layout with an honest empty state and a follow-up issue.
+4. **Default theme** follows the OS, as before.
+**Also** — the dashboard's view follows the account's business role; the
+design's role switch is not built. The 3D tilt of D-063 does not survive the
+redesign: the new score card has none, and the owner asked for the design as
+drawn.
+**Unblocked** — #900 to #924.
+
 ### D-063 — 3D tilt on the overall score card: ship it · decided 2026-10-01
 **Decided (owner)** — Option A: ship a restrained tilt now. The owner's answer was
 "livre maintenant la phase 5", read as "ship the tilt", so the agents' recommendation (B,

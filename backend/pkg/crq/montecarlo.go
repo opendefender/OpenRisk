@@ -80,9 +80,11 @@ type SimulationInput struct {
 // LossDistribution is the Monte Carlo output for one risk (all XAF). The
 // percentiles are the headline; the run metadata makes the figure explainable.
 type LossDistribution struct {
-	P10  float64 `json:"p10"`
-	P50  float64 `json:"p50"` // median — the figure to lead with
-	P90  float64 `json:"p90"`
+	P10 float64 `json:"p10"`
+	P50 float64 `json:"p50"` // median — the figure to lead with
+	P90 float64 `json:"p90"`
+	// P95 is the "worst plausible year" the dashboard quotes beside the ALE.
+	P95  float64 `json:"p95"`
 	Mean float64 `json:"mean"`
 	Min  float64 `json:"min"`
 	Max  float64 `json:"max"`
@@ -116,7 +118,7 @@ func Simulate(in SimulationInput) LossDistribution {
 	// Degenerate magnitude (no spread) → a deterministic point at LEF × mode.
 	if lm.Max <= lm.Min {
 		v := round2(lef * lm.Mode)
-		dist.P10, dist.P50, dist.P90, dist.Mean, dist.Min, dist.Max = v, v, v, v, v, v
+		dist.P10, dist.P50, dist.P90, dist.P95, dist.Mean, dist.Min, dist.Max = v, v, v, v, v, v, v
 		return dist
 	}
 
@@ -137,6 +139,7 @@ func Simulate(in SimulationInput) LossDistribution {
 	dist.P10 = round2(percentile(samples, 10))
 	dist.P50 = round2(percentile(samples, 50))
 	dist.P90 = round2(percentile(samples, 90))
+	dist.P95 = round2(percentile(samples, 95))
 	dist.Mean = round2(sum / float64(iters))
 	dist.Min = round2(samples[0])
 	dist.Max = round2(samples[len(samples)-1])
@@ -202,6 +205,7 @@ func SimulatePortfolio(inputs []SimulationInput, iterations int, seed int64) Los
 	dist.P10 = round2(percentile(samples, 10))
 	dist.P50 = round2(percentile(samples, 50))
 	dist.P90 = round2(percentile(samples, 90))
+	dist.P95 = round2(percentile(samples, 95))
 	dist.Mean = round2(sum / float64(iterations))
 	dist.Min = round2(samples[0])
 	dist.Max = round2(samples[len(samples)-1])
@@ -325,6 +329,7 @@ type DistributionAmounts struct {
 	P10  Amount `json:"p10"`
 	P50  Amount `json:"p50"`
 	P90  Amount `json:"p90"`
+	P95  Amount `json:"p95"`
 	Mean Amount `json:"mean"`
 
 	Iterations     int     `json:"iterations"`
@@ -339,6 +344,7 @@ func (p Presenter) Present(d LossDistribution) DistributionAmounts {
 		P10:            p.Amount(d.P10),
 		P50:            p.Amount(d.P50),
 		P90:            p.Amount(d.P90),
+		P95:            p.Amount(d.P95),
 		Mean:           p.Amount(d.Mean),
 		Iterations:     d.Iterations,
 		Seed:           d.Seed,

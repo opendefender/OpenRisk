@@ -6,7 +6,7 @@
 // board F 36/100, and "A/100" before import.
 //
 // This renders the REAL surfaces — the sidebar, both executive dashboards, the
-// score page and the gauge the home and viewer dashboards use — against an API
+// score page, the gauge they share and the dashboard's score card — against an API
 // that answers like an empty tenant, and asserts that:
 //   - none of them prints a number or a grade;
 //   - every one of them says "not measured";
@@ -90,13 +90,13 @@ vi.mock('../../../lib/api', () => {
 });
 
 import { Sidebar } from '../../../components/layout/Sidebar';
-import { ExecDashboard } from '../../dashboard/ExecDashboard';
+import { ScoreCard } from '../../dashboard/console/ScoreCard';
 import { ExecutiveDashboard } from '../../analytics/ExecutiveDashboard';
 import { ScorePage } from '../ScorePage';
 import { ScoreGauge } from '../../../shared/ScoreGauge';
 import { useScore } from '../../../hooks/useScore';
 
-/** The home and viewer dashboards render exactly this: the shared gauge fed by useScore. */
+/** The score page and the executive view render the shared gauge fed by useScore. */
 function HomeHero() {
   const { data, isLoading, isError } = useScore('tenant');
   return (
@@ -115,8 +115,8 @@ function renderSurfaces() {
           <Sidebar />
         </div>
         <HomeHero />
-        <div data-testid="surface-exec-persona">
-          <ExecDashboard />
+        <div data-testid="surface-dashboard">
+          <ScoreCard />
         </div>
         <div data-testid="surface-exec-analytics">
           <ExecutiveDashboard />
@@ -140,7 +140,6 @@ describe('#287 — empty tenant, every score surface agrees', () => {
 
     const gauges = [
       'surface-home',
-      'surface-exec-persona',
       'surface-exec-analytics',
       'surface-score-page',
     ];
@@ -162,6 +161,14 @@ describe('#287 — empty tenant, every score surface agrees', () => {
         'Ajoutez des risques pour calculer votre score',
       );
     }
+
+    // The dashboard card (#901) has its own layout and the same answer.
+    const dash = within(screen.getByTestId('surface-dashboard'));
+    expect(dash.getByTestId('dash-score-value')).toHaveTextContent('—');
+    expect(dash.getByTestId('dash-score-unmeasured')).toHaveTextContent('Non mesuré');
+    expect(dash.getByTestId('dash-score-unmeasured')).toHaveTextContent(
+      'Ajoutez des risques pour calculer votre score',
+    );
 
     // The sidebar says it in words too, never "0/100" or "25/100".
     const sidebar = screen.getByTestId('surface-sidebar');

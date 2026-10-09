@@ -112,6 +112,22 @@ type DashboardStats struct {
 	// links to — which is precisely the reconciliation this wave has to hold.
 	OpenedInPeriod int64 `json:"opened_in_period"`
 
+	// Live counters for the redesigned dashboard (#901). "Live" leaves out
+	// closed risks, which the stock counters above include so they reconcile
+	// with the full register.
+	//
+	//   LiveRisks          every risk not closed
+	//   CriticalLive       critical band, still open or in treatment
+	//                      (not closed, mitigated or accepted)
+	//   WithoutMitigation  live risks with no mitigation plan other than
+	//                      cancelled ones
+	//   ReviewsDue30d      live risks whose next review falls within 30 days,
+	//                      overdue reviews included
+	LiveRisks         int64 `json:"live_risks"`
+	CriticalLive      int64 `json:"critical_live"`
+	WithoutMitigation int64 `json:"without_mitigation"`
+	ReviewsDue30d     int64 `json:"reviews_due_30d"`
+
 	RiskTrend RiskTrend `json:"risk_trend"`
 
 	GeneratedAt string `json:"generated_at"`
@@ -224,6 +240,39 @@ func ComputeDashboardStats(ctx context.Context, db *gorm.DB, tenantID uuid.UUID,
 		RiskMatrix:  []MatrixCell{},
 		GeneratedAt: time.Now().UTC().Format(time.RFC3339),
 	}
+
+	// --- live counters (#901) ----------------------------------------------
+	// The mitigation sub-query is keyed on the risk's own tenant as well as its
+	// id, so a plan can never be credited across tenants.
+	var live struct {
+		Live              int64
+		CriticalLive      int64
+		WithoutMitigation int64
+		ReviewsDue        int64
+	}
+	err = tx.Raw(`
+		SELECT
+			COUNT(*) FILTER (WHERE COALESCE(LOWER(status), 'open') <> 'closed') AS live,
+			COUNT(*) FILTER (WHERE score >= 7.0
+				AND COALESCE(LOWER(status), 'open') NOT IN ('closed', 'mitigated', 'accepted')) AS critical_live,
+			COUNT(*) FILTER (WHERE COALESCE(LOWER(status), 'open') <> 'closed'
+				AND NOT EXISTS (
+					SELECT 1 FROM mitigations m
+					WHERE m.risk_id = risks.id AND m.tenant_id = risks.tenant_id
+					  AND m.deleted_at IS NULL AND UPPER(COALESCE(m.status, '')) <> 'CANCELLED'
+				)) AS without_mitigation,
+			COUNT(*) FILTER (WHERE COALESCE(LOWER(status), 'open') <> 'closed'
+				AND next_review_at IS NOT NULL AND next_review_at <= ?) AS reviews_due
+		FROM risks
+		WHERE tenant_id = ? AND deleted_at IS NULL
+	`, time.Now().UTC().AddDate(0, 0, 30), tenantID).Scan(&live).Error
+	if err != nil {
+		return nil, fmt.Errorf("failed to aggregate live risk counters: %w", err)
+	}
+	stats.LiveRisks = live.Live
+	stats.CriticalLive = live.CriticalLive
+	stats.WithoutMitigation = live.WithoutMitigation
+	stats.ReviewsDue30d = live.ReviewsDue
 
 	// --- 5x5 heatmap --------------------------------------------------------
 	// probability [0,1] -> band 1-5, impact [0,10] -> band 1-5. A risk at exactly

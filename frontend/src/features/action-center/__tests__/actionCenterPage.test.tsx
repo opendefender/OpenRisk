@@ -27,7 +27,6 @@ import { ROUTES, resolveRoute, parentHref } from '../../../shared/routeModel';
 import { NAV_GROUPS } from '../../../shared/navModel';
 import { ActionCenterPage } from '../ActionCenterPage';
 import { pageFromParam } from '../paging';
-import { ActionCenterPanel } from '../ActionCenterPanel';
 import { PAGE_LIMIT } from '../useActionItems';
 import type { ActionCenterResponse, ActionItem } from '../actionCenterService';
 
@@ -413,59 +412,3 @@ describe('ActionCenterPage', () => {
   });
 });
 
-/* --- AC2: the dashboard panel's way in ------------------------------------ */
-
-describe('the dashboard panel', () => {
-  function renderPanel() {
-    const client = new QueryClient({
-      defaultOptions: { queries: { retry: false, refetchInterval: false } },
-    });
-    return render(
-      <QueryClientProvider client={client}>
-        <MemoryRouter initialEntries={['/']}>
-          <Routes>
-            <Route
-              path="*"
-              element={
-                <>
-                  <ActionCenterPanel />
-                  <LocationProbe />
-                </>
-              }
-            />
-          </Routes>
-        </MemoryRouter>
-      </QueryClientProvider>,
-    );
-  }
-
-  it('offers a real link to the full page when more is outstanding than it shows', async () => {
-    list.mockResolvedValue(envelope(approvals(1, 8), 25, 0));
-
-    renderPanel();
-
-    await waitFor(() => expect(screen.getByTestId('action-center-view-all')).toBeInTheDocument());
-    expect(screen.getByTestId('action-center-view-all').getAttribute('href')).toBe(
-      '/action-center',
-    );
-  });
-
-  it('does not offer it when the panel already shows everything', async () => {
-    list.mockResolvedValue(envelope(approvals(1, 3), 3, 0));
-
-    renderPanel();
-
-    await waitFor(() => expect(screen.getAllByTestId('action-center-item')).toHaveLength(3));
-    expect(screen.queryByTestId('action-center-view-all')).not.toBeInTheDocument();
-  });
-
-  it('navigates to the full page when the link is activated', async () => {
-    list.mockResolvedValue(envelope(approvals(1, 8), 25, 0));
-
-    renderPanel();
-    await waitFor(() => expect(screen.getByTestId('action-center-view-all')).toBeInTheDocument());
-
-    fireEvent.click(screen.getByTestId('action-center-view-all'));
-    await waitFor(() => expect(screen.getByTestId('location')).toHaveTextContent('/action-center'));
-  });
-});

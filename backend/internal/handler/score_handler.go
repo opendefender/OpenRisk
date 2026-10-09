@@ -22,12 +22,38 @@ import (
 
 // ScoreHandler serves the canonical score.
 type ScoreHandler struct {
-	uc *score.UseCase
+	uc      *score.UseCase
+	history *score.HistoryUseCase
 }
 
 // NewScoreHandler wires the handler.
 func NewScoreHandler(uc *score.UseCase) *ScoreHandler {
 	return &ScoreHandler{uc: uc}
+}
+
+// WithHistory enables GET /score/history (#901).
+func (h *ScoreHandler) WithHistory(hist *score.HistoryUseCase) *ScoreHandler {
+	h.history = hist
+	return h
+}
+
+// GetScoreHistory returns the tenant exposure score month by month over the
+// last ?months= months (default 12), with the 30-day delta. Tenant scope only:
+// the history is of the organization's own score.
+func (h *ScoreHandler) GetScoreHistory(c *fiber.Ctx) error {
+	tenantID := tenantID(c)
+	if tenantID == uuid.Nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized"})
+	}
+	if h.history == nil {
+		return writeAppError(c, domain.ErrNotFound)
+	}
+	months := c.QueryInt("months", 12)
+	out, err := h.history.Execute(c.UserContext(), tenantID, months)
+	if err != nil {
+		return writeAppError(c, err)
+	}
+	return c.JSON(out)
 }
 
 // GetScore GET /score?scope=tenant|risk|asset&id=…

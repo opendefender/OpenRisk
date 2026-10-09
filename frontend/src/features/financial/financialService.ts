@@ -40,6 +40,8 @@ export interface DistributionAmounts {
   p10: Amount;
   p50: Amount;
   p90: Amount;
+  /** Worst plausible year, quoted on the dashboard (#901). */
+  p95: Amount;
   mean: Amount;
   iterations: number;
   seed: number;

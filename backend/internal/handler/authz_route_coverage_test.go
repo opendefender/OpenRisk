@@ -145,6 +145,9 @@ var routesWithoutPermissionGuard = []string{
 	"GET /rbac/business-roles",
 	"GET /score",
 	"GET /score/model",
+	// #901: the month-by-month history of the same tenant score GET /score
+	// returns to any member. Session-sufficient for the same reason.
+	"GET /score/history",
 	"GET /search",
 	"GET /security/mfa-policy",
 	"GET /stats",
