@@ -1198,5 +1198,60 @@
     },
     "retry": "Réessayer",
     "loadError": "Impossible de charger ce bloc."
+  },
+  "executive": {
+    "title": "Tableau exécutif",
+    "eyebrow": "Comité des risques · T{q} {year}",
+    "copyLink": "Copier le lien",
+    "linkCopied": "Lien copié",
+    "linkFailed": "Impossible de copier le lien",
+    "export": "Exporter le rapport",
+    "exporting": "Génération…",
+    "exported": "Rapport au conseil généré",
+    "exportFailed": "Le rapport n'a pas pu être généré",
+    "kpi": {
+      "score": "Score d'exposition",
+      "ale": "Exposition annualisée",
+      "critical": "Risques critiques",
+      "criticalUnit": "ouverts",
+      "compliance": "Conformité moyenne",
+      "sinceQuarter": "depuis le T{q}",
+      "pts": "{delta} pts",
+      "noBaseline": "pas encore de relevé au trimestre précédent",
+      "locked": "offre {plan}"
+    },
+    "top": {
+      "title": "Cinq premières expositions",
+      "inherent": "Barre claire : exposition inhérente",
+      "residual": "Barre sombre : résiduelle visée",
+      "empty": "Aucun risque quantifié pour l'instant.",
+      "value": "{value} M"
+    },
+    "fw": {
+      "title": "Conformité par référentiel",
+      "note": "Contrôles mis en œuvre sur contrôles applicables · hors non applicables",
+      "empty": "Aucun référentiel importé."
+    },
+    "decisions": {
+      "title": "Décisions attendues du comité",
+      "pending": {
+        "exact": {
+          "0": "aucune en attente"
+        },
+        "one": "{count} en attente",
+        "other": "{count} en attente"
+      },
+      "defer": "Reporter",
+      "approve": "Approuver",
+      "approved": "Approuvé",
+      "deferredOn": "Reportée le {date}",
+      "sub": "{type} · demandée par {who}",
+      "expires": "expire le {date}",
+      "empty": "Aucune décision en attente. Les demandes d'approbation soumises au comité apparaissent ici.",
+      "done": "Décision enregistrée et horodatée dans la piste d'audit",
+      "deferred": "Reportée au prochain comité",
+      "forbidden": "Vous ne pouvez pas signer cette étape.",
+      "failed": "La décision n'a pas pu être enregistrée."
+    }
   }
 }

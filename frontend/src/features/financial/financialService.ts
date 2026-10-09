@@ -110,6 +110,8 @@ export interface TopRiskFinancial {
   criticality: string;
   ale: Money;
   ale_worst: Money;
+  /** Targeted exposure once mitigations are in place (#903). */
+  ale_after: Money;
   rosi: number;
   rosi_computable: boolean;
 }

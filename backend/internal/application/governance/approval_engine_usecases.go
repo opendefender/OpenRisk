@@ -419,3 +419,61 @@ func (uc *GetApprovalDetailUseCase) Execute(ctx context.Context, tenantID, id uu
 	}
 	return detail, nil
 }
+
+// Defer records that the committee pushed a pending request to its next
+// sitting (#903, owner decision 2026-10-08). The request stays pending and
+// nothing in the signature circuit moves; only someone who could sign the open
+// step may defer it, so a deferral is never a way round the four-eyes rule.
+func (uc *DecideApprovalUseCase) Defer(ctx context.Context, tenantID, id uuid.UUID, who ApproverIdentity, comment string) (*domain.ApprovalRequest, error) {
+	req, err := uc.requests.GetRequestByID(ctx, id, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	if req == nil {
+		return nil, domain.NewNotFoundError("approval request", id)
+	}
+	now := time.Now().UTC()
+	if domain.IsExpired(req, now) {
+		return nil, domain.NewValidationError("this request expired on " + req.ExpiresAt.Format(time.RFC3339) + " and can no longer be deferred")
+	}
+	if req.Status != domain.ApprovalPending {
+		return nil, domain.NewValidationError("request is already " + string(req.Status))
+	}
+	approver := uc.resolveApprover(ctx, tenantID, who, now)
+	step := domain.StepFor(req, nil)
+	if step == nil {
+		return nil, domain.NewValidationError("this request has no step awaiting a decision")
+	}
+	if verdict := domain.CanSign(req, step, approver); !verdict.Eligible {
+		return nil, domain.NewForbiddenError(verdict.Reason)
+	}
+
+	comment = strings.TrimSpace(comment)
+	req.Deferrals = append(req.Deferrals, domain.ApprovalDeferral{
+		DeferredBy:      approver.UserID.String(),
+		DeferredByEmail: approver.Email,
+		Comment:         comment,
+		DeferredAt:      now,
+	})
+	if err := uc.requests.UpdateRequest(ctx, req); err != nil {
+		return nil, err
+	}
+
+	if uc.recorder != nil {
+		actor := approver.UserID
+		after := domain.JSONMap{"status": string(req.Status), "deferrals": len(req.Deferrals)}
+		if comment != "" {
+			after["comment"] = comment
+		}
+		uc.recorder.Record(ctx, domain.AuditEvent{
+			TenantID:   tenantID,
+			ActorID:    &actor,
+			Action:     domain.AuditActionDefer,
+			EntityType: "approval_request",
+			EntityID:   req.ID.String(),
+			Summary:    "defer \"" + req.Title + "\" to the next committee",
+			After:      after,
+		})
+	}
+	return req, nil
+}

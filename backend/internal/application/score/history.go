@@ -21,6 +21,30 @@ type SnapshotStore interface {
 	ListSince(ctx context.Context, tenantID uuid.UUID, since time.Time) ([]domain.TenantScoreSnapshot, error)
 }
 
+// Figures are the other headline numbers recorded with the score (#903).
+// A nil field means its source could not be read.
+type Figures struct {
+	ALEXAF        *float64
+	CriticalRisks *int
+	CompliancePct *float64
+}
+
+// FiguresSource reads today's figures for one tenant.
+type FiguresSource interface {
+	Figures(ctx context.Context, tenantID uuid.UUID) Figures
+}
+
+// Baseline is the last snapshot before the current quarter began: what the
+// executive view compares today's figures with ("depuis le T3").
+type Baseline struct {
+	Quarter       string    `json:"quarter"` // e.g. "2026-Q3"
+	Day           time.Time `json:"day"`
+	Value         float64   `json:"value"`
+	ALEXAF        *float64  `json:"ale_xaf"`
+	CriticalRisks *int      `json:"critical_risks"`
+	CompliancePct *float64  `json:"compliance_pct"`
+}
+
 // HistoryPoint is one month of the tenant score: the last snapshot taken in
 // that month. A month with no snapshot is absent, never zero.
 type HistoryPoint struct {
@@ -44,13 +68,23 @@ type History struct {
 	// Since is the oldest snapshot kept for the tenant within the window, so
 	// the UI can say how far back the line really goes.
 	Since *time.Time `json:"since"`
+	// QuarterBaseline is nil until a snapshot exists from before the current
+	// quarter: a delta needs a real reading at both ends.
+	QuarterBaseline *Baseline `json:"quarter_baseline"`
 }
 
 // HistoryUseCase records and reads the daily tenant score history.
 type HistoryUseCase struct {
-	score *UseCase
-	store SnapshotStore
-	now   func() time.Time
+	score   *UseCase
+	store   SnapshotStore
+	figures FiguresSource
+	now     func() time.Time
+}
+
+// WithFigures records the executive figures alongside the score (#903).
+func (h *HistoryUseCase) WithFigures(f FiguresSource) *HistoryUseCase {
+	h.figures = f
+	return h
 }
 
 func NewHistory(score *UseCase, store SnapshotStore) *HistoryUseCase {
@@ -77,6 +111,10 @@ func (h *HistoryUseCase) Record(ctx context.Context, tenantID uuid.UUID) (*scori
 		Band:           string(res.Band),
 		FormulaVersion: res.FormulaVersion,
 	}
+	if h.figures != nil {
+		f := h.figures.Figures(ctx, tenantID)
+		snap.ALEXAF, snap.CriticalRisks, snap.CompliancePct = f.ALEXAF, f.CriticalRisks, f.CompliancePct
+	}
 	if err := h.store.Upsert(ctx, snap); err != nil {
 		return res, err
 	}
@@ -98,10 +136,15 @@ func (h *HistoryUseCase) Execute(ctx context.Context, tenantID uuid.UUID, months
 
 	today := domain.SnapshotDay(h.now())
 	start := time.Date(today.Year(), today.Month(), 1, 0, 0, 0, 0, time.UTC).AddDate(0, -(months - 1), 0)
+	quarterStart := time.Date(today.Year(), time.Month(((int(today.Month())-1)/3)*3+1), 1, 0, 0, 0, 0, time.UTC)
 	// Reach 30 days further back than the window when needed, so the delta can
 	// be computed even for a one-month window.
 	from := start
 	if d := today.AddDate(0, 0, -30); d.Before(from) {
+		from = d
+	}
+	// The previous quarter's closing snapshot can be older than the window.
+	if d := quarterStart.AddDate(0, -3, 0); d.Before(from) {
 		from = d
 	}
 	rows, err := h.store.ListSince(ctx, tenantID, from)
@@ -134,6 +177,7 @@ func (h *HistoryUseCase) Execute(ctx context.Context, tenantID uuid.UUID, months
 
 	var current *domain.TenantScoreSnapshot
 	var past *domain.TenantScoreSnapshot
+	var base *domain.TenantScoreSnapshot
 	cutoff := today.AddDate(0, 0, -30)
 	for i := range rows {
 		day := domain.SnapshotDay(rows[i].Day)
@@ -143,6 +187,9 @@ func (h *HistoryUseCase) Execute(ctx context.Context, tenantID uuid.UUID, months
 		if !day.After(cutoff) {
 			past = &rows[i]
 		}
+		if day.Before(quarterStart) {
+			base = &rows[i]
+		}
 	}
 	if current != nil {
 		v := current.Value
@@ -150,6 +197,17 @@ func (h *HistoryUseCase) Execute(ctx context.Context, tenantID uuid.UUID, months
 		if past != nil {
 			d := roundTenth(current.Value - past.Value)
 			out.Delta30d = &d
+		}
+	}
+	if base != nil {
+		bd := domain.SnapshotDay(base.Day)
+		out.QuarterBaseline = &Baseline{
+			Quarter:       bd.Format("2006") + "-Q" + string(rune('0'+(int(bd.Month())-1)/3+1)),
+			Day:           bd,
+			Value:         base.Value,
+			ALEXAF:        base.ALEXAF,
+			CriticalRisks: base.CriticalRisks,
+			CompliancePct: base.CompliancePct,
 		}
 	}
 	return out, nil

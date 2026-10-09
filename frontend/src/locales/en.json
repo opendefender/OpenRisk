@@ -1198,5 +1198,60 @@
     },
     "retry": "Retry",
     "loadError": "Could not load this block."
+  },
+  "executive": {
+    "title": "Executive view",
+    "eyebrow": "Risk committee · Q{q} {year}",
+    "copyLink": "Copy link",
+    "linkCopied": "Link copied",
+    "linkFailed": "Could not copy the link",
+    "export": "Export the report",
+    "exporting": "Generating…",
+    "exported": "Board report generated",
+    "exportFailed": "The report could not be generated",
+    "kpi": {
+      "score": "Exposure score",
+      "ale": "Annualised exposure",
+      "critical": "Critical risks",
+      "criticalUnit": "open",
+      "compliance": "Average compliance",
+      "sinceQuarter": "since Q{q}",
+      "pts": "{delta} pts",
+      "noBaseline": "no reading from last quarter yet",
+      "locked": "{plan} plan"
+    },
+    "top": {
+      "title": "Top five exposures",
+      "inherent": "Light bar: inherent exposure",
+      "residual": "Dark bar: targeted residual",
+      "empty": "No quantified risk yet.",
+      "value": "{value} M"
+    },
+    "fw": {
+      "title": "Compliance by framework",
+      "note": "Implemented controls over applicable controls · not-applicable excluded",
+      "empty": "No framework imported."
+    },
+    "decisions": {
+      "title": "Decisions the committee owes",
+      "pending": {
+        "exact": {
+          "0": "none pending"
+        },
+        "one": "{count} pending",
+        "other": "{count} pending"
+      },
+      "defer": "Defer",
+      "approve": "Approve",
+      "approved": "Approved",
+      "deferredOn": "Deferred on {date}",
+      "sub": "{type} · requested by {who}",
+      "expires": "expires {date}",
+      "empty": "No decision pending. Approval requests put to the committee show up here.",
+      "done": "Decision recorded and timestamped in the audit trail",
+      "deferred": "Deferred to the next committee",
+      "forbidden": "You cannot sign this step.",
+      "failed": "The decision could not be recorded."
+    }
   }
 }

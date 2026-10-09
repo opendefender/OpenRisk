@@ -164,3 +164,58 @@ func TestScoreHistory_StoreFailureSurfaces(t *testing.T) {
 	_, err := h.Execute(context.Background(), uuid.New(), 12)
 	assert.Error(t, err)
 }
+
+type fixedFigures struct{ f Figures }
+
+func (s fixedFigures) Figures(context.Context, uuid.UUID) Figures { return s.f }
+
+// #903: today's snapshot carries the executive figures, and the history
+// returns the last snapshot from before the current quarter as the baseline.
+func TestScoreHistory_QuarterBaseline(t *testing.T) {
+	store := newMemSnapshots()
+	tenant := uuid.New()
+	ale, crit, comp := 117.2e6, 2, 73.0
+	store.put(tenant, "2026-08-14", 60)
+	store.put(tenant, "2026-09-29", 57) // last reading of Q3
+	store.put(tenant, "2026-10-02", 55) // already Q4: not the baseline
+	d, _ := time.Parse("2006-01-02", "2026-09-29")
+	r := store.rows[store.key(tenant, d)]
+	oldALE, oldCrit := 129.6e6, 3
+	r.ALEXAF, r.CriticalRisks = &oldALE, &oldCrit
+	store.rows[store.key(tenant, d)] = r
+
+	uc := measuredUseCase()
+	uc.now = fixedNow("2026-10-08")
+	h := NewHistory(uc, store).WithFigures(fixedFigures{Figures{ALEXAF: &ale, CriticalRisks: &crit, CompliancePct: &comp}})
+	h.now = fixedNow("2026-10-08")
+
+	out, err := h.Execute(context.Background(), tenant, 12)
+	require.NoError(t, err)
+	require.NotNil(t, out.QuarterBaseline)
+	assert.Equal(t, "2026-Q3", out.QuarterBaseline.Quarter)
+	assert.Equal(t, 57.0, out.QuarterBaseline.Value)
+	assert.Equal(t, oldALE, *out.QuarterBaseline.ALEXAF)
+	assert.Equal(t, oldCrit, *out.QuarterBaseline.CriticalRisks)
+	assert.Nil(t, out.QuarterBaseline.CompliancePct, "a figure not read that day stays a gap")
+
+	today, _ := time.Parse("2006-01-02", "2026-10-08")
+	snap := store.rows[store.key(tenant, today)]
+	require.NotNil(t, snap.ALEXAF)
+	assert.Equal(t, ale, *snap.ALEXAF)
+	assert.Equal(t, crit, *snap.CriticalRisks)
+	assert.Equal(t, comp, *snap.CompliancePct)
+}
+
+// No snapshot before the quarter: no baseline, so no delta is invented.
+func TestScoreHistory_NoQuarterBaseline(t *testing.T) {
+	store := newMemSnapshots()
+	tenant := uuid.New()
+	store.put(tenant, "2026-10-02", 55)
+	uc := measuredUseCase()
+	uc.now = fixedNow("2026-10-08")
+	h := NewHistory(uc, store)
+	h.now = fixedNow("2026-10-08")
+	out, err := h.Execute(context.Background(), tenant, 12)
+	require.NoError(t, err)
+	assert.Nil(t, out.QuarterBaseline)
+}

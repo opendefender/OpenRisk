@@ -2925,6 +2925,7 @@ func main() {
 		getGapAnalysisUC, incidentService,
 		scoreSnapshotRepo,
 	)
+	scoreHistoryUC.WithFigures(postureFiguresAdapter{financial: financialSummaryUseCase, gaps: getGapAnalysisUC})
 	// One snapshot per tenant per day, so the dashboard can draw the year and
 	// the 30-day movement even for a tenant nobody opened that day (#901).
 	go workers.NewScoreSnapshotWorker(scoreSnapshotRepo, scoreHistoryUC, zeroLogger).
@@ -3244,6 +3245,8 @@ func main() {
 	protected.Post("/governance/approvals", governanceHandler.SubmitApproval)
 	protected.Get("/governance/approvals/:id", governanceHandler.GetApproval)
 	protected.Post("/governance/approvals/:id/decide", governanceHandler.DecideApproval)
+	// Defer to the next committee (#903): eligibility is the decide rule.
+	protected.Post("/governance/approvals/:id/defer", governanceHandler.DeferApproval)
 	protected.Post("/governance/approvals/:id/cancel", governanceHandler.CancelApproval)
 	// Requests nobody decided in time close as EXPIRED — a distinct outcome from
 	// a refusal, because "nobody said no" and "someone said no" call for

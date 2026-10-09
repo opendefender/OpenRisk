@@ -1,602 +1,556 @@
 // Copyright (c) 2026 OpenDefender Contributors
 // SPDX-License-Identifier: AGPL-3.0-only
-// This program is free software: you can redistribute it and/or modify it under
 //
-// Executive dashboard (spec §11 « Tableau de bord exécutif ») — a board-level view
-// of the whole security posture: the security score, financial exposure, key risk
-// indicators, the top-10 risks, risk & incident trends and compliance coverage.
-// Every figure but the score comes from ONE consolidated request
-// (GET /analytics/executive) — no fixtures. The score is the canonical tenant
-// score (GET /score, shared query key): this page used to draw an A–F "cyber
-// score" from a second formula that disagreed with the sidebar (#287). Charts follow the project's dc.html tokens: reserved status colours for
-// severity (with labels/legend), one hue for magnitude, ink tokens for text, and
-// they render in light + dark.
+// The executive view of the October 2026 redesign (#903): what a risk
+// committee reads in one page.
+//
+// Four headline figures with their movement since last quarter, the five
+// largest exposures (inherent and targeted residual), compliance by
+// framework, and the decisions the committee owes, with Approve and Defer.
+//
+// Deltas compare today with the last daily snapshot taken before the current
+// quarter began (/score/history quarter_baseline). With no such snapshot the
+// tile says so instead of printing a movement nobody measured.
 
-import { localeTag, type LocaleCode } from '../../i18n/locales';
-import { useMemo } from 'react';
-import { useNavigate } from 'react-router';
+import { useMemo, useState } from 'react';
+import { Link, useNavigate } from 'react-router';
+import { Download, Link2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { CartesianChart, RadarChart } from '../../shared/ds/charts';
-import {
-  ShieldCheck,
-  RefreshCw,
-  Coins,
-  AlertTriangle,
-  Bug,
-  Activity,
-  TrendingUp,
-  type LucideIcon,
-} from 'lucide-react';
-import { PageFrame, PageHeader, Card, Btn, Skeleton, ErrorState } from '../../shared/ui';
-import { softFill } from '../../shared/riskColors';
-import { useUIStore } from '../../store/uiStore';
-import { useExecutiveDashboard } from './useExecutive';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { isAxiosError } from 'axios';
+
+import { useI18n } from '../../hooks/useI18n';
 import { useScore } from '../../hooks/useScore';
-import { ScoreGauge } from '../../shared/ScoreGauge';
-import type {
-  ExecutiveDashboard as ExecData,
-  KRI,
-  ExecRisk,
-  ComplianceCoverage,
-  MonthlyRiskPoint,
-  IncidentTrendPoint,
-  DistributionSlice,
-} from './executiveService';
+import { formatDate, formatNumber } from '../../i18n/format';
+import { PageFrame, PageHeader } from '../../shared/ui';
+import { Button } from '../../shared/ds';
+import { bandTextColor } from '../../services/scoreService';
+import { complianceService } from '../../services/complianceService';
+import { boardService } from '../../services/boardService';
+import { useFeature } from '../billing/useEntitlements';
+import { useFinancialSummary } from '../financial/useFinancial';
+import { currencyLabel, millions, toDisplay } from '../financial/money';
+import { useDashboardStats } from '../dashboard/useCommandCenter';
+import { useScoreHistory } from '../dashboard/useScoreHistory';
+import { frameworkColorFor } from '../compliance/complianceOverview';
+import { governanceService, type ApprovalRequest } from '../governance/governanceService';
+import {
+  BlockEmpty,
+  BlockError,
+  BlockSkeleton,
+  Panel,
+  PanelTitle,
+} from '../dashboard/console/Panel';
 
-/* ---------------- colours & formatters ---------------- */
-
-const CRIT: Record<string, string> = {
-  critical: 'var(--critical)',
-  high: 'var(--high)',
-  medium: 'var(--medium)',
-  low: 'var(--low)',
+const ALL_TIME = { kind: 'preset', preset: 'all' } as const;
+const BAND_FILL: Record<string, string> = {
+  critical: 'var(--risk-critical)',
+  high: 'var(--risk-high)',
+  medium: 'var(--risk-moderate)',
+  low: 'var(--risk-low)',
 };
-const SEV_COLOR: Record<string, string> = {
-  critical: 'var(--critical)',
-  warn: 'var(--high)',
-  ok: 'var(--low)',
-};
 
-function fmtInt(n: number, lang: LocaleCode): string {
-  return Math.round(n).toLocaleString(localeTag(lang));
+function quarterOf(d: Date) {
+  return Math.floor(d.getMonth() / 3) + 1;
 }
-function fmtCompactFCFA(n: number, lang: LocaleCode): string {
-  const abs = Math.abs(n);
-  const u = lang === 'fr' ? { b: ' Md', m: ' M', k: ' k' } : { b: 'B', m: 'M', k: 'K' };
-  const f = (v: number) => (lang === 'fr' ? v.toFixed(1).replace('.', ',') : v.toFixed(1));
-  if (abs >= 1e9) return `${f(n / 1e9)}${u.b} FCFA`;
-  if (abs >= 1e6) return `${f(n / 1e6)}${u.m} FCFA`;
-  if (abs >= 1e3) return `${f(n / 1e3)}${u.k} FCFA`;
-  return `${Math.round(n)} FCFA`;
-}
-/** "2026-07" → "07/26" (compact, locale-neutral). */
-function monthLabel(m: string): string {
-  const [y, mo] = m.split('-');
-  return y && mo ? `${mo}/${y.slice(2)}` : m;
-}
-/* ---------------- page ---------------- */
 
 export function ExecutiveDashboard() {
-  const lang = useUIStore((s) => s.lang);
-  const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
+  const { t } = useI18n();
   const navigate = useNavigate();
-  const { data, isLoading, isError, refetch, isFetching } = useExecutiveDashboard();
-  // Called before the early returns: hooks must run in the same order every render.
-  const tenantScore = useScore('tenant');
+  const now = new Date();
+  const q = quarterOf(now);
 
-  if (isLoading) return <ExecSkeleton />;
-  if (isError || !data) {
-    return (
-      <PageFrame>
-        <PageHeader title={tr('Tableau de bord exécutif', 'Executive dashboard')} />
-        <ErrorState
-          title={tr('Impossible de charger le tableau de bord', 'Could not load the dashboard')}
-          description={tr('Réessayez dans un instant.', 'Please try again in a moment.')}
-          onRetry={() => refetch()}
-          retryLabel={tr('Réessayer', 'Retry')}
-        />
-      </PageFrame>
-    );
-  }
-
-  const gen = new Date(data.generated_at).toLocaleString(localeTag(lang), {
-    dateStyle: 'medium',
-    timeStyle: 'short',
+  const exportReport = useMutation({
+    mutationFn: () =>
+      boardService.generate({
+        period_label: t('executive.eyebrow', { q, year: now.getFullYear() }),
+      }),
+    onSuccess: () => {
+      toast.success(t('executive.exported'));
+      navigate('/reports/board');
+    },
+    onError: () => toast.error(t('executive.exportFailed')),
   });
 
+  const copyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      toast.success(t('executive.linkCopied'));
+    } catch {
+      toast.error(t('executive.linkFailed'));
+    }
+  };
+
   return (
-    <PageFrame wide>
+    <PageFrame>
       <PageHeader
-        title={tr('Tableau de bord exécutif', 'Executive dashboard')}
-        count={tr(`Généré le ${gen}`, `Generated ${gen}`)}
+        className="!mb-[22px]"
+        eyebrow={t('executive.eyebrow', { q, year: now.getFullYear() })}
+        title={t('executive.title')}
         actions={
-          // "Actualiser" re-queries /analytics/executive. On a dashboard that
-          // already refetches every 60 s the new payload is often identical, so
-          // without a visible in-flight state the button reads as dead: it now
-          // disables + spins while fetching and confirms when the data lands.
-          <Btn
-            label={isFetching ? tr('Actualisation…', 'Refreshing…') : tr('Actualiser', 'Refresh')}
-            icon={RefreshCw}
-            disabled={isFetching}
-            className={isFetching ? '[&>svg]:animate-spin' : ''}
-            onClick={async () => {
-              const res = await refetch();
-              if (res.error) toast.error(tr('Actualisation impossible', 'Could not refresh'));
-              else toast.success(tr('Tableau de bord à jour', 'Dashboard up to date'));
-            }}
-          />
+          <>
+            <Button variant="secondary" icon={Link2} onClick={() => void copyLink()}>
+              {t('executive.copyLink')}
+            </Button>
+            <Button
+              variant="primary"
+              icon={Download}
+              loading={exportReport.isPending}
+              onClick={() => exportReport.mutate()}
+            >
+              {exportReport.isPending ? t('executive.exporting') : t('executive.export')}
+            </Button>
+          </>
         }
       />
 
-      {/* row 1 — security score + financial + KRIs */}
-      <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-4 mb-4">
-        <ScoreGauge
-          score={tenantScore.data}
-          loading={tenantScore.isLoading}
-          error={tenantScore.isError}
-          fresh={tenantScore.isFetchedAfterMount}
-          title={tr('Score de sécurité', 'Security score')}
-          ctaLabel={tr('Voir le détail', 'View details')}
-          onDetails={() => navigate('/score')}
-        />
-        <div className="flex flex-col gap-4">
-          <FinancialCard data={data} lang={lang} tr={tr} />
-          <KriStrip kris={data.kris} lang={lang} />
-        </div>
+      <KpiStrip />
+
+      <div className="flex flex-wrap gap-4 mb-4">
+        <TopExposures className="flex-[1.2_1_440px]" />
+        <FrameworkBars className="flex-[1_1_360px]" />
       </div>
 
-      {/* row 2 — risk trend + distribution */}
-      <div className="grid grid-cols-1 lg:grid-cols-[1.6fr_1fr] gap-4 mb-4">
-        <RiskTrendCard points={data.risk_trend} tr={tr} />
-        <RiskDistributionCard slices={data.risk_distribution} lang={lang} tr={tr} />
-      </div>
-
-      {/* row 3 — top risks + control coverage radar */}
-      <div className="grid grid-cols-1 lg:grid-cols-[1.5fr_1fr] gap-4 mb-4">
-        <TopRisksCard risks={data.top_risks} lang={lang} tr={tr} />
-        <ControlCoverageRadar frameworks={data.compliance} tr={tr} />
-      </div>
-
-      {/* row 4 — compliance donuts + incident trend */}
-      <div className="grid grid-cols-1 lg:grid-cols-[1fr_1fr] gap-4">
-        <ComplianceCard frameworks={data.compliance} tr={tr} />
-        <IncidentTrendCard points={data.incident_trend} tr={tr} />
-      </div>
+      <CommitteeDecisions />
     </PageFrame>
   );
 }
 
-/* ---------------- Financial exposure ---------------- */
-function FinancialCard({
-  data,
-  lang,
-  tr,
-}: {
-  data: ExecData;
-  lang: LocaleCode;
-  tr: (f: string, e: string) => string;
-}) {
-  const f = data.financial;
-  return (
-    <Card style={{ padding: '18px 20px' }}>
-      <div className="flex items-start justify-between">
-        <div>
-          <div className="flex items-center gap-2 text-[12.5px] text-ink-soft mb-2">
-            <Coins size={15} style={{ color: 'var(--accent-500)' }} />
-            {tr('Exposition financière annuelle (ALE)', 'Annual financial exposure (ALE)')}
-          </div>
-          <div className="disp mono text-[30px] font-bold text-ink leading-none">
-            {fmtCompactFCFA(f.total_ale.xaf, lang)}
-          </div>
-          <div className="text-[12px] text-ink-muted mt-1.5">
-            {tr('Pire cas', 'Worst case')} :{' '}
-            <span className="font-semibold" style={{ color: 'var(--critical)' }}>
-              {fmtCompactFCFA(f.total_ale_worst.xaf, lang)}
-            </span>
-            {' · '}${fmtInt(f.total_ale.usd, 'en')}
-          </div>
-        </div>
-        <div className="text-right shrink-0">
-          <div className="mono text-[22px] font-bold text-ink">
-            {f.quantified_risks}/{f.total_risks}
-          </div>
-          <div className="text-[11px] text-ink-muted">
-            {tr('risques quantifiés', 'quantified risks')}
-          </div>
-        </div>
-      </div>
-    </Card>
-  );
+/* ------------------------------------------------------------- KPI strip */
+
+interface Delta {
+  text: string;
+  color: string;
 }
 
-/* ---------------- KRI strip ---------------- */
-const KRI_ICON: Record<string, LucideIcon> = {
-  open_vulns: Bug,
-  kev_exploited: AlertTriangle,
-  critical_vulns: Bug,
-  critical_risks: ShieldCheck,
-  open_incidents: Activity,
-  avg_mttr_days: TrendingUp,
-  compliance_coverage: ShieldCheck,
-};
-function KriStrip({ kris, lang }: { kris: KRI[]; lang: LocaleCode }) {
-  if (kris.length === 0) return null;
+function KpiStrip() {
+  const { t, locale } = useI18n();
+  const score = useScore('tenant');
+  const history = useScoreHistory(12);
+  const stats = useDashboardStats(ALL_TIME);
+  const fin = useFeature('financial_quantification');
+  const finance = useFinancialSummary();
+  const gaps = useQuery({
+    queryKey: ['compliance', 'gap-analysis', 'all'],
+    queryFn: () => complianceService.getGapAnalysis(),
+  });
+
+  const base = history.data?.quarter_baseline ?? null;
+  const baseQ = base ? base.quarter.split('-Q')[1] : null;
+  const measured = score.data?.measured ? score.data : undefined;
+  const fw = gaps.data?.frameworks ?? [];
+  const coverage = fw.length
+    ? fw.reduce((a, f) => a + (f.percent_complete ?? 0), 0) / fw.length
+    : undefined;
+  const locked = !fin.loading && !fin.enabled;
+  const f = !locked ? finance.data : undefined;
+  const ale = f ? toDisplay(f.total_ale.xaf, f.fx_rate_xaf) : undefined;
+  const baseAle = f && base?.ale_xaf != null ? toDisplay(base.ale_xaf, f.fx_rate_xaf) : undefined;
+
+  const fmt1 = (n: number) => formatNumber(locale, Math.abs(n), { maximumFractionDigits: 1 });
+  const signed = (n: number, text: string) => `${n > 0 ? '+' : n < 0 ? '−' : ''}${text}`;
+
+  // A falling exposure, fewer critical risks and more coverage are good news.
+  const delta = (
+    cur: number | undefined,
+    prev: number | null | undefined,
+    lowerIsBetter: boolean,
+    unit: (n: number) => string,
+  ): Delta => {
+    if (cur === undefined || prev === undefined || prev === null || !baseQ) {
+      return { text: t('executive.kpi.noBaseline'), color: 'var(--fg-muted)' };
+    }
+    const d = cur - prev;
+    const good = lowerIsBetter ? d <= 0 : d >= 0;
+    return {
+      text: `${signed(d, unit(d))} ${t('executive.kpi.sinceQuarter', { q: baseQ })}`,
+      color: d === 0 ? 'var(--fg-secondary)' : good ? 'var(--success-text)' : 'var(--danger-text)',
+    };
+  };
+
+  const tiles = [
+    {
+      key: 'score',
+      label: t('executive.kpi.score'),
+      value: measured ? String(Math.round(measured.value)) : '—',
+      unit: '/100',
+      color: measured ? bandTextColor(measured.band) : 'var(--fg-muted)',
+      delta: delta(measured?.value, base?.value, true, (d) =>
+        t('executive.kpi.pts', { delta: fmt1(d) }),
+      ),
+      loading: score.isLoading,
+    },
+    {
+      key: 'ale',
+      label: t('executive.kpi.ale'),
+      value: ale !== undefined ? millions(ale, locale) : '—',
+      unit: `M ${currencyLabel(f?.currency)}`,
+      color: 'var(--fg-primary)',
+      delta: locked
+        ? { text: t('executive.kpi.locked', { plan: 'Business' }), color: 'var(--fg-muted)' }
+        : delta(ale, baseAle, true, (d) => `${millions(Math.abs(d), locale)} M`),
+      loading: !locked && (finance.isLoading || fin.loading),
+    },
+    {
+      key: 'critical',
+      label: t('executive.kpi.critical'),
+      value: stats.data ? String(stats.data.critical_live) : '—',
+      unit: t('executive.kpi.criticalUnit'),
+      color: 'var(--risk-critical)',
+      delta: delta(stats.data?.critical_live, base?.critical_risks, true, (d) =>
+        String(Math.abs(d)),
+      ),
+      loading: stats.isLoading,
+    },
+    {
+      key: 'compliance',
+      label: t('executive.kpi.compliance'),
+      value: coverage !== undefined ? String(Math.round(coverage)) : '—',
+      unit: '%',
+      color: 'var(--fg-primary)',
+      delta: delta(coverage, base?.compliance_pct, false, (d) =>
+        t('executive.kpi.pts', { delta: fmt1(d) }),
+      ),
+      loading: gaps.isLoading,
+    },
+  ];
+
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-3">
-      {kris.map((k) => {
-        const col = SEV_COLOR[k.severity] ?? 'var(--accent)';
-        const Icon = KRI_ICON[k.key] ?? Activity;
-        const val =
-          k.unit === '%'
-            ? `${fmtInt(k.value, lang)} %`
-            : k.unit === 'days'
-              ? `${k.value.toLocaleString(localeTag(lang), { maximumFractionDigits: 1 })} ${lang === 'fr' ? 'j' : 'd'}`
-              : fmtInt(k.value, lang);
-        return (
-          <Card key={k.key} style={{ padding: '13px 15px' }}>
-            <div className="flex items-center gap-2 mb-2">
+    <div className="grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-px bg-border-subtle border border-border-subtle rounded-[14px] overflow-hidden mb-6">
+      {tiles.map((k) => (
+        <div key={k.key} className="p-5 bg-surface-0" data-testid={`exec-kpi-${k.key}`}>
+          <div className="text-[10.5px] tracking-[0.06em] uppercase font-semibold text-ink-muted">
+            {k.label}
+          </div>
+          {k.loading ? (
+            <div className="or-skeleton h-[38px] w-28 rounded-[8px] mt-2" aria-busy="true" />
+          ) : (
+            <div className="flex items-baseline gap-1.5 mt-2">
               <span
-                className="w-[26px] h-[26px] rounded-lg flex items-center justify-center"
-                style={{ color: col, background: softFill(col, 14) }}
+                className="mono text-[38px] font-semibold tracking-[-0.03em] leading-none"
+                style={{ color: k.color }}
+                data-testid={`exec-kpi-${k.key}-value`}
               >
-                <Icon size={14} strokeWidth={1.9} />
+                {k.value}
               </span>
+              <span className="text-[13px] text-ink-muted">{k.unit}</span>
             </div>
-            <div className="disp mono text-[22px] font-bold text-ink leading-none">{val}</div>
-            <div className="text-[11.5px] text-ink-soft mt-1 leading-tight">{k.label}</div>
-          </Card>
-        );
-      })}
+          )}
+          <div className="text-[12px] mt-2 font-semibold" style={{ color: k.delta.color }}>
+            {k.delta.text}
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
 
-/* ---------------- Risk trend (global risk level over time) ---------------- */
-function RiskTrendCard({
-  points,
-  tr,
-}: {
-  points: MonthlyRiskPoint[];
-  tr: (f: string, e: string) => string;
-}) {
-  const rows = points.map((p) => ({ ...p, m: monthLabel(p.month) }));
+/* ---------------------------------------------------------- top 5 risks */
+
+function TopExposures({ className = '' }: { className?: string }) {
+  const { t, locale } = useI18n();
+  const fin = useFeature('financial_quantification');
+  const finance = useFinancialSummary();
+  const f = finance.data;
+  const top = (f?.top_risks ?? []).filter((r) => r.ale.xaf > 0).slice(0, 5);
+  const max = Math.max(1, ...top.map((r) => r.ale.xaf));
+  const m = (xaf: number) => millions(toDisplay(xaf, f?.fx_rate_xaf), locale);
+
   return (
-    <Card style={{ padding: '18px 20px' }}>
-      <div className="text-[14px] font-semibold text-ink mb-1">
-        {tr('Évolution du niveau de risque', 'Risk level trend')}
-      </div>
-      <div className="text-[12px] text-ink-muted mb-3">
-        {tr('Score de risque moyen du registre', 'Register average risk score')}
-      </div>
-      {rows.length === 0 ? (
-        <ChartEmpty label={tr("Pas encore d'historique", 'No history yet')} />
+    <Panel testId="exec-top" className={`px-5 py-[18px] ${className}`}>
+      <PanelTitle className="mb-3.5" title={t('executive.top.title')} />
+      {!fin.loading && !fin.enabled ? (
+        <BlockEmpty>{t('dashboard.exposure.locked', { plan: 'Business' })}</BlockEmpty>
+      ) : finance.isLoading || fin.loading ? (
+        <BlockSkeleton lines={5} height={22} />
+      ) : finance.isError || !f ? (
+        <BlockError onRetry={() => void finance.refetch()} />
+      ) : top.length === 0 ? (
+        <BlockEmpty>{t('executive.top.empty')}</BlockEmpty>
       ) : (
-        <CartesianChart
-          data={rows}
-          x="m"
-          height={220}
-          series={[{ type: 'line', key: 'avg_score', label: tr('Score moyen', 'Avg score') }]}
-          ariaLabel={tr(
-            'Score de risque moyen du registre, par mois',
-            'Register average risk score, per month',
-          )}
-        />
+        <>
+          <div className="grid gap-3.5">
+            {top.map((r) => {
+              const color = BAND_FILL[r.criticality.toLowerCase()] ?? 'var(--fg-muted)';
+              const after = r.ale_after?.xaf ?? r.ale.xaf;
+              return (
+                <Link
+                  key={r.id}
+                  to={`/risks?focus=${r.id}`}
+                  className="grid gap-1.5 hover:opacity-90"
+                  data-testid="exec-top-row"
+                >
+                  <div className="flex gap-2.5 items-baseline text-[13px]">
+                    <span className="mono text-[11.5px] text-ink-muted">#{r.id.slice(0, 8)}</span>
+                    <span className="flex-1 min-w-0 truncate font-medium text-ink">{r.title}</span>
+                    <span className="mono font-semibold text-ink">
+                      {t('executive.top.value', { value: m(r.ale.xaf) })}
+                    </span>
+                  </div>
+                  <div
+                    className="h-2 rounded-[8px] relative overflow-hidden"
+                    style={{ background: 'var(--chart-track)' }}
+                    role="img"
+                    aria-label={`${r.title}: ${m(r.ale.xaf)} M → ${m(after)} M`}
+                  >
+                    <span
+                      className="absolute inset-y-0 left-0 rounded-[8px]"
+                      style={{ width: `${(r.ale.xaf / max) * 100}%`, background: color }}
+                    />
+                    <span
+                      className="absolute inset-y-0 left-0 rounded-[8px] brightness-[0.6]"
+                      style={{ width: `${(after / max) * 100}%`, background: color }}
+                    />
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+          <div className="flex gap-4 flex-wrap mt-3.5 text-[11.5px] text-ink-muted">
+            <span>{t('executive.top.inherent')}</span>
+            <span>{t('executive.top.residual')}</span>
+          </div>
+        </>
       )}
-    </Card>
+    </Panel>
   );
 }
 
-/* ---------------- Risk distribution donut ---------------- */
-type PieRow = { criticality: string; count: number; [k: string]: string | number };
-function RiskDistributionCard({
-  slices,
-  lang,
-  tr,
-}: {
-  slices: DistributionSlice[];
-  lang: LocaleCode;
-  tr: (f: string, e: string) => string;
-}) {
-  const data: PieRow[] = slices
-    .filter((s) => s.count > 0)
-    .map((s) => ({ criticality: s.criticality, count: s.count }));
-  const total = slices.reduce((a, s) => a + s.count, 0);
-  const label = (c: string) =>
-    ({
-      critical: tr('Critique', 'Critical'),
-      high: tr('Élevé', 'High'),
-      medium: tr('Moyen', 'Medium'),
-      low: tr('Faible', 'Low'),
-    })[c] ?? c;
+/* ------------------------------------------------------ compliance bars */
+
+function FrameworkBars({ className = '' }: { className?: string }) {
+  const { t } = useI18n();
+  const gaps = useQuery({
+    queryKey: ['compliance', 'gap-analysis', 'all'],
+    queryFn: () => complianceService.getGapAnalysis(),
+  });
+  const fw = gaps.data?.frameworks ?? [];
   return (
-    <Card style={{ padding: '18px 20px' }}>
-      <div className="text-[14px] font-semibold text-ink mb-3">
-        {tr('Répartition par criticité', 'Distribution by criticality')}
-      </div>
-      {total === 0 ? (
-        <ChartEmpty label={tr('Aucun risque', 'No risks')} />
+    <Panel testId="exec-frameworks" className={`px-5 py-[18px] ${className}`}>
+      <PanelTitle className="mb-3.5" title={t('executive.fw.title')} />
+      {gaps.isLoading ? (
+        <BlockSkeleton lines={4} />
+      ) : gaps.isError ? (
+        <BlockError onRetry={() => void gaps.refetch()} />
+      ) : fw.length === 0 ? (
+        <BlockEmpty>{t('executive.fw.empty')}</BlockEmpty>
       ) : (
-        <div>
-          {/* D-025: this was a doughnut with the total in the middle, across four
-              slices. That is the pattern #444's anti-cliché table bans RingChart
-              for — "a number in the middle that a KPI tile would say better" —
-              and four slices is past the three-slice pie limit. The total is now
-              the KPI figure it always was, and the split is bars, which people
-              compare by length instead of by angle. */}
-          <div className="mb-2 flex items-baseline gap-1.5">
-            <span className="disp mono text-[28px] font-bold text-ink leading-none">
-              {fmtInt(total, lang)}
+        <>
+          <div className="grid gap-3.5">
+            {fw.map((f, i) => {
+              const pct = Math.round(f.percent_complete ?? 0);
+              return (
+                <Link
+                  key={f.framework_id}
+                  to={`/compliance/${f.framework_id}`}
+                  className="grid grid-cols-[90px_1fr_44px] gap-3 items-center text-[13px]"
+                >
+                  <span className="font-medium text-ink truncate" title={f.framework_name}>
+                    {shortName(f.framework_name)}
+                  </span>
+                  <span
+                    className="h-2 rounded-[8px] overflow-hidden"
+                    style={{ background: 'var(--chart-track)' }}
+                  >
+                    <span
+                      className="block h-full rounded-[8px]"
+                      style={{
+                        width: `${pct}%`,
+                        background: frameworkColorFor(f.framework_name, i),
+                      }}
+                    />
+                  </span>
+                  <span className="mono font-semibold text-right text-ink">{pct} %</span>
+                </Link>
+              );
+            })}
+          </div>
+          <div className="text-[11.5px] text-ink-muted mt-3.5">{t('executive.fw.note')}</div>
+        </>
+      )}
+    </Panel>
+  );
+}
+
+/**
+ * "ISO/IEC 27001:2022" → "ISO 27001", "NIST CSF 2.0" → "NIST CSF",
+ * "COBAC R-2016/04" → "COBAC", "BCEAO — Sécurité des SI" → "BCEAO".
+ */
+function shortName(name: string): string {
+  const iso = name.match(/ISO(?:\/IEC)?\s*(\d{4,5})/i);
+  if (iso) return `ISO ${iso[1]}`;
+  const head = name.split(/\s[—–-]\s|:/)[0].trim();
+  // Drop a trailing version or regulation number, never the whole name.
+  return head.replace(/\s+\S*\d\S*$/, '').trim() || head;
+}
+
+/* ------------------------------------------------- committee decisions */
+
+const APPROVALS_KEY = ['governance', 'approvals', 'pending'];
+
+function CommitteeDecisions() {
+  const { t, locale } = useI18n();
+  const qc = useQueryClient();
+  const approvals = useQuery({
+    queryKey: APPROVALS_KEY,
+    queryFn: () => governanceService.listApprovals({ status: 'pending' }),
+  });
+  const [approved, setApproved] = useState<Set<string>>(new Set());
+
+  const onError = (e: unknown) => {
+    const forbidden = isAxiosError(e) && e.response?.status === 403;
+    toast.error(forbidden ? t('executive.decisions.forbidden') : t('executive.decisions.failed'));
+  };
+  // Both are optimistic: the row changes on click and rolls back if the
+  // server refuses. retry:false — a refused signature is a final answer, and
+  // the app-wide mutation retry would send it four times.
+  const approve = useMutation({
+    mutationFn: (id: string) => governanceService.decideApproval(id, { decision: 'approve' }),
+    retry: false,
+    onMutate: (id) => setApproved((s) => new Set(s).add(id)),
+    onSuccess: () => {
+      toast.success(t('executive.decisions.done'));
+      void qc.invalidateQueries({ queryKey: ['action-center'] });
+    },
+    onError: (e, id) => {
+      setApproved((s) => {
+        const next = new Set(s);
+        next.delete(id);
+        return next;
+      });
+      onError(e);
+    },
+  });
+  const defer = useMutation({
+    mutationFn: (id: string) => governanceService.deferApproval(id),
+    retry: false,
+    onMutate: async (id) => {
+      await qc.cancelQueries({ queryKey: APPROVALS_KEY });
+      const prev = qc.getQueryData<ApprovalRequest[]>(APPROVALS_KEY);
+      qc.setQueryData<ApprovalRequest[]>(APPROVALS_KEY, (rows) =>
+        rows?.map((r) =>
+          r.id === id
+            ? {
+                ...r,
+                deferrals: [
+                  ...(r.deferrals ?? []),
+                  { deferred_by: '', deferred_at: new Date().toISOString() },
+                ],
+              }
+            : r,
+        ),
+      );
+      return { prev };
+    },
+    onSuccess: () => toast.success(t('executive.decisions.deferred')),
+    onError: (e, _id, ctx) => {
+      if (ctx?.prev) qc.setQueryData(APPROVALS_KEY, ctx.prev);
+      onError(e);
+    },
+    onSettled: () => void qc.invalidateQueries({ queryKey: APPROVALS_KEY }),
+  });
+
+  // Deferred requests stay pending but go to the bottom, as the design shows.
+  const list = useMemo(() => {
+    const rows = Array.isArray(approvals.data) ? approvals.data : [];
+    const deferred = (r: ApprovalRequest) => (r.deferrals?.length ?? 0) > 0;
+    return [...rows].sort((a, b) => Number(deferred(a)) - Number(deferred(b)));
+  }, [approvals.data]);
+  const waiting = list.filter((r) => !approved.has(r.id) && !(r.deferrals?.length ?? 0)).length;
+
+  return (
+    <Panel testId="exec-decisions" className="overflow-hidden">
+      <PanelTitle
+        className="px-5 pt-4 pb-2.5"
+        title={t('executive.decisions.title')}
+        aside={
+          Array.isArray(approvals.data) ? (
+            <span className="text-[12px] text-ink-muted">
+              {t('executive.decisions.pending', { count: waiting })}
             </span>
-            <span className="text-[11px] text-ink-muted">{tr('risques', 'risks')}</span>
-          </div>
-          <CartesianChart
-            data={data}
-            x="criticality"
-            height={180}
-            series={[{ type: 'bar', key: 'count', label: tr('Risques', 'Risks') }]}
-            formatCategory={label}
-            ariaLabel={tr('Nombre de risques par criticité', 'Risk count by criticality')}
-          />
+          ) : undefined
+        }
+      />
+      {approvals.isLoading ? (
+        <div className="px-5 pb-4">
+          <BlockSkeleton lines={3} height={28} />
         </div>
-      )}
-      <div className="flex flex-wrap gap-x-4 gap-y-1.5 mt-3 justify-center">
-        {slices.map((s) => (
-          <span
-            key={s.criticality}
-            className="inline-flex items-center gap-1.5 text-[11.5px] text-ink-soft"
-          >
-            <span className="w-2.5 h-2.5 rounded-sm" style={{ background: CRIT[s.criticality] }} />
-            {label(s.criticality)} · <span className="font-semibold text-ink">{s.count}</span>
-          </span>
-        ))}
-      </div>
-    </Card>
-  );
-}
-
-/* ---------------- Top 10 risks ---------------- */
-function TopRisksCard({
-  risks,
-  lang,
-  tr,
-}: {
-  risks: ExecRisk[];
-  lang: LocaleCode;
-  tr: (f: string, e: string) => string;
-}) {
-  return (
-    <Card style={{ padding: '18px 8px 12px' }}>
-      <div className="text-[14px] font-semibold text-ink mb-2 px-3">
-        {tr('Top 10 des risques', 'Top 10 risks')}
-      </div>
-      {risks.length === 0 ? (
-        <ChartEmpty label={tr('Aucun risque', 'No risks')} />
+      ) : approvals.isError ? (
+        <div className="px-5">
+          <BlockError onRetry={() => void approvals.refetch()} />
+        </div>
+      ) : list.length === 0 ? (
+        <div className="px-5 pb-3 border-t border-border-subtle">
+          <BlockEmpty>{t('executive.decisions.empty')}</BlockEmpty>
+        </div>
       ) : (
-        // The table is wider than a phone, so this box scrolls at 393px and a
-        // keyboard user could not reach it (axe scrollable-region-focusable,
-        // #589). tabIndex makes it reachable; role + name stop it from being an
-        // anonymous tab stop that announces nothing.
-        <div
-          className="overflow-x-auto"
-          tabIndex={0}
-          role="region"
-          aria-label={tr('Top 10 des risques', 'Top 10 risks')}
-        >
-          <table className="w-full text-left" style={{ minWidth: 420 }}>
-            <thead>
-              <tr className="text-[11px] text-ink-muted uppercase tracking-wide">
-                <th className="font-semibold px-3 py-1.5">{tr('Risque', 'Risk')}</th>
-                <th className="font-semibold px-3 py-1.5">{tr('Criticité', 'Criticality')}</th>
-                <th className="font-semibold px-3 py-1.5 text-right">{tr('Score', 'Score')}</th>
-                <th className="font-semibold px-3 py-1.5 text-right">ALE</th>
-              </tr>
-            </thead>
-            <tbody>
-              {risks.map((r) => {
-                const col = CRIT[r.criticality] ?? 'var(--fg-muted)';
-                return (
-                  <tr key={r.id} className="hover:bg-hover transition-colors">
-                    <td className="px-3 py-[9px]">
-                      <div className="flex items-center gap-2">
-                        <span
-                          className="w-2 h-2 rounded-full shrink-0"
-                          style={{ background: col }}
-                        />
-                        <span className="text-[13px] font-medium text-ink truncate max-w-[220px]">
-                          {r.title}
-                        </span>
-                      </div>
-                    </td>
-                    <td className="px-3 py-[9px]">
-                      <span
-                        className="text-[11px] font-semibold px-2 py-[3px] rounded-md"
-                        style={{ color: col, background: softFill(col, 14) }}
-                      >
-                        {r.criticality}
-                      </span>
-                    </td>
-                    <td
-                      className="px-3 py-[9px] text-right mono text-[13px] font-bold"
-                      style={{ color: col }}
+        list.map((r) => {
+          const last = r.deferrals?.[r.deferrals.length - 1];
+          const done = approved.has(r.id);
+          return (
+            <div
+              key={r.id}
+              data-testid="exec-decision"
+              className="flex items-center gap-4 px-5 py-3.5 border-t border-border-subtle flex-wrap"
+            >
+              <span className="flex-1 min-w-[260px]">
+                <span className="block text-[13.5px] font-semibold text-ink">{r.title}</span>
+                <span className="block text-[12px] text-ink-muted mt-0.5">
+                  {/* The requester's own summary reads like the design ("Exposition
+                      2,1 M FCFA/an…"); without one, say what it is and who asked. */}
+                  {r.description?.trim() ||
+                    t('executive.decisions.sub', {
+                      type: r.workflow_name || r.request_type || r.entity_type,
+                      who: r.requested_by_email || '—',
+                    })}
+                  {r.expires_at &&
+                    ` · ${t('executive.decisions.expires', {
+                      date: formatDate(locale, r.expires_at, { day: 'numeric', month: 'short' }),
+                    })}`}
+                </span>
+              </span>
+              {done ? (
+                <span
+                  className="text-[12px] font-semibold px-2.5 py-1 rounded-full"
+                  style={{ background: 'var(--success-surface)', color: 'var(--success-text)' }}
+                >
+                  {t('executive.decisions.approved')}
+                </span>
+              ) : (
+                <>
+                  {last ? (
+                    <span className="text-[12px] font-semibold px-2.5 py-1 rounded-full bg-surface-3 text-ink-soft">
+                      {t('executive.decisions.deferredOn', {
+                        date: formatDate(locale, last.deferred_at, {
+                          day: 'numeric',
+                          month: 'short',
+                        }),
+                      })}
+                    </span>
+                  ) : (
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      loading={defer.isPending && defer.variables === r.id}
+                      onClick={() => defer.mutate(r.id)}
                     >
-                      {r.score.toFixed(1)}
-                    </td>
-                    <td className="px-3 py-[9px] text-right mono text-[12px] text-ink-soft">
-                      {r.ale.xaf > 0 ? fmtCompactFCFA(r.ale.xaf, lang) : '—'}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                      {t('executive.decisions.defer')}
+                    </Button>
+                  )}
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    loading={approve.isPending && approve.variables === r.id}
+                    onClick={() => approve.mutate(r.id)}
+                  >
+                    {t('executive.decisions.approve')}
+                  </Button>
+                </>
+              )}
+            </div>
+          );
+        })
       )}
-    </Card>
-  );
-}
-
-/* ---------------- Control coverage radar ---------------- */
-function ControlCoverageRadar({
-  frameworks,
-  tr,
-}: {
-  frameworks: ComplianceCoverage[];
-  tr: (f: string, e: string) => string;
-}) {
-  const data = frameworks.slice(0, 8).map((f) => ({ name: f.name, percent: f.percent }));
-  return (
-    <Card style={{ padding: '18px 20px' }}>
-      <div className="text-[14px] font-semibold text-ink mb-1">
-        {tr('Couverture des contrôles', 'Control coverage')}
-      </div>
-      <div className="text-[12px] text-ink-muted mb-2">
-        {tr('% implémenté par référentiel', '% implemented per framework')}
-      </div>
-      {data.length === 0 ? (
-        <ChartEmpty label={tr('Aucun référentiel', 'No frameworks')} />
-      ) : (
-        <RadarChart
-          axes={data.map((d) => ({ key: d.name, label: d.name }))}
-          series={[
-            {
-              key: 'coverage',
-              label: tr('Couverture', 'Coverage'),
-              values: data.map((d) => d.percent),
-            },
-          ]}
-          max={100}
-          size={230}
-          formatValue={(v) => `${v} %`}
-          ariaLabel={tr(
-            'Pourcentage de contrôles implémentés par référentiel',
-            'Percentage of controls implemented per framework',
-          )}
-        />
-      )}
-    </Card>
-  );
-}
-
-/* ---------------- Compliance donuts per framework ---------------- */
-/* `Ring` — a 72px progress ring with the percentage in the middle, eight of them
-   in a grid — was deleted under D-025. It is the same banned pattern as the
-   distribution doughnut ("a number in the middle that a KPI tile would say
-   better"), and eight of them side by side asked the reader to compare eight
-   arc lengths. The comparison across frameworks IS the reading, so it is now
-   one bar chart: same data, one axis, ranked by eye in a glance. */
-function ComplianceCard({
-  frameworks,
-  tr,
-}: {
-  frameworks: ComplianceCoverage[];
-  tr: (f: string, e: string) => string;
-}) {
-  return (
-    <Card style={{ padding: '18px 20px' }}>
-      <div className="text-[14px] font-semibold text-ink mb-4">
-        {tr('Conformité par référentiel', 'Compliance by framework')}
-      </div>
-      {frameworks.length === 0 ? (
-        <ChartEmpty label={tr('Aucun référentiel', 'No frameworks')} />
-      ) : (
-        <CartesianChart
-          data={frameworks.slice(0, 8)}
-          x="name"
-          height={200}
-          series={[{ type: 'bar', key: 'percent', label: tr('Couverture', 'Coverage') }]}
-          formatValue={(v) => `${Math.round(v)}%`}
-          ariaLabel={tr(
-            'Pourcentage de conformité par référentiel',
-            'Compliance percentage per framework',
-          )}
-        />
-      )}
-    </Card>
-  );
-}
-
-/* ---------------- Incident trend histogram ---------------- */
-function IncidentTrendCard({
-  points,
-  tr,
-}: {
-  points: IncidentTrendPoint[];
-  tr: (f: string, e: string) => string;
-}) {
-  const rows = useMemo(
-    () =>
-      points.map((p) => ({
-        m: monthLabel(p.month),
-        critical: p.critical,
-        high: p.high,
-        other: Math.max(0, p.total - p.critical - p.high),
-      })),
-    [points],
-  );
-  const hasData = points.some((p) => p.total > 0);
-  return (
-    <Card style={{ padding: '18px 20px' }}>
-      <div className="text-[14px] font-semibold text-ink mb-1">
-        {tr('Tendance des incidents', 'Incident trend')}
-      </div>
-      <div className="text-[12px] text-ink-muted mb-3">
-        {tr('Volume mensuel par sévérité', 'Monthly volume by severity')}
-      </div>
-      {!hasData ? (
-        <ChartEmpty label={tr('Aucun incident', 'No incidents')} />
-      ) : (
-        <CartesianChart
-          data={rows}
-          x="m"
-          height={220}
-          stacked
-          series={[
-            { type: 'bar', key: 'critical', label: tr('Critique', 'Critical'), band: 'critical' },
-            { type: 'bar', key: 'high', label: tr('Élevé', 'High'), band: 'high' },
-            { type: 'bar', key: 'other', label: tr('Autre', 'Other'), band: 'medium' },
-          ]}
-          ariaLabel={tr(
-            'Volume mensuel d’incidents par sévérité',
-            'Monthly incident volume by severity',
-          )}
-        />
-      )}
-    </Card>
-  );
-}
-
-/* ---------------- shared small bits ---------------- */
-function ChartEmpty({ label }: { label: string }) {
-  return (
-    <div className="h-[180px] flex items-center justify-center text-[13px] text-ink-muted">
-      {label}
-    </div>
-  );
-}
-
-function ExecSkeleton() {
-  return (
-    <PageFrame wide>
-      <PageHeader title="Executive dashboard" />
-      <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-4 mb-4">
-        <Skeleton style={{ height: 300 }} />
-        <div className="flex flex-col gap-4">
-          <Skeleton style={{ height: 92 }} />
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            {Array.from({ length: 4 }).map((_, i) => (
-              <Skeleton key={i} style={{ height: 92 }} />
-            ))}
-          </div>
-        </div>
-      </div>
-      <div className="grid grid-cols-1 lg:grid-cols-[1.6fr_1fr] gap-4 mb-4">
-        <Skeleton style={{ height: 290 }} />
-        <Skeleton style={{ height: 290 }} />
-      </div>
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <Skeleton style={{ height: 260 }} />
-        <Skeleton style={{ height: 260 }} />
-      </div>
-    </PageFrame>
+    </Panel>
   );
 }

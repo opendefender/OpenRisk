@@ -176,6 +176,8 @@ var routesWithoutPermissionGuard = []string{
 	"POST /governance/approvals",
 	"POST /governance/approvals/:id/cancel",
 	"POST /governance/approvals/:id/decide",
+	// #903: same rule as decide — the engine checks the caller may sign the open step.
+	"POST /governance/approvals/:id/defer",
 	"POST /governance/delegations",
 	"POST /governance/delegations/:id/revoke",
 	"POST /onboarding/complete",

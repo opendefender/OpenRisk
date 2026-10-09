@@ -27,8 +27,14 @@ type TenantScoreSnapshot struct {
 	Value          float64   `gorm:"type:double precision;not null" json:"value"`
 	Band           string    `gorm:"size:16;not null" json:"band"`
 	FormulaVersion string    `gorm:"size:16;not null" json:"formula_version"`
-	CreatedAt      time.Time `json:"created_at"`
-	UpdatedAt      time.Time `json:"updated_at"`
+	// The other headline figures of the day (#903), so the executive view can
+	// say how each moved since the last quarter. Nil when the source could not
+	// be read that day: a gap, never a zero.
+	ALEXAF        *float64  `gorm:"column:ale_xaf;type:double precision" json:"ale_xaf"`
+	CriticalRisks *int      `json:"critical_risks"`
+	CompliancePct *float64  `gorm:"type:double precision" json:"compliance_pct"`
+	CreatedAt     time.Time `json:"created_at"`
+	UpdatedAt     time.Time `json:"updated_at"`
 }
 
 // TableName pins the table so the SQL migration and AutoMigrate agree.

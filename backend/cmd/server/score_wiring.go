@@ -7,12 +7,16 @@ package main
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 
 	"github.com/opendefender/openrisk/internal/application/compliance"
+	"github.com/opendefender/openrisk/internal/application/risk"
 	"github.com/opendefender/openrisk/internal/application/score"
+	"github.com/opendefender/openrisk/internal/domain/timeframe"
 	handlers "github.com/opendefender/openrisk/internal/handler"
+	"github.com/opendefender/openrisk/internal/infrastructure/database"
 	"github.com/opendefender/openrisk/internal/infrastructure/repository"
 	"github.com/opendefender/openrisk/internal/service"
 )
@@ -77,4 +81,40 @@ func newScoreHandler(
 		WithIncidents(incidentPressureAdapter{svc: incidentSvc})
 	history := score.NewHistory(uc, snapshots)
 	return handlers.NewScoreHandler(uc).WithHistory(history), history
+}
+
+// postureFiguresAdapter reads the executive view's headline figures for the
+// daily snapshot (#903): the annualised exposure, the live critical risks and
+// the average compliance coverage. Each source is read on its own; a failure
+// leaves that one figure nil rather than failing the snapshot.
+type postureFiguresAdapter struct {
+	financial *risk.FinancialSummaryUseCase
+	gaps      *compliance.GetGapAnalysisUseCase
+}
+
+func (a postureFiguresAdapter) Figures(ctx context.Context, tenantID uuid.UUID) score.Figures {
+	var f score.Figures
+	if a.financial != nil {
+		if sum, err := a.financial.Execute(ctx, tenantID); err == nil && sum != nil {
+			v := sum.TotalALE.XAF
+			f.ALEXAF = &v
+		}
+	}
+	if w, err := timeframe.Parse("all", "", "", time.Now().UTC()); err == nil {
+		if stats, err := handlers.ComputeDashboardStats(ctx, database.DB, tenantID, w); err == nil {
+			n := int(stats.CriticalLive)
+			f.CriticalRisks = &n
+		}
+	}
+	if a.gaps != nil {
+		if g, err := a.gaps.Execute(ctx, tenantID, uuid.Nil); err == nil && g != nil && len(g.Frameworks) > 0 {
+			var sum float64
+			for _, fw := range g.Frameworks {
+				sum += fw.PercentComplete
+			}
+			v := sum / float64(len(g.Frameworks))
+			f.CompliancePct = &v
+		}
+	}
+	return f
 }
