@@ -1287,9 +1287,11 @@ func main() {
 	// factory converts every figure into the tenant's currency at a dated rate.
 	financialSummaryUseCase := risk.NewFinancialSummaryUseCase(riskRepo, riskQuantifier).
 		WithPresenters(financialPresenters).
-		WithCoverageCounter(riskRepo)
+		WithCoverageCounter(riskRepo).
+		WithAppetiteReader(orgRepo)
 	financialAnalyticsHandler := handlers.NewFinancialAnalyticsHandler(financialSummaryUseCase).
-		WithCurrencyWriter(orgRepo)
+		WithCurrencyWriter(orgRepo).
+		WithAppetiteUseCase(risk.NewSetRiskAppetiteUseCase(orgRepo))
 
 	// NOTE: same bug class as compliance (see comment above complianceFrameworkRead) —
 	// middleware.RequirePermissions reads the legacy *domain.UserClaims, which the RS256
@@ -2413,6 +2415,9 @@ func main() {
 	// Tenant display currency — chosen at onboarding, changeable here (admin).
 	protected.Put("/analytics/financial/currency",
 		middleware.RequireRole("admin", "root"), financialAnalyticsHandler.SetCurrency)
+	// Risk appetite (#904) — the board's accepted annual loss, a tenant policy (admin).
+	protected.Put("/analytics/financial/appetite",
+		middleware.RequireRole("admin", "root"), featFinancial, financialAnalyticsHandler.SetAppetite)
 
 	// Executive dashboard (spec §11) — ONE consolidated, tenant-scoped aggregation
 	// (cyber score, financial exposure, KRIs, top-10 risks, risk & incident trends,

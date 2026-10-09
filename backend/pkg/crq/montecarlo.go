@@ -161,7 +161,51 @@ func SimulatePortfolio(inputs []SimulationInput, iterations int, seed int64) Los
 	if len(inputs) == 0 {
 		return dist
 	}
+	samples, sum := portfolioSamples(inputs, iterations, seed)
+	dist.P10 = round2(percentile(samples, 10))
+	dist.P50 = round2(percentile(samples, 50))
+	dist.P90 = round2(percentile(samples, 90))
+	dist.P95 = round2(percentile(samples, 95))
+	dist.Mean = round2(sum / float64(iterations))
+	dist.Min = round2(samples[0])
+	dist.Max = round2(samples[len(samples)-1])
+	return dist
+}
 
+// PortfolioQuantiles runs the same shared Monte Carlo as SimulatePortfolio and
+// returns the total annual loss at every percentile, 0 to 100 (101 values, XAF,
+// ascending). It is the loss-exceedance curve in compact form: the probability
+// that a year's loss exceeds x is the share of percentiles above x (#904).
+// With no input it returns nil.
+func PortfolioQuantiles(inputs []SimulationInput, iterations int, seed int64) []float64 {
+	if len(inputs) == 0 {
+		return nil
+	}
+	if iterations <= 0 {
+		iterations = DefaultIterations
+	}
+	samples, _ := portfolioSamples(inputs, iterations, seed)
+	out := make([]float64, 101)
+	for p := range out {
+		out[p] = round2(percentile(samples, float64(p)))
+	}
+	return out
+}
+
+// ScaleLoss returns a copy of in whose loss magnitude is multiplied by factor
+// (clamped to [0, 1]). The residual exposure of a treated risk is its inherent
+// loss times (1 − effectiveness), the same rule as ALEAfter, so the curve
+// "after plan" uses the same frequency and the same random draws.
+func ScaleLoss(in SimulationInput, factor float64) SimulationInput {
+	f := math.Min(1, math.Max(0, factor))
+	in.LM = PERT{Min: in.LM.Min * f, Mode: in.LM.Mode * f, Max: in.LM.Max * f}
+	return in
+}
+
+// portfolioSamples draws `iterations` total annual losses across the inputs and
+// returns them sorted ascending, with their sum. Deterministic given the seed
+// and the order of inputs.
+func portfolioSamples(inputs []SimulationInput, iterations int, seed int64) ([]float64, float64) {
 	// Pre-compute each risk's LEF + Beta shape (or a degenerate point).
 	type risk struct {
 		lef         float64
@@ -202,14 +246,7 @@ func SimulatePortfolio(inputs []SimulationInput, iterations int, seed int64) Los
 		sum += total
 	}
 	sort.Float64s(samples)
-	dist.P10 = round2(percentile(samples, 10))
-	dist.P50 = round2(percentile(samples, 50))
-	dist.P90 = round2(percentile(samples, 90))
-	dist.P95 = round2(percentile(samples, 95))
-	dist.Mean = round2(sum / float64(iterations))
-	dist.Min = round2(samples[0])
-	dist.Max = round2(samples[len(samples)-1])
-	return dist
+	return samples, sum
 }
 
 // pertBetaParams derives the standard Beta-PERT shape parameters (λ = 4).

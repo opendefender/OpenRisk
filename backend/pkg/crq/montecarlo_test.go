@@ -166,3 +166,46 @@ func TestPresenter_PresentDistribution(t *testing.T) {
 		t.Fatalf("EUR conversion wrong: got %.2f %s want %.2f EUR", got.P50.Value, got.P50.Currency, wantEUR)
 	}
 }
+
+func TestPortfolioQuantiles(t *testing.T) {
+	inputs := []SimulationInput{
+		{LEF: 0.5, LM: PERT{Min: 5e6, Mode: 10e6, Max: 20e6}},
+		{LEF: 1.0, LM: PERT{Min: 2e6, Mode: 4e6, Max: 9e6}},
+	}
+	q := PortfolioQuantiles(inputs, 20_000, DefaultSeed)
+	if len(q) != 101 {
+		t.Fatalf("want 101 percentiles, got %d", len(q))
+	}
+	for i := 1; i < len(q); i++ {
+		if q[i] < q[i-1] {
+			t.Fatalf("percentiles not ascending at %d: %v < %v", i, q[i], q[i-1])
+		}
+	}
+	// Same run as SimulatePortfolio: its P50 and P90 are the 50th and 90th entries.
+	d := SimulatePortfolio(inputs, 20_000, DefaultSeed)
+	if q[50] != d.P50 || q[90] != d.P90 || q[0] != d.Min || q[100] != d.Max {
+		t.Fatalf("quantiles disagree with the portfolio band: q50=%v p50=%v q90=%v p90=%v", q[50], d.P50, q[90], d.P90)
+	}
+	if PortfolioQuantiles(nil, 1000, 1) != nil {
+		t.Fatal("an empty portfolio has no curve")
+	}
+}
+
+func TestScaleLoss(t *testing.T) {
+	in := SimulationInput{LEF: 2, LM: PERT{Min: 10, Mode: 20, Max: 40}}
+	r := ScaleLoss(in, 0.25)
+	if r.LEF != 2 || r.LM != (PERT{Min: 2.5, Mode: 5, Max: 10}) {
+		t.Fatalf("scaled wrong: %+v", r)
+	}
+	if ScaleLoss(in, 3).LM != in.LM || ScaleLoss(in, -1).LM != (PERT{}) {
+		t.Fatal("factor must clamp to [0, 1]")
+	}
+	// A 40 % effective treatment moves every percentile to 60 % of the inherent one.
+	inh := PortfolioQuantiles([]SimulationInput{in}, 5000, 7)
+	res := PortfolioQuantiles([]SimulationInput{ScaleLoss(in, 0.6)}, 5000, 7)
+	for p := range inh {
+		if d := math.Abs(res[p] - inh[p]*0.6); d > 0.02 {
+			t.Fatalf("percentile %d: residual %v, want %v", p, res[p], inh[p]*0.6)
+		}
+	}
+}

@@ -7,6 +7,7 @@ package risk
 
 import (
 	"context"
+	"math"
 	"sort"
 	"strings"
 	"time"
@@ -29,6 +30,32 @@ type FinancialRiskLister interface {
 // rather than a client-side filter (spec §6). Optional/nil-safe.
 type FinancialCoverageCounter interface {
 	CountFinancialCoverage(ctx context.Context, tenantID uuid.UUID) (total, quantified int, err error)
+}
+
+// RiskAppetiteReader returns the tenant's risk appetite in XAF, or nil when the
+// tenant has not set one (#904). Optional/nil-safe.
+type RiskAppetiteReader interface {
+	OrgRiskAppetite(ctx context.Context, tenantID uuid.UUID) (*float64, error)
+}
+
+// LossExceedance is the loss-exceedance curve of the whole register in compact
+// form: total annual loss (XAF) at every percentile 0..100, before and after the
+// treatment plans (#904). P(loss > x) is the share of percentiles above x.
+type LossExceedance struct {
+	Inherent []float64 `json:"inherent"`
+	Residual []float64 `json:"residual"`
+}
+
+// TreatmentPayback is one risk's treatment plan seen as an investment: what it
+// costs, how much annual loss it removes, and how many months of avoided loss
+// pay for it (#904). Money lives on the risk's plan (remediation cost and
+// expected effectiveness), not on individual mitigations.
+type TreatmentPayback struct {
+	RiskID        uuid.UUID `json:"risk_id"`
+	Title         string    `json:"title"`
+	Cost          crq.Money `json:"cost"`
+	Reduction     crq.Money `json:"reduction"` // annual loss avoided
+	PaybackMonths float64   `json:"payback_months"`
 }
 
 // CriticalityBucket is the aggregated annual loss for one criticality band.
@@ -77,6 +104,15 @@ type FinancialSummary struct {
 	PortfolioROSIOK    bool                    `json:"portfolio_rosi_computable"`
 	ByCriticality      []CriticalityBucket     `json:"by_criticality"`
 	TopRisks           []TopRiskFinancial      `json:"top_risks"`
+
+	// #904 — the financial page of the October 2026 redesign.
+	// PortfolioROSI3Y is (3 × annual reduction − plan cost) / plan cost.
+	PortfolioROSI3Y   float64            `json:"portfolio_rosi_3y"`
+	PortfolioROSI3YOK bool               `json:"portfolio_rosi_3y_computable"`
+	TreatedRisks      int                `json:"treated_risks"` // risks whose plan has a cost
+	LossExceedance    *LossExceedance    `json:"loss_exceedance"`
+	Treatments        []TreatmentPayback `json:"treatments"` // shortest payback first
+	RiskAppetiteXAF   *float64           `json:"risk_appetite_xaf"`
 }
 
 // FinancialSummaryUseCase aggregates the CRQ model across a tenant's register.
@@ -85,6 +121,7 @@ type FinancialSummaryUseCase struct {
 	quantifier *crq.Quantifier
 	presenters *FinancialPresenterFactory // optional; nil → XAF/static
 	coverage   FinancialCoverageCounter   // optional; nil → derived from the list
+	appetite   RiskAppetiteReader         // optional; nil → no appetite
 	now        func() time.Time
 }
 
@@ -102,6 +139,12 @@ func (uc *FinancialSummaryUseCase) WithPresenters(f *FinancialPresenterFactory) 
 // WithCoverageCounter attaches the SQL coverage aggregate.
 func (uc *FinancialSummaryUseCase) WithCoverageCounter(c FinancialCoverageCounter) *FinancialSummaryUseCase {
 	uc.coverage = c
+	return uc
+}
+
+// WithAppetiteReader attaches the tenant risk-appetite reader.
+func (uc *FinancialSummaryUseCase) WithAppetiteReader(r RiskAppetiteReader) *FinancialSummaryUseCase {
+	uc.appetite = r
 	return uc
 }
 
@@ -147,6 +190,8 @@ func (uc *FinancialSummaryUseCase) Execute(ctx context.Context, tenantID uuid.UU
 
 	tops := make([]TopRiskFinancial, 0, len(risks))
 	sims := make([]crq.SimulationInput, 0, len(risks))
+	residualSims := make([]crq.SimulationInput, 0, len(risks))
+	treatments := make([]TreatmentPayback, 0, len(risks))
 
 	for i := range risks {
 		r := &risks[i]
@@ -154,7 +199,22 @@ func (uc *FinancialSummaryUseCase) Execute(ctx context.Context, tenantID uuid.UU
 		// Deterministic per-risk figures (no per-risk Monte Carlo); the band comes
 		// from ONE shared portfolio simulation below.
 		a := q.AssessDeterministic(in, string(r.Criticality))
-		sims = append(sims, q.SimulationInputFor(in, string(r.Criticality)))
+		sim := q.SimulationInputFor(in, string(r.Criticality))
+		sims = append(sims, sim)
+		residualSims = append(residualSims, crq.ScaleLoss(sim, 1-a.Effectiveness))
+
+		if a.RemediationCost.XAF > 0 {
+			sum.TreatedRisks++
+			if a.RiskReduction.XAF > 0 {
+				treatments = append(treatments, TreatmentPayback{
+					RiskID:        r.ID,
+					Title:         riskTitle(r),
+					Cost:          a.RemediationCost,
+					Reduction:     a.RiskReduction,
+					PaybackMonths: math.Round(a.RemediationCost.XAF/a.RiskReduction.XAF*12*10) / 10,
+				})
+			}
+		}
 
 		totalALE += a.ALE.XAF
 		totalWorst += a.ALEWorst.XAF
@@ -204,6 +264,30 @@ func (uc *FinancialSummaryUseCase) Execute(ctx context.Context, tenantID uuid.UU
 
 	// Portfolio ROSI over all modeled controls.
 	sum.PortfolioROSI, sum.PortfolioROSIOK = crq.ROSI(totalALE, totalAfter, totalRemediation)
+	if totalRemediation > 0 {
+		sum.PortfolioROSI3Y = math.Round((3*totalReduction-totalRemediation)/totalRemediation*100) / 100
+		sum.PortfolioROSI3YOK = true
+	}
+
+	// Loss-exceedance curve, before and after the plans, from the same draws.
+	if len(sims) > 0 {
+		sum.LossExceedance = &LossExceedance{
+			Inherent: crq.PortfolioQuantiles(sims, crq.DefaultIterations, crq.DefaultSeed),
+			Residual: crq.PortfolioQuantiles(residualSims, crq.DefaultIterations, crq.DefaultSeed),
+		}
+	}
+
+	sort.SliceStable(treatments, func(i, j int) bool {
+		return treatments[i].PaybackMonths < treatments[j].PaybackMonths
+	})
+	sum.Treatments = treatments
+
+	if uc.appetite != nil {
+		// A failing read leaves the appetite unset rather than failing the page.
+		if v, aErr := uc.appetite.OrgRiskAppetite(ctx, tenantID); aErr == nil {
+			sum.RiskAppetiteXAF = v
+		}
+	}
 
 	// Emit criticality buckets in a stable order with USD derived.
 	for _, b := range bandOrder {

@@ -1253,5 +1253,108 @@
       "forbidden": "Vous ne pouvez pas signer cette étape.",
       "failed": "La décision n'a pas pu être enregistrée."
     }
+  },
+  "financial": {
+    "title": "Quantification financière",
+    "subtitle": "Montants annualisés en millions de {currency} · ",
+    "method": "méthode FAIR simplifiée, {iterations} tirages",
+    "currencyLabel": "Devise d'affichage",
+    "loadError": "Impossible de charger la posture financière.",
+    "emptyRegister": "Aucun risque à quantifier. Ajoutez des risques et renseignez leurs pertes (SLE, ARO, coût des interruptions) pour voir l'exposition en argent.",
+    "kpi": {
+      "inherent": "ALE inhérente",
+      "inherentSub": {
+        "one": "{currency} / an, {count} risque",
+        "other": "{currency} / an, {count} risques"
+      },
+      "residual": "ALE résiduelle visée",
+      "residualSub": "après exécution du plan",
+      "plan": "Coût du plan",
+      "planSub": {
+        "exact": {
+          "0": "{currency}, aucun plan chiffré"
+        },
+        "one": "{currency}, {count} risque traité",
+        "other": "{currency}, {count} risques traités"
+      },
+      "rosi": "Retour sur 3 ans",
+      "rosiSub": "ROSI, réduction cumulée vs coût",
+      "rosiNone": "aucun plan chiffré"
+    },
+    "lec": {
+      "title": "Courbe de dépassement des pertes",
+      "sub": "Probabilité qu'une perte annuelle dépasse un montant donné",
+      "appetite": "Appétence au risque",
+      "appetiteUnset": "non fixée",
+      "appetiteReadOnly": "Fixée par un administrateur",
+      "saved": "Appétence enregistrée",
+      "saveFailed": "L'appétence n'a pas pu être enregistrée.",
+      "forbidden": "Seul un administrateur peut fixer l'appétence.",
+      "inherent": "Inhérent :",
+      "exceed": "de dépasser {amount} M",
+      "residual": "Après plan :",
+      "xAxis": "Perte annuelle (M {currency})",
+      "yAxis": "Probabilité de dépassement",
+      "aria": "Courbe de dépassement des pertes inhérentes et après plan ; appétence à {amount} M {currency}",
+      "empty": "La courbe apparaît dès qu'un risque est chiffré."
+    },
+    "exposure": {
+      "title": "Exposition par risque",
+      "risk": "Risque",
+      "inherent": "Inhérente",
+      "residual": "Résiduelle",
+      "reduction": "Réduction",
+      "empty": "Aucun risque chiffré. Renseignez la perte unitaire et la fréquence d'un risque pour le voir ici."
+    },
+    "payback": {
+      "title": "Rentabilité des mitigations",
+      "sub": "Triées par délai de retour sur investissement",
+      "row": "coût {cost} · −{reduction}/an",
+      "months": "{n} mois",
+      "empty": "Aucun plan de traitement chiffré. Renseignez le coût et l'efficacité attendue du traitement d'un risque pour calculer son retour."
+    },
+    "methodology": {
+      "title": "Méthodologie",
+      "model": "Modèle",
+      "modelValue": "FAIR-lite : ALE = LEF × LM (PERT), Monte Carlo (portefeuille)",
+      "formula": "Version de formule",
+      "iterations": "Itérations",
+      "seed": "Graine (déterministe)",
+      "computedAt": "Calculé le",
+      "currency": "Devise",
+      "inputs": "Intrants utilisés",
+      "assumptions": "Hypothèses",
+      "doc": "Documentation du modèle",
+      "risks": "Risques agrégés",
+      "quantified": "Risques chiffrés",
+      "unitRisks": "risques",
+      "src": {
+        "input": "saisi",
+        "derived": "dérivé",
+        "reference": "référence"
+      },
+      "a1": "Exposition totale = simulation Monte Carlo unique sommant la perte de chaque risque par itération (diversification prise en compte).",
+      "a2": "Chaque risque : ALE = LEF × LM ; LM suit une loi PERT à 3 points (min / probable / max).",
+      "a3": "La courbe « après plan » applique à chaque risque l'efficacité attendue de son traitement, sur les mêmes tirages."
+    },
+    "sim": {
+      "title": "Simulateur d'investissement",
+      "sub": "Trois réglages, une phrase de décision. Rien n'est enregistré.",
+      "risk": "Risque",
+      "measure": "Mesure envisagée",
+      "measurePh": "ex. authentification multifacteur sur les comptes à privilèges",
+      "budget": "Budget",
+      "effectiveness": "Efficacité de la mesure",
+      "run": "Calculer le retour",
+      "failed": "Échec de la simulation",
+      "thisMeasure": "cette mesure",
+      "sentence": "Investir {cost} dans {measure}{forRisk} ramènerait son exposition annuelle attendue de {before} à {after}{rosi}{payback}.",
+      "forRisk": " pour le risque « {title} »",
+      "rosiPart": ", soit un retour de {rosi}",
+      "paybackPart": " — l'investissement serait amorti en ~{months} mois",
+      "currentAle": "ALE actuel",
+      "residualAle": "ALE résiduel",
+      "avoided": "Perte évitée / an :"
+    }
   }
 }

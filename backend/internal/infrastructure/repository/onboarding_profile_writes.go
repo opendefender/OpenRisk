@@ -8,6 +8,7 @@ package repository
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"strings"
 
 	"github.com/google/uuid"
@@ -98,6 +99,45 @@ func (r *GormOrganizationRepository) OrgCurrency(ctx context.Context, orgID uuid
 		return strings.ToUpper(strings.TrimSpace(v)), nil
 	}
 	return string(crq.CurrencyXAF), nil
+}
+
+// SetOrganizationRiskAppetite stores the tenant's risk appetite (XAF) in the
+// organization's settings jsonb, beside the display currency (#904). The
+// organization IS the tenant: the row is matched on id = tenantID, so no other
+// tenant's settings can be touched. Missing organization → NotFound.
+func (r *GormOrganizationRepository) SetOrganizationRiskAppetite(ctx context.Context, tenantID uuid.UUID, appetiteXAF float64) error {
+	var org domain.Organization
+	if err := r.db.WithContext(ctx).Where("id = ?", tenantID).First(&org).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return domain.NewNotFoundError("organization", tenantID)
+		}
+		return err
+	}
+	settings := org.GetSettings()
+	settings["risk_appetite_xaf"] = appetiteXAF
+	if err := org.SetSettings(settings); err != nil {
+		return err
+	}
+	return r.db.WithContext(ctx).
+		Model(&domain.Organization{}).
+		Where("id = ?", tenantID).
+		Update("settings", org.Settings).Error
+}
+
+// OrgRiskAppetite reads the tenant's risk appetite (XAF), or nil when unset.
+// Same tenant gate as above: the organization row is the tenant.
+func (r *GormOrganizationRepository) OrgRiskAppetite(ctx context.Context, tenantID uuid.UUID) (*float64, error) {
+	if tenantID == uuid.Nil {
+		return nil, nil
+	}
+	var org domain.Organization
+	if err := r.db.WithContext(ctx).Where("id = ?", tenantID).First(&org).Error; err != nil {
+		return nil, err
+	}
+	if v, ok := org.GetSettings()["risk_appetite_xaf"].(float64); ok && v > 0 {
+		return &v, nil
+	}
+	return nil, nil
 }
 
 // UpdateUserProfile applies the wizard's profile step.
