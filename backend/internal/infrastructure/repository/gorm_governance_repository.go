@@ -321,6 +321,7 @@ func (r *GormApprovalRepository) UpdateRequest(ctx context.Context, req *domain.
 			"status":       req.Status,
 			"current_step": req.CurrentStep,
 			"decisions":    req.Decisions,
+			"deferrals":    req.Deferrals,
 			"resolved_at":  req.ResolvedAt,
 		})
 	if res.Error != nil {
