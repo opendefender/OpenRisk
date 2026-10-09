@@ -21,6 +21,15 @@ export interface ScoreHistory {
   current: number | null;
   delta_30d: number | null;
   since: string | null;
+  /** Last snapshot before the current quarter, for "depuis le T3" (#903). */
+  quarter_baseline: {
+    quarter: string;
+    day: string;
+    value: number;
+    ale_xaf: number | null;
+    critical_risks: number | null;
+    compliance_pct: number | null;
+  } | null;
 }
 
 export function useScoreHistory(months = 12) {

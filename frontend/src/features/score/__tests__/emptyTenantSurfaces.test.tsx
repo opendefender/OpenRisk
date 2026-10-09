@@ -18,7 +18,6 @@ import { MemoryRouter } from 'react-router';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import type { UnmeasuredScore } from '../../../services/scoreService';
-import type { ExecutiveDashboard as ExecData } from '../../analytics/executiveService';
 import { useUIStore } from '../../../store/uiStore';
 
 const EMPTY_SCORE: UnmeasuredScore = {
@@ -48,24 +47,6 @@ const EMPTY_SCORE: UnmeasuredScore = {
   ],
 };
 
-const EMPTY_EXEC: ExecData = {
-  generated_at: '2026-09-25T10:00:00Z',
-  currency: 'XAF',
-  xaf_per_usd: 600,
-  financial: {
-    total_ale: { xaf: 0, usd: 0 },
-    total_ale_worst: { xaf: 0, usd: 0 },
-    total_risks: 0,
-    quantified_risks: 0,
-  },
-  kris: [],
-  top_risks: [],
-  risk_trend: [],
-  risk_distribution: [],
-  compliance: [],
-  incident_trend: [],
-};
-
 const scoreCalls = vi.fn();
 
 // The HTTP boundary, answering like a brand-new tenant. Anything a surface asks
@@ -76,7 +57,6 @@ vi.mock('../../../lib/api', () => {
       scoreCalls();
       return Promise.resolve({ data: EMPTY_SCORE });
     }
-    if (url === '/analytics/executive') return Promise.resolve({ data: EMPTY_EXEC });
     return Promise.resolve({ data: {} });
   };
   return {
@@ -140,7 +120,6 @@ describe('#287 — empty tenant, every score surface agrees', () => {
 
     const gauges = [
       'surface-home',
-      'surface-exec-analytics',
       'surface-score-page',
     ];
 
@@ -161,6 +140,10 @@ describe('#287 — empty tenant, every score surface agrees', () => {
         'Ajoutez des risques pour calculer votre score',
       );
     }
+
+    // The executive view (#903) shows the figure in its KPI strip: a dash.
+    const exec = within(screen.getByTestId('surface-exec-analytics'));
+    expect(exec.getByTestId('exec-kpi-score-value')).toHaveTextContent('—');
 
     // The dashboard card (#901) has its own layout and the same answer.
     const dash = within(screen.getByTestId('surface-dashboard'));

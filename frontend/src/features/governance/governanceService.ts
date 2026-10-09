@@ -239,6 +239,13 @@ export interface ApprovalDecision {
   decided_at: string;
 }
 
+export interface ApprovalDeferral {
+  deferred_by: string;
+  deferred_by_email?: string;
+  comment?: string;
+  deferred_at: string;
+}
+
 export interface ApprovalRequest {
   id: string;
   tenant_id: string;
@@ -254,6 +261,8 @@ export interface ApprovalRequest {
   current_step: number;
   steps: WorkflowStep[];
   decisions: ApprovalDecision[];
+  /** Dated "deferred to the next committee" notes (#903). The request stays pending. */
+  deferrals?: ApprovalDeferral[];
   requested_by: string;
   requested_by_email?: string;
   mode: ApprovalMode;
@@ -366,6 +375,11 @@ export const governanceService = {
     api.post<ApprovalRequest>('/governance/approvals', input).then((r) => r.data),
   decideApproval: (id: string, input: DecideApprovalInput): Promise<ApprovalRequest> =>
     api.post<ApprovalRequest>(`/governance/approvals/${id}/decide`, input).then((r) => r.data),
+  /** "Reporter au prochain comité" (#903): a dated note, the request stays pending. */
+  deferApproval: (id: string, comment?: string): Promise<ApprovalRequest> =>
+    api
+      .post<ApprovalRequest>(`/governance/approvals/${id}/defer`, { comment: comment ?? '' })
+      .then((r) => r.data),
   cancelApproval: (id: string): Promise<ApprovalRequest> =>
     api.post<ApprovalRequest>(`/governance/approvals/${id}/cancel`, {}).then((r) => r.data),
 };
