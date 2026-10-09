@@ -2925,6 +2925,7 @@ func main() {
 		getGapAnalysisUC, incidentService,
 		scoreSnapshotRepo,
 	)
+	scoreHistoryUC.WithFigures(postureFiguresAdapter{financial: financialSummaryUseCase, gaps: getGapAnalysisUC})
 	// One snapshot per tenant per day, so the dashboard can draw the year and
 	// the 30-day movement even for a tenant nobody opened that day (#901).
 	go workers.NewScoreSnapshotWorker(scoreSnapshotRepo, scoreHistoryUC, zeroLogger).

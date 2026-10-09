@@ -45,8 +45,11 @@ type TopRiskFinancial struct {
 	Criticality string    `json:"criticality"`
 	ALE         crq.Money `json:"ale"`
 	ALEWorst    crq.Money `json:"ale_worst"`
-	ROSI        float64   `json:"rosi"`
-	ROSIOK      bool      `json:"rosi_computable"`
+	// ALEAfter is the exposure targeted once the mitigations are in place
+	// (#903: the executive view draws it beside the inherent ALE).
+	ALEAfter crq.Money `json:"ale_after"`
+	ROSI     float64   `json:"rosi"`
+	ROSIOK   bool      `json:"rosi_computable"`
 }
 
 // FinancialSummary is the tenant-wide financial posture rendered by the CFO/CISO
@@ -175,6 +178,7 @@ func (uc *FinancialSummaryUseCase) Execute(ctx context.Context, tenantID uuid.UU
 			Criticality: string(r.Criticality),
 			ALE:         a.ALE,
 			ALEWorst:    a.ALEWorst,
+			ALEAfter:    a.ALEAfter,
 			ROSI:        a.ROSI,
 			ROSIOK:      a.ROSIComputable,
 		})

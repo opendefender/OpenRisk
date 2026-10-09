@@ -37,8 +37,10 @@ func (r *GormScoreSnapshotRepository) Upsert(ctx context.Context, s *domain.Tena
 	}
 	s.Day = domain.SnapshotDay(s.Day)
 	return r.db.WithContext(ctx).Clauses(clause.OnConflict{
-		Columns:   []clause.Column{{Name: "tenant_id"}, {Name: "day"}},
-		DoUpdates: clause.AssignmentColumns([]string{"value", "band", "formula_version", "updated_at"}),
+		Columns: []clause.Column{{Name: "tenant_id"}, {Name: "day"}},
+		DoUpdates: clause.AssignmentColumns([]string{
+			"value", "band", "formula_version", "updated_at", "ale_xaf", "critical_risks", "compliance_pct",
+		}),
 	}).Create(s).Error
 }
 
