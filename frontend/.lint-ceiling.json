@@ -1,11 +1,11 @@
 {
-  "total": 99,
+  "total": 97,
   "rules": {
     "@typescript-eslint/no-unused-vars": 27,
     "@typescript-eslint/no-explicit-any": 21,
-    "react-hooks/set-state-in-effect": 13,
     "react-hooks/preserve-manual-memoization": 12,
-    "react-refresh/only-export-components": 10,
+    "react-hooks/set-state-in-effect": 12,
+    "react-refresh/only-export-components": 9,
     "react-hooks/static-components": 6,
     "react-hooks/purity": 3,
     "prefer-const": 2,

@@ -174,7 +174,7 @@ export function OrgSwitcher({
           doSwitch.reset();
           setOpen((v) => !v);
         }}
-        className="w-full flex items-center gap-2.5 px-2 py-1.5 rounded-[9px] hover:bg-hover focus-visible:bg-hover outline-none focus-visible:ring-2 focus-visible:ring-accent transition-colors"
+        className="w-full flex items-center gap-2.5 px-2 py-1.5 rounded-[10px] border border-border-default bg-surface-0 hover:border-border-strong outline-none focus-visible:ring-2 focus-visible:ring-accent transition-colors"
       >
         {badge ?? (
           <div
@@ -186,12 +186,12 @@ export function OrgSwitcher({
           </div>
         )}
         <div className="min-w-0 flex-1 text-left">
-          <div className="text-[12.5px] font-semibold leading-tight text-ink truncate">
+          <div className="text-[12.5px] font-semibold text-ink truncate">
             {orgName}
           </div>
           <OrgPlanLabel />
         </div>
-        <ChevronsUpDown size={13} className="text-ink-muted shrink-0" aria-hidden="true" />
+        <ChevronsUpDown size={14} className="text-ink-muted shrink-0" aria-hidden="true" />
       </button>
 
       {open && (

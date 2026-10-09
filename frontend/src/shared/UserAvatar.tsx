@@ -33,12 +33,13 @@ export function UserAvatar({
   const src = useAvatarUrl(userId, hasAvatar);
   return (
     <div
-      className={`rounded-full flex items-center justify-center font-bold text-accent-strong shrink-0 overflow-hidden ${className}`}
+      // Neutral initials disc from the October 2026 redesign: surface-3 with a
+      // hairline, so a column of avatars reads as people, not as accent badges.
+      className={`rounded-full flex items-center justify-center font-semibold text-fg-secondary bg-surface-3 border border-border-default shrink-0 overflow-hidden ${className}`}
       style={{
         width: size,
         height: size,
         fontSize: Math.round(size * 0.37),
-        background: 'var(--accent-soft)',
       }}
       aria-hidden="true"
     >

@@ -397,6 +397,21 @@ const DashboardLayout = () => {
     };
   }, []);
 
+  // ⌘K / Ctrl+K opens the palette from anywhere. The palette is mounted only
+  // once opened, so its own listener cannot be the one that opens it: before
+  // #900 the shortcut did nothing until the search field had been clicked once.
+  // While it is open, the palette's listener handles the toggle.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey) || e.key.toLowerCase() !== 'k') return;
+      if (useUIStore.getState().cmdkOpen) return;
+      e.preventDefault();
+      setCmdkOpen(true);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [setCmdkOpen]);
+
   // Discoverable global shortcuts (UX-26). Rows shown in ShortcutsOverlay must
   // mirror these handlers. The hook ignores keys while typing / with ⌘/Ctrl/Alt.
   useHotkeys([
@@ -442,10 +457,7 @@ const DashboardLayout = () => {
       {/* The organization's accent, worn by every member (#718). */}
       <BrandingSync />
       <Sidebar mobileOpen={mobileNavOpen} onMobileClose={() => setMobileNavOpen(false)} />
-      <div
-        className="flex-1 flex flex-col h-screen overflow-hidden relative min-w-0"
-        style={{ background: 'var(--bg-primary)' }}
-      >
+      <div className="flex-1 flex flex-col h-screen overflow-hidden relative min-w-0 bg-surface-0">
         {/* Demo (permanent, not dismissible by design — see shared/DemoBanner)
             on top; Offline below it, closest to the header it pushes. */}
         <BannerStack>

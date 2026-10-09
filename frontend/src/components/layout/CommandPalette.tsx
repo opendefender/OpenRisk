@@ -1,9 +1,10 @@
 // Copyright (c) 2026 OpenDefender Contributors
 // SPDX-License-Identifier: AGPL-3.0-only
 //
-// ⌘K / Ctrl+K command palette (OpenRisk.dc.html §8). Glass overlay, autofocused
-// input, grouped Navigation + Quick actions filtered as you type. Esc / backdrop
-// closes. Registers the global ⌘K keyboard shortcut itself.
+// ⌘K / Ctrl+K command palette, laid out as in the October 2026 redesign (#900):
+// actions first, then pages ("Aller à"), then the live cross-entity results.
+// ↑↓ move the highlighted row, ↵ runs it, Esc or the backdrop closes. Registers
+// the global ⌘K keyboard shortcut itself.
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
@@ -26,6 +27,7 @@ import {
 } from 'lucide-react';
 import { useUIStore } from '../../store/uiStore';
 import { useUIStrings } from '../../shared/uiStrings';
+import { pickLocalized } from '../../i18n/locales';
 import { visibleNavGroups } from '../../shared/navModel';
 import { usePermissions } from '../../hooks/usePermissions';
 import {
@@ -38,7 +40,9 @@ interface CmdItem {
   label: string;
   icon: LucideIcon;
   shortcut?: string;
-  subtitle?: string;
+  /** Right-hand hint: the nav group of a page, an entity's reference. */
+  hint?: string;
+  hintMono?: boolean;
   badge?: { text: string; tone: string };
   run: () => void;
 }
@@ -58,6 +62,22 @@ const TYPE_ICON: Record<SearchResultType, LucideIcon> = {
   cve: Globe,
   user: Users,
 };
+// The search API sends raw keys; the palette shows words.
+const SEVERITY_LABEL: Record<string, { fr: string; en: string }> = {
+  critical: { fr: 'Critique', en: 'Critical' },
+  high: { fr: 'Élevé', en: 'High' },
+  medium: { fr: 'Moyen', en: 'Medium' },
+  low: { fr: 'Faible', en: 'Low' },
+  info: { fr: 'Info', en: 'Info' },
+};
+const STATUS_LABEL: Record<string, { fr: string; en: string }> = {
+  open: { fr: 'Ouvert', en: 'Open' },
+  in_progress: { fr: 'En cours', en: 'In progress' },
+  mitigated: { fr: 'Atténué', en: 'Mitigated' },
+  accepted: { fr: 'Accepté', en: 'Accepted' },
+  closed: { fr: 'Clos', en: 'Closed' },
+};
+
 const TONE: Record<string, string> = {
   critical: 'var(--critical)',
   high: 'var(--high)',
@@ -80,7 +100,9 @@ export const CommandPalette = () => {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<SearchResult[]>([]);
   const [searching, setSearching] = useState(false);
+  const [active, setActive] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
 
   // Global ⌘K / Ctrl+K + Esc.
   useEffect(() => {
@@ -99,6 +121,7 @@ export const CommandPalette = () => {
     if (open) {
       setQuery('');
       setResults([]);
+      setActive(0);
       // Autofocus after the mount animation begins.
       requestAnimationFrame(() => inputRef.current?.focus());
     }
@@ -135,6 +158,7 @@ export const CommandPalette = () => {
       g.items.map((it) => ({
         label: L[it.labelKey],
         icon: it.icon,
+        hint: it.pinned ? undefined : L[g.groupKey],
         run: () => {
           navigate(it.href ?? it.path);
           close();
@@ -165,14 +189,7 @@ export const CommandPalette = () => {
         },
       },
       {
-        label:
-          lang === 'fr'
-            ? theme === 'dark'
-              ? 'Thème clair'
-              : 'Thème sombre'
-            : theme === 'dark'
-              ? 'Light theme'
-              : 'Dark theme',
+        label: theme === 'dark' ? L.themeToLight : L.themeToDark,
         icon: theme === 'dark' ? Sun : Moon,
         run: () => {
           toggleTheme();
@@ -195,94 +212,130 @@ export const CommandPalette = () => {
     const resultItems: CmdItem[] = results.map((r) => ({
       label: r.title,
       icon: TYPE_ICON[r.type] ?? Search,
-      subtitle: r.subtitle,
-      badge: r.badge ? { text: r.badge, tone: TONE[r.badge] ?? 'var(--fg-muted)' } : undefined,
+      hint:
+        r.type === 'risk' && r.subtitle && STATUS_LABEL[r.subtitle]
+          ? pickLocalized(lang, STATUS_LABEL[r.subtitle])
+          : r.subtitle,
+      badge: r.badge
+        ? {
+            text: (SEVERITY_LABEL[r.badge] && pickLocalized(lang, SEVERITY_LABEL[r.badge])) ?? r.badge,
+            tone: TONE[r.badge] ?? 'var(--fg-muted)',
+          }
+        : undefined,
       run: () => {
         navigate(r.url);
         close();
       },
     }));
     return [
-      { label: lang === 'fr' ? 'Résultats' : 'Results', items: resultItems },
-      { label: lang === 'fr' ? 'Navigation' : 'Navigation', items: flt(nav) },
-      { label: lang === 'fr' ? 'Actions rapides' : 'Quick actions', items: flt(actions) },
+      { label: L.cmdActions, items: flt(actions) },
+      {
+        label: q ? L.cmdPages : L.cmdGoTo,
+        // With no query the palette offers a short jump list, as the design does.
+        items: q ? flt(nav) : nav.slice(0, 8),
+      },
+      { label: L.cmdResults, items: resultItems },
     ].filter((g) => g.items.length > 0);
   }, [L, query, results, navigate, setOpen, theme, lang, toggleTheme, toggleLang, can, isAdmin]);
 
+  const flat = groups.flatMap((g) => g.items);
+  const current = Math.min(active, Math.max(flat.length - 1, 0));
+
   if (!open) return null;
 
-  const runFirst = () => {
-    const first = groups[0]?.items[0];
-    first?.run();
+  const onInputKey = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (flat.length === 0) return;
+      const next =
+        e.key === 'ArrowDown' ? (current + 1) % flat.length : (current - 1 + flat.length) % flat.length;
+      setActive(next);
+      listRef.current
+        ?.querySelector<HTMLElement>(`[data-cmd-index="${next}"]`)
+        ?.scrollIntoView({ block: 'nearest' });
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      flat[current]?.run();
+    }
   };
+  let index = -1;
 
   return (
     <div
       onClick={() => setOpen(false)}
-      className="fixed inset-0 z-80 flex items-start justify-center"
+      className="fixed inset-0 z-80 flex items-start justify-center px-4"
       style={{
         background: 'var(--surface-overlay)',
-        backdropFilter: 'blur(6px)',
-        WebkitBackdropFilter: 'blur(6px)',
-        paddingTop: '14vh',
+        backdropFilter: 'blur(4px)',
+        WebkitBackdropFilter: 'blur(4px)',
+        paddingTop: '12vh',
         animation: 'or-fadein var(--motion-enter)',
       }}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={L.cmdPalette}
         onClick={(e) => e.stopPropagation()}
-        className="glass-strong rounded-[18px] overflow-hidden shadow-card-lg"
-        style={{ width: 'min(92vw,600px)', animation: 'or-scalein var(--motion-enter)' }}
+        className="w-[640px] max-w-full rounded-[14px] overflow-hidden bg-surface-2 border border-border-default"
+        style={{ boxShadow: 'var(--elev-3)', animation: 'or-scalein var(--motion-enter)' }}
       >
-        <div className="flex items-center gap-[11px] px-[18px] py-4 border-b border-border">
+        <div className="flex items-center gap-2.5 px-4 h-[52px] border-b border-border-subtle">
           {searching ? (
-            <Loader2 size={18} strokeWidth={1.8} className="text-ink-muted animate-spin" />
+            <Loader2 size={17} strokeWidth={1.8} className="text-ink-muted animate-spin" />
           ) : (
-            <Search size={18} strokeWidth={1.8} className="text-ink-muted" />
+            <Search size={17} strokeWidth={1.8} className="text-ink-muted" />
           )}
           <input
             ref={inputRef}
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && runFirst()}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              setActive(0);
+            }}
+            onKeyDown={onInputKey}
             placeholder={L.cmdkPlaceholder}
-            className="flex-1 bg-transparent border-none outline-none text-ink text-[15px] placeholder:text-ink-muted"
+            aria-label={L.cmdkPlaceholder}
+            className="flex-1 h-full bg-transparent border-none outline-none focus-visible:outline-none text-ink text-[15px] placeholder:text-ink-muted"
           />
-          <span
-            className="mono text-[10.5px] px-[7px] py-[3px] rounded-md text-ink-muted"
-            style={{ background: 'var(--bg-hover)', border: '1px solid var(--border)' }}
-          >
-            ESC
+          <span className="mono text-[11px] px-1.5 py-0.5 rounded-[5px] border border-border-default text-ink-muted">
+            {L.cmdEsc}
           </span>
         </div>
 
-        <div className="p-2 overflow-y-auto" style={{ maxHeight: '52vh' }}>
+        <div ref={listRef} className="p-1.5 overflow-y-auto max-h-[400px]">
           {groups.map((g) => (
-            <div key={g.label} className="mb-1.5">
-              <div className="text-[10.5px] uppercase tracking-[0.08em] text-ink-muted font-semibold px-3 pt-2 pb-[5px]">
+            <div key={g.label}>
+              <div className="text-[10.5px] uppercase tracking-[0.06em] text-ink-muted font-semibold px-2.5 pt-2.5 pb-1.5">
                 {g.label}
               </div>
-              {g.items.map((it, i) => {
+              {g.items.map((it) => {
                 const Icon = it.icon;
+                index += 1;
+                const i = index;
+                const on = i === current;
                 return (
                   <button
                     key={g.label + i}
+                    data-cmd-index={i}
                     onClick={it.run}
-                    className="w-full flex items-center gap-3 px-3 py-[9px] rounded-[10px] hover:bg-accent-soft transition-colors text-left"
+                    onMouseMove={() => {
+                      if (!on) setActive(i);
+                    }}
+                    className={`relative w-full flex items-center gap-3 h-10 px-2.5 rounded-[9px] text-left ${on ? 'bg-surface-3' : ''}`}
                   >
-                    <span className="text-ink-soft flex shrink-0">
-                      <Icon size={17} strokeWidth={1.75} />
-                    </span>
-                    <span className="flex-1 min-w-0">
-                      <span className="block text-[13.5px] text-ink truncate">{it.label}</span>
-                      {it.subtitle && (
-                        <span className="block text-[11px] text-ink-muted truncate">
-                          {it.subtitle}
-                        </span>
-                      )}
+                    <span
+                      aria-hidden="true"
+                      className="absolute left-0 top-2.5 bottom-2.5 w-[2px] rounded-[2px]"
+                      style={{ background: on ? 'var(--accent)' : 'transparent' }}
+                    />
+                    <Icon size={16} strokeWidth={1.75} className="text-ink-soft shrink-0 w-[18px]" />
+                    <span className="flex-1 min-w-0 text-[13px] text-ink whitespace-nowrap overflow-hidden text-ellipsis">
+                      {it.label}
                     </span>
                     {it.badge && (
                       <span
-                        className="text-[9.5px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded shrink-0"
+                        className="text-[11px] font-semibold px-2 py-0.5 rounded-full shrink-0"
                         style={{
                           color: it.badge.tone,
                           background: `color-mix(in srgb, ${it.badge.tone} 16%, transparent)`,
@@ -291,13 +344,15 @@ export const CommandPalette = () => {
                         {it.badge.text}
                       </span>
                     )}
-                    {it.shortcut && (
+                    {it.hint && (
                       <span
-                        className="mono text-[10.5px] px-1.5 py-0.5 rounded text-ink-muted"
-                        style={{ background: 'var(--bg-hover)', border: '1px solid var(--border)' }}
+                        className={`text-[12px] text-ink-muted whitespace-nowrap max-w-[40%] overflow-hidden text-ellipsis ${it.hintMono ? 'mono' : ''}`}
                       >
-                        {it.shortcut}
+                        {it.hint}
                       </span>
+                    )}
+                    {it.shortcut && (
+                      <span className="text-[12px] text-ink-muted">{it.shortcut}</span>
                     )}
                   </button>
                 );
@@ -305,14 +360,18 @@ export const CommandPalette = () => {
             </div>
           ))}
           {groups.length === 0 && (
-            <div className="px-3 py-6 text-center text-[13px] text-ink-muted">
-              {searching ? (lang === 'fr' ? 'Recherche…' : 'Searching…') : L.notifEmpty}
+            <div className="p-7 text-center text-[13px] text-ink-muted">
+              {searching ? L.cmdSearching : `${L.cmdNoResults} « ${query.trim()} ».`}
             </div>
           )}
         </div>
 
-        <div className="px-4 py-2.5 border-t border-border text-[11px] text-ink-muted text-center">
-          ↑↓ {L.navigate} · ↵ {L.open} · esc {L.close}
+        <div className="flex gap-4 px-4 py-[9px] border-t border-border-subtle text-[11.5px] text-ink-muted">
+          <span>↑↓ {L.navigate}</span>
+          <span>↵ {L.open}</span>
+          {can('risks:create') && (
+            <span>N {L.cmdNewRiskHint}</span>
+          )}
         </div>
       </div>
     </div>
