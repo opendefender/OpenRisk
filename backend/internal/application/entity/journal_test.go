@@ -134,6 +134,8 @@ func TestJournal_MergesTheTwoWriters(t *testing.T) {
 	httpRow := auditEvent(w.tenantA, "incident", "5", domain.AuditActionCreate, at(3))
 	httpRow.Source = "http"
 	httpRow.Summary = "create incident 5"
+	actor := uuid.New()
+	httpRow.ActorID = &actor
 	modelRow := auditEvent(w.tenantA, "incident", "5", domain.AuditActionCreate, at(3).Add(-40*time.Millisecond))
 	modelRow.Source = "gorm"
 	modelRow.Summary = "create incident Indisponibilité du canal USSD"
@@ -153,6 +155,9 @@ func TestJournal_MergesTheTwoWriters(t *testing.T) {
 		if e.Summary == "create incident 5" && e.OccurredAt.Equal(at(3)) {
 			t.Fatal("the HTTP twin survived")
 		}
+		if e.Object == "Indisponibilité du canal USSD" && (e.Actor == nil || e.Actor.ID != actor.String()) {
+			t.Fatalf("the person who acted was lost in the merge: %+v", e.Actor)
+		}
 	}
 }
 
@@ -165,6 +170,8 @@ func TestObjectLabel(t *testing.T) {
 		{"title in the snapshot", domain.AuditEvent{After: domain.JSONMap{"title": "Rançongiciel"}, Summary: "update risk x"}, "Rançongiciel"},
 		{"name before deletion", domain.AuditEvent{Before: domain.JSONMap{"name": "Base clients"}}, "Base clients"},
 		{"quoted in the summary", domain.AuditEvent{Action: "defer", EntityType: "approval_request", Summary: `defer "Budget du PRA" to the next committee (2 records affected)`}, "Budget du PRA"},
+		{"the request, not the step", domain.AuditEvent{Action: "approve", EntityType: "approval_request", Summary: `approve step "Comité des risques" of "Prolongation de l'exception" → approved (2 records affected)`}, "Prolongation de l'exception"},
+		{"submitted for approval", domain.AuditEvent{Action: "submit", EntityType: "approval_request", Summary: "submitted risk_acceptance for approval: Acceptation du risque R-0115 (2 records affected)"}, "Acceptation du risque R-0115"},
 		{"writer phrasing", domain.AuditEvent{Action: "create", EntityType: "compliance_control", Summary: "create compliance_control Policies (94 records affected)"}, "Policies"},
 		{"a bare id is no name", domain.AuditEvent{Action: "create", EntityType: "incident", Summary: "create incident 5"}, ""},
 		{"a uuid is no name", domain.AuditEvent{Action: "create", EntityType: "board", Summary: "create board f590a0bb-85db-4a23-99e9-d083d2acf495"}, ""},

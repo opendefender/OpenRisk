@@ -139,6 +139,7 @@ func journalEvent(e domain.AuditEvent) (TimelineEvent, journalClass, bool) {
 var (
 	affectedSuffix = regexp.MustCompile(`\s*\(\d+ records? affected\)\s*$`)
 	quoted         = regexp.MustCompile(`"([^"]+)"`)
+	forApproval    = regexp.MustCompile(`for approval: (.+)$`)
 	bareNumber     = regexp.MustCompile(`^\d+$`)
 )
 
@@ -155,8 +156,13 @@ func objectLabel(e domain.AuditEvent) string {
 		}
 	}
 	s := affectedSuffix.ReplaceAllString(strings.TrimSpace(e.Summary), "")
-	if m := quoted.FindStringSubmatch(s); m != nil {
-		return m[1]
+	// 'approve step "Comité" of "Prolongation…"': the object is the last name
+	// quoted, not the step.
+	if all := quoted.FindAllStringSubmatch(s, -1); len(all) > 0 {
+		return all[len(all)-1][1]
+	}
+	if m := forApproval.FindStringSubmatch(s); m != nil {
+		return strings.TrimSpace(m[1])
 	}
 	// "<action> <entity_type> <label>" is how both writers phrase it.
 	prefix := string(e.Action) + " " + e.EntityType + " "
@@ -175,32 +181,42 @@ const twinWindow = 5 * time.Second
 
 // dropTwins removes the HTTP middleware's row when the model hook recorded the
 // same mutation: same type, entity and action, within a few seconds. The model
-// row is kept because it carries the record's fields. Input and output are in
-// the same order.
+// row is kept because it carries the record's fields; the HTTP row knows who
+// acted, so its actor moves onto the model row when that one has none. Input
+// order is kept.
 func dropTwins(rows []domain.AuditEvent) []domain.AuditEvent {
 	type key struct{ et, id, action string }
-	model := map[key][]time.Time{}
-	for _, r := range rows {
+	rows = append([]domain.AuditEvent(nil), rows...)
+	model := map[key][]int{}
+	for i, r := range rows {
 		if r.Source == "gorm" {
 			k := key{r.EntityType, r.EntityID, string(r.Action)}
-			model[k] = append(model[k], r.CreatedAt)
+			model[k] = append(model[k], i)
 		}
 	}
-	out := rows[:0:0]
-	for _, r := range rows {
-		if r.Source == "http" {
-			twin := false
-			for _, at := range model[key{r.EntityType, r.EntityID, string(r.Action)}] {
-				if d := r.CreatedAt.Sub(at); d < twinWindow && d > -twinWindow {
-					twin = true
-					break
+	out := make([]domain.AuditEvent, 0, len(rows))
+	drop := make([]bool, len(rows))
+	for i, r := range rows {
+		if r.Source != "http" {
+			continue
+		}
+		for _, j := range model[key{r.EntityType, r.EntityID, string(r.Action)}] {
+			if d := r.CreatedAt.Sub(rows[j].CreatedAt); d < twinWindow && d > -twinWindow {
+				drop[i] = true
+				if rows[j].ActorID == nil && r.ActorID != nil {
+					rows[j].ActorID = r.ActorID
+					rows[j].ActorEmail = r.ActorEmail
+					rows[j].ActorType = r.ActorType
+					rows[j].ActorLabel = r.ActorLabel
 				}
-			}
-			if twin {
-				continue
+				break
 			}
 		}
-		out = append(out, r)
+	}
+	for i, r := range rows {
+		if !drop[i] {
+			out = append(out, r)
+		}
 	}
 	return out
 }
