@@ -1729,6 +1729,11 @@ func main() {
 	// must be registered BEFORE /assets/:id, or "statistics" is parsed as an
 	// asset UUID and the route answers 400 for a request that is perfectly valid.
 	protected.Get("/assets/statistics", assetRead, assetHandler.GetAssetStatistics)
+	// #906 — the inventory's vulnerability columns, per asset. Its own guard:
+	// reading assets does not grant reading their vulnerabilities.
+	assetExposureHandler := handlers.NewAssetExposureHandler(
+		vulnapp.NewAssetExposureUseCase(repository.NewGormVulnerabilityRepository(database.DB)))
+	protected.Get("/assets/exposure", middleware.RequirePermission("vulnerabilities:read"), assetExposureHandler.List)
 	// #861 — CSV import of the inventory: every row or none, one transaction,
 	// and the plan cap checked against the whole file.
 	assetImportHandler := handlers.NewAssetImportHandler(

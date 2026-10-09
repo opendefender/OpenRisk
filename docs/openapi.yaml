@@ -885,6 +885,39 @@ paths:
         '404':
           description: Risk not found
 
+  /assets/exposure:
+    get:
+      tags:
+        - Assets
+      summary: Vulnerability exposure per asset
+      description: >
+        For each asset with a finding: unresolved vulnerabilities, unresolved
+        ones on the CISA KEV list, and the last time a scan reported anything
+        on it (resolved findings included). An asset absent from the list has
+        no finding. Guarded by `vulnerabilities:read`, separately from the
+        inventory, so reading assets does not reveal their vulnerabilities.
+        `last_detected_at` is not a last-scan date: a scan that finds nothing
+        leaves no row.
+      operationId: listAssetExposure
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Exposure per asset
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: '#/components/schemas/AssetExposure' }
+        '401':
+          description: Unauthorized
+        '403':
+          description: Missing `vulnerabilities:read`, or no organization in the session
+
   /timeline:
     get:
       tags:
@@ -6415,6 +6448,14 @@ components:
         code:
           type: string
           enum: [wrong_password, wrong_code, mfa_required_by_role, no_local_password, not_enrolled, too_many_attempts, rejected, internal]
+    AssetExposure:
+      type: object
+      required: [asset_id, open_vulnerabilities, kev_open, last_detected_at]
+      properties:
+        asset_id: { type: string, format: uuid }
+        open_vulnerabilities: { type: integer }
+        kev_open: { type: integer }
+        last_detected_at: { type: string, format: date-time, nullable: true }
     TimelineActor:
       type: object
       properties:
