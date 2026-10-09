@@ -347,6 +347,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/timeline": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The organisation's journal (tenant-wide activity feed)
+         * @description Newest-first, cursor-paginated feed built from the audit trail. Each event is shown only to a caller who may read what it is about: types with a drawer use the drawer's read permission; mitigations, reports and frameworks use the permission guarding their pages (`mitigations:read`, `compliance:controls:read`, `reports:board:read`); governance records need `governance:audit:read`. Technical audit rows (onboarding, notification reads, unnamed routes) are not part of the journal. A mutation recorded by both audit writers appears once. A page can hold fewer events than `limit` after the permission filter; follow `next_cursor` until it is absent.
+         */
+        get: operations["getTenantTimeline"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/entities/{type}/{id}/timeline": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * One entity's history
+         * @description The merged history of one record, newest first: its audit trail plus, for a risk, score and status changes made by the score worker and, for an incident, its own journal. Same event shape and paging as `/timeline`. Field names that changed are listed; their values stay in the audit trail behind `governance:audit:read`.
+         */
+        get: operations["getEntityTimeline"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/analytics/financial": {
         parameters: {
             query?: never;
@@ -3620,6 +3660,52 @@ export interface components {
             /** @enum {string} */
             code: "wrong_password" | "wrong_code" | "mfa_required_by_role" | "no_local_password" | "not_enrolled" | "too_many_attempts" | "rejected" | "internal";
         };
+        TimelineActor: {
+            /** Format: uuid */
+            id?: string;
+            email?: string;
+            /** @description Display name when the user has one, else the email. */
+            label?: string;
+        };
+        TimelineChange: {
+            field: string;
+        };
+        TimelineEvent: {
+            id: string;
+            /** @description The verb (create, update, delete, approve, reject, defer, submit, …). */
+            kind: string;
+            /** Format: date-time */
+            occurred_at: string;
+            /** @description Absent for an event no person performed. */
+            actor?: components["schemas"]["TimelineActor"];
+            target: {
+                /** @description Drawer type, when the object has a drawer. */
+                type?: string;
+                id: string;
+            };
+            /** @description The audit trail's own wording, in English. */
+            summary: string;
+            /** @description Names of the fields that moved; no values. */
+            changes?: components["schemas"]["TimelineChange"][];
+            /** @enum {string} */
+            source: "audit" | "risk_history" | "incident_timeline" | "asset_snapshot";
+            /** @description Where the object opens in the console. */
+            target_url?: string;
+            /**
+             * @description Journal domain (tenant feed only).
+             * @enum {string}
+             */
+            domain?: "risk" | "incident" | "vulnerability" | "mitigation" | "evidence" | "compliance" | "report" | "asset" | "governance";
+            /** @description The object's name, when known (tenant feed only). */
+            object?: string;
+        };
+        TimelinePage: {
+            events: components["schemas"]["TimelineEvent"][];
+            /** @description Absent at the end of the history. */
+            next_cursor?: string;
+            /** @description Which journals were consulted, even when one added nothing. */
+            sources: ("audit" | "risk_history" | "incident_timeline" | "asset_snapshot")[];
+        };
         ErrorResponse: {
             /** @example Invalid input */
             error?: string;
@@ -3633,6 +3719,16 @@ export interface components {
         VendorPathId: string;
         /** @description The opaque questionnaire token from the link's URL fragment (ADR 0004 D4). Never send it in the path or the query string. */
         VendorAssessmentToken: string;
+        /** @description The previous page's next_cursor. Opaque. */
+        TimelineCursor: string;
+        /** @description Page size, 1 to 100 (default 25). */
+        TimelineLimit: number;
+        /** @description Only events with this verb (create, update, delete, …). */
+        TimelineKind: string;
+        /** @description Only events by this user. */
+        TimelineActor: string;
+        TimelineSince: string;
+        TimelineUntil: string;
     };
     requestBodies: never;
     headers: never;
@@ -4655,6 +4751,126 @@ export interface operations {
                 content?: never;
             };
             /** @description Risk not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getTenantTimeline: {
+        parameters: {
+            query?: {
+                /** @description The previous page's next_cursor. Opaque. */
+                cursor?: components["parameters"]["TimelineCursor"];
+                /** @description Page size, 1 to 100 (default 25). */
+                limit?: components["parameters"]["TimelineLimit"];
+                /** @description One journal domain. */
+                domain?: "risk" | "incident" | "vulnerability" | "mitigation" | "evidence" | "compliance" | "report" | "asset" | "governance";
+                /** @description Only events with this verb (create, update, delete, …). */
+                kind?: components["parameters"]["TimelineKind"];
+                /** @description Only events by this user. */
+                actor_id?: components["parameters"]["TimelineActor"];
+                since?: components["parameters"]["TimelineSince"];
+                until?: components["parameters"]["TimelineUntil"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One page of the journal */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TimelinePage"];
+                };
+            };
+            /** @description Malformed cursor, limit, actor_id, since or until, or an unknown domain */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No organization in the session */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getEntityTimeline: {
+        parameters: {
+            query?: {
+                /** @description The previous page's next_cursor. Opaque. */
+                cursor?: components["parameters"]["TimelineCursor"];
+                /** @description Page size, 1 to 100 (default 25). */
+                limit?: components["parameters"]["TimelineLimit"];
+                /** @description Only events with this verb (create, update, delete, …). */
+                kind?: components["parameters"]["TimelineKind"];
+                /** @description Only events by this user. */
+                actor_id?: components["parameters"]["TimelineActor"];
+                since?: components["parameters"]["TimelineSince"];
+                until?: components["parameters"]["TimelineUntil"];
+            };
+            header?: never;
+            path: {
+                type: "asset" | "risk" | "vulnerability" | "finding" | "control" | "incident" | "vendor" | "evidence";
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description One page of the entity's history */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TimelinePage"];
+                };
+            };
+            /** @description Malformed cursor or filter */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed to read this type */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such record in the caller's organization */
             404: {
                 headers: {
                     [name: string]: unknown;

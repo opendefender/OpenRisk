@@ -140,6 +140,10 @@ func (r *GormAuditChainRepository) filtered(ctx context.Context, tenantID uuid.U
 	if f.EntityType != "" {
 		q = q.Where("entity_type = ?", f.EntityType)
 	}
+	if len(f.EntityTypes) > 0 {
+		// Chained on the tenant_id filter of q above.
+		q = q.Where("entity_type IN ?", f.EntityTypes)
+	}
 	if f.EntityID != "" {
 		q = q.Where("entity_id = ?", f.EntityID)
 	}

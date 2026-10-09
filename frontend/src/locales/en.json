@@ -1356,5 +1356,64 @@
       "residualAle": "Residual ALE",
       "avoided": "Loss avoided / yr:"
     }
+  },
+  "activity": {
+    "title": "Activity",
+    "subtitle": "The organisation's journal, filtered to what your rights let you see.",
+    "filterLabel": "Filter the journal",
+    "filters": {
+      "all": "All",
+      "risk": "Risks",
+      "incident": "Incidents",
+      "vulnerability": "Vulnerabilities",
+      "mitigation": "Mitigations",
+      "evidence": "Evidence",
+      "compliance": "Compliance",
+      "report": "Reports"
+    },
+    "today": "Today",
+    "yesterday": "Yesterday",
+    "system": "OpenRisk",
+    "verb": {
+      "create": "created",
+      "update": "updated",
+      "delete": "deleted",
+      "approve": "approved",
+      "reject": "rejected",
+      "defer": "deferred",
+      "submit": "submitted",
+      "cancel": "cancelled",
+      "simulate": "simulated",
+      "status": "changed the status of",
+      "fallback": "acted on"
+    },
+    "noun": {
+      "risk": "the risk",
+      "incident": "the incident",
+      "vulnerability": "the vulnerability",
+      "mitigation": "the mitigation",
+      "evidence": "the evidence",
+      "compliance": "the compliance item",
+      "report": "the report",
+      "asset": "the asset"
+    },
+    "nounAfterDe": {
+      "risk": "the risk",
+      "incident": "the incident",
+      "vulnerability": "the vulnerability",
+      "mitigation": "the mitigation",
+      "evidence": "the evidence",
+      "compliance": "the compliance item",
+      "report": "the report",
+      "asset": "the asset"
+    },
+    "loadMore": "Show older entries",
+    "loadingMore": "Loading…",
+    "end": "Start of the journal",
+    "loadError": "The journal could not be loaded.",
+    "retry": "Retry",
+    "empty": "Nothing yet. What happens in the organisation shows up here.",
+    "emptyFiltered": "Nothing in this category yet.",
+    "showAll": "Show everything"
   }
 }

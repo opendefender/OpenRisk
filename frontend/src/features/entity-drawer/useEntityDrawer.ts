@@ -111,12 +111,13 @@ export function useEntityAudit(type: EntityType | null, id: string | null, enabl
 }
 
 /** The tenant-wide activity feed. */
-export function useTenantTimeline(kind?: string) {
+/** The organisation's journal, one journal domain or all of them (#905). */
+export function useTenantTimeline(domain?: string) {
   const tenant = useTenantKey();
   return useInfiniteQuery({
-    queryKey: [ENTITY_QUERY_ROOT, tenant, 'tenant-timeline', kind ?? 'all'] as const,
+    queryKey: [ENTITY_QUERY_ROOT, tenant, 'tenant-timeline', domain ?? 'all'] as const,
     queryFn: ({ pageParam }) =>
-      fetchTenantTimeline({ cursor: pageParam as string | undefined, limit: 30, kind }),
+      fetchTenantTimeline({ cursor: pageParam as string | undefined, limit: 30, domain }),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (last) => last.next_cursor || undefined,
     retry: false,

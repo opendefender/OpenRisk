@@ -5,6 +5,36 @@ recommends, and surfaces these in the daily brief. Run `/decide` to clear them.
 
 ## Open
 
+### D-069 — Console redesign: the owner's review of the epic · decided 2026-10-09
+**Decided** — Comments on #899, applying to every child issue still open:
+- **A. Risk score, no ambiguity.** The frozen formula is never bent to the mockup (no
+  "sur 25"). One source of truth for the computation; one display format in the register,
+  the matrix, the risk detail and exports; inherent and residual scores always labelled
+  as such; automated tests on both the figures and how they are shown.
+- **B. Dashboard keeps role and period.** The role selector stays where switching really
+  changes the view (it does: counters and priorities differ per business role). The
+  period control stays, and applies consistently to every period-bound indicator without
+  recomputing scores over another window. Alerts form a compact stack under the title,
+  critical first: active P1 incident, security block (e.g. MFA obligation), onboarding or
+  configuration action.
+- **C. One shared Select.** A single design-system Select replaces native selects:
+  keyboard navigation and visible focus, search on long lists, disabled / loading / error
+  states, accessible labels, menus not clipped by containers, Escape closes without
+  losing the value. Shared by filters, infrastructure forms, roles and mitigation owners.
+- **D. Topology keeps its power.** Zoom and pan, search and centre on an asset, node
+  selection with details, critical assets distinguished, an accessible list/table of
+  dependencies. Labels adapt to zoom; details on hover or selection.
+- **E. AI and Threat Intel claim no certainty.** Threat Intel relevance is explained
+  (assets, CVEs, sector, sources). The AI assistant entry stays on recommendations with
+  the risk's context, and is never the sole justification of a risk or compliance
+  decision. IOC matches are absent or explicitly unavailable until log ingestion exists.
+- **Validation checklist** (16 items) posted on #899; every child PR checks itself
+  against it, including 1440 px, 1280 px and a narrow viewport.
+**Supersedes** — D-067's "the design's role switch is not built".
+**Consequence** — #901 merged without the role switch, the period control and the
+alert stack: tracked as a follow-up. The shared Select is its own issue, a prerequisite
+for #912, #913, #914 and #923. A, D and E are noted on #913, #907, #911 and #920.
+
 ### D-068 — Loss-exceedance curve: sample how often losses happen? · raised 2026-10-09
 
 **Raised by** — #904, tracked in #931. A change to the quantification model, so it is
