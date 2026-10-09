@@ -1,93 +1,153 @@
 // Copyright (c) 2026 OpenDefender Contributors
 // SPDX-License-Identifier: AGPL-3.0-only
 //
-// The full Action Center, at /action-center (#433).
+// The Action Center of the October 2026 redesign (#902).
 //
-// The dashboard panel shows the top of the queue. This is the whole of it. It
-// exists because the panel could show eight rows and then tell a user with
-// forty outstanding items that thirty-two more were waiting somewhere they
-// could not go — a true statement the user was unable to act on.
+// One column at 1000 px: a sentence that says how much is waiting and how much
+// of it is late, filter chips by kind with their counts, then the work grouped
+// by deadline — overdue, this week, later, no date. Within a group the order
+// is the server's (category rank, then each category's own key); the client
+// only buckets by date and never re-sorts.
 //
-// THE PAGE LIVES IN THE URL. `?page=3` is a real, shareable, back-button-able
-// address, not component state. That is the route tree's own rule (see the
-// header of shared/routeModel.ts: "every sub-view is a route, never component
-// state"), and it is why the pager reads and writes search params rather than
-// useState.
-//
-// It does NOT use DataTable, deliberately. DataTable sorts, filters and pages
-// over rows it holds in memory; this list is ordered by the server, paged by the
-// server, and must not be re-sorted at any point (#430 AC1, #433 AC4). Handing
-// it to a component whose job is to reorder rows would be arguing with the
-// server about the one thing the server is authoritative on.
+// The page reads up to 100 items, the API's maximum page, so the chips and
+// groups count the whole list. Past 100 the pager takes over.
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router';
+import { useQueryClient } from '@tanstack/react-query';
 import { ChevronLeft, ChevronRight, CircleCheck } from 'lucide-react';
 
 import { useI18n, interpolate } from '../../hooks/useI18n';
-import { EmptyState, ErrorState, PageFrame, PageHeader, Skeleton } from '../../shared/ui';
-import { useActionItems, PAGE_LIMIT } from './useActionItems';
-import { linkableItems } from './actionLinks';
+import { ErrorState, PageHeader, Skeleton } from '../../shared/ui';
+import { useSoftDelete } from '../../shared/useSoftDelete';
+import { useActionItems, PAGE_LIMIT as PAGE_SIZE } from './useActionItems';
+import { linkableItems, type LinkableActionItem } from './actionLinks';
 import { pageFromParam } from './paging';
 import { ActionItemRow } from './ActionItemRow';
+import { FILTER_ORDER, completionFor, filterOf, type ActionFilter } from './actionKinds';
+import { dueGroup, type DueGroup } from './actionFacts';
 
-const SKELETON_ROWS = 8;
+const GROUPS: DueGroup[] = ['late', 'week', 'later', 'none'];
 
 export function ActionCenterPage() {
   const { t } = useI18n();
+  const qc = useQueryClient();
   const [params, setParams] = useSearchParams();
+  const [filter, setFilter] = useState<ActionFilter>('all');
 
   const page = pageFromParam(params.get('page'));
-  const offset = (page - 1) * PAGE_LIMIT;
+  const offset = (page - 1) * PAGE_SIZE;
+  const { items, total, isLoading, isError, refetch } = useActionItems({ limit: PAGE_SIZE, offset });
+  const linkable = useMemo(() => linkableItems(items), [items]);
 
-  const { items, total, isLoading, isError, refetch } = useActionItems({
-    limit: PAGE_LIMIT,
-    offset,
+  const done = useSoftDelete<LinkableActionItem>({
+    idOf: (row) => row.item.id,
+    message: (row) => interpolate(t('actionCenter.doneToast'), { title: row.item.title }),
+    failureMessage: () => t('actionCenter.doneFailed'),
+    onCommit: async (id) => {
+      const row = linkable.find((r) => r.item.id === id);
+      const complete = row ? completionFor(row.item) : undefined;
+      if (!complete) return;
+      await complete();
+      // Wait for the lists to re-read before the row is un-hidden, so it does
+      // not flash back between the call and the refetch.
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ['action-center'] }),
+        qc.invalidateQueries({ queryKey: ['nav-counts'] }),
+      ]);
+    },
   });
 
-  // Filtering, never sorting: an item whose deep_link does not resolve is
-  // dropped and logged rather than rendered as a row that goes nowhere. Order
-  // is the server's, on this page as on every other.
-  const rows = useMemo(() => linkableItems(items), [items]);
+  const rows = useMemo(
+    () => linkable.filter((r) => !done.pending.has(r.item.id)),
+    [linkable, done.pending],
+  );
 
-  const pageCount = Math.max(1, Math.ceil(total / PAGE_LIMIT));
-  const firstOnPage = total === 0 ? 0 : offset + 1;
-  const lastOnPage = Math.min(offset + rows.length, total);
+  const counts = useMemo(() => {
+    const c: Record<ActionFilter, number> = {
+      all: rows.length,
+      approval: 0,
+      vuln: 0,
+      plans: 0,
+      incident: 0,
+      compliance: 0,
+      vendor: 0,
+    };
+    for (const r of rows) {
+      const f = filterOf(r.item);
+      if (f) c[f] += 1;
+    }
+    return c;
+  }, [rows]);
 
+  const shown = filter === 'all' ? rows : rows.filter((r) => filterOf(r.item) === filter);
+  const grouped = GROUPS.map((g) => ({ g, rows: shown.filter((r) => dueGroup(r.item) === g) })).filter(
+    (x) => x.rows.length > 0,
+  );
+  const late = rows.filter((r) => dueGroup(r.item) === 'late').length;
+
+  const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const goTo = (next: number) => {
     const clamped = Math.min(Math.max(1, next), pageCount);
     const updated = new URLSearchParams(params);
-    // Page 1 is the bare URL. Carrying ?page=1 around makes two addresses for
-    // one view, which is the sort of thing that ends up in a shared link.
     if (clamped === 1) updated.delete('page');
     else updated.set('page', String(clamped));
     setParams(updated);
   };
-
-  // The pager stays mounted while a page change is in flight. Gating it on
-  // `!isLoading` made the control disappear under the cursor on every click:
-  // moving to page 2 is a new query key, so React Query reports isLoading again
-  // and the whole pager unmounted mid-interaction. It stays put and goes
-  // disabled instead — and while the count is unknown it renders a dash rather
-  // than a number it does not have, because "2/1" would be worse than "2/—".
-  const countKnown = !isLoading && !isError;
-  const showPager = !isError && (total > PAGE_LIMIT || page > 1);
+  const ready = !isLoading && !isError;
+  const nothingAtAll = rows.length === 0 && page === 1;
 
   return (
-    <PageFrame>
-      <PageHeader
-        title={t('actionCenter.title')}
-        count={!isLoading && !isError && total > 0 ? String(total) : null}
-      />
+    <div className="flex-1 overflow-y-auto">
+      <div className="mx-auto max-w-[1064px] px-5 sm:px-8 pt-6 pb-16 motion-safe:animate-or-fadeup">
+        <PageHeader
+          title={t('actionCenter.title')}
+          subtitle={
+            ready ? (
+              <span data-testid="action-center-summary">
+                {t('actionCenter.summary', { count: total })}
+                {late > 0 && ` · ${t('actionCenter.summaryLate', { count: late })}`}
+              </span>
+            ) : (
+              <span className="or-skeleton inline-block h-3 w-48 rounded" aria-hidden="true" />
+            )
+          }
+        />
 
-      <p className="mb-4 text-xs text-fg-muted">{t('actionCenter.subtitle')}</p>
+        {ready && rows.length > 0 && (
+          <div
+            className="flex gap-1.5 flex-wrap mb-[18px]"
+            role="group"
+            aria-label={t('actionCenter.filters.label')}
+          >
+            {FILTER_ORDER.filter((f) => f !== 'incident' || counts.incident > 0).map((f) => {
+              const on = f === filter;
+              return (
+                <button
+                  key={f}
+                  type="button"
+                  aria-pressed={on}
+                  onClick={() => setFilter(f)}
+                  data-testid={`action-filter-${f}`}
+                  className={`h-[30px] px-3 rounded-full border text-[12.5px] font-semibold flex items-center gap-1.5 transition-colors hover:border-border-strong ${
+                    on
+                      ? 'bg-surface-3 border-border-strong text-ink'
+                      : 'bg-transparent border-border-default text-ink-soft'
+                  }`}
+                >
+                  {t(`actionCenter.filters.${f}`)}
+                  <span className="mono text-[11px] text-ink-muted">{counts[f]}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
 
-      <div className="or-card p-4" data-testid="action-center-page">
         {isLoading && (
           <div data-testid="action-center-skeleton" aria-busy="true" aria-live="polite">
             <span className="sr-only">{t('actionCenter.loading')}</span>
-            {Array.from({ length: SKELETON_ROWS }).map((_, index) => (
-              <Skeleton key={index} className="mb-1.5 h-11 w-full" />
+            {Array.from({ length: 6 }).map((_, i) => (
+              <Skeleton key={i} className="mb-1.5 h-[62px] w-full rounded-[12px]" />
             ))}
           </div>
         )}
@@ -103,81 +163,86 @@ export function ActionCenterPage() {
           </div>
         )}
 
-        {!isLoading && !isError && rows.length === 0 && (
-          <div data-testid="action-center-empty">
-            <EmptyState
-              variant="first-use"
-              icon={CircleCheck}
-              title={
-                // Page 1 empty and page 7 empty are different facts with
-                // different remedies: one means nothing is outstanding, the
-                // other means this page number is past the end of the list.
-                page > 1 ? t('actionCenter.emptyPageTitle') : t('actionCenter.emptyTitle')
-              }
-              description={
-                page > 1
-                  ? t('actionCenter.emptyPageDescription')
-                  : t('actionCenter.emptyDescription')
-              }
-            />
+        {ready && grouped.length === 0 && (
+          <div
+            data-testid="action-center-empty"
+            className="px-6 py-14 text-center border border-dashed border-border-default rounded-[14px]"
+          >
+            <CircleCheck size={28} className="mx-auto text-success-text" aria-hidden="true" />
+            <div className="text-[15px] font-semibold text-ink mt-2.5">
+              {page > 1
+                ? t('actionCenter.emptyPageTitle')
+                : nothingAtAll
+                  ? t('actionCenter.emptyTitle')
+                  : t('actionCenter.emptyFilterTitle')}
+            </div>
+            <div className="text-[13px] text-ink-muted mt-1">
+              {page > 1
+                ? t('actionCenter.emptyPageDescription')
+                : nothingAtAll
+                  ? t('actionCenter.emptyDescription')
+                  : t('actionCenter.emptyFilterBody')}
+            </div>
           </div>
         )}
 
-        {!isLoading && !isError && rows.length > 0 && (
-          <ul className="m-0 list-none p-0" data-testid="action-center-list">
-            {rows.map(({ item, href }) => (
-              <ActionItemRow key={item.id} item={item} href={href} />
-            ))}
-          </ul>
-        )}
-      </div>
+        {ready &&
+          grouped.map(({ g, rows: list }) => (
+            <section key={g} className="mb-[22px]" data-testid={`action-group-${g}`}>
+              <div className="flex items-center gap-2 mb-2">
+                <h2
+                  className="m-0 text-[10.5px] tracking-[0.06em] uppercase font-semibold"
+                  style={{ color: g === 'late' ? 'var(--danger-text)' : 'var(--fg-muted)' }}
+                >
+                  {t(`actionCenter.groups.${g}`)}
+                </h2>
+                <span className="mono text-[11px] text-ink-muted">{list.length}</span>
+              </div>
+              <ul
+                className="m-0 p-0 list-none bg-surface-1 border border-border-subtle rounded-[14px] overflow-hidden"
+                data-testid="action-center-list"
+              >
+                {list.map((row) => (
+                  <ActionItemRow
+                    key={row.item.id}
+                    item={row.item}
+                    href={row.href}
+                    onDone={completionFor(row.item) ? () => done.remove(row) : undefined}
+                  />
+                ))}
+              </ul>
+            </section>
+          ))}
 
-      {showPager && (
-        <div className="mt-3 flex flex-wrap items-center gap-3">
-          <span
-            className="text-xs text-fg-muted"
-            data-testid="action-center-range"
-            aria-live="polite"
-          >
-            {countKnown
-              ? interpolate(t('actionCenter.range'), { from: firstOnPage, to: lastOnPage, total })
-              : ''}
-          </span>
-          <div className="flex-1" />
-          <div className="inline-flex items-center gap-1">
+        {ready && (total > PAGE_SIZE || page > 1) && (
+          <div className="mt-3 flex items-center justify-end gap-1">
             <button
               type="button"
               onClick={() => goTo(page - 1)}
-              disabled={!countKnown || page <= 1}
+              disabled={page <= 1}
               aria-label={t('actionCenter.previousPage')}
               data-testid="action-center-prev"
-              className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border-default text-fg-secondary hover:bg-hover disabled:pointer-events-none disabled:opacity-40"
+              className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border-default text-fg-secondary hover:bg-surface-3 disabled:pointer-events-none disabled:opacity-40"
             >
               <ChevronLeft size={15} aria-hidden="true" />
             </button>
-            <span
-              className="px-1.5 text-xs text-fg-primary"
-              data-testid="action-center-page-indicator"
-            >
-              {interpolate(t('actionCenter.pageOf'), {
-                page,
-                pageCount: countKnown ? pageCount : '—',
-              })}
+            <span className="px-1.5 text-xs text-fg-primary" data-testid="action-center-page-indicator">
+              {interpolate(t('actionCenter.pageOf'), { page, pageCount })}
             </span>
             <button
               type="button"
               onClick={() => goTo(page + 1)}
-              disabled={!countKnown || page >= pageCount}
+              disabled={page >= pageCount}
               aria-label={t('actionCenter.nextPage')}
               data-testid="action-center-next"
-              className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border-default text-fg-secondary hover:bg-hover disabled:pointer-events-none disabled:opacity-40"
+              className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border-default text-fg-secondary hover:bg-surface-3 disabled:pointer-events-none disabled:opacity-40"
             >
               <ChevronRight size={15} aria-hidden="true" />
             </button>
           </div>
-        </div>
-      )}
-    </PageFrame>
+        )}
+      </div>
+    </div>
   );
 }
 

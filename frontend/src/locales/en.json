@@ -391,8 +391,77 @@
       "open_incident": "Open incident",
       "expiring_evidence": "Expiring evidence",
       "overdue_remediation": "Overdue remediation",
-      "unknown": "Action required"
-    }
+      "unknown": "Action required",
+      "vulnerability_sla": "Vulnerability deadline",
+      "vendor_followup": "Vendor follow-up",
+      "mitigation_review": "Mitigation to validate"
+    },
+    "summary": {
+      "exact": {
+        "0": "Nothing is waiting for you"
+      },
+      "one": "{count} action is waiting for you",
+      "other": "{count} actions are waiting for you"
+    },
+    "summaryLate": "{count} overdue",
+    "filters": {
+      "all": "All",
+      "approval": "Approvals",
+      "vuln": "Vulnerabilities",
+      "plans": "Risks and plans",
+      "incident": "Incidents",
+      "compliance": "Compliance",
+      "vendor": "Third parties",
+      "label": "Filter by type"
+    },
+    "groups": {
+      "late": "Overdue",
+      "week": "This week",
+      "later": "Later",
+      "none": "No due date"
+    },
+    "kind": {
+      "overdue_mitigation": "Mitigation",
+      "mitigation_review": "Mitigation",
+      "critical_risk": "Risk",
+      "pending_approval": "Approval",
+      "open_incident": "Incident",
+      "expiring_evidence": "Evidence",
+      "overdue_remediation": "Remediation",
+      "vulnerability_sla": "Vulnerability",
+      "vendor_followup": "Third party"
+    },
+    "cta": {
+      "overdue_mitigation": "Open",
+      "mitigation_review": "Validate",
+      "critical_risk": "Review",
+      "pending_approval": "Examine",
+      "open_incident": "Open",
+      "expiring_evidence": "Renew",
+      "overdue_remediation": "Open",
+      "vulnerability_sla": "Open",
+      "vendor_followup": "Follow up",
+      "unknown": "Open"
+    },
+    "fact": {
+      "kev": "KEV",
+      "slaBreached": "SLA breached",
+      "slaDue": "SLA running",
+      "overdue": "past due",
+      "inReview": "waiting for your validation",
+      "noPlan": "no active mitigation",
+      "expired": "expired",
+      "expiring": "expiring soon",
+      "unanswered": {
+        "one": "no answer for {count} day",
+        "other": "no answer for {count} days"
+      }
+    },
+    "done": "Mark as done",
+    "doneToast": "Action done: {title}",
+    "doneFailed": "The action could not be completed. It is back in the list.",
+    "emptyFilterTitle": "Nothing waiting in this category",
+    "emptyFilterBody": "New requests show up here as soon as they are assigned to you."
   },
   "savedViews": {
     "loading": "Loading your views…",
@@ -1113,22 +1182,13 @@
       "exec": "Decisions and risks to follow",
       "link": "Action center",
       "empty": "Nothing urgent. Actions show up here as soon as a deadline gets close.",
-      "type": {
-        "overdue_mitigation": "Mitigation",
-        "critical_risk": "Risk",
-        "pending_approval": "Approval",
-        "open_incident": "Incident",
-        "expiring_evidence": "Evidence",
-        "overdue_remediation": "Remediation"
-      },
       "overdue": {
         "one": "{count} d overdue",
         "other": "{count} d overdue"
       },
       "today": "Today",
       "tomorrow": "Tomorrow",
-      "inDays": "In {count} d",
-      "unknownType": "Action required"
+      "inDays": "In {count} d"
     },
     "activity": {
       "title": "Recent activity",

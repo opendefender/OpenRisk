@@ -155,7 +155,9 @@ func (r *ActionCenterRepository) OpenIncidents(tenantID uuid.UUID, limit int) ([
 	var rows []domain.Incident
 	err := r.db.
 		Where("tenant_id = ?", tenantID.String()).
-		Where("status IN ?", []string{"open", "investigating"}).
+		// "in_progress" is the status the incident API actually writes for an
+		// incident under way; "investigating" is kept for older rows (#902).
+		Where("status IN ?", []string{"open", "in_progress", "investigating"}).
 		Order("created_at ASC").
 		Limit(limit).
 		Find(&rows).Error
@@ -198,4 +200,81 @@ func (r *ActionCenterRepository) OverdueRemediationPlans(tenantID uuid.UUID, now
 // Compile-time proof that the GORM implementation still satisfies the port the
 // use case declares. Without this the two drift apart silently until main.go
 // fails to build, which is a worse place to find out.
+// VulnerabilitiesDueBy returns findings still to fix whose remediation deadline
+// falls on or before `by` — overdue ones included (#902).
+func (r *ActionCenterRepository) VulnerabilitiesDueBy(tenantID uuid.UUID, by time.Time, limit int) ([]domain.Vulnerability, error) {
+	if err := guard(tenantID); err != nil {
+		return nil, err
+	}
+	var rows []domain.Vulnerability
+	err := r.db.
+		Where("tenant_id = ?", tenantID).
+		Where("status IN ?", []string{
+			string(domain.VulnStatusOpen), string(domain.VulnStatusTriaged), string(domain.VulnStatusInRemediation),
+		}).
+		Where("sla_due_at IS NOT NULL AND sla_due_at <= ?", by).
+		Order("sla_due_at ASC").
+		Limit(limit).
+		Find(&rows).Error
+	return rows, err
+}
+
+// VendorAssessmentsDueBy returns questionnaires sent and not answered whose
+// due date falls on or before `by`, with the vendor's name (#902). The vendor
+// is an asset of this tenant; the join repeats the tenant on both sides.
+func (r *ActionCenterRepository) VendorAssessmentsDueBy(tenantID uuid.UUID, by time.Time, limit int) ([]actioncenter.VendorFollowUp, error) {
+	if err := guard(tenantID); err != nil {
+		return nil, err
+	}
+	var rows []domain.VendorAssessment
+	err := r.db.
+		Where("tenant_id = ?", tenantID).
+		Where("status IN ?", []string{string(domain.VendorAssessmentSent), string(domain.VendorAssessmentInProgress)}).
+		Where("due_at <= ?", by).
+		Order("due_at ASC").
+		Limit(limit).
+		Find(&rows).Error
+	if err != nil || len(rows) == 0 {
+		return nil, err
+	}
+	ids := make([]uuid.UUID, 0, len(rows))
+	for _, a := range rows {
+		ids = append(ids, a.VendorAssetID)
+	}
+	var vendors []domain.Asset
+	if err := r.db.Select("id", "name").
+		Where("tenant_id = ? AND id IN ?", tenantID, ids).
+		Find(&vendors).Error; err != nil {
+		return nil, err
+	}
+	names := make(map[uuid.UUID]string, len(vendors))
+	for _, v := range vendors {
+		names[v.ID] = v.Name
+	}
+	out := make([]actioncenter.VendorFollowUp, 0, len(rows))
+	for _, a := range rows {
+		name, ok := names[a.VendorAssetID]
+		if !ok {
+			continue // vendor gone or not this tenant's: no row to send anyone to
+		}
+		out = append(out, actioncenter.VendorFollowUp{Assessment: a, VendorName: name})
+	}
+	return out, nil
+}
+
+// MitigationsInReview returns plans waiting for someone to validate them (#902).
+func (r *ActionCenterRepository) MitigationsInReview(tenantID uuid.UUID, limit int) ([]domain.Mitigation, error) {
+	if err := guard(tenantID); err != nil {
+		return nil, err
+	}
+	var rows []domain.Mitigation
+	err := r.db.
+		Where("tenant_id = ?", tenantID).
+		Where("status = ?", string(domain.MitigationReview)).
+		Order("updated_at ASC").
+		Limit(limit).
+		Find(&rows).Error
+	return rows, err
+}
+
 var _ actioncenter.Repository = (*ActionCenterRepository)(nil)

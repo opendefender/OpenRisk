@@ -4,38 +4,21 @@
 // The first five items of the member's action center, filtered to what their
 // view acts on (#901). The order is the server's; the list never re-sorts.
 
-import {
-  CheckCheck,
-  ClipboardCheck,
-  FolderClock,
-  ShieldAlert,
-  ShieldCheck,
-  Siren,
-  type LucideIcon,
-} from 'lucide-react';
 import { Link } from 'react-router';
 import { useI18n } from '../../../hooks/useI18n';
-import { formatDate } from '../../../i18n/format';
 import { useActionItems } from '../../action-center/useActionItems';
 import type { ActionItemType } from '../../action-center/actionCenterService';
 import { linkableItems } from '../../action-center/actionLinks';
+import { iconFor, kindOf } from '../../action-center/actionKinds';
 import type { DashboardVariant } from '../dashboardVariant';
-import { daysUntil } from './dates';
+import { DuePill } from '../../action-center/DuePill';
 import { BlockEmpty, BlockError, BlockSkeleton, HeaderLink, Panel, PanelTitle } from './Panel';
 
-const ICON: Record<ActionItemType, LucideIcon> = {
-  overdue_mitigation: ShieldCheck,
-  critical_risk: ShieldAlert,
-  pending_approval: CheckCheck,
-  open_incident: Siren,
-  expiring_evidence: FolderClock,
-  overdue_remediation: ClipboardCheck,
-};
 
 // What each view acts on. The RSSI view takes everything.
 const KINDS: Record<DashboardVariant, ActionItemType[] | null> = {
   rssi: null,
-  rm: ['critical_risk', 'overdue_mitigation', 'pending_approval'],
+  rm: ['critical_risk', 'overdue_mitigation', 'mitigation_review', 'pending_approval', 'vendor_followup'],
   audit: ['expiring_evidence', 'overdue_remediation', 'pending_approval'],
   exec: ['pending_approval', 'critical_risk'],
 };
@@ -77,7 +60,7 @@ export function PriorityList({
         </div>
       ) : (
         shown.map(({ item: a, href }) => {
-          const Icon = ICON[a.type] ?? ShieldAlert;
+          const Icon = iconFor(a.type);
           return (
             <Link
               key={a.id}
@@ -90,9 +73,9 @@ export function PriorityList({
               <span className="flex-1 min-w-0">
                 <span className="block text-[13px] font-medium text-ink truncate">{a.title}</span>
                 <span className="block text-[11.5px] text-ink-muted truncate">
-                  {a.type in ICON
-                    ? t(`dashboard.priorities.type.${a.type}`)
-                    : t('dashboard.priorities.unknownType')}
+                  {kindOf(a.type)
+                    ? t(`actionCenter.kind.${a.type}`)
+                    : t('actionCenter.types.unknown')}
                 </span>
               </span>
               {a.due_at && <DuePill iso={a.due_at} />}
@@ -101,30 +84,5 @@ export function PriorityList({
         })
       )}
     </Panel>
-  );
-}
-
-function DuePill({ iso }: { iso: string }) {
-  const { t, locale } = useI18n();
-  const n = daysUntil(iso);
-  let label: string;
-  let style: { background: string; color: string };
-  if (n < 0) {
-    label = t('dashboard.priorities.overdue', { count: -n });
-    style = { background: 'var(--danger-surface)', color: 'var(--danger-text)' };
-  } else if (n === 0) {
-    label = t('dashboard.priorities.today');
-    style = { background: 'var(--warning-surface)', color: 'var(--warning-text)' };
-  } else if (n <= 7) {
-    label = n === 1 ? t('dashboard.priorities.tomorrow') : t('dashboard.priorities.inDays', { count: n });
-    style = { background: 'var(--surface-3)', color: 'var(--fg-secondary)' };
-  } else {
-    label = formatDate(locale, iso, { day: 'numeric', month: 'short' });
-    style = { background: 'var(--surface-3)', color: 'var(--fg-muted)' };
-  }
-  return (
-    <span className="text-[11px] font-semibold px-2 py-[3px] rounded-full whitespace-nowrap" style={style}>
-      {label}
-    </span>
   );
 }

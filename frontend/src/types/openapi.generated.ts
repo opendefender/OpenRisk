@@ -66,8 +66,185 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get current user profile */
-        get: operations["getCurrentUser"];
+        /** Get the caller's own profile and effective preferences */
+        get: operations["getMyProfile"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update the caller's own profile and preferences
+         * @description Partial update of the session's own user; no field selects another account. An omitted field is unchanged, an empty string clears it (full_name cannot be cleared). Email, username, role and status are not writable here.
+         */
+        patch: operations["updateMyProfile"];
+        trace?: never;
+    };
+    "/users/me/avatar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Upload the caller's avatar
+         * @description PNG, JPEG or WebP, at most 1 MB, decided by the file's bytes. Replaces and deletes any previous avatar.
+         */
+        put: operations["uploadMyAvatar"];
+        post?: never;
+        /** Remove the caller's avatar */
+        delete: operations["deleteMyAvatar"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/users/{id}/avatar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read a user's avatar
+         * @description Served only when the user is an active member of the caller's organization; otherwise 404, exactly as for a user that does not exist.
+         */
+        get: operations["getUserAvatar"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/password/change": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Change the signed-in user's own password
+         * @description Requires the current password; the new one must pass the password policy. On success every session of the user ends and the calling device is given a fresh one (new session cookies, and the pair in the body), and a notice is emailed. If no new session can be minted, `reauthenticate` is true. Rate limited with the other authentication routes. No password is ever logged or echoed.
+         */
+        post: operations["changePassword"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The signed-in user, their MFA state and how they can prove who they are
+         * @description Re-read on every call, never taken from the token alone. `mfa` is omitted when the server cannot resolve it (read that as unknown, not as "fine"). `has_password` is false for an account that signs in through an identity provider; such an account confirms sensitive changes, like turning MFA off, with an authenticator code instead (#754, D-061). It is a boolean, never the hash.
+         */
+        get: operations["getMe"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/mfa/disable": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Turn off two-factor authentication for the signed-in user
+         * @description An open session is not enough (#754). The body carries the current `password`, or, when `/auth/me` says `has_password: false`, a current six-digit `code` from the authenticator app; backup codes are not accepted, and a code never replaces the password of an account that has one. Refused for roles the deployment requires MFA for. Each attempt counts against a per-account budget of 5 per 15 minutes (on top of the per-IP limit). On success the TOTP secret and every backup code are deleted in one transaction, the attempt is audited, and the owner is notified by email and in-app. Neither the password nor the code is ever logged or echoed. Errors carry a stable `code` (see DisableMFAError).
+         */
+        post: operations["disableMfa"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/organization": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get the caller's organization profile
+         * @description Requires organization:read or organization:members:read. The organization is the session's tenant.
+         */
+        get: operations["getOrganization"];
+        /**
+         * Update the caller's organization profile and regional settings
+         * @description Requires organization:update. Partial update — an omitted field is left unchanged, an empty string clears an optional field. The organization is the session's tenant; there is no id to choose. Settings keys this endpoint does not own (such as the display currency) are preserved.
+         */
+        put: operations["updateOrganization"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/organization/logo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read the caller's organization logo
+         * @description Any member. There is no id; only the session's organization is readable.
+         */
+        get: operations["getOrganizationLogo"];
+        /**
+         * Upload the organization logo
+         * @description Requires organization:update. PNG, JPEG or WebP, at most 1 MB, decided by the file's bytes. Replaces and deletes any previous logo.
+         */
+        put: operations["uploadOrganizationLogo"];
+        post?: never;
+        /**
+         * Remove the organization logo
+         * @description Requires organization:update.
+         */
+        delete: operations["deleteOrganizationLogo"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/organization/branding": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read the caller's organization branding
+         * @description Any member — every member's interface wears the name, logo and accent.
+         */
+        get: operations["getOrganizationBranding"];
         put?: never;
         post?: never;
         delete?: never;
@@ -184,6 +361,66 @@ export interface paths {
         get: operations["getFinancialSummary"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/risks/{id}/transfer-owner": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Transfer the ownership of a risk to another member
+         * @description Hands the owner slot to another active member of the caller's organisation, and changes nothing else. The previous owner is captured before the write, the audit trail records a `transfer` entry (previous owner → new owner, actor), and the new owner receives an in-app notification unless they performed the transfer themselves. Requires `risks:update`. A risk of another organisation reads as not found.
+         */
+        post: operations["transferRiskOwner"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/mitigations/{id}/transfer-owner": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Transfer the ownership of a mitigation to another member
+         * @description Hands the owner slot to another active member of the caller's organisation, and changes nothing else. The previous owner is captured before the write, the audit trail records a `transfer` entry (previous owner → new owner, actor), and the new owner receives an in-app notification unless they performed the transfer themselves. Requires `mitigations:update`. A mitigation of another organisation reads as not found.
+         */
+        post: operations["transferMitigationOwner"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/incidents/{id}/transfer-owner": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Transfer the ownership of an incident to another member
+         * @description Hands the owner slot to another active member of the caller's organisation, and changes nothing else. The previous owner is captured before the write, the audit trail records a `transfer` entry (previous owner → new owner, actor), and the new owner receives an in-app notification unless they performed the transfer themselves. Requires `incidents:update`. An incident of another organisation reads as not found.
+         */
+        post: operations["transferIncidentOwner"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1749,11 +1986,11 @@ export interface components {
              */
             id: string;
             /** @enum {string} */
-            type: "overdue_mitigation" | "critical_risk" | "pending_approval" | "open_incident" | "expiring_evidence" | "overdue_remediation";
+            type: "overdue_mitigation" | "critical_risk" | "pending_approval" | "open_incident" | "expiring_evidence" | "overdue_remediation" | "vulnerability_sla" | "vendor_followup" | "mitigation_review";
             /** @description The underlying record's own title, never a generated sentence. */
             title: string;
             /** @enum {string} */
-            subject_resource_type: "mitigation" | "risk" | "approval_request" | "incident" | "evidence" | "remediation_plan";
+            subject_resource_type: "mitigation" | "risk" | "approval_request" | "incident" | "evidence" | "remediation_plan" | "vulnerability" | "vendor_assessment";
             /** @description The record's own id. A uuid for every type except incident, which is an integer rendered as a string. */
             subject_resource_id: string;
             /**
@@ -1766,10 +2003,14 @@ export interface components {
              * @description Due date, expiry or approval deadline, depending on the type. Null when the category has no date.
              */
             due_at?: string | null;
-            /** @description 1 overdue_mitigation, 2 critical_risk, 3 pending_approval, 4 open_incident, 5 expiring_evidence, 6 overdue_remediation. This is the primary sort key, exposed so a client can group without re-deriving the rule. */
+            /** @description 1 overdue_mitigation, 2 critical_risk, 3 pending_approval, 4 open_incident, 5 expiring_evidence, 6 overdue_remediation, 7 vulnerability_sla, 8 vendor_followup, 9 mitigation_review. This is the primary sort key, exposed so a client can group without re-deriving the rule. */
             category_rank: number;
             /** Format: uuid */
             tenant_id: string;
+            /** @description Facts about the record shown beside its title, keyed by name: status, severity, cve_id, asset_name, kev ("true"), sent_at. Facts only, never a generated sentence; absent keys are unknown. */
+            meta?: {
+                [key: string]: string;
+            };
         };
         ActionCenterResponse: {
             /** @description Always an array. Empty when nothing is outstanding. */
@@ -3184,6 +3425,153 @@ export interface components {
             state?: components["schemas"]["SavedViewState"];
             columns?: components["schemas"]["SavedViewColumns"];
         };
+        OrganizationView: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            slug: string;
+            logo_url?: string;
+            industry?: string;
+            /** @enum {string} */
+            size?: "1-50" | "51-200" | "201-1000" | "1000+";
+            plan: string;
+            is_active: boolean;
+            /** Format: uuid */
+            owner_id: string;
+            owner_name?: string;
+            /** @description IANA time zone */
+            timezone?: string;
+            /** Format: uri */
+            website?: string;
+            description?: string;
+            /** @enum {string} */
+            default_locale?: "fr" | "en";
+            /** @enum {string} */
+            date_format?: "DD/MM/YYYY" | "MM/DD/YYYY" | "YYYY-MM-DD";
+            has_logo?: boolean;
+            /** @enum {string} */
+            accent?: "azure" | "iris";
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+            counts: {
+                [key: string]: number;
+            };
+            can_edit: boolean;
+        };
+        OrganizationProfilePatch: {
+            name?: string;
+            industry?: string;
+            /** @enum {string} */
+            size?: "" | "1-50" | "51-200" | "201-1000" | "1000+";
+            /** @description Absolute https:// URL, or empty to clear */
+            website?: string;
+            description?: string;
+            /** @description IANA time zone, or empty to clear */
+            timezone?: string;
+            /** @enum {string} */
+            default_locale?: "" | "fr" | "en";
+            /** @enum {string} */
+            date_format?: "" | "DD/MM/YYYY" | "MM/DD/YYYY" | "YYYY-MM-DD";
+            /**
+             * @description A design-system accent preset; free colours are refused
+             * @enum {string}
+             */
+            accent?: "" | "azure" | "iris";
+        };
+        OrganizationBranding: {
+            name: string;
+            has_logo: boolean;
+            /** @enum {string} */
+            accent?: "azure" | "iris";
+        };
+        MyProfile: {
+            /** Format: uuid */
+            id: string;
+            email: string;
+            username: string;
+            full_name: string;
+            job_title: string;
+            phone: string;
+            bio: string;
+            timezone: string;
+            locale: string;
+            date_format: string;
+            theme_mode: string;
+            has_avatar: boolean;
+            avatar_url?: string;
+            effective: {
+                timezone?: string;
+                locale?: string;
+                date_format?: string;
+            };
+            /** Format: date-time */
+            updated_at: string;
+        };
+        UserProfilePatch: {
+            full_name?: string;
+            job_title?: string;
+            phone?: string;
+            bio?: string;
+            /** @description IANA time zone, or empty to follow the organization */
+            timezone?: string;
+            /** @enum {string} */
+            locale?: "" | "fr" | "en";
+            /** @enum {string} */
+            date_format?: "" | "DD/MM/YYYY" | "MM/DD/YYYY" | "YYYY-MM-DD";
+            /** @enum {string} */
+            theme_mode?: "" | "light" | "dark" | "system";
+        };
+        TransferOwnerRequest: {
+            /**
+             * Format: uuid
+             * @description User id of the new owner. Must be an active member of the organisation.
+             */
+            new_owner_id: string;
+        };
+        TransferOwnershipResult: {
+            /** @enum {string} */
+            entity_type: "risk" | "mitigation" | "incident";
+            /** @description The entity id as it appears in the path (a uuid, or an integer for incidents). */
+            entity_id: string;
+            /**
+             * Format: uuid
+             * @description Null when the entity had no owner.
+             */
+            previous_owner_id: string | null;
+            /** Format: uuid */
+            owner_id: string;
+            /** Format: date-time */
+            transferred_at: string;
+        };
+        MeResponse: {
+            user: components["schemas"]["User"];
+            /** Format: uuid */
+            organization_id: string;
+            /** @description False for an identity-provider account with no local password. */
+            has_password: boolean;
+            mfa?: components["schemas"]["MFAStatus"];
+            /** @description The caller's current business role in this organization, when they have one. */
+            business_role?: string;
+        };
+        DisableMFAInput: {
+            /**
+             * Format: password
+             * @description Required when the account has a password.
+             */
+            password?: string;
+            /** @description Current authenticator code. Required instead of `password` when `has_password` is false. */
+            code?: string;
+            /** @enum {string} */
+            locale?: "fr" | "en";
+        };
+        DisableMFAError: {
+            /** @description Localised message, safe to show as is. */
+            error: string;
+            /** @enum {string} */
+            code: "wrong_password" | "wrong_code" | "mfa_required_by_role" | "no_local_password" | "not_enrolled" | "too_many_attempts" | "rejected" | "internal";
+        };
         ErrorResponse: {
             /** @example Invalid input */
             error?: string;
@@ -3369,7 +3757,7 @@ export interface operations {
             };
         };
     };
-    getCurrentUser: {
+    getMyProfile: {
         parameters: {
             query?: never;
             header?: never;
@@ -3378,13 +3766,13 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Current user profile */
+            /** @description Own profile. `effective` resolves each preference as own choice, else the organization default. */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["User"];
+                    "application/json": components["schemas"]["MyProfile"];
                 };
             };
             /** @description Unauthorized */
@@ -3394,6 +3782,511 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    updateMyProfile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UserProfilePatch"];
+            };
+        };
+        responses: {
+            /** @description Updated profile */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MyProfile"];
+                };
+            };
+            /** @description Invalid field; the message names it */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    uploadMyAvatar: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    /** Format: binary */
+                    file: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Updated profile */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MyProfile"];
+                };
+            };
+            /** @description Not an accepted image, or larger than 1 MB */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    deleteMyAvatar: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Updated profile */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MyProfile"];
+                };
+            };
+        };
+    };
+    getUserAvatar: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The image */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/png": string;
+                    "image/jpeg": string;
+                    "image/webp": string;
+                };
+            };
+            /** @description No avatar visible to the caller */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    changePassword: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: password */
+                    current_password: string;
+                    /** Format: password */
+                    new_password: string;
+                    /** @enum {string} */
+                    locale?: "fr" | "en";
+                };
+            };
+        };
+        responses: {
+            /** @description Password changed */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        message?: string;
+                        reauthenticate?: boolean;
+                        token_pair?: {
+                            access_token?: string;
+                            refresh_token?: string;
+                            expires_in?: number;
+                        };
+                        csrf_token?: string;
+                    };
+                };
+            };
+            /** @description `weak_password` (with `assessment`) or `same_password` */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No session */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `wrong_current_password` */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `no_local_password`: the account signs in through an identity provider */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Rate limited */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getMe: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The current session's user */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MeResponse"];
+                };
+            };
+            /** @description No session */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The session's user no longer exists */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    disableMfa: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DisableMFAInput"];
+            };
+        };
+        responses: {
+            /** @description MFA is off */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        message: string;
+                    };
+                };
+            };
+            /** @description The body is not JSON */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `wrong_password` or `wrong_code`. Not a session error: the session stays valid. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DisableMFAError"];
+                };
+            };
+            /** @description `mfa_required_by_role` */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DisableMFAError"];
+                };
+            };
+            /** @description `not_enrolled` */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DisableMFAError"];
+                };
+            };
+            /** @description `no_local_password`: no password and no way to check a code on this deployment */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DisableMFAError"];
+                };
+            };
+            /** @description `too_many_attempts`, or the per-IP limit */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DisableMFAError"];
+                };
+            };
+        };
+    };
+    getOrganization: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Organization profile with live membership counts */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrganizationView"];
+                };
+            };
+            /** @description Missing permission */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    updateOrganization: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OrganizationProfilePatch"];
+            };
+        };
+        responses: {
+            /** @description Updated organization profile */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrganizationView"];
+                };
+            };
+            /** @description Invalid field; the message names it */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Missing organization:update */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    getOrganizationLogo: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The image */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/png": string;
+                    "image/jpeg": string;
+                    "image/webp": string;
+                };
+            };
+            /** @description No logo */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    uploadOrganizationLogo: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    /** Format: binary */
+                    file: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Updated organization profile */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrganizationView"];
+                };
+            };
+            /** @description Not an accepted image, or larger than 1 MB */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Missing organization:update */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    deleteOrganizationLogo: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Updated organization profile */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrganizationView"];
+                };
+            };
+            /** @description Missing organization:update */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    getOrganizationBranding: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Branding */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrganizationBranding"];
                 };
             };
         };
@@ -3746,6 +4639,207 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    transferRiskOwner: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TransferOwnerRequest"];
+            };
+        };
+        responses: {
+            /** @description Ownership transferred */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TransferOwnershipResult"];
+                };
+            };
+            /** @description Malformed id or new_owner_id, or the new owner is not an active member of the organisation */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing `risks:update` */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not found in the caller's organisation */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The new owner already owns it */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    transferMitigationOwner: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TransferOwnerRequest"];
+            };
+        };
+        responses: {
+            /** @description Ownership transferred */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TransferOwnershipResult"];
+                };
+            };
+            /** @description Malformed id or new_owner_id, or the new owner is not an active member of the organisation */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing `mitigations:update` */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not found in the caller's organisation */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The new owner already owns it */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    transferIncidentOwner: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["TransferOwnerRequest"];
+            };
+        };
+        responses: {
+            /** @description Ownership transferred */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TransferOwnershipResult"];
+                };
+            };
+            /** @description Malformed id or new_owner_id, or the new owner is not an active member of the organisation */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing `incidents:update` */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not found in the caller's organisation */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The new owner already owns it */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
             };
         };
     };

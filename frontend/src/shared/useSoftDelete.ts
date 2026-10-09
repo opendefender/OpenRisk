@@ -26,10 +26,12 @@ interface SoftDeleteOptions<T> {
   message: (item: T, lang: LocaleCode) => string;
   /** Milliseconds the undo window stays open (default 5000). */
   delayMs?: number;
+  /** Error toast when the commit fails. Defaults to the delete wording. */
+  failureMessage?: (lang: LocaleCode) => string;
 }
 
 export function useSoftDelete<T>(opts: SoftDeleteOptions<T>) {
-  const { onCommit, idOf, message, delayMs = 5000 } = opts;
+  const { onCommit, idOf, message, delayMs = 5000, failureMessage } = opts;
   const lang = useUIStore((s) => s.lang);
   const [pending, setPending] = useState<Set<string>>(new Set());
   // Track live timers so we can flush/cleanup on unmount without losing a delete.
@@ -55,7 +57,9 @@ export function useSoftDelete<T>(opts: SoftDeleteOptions<T>) {
         Promise.resolve(onCommit(id))
           .then(() => unhide(id))
           .catch(() => {
-            toast.error(lang === 'fr' ? 'Suppression échouée' : 'Delete failed');
+            toast.error(
+              failureMessage ? failureMessage(lang) : lang === 'fr' ? 'Suppression échouée' : 'Delete failed',
+            );
             unhide(id);
           });
       }, delayMs);
@@ -73,7 +77,7 @@ export function useSoftDelete<T>(opts: SoftDeleteOptions<T>) {
         },
       });
     },
-    [idOf, onCommit, message, delayMs, lang, unhide],
+    [idOf, onCommit, message, delayMs, lang, unhide, failureMessage],
   );
 
   // On unmount, fire any still-pending deletes so nothing is silently dropped.

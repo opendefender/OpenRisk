@@ -41,6 +41,10 @@ const (
 	routeEvidenceLibrary = "/compliance/evidence"
 	// routeRemediationDetail — /compliance/remediation/:planId (routeModel.ts).
 	routeRemediationDetail = "/compliance/remediation/"
+	// routeVulnerabilities — /vulnerabilities, opened with the drawer params.
+	routeVulnerabilities = "/vulnerabilities"
+	// routeVendorAssessment — /vendors/:vendorId/assessments/:assessmentId.
+	routeVendors = "/vendors/"
 )
 
 // drawerQuery builds the entity-drawer query string. Kept in one function so
@@ -55,3 +59,9 @@ func ApprovalLink() string             { return routeGovernance }
 func IncidentLink(id string) string    { return routeIncidentWarRoom + id + "/war-room" }
 func EvidenceLink(id string) string    { return routeEvidenceLibrary + drawerQuery("evidence", id) }
 func RemediationLink(id string) string { return routeRemediationDetail + id }
+func VulnerabilityLink(id string) string {
+	return routeVulnerabilities + drawerQuery("vulnerability", id)
+}
+func VendorAssessmentLink(vendorID, assessmentID string) string {
+	return routeVendors + vendorID + "/assessments/" + assessmentID
+}

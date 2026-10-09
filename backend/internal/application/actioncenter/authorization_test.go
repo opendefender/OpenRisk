@@ -21,6 +21,9 @@ var categoryReadPermission = map[int]domain.PermissionKey{
 	RankOpenIncident:       "incidents:read",
 	RankExpiringEvidence:   "compliance:evidences:read",
 	RankOverdueRemediation: "compliance:remediations:read",
+	RankVulnerabilitySLA:   "vulnerabilities:read",
+	RankVendorFollowUp:     "vendors:read",
+	RankMitigationReview:   "mitigations:read",
 	// RankPendingApproval is absent on purpose: approvals are not gated by this
 	// map at all. Eligibility is decided per request by domain.CanSign, so there
 	// is no role→category grant here to check.
@@ -68,11 +71,12 @@ func TestRoleCategoryMapUsesDeclaredRanksOnly(t *testing.T) {
 	valid := map[int]bool{
 		RankOverdueMitigation: true, RankCriticalRisk: true, RankPendingApproval: true,
 		RankOpenIncident: true, RankExpiringEvidence: true, RankOverdueRemediation: true,
+		RankVulnerabilitySLA: true, RankVendorFollowUp: true, RankMitigationReview: true,
 	}
 	for role, ranks := range roleCategories {
 		for _, r := range ranks {
 			require.Truef(t, valid[r], "role %q is granted unknown category rank %d", role, r)
-			require.Truef(t, r >= 1 && r <= 6, "rank %d for %q is outside the published 1..6 contract", r, role)
+			require.Truef(t, r >= 1 && r <= 9, "rank %d for %q is outside the published 1..9 contract", r, role)
 		}
 	}
 }

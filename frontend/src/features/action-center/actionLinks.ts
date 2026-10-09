@@ -32,6 +32,8 @@
 // carries the query string through untouched.
 
 import {
+  Handshake,
+  Bug,
   AlertTriangle,
   CalendarClock,
   ClipboardCheck,
@@ -100,6 +102,9 @@ export const ACTION_TYPE_PRESENTATION: Record<ActionItemType, ActionTypePresenta
     tone: 'text-warning-text',
   },
   overdue_remediation: { icon: Wrench, labelKey: 'overdue_remediation', tone: 'text-warning-text' },
+  vulnerability_sla: { icon: Bug, labelKey: 'vulnerability_sla', tone: 'text-danger-text' },
+  vendor_followup: { icon: Handshake, labelKey: 'vendor_followup', tone: 'text-warning-text' },
+  mitigation_review: { icon: ShieldCheck, labelKey: 'mitigation_review', tone: 'text-warning-text' },
 };
 
 /** The fallback for a category this build has never heard of. */
