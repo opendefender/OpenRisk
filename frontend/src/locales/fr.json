@@ -1507,5 +1507,87 @@
       "none": "Non classés"
     },
     "kevOnly": "KEV seulement"
+  },
+  "assetAnalysis": {
+    "reading": "Lecture de l'actif",
+    "f": {
+      "never_scanned": "Aucun scan n'a encore remonté de constat sur cet actif.",
+      "clean": {
+        "exact": {
+          "0": "Aucune vulnérabilité ouverte."
+        },
+        "one": "Aucune vulnérabilité ouverte ; {count} corrigée ou traitée.",
+        "other": "Aucune vulnérabilité ouverte ; {count} corrigées ou traitées."
+      },
+      "kev_open": {
+        "one": "{count} vulnérabilité exploitée activement (catalogue KEV).",
+        "other": "{count} vulnérabilités exploitées activement (catalogue KEV)."
+      },
+      "overdue": {
+        "one": "{count} correctif en retard sur son délai, depuis {days} j.",
+        "other": "{count} correctifs en retard ; le plus ancien depuis {days} j."
+      },
+      "severe_open": {
+        "one": "{count} vulnérabilité critique ou élevée ouverte.",
+        "other": "{count} vulnérabilités critiques ou élevées ouvertes."
+      },
+      "internet_facing": "Exposé depuis l'extérieur (zone : {zone}).",
+      "internet_facing_flag": "Déclaré exposé sur Internet.",
+      "business_critical": "Actif de criticité {level} pour l'activité.",
+      "linked_risks": {
+        "one": "{count} risque lié, score {score}.",
+        "other": "{count} risques liés ; score le plus élevé {score}."
+      }
+    },
+    "levels": {
+      "CRITICAL": "critique",
+      "HIGH": "élevée",
+      "MEDIUM": "moyenne",
+      "LOW": "faible"
+    },
+    "zones": {
+      "dmz": "DMZ",
+      "perimetre": "périmètre",
+      "interne": "interne",
+      "administration": "administration",
+      "industriel": "industriel",
+      "invite": "invité"
+    },
+    "sev": {
+      "critical": "Critique",
+      "high": "Élevée",
+      "medium": "Moyenne",
+      "low": "Faible",
+      "info": "Info"
+    },
+    "kev": "KEV",
+    "overdueChip": "En retard",
+    "next": "À traiter en premier",
+    "why": {
+      "kev": "exploitée activement",
+      "overdue": "délai dépassé",
+      "epss": "probabilité d'exploitation élevée",
+      "severity": "sévérité {level}"
+    },
+    "open": "Ouvrir",
+    "openVulns": {
+      "exact": {
+        "0": "Vulnérabilités ouvertes"
+      },
+      "one": "{count} vulnérabilité ouverte",
+      "other": "{count} vulnérabilités ouvertes"
+    },
+    "due": "échéance {date}",
+    "dueLate": "en retard depuis le {date}",
+    "noDue": "sans échéance",
+    "epss": "EPSS {pct}",
+    "cvss": "CVSS {score}",
+    "more": "Voir toutes les vulnérabilités",
+    "truncated": "Plus de 500 constats : l'analyse porte sur les 500 plus urgents.",
+    "risks": "Risques liés",
+    "lastDetected": "Dernière détection le {date}",
+    "loadError": "L'analyse n'a pas pu être chargée.",
+    "digest": "Exposition",
+    "seeAnalysis": "Voir l'analyse"
   }
 }

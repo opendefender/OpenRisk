@@ -43,7 +43,13 @@ export interface DrawerState {
   tab?: EntitySection;
 }
 
-const SECTIONS: readonly EntitySection[] = ['summary', 'relations', 'timeline', 'audit'];
+const SECTIONS: readonly EntitySection[] = [
+  'summary',
+  'exposure',
+  'relations',
+  'timeline',
+  'audit',
+];
 
 function parseSection(v: string | null): EntitySection | undefined {
   return v && (SECTIONS as readonly string[]).includes(v) ? (v as EntitySection) : undefined;
