@@ -73,7 +73,7 @@ export function ExposureSection({
       case 'internet_facing':
         return f.value
           ? t('assetAnalysis.f.internet_facing', {
-              zone: t(`assetAnalysis.zones.${f.value}`, { defaultValue: f.value }),
+              zone: t(`assetAnalysis.zones.${f.value}`, f.value),
             })
           : t('assetAnalysis.f.internet_facing_flag');
       case 'business_critical':
