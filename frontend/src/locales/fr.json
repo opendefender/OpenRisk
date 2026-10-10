@@ -1437,8 +1437,7 @@
     "import": "Importer",
     "schemas": "Attributs",
     "search": "Filtrer les actifs…",
-    "typesLabel": "Filtrer par type",
-    "allTypes": "Tous",
+    "typesLabel": "Filtrer par catégorie",
     "attrSearch": "Recherche par attribut",
     "col": {
       "asset": "Actif",
@@ -1494,6 +1493,19 @@
       "historyDetail": "conservé mais inaccessible",
       "confirm": "Supprimer définitivement",
       "cancel": "Annuler"
-    }
+    },
+    "cat": {
+      "all": "Tous",
+      "server": "Serveurs",
+      "workstation": "Postes",
+      "application": "Applications",
+      "database": "Bases de données",
+      "network": "Réseau",
+      "cloud": "Cloud",
+      "vendor": "Fournisseurs",
+      "data_processing": "Données",
+      "none": "Non classés"
+    },
+    "kevOnly": "KEV seulement"
   }
 }

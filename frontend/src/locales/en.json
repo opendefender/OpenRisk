@@ -1437,8 +1437,7 @@
     "import": "Import",
     "schemas": "Attributes",
     "search": "Filter assets…",
-    "typesLabel": "Filter by type",
-    "allTypes": "All",
+    "typesLabel": "Filter by category",
     "attrSearch": "Search by attribute",
     "col": {
       "asset": "Asset",
@@ -1494,6 +1493,19 @@
       "historyDetail": "kept but unreachable",
       "confirm": "Delete permanently",
       "cancel": "Cancel"
-    }
+    },
+    "cat": {
+      "all": "All",
+      "server": "Servers",
+      "workstation": "Workstations",
+      "application": "Applications",
+      "database": "Databases",
+      "network": "Network",
+      "cloud": "Cloud",
+      "vendor": "Vendors",
+      "data_processing": "Data",
+      "none": "Unclassified"
+    },
+    "kevOnly": "KEV only"
   }
 }

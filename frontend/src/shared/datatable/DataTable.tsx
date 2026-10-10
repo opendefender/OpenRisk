@@ -87,9 +87,6 @@ export interface DataTableProps<T> {
   onExportAllMatching?: () => Promise<void> | void;
   /** Extra toolbar controls, rendered before the filter button. */
   toolbarExtra?: ReactNode;
-  /** Sizing of the search box. Default: it takes the free width. A page that
-   *  puts pills next to it (the inventory, #906) gives it a fixed basis. */
-  searchClassName?: string;
   minWidth?: number;
   /**
    * Row height for the virtualiser, in px. Omit to follow the density token
@@ -213,7 +210,6 @@ export function DataTable<T>({
   exportFilename,
   onExportAllMatching,
   toolbarExtra,
-  searchClassName = 'flex-1 min-w-[200px]',
   minWidth = 820,
   estimateRowHeight,
   maxBodyHeight = 620,
@@ -530,7 +526,7 @@ export function DataTable<T>({
 
   const toolbar = (
     <div className="flex flex-wrap items-center gap-2 mb-3">
-      <div className={`relative ${searchClassName}`}>
+      <div className="relative flex-1 min-w-[200px]">
         <Search
           size={15}
           className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted pointer-events-none"

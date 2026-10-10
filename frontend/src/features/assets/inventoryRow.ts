@@ -94,14 +94,32 @@ export function typeIconOf(a: Asset): LucideIcon {
   );
 }
 
-/** Type pills: each type present, with its count, most frequent first. */
-export function typeCounts(assets: Asset[]): { type: string; n: number }[] {
-  const m = new Map<string, number>();
-  for (const a of assets) {
-    const t = (a.type ?? '').trim();
-    if (t) m.set(t, (m.get(t) ?? 0) + 1);
+/** The category tabs: "all", each schema category present, then the
+ *  uncategorised ones, each with its count, in the schema's order. */
+export const CATEGORY_ORDER = [
+  'server',
+  'workstation',
+  'application',
+  'database',
+  'network',
+  'cloud',
+  'vendor',
+  'data_processing',
+] as const;
+export type CategoryTab = 'all' | (typeof CATEGORY_ORDER)[number] | 'none';
+
+export function categoryOf(a: Asset): CategoryTab {
+  const c = (a.category ?? '') as (typeof CATEGORY_ORDER)[number];
+  return CATEGORY_ORDER.includes(c) ? c : 'none';
+}
+
+export function categoryCounts(assets: Asset[]): { id: CategoryTab; n: number }[] {
+  const m = new Map<CategoryTab, number>();
+  for (const a of assets) m.set(categoryOf(a), (m.get(categoryOf(a)) ?? 0) + 1);
+  const out: { id: CategoryTab; n: number }[] = [{ id: 'all', n: assets.length }];
+  for (const c of [...CATEGORY_ORDER, 'none' as const]) {
+    const n = m.get(c);
+    if (n) out.push({ id: c, n });
   }
-  return [...m.entries()]
-    .map(([type, n]) => ({ type, n }))
-    .sort((x, y) => y.n - x.n || x.type.localeCompare(y.type));
+  return out;
 }

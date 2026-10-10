@@ -27,7 +27,7 @@ import {
 } from 'lucide-react';
 
 import { PageFrame, PageHeader, CritBadge, EmptyState } from '../../shared/ui';
-import { Button, Menu, type MenuItem } from '../../shared/ds';
+import { Button, Menu, TabPanel, Tabs, type MenuItem } from '../../shared/ds';
 import {
   DataTable,
   useTableState,
@@ -47,7 +47,14 @@ import { CreateAssetModal } from './CreateAssetModal';
 import { EditAssetModal } from './EditAssetModal';
 import { AssetHistoryDrawer } from './AssetHistoryDrawer';
 import { DiscoverButton } from './DiscoverButton';
-import { locationOf, slugOf, typeCounts, typeIconOf } from './inventoryRow';
+import {
+  categoryCounts,
+  categoryOf,
+  locationOf,
+  slugOf,
+  typeIconOf,
+  type CategoryTab,
+} from './inventoryRow';
 import { useFocusParam } from '../../shared/useFocusParam';
 import { useDrawerController } from '../entity-drawer/drawerState';
 import { AttributeSearchBar } from '../attackSurface/AttributeSearchBar';
@@ -99,7 +106,8 @@ export function InventoryPage() {
     attributes: Record<string, string>;
   }>({ category: '', attributes: {} });
   const [attrOpen, setAttrOpen] = useState(false);
-  const [type, setType] = useState('');
+  const [category, setCategory] = useState<CategoryTab>('all');
+  const [kevOnly, setKevOnly] = useState(false);
   const { assets, isLoading, isError, refetch, deleteAsset } = useAssets({
     category: attrFilter.category || undefined,
     attributes: attrFilter.attributes,
@@ -129,10 +137,27 @@ export function InventoryPage() {
     clearFocus();
   };
 
-  const types = useMemo(() => typeCounts(assets), [assets]);
+  const tabs = useMemo(
+    () =>
+      categoryCounts(assets).map((c) => ({
+        id: c.id,
+        label: t(`inventory.cat.${c.id}`),
+        count: c.n,
+        testId: `inv-cat-${c.id}`,
+      })),
+    [assets, t],
+  );
+  const kevAssets = exposure.allowed
+    ? assets.filter((a) => (exposure.byAsset.get(a.id as string)?.kev_open ?? 0) > 0).length
+    : 0;
   const rows = useMemo(
-    () => (type ? assets.filter((a) => (a.type ?? '').trim() === type) : assets),
-    [assets, type],
+    () =>
+      assets.filter(
+        (a) =>
+          (category === 'all' || categoryOf(a) === category) &&
+          (!kevOnly || (exposure.byAsset.get(a.id as string)?.kev_open ?? 0) > 0),
+      ),
+    [assets, category, kevOnly, exposure.byAsset],
   );
   const criticalCount = assets.filter((a) => critOf(a) === 'critical').length;
 
@@ -442,78 +467,85 @@ export function InventoryPage() {
         </div>
       )}
 
-      <DataTable
-        id="assets"
-        ariaLabel={t('inventory.title')}
-        rows={rows}
-        columns={columns}
-        rowKey={(a) => a.id as string}
-        api={table}
-        mode="client"
-        loading={isLoading}
-        error={isError}
-        onRetry={() => void refetch()}
-        facets={facets}
-        clientSearch={(a, q) =>
-          `${a.name ?? ''} ${slugOf(a)} ${a.type ?? ''} ${a.owner ?? ''} ${locationOf(a)}`
-            .toLowerCase()
-            .includes(q)
-        }
-        searchPlaceholder={t('inventory.search')}
-        searchClassName="flex-[0_1_280px] min-w-[200px]"
-        toolbarExtra={
-          <div
-            className="flex flex-wrap gap-1.5 items-center"
-            role="group"
-            aria-label={t('inventory.typesLabel')}
-          >
-            <TypePill
-              label={t('inventory.allTypes')}
-              n={assets.length}
-              on={!type}
-              onClick={() => setType('')}
-            />
-            {types.map((ty) => (
-              <TypePill
-                key={ty.type}
-                label={ty.type}
-                n={ty.n}
-                on={type === ty.type}
-                onClick={() => setType(type === ty.type ? '' : ty.type)}
-              />
-            ))}
-            <Button
-              variant={attrOpen || attrFilter.category ? 'secondary' : 'ghost'}
-              size="sm"
-              icon={SlidersHorizontal}
-              aria-pressed={attrOpen}
-              onClick={() => setAttrOpen((o) => !o)}
-            >
-              {t('inventory.attrSearch')}
-            </Button>
-          </div>
-        }
-        selectable
-        rowActions={rowActions}
-        bulkActions={bulkActions}
-        onRowClick={(a) => openDrawer('asset', a.id as string)}
-        exportFilename="inventaire-actifs"
-        minWidth={980}
-        empty={
-          <EmptyState
-            icon={Boxes}
-            title={t('inventory.emptyTitle')}
-            description={canCreate ? t('inventory.emptyCreate') : t('inventory.emptyRead')}
-            primaryAction={
-              canCreate ? (
-                <Button variant="primary" icon={Plus} onClick={() => setCreating(true)}>
-                  {t('inventory.newAsset')}
-                </Button>
-              ) : undefined
-            }
-          />
-        }
+      <Tabs
+        id="inv-cat"
+        items={tabs}
+        value={tabs.some((x) => x.id === category) ? category : 'all'}
+        onChange={(id) => setCategory(id)}
+        label={t('inventory.typesLabel')}
+        className="mb-3"
       />
+      <TabPanel tabsId="inv-cat" id={tabs.some((x) => x.id === category) ? category : 'all'} active>
+        <DataTable
+          id="assets"
+          ariaLabel={t('inventory.title')}
+          rows={rows}
+          columns={columns}
+          rowKey={(a) => a.id as string}
+          api={table}
+          mode="client"
+          loading={isLoading}
+          error={isError}
+          onRetry={() => void refetch()}
+          facets={facets}
+          clientSearch={(a, q) =>
+            `${a.name ?? ''} ${slugOf(a)} ${a.type ?? ''} ${a.owner ?? ''} ${locationOf(a)}`
+              .toLowerCase()
+              .includes(q)
+          }
+          searchPlaceholder={t('inventory.search')}
+          toolbarExtra={
+            <>
+              {kevAssets > 0 && (
+                <button
+                  type="button"
+                  aria-pressed={kevOnly}
+                  onClick={() => setKevOnly((v) => !v)}
+                  title={t('inventory.kevTitle')}
+                  data-testid="inv-kev-only"
+                  className={`h-9 px-3 rounded-[10px] border text-[12.5px] font-semibold inline-flex items-center gap-1.5 shrink-0 transition-colors ${
+                    kevOnly
+                      ? 'bg-danger-surface border-danger-text text-danger-text'
+                      : 'bg-transparent border-border-default text-ink-soft hover:border-border-strong'
+                  }`}
+                >
+                  {t('inventory.kevOnly')}
+                  <span className="mono text-[11px]">{kevAssets}</span>
+                </button>
+              )}
+              <Button
+                variant={attrOpen || attrFilter.category ? 'secondary' : 'ghost'}
+                icon={SlidersHorizontal}
+                aria-pressed={attrOpen}
+                aria-label={t('inventory.attrSearch')}
+                title={t('inventory.attrSearch')}
+                onClick={() => setAttrOpen((o) => !o)}
+                data-testid="inv-attr"
+              />
+            </>
+          }
+          selectable
+          rowActions={rowActions}
+          bulkActions={bulkActions}
+          onRowClick={(a) => openDrawer('asset', a.id as string)}
+          exportFilename="inventaire-actifs"
+          minWidth={980}
+          empty={
+            <EmptyState
+              icon={Boxes}
+              title={t('inventory.emptyTitle')}
+              description={canCreate ? t('inventory.emptyCreate') : t('inventory.emptyRead')}
+              primaryAction={
+                canCreate ? (
+                  <Button variant="primary" icon={Plus} onClick={() => setCreating(true)}>
+                    {t('inventory.newAsset')}
+                  </Button>
+                ) : undefined
+              }
+            />
+          }
+        />
+      </TabPanel>
 
       <CreateAssetModal isOpen={creating} onClose={() => setCreating(false)} />
       <EditAssetModal
@@ -558,34 +590,5 @@ export function InventoryPage() {
         onClose={() => setToDelete(null)}
       />
     </PageFrame>
-  );
-}
-
-function TypePill({
-  label,
-  n,
-  on,
-  onClick,
-}: {
-  label: string;
-  n: number;
-  on: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      aria-pressed={on}
-      onClick={onClick}
-      data-testid="inv-type"
-      className={`h-[30px] px-[11px] rounded-full border text-[12.5px] font-semibold inline-flex items-center gap-1.5 transition-colors ${
-        on
-          ? 'bg-surface-3 border-border-strong text-ink'
-          : 'bg-transparent border-border-default text-ink-soft hover:border-border-strong'
-      }`}
-    >
-      {label}
-      <span className="mono text-[11px] text-ink-muted">{n}</span>
-    </button>
   );
 }

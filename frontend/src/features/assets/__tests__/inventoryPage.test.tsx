@@ -171,20 +171,28 @@ describe('#906 — inventory', () => {
     await waitFor(() => expect(ad.getByTestId('inv-vulns')).toHaveTextContent('1KEV'));
   });
 
-  it('filters by type with counts', async () => {
+  it('filters by category tab, with counts, and by KEV', async () => {
     renderPage();
     await screen.findByText('Kora RH — paie');
-    const pills = screen.getAllByTestId('inv-type');
-    expect(pills.map((p) => p.textContent)).toEqual([
+    const tabs = screen.getAllByRole('tab');
+    expect(tabs.map((tab) => tab.textContent)).toEqual([
       'Tous3',
-      'Annuaire1',
-      'Application1',
-      'SaaS1',
+      'Serveurs1',
+      'Applications1',
+      'Cloud1',
     ]);
-    fireEvent.click(pills[3]);
+    fireEvent.click(screen.getByTestId('inv-cat-cloud'));
     expect(screen.queryByText('Système cœur bancaire')).toBeNull();
     expect(screen.getByText('Kora RH — paie')).toBeInTheDocument();
-    expect(pills[3]).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByTestId('inv-cat-cloud')).toHaveAttribute('aria-selected', 'true');
+
+    fireEvent.click(screen.getByTestId('inv-cat-all'));
+    const kev = await screen.findByTestId('inv-kev-only');
+    expect(kev).toHaveTextContent('1');
+    fireEvent.click(kev);
+    expect(screen.getByText('Contrôleur de domaine AD')).toBeInTheDocument();
+    expect(screen.queryByText('Système cœur bancaire')).toBeNull();
+    expect(kev).toHaveAttribute('aria-pressed', 'true');
   });
 
   it('does not ask for vulnerabilities a member may not read', async () => {
@@ -194,6 +202,7 @@ describe('#906 — inventory', () => {
     expect(gets.mock.calls.some(([u]) => u.startsWith('/assets/exposure'))).toBe(false);
     expect(screen.queryByTestId('inv-vulns')).toBeNull();
     expect(screen.queryByTestId('inv-discover')).toBeNull();
+    expect(screen.queryByTestId('inv-kev-only')).toBeNull();
   });
 
   it('opens the asset drawer from a row', async () => {

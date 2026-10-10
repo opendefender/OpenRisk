@@ -5,7 +5,7 @@ import { describe, it, expect } from 'vitest';
 import { Boxes, KeyRound, Laptop, Server } from 'lucide-react';
 
 import type { Asset } from '../../../types/asset';
-import { locationOf, slugOf, typeCounts, typeIconOf } from '../inventoryRow';
+import { categoryCounts, locationOf, slugOf, typeIconOf } from '../inventoryRow';
 
 const asset = (over: Partial<Asset>): Asset => ({ name: 'x', ...over }) as Asset;
 
@@ -31,16 +31,18 @@ describe('#906 — inventory row', () => {
     expect(typeIconOf(asset({ type: 'Inconnu' }))).toBe(Boxes);
   });
 
-  it('counts types, most frequent first', () => {
-    const got = typeCounts([
-      asset({ type: 'SaaS' }),
-      asset({ type: 'Application' }),
-      asset({ type: 'SaaS' }),
-      asset({ type: '' }),
+  it('counts categories in the schema order, uncategorised last', () => {
+    const got = categoryCounts([
+      asset({ category: 'cloud' }),
+      asset({ category: 'server' }),
+      asset({ category: 'cloud' }),
+      asset({}),
     ]);
     expect(got).toEqual([
-      { type: 'SaaS', n: 2 },
-      { type: 'Application', n: 1 },
+      { id: 'all', n: 4 },
+      { id: 'server', n: 1 },
+      { id: 'cloud', n: 2 },
+      { id: 'none', n: 1 },
     ]);
   });
 });
