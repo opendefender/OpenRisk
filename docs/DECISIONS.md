@@ -5,6 +5,29 @@ recommends, and surfaces these in the daily brief. Run `/decide` to clear them.
 
 ## Open
 
+### D-070 — Vendors: ship without domains and review dates? · raised 2026-10-11
+
+**Raised by** — #908, tracked in #942. It narrows two acceptance criteria of a milestone
+issue, so it is escalated rather than decided in place.
+
+**Context**
+- The vendors design shows a score per questionnaire domain and a "prochaine revue" date.
+- Questions have no domain, and there is no review cadence. Both would be invented.
+- #908 shows instead the five answers that weigh most in the latest score (same
+  contributions as the score itself) and the questionnaire due date while one is open.
+
+**Options**
+- **A — ship #908 as is**, and do domains and cadence in #942 (a migration on
+  questionnaire questions, a setting per service criticality).
+- **B — hold #908** until #942 is done.
+
+**Recommendation** — **A**. The page is honest and useful today; #942 is a model change
+that deserves its own review.
+
+**Cost of delay** — Low for A. B holds the whole vendors redesign.
+
+**Blocks** — #908 criteria 2 and 3 (the "next review" and "by domain" parts only).
+
 ### D-069 — Console redesign: the owner's review of the epic · decided 2026-10-09
 **Decided** — Comments on #899, applying to every child issue still open:
 - **A. Risk score, no ambiguity.** The frozen formula is never bent to the mockup (no
