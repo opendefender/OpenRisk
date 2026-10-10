@@ -72,6 +72,9 @@ func (uc *GetTopologyUseCase) Execute(ctx context.Context, tenantID uuid.UUID, n
 	}
 
 	topo := domain.BuildTopology(assets, deps, vulnCounts, nodeLimit)
+	// Paths are computed on the whole estate, not the capped picture: a route
+	// to a critical asset exists whether or not the view could draw it.
+	topo.ExposurePaths = domain.BuildExposurePaths(assets, deps, domain.MaxExposureHops)
 	return &topo, nil
 }
 

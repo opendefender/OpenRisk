@@ -3046,6 +3046,14 @@ export interface components {
             count: number;
         };
         AssetTopology: {
+            /** @description Shortest routes from an internet-exposed asset to each critical asset reachable within four steps, following dependencies forwards (what a compromised asset can reach, the compromise chain's rule). Computed on the whole estate even when the picture is truncated. Shortest first. */
+            exposure_paths: {
+                /** @description Exposed asset first, critical asset last. */
+                asset_ids: string[];
+                edge_ids: string[];
+                /** @description The step in from the internet plus each dependency followed. */
+                hops: number;
+            }[];
             nodes: components["schemas"]["TopologyNode"][];
             edges: components["schemas"]["TopologyEdge"][];
             zones: components["schemas"]["TopologyZone"][];
