@@ -1415,5 +1415,85 @@
     "empty": "Rien encore. Ce qui est fait dans l'organisation apparaît ici.",
     "emptyFiltered": "Rien dans cette catégorie pour l'instant.",
     "showAll": "Tout afficher"
+  },
+  "inventory": {
+    "title": "Inventaire",
+    "summary": {
+      "one": "{count} actif",
+      "other": "{count} actifs"
+    },
+    "critical": {
+      "exact": {
+        "0": "aucun critique"
+      },
+      "one": "{count} critique",
+      "other": "{count} critiques"
+    },
+    "coverageUnmeasured": "couverture des agents non mesurée",
+    "coverageHint": "La couverture sera mesurée quand les agents remonteront l'inventaire logiciel de chaque actif.",
+    "topology": "Voir la topologie",
+    "more": "Autres actions",
+    "newAsset": "Nouvel actif",
+    "import": "Importer",
+    "schemas": "Attributs",
+    "search": "Filtrer les actifs…",
+    "typesLabel": "Filtrer par type",
+    "allTypes": "Tous",
+    "attrSearch": "Recherche par attribut",
+    "col": {
+      "asset": "Actif",
+      "type": "Type",
+      "crit": "Criticité",
+      "owner": "Propriétaire",
+      "location": "Emplacement",
+      "risks": "Risques",
+      "vulns": "Vulnérabilités",
+      "detected": "Dernière détection",
+      "category": "Catégorie",
+      "score": "Score"
+    },
+    "detectedHint": "Dernière fois qu'un scan a signalé une vulnérabilité sur cet actif. Un scan sans constat ne laisse pas de trace.",
+    "vulnsHidden": "Votre rôle ne donne pas accès aux vulnérabilités.",
+    "kev": "KEV",
+    "kevTitle": "Exploitée activement (catalogue CISA KEV)",
+    "untyped": "Non typé",
+    "discover": {
+      "label": "Lancer une découverte",
+      "started": "Découverte lancée : {name}",
+      "follow": "Suivre",
+      "failed": "La découverte n'a pas pu être lancée."
+    },
+    "emptyTitle": "Aucun actif inventorié",
+    "emptyCreate": "Ajoutez vos serveurs, bases de données et services, ou lancez une découverte pour cartographier votre surface d'attaque.",
+    "emptyRead": "Aucun actif n'est encore inventorié. Votre rôle permet de consulter l'inventaire ; un administrateur peut vous donner le droit d'en ajouter.",
+    "crit": {
+      "critical": "Critique",
+      "high": "Élevée",
+      "medium": "Moyenne",
+      "low": "Faible"
+    },
+    "action": {
+      "edit": "Modifier",
+      "history": "Historique",
+      "delete": "Supprimer"
+    },
+    "bulkDeleted": {
+      "one": "{count} actif supprimé",
+      "other": "{count} actifs supprimés"
+    },
+    "delete": {
+      "done": "Actif supprimé",
+      "failed": "Suppression échouée",
+      "entity": "actifs",
+      "title": "Supprimer cet actif ?",
+      "description": "Action irréversible. Voici ce qui sera supprimé :",
+      "risks": "Risques liés",
+      "deps": "Dépendances cartographiées",
+      "depsDetail": "supprimées",
+      "history": "Historique des modifications",
+      "historyDetail": "conservé mais inaccessible",
+      "confirm": "Supprimer définitivement",
+      "cancel": "Annuler"
+    }
   }
 }

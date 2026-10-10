@@ -1415,5 +1415,85 @@
     "empty": "Nothing yet. What happens in the organisation shows up here.",
     "emptyFiltered": "Nothing in this category yet.",
     "showAll": "Show everything"
+  },
+  "inventory": {
+    "title": "Inventory",
+    "summary": {
+      "one": "{count} asset",
+      "other": "{count} assets"
+    },
+    "critical": {
+      "exact": {
+        "0": "none critical"
+      },
+      "one": "{count} critical",
+      "other": "{count} critical"
+    },
+    "coverageUnmeasured": "agent coverage not measured",
+    "coverageHint": "Coverage will be measured once agents report each asset's software inventory.",
+    "topology": "View topology",
+    "more": "More actions",
+    "newAsset": "New asset",
+    "import": "Import",
+    "schemas": "Attributes",
+    "search": "Filter assets…",
+    "typesLabel": "Filter by type",
+    "allTypes": "All",
+    "attrSearch": "Search by attribute",
+    "col": {
+      "asset": "Asset",
+      "type": "Type",
+      "crit": "Criticality",
+      "owner": "Owner",
+      "location": "Location",
+      "risks": "Risks",
+      "vulns": "Vulnerabilities",
+      "detected": "Last detection",
+      "category": "Category",
+      "score": "Score"
+    },
+    "detectedHint": "Last time a scan reported a vulnerability on this asset. A scan that finds nothing leaves no trace.",
+    "vulnsHidden": "Your role does not give access to vulnerabilities.",
+    "kev": "KEV",
+    "kevTitle": "Known exploited (CISA KEV catalogue)",
+    "untyped": "Untyped",
+    "discover": {
+      "label": "Run discovery",
+      "started": "Discovery started: {name}",
+      "follow": "Follow",
+      "failed": "Discovery could not be started."
+    },
+    "emptyTitle": "No asset yet",
+    "emptyCreate": "Add your servers, databases and services, or run a discovery, to map your attack surface.",
+    "emptyRead": "No asset has been inventoried yet. Your role can view the inventory; an administrator can grant you the right to add assets.",
+    "crit": {
+      "critical": "Critical",
+      "high": "High",
+      "medium": "Medium",
+      "low": "Low"
+    },
+    "action": {
+      "edit": "Edit",
+      "history": "History",
+      "delete": "Delete"
+    },
+    "bulkDeleted": {
+      "one": "{count} asset deleted",
+      "other": "{count} assets deleted"
+    },
+    "delete": {
+      "done": "Asset deleted",
+      "failed": "Delete failed",
+      "entity": "assets",
+      "title": "Delete this asset?",
+      "description": "This cannot be undone. Here is what will be removed:",
+      "risks": "Linked risks",
+      "deps": "Mapped dependencies",
+      "depsDetail": "removed",
+      "history": "Change history",
+      "historyDetail": "kept but unreachable",
+      "confirm": "Delete permanently",
+      "cancel": "Cancel"
+    }
   }
 }
