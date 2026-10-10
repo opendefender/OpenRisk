@@ -35,11 +35,13 @@ import { EmptyState } from '../../shared/EmptyState';
 import { isEntityError } from './entityService';
 import {
   useEntity,
+  useAssetAnalysis,
   useEntityAudit,
   useEntityRelations,
   useEntityTimeline,
 } from './useEntityDrawer';
 import { AuditSection } from './sections/AuditSection';
+import { ExposureDigest, ExposureSection } from './sections/ExposureSection';
 import { RelationsSection } from './sections/RelationsSection';
 import { SummarySection } from './sections/SummarySection';
 import { TimelineSection } from './sections/TimelineSection';
@@ -48,9 +50,10 @@ import type { EntityAction, EntitySection, EntityType } from './types';
 
 const SECTION_LABEL_KEY: Record<
   EntitySection,
-  'ed_sec_summary' | 'ed_sec_relations' | 'ed_sec_timeline' | 'ed_sec_audit'
+  'ed_sec_summary' | 'ed_sec_exposure' | 'ed_sec_relations' | 'ed_sec_timeline' | 'ed_sec_audit'
 > = {
   summary: 'ed_sec_summary',
+  exposure: 'ed_sec_exposure',
   relations: 'ed_sec_relations',
   timeline: 'ed_sec_timeline',
   audit: 'ed_sec_audit',
@@ -89,6 +92,13 @@ export function EntityDrawer({
   const relations = useEntityRelations(type, id, activeTab === 'relations');
   const timeline = useEntityTimeline(type, id, activeTab === 'timeline');
   const audit = useEntityAudit(type, id, activeTab === 'audit');
+  // The analysis feeds both the Exposition tab and the digest on the Aperçu.
+  const hasExposure = sections.includes('exposure');
+  const analysis = useAssetAnalysis(
+    type,
+    id,
+    hasExposure && (activeTab === 'exposure' || activeTab === 'summary'),
+  );
 
   const items: TabItem<EntitySection>[] = useMemo(
     () => sections.map((s) => ({ id: s, label: L[SECTION_LABEL_KEY[s]] })),
@@ -144,7 +154,24 @@ export function EntityDrawer({
           )}
 
           <TabPanel tabsId={tabsId} id="summary" active={activeTab === 'summary'}>
+            {hasExposure && (
+              <ExposureDigest
+                data={analysis.data}
+                isLoading={analysis.isLoading}
+                onMore={() => onTabChange('exposure')}
+              />
+            )}
             <SummarySection summary={entity.data.summary} />
+          </TabPanel>
+
+          <TabPanel tabsId={tabsId} id="exposure" active={activeTab === 'exposure'}>
+            <ExposureSection
+              data={analysis.data}
+              isLoading={analysis.isLoading}
+              isError={analysis.isError}
+              onRetry={() => void analysis.refetch()}
+              onOpen={onOpenEntity}
+            />
           </TabPanel>
 
           <TabPanel tabsId={tabsId} id="relations" active={activeTab === 'relations'}>

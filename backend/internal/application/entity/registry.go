@@ -41,7 +41,7 @@ var descriptors = map[Type]Descriptor{
 	TypeAsset: {
 		Type: TypeAsset, Label: "Asset",
 		ReadPermission: "assets:read", ListPath: "/assets",
-		Sections: []Section{SectionSummary, SectionRelations, SectionTimeline, SectionAudit},
+		Sections: []Section{SectionSummary, SectionExposure, SectionRelations, SectionTimeline, SectionAudit},
 	},
 	TypeRisk: {
 		Type: TypeRisk, Label: "Risk",

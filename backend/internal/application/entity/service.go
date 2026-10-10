@@ -244,10 +244,17 @@ func (s *Service) sectionsFor(c Caller, d Descriptor) []Section {
 		if sec == SectionAudit && !CanReadAudit(c) {
 			continue
 		}
+		if sec == SectionExposure && !c.Can(ExposurePermission) {
+			continue
+		}
 		out = append(out, sec)
 	}
 	return out
 }
+
+// ExposurePermission gates an asset's vulnerability analysis (#937): the same
+// permission as the vulnerability register.
+const ExposurePermission = "vulnerabilities:read"
 
 // AuditPermission is the permission the raw audit trail requires. It is the same
 // gate the governance module's own audit routes sit behind, expressed as a

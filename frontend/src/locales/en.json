@@ -1507,5 +1507,87 @@
       "none": "Unclassified"
     },
     "kevOnly": "KEV only"
+  },
+  "assetAnalysis": {
+    "reading": "What this asset tells",
+    "f": {
+      "never_scanned": "No scan has reported anything on this asset yet.",
+      "clean": {
+        "exact": {
+          "0": "No open vulnerability."
+        },
+        "one": "No open vulnerability; {count} fixed or handled.",
+        "other": "No open vulnerability; {count} fixed or handled."
+      },
+      "kev_open": {
+        "one": "{count} vulnerability exploited in the wild (KEV catalogue).",
+        "other": "{count} vulnerabilities exploited in the wild (KEV catalogue)."
+      },
+      "overdue": {
+        "one": "{count} fix past its deadline, for {days} d.",
+        "other": "{count} fixes past their deadline; the oldest for {days} d."
+      },
+      "severe_open": {
+        "one": "{count} critical or high vulnerability open.",
+        "other": "{count} critical or high vulnerabilities open."
+      },
+      "internet_facing": "Reachable from outside (zone: {zone}).",
+      "internet_facing_flag": "Declared internet-exposed.",
+      "business_critical": "Asset of {level} criticality for the business.",
+      "linked_risks": {
+        "one": "{count} linked risk, score {score}.",
+        "other": "{count} linked risks; highest score {score}."
+      }
+    },
+    "levels": {
+      "CRITICAL": "critical",
+      "HIGH": "high",
+      "MEDIUM": "medium",
+      "LOW": "low"
+    },
+    "zones": {
+      "dmz": "DMZ",
+      "perimetre": "perimeter",
+      "interne": "internal",
+      "administration": "administration",
+      "industriel": "industrial",
+      "invite": "guest"
+    },
+    "sev": {
+      "critical": "Critical",
+      "high": "High",
+      "medium": "Medium",
+      "low": "Low",
+      "info": "Info"
+    },
+    "kev": "KEV",
+    "overdueChip": "Overdue",
+    "next": "Treat first",
+    "why": {
+      "kev": "exploited in the wild",
+      "overdue": "past deadline",
+      "epss": "high exploitation probability",
+      "severity": "{level} severity"
+    },
+    "open": "Open",
+    "openVulns": {
+      "exact": {
+        "0": "Open vulnerabilities"
+      },
+      "one": "{count} open vulnerability",
+      "other": "{count} open vulnerabilities"
+    },
+    "due": "due {date}",
+    "dueLate": "overdue since {date}",
+    "noDue": "no deadline",
+    "epss": "EPSS {pct}",
+    "cvss": "CVSS {score}",
+    "more": "See all vulnerabilities",
+    "truncated": "More than 500 findings: the analysis covers the 500 most urgent.",
+    "risks": "Linked risks",
+    "lastDetected": "Last detection on {date}",
+    "loadError": "The analysis could not be loaded.",
+    "digest": "Exposure",
+    "seeAnalysis": "See the analysis"
   }
 }

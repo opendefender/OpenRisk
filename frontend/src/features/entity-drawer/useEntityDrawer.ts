@@ -23,6 +23,10 @@ import {
   fetchTimeline,
 } from './entityService';
 import type { EntityType } from './types';
+import { api } from '../../lib/api';
+import type { components } from '../../types/openapi.generated';
+
+export type AssetAnalysis = components['schemas']['AssetAnalysis'];
 
 /** The root of every drawer key, so one call can invalidate the lot. */
 export const ENTITY_QUERY_ROOT = 'entity-drawer' as const;
@@ -133,5 +137,18 @@ export function useEntityCatalogue() {
     queryFn: fetchCatalogue,
     staleTime: 5 * 60_000,
     retry: false,
+  });
+}
+
+/** An asset's exposure analysis (#937). Only fetched when the Exposition tab is
+ *  open; the server offers that tab only to readers of vulnerabilities. */
+export function useAssetAnalysis(type: EntityType | null, id: string | null, enabled: boolean) {
+  const tenant = useTenantKey();
+  return useQuery({
+    queryKey: [...entityKey(tenant, type ?? 'asset', id ?? ''), 'analysis'] as const,
+    queryFn: async () => (await api.get<AssetAnalysis>(`/assets/${id as string}/analysis`)).data,
+    enabled: enabled && type === 'asset' && !!id,
+    retry: false,
+    staleTime: 30_000,
   });
 }
