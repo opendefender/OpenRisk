@@ -376,7 +376,7 @@ export interface paths {
         };
         /**
          * One asset's exposure analysis
-         * @description The asset's open vulnerabilities, most urgent first (known-exploited, then past deadline, then severity, CVSS, EPSS), counts by severity, open KEV and overdue findings, its network exposure, its criticality and linked risks (frozen engine scores), and the next finding to treat. `findings` are codes with figures, worded by the console; nothing is generated and no new score is computed. Needs `assets:read` and `vulnerabilities:read`.
+         * @description The asset's open vulnerabilities, most urgent first (known-exploited, then past deadline, then severity, CVSS, EPSS), counts by severity, open KEV and overdue findings, its network exposure, its criticality and linked risks (frozen engine scores), and the next finding to treat. Internet exposure follows the same rule as the topology (the `internet_exposed` or `publicly_accessible` attribute); the network zone is reported as a separate fact. `findings` are codes with figures, worded by the console; nothing is generated and no new score is computed. Needs `assets:read` and `vulnerabilities:read`.
          */
         get: operations["getAssetAnalysis"];
         put?: never;
