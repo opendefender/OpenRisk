@@ -8,7 +8,16 @@
 // editing and the asset itself.
 
 import { useState } from 'react';
-import { ArrowDownRight, ArrowUpLeft, ChevronDown, Crosshair, X } from 'lucide-react';
+import {
+  ArrowDownRight,
+  ArrowUpLeft,
+  ChevronDown,
+  ChevronRight,
+  Crosshair,
+  Globe,
+  Link2,
+  X,
+} from 'lucide-react';
 
 import { useI18n } from '../../hooks/useI18n';
 import { useAuthStore } from '../../hooks/useAuthStore';
@@ -26,61 +35,130 @@ const panel = 'bg-surface-1 border border-border-subtle rounded-[14px] px-5 py-[
 
 /* --------------------------------------------------------------- paths */
 
+export interface PathNodeInfo {
+  name: string;
+  kev: number;
+  vulns: number;
+}
+
 export function PathsPanel({
   paths,
-  nameOf,
-  critOf,
+  infoOf,
   anyExposed,
+  anyEdges,
+  canEdit,
   activeIndex,
   onPick,
+  onPreview,
+  onDeclare,
+  onAddDependencies,
 }: {
   paths: readonly ExposurePathLike[];
-  nameOf: (id: string) => string;
-  critOf: (id: string) => string;
+  infoOf: (id: string) => PathNodeInfo;
   anyExposed: boolean;
+  anyEdges: boolean;
+  canEdit: boolean;
   activeIndex: number | null;
   onPick: (i: number | null) => void;
+  onPreview: (i: number | null) => void;
+  onDeclare: () => void;
+  onAddDependencies: () => void;
 }) {
   const { t } = useI18n();
   const maxHops = paths.reduce((m, p) => Math.max(m, p.hops), 0);
+  const summary = !anyExposed
+    ? t('topology.pathsNoExposed')
+    : !anyEdges
+      ? t('topology.pathsNoEdges')
+      : t('topology.pathsSummary', { count: paths.length, hops: maxHops, max: 4 });
   return (
     <section className={panel} data-testid="topo-paths">
       <h2 className="m-0 text-[13.5px] font-semibold text-ink">{t('topology.pathsTitle')}</h2>
-      <p className="m-0 mt-1.5 mb-3.5 text-[12.5px] leading-[1.55] text-ink-soft">
-        {!anyExposed
-          ? t('topology.pathsNoExposed')
-          : t('topology.pathsSummary', { count: paths.length, hops: maxHops, max: 4 })}
-      </p>
-      <ol className="m-0 p-0 list-none grid gap-2">
+      <p className="m-0 mt-1.5 mb-3.5 text-[12.5px] leading-[1.55] text-ink-soft">{summary}</p>
+
+      {canEdit && (!anyExposed || !anyEdges) && (
+        <div className="grid gap-2 mb-3.5">
+          {!anyExposed && (
+            <Button variant="primary" icon={Globe} onClick={onDeclare} data-testid="topo-declare">
+              {t('topology.declare.cta')}
+            </Button>
+          )}
+          {!anyEdges && (
+            <Button
+              variant="secondary"
+              icon={Link2}
+              onClick={onAddDependencies}
+              data-testid="topo-add-deps"
+            >
+              {t('topology.addDeps')}
+            </Button>
+          )}
+        </div>
+      )}
+
+      <ol className="m-0 p-0 list-none grid gap-2" onMouseLeave={() => onPreview(null)}>
         {paths.map((p, i) => {
           const on = activeIndex === i;
-          const last = p.asset_ids[p.asset_ids.length - 1];
+          const target = infoOf(p.asset_ids[p.asset_ids.length - 1]);
           return (
             <li key={p.asset_ids.join('>')}>
               <button
                 type="button"
                 aria-pressed={on}
                 onClick={() => onPick(on ? null : i)}
+                onMouseEnter={() => onPreview(i)}
+                onFocus={() => onPreview(i)}
+                onBlur={() => onPreview(null)}
                 title={t('topology.pathShow')}
                 data-testid="topo-path"
-                className={`w-full text-left px-3 py-2.5 rounded-[10px] border text-[12.5px] leading-[1.6] transition-colors ${
+                className={`w-full text-left px-3 py-2.5 rounded-[10px] border transition-colors ${
                   on
                     ? 'border-accent bg-surface-2'
                     : 'border-border-subtle hover:border-border-strong'
                 }`}
               >
-                <span
-                  className="mono text-[11px] font-semibold uppercase"
-                  style={{
-                    color:
-                      critOf(last) === 'CRITICAL' ? 'var(--danger-text)' : 'var(--warning-text)',
-                  }}
-                >
-                  {t('topology.pathLabel', { n: i + 1, count: p.hops })}
+                <span className="flex items-center justify-between gap-2">
+                  <span className="mono text-[11px] font-semibold uppercase text-ink-muted">
+                    {t('topology.pathN', { n: i + 1 })}
+                  </span>
+                  <span className="mono text-[11px] px-1.5 py-0.5 rounded bg-surface-2 text-ink-soft">
+                    {t('topology.hops', { count: p.hops })}
+                  </span>
                 </span>
-                <span className="block text-ink-soft">
-                  {[t('topology.internet'), ...p.asset_ids.map(nameOf)].join(' → ')}
+                <span className="flex flex-wrap items-center gap-1 mt-1.5 text-[12px]">
+                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-surface-2 text-ink-soft">
+                    <Globe size={11} aria-hidden="true" /> {t('topology.internet')}
+                  </span>
+                  {p.asset_ids.map((id, k) => {
+                    const last = k === p.asset_ids.length - 1;
+                    return (
+                      <span key={id} className="inline-flex items-center gap-1">
+                        <ChevronRight size={12} className="text-ink-muted" aria-hidden="true" />
+                        <span
+                          className={`px-1.5 py-0.5 rounded-full ${
+                            last
+                              ? 'bg-surface-3 text-ink font-semibold'
+                              : 'bg-surface-2 text-ink-soft'
+                          }`}
+                        >
+                          {infoOf(id).name}
+                        </span>
+                      </span>
+                    );
+                  })}
                 </span>
+                {(target.kev > 0 || target.vulns > 0) && (
+                  <span className="flex gap-1.5 mt-1.5 text-[11px]">
+                    {target.kev > 0 && (
+                      <span className="font-bold px-1.5 py-0.5 rounded bg-danger-surface text-danger-text">
+                        {t('topology.kevOnTarget', { count: target.kev })}
+                      </span>
+                    )}
+                    <span className="px-1.5 py-0.5 rounded bg-surface-2 text-ink-soft">
+                      {t('topology.vulns', { count: target.vulns })}
+                    </span>
+                  </span>
+                )}
               </button>
             </li>
           );
@@ -109,6 +187,7 @@ export function NodePanel({
   chainCounts,
   onChain,
   editor,
+  startEditing = false,
 }: {
   node: TopologyNode;
   zoneLabel: string;
@@ -123,11 +202,13 @@ export function NodePanel({
   chainCounts: { impacted: number; reachable: number } | null;
   onChain: () => void;
   editor: React.ReactNode;
+  /** Opens the dependency editor at once (the "add dependencies" path). */
+  startEditing?: boolean;
 }) {
   const { t, locale } = useI18n();
   const canSeeVulns = useAuthStore((s) => s.hasPermission('vulnerabilities:read'));
   const analysis = useAssetAnalysis('asset', node.id as string, canSeeVulns);
-  const [editing, setEditing] = useState(false);
+  const [editing, setEditing] = useState(startEditing);
   const crit = ((node.criticality ?? 'LOW') as string).toLowerCase() as Criticality;
 
   const heading = 'text-[10.5px] tracking-[.06em] uppercase font-semibold text-ink-muted';

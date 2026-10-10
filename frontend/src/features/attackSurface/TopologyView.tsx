@@ -59,13 +59,24 @@ import {
   type TopologyEdgeType,
   type TopologyNode,
 } from './topologyTypes';
-import { highlightFor, neighbourhood, searchNodes, type Highlight } from './topologyModel';
+import {
+  highlightFor,
+  neighbourhood,
+  placeLabels,
+  searchNodes,
+  type Highlight,
+  type LabelCandidate,
+} from './topologyModel';
 import { DependencyEditor, NodePanel, PathsPanel } from './TopologyPanel';
 import { TopologyList } from './TopologyList';
+import { ExposureDeclareDialog } from './ExposureDeclareDialog';
 
 const EXPOSED_COLOR = 'var(--risk-critical)';
 const INTERNAL_COLOR = 'var(--risk-low)';
 const CRITS = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'] as const;
+const CRIT_WEIGHT: Record<string, number> = { CRITICAL: 30, HIGH: 20, MEDIUM: 10, LOW: 0 };
+/** The internet-exposure marker, drawn in every colour mode. */
+const EXPOSED_MARK = 'var(--warning-text)';
 
 /** Resolves a CSS variable to a concrete colour — canvas and the export cannot
  *  carry `var(--x)`. */
@@ -107,6 +118,10 @@ export default function TopologyView() {
   const [chainOrigin, setChainOrigin] = useState<string | null>(null);
   const [pathsOn, setPathsOn] = useState(false);
   const [activePath, setActivePath] = useState<number | null>(null);
+  // Hovering or focusing a path card previews it; a click pins it.
+  const [previewPath, setPreviewPath] = useState<number | null>(null);
+  const [declaring, setDeclaring] = useState(false);
+  const [editOnOpen, setEditOnOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [exporting, setExporting] = useState(false);
 
@@ -158,11 +173,18 @@ export default function TopologyView() {
       : null;
     return highlightFor({
       chain: chainSet,
-      paths: activePath !== null ? [paths[activePath]] : pathsOn ? paths : null,
+      paths:
+        activePath !== null
+          ? [paths[activePath]]
+          : previewPath !== null && paths[previewPath]
+            ? [paths[previewPath]]
+            : pathsOn
+              ? paths
+              : null,
       selectedId,
       edges,
     });
-  }, [chain, paths, activePath, pathsOn, selectedId, edges]);
+  }, [chain, paths, activePath, previewPath, pathsOn, selectedId, edges]);
 
   const colorOf = useCallback(
     (n: TopologyNode): string => {
@@ -253,6 +275,7 @@ export default function TopologyView() {
     const activeEdge = resolveColor('var(--graph-edge-active)', root);
     const nodeFill = resolveColor('var(--graph-node)', root);
     const accent = resolveColor('var(--accent)', root);
+    const exposedMark = resolveColor(EXPOSED_MARK, root);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, w, h);
     const cam = camRef.current;
@@ -288,6 +311,16 @@ export default function TopologyView() {
       ctx.arc(n.x, n.y, n.r, 0, Math.PI * 2);
       ctx.fill();
       ctx.stroke();
+      // Entry points stay visible in every colour mode: a dashed outer ring.
+      if (n.node.internet_exposed) {
+        ctx.strokeStyle = exposedMark;
+        ctx.lineWidth = 1.5 / cam.k;
+        ctx.setLineDash([3 / cam.k, 3 / cam.k]);
+        ctx.beginPath();
+        ctx.arc(n.x, n.y, n.r + 4 / cam.k, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
       if (n.id === selectedId || n.id === chainOrigin) {
         ctx.globalAlpha = 1;
         ctx.strokeStyle = n.id === selectedId ? accent : ink;
@@ -300,17 +333,39 @@ export default function TopologyView() {
 
     // Labels adapt: every label once zoomed in enough to read them; otherwise
     // only the hovered and selected nodes, and those an isolation keeps bright.
+    // Placement avoids collisions: a label with no free side is dropped unless
+    // its node is hovered or selected.
     const labelZoom = st.mode === 'universe' ? 0.3 : 0.55;
     const all = cam.k > labelZoom;
     ctx.fillStyle = ink;
     ctx.font = `${11.5 / cam.k}px ui-sans-serif, system-ui, sans-serif`;
+    const candidates: LabelCandidate[] = [];
     for (const n of st.nodes) {
       const lit = hl?.nodes.has(n.id) ?? false;
-      const show =
-        n.id === hoverRef.current || n.id === selectedId || (hl ? lit && hl.nodes.size <= 24 : all);
-      if (!show || (hl && !lit && n.id !== hoverRef.current)) continue;
-      ctx.globalAlpha = 0.92;
-      ctx.fillText(n.node.name ?? '', n.x + n.r + 4 / cam.k, n.y + 4 / cam.k);
+      const must = n.id === hoverRef.current || n.id === selectedId;
+      const show = must || (hl ? lit && hl.nodes.size <= 24 : all);
+      if (!show) continue;
+      const name = n.node.name ?? '';
+      candidates.push({
+        id: n.id,
+        x: n.x,
+        y: n.y,
+        r: n.r,
+        width: ctx.measureText(name).width,
+        height: 14 / cam.k,
+        priority:
+          (must ? 100 : 0) +
+          (lit ? 50 : 0) +
+          (CRIT_WEIGHT[(n.node.criticality ?? 'LOW') as string] ?? 0) +
+          (n.node.degree ?? 0),
+        mustShow: must,
+      });
+    }
+    const placed = placeLabels(candidates, st.nodes, 4 / cam.k);
+    ctx.globalAlpha = 0.92;
+    for (const p of placed) {
+      const n = st.byId.get(p.id);
+      if (n) ctx.fillText(n.node.name ?? '', p.x, p.y);
     }
     ctx.globalAlpha = 1;
     ctx.restore();
@@ -401,9 +456,10 @@ export default function TopologyView() {
   };
 
   /** Select a node and bring it to the middle of the canvas. */
-  const select = (id: string) => {
+  const select = (id: string, edit = false) => {
     setSelectedId(id);
     setActivePath(null);
+    setEditOnOpen(edit);
     const n = layoutRef.current?.byId.get(id);
     const wrap = wrapRef.current;
     if (n && wrap) {
@@ -648,6 +704,15 @@ export default function TopologyView() {
                   {l.label}
                 </span>
               ))}
+              {anyExposed && (
+                <span className="flex items-center gap-1.5">
+                  <span
+                    className="w-3 h-3 rounded-full border border-dashed"
+                    style={{ borderColor: EXPOSED_MARK }}
+                  />
+                  {t('topology.legendEntry')}
+                </span>
+              )}
               <span className="flex-1" />
               {TOPOLOGY_EDGE_TYPES.map((ty) => (
                 <span key={ty} className="flex items-center gap-1.5">
@@ -672,14 +737,19 @@ export default function TopologyView() {
         <div className="flex-[1_1_300px] min-w-[280px]">
           {selected && nb ? (
             <NodePanel
+              key={selected.id as string}
+              startEditing={editOnOpen}
               node={selected}
               zoneLabel={zoneLabel(selected.zone as string)}
-              slug=""
+              slug={selected.slug ?? ''}
               up={nb.up}
               down={nb.down}
               nameOf={nameOf}
               onSelect={select}
-              onClose={() => setSelectedId(null)}
+              onClose={() => {
+                setSelectedId(null);
+                setEditOnOpen(false);
+              }}
               onOpenAsset={() => openDrawer('asset', selected.id as string)}
               chainOn={chainOrigin === selected.id}
               chainCounts={
@@ -731,18 +801,49 @@ export default function TopologyView() {
           ) : data ? (
             <PathsPanel
               paths={paths}
-              nameOf={nameOf}
-              critOf={(id) => (byId.get(id)?.criticality ?? 'LOW') as string}
+              infoOf={(id) => {
+                const n = byId.get(id);
+                return {
+                  name: n?.name ?? id.slice(0, 8),
+                  kev: n?.kev_count ?? 0,
+                  vulns: n?.vuln_count ?? 0,
+                };
+              }}
               anyExposed={anyExposed}
+              anyEdges={edges.length > 0}
+              canEdit={canEdit}
               activeIndex={activePath}
               onPick={(i) => {
                 setActivePath(i);
                 setChainOrigin(null);
               }}
+              onPreview={setPreviewPath}
+              onDeclare={() => setDeclaring(true)}
+              onAddDependencies={() => {
+                // Start from the most critical asset: that is where a missing
+                // dependency hides the most.
+                const first = [...nodes].sort(
+                  (a, b) =>
+                    (CRIT_WEIGHT[(b.criticality ?? 'LOW') as string] ?? 0) -
+                    (CRIT_WEIGHT[(a.criticality ?? 'LOW') as string] ?? 0),
+                )[0];
+                if (first) select(first.id as string, true);
+              }}
             />
           ) : null}
         </div>
       </div>
+
+      {declaring && (
+        <ExposureDeclareDialog
+          nodes={nodes}
+          onClose={() => setDeclaring(false)}
+          onSaved={(n) => {
+            toast.success(t('topology.declare.done', { count: n }));
+            void refetch();
+          }}
+        />
+      )}
     </PageFrame>
   );
 }

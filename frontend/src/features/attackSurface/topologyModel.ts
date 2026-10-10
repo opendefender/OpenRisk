@@ -91,3 +91,83 @@ export function searchNodes(nodes: readonly TopologyNode[], q: string, limit = 8
     })
     .slice(0, limit);
 }
+
+/* ------------------------------------------------------------- labels */
+
+export interface LabelCandidate {
+  id: string;
+  /** Node centre and radius, in the same units as width and height. */
+  x: number;
+  y: number;
+  r: number;
+  width: number;
+  height: number;
+  /** Higher first. A must-show label is placed even when it collides. */
+  priority: number;
+  mustShow?: boolean;
+}
+
+export interface PlacedLabel {
+  id: string;
+  /** Left edge and baseline of the text. */
+  x: number;
+  y: number;
+}
+
+interface Box {
+  x0: number;
+  y0: number;
+  x1: number;
+  y1: number;
+}
+
+const overlaps = (a: Box, b: Box) => a.x0 < b.x1 && b.x0 < a.x1 && a.y0 < b.y1 && b.y0 < a.y1;
+
+/**
+ * Places labels without overlapping each other or another node (#907): each
+ * label tries the right of its node, then the left, above and below, in
+ * priority order. A label with nowhere to go is dropped, unless it must show
+ * (hovered, selected), in which case it takes the right and may overlap.
+ */
+export function placeLabels(
+  labels: readonly LabelCandidate[],
+  nodes: readonly { x: number; y: number; r: number }[],
+  gap = 4,
+): PlacedLabel[] {
+  const taken: Box[] = nodes.map((n) => ({
+    x0: n.x - n.r,
+    y0: n.y - n.r,
+    x1: n.x + n.r,
+    y1: n.y + n.r,
+  }));
+  const out: PlacedLabel[] = [];
+  const order = [...labels].sort((a, b) => b.priority - a.priority);
+  for (const l of order) {
+    const h = l.height;
+    const spots: Box[] = [
+      { x0: l.x + l.r + gap, y0: l.y - h / 2, x1: l.x + l.r + gap + l.width, y1: l.y + h / 2 },
+      { x0: l.x - l.r - gap - l.width, y0: l.y - h / 2, x1: l.x - l.r - gap, y1: l.y + h / 2 },
+      {
+        x0: l.x - l.width / 2,
+        y0: l.y - l.r - gap - h,
+        x1: l.x + l.width / 2,
+        y1: l.y - l.r - gap,
+      },
+      {
+        x0: l.x - l.width / 2,
+        y0: l.y + l.r + gap,
+        x1: l.x + l.width / 2,
+        y1: l.y + l.r + gap + h,
+      },
+    ];
+    // Its own node does not block it.
+    const own = (b: Box) =>
+      b.x0 === l.x - l.r && b.y0 === l.y - l.r && b.x1 === l.x + l.r && b.y1 === l.y + l.r;
+    const free = spots.find((s) => !taken.some((b) => !own(b) && overlaps(s, b)));
+    const spot = free ?? (l.mustShow ? spots[0] : undefined);
+    if (!spot) continue;
+    taken.push(spot);
+    out.push({ id: l.id, x: spot.x0, y: spot.y1 - h * 0.22 });
+  }
+  return out;
+}

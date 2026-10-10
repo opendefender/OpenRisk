@@ -1665,10 +1665,6 @@
       "other": "{count} chemins relient Internet à un actif critique en {hops} sauts au plus."
     },
     "pathsNoExposed": "Aucun actif n'est déclaré exposé sur Internet (attribut « Exposé sur Internet »). Renseignez-le pour calculer les chemins.",
-    "pathLabel": {
-      "one": "Chemin {n} · {count} saut",
-      "other": "Chemin {n} · {count} sauts"
-    },
     "internet": "Internet",
     "pathShow": "Isoler ce chemin",
     "pathsRule": "Calculés en suivant les dépendances dans le sens où un attaquant progresse, comme la chaîne de compromission.",
@@ -1713,6 +1709,38 @@
     "colUp": "Dépend de",
     "colDown": "Alimente",
     "yes": "Oui",
-    "no": "Non"
+    "no": "Non",
+    "pathsNoEdges": "Aucune dépendance n'est encore cartographiée : un chemin suit les dépendances entre actifs. Ajoutez-les depuis un actif.",
+    "addDeps": "Ajouter des dépendances",
+    "pathN": "Chemin {n}",
+    "hops": {
+      "one": "{count} saut",
+      "other": "{count} sauts"
+    },
+    "kevOnTarget": {
+      "one": "{count} KEV",
+      "other": "{count} KEV"
+    },
+    "legendEntry": "Point d'entrée Internet",
+    "declare": {
+      "cta": "Déclarer les actifs exposés",
+      "title": "Actifs exposés sur Internet",
+      "sub": "Les chemins d'exposition partent des actifs déclarés exposés. Cochez ceux qui sont joignables depuis Internet.",
+      "likely": "zone {zone}",
+      "none": "Aucun actif de type serveur, application, réseau ou cloud n'est à déclarer.",
+      "save": {
+        "exact": {
+          "0": "Déclarer"
+        },
+        "one": "Déclarer {count} actif",
+        "other": "Déclarer {count} actifs"
+      },
+      "cancel": "Annuler",
+      "done": {
+        "one": "{count} actif déclaré exposé.",
+        "other": "{count} actifs déclarés exposés."
+      },
+      "failed": "Non enregistré pour : {names}. Le schéma de ces actifs n'a peut-être pas l'attribut « Exposé sur Internet »."
+    }
   }
 }

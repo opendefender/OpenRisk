@@ -11,7 +11,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import { useUIStore } from '../../../store/uiStore';
 import { useAuthStore } from '../../../hooks/useAuthStore';
-import { highlightFor, neighbourhood, searchNodes } from '../topologyModel';
+import { highlightFor, neighbourhood, placeLabels, searchNodes } from '../topologyModel';
 import type { TopologyEdge, TopologyNode } from '../topologyTypes';
 
 const FW = 'f0000000-0000-4000-8000-000000000001';
@@ -33,6 +33,9 @@ const node = (id: string, name: string, criticality: string, exposed = false): T
     risk_count: 1,
     max_risk_score: 6.4,
     vuln_count: 2,
+    kev_count: id === AD ? 1 : 0,
+    slug: id === AD ? 'ad-dc-01' : undefined,
+    category: id === API ? 'application' : 'server',
     degree: 1,
   }) as TopologyNode;
 const NODES = [
@@ -48,10 +51,15 @@ const EDGES = [
 ] as TopologyEdge[];
 
 let topology: unknown;
+const patches = vi.fn<(url: string, body: unknown) => Promise<{ data: unknown }>>();
 vi.mock('../../../lib/api', () => ({
   api: {
     get: (url: string) => {
       if (url === '/attack-surface/topology') return Promise.resolve({ data: topology });
+      if (url.startsWith('/assets/') && !url.endsWith('/analysis'))
+        return Promise.resolve({
+          data: { id: url.split('/')[2], attributes: { network_zone: 'dmz' } },
+        });
       if (url.startsWith('/asset-dependencies')) return Promise.resolve({ data: [] });
       if (url.endsWith('/analysis'))
         return Promise.resolve({
@@ -75,6 +83,8 @@ vi.mock('../../../lib/api', () => ({
       return Promise.resolve({ data: {} });
     },
     post: () => Promise.resolve({ data: {} }),
+    patch: (url: string, body: unknown) => patches(url, body),
+    put: (url: string, body: unknown) => patches(url, body),
     delete: () => Promise.resolve({ data: {} }),
     interceptors: { request: { use: () => 0 }, response: { use: () => 0 } },
   },
@@ -103,6 +113,7 @@ function renderPage() {
 }
 
 beforeEach(() => {
+  patches.mockReset();
   useUIStore.setState({ lang: 'fr' });
   useAuthStore.setState({
     user: {
@@ -160,17 +171,52 @@ describe('#907 — topology helpers', () => {
   });
 });
 
+describe('#907 — label placement', () => {
+  it('moves a colliding label to a free side, drops it when there is none', () => {
+    const nodes = [
+      { x: 0, y: 0, r: 5 },
+      { x: 40, y: 0, r: 5 },
+    ];
+    const placed = placeLabels(
+      [
+        { id: 'a', x: 0, y: 0, r: 5, width: 50, height: 10, priority: 2 },
+        { id: 'b', x: 40, y: 0, r: 5, width: 50, height: 10, priority: 1 },
+      ],
+      nodes,
+      2,
+    );
+    // a's right side is blocked by b's node, so its label goes left.
+    const a = placed.find((p) => p.id === 'a');
+    expect(a && a.x < 0).toBe(true);
+    expect(placed.find((p) => p.id === 'b')).toBeDefined();
+
+    // A label boxed in on every side is dropped, unless it must show.
+    const crowd = [
+      { x: 0, y: 0, r: 5 },
+      { x: 12, y: 0, r: 6 },
+      { x: -12, y: 0, r: 6 },
+      { x: 0, y: -12, r: 6 },
+      { x: 0, y: 12, r: 6 },
+    ];
+    const boxed = { id: 'c', x: 0, y: 0, r: 5, width: 20, height: 8, priority: 1 };
+    expect(placeLabels([boxed], crowd, 1)).toHaveLength(0);
+    expect(placeLabels([{ ...boxed, mustShow: true }], crowd, 1)).toHaveLength(1);
+  });
+});
+
 describe('#907 — topology page', () => {
   it('lists the exposure paths from the internet, shortest first', async () => {
     renderPage();
     const paths = await screen.findAllByTestId('topo-path');
     expect(paths).toHaveLength(2);
-    expect(paths[0]).toHaveTextContent('Chemin 1 · 2 sauts');
-    expect(paths[0]).toHaveTextContent(
-      'Internet → Pare-feu périmétrique → Contrôleur de domaine AD',
-    );
+    expect(paths[0]).toHaveTextContent('Chemin 1');
+    expect(paths[0]).toHaveTextContent('2 sauts');
+    expect(paths[0]).toHaveTextContent('InternetPare-feu périmétriqueContrôleur de domaine AD');
+    // What is at stake on the target.
+    expect(paths[0]).toHaveTextContent('1 KEV');
+    expect(paths[0]).toHaveTextContent('2 vulnérabilités ouvertes');
     expect(paths[1]).toHaveTextContent(
-      'Internet → Pare-feu périmétrique → API banque mobile → Base clients',
+      'InternetPare-feu périmétriqueAPI banque mobileBase clients',
     );
     expect(screen.getByTestId('topo-paths')).toHaveTextContent(
       '2 chemins relient Internet à un actif critique en 3 sauts au plus.',
@@ -189,6 +235,27 @@ describe('#907 — topology page', () => {
     expect(await screen.findByTestId('topo-paths')).toHaveTextContent(
       "Aucun actif n'est déclaré exposé",
     );
+    // An editor can declare them from here; likely ones are pre-ticked.
+    patches.mockResolvedValue({ data: {} });
+    fireEvent.click(screen.getByTestId('topo-declare'));
+    const list = await screen.findByTestId('declare-list');
+    expect(within(list).getAllByRole('checkbox')).toHaveLength(4);
+    fireEvent.click(within(list).getByLabelText('API banque mobile'));
+    fireEvent.click(screen.getByRole('button', { name: 'Déclarer 1 actif' }));
+    await waitFor(() =>
+      expect(patches).toHaveBeenCalledWith(`/assets/${API}`, {
+        attributes: { network_zone: 'dmz', internet_exposed: true },
+      }),
+    );
+  });
+
+  it('without dependencies, "Ajouter des dépendances" opens the editor on the most critical asset', async () => {
+    topology = { ...(topology as object), edges: [], exposure_paths: [] };
+    renderPage();
+    fireEvent.click(await screen.findByTestId('topo-add-deps'));
+    const panel = await screen.findByTestId('topo-node');
+    expect(panel).toHaveTextContent(/Base clients|Contrôleur de domaine AD/);
+    expect(within(panel).getByTestId('topo-deps')).toBeInTheDocument();
   });
 
   it('search centres on an asset and opens its panel with its exposure', async () => {
@@ -198,6 +265,7 @@ describe('#907 — topology page', () => {
     fireEvent.keyDown(screen.getByTestId('topo-search'), { key: 'Enter' });
     const panel = await screen.findByTestId('topo-node');
     expect(panel).toHaveTextContent('Contrôleur de domaine AD');
+    expect(panel).toHaveTextContent('ad-dc-01');
     expect(await within(panel).findByTestId('exposure-digest')).toHaveTextContent(
       '1 vulnérabilité exploitée activement',
     );

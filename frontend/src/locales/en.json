@@ -1665,10 +1665,6 @@
       "other": "{count} paths link the internet to a critical asset in at most {hops} hops."
     },
     "pathsNoExposed": "No asset is declared internet-exposed (\"Internet exposed\" attribute). Fill it in to compute the paths.",
-    "pathLabel": {
-      "one": "Path {n} · {count} hop",
-      "other": "Path {n} · {count} hops"
-    },
     "internet": "Internet",
     "pathShow": "Isolate this path",
     "pathsRule": "Computed by following dependencies the way an attacker moves, like the compromise chain.",
@@ -1713,6 +1709,38 @@
     "colUp": "Depends on",
     "colDown": "Feeds",
     "yes": "Yes",
-    "no": "No"
+    "no": "No",
+    "pathsNoEdges": "No dependency is mapped yet: a path follows dependencies between assets. Add them from an asset.",
+    "addDeps": "Add dependencies",
+    "pathN": "Path {n}",
+    "hops": {
+      "one": "{count} hop",
+      "other": "{count} hops"
+    },
+    "kevOnTarget": {
+      "one": "{count} KEV",
+      "other": "{count} KEV"
+    },
+    "legendEntry": "Internet entry point",
+    "declare": {
+      "cta": "Declare exposed assets",
+      "title": "Internet-exposed assets",
+      "sub": "Exposure paths start from assets declared exposed. Tick those reachable from the internet.",
+      "likely": "zone {zone}",
+      "none": "No server, application, network or cloud asset is left to declare.",
+      "save": {
+        "exact": {
+          "0": "Declare"
+        },
+        "one": "Declare {count} asset",
+        "other": "Declare {count} assets"
+      },
+      "cancel": "Cancel",
+      "done": {
+        "one": "{count} asset declared exposed.",
+        "other": "{count} assets declared exposed."
+      },
+      "failed": "Not saved for: {names}. Their schema may not have the \"Internet exposed\" attribute."
+    }
   }
 }
