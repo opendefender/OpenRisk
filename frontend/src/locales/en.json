@@ -802,6 +802,88 @@
       "contribution": "Contribution",
       "excluded": "Not applicable: left out of the score.",
       "notScored": "Free-text answer: not scored."
+    },
+    "board": {
+      "summary": {
+        "one": "{count} vendor on record",
+        "other": "{count} vendors on record"
+      },
+      "summaryCritical": {
+        "exact": {
+          "0": "no critical service"
+        },
+        "one": "{count} critical service",
+        "other": "{count} critical services"
+      },
+      "add": "Add a vendor",
+      "search": "Search a vendor…",
+      "listLabel": "Vendors",
+      "more": "Show more",
+      "service": "{level} service",
+      "noService": "Criticality not set",
+      "standing": {
+        "never": "Never assessed",
+        "sent": "Questionnaire sent",
+        "in_progress": "Answer in progress",
+        "overdue": "Questionnaire overdue",
+        "action": "Action plan needed",
+        "uptodate": "Up to date",
+        "closed": "No current assessment"
+      },
+      "due": "due {date}",
+      "noDue": "—",
+      "ratingTitle": "Risk level of the latest assessment: {tier}",
+      "unrated": "Not rated",
+      "riskScore": "Risk score",
+      "riskScoreHint": "The higher the score, the riskier the vendor (thresholds 70 / 40 / 20).",
+      "dataShared": "Data entrusted",
+      "contractEnd": "Contract end",
+      "questionnaireDue": "Questionnaire due",
+      "owner": "Owner",
+      "status": "Status",
+      "linkedAssets": {
+        "exact": {
+          "0": "No linked asset"
+        },
+        "one": "{count} linked asset",
+        "other": "{count} linked assets"
+      },
+      "data": {
+        "aucune": "None",
+        "personnelles": "Personal",
+        "sensibles": "Sensitive",
+        "financieres": "Financial",
+        "sante": "Health"
+      },
+      "weakest": "Weak points of the latest assessment",
+      "weakestHint": "The answers that weigh most in the risk score.",
+      "weakestNone": "No answer adds to the score.",
+      "notScored": "The latest assessment has no score yet: the questionnaire awaits the vendor's answer.",
+      "neverAssessed": "This vendor was never assessed. Send a questionnaire to get a score.",
+      "points": "{pts} pts",
+      "send": "Send a questionnaire",
+      "createRisk": "Create a risk",
+      "riskTitle": "Failure of vendor {name}",
+      "openProfile": "Open the full profile",
+      "openAssessment": "See the assessment",
+      "panelEmptyTitle": "Select a vendor",
+      "panelEmptyBody": "Its rating, deadlines and the weak points of its latest assessment show here.",
+      "attention": "To watch",
+      "attOverdue": {
+        "one": "{count} questionnaire overdue",
+        "other": "{count} questionnaires overdue"
+      },
+      "attAction": {
+        "one": "{count} vendor needs an action plan",
+        "other": "{count} vendors need an action plan"
+      },
+      "attNever": {
+        "one": "{count} vendor never assessed",
+        "other": "{count} vendors never assessed"
+      },
+      "attNone": "Nothing urgent among the vendors shown.",
+      "close": "Close",
+      "noMatch": "No vendor matches this search."
     }
   },
   "vendorQuestionnaire": {
