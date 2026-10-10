@@ -367,6 +367,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/assets/{id}/analysis": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * One asset's exposure analysis
+         * @description The asset's open vulnerabilities, most urgent first (known-exploited, then past deadline, then severity, CVSS, EPSS), counts by severity, open KEV and overdue findings, its network exposure, its criticality and linked risks (frozen engine scores), and the next finding to treat. `findings` are codes with figures, worded by the console; nothing is generated and no new score is computed. Needs `assets:read` and `vulnerabilities:read`.
+         */
+        get: operations["getAssetAnalysis"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/timeline": {
         parameters: {
             query?: never;
@@ -3680,6 +3700,61 @@ export interface components {
             /** @enum {string} */
             code: "wrong_password" | "wrong_code" | "mfa_required_by_role" | "no_local_password" | "not_enrolled" | "too_many_attempts" | "rejected" | "internal";
         };
+        AssetAnalysis: {
+            /** Format: uuid */
+            asset_id: string;
+            criticality: string;
+            network_zone?: string;
+            internet_facing: boolean;
+            by_severity: {
+                [key: string]: number;
+            };
+            open: number;
+            kev_open: number;
+            overdue: number;
+            resolved: number;
+            /** Format: date-time */
+            last_detected_at: string | null;
+            /** @description More than 500 findings; the first 500 by urgency are analysed. */
+            truncated: boolean;
+            vulnerabilities: {
+                /** Format: uuid */
+                id: string;
+                cve_id: string;
+                title: string;
+                /** @enum {string} */
+                severity: "critical" | "high" | "medium" | "low" | "info";
+                cvss: number;
+                epss: number;
+                kev: boolean;
+                status: string;
+                /** Format: date-time */
+                sla_due_at: string | null;
+                overdue: boolean;
+                /** Format: date-time */
+                first_seen: string;
+                remediation_hint?: string;
+            }[];
+            risks: {
+                /** Format: uuid */
+                id: string;
+                title: string;
+                score: number;
+                status: string;
+            }[];
+            findings: {
+                /** @enum {string} */
+                code: "never_scanned" | "clean" | "kev_open" | "overdue" | "severe_open" | "internet_facing" | "business_critical" | "linked_risks";
+                count?: number;
+                days?: number;
+                value?: string;
+            }[];
+            next_action: {
+                /** Format: uuid */
+                vulnerability_id: string;
+                reasons: string[];
+            } | null;
+        };
         AssetExposure: {
             /** Format: uuid */
             asset_id: string;
@@ -4816,6 +4891,56 @@ export interface operations {
             };
             /** @description Missing `vulnerabilities:read`, or no organization in the session */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getAssetAnalysis: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The analysis */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssetAnalysis"];
+                };
+            };
+            /** @description Malformed id */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing `assets:read` or `vulnerabilities:read` */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such asset in the caller's organization */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };
