@@ -154,6 +154,37 @@ func TestAssetRepository_Update_Success(t *testing.T) {
 	assert.Equal(t, domain.CriticalityCritical, got.Criticality)
 }
 
+// #940: the update wrote only name, type, criticality and owner, so a changed
+// category, attributes and the fingerprints derived from them were dropped
+// while the API answered 200.
+func TestAssetRepository_Update_PersistsAttributesAndFingerprints(t *testing.T) {
+	repo := setupAssetRepo(t)
+	ctx := context.Background()
+	tenantID := uuid.New()
+
+	asset := &domain.Asset{ID: uuid.New(), TenantID: tenantID, Name: "API", Criticality: domain.CriticalityHigh}
+	require.NoError(t, repo.Create(ctx, asset))
+
+	asset.Category = domain.CategoryApplication
+	asset.Attributes = domain.AssetAttributes{"environment": "production", "internet_exposed": true}
+	asset.Hostnames = []string{"api.example.test"}
+	asset.IPAddresses = []string{"10.0.0.7"}
+	asset.CPEs = []string{"cpe:2.3:a:nginx:nginx:1.25:*:*:*:*:*:*:*"}
+	asset.CloudResourceID = "arn:aws:lambda:x"
+	require.NoError(t, repo.Update(ctx, asset))
+
+	got, err := repo.GetByID(ctx, asset.ID, tenantID)
+	require.NoError(t, err)
+	assert.Equal(t, domain.CategoryApplication, got.Category)
+	assert.Equal(t, true, got.Attributes["internet_exposed"])
+	assert.Equal(t, "production", got.Attributes["environment"])
+	assert.Equal(t, []string{"api.example.test"}, []string(got.Hostnames))
+	assert.Equal(t, []string{"10.0.0.7"}, []string(got.IPAddresses))
+	assert.Len(t, got.CPEs, 1)
+	assert.Equal(t, "arn:aws:lambda:x", got.CloudResourceID)
+	assert.True(t, domain.IsInternetExposed(got), "a declared exposure must reach the topology")
+}
+
 func TestAssetRepository_Update_CrossTenantFails(t *testing.T) {
 	repo := setupAssetRepo(t)
 	ctx := context.Background()
