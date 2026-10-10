@@ -1589,5 +1589,130 @@
     "loadError": "L'analyse n'a pas pu être chargée.",
     "digest": "Exposition",
     "seeAnalysis": "Voir l'analyse"
+  },
+  "topology": {
+    "title": "Topologie",
+    "subtitle": "Dépendances entre actifs. Sélectionnez un nœud pour isoler son voisinage.",
+    "paths": "Chemins depuis Internet",
+    "export": "Exporter",
+    "exportSvg": "Exporter en SVG",
+    "exportPng": "Exporter en PNG",
+    "exported": "Export {format} téléchargé.",
+    "exportFailed": "L'export a échoué.",
+    "search": "Rechercher un actif…",
+    "searchLabel": "Rechercher et centrer sur un actif",
+    "noMatch": "Aucun actif ne correspond.",
+    "graph": "Graphe",
+    "list": "Liste",
+    "viewLabel": "Présentation",
+    "display": "Affichage",
+    "layout": "Disposition",
+    "layoutZones": "Topologie",
+    "layoutUniverse": "Univers",
+    "color": "Couleur",
+    "colorCrit": "Criticité",
+    "colorExposure": "Exposition Internet",
+    "zone": "Zone",
+    "allZones": "Toutes",
+    "criticality": "Criticité",
+    "count": {
+      "one": "{count} actif · {links} liens",
+      "other": "{count} actifs · {links} liens"
+    },
+    "countFiltered": "{shown} / {total} actifs",
+    "truncated": "Le graphe est limité à {limit} nœuds : les actifs les plus critiques et les plus connectés sont affichés. Filtrez par zone pour voir le reste. Les chemins d'exposition portent sur tout le parc.",
+    "loadError": "La topologie n'a pas pu être chargée.",
+    "empty": "Aucun actif à cartographier.",
+    "emptyHint": "Ajoutez des actifs et leurs dépendances pour voir la topologie.",
+    "zoomIn": "Zoom avant",
+    "zoomOut": "Zoom arrière",
+    "fit": "Ajuster à l'écran",
+    "canvasLabel": "Graphe des dépendances entre actifs. La liste donne les mêmes informations au clavier.",
+    "legendCrit": {
+      "critical": "Criticité critique",
+      "high": "Criticité élevée",
+      "medium": "Criticité moyenne",
+      "low": "Criticité faible"
+    },
+    "legendExposure": {
+      "exposed": "Exposé sur Internet",
+      "internal": "Interne"
+    },
+    "rel": {
+      "depends_on": "dépend de",
+      "runs_on": "s'exécute sur",
+      "connects_to": "se connecte à",
+      "hosted_by": "hébergé par",
+      "hosted_on": "hébergé sur",
+      "stores_data_in": "stocke ses données dans",
+      "authenticates_via": "s'authentifie via",
+      "backs_up_to": "est sauvegardé sur",
+      "managed_by": "est administré par",
+      "processes_data_of": "traite les données de"
+    },
+    "crit": {
+      "CRITICAL": "Critique",
+      "HIGH": "Élevée",
+      "MEDIUM": "Moyenne",
+      "LOW": "Faible"
+    },
+    "pathsTitle": "Chemins d'exposition",
+    "pathsSummary": {
+      "exact": {
+        "0": "Aucun chemin ne relie Internet à un actif critique en {max} sauts ou moins."
+      },
+      "one": "Un chemin relie Internet à un actif critique en {hops} sauts au plus.",
+      "other": "{count} chemins relient Internet à un actif critique en {hops} sauts au plus."
+    },
+    "pathsNoExposed": "Aucun actif n'est déclaré exposé sur Internet (attribut « Exposé sur Internet »). Renseignez-le pour calculer les chemins.",
+    "pathLabel": {
+      "one": "Chemin {n} · {count} saut",
+      "other": "Chemin {n} · {count} sauts"
+    },
+    "internet": "Internet",
+    "pathShow": "Isoler ce chemin",
+    "pathsRule": "Calculés en suivant les dépendances dans le sens où un attaquant progresse, comme la chaîne de compromission.",
+    "close": "Fermer",
+    "dependsOn": "Dépend de",
+    "feeds": "Alimente",
+    "none": "Aucun",
+    "risks": {
+      "exact": {
+        "0": "Aucun risque lié"
+      },
+      "one": "{count} risque lié · score {score}",
+      "other": "{count} risques liés · score max {score}"
+    },
+    "vulns": {
+      "exact": {
+        "0": "Aucune vulnérabilité ouverte"
+      },
+      "one": "{count} vulnérabilité ouverte",
+      "other": "{count} vulnérabilités ouvertes"
+    },
+    "exposed": "Exposé sur Internet",
+    "internal": "Non exposé",
+    "chain": "Si cet actif est compromis…",
+    "chainHide": "Masquer la chaîne",
+    "chainResult": "{impacted} impacté(s) · {reachable} atteignable(s) depuis lui.",
+    "openAsset": "Ouvrir l'actif",
+    "editDeps": "Modifier les dépendances",
+    "deps": "Dépendances",
+    "noDeps": "Aucune dépendance enregistrée.",
+    "target": "Cible…",
+    "add": "Ajouter",
+    "adding": "En cours…",
+    "remove": "Retirer",
+    "depAdded": "Dépendance ajoutée.",
+    "depAddFailed": "La dépendance n'a pas pu être ajoutée.",
+    "depRemoveFailed": "La dépendance n'a pas pu être retirée.",
+    "listCaption": "Actifs et dépendances",
+    "colAsset": "Actif",
+    "colCrit": "Criticité",
+    "colExposed": "Exposé",
+    "colUp": "Dépend de",
+    "colDown": "Alimente",
+    "yes": "Oui",
+    "no": "Non"
   }
 }

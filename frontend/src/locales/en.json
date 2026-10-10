@@ -1589,5 +1589,130 @@
     "loadError": "The analysis could not be loaded.",
     "digest": "Exposure",
     "seeAnalysis": "See the analysis"
+  },
+  "topology": {
+    "title": "Topology",
+    "subtitle": "Dependencies between assets. Select a node to isolate its neighbourhood.",
+    "paths": "Paths from the internet",
+    "export": "Export",
+    "exportSvg": "Export as SVG",
+    "exportPng": "Export as PNG",
+    "exported": "{format} export downloaded.",
+    "exportFailed": "The export failed.",
+    "search": "Search an asset…",
+    "searchLabel": "Search and centre on an asset",
+    "noMatch": "No asset matches.",
+    "graph": "Graph",
+    "list": "List",
+    "viewLabel": "Presentation",
+    "display": "Display",
+    "layout": "Layout",
+    "layoutZones": "Topology",
+    "layoutUniverse": "Universe",
+    "color": "Colour",
+    "colorCrit": "Criticality",
+    "colorExposure": "Internet exposure",
+    "zone": "Zone",
+    "allZones": "All",
+    "criticality": "Criticality",
+    "count": {
+      "one": "{count} asset · {links} links",
+      "other": "{count} assets · {links} links"
+    },
+    "countFiltered": "{shown} / {total} assets",
+    "truncated": "The graph is capped at {limit} nodes: the most critical and most connected assets are shown. Filter by zone to see the rest. Exposure paths cover the whole estate.",
+    "loadError": "The topology could not be loaded.",
+    "empty": "No asset to map.",
+    "emptyHint": "Add assets and their dependencies to see the topology.",
+    "zoomIn": "Zoom in",
+    "zoomOut": "Zoom out",
+    "fit": "Fit to screen",
+    "canvasLabel": "Graph of the dependencies between assets. The list gives the same information by keyboard.",
+    "legendCrit": {
+      "critical": "Critical criticality",
+      "high": "High criticality",
+      "medium": "Medium criticality",
+      "low": "Low criticality"
+    },
+    "legendExposure": {
+      "exposed": "Internet-exposed",
+      "internal": "Internal"
+    },
+    "rel": {
+      "depends_on": "depends on",
+      "runs_on": "runs on",
+      "connects_to": "connects to",
+      "hosted_by": "hosted by",
+      "hosted_on": "hosted on",
+      "stores_data_in": "stores data in",
+      "authenticates_via": "authenticates via",
+      "backs_up_to": "backs up to",
+      "managed_by": "managed by",
+      "processes_data_of": "processes data of"
+    },
+    "crit": {
+      "CRITICAL": "Critical",
+      "HIGH": "High",
+      "MEDIUM": "Medium",
+      "LOW": "Low"
+    },
+    "pathsTitle": "Exposure paths",
+    "pathsSummary": {
+      "exact": {
+        "0": "No path links the internet to a critical asset in {max} hops or fewer."
+      },
+      "one": "One path links the internet to a critical asset in at most {hops} hops.",
+      "other": "{count} paths link the internet to a critical asset in at most {hops} hops."
+    },
+    "pathsNoExposed": "No asset is declared internet-exposed (\"Internet exposed\" attribute). Fill it in to compute the paths.",
+    "pathLabel": {
+      "one": "Path {n} · {count} hop",
+      "other": "Path {n} · {count} hops"
+    },
+    "internet": "Internet",
+    "pathShow": "Isolate this path",
+    "pathsRule": "Computed by following dependencies the way an attacker moves, like the compromise chain.",
+    "close": "Close",
+    "dependsOn": "Depends on",
+    "feeds": "Feeds",
+    "none": "None",
+    "risks": {
+      "exact": {
+        "0": "No linked risk"
+      },
+      "one": "{count} linked risk · score {score}",
+      "other": "{count} linked risks · highest score {score}"
+    },
+    "vulns": {
+      "exact": {
+        "0": "No open vulnerability"
+      },
+      "one": "{count} open vulnerability",
+      "other": "{count} open vulnerabilities"
+    },
+    "exposed": "Internet-exposed",
+    "internal": "Not exposed",
+    "chain": "If this asset is compromised…",
+    "chainHide": "Hide the chain",
+    "chainResult": "{impacted} impacted · {reachable} reachable from it.",
+    "openAsset": "Open the asset",
+    "editDeps": "Edit dependencies",
+    "deps": "Dependencies",
+    "noDeps": "No dependency recorded.",
+    "target": "Target…",
+    "add": "Add",
+    "adding": "Working…",
+    "remove": "Remove",
+    "depAdded": "Dependency added.",
+    "depAddFailed": "The dependency could not be added.",
+    "depRemoveFailed": "The dependency could not be removed.",
+    "listCaption": "Assets and dependencies",
+    "colAsset": "Asset",
+    "colCrit": "Criticality",
+    "colExposed": "Exposed",
+    "colUp": "Depends on",
+    "colDown": "Feeds",
+    "yes": "Yes",
+    "no": "No"
   }
 }
