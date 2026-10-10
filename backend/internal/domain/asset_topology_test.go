@@ -251,3 +251,59 @@ func TestBuildCompromiseChain_Isolated(t *testing.T) {
 		t.Error("the origin must be reported back")
 	}
 }
+
+// Exposure paths (#907): from an internet-exposed asset to a critical one,
+// following dependencies forwards, the same rule as the compromise chain.
+func TestBuildExposurePaths(t *testing.T) {
+	mk := func(name string, crit AssetCriticality, exposed bool) Asset {
+		a := Asset{ID: uuid.New(), Name: name, Criticality: crit, Attributes: AssetAttributes{}}
+		if exposed {
+			a.Attributes["internet_exposed"] = true
+		}
+		return a
+	}
+	fw := mk("Pare-feu", CriticalityHigh, true)
+	api := mk("API mobile", CriticalityHigh, false)
+	db := mk("Base clients", CriticalityCritical, false)
+	ad := mk("Contrôleur AD", CriticalityCritical, false)
+	far := mk("Coffre lointain", CriticalityCritical, false)
+	island := mk("Isolé", CriticalityCritical, false)
+	exposedCritical := mk("Portail", CriticalityCritical, true)
+	dep := func(from, to Asset) AssetDependency {
+		return AssetDependency{ID: uuid.New(), SourceAssetID: from.ID, TargetAssetID: to.ID}
+	}
+	h1, h2, h3, h4 := mk("h1", CriticalityLow, false), mk("h2", CriticalityLow, false), mk("h3", CriticalityLow, false), mk("h4", CriticalityLow, false)
+	assets := []Asset{fw, api, db, ad, far, island, exposedCritical, h1, h2, h3, h4}
+	deps := []AssetDependency{
+		dep(fw, api), dep(api, db), // Internet → fw → api → db: 3 hops
+		dep(fw, ad),  // Internet → fw → ad: 2 hops
+		dep(db, api), // a cycle must not loop
+		dep(ad, fw),  // backwards edge does not create a path to fw
+		// Internet → fw → h1 → h2 → h3 → h4 → far: 6 hops, beyond the bound.
+		dep(fw, h1), dep(h1, h2), dep(h2, h3), dep(h3, h4), dep(h4, far),
+	}
+
+	paths := BuildExposurePaths(assets, deps, MaxExposureHops)
+	if len(paths) != 3 {
+		t.Fatalf("got %d paths, want portal (1), AD (2), base clients (3)", len(paths))
+	}
+	if paths[0].Hops != 1 || paths[0].AssetIDs[0] != exposedCritical.ID {
+		t.Fatalf("an exposed critical asset is a one-hop path, got %+v", paths[0])
+	}
+	if paths[1].Hops != 2 || paths[1].AssetIDs[1] != ad.ID || len(paths[1].EdgeIDs) != 1 {
+		t.Fatalf("AD path = %+v", paths[1])
+	}
+	p := paths[2]
+	if p.Hops != 3 || len(p.AssetIDs) != 3 || p.AssetIDs[0] != fw.ID || p.AssetIDs[1] != api.ID || p.AssetIDs[2] != db.ID {
+		t.Fatalf("base clients path = %+v", p)
+	}
+	for _, x := range paths {
+		last := x.AssetIDs[len(x.AssetIDs)-1]
+		if last == island.ID || last == far.ID {
+			t.Fatal("an unreachable or too distant critical asset was reported")
+		}
+	}
+	if got := BuildExposurePaths(nil, nil, 0); len(got) != 0 {
+		t.Fatal("an empty estate has no path")
+	}
+}

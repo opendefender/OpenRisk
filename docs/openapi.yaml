@@ -5289,8 +5289,29 @@ components:
 
     AssetTopology:
       type: object
-      required: [nodes, edges, zones, truncated]
+      required: [nodes, edges, zones, truncated, exposure_paths]
       properties:
+        exposure_paths:
+          type: array
+          description: >-
+            Shortest routes from an internet-exposed asset to each critical asset
+            reachable within four steps, following dependencies forwards (what a
+            compromised asset can reach, the compromise chain's rule). Computed on
+            the whole estate even when the picture is truncated. Shortest first.
+          items:
+            type: object
+            required: [asset_ids, edge_ids, hops]
+            properties:
+              asset_ids:
+                type: array
+                description: Exposed asset first, critical asset last.
+                items: { type: string, format: uuid }
+              edge_ids:
+                type: array
+                items: { type: string, format: uuid }
+              hops:
+                type: integer
+                description: The step in from the internet plus each dependency followed.
         nodes:
           type: array
           items:

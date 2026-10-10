@@ -66,6 +66,99 @@ type AssetTopology struct {
 	// worse than one that renders slowly.
 	Truncated bool `json:"truncated"`
 	NodeLimit int  `json:"node_limit,omitempty"`
+	// ExposurePaths are the shortest routes from an internet-exposed asset to a
+	// critical one (#907), shortest first.
+	ExposurePaths []ExposurePath `json:"exposure_paths"`
+}
+
+// ExposurePath is one route an attacker could take from the internet to a
+// critical asset: an internet-exposed asset first, the critical asset last,
+// following dependencies forwards (what a compromised asset can reach, the
+// same rule as BuildCompromiseChain). Hops counts the step in from the
+// internet plus each dependency followed.
+type ExposurePath struct {
+	AssetIDs []uuid.UUID `json:"asset_ids"`
+	EdgeIDs  []uuid.UUID `json:"edge_ids"`
+	Hops     int         `json:"hops"`
+}
+
+// MaxExposureHops bounds the paths reported: beyond four steps from the
+// internet the answer is "everything is connected", which helps nobody.
+const MaxExposureHops = 4
+
+// BuildExposurePaths returns, for each critical asset reachable from an
+// internet-exposed asset within maxHops, the shortest such route. One path per
+// critical target; ties go to the exposed asset listed first. Ordered by hops,
+// then by the target's name, so the answer is stable.
+func BuildExposurePaths(assets []Asset, deps []AssetDependency, maxHops int) []ExposurePath {
+	if maxHops <= 0 {
+		maxHops = MaxExposureHops
+	}
+	byID := make(map[uuid.UUID]*Asset, len(assets))
+	for i := range assets {
+		byID[assets[i].ID] = &assets[i]
+	}
+	type step struct {
+		to, edge uuid.UUID
+	}
+	forward := map[uuid.UUID][]step{}
+	for _, d := range deps {
+		if byID[d.SourceAssetID] == nil || byID[d.TargetAssetID] == nil {
+			continue
+		}
+		forward[d.SourceAssetID] = append(forward[d.SourceAssetID], step{d.TargetAssetID, d.ID})
+	}
+	isCritical := func(a *Asset) bool { return a != nil && a.Criticality == CriticalityCritical }
+
+	best := map[uuid.UUID]ExposurePath{}
+	for i := range assets {
+		entry := &assets[i]
+		if !IsInternetExposed(entry) {
+			continue
+		}
+		// BFS from the exposed asset; the internet → entry step is hop 1.
+		type state struct {
+			id    uuid.UUID
+			nodes []uuid.UUID
+			edges []uuid.UUID
+		}
+		visited := map[uuid.UUID]bool{entry.ID: true}
+		frontier := []state{{id: entry.ID, nodes: []uuid.UUID{entry.ID}}}
+		for hops := 1; hops <= maxHops && len(frontier) > 0; hops++ {
+			var next []state
+			for _, cur := range frontier {
+				if isCritical(byID[cur.id]) {
+					if old, ok := best[cur.id]; !ok || hops < old.Hops {
+						best[cur.id] = ExposurePath{AssetIDs: cur.nodes, EdgeIDs: append([]uuid.UUID{}, cur.edges...), Hops: hops}
+					}
+				}
+				for _, st := range forward[cur.id] {
+					if visited[st.to] {
+						continue
+					}
+					visited[st.to] = true
+					nodes := append(append([]uuid.UUID{}, cur.nodes...), st.to)
+					edges := append(append([]uuid.UUID{}, cur.edges...), st.edge)
+					next = append(next, state{id: st.to, nodes: nodes, edges: edges})
+				}
+			}
+			frontier = next
+		}
+	}
+
+	out := make([]ExposurePath, 0, len(best))
+	for _, p := range best {
+		out = append(out, p)
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].Hops != out[j].Hops {
+			return out[i].Hops < out[j].Hops
+		}
+		ni := byID[out[i].AssetIDs[len(out[i].AssetIDs)-1]].Name
+		nj := byID[out[j].AssetIDs[len(out[j].AssetIDs)-1]].Name
+		return ni < nj
+	})
+	return out
 }
 
 // ZoneOf decides which cluster an asset belongs to.
