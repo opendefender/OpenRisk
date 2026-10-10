@@ -47,6 +47,10 @@ interface CreateRiskModalProps {
   isOpen: boolean;
   onClose: () => void;
   onCreated?: (risk: Risk) => void;
+  /** Assets the new risk starts linked to (a vendor's "Créer un risque", #908). */
+  initialAssetIds?: string[];
+  /** A starting title the user can change. */
+  initialTitle?: string;
 }
 
 // The live score USED TO BE COMPUTED HERE — a multiplication plus its own band
@@ -58,7 +62,13 @@ interface CreateRiskModalProps {
 // scale, with the band the server assigns. A preview computed by a different
 // formula is a lie told at exactly the moment the user is deciding.
 
-export const CreateRiskModal = ({ isOpen, onClose, onCreated }: CreateRiskModalProps) => {
+export const CreateRiskModal = ({
+  isOpen,
+  onClose,
+  onCreated,
+  initialAssetIds,
+  initialTitle,
+}: CreateRiskModalProps) => {
   // Esc closes this overlay (spec §2).
   useEscapeToClose(isOpen, onClose);
   const { t } = useI18n();
@@ -96,7 +106,8 @@ export const CreateRiskModal = ({ isOpen, onClose, onCreated }: CreateRiskModalP
       assetCriticality: 1.5,
       tags: [],
       category_id: '',
-      asset_ids: [],
+      asset_ids: initialAssetIds ?? [],
+      ...(initialTitle ? { title: initialTitle } : {}),
     },
   });
 
