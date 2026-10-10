@@ -3008,6 +3008,10 @@ export interface components {
         };
         /** @description One asset as the topology view needs it — enough to place, colour and label it. The full asset is fetched only when its detail panel opens. */
         TopologyNode: {
+            /** @description Open vulnerabilities on the CISA KEV list (#907). */
+            kev_count?: number;
+            /** @description Technical reference (hostname, resource id, address or source id), same order as the inventory. */
+            slug?: string;
             /** Format: uuid */
             id: string;
             name: string;

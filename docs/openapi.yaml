@@ -5226,6 +5226,12 @@ components:
         label it. The full asset is fetched only when its detail panel opens.
       required: [id, name, criticality, zone, internet_exposed, risk_count, max_risk_score, vuln_count, degree]
       properties:
+        kev_count:
+          type: integer
+          description: Open vulnerabilities on the CISA KEV list (#907).
+        slug:
+          type: string
+          description: Technical reference (hostname, resource id, address or source id), same order as the inventory.
         id:
           type: string
           format: uuid

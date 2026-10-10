@@ -307,3 +307,26 @@ func TestBuildExposurePaths(t *testing.T) {
 		t.Fatal("an empty estate has no path")
 	}
 }
+
+// The technical reference shown above an asset's name (#907), in the same
+// order as the inventory: hostname, resource id, address, source id.
+func TestAssetSlug(t *testing.T) {
+	cases := []struct {
+		a    Asset
+		want string
+	}{
+		{Asset{Hostnames: []string{" ", "srv-core-01"}}, "srv-core-01"},
+		{Asset{Attributes: AssetAttributes{"hostname": "ad-dc-01"}}, "ad-dc-01"},
+		{Asset{Attributes: AssetAttributes{"resource_id": "m365"}}, "m365"},
+		{Asset{CloudResourceID: "arn:aws:s3:::x"}, "arn:aws:s3:::x"},
+		{Asset{IPAddresses: []string{"10.20.0.1"}}, "10.20.0.1"},
+		{Asset{Attributes: AssetAttributes{"management_ip": "10.0.0.9"}}, "10.0.0.9"},
+		{Asset{ExternalID: "nessus-42"}, "nessus-42"},
+		{Asset{}, ""},
+	}
+	for _, c := range cases {
+		if got := AssetSlug(&c.a); got != c.want {
+			t.Errorf("AssetSlug(%+v) = %q, want %q", c.a, got, c.want)
+		}
+	}
+}

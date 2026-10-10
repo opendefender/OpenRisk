@@ -85,3 +85,36 @@ func TestGetTopology_Unauthorized(t *testing.T) {
 		t.Fatal("assets were listed without a tenant")
 	}
 }
+
+type topoExposure struct {
+	by map[uuid.UUID]domain.AssetExposure
+}
+
+func (f topoExposure) ExposureByAsset(context.Context, uuid.UUID) (map[uuid.UUID]domain.AssetExposure, error) {
+	return f.by, nil
+}
+
+// With the exposure reader, nodes carry open and KEV counts (#907).
+func TestGetTopology_CarriesKEVAndSlug(t *testing.T) {
+	tenant, assets, deps, fw, db := topoWorld()
+	assets.byTenant[tenant][0].Hostnames = []string{"fw-edge-01"}
+	uc := NewGetTopologyUseCase(assets, deps).WithExposureReader(topoExposure{by: map[uuid.UUID]domain.AssetExposure{
+		db.ID: {AssetID: db.ID, OpenVulnerabilities: 3, KEVOpen: 1},
+	}})
+	topo, err := uc.Execute(context.Background(), tenant, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, n := range topo.Nodes {
+		switch n.ID {
+		case db.ID:
+			if n.VulnCount != 3 || n.KEVCount != 1 {
+				t.Fatalf("base clients = %d open, %d KEV", n.VulnCount, n.KEVCount)
+			}
+		case fw.ID:
+			if n.Slug != "fw-edge-01" || n.KEVCount != 0 {
+				t.Fatalf("firewall = slug %q, KEV %d", n.Slug, n.KEVCount)
+			}
+		}
+	}
+}

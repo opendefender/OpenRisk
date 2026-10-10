@@ -32,6 +32,12 @@ type TopologyNode struct {
 	MaxRiskScore float64 `json:"max_risk_score"`
 	// VulnCount is the number of open vulnerabilities attributed to this asset.
 	VulnCount int `json:"vuln_count"`
+	// KEVCount is how many of those are known-exploited (CISA KEV), when the
+	// vulnerability register was reachable (#907).
+	KEVCount int `json:"kev_count"`
+	// Slug is the asset's technical reference (hostname, resource id or
+	// address), shown above its name (#907). Empty when it has none.
+	Slug string `json:"slug,omitempty"`
 	// Degree is how many edges touch this node — the layout uses it for sizing,
 	// and it is what makes a hub legible without reading labels.
 	Degree int `json:"degree"`
@@ -194,6 +200,34 @@ func ZoneOf(a *Asset) string {
 	return "unknown"
 }
 
+// AssetSlug is an asset's short technical reference: a hostname, then a cloud
+// resource id, then an address, then the source tool's id. The inventory shows
+// the same reference, in the same order.
+func AssetSlug(a *Asset) string {
+	if a == nil {
+		return ""
+	}
+	for _, h := range a.Hostnames {
+		if strings.TrimSpace(h) != "" {
+			return strings.TrimSpace(h)
+		}
+	}
+	for _, v := range []string{attrString(a.Attributes, "hostname"), attrString(a.Attributes, "resource_id"), a.CloudResourceID} {
+		if v != "" {
+			return v
+		}
+	}
+	for _, ip := range a.IPAddresses {
+		if strings.TrimSpace(ip) != "" {
+			return strings.TrimSpace(ip)
+		}
+	}
+	if v := attrString(a.Attributes, "management_ip"); v != "" {
+		return v
+	}
+	return strings.TrimSpace(a.ExternalID)
+}
+
 // IsInternetExposed reads the exposure signal out of an asset's typed
 // attributes. Several categories express it under different keys, so all of
 // them are consulted — an application marked publicly accessible is exposed
@@ -250,6 +284,7 @@ func BuildTopology(assets []Asset, deps []AssetDependency, vulnCounts map[uuid.U
 			RiskCount:       len(a.Risks),
 			VulnCount:       vulnCounts[a.ID],
 			Degree:          degree[a.ID],
+			Slug:            AssetSlug(a),
 		}
 		for _, r := range a.Risks {
 			if r != nil && r.Score > n.MaxRiskScore {
