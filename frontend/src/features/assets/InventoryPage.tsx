@@ -1,34 +1,33 @@
 // Copyright (c) 2026 OpenDefender Contributors
 // SPDX-License-Identifier: AGPL-3.0-only
 //
-// Inventory (OpenRisk.dc.html §6.12) — wired to the real /assets store. Asset table
-// with type-icon, criticality badge, derived score (max of linked risks), linked-risk
-// count and last-updated. Type-filter chips; create/edit modals; loading + empty states.
+// Inventory on the October 2026 redesign (#906): one dense table with type
+// pills, the two actions that matter (topology, discovery), and on each asset
+// its type, criticality, owner, location, linked risks, open vulnerabilities
+// with a KEV tag and the last detection. A row opens the asset's drawer.
+//
+// Kept from the previous page, outside the mockup's layout: the typed
+// attribute search, selection with governed bulk delete, column chooser and
+// export, edit / history / delete per row, and creation, import and attribute
+// schemas in the "more" menu.
 
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { toast } from 'sonner';
 import {
   Atom,
+  Boxes,
+  History,
+  MoreHorizontal,
+  Pencil,
   Plus,
   SlidersHorizontal,
-  Server,
-  Laptop,
-  Database,
-  Cloud,
-  Globe,
-  HardDrive,
-  Boxes,
-  AppWindow,
-  Users,
-  Building2,
-  History,
-  Pencil,
   Trash2,
   Upload,
-  type LucideIcon,
 } from 'lucide-react';
-import { PageFrame, PageHeader, Btn, CritBadge, EmptyState } from '../../shared/ui';
+
+import { PageFrame, PageHeader, CritBadge, EmptyState } from '../../shared/ui';
+import { Button, Menu, TabPanel, Tabs, type MenuItem } from '../../shared/ds';
 import {
   DataTable,
   useTableState,
@@ -38,35 +37,33 @@ import {
   type RowAction,
 } from '../../shared/datatable';
 import { useAuthStore } from '../../hooks/useAuthStore';
+import { useI18n } from '../../hooks/useI18n';
+import { formatDate } from '../../i18n/format';
 import { ImpactDialog } from '../../shared/ImpactDialog';
-import { critColor, softFill, type Criticality } from '../../shared/riskColors';
-import { useUIStrings } from '../../shared/uiStrings';
-import { useUIStore } from '../../store/uiStore';
+import { critColor, type Criticality } from '../../shared/riskColors';
 import { useAssets } from './useAssets';
+import { useAssetExposure } from './useAssetExposure';
 import { CreateAssetModal } from './CreateAssetModal';
 import { EditAssetModal } from './EditAssetModal';
 import { AssetHistoryDrawer } from './AssetHistoryDrawer';
+import { DiscoverButton } from './DiscoverButton';
+import {
+  categoryCounts,
+  categoryOf,
+  locationOf,
+  slugOf,
+  typeIconOf,
+  type CategoryTab,
+} from './inventoryRow';
 import { useFocusParam } from '../../shared/useFocusParam';
-import { relTime } from '../risks/riskMap';
+import { useDrawerController } from '../entity-drawer/drawerState';
 import { AttributeSearchBar } from '../attackSurface/AttributeSearchBar';
 import { CATEGORY_LABELS, type AssetCategory } from '../attackSurface/schemaTypes';
 import type { Asset } from '../../types/asset';
 import { BulkPreviewDialog, useGovernedBulk, type BulkChangeInput } from '../../shared/bulk';
-import type { LocaleCode } from '../../i18n/locales';
 
-const TYPE_ICON: Record<string, LucideIcon> = {
-  Server: Server,
-  Application: AppWindow,
-  Cloud: Cloud,
-  Database: Database,
-  SaaS: Cloud,
-  Storage: HardDrive,
-  Network: Globe,
-  Laptop: Laptop,
-  Data: Database,
-  User: Users,
-  Supplier: Building2,
-};
+const CRIT_RANK: Record<string, number> = { critical: 4, high: 3, medium: 2, low: 1 };
+const critOf = (a: Asset) => (a.criticality ?? 'LOW').toLowerCase() as Criticality;
 
 // Derived asset score = the max score of its linked risks (null when none).
 const scoreOf = (a: Asset): number | null => {
@@ -74,19 +71,7 @@ const scoreOf = (a: Asset): number | null => {
   if (!rs.length) return null;
   return Math.max(...rs.map((r) => r.score ?? 0));
 };
-const CRIT_RANK: Record<string, number> = { critical: 4, high: 3, medium: 2, low: 1 };
-const CRIT_LABEL_FR: Record<string, string> = {
-  critical: 'Critique',
-  high: 'Élevée',
-  medium: 'Moyenne',
-  low: 'Faible',
-};
-const CRIT_LABEL_EN: Record<string, string> = {
-  critical: 'Critical',
-  high: 'High',
-  medium: 'Medium',
-  low: 'Low',
-};
+
 /**
  * The pending change, applied to the cached inventory (ABSOLUTE RULE 10).
  * Restored verbatim by the hook if the server refuses — criterion 8.
@@ -110,23 +95,24 @@ function isAssetList(cached: unknown): cached is Asset[] {
   );
 }
 
-const t = (lang: LocaleCode, fr: string, en: string) => (lang === 'fr' ? fr : en);
-
 export function InventoryPage() {
-  const L = useUIStrings();
-  const lang = useUIStore((s) => s.lang);
+  const { t, locale } = useI18n();
   const navigate = useNavigate();
-  const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
+  const { open: openDrawer } = useDrawerController();
   // Typed-attribute search (Attack Surface §1). The terms travel to the server
   // as ?category=&attr.<key>=<value>; the matching rules live there, once.
   const [attrFilter, setAttrFilter] = useState<{
     category: AssetCategory | '';
     attributes: Record<string, string>;
   }>({ category: '', attributes: {} });
+  const [attrOpen, setAttrOpen] = useState(false);
+  const [category, setCategory] = useState<CategoryTab>('all');
+  const [kevOnly, setKevOnly] = useState(false);
   const { assets, isLoading, isError, refetch, deleteAsset } = useAssets({
     category: attrFilter.category || undefined,
     attributes: attrFilter.attributes,
   });
+  const exposure = useAssetExposure();
   // Creation is offered only to a member who may create an asset (#739).
   const canCreate = useAuthStore((s) => s.hasPermission('assets:create'));
   const canUpdate = useAuthStore((s) => s.hasPermission('assets:update'));
@@ -151,71 +137,165 @@ export function InventoryPage() {
     clearFocus();
   };
 
-  const types = useMemo(
-    () => [...new Set(assets.map((a) => a.type).filter(Boolean) as string[])],
-    [assets],
+  const tabs = useMemo(
+    () =>
+      categoryCounts(assets).map((c) => ({
+        id: c.id,
+        label: t(`inventory.cat.${c.id}`),
+        count: c.n,
+        testId: `inv-cat-${c.id}`,
+      })),
+    [assets, t],
   );
+  const kevAssets = exposure.allowed
+    ? assets.filter((a) => (exposure.byAsset.get(a.id as string)?.kev_open ?? 0) > 0).length
+    : 0;
+  const rows = useMemo(
+    () =>
+      assets.filter(
+        (a) =>
+          (category === 'all' || categoryOf(a) === category) &&
+          (!kevOnly || (exposure.byAsset.get(a.id as string)?.kev_open ?? 0) > 0),
+      ),
+    [assets, category, kevOnly, exposure.byAsset],
+  );
+  const criticalCount = assets.filter((a) => critOf(a) === 'critical').length;
 
   const facets: Facet<Asset>[] = useMemo(
     () => [
       {
-        key: 'type',
-        label: t(lang, 'Type', 'Type'),
-        options: types.map((ty) => ({ value: ty, label: ty })),
-        matches: (a, selected) => selected.includes(a.type ?? ''),
-      },
-      {
         key: 'criticality',
-        label: t(lang, 'Criticité', 'Criticality'),
+        label: t('inventory.col.crit'),
         options: (['critical', 'high', 'medium', 'low'] as const).map((c) => ({
           value: c,
-          label: t(lang, CRIT_LABEL_FR[c], CRIT_LABEL_EN[c]),
+          label: t(`inventory.crit.${c}`),
           color: critColor[c],
         })),
-        matches: (a, selected) => selected.includes((a.criticality ?? 'LOW').toLowerCase()),
+        matches: (a, selected) => selected.includes(critOf(a)),
       },
     ],
-    [types, lang],
+    [t],
   );
 
   const columns: Column<Asset>[] = useMemo(
     () => [
       {
         key: 'name',
-        header: t(lang, 'Actif', 'Asset'),
+        header: t('inventory.col.asset'),
         frozen: true,
         hideable: false,
         sortValue: (a) => (a.name ?? '').toLowerCase(),
         exportValue: (a) => a.name ?? '',
         render: (a) => {
-          const crit = (a.criticality ?? 'LOW').toLowerCase() as Criticality;
-          const Icon = TYPE_ICON[a.type ?? 'Server'] ?? Server;
+          const slug = slugOf(a);
           return (
-            <div className="flex items-center gap-2.5">
-              <div
-                className="w-8 h-8 rounded-[9px] flex items-center justify-center shrink-0"
-                style={{ background: softFill(critColor[crit], 14), color: critColor[crit] }}
-              >
-                <Icon size={17} />
-              </div>
-              <div>
-                <div className="text-[13.5px] font-medium text-ink">{a.name}</div>
-                <div className="mono text-[11px] text-ink-muted">{a.owner || '—'}</div>
-              </div>
+            <div className="min-w-0">
+              <div className="text-[13px] font-medium text-ink truncate">{a.name}</div>
+              {slug && <div className="mono text-[11px] text-ink-muted truncate">{slug}</div>}
             </div>
           );
         },
       },
       {
         key: 'type',
-        header: 'Type',
+        header: t('inventory.col.type'),
         sortValue: (a) => a.type ?? '',
         exportValue: (a) => a.type ?? '',
-        render: (a) => <span className="text-[12.5px] text-ink-soft">{a.type ?? '—'}</span>,
+        render: (a) => {
+          const Icon = typeIconOf(a);
+          return (
+            <span className="inline-flex items-center gap-[7px] text-[13px] text-ink-soft">
+              <Icon size={15} className="text-ink-muted shrink-0" aria-hidden="true" />
+              {a.type || '—'}
+            </span>
+          );
+        },
+      },
+      {
+        key: 'crit',
+        header: t('inventory.col.crit'),
+        sortValue: (a) => CRIT_RANK[critOf(a)] ?? 0,
+        exportValue: (a) => a.criticality ?? '',
+        render: (a) => <CritBadge crit={critOf(a)} />,
+      },
+      {
+        key: 'owner',
+        header: t('inventory.col.owner'),
+        sortValue: (a) => (a.owner ?? '').toLowerCase(),
+        exportValue: (a) => a.owner ?? '',
+        render: (a) => (
+          <span className="text-[13px] text-ink-soft whitespace-nowrap">{a.owner || '—'}</span>
+        ),
+      },
+      {
+        key: 'location',
+        header: t('inventory.col.location'),
+        sortValue: (a) => locationOf(a).toLowerCase(),
+        exportValue: (a) => locationOf(a),
+        render: (a) => <span className="text-[13px] text-ink-soft">{locationOf(a) || '—'}</span>,
+      },
+      {
+        key: 'risks',
+        header: t('inventory.col.risks'),
+        align: 'right',
+        sortValue: (a) => a.risks?.length ?? 0,
+        exportValue: (a) => a.risks?.length ?? 0,
+        render: (a) => <span className="mono font-semibold text-ink">{a.risks?.length ?? 0}</span>,
+      },
+      {
+        key: 'vulns',
+        header: t('inventory.col.vulns'),
+        align: 'right',
+        sortValue: (a) => exposure.byAsset.get(a.id as string)?.open_vulnerabilities ?? 0,
+        exportValue: (a) => exposure.byAsset.get(a.id as string)?.open_vulnerabilities ?? '',
+        render: (a) => {
+          if (!exposure.allowed)
+            return (
+              <span className="text-ink-muted" title={t('inventory.vulnsHidden')}>
+                —
+              </span>
+            );
+          const e = exposure.byAsset.get(a.id as string);
+          const n = e?.open_vulnerabilities ?? 0;
+          return (
+            <span className="whitespace-nowrap" data-testid="inv-vulns">
+              <span className={`mono font-semibold ${n ? 'text-ink' : 'text-ink-muted'}`}>{n}</span>
+              {(e?.kev_open ?? 0) > 0 && (
+                <span
+                  className="ml-1.5 text-[10px] font-bold tracking-[.04em] px-[5px] py-0.5 rounded bg-danger-surface text-danger-text"
+                  title={t('inventory.kevTitle')}
+                >
+                  {t('inventory.kev')}
+                </span>
+              )}
+            </span>
+          );
+        },
+      },
+      {
+        key: 'detected',
+        header: <span title={t('inventory.detectedHint')}>{t('inventory.col.detected')}</span>,
+        headerLabel: t('inventory.col.detected'),
+        sortValue: (a) => {
+          const d = exposure.byAsset.get(a.id as string)?.last_detected_at;
+          return d ? new Date(d).getTime() : 0;
+        },
+        exportValue: (a) => exposure.byAsset.get(a.id as string)?.last_detected_at ?? '',
+        render: (a) => {
+          const d = exposure.allowed
+            ? exposure.byAsset.get(a.id as string)?.last_detected_at
+            : null;
+          return (
+            <span className="mono text-[12px] text-ink-soft">
+              {d ? formatDate(locale, d, { day: 'numeric', month: 'short' }) : '—'}
+            </span>
+          );
+        },
       },
       {
         key: 'category',
-        header: t(lang, 'Catégorie', 'Category'),
+        header: t('inventory.col.category'),
+        defaultHidden: true,
         sortValue: (a) => a.category ?? '',
         exportValue: (a) => a.category ?? '',
         render: (a) =>
@@ -224,77 +304,47 @@ export function InventoryPage() {
               {CATEGORY_LABELS[a.category as AssetCategory] ?? a.category}
             </span>
           ) : (
-            // An untyped asset is stated as untyped rather than blank: it is the
-            // difference between "no attributes" and "attributes not shown".
-            <span className="text-[12px] text-ink-muted">{t(lang, 'Non typé', 'Untyped')}</span>
+            <span className="text-[12px] text-ink-muted">{t('inventory.untyped')}</span>
           ),
       },
       {
-        key: 'crit',
-        header: L.col_crit,
-        sortValue: (a) => CRIT_RANK[(a.criticality ?? 'LOW').toLowerCase()] ?? 0,
-        exportValue: (a) => a.criticality ?? '',
-        render: (a) => <CritBadge crit={(a.criticality ?? 'LOW').toLowerCase() as Criticality} />,
-      },
-      {
         key: 'score',
-        header: 'Score',
+        header: t('inventory.col.score'),
         align: 'right',
+        defaultHidden: true,
         sortValue: (a) => scoreOf(a) ?? -1,
         exportValue: (a) => scoreOf(a)?.toFixed(1) ?? '',
         render: (a) => {
           const sc = scoreOf(a);
           return sc != null ? (
-            <span
-              className="mono text-[14px] font-bold"
-              style={{ color: critColor[(a.criticality?.toLowerCase() as Criticality) || 'low'] }}
-            >
-              {sc.toFixed(1)}
-            </span>
+            <span className="mono font-semibold text-ink">{sc.toFixed(1)}</span>
           ) : (
             <span className="text-ink-muted">—</span>
           );
         },
       },
-      {
-        key: 'risks',
-        header: t(lang, 'Risques', 'Risks'),
-        align: 'right',
-        sortValue: (a) => a.risks?.length ?? 0,
-        exportValue: (a) => a.risks?.length ?? 0,
-        render: (a) => <span className="text-[13px] text-ink">{a.risks?.length || '—'}</span>,
-      },
-      {
-        key: 'mod',
-        header: L.col_mod,
-        sortValue: (a) => new Date(a.updated_at ?? 0).getTime(),
-        exportValue: (a) => a.updated_at ?? '',
-        render: (a) => (
-          <span className="text-[12px] text-ink-soft">{relTime(a.updated_at, lang)}</span>
-        ),
-      },
     ],
-    [lang, L],
+    [t, locale, exposure.allowed, exposure.byAsset],
   );
 
   const rowActions: RowAction<Asset>[] = useMemo(
     () => [
       {
         key: 'edit',
-        label: t(lang, 'Modifier', 'Edit'),
+        label: t('inventory.action.edit'),
         icon: Pencil,
         hidden: () => !canUpdate,
         onSelect: (a) => setEditing(a),
       },
       {
         key: 'history',
-        label: t(lang, 'Historique', 'History'),
+        label: t('inventory.action.history'),
         icon: History,
         onSelect: (a) => setHistoryAssetId(a.id as string),
       },
       {
         key: 'delete',
-        label: t(lang, 'Supprimer', 'Delete'),
+        label: t('inventory.action.delete'),
         icon: Trash2,
         danger: true,
         separatorBefore: true,
@@ -302,7 +352,7 @@ export function InventoryPage() {
         onSelect: (a) => setToDelete(a),
       },
     ],
-    [lang, canUpdate, canDelete],
+    [t, canUpdate, canDelete],
   );
 
   // Governed (#582): preview → confirm → one transactional, audited request.
@@ -313,7 +363,7 @@ export function InventoryPage() {
     optimistic: { queryKey: ['assets'], apply: patchInventory },
     onApplied: (result) => {
       const n = result.applied ?? 0;
-      toast.success(t(lang, `${n} actif(s) supprimé(s)`, `${n} asset(s) deleted`));
+      toast.success(t('inventory.bulkDeleted', { count: n }));
     },
   });
 
@@ -321,7 +371,7 @@ export function InventoryPage() {
     () => [
       {
         key: 'delete',
-        label: t(lang, 'Supprimer', 'Delete'),
+        label: t('inventory.action.delete'),
         icon: Trash2,
         danger: true,
         // The permission the user holds AND what the server says this register
@@ -331,7 +381,7 @@ export function InventoryPage() {
         run: ({ ids }) => bulk.request({ action: 'delete' }, ids),
       },
     ],
-    [lang, canDelete, bulk],
+    [t, canDelete, bulk],
   );
 
   const confirmDelete = async () => {
@@ -339,112 +389,163 @@ export function InventoryPage() {
     setDeleting(true);
     try {
       await deleteAsset.mutateAsync(toDelete.id as string);
-      toast.success(t(lang, 'Actif supprimé', 'Asset deleted'));
+      toast.success(t('inventory.delete.done'));
       setToDelete(null);
     } catch {
-      toast.error(t(lang, 'Suppression échouée', 'Delete failed'));
+      toast.error(t('inventory.delete.failed'));
     } finally {
       setDeleting(false);
     }
   };
 
+  const moreItems: MenuItem[] = [
+    ...(canCreate
+      ? [
+          { label: t('inventory.newAsset'), icon: Plus, onSelect: () => setCreating(true) },
+          {
+            label: t('inventory.import'),
+            icon: Upload,
+            onSelect: () => navigate('/assets/import'),
+          },
+        ]
+      : []),
+    {
+      label: t('inventory.schemas'),
+      icon: SlidersHorizontal,
+      onSelect: () => navigate('/assets/schemas'),
+    },
+  ];
+
+  const summary = [
+    t('inventory.summary', { count: assets.length }),
+    t('inventory.critical', { count: criticalCount }),
+  ].join(' · ');
+
   return (
     <PageFrame wide>
       <PageHeader
-        title={L.n_assets}
-        count={`${assets.length} ${L.uniAssets}`}
+        className="!mb-[18px]"
+        title={t('inventory.title')}
+        subtitle={
+          isLoading ? undefined : (
+            <span data-testid="inv-summary">
+              {summary} ·{' '}
+              <span
+                title={t('inventory.coverageHint')}
+                className="underline decoration-dotted underline-offset-2"
+              >
+                {t('inventory.coverageUnmeasured')}
+              </span>
+            </span>
+          )
+        }
         actions={
           <>
-            <Btn
-              label={tr('Attributs', 'Attributes')}
-              icon={SlidersHorizontal}
-              onClick={() => navigate('/assets/schemas')}
+            <Menu
+              label={t('inventory.more')}
+              trigger={
+                <Button variant="ghost" icon={MoreHorizontal} aria-label={t('inventory.more')} />
+              }
+              items={moreItems}
             />
-            <Btn
-              label={tr('Topologie', 'Topology')}
-              icon={Atom}
-              onClick={() => navigate('/assets/topology')}
-            />
-            {canCreate && (
-              <Btn
-                label={tr('Importer', 'Import')}
-                icon={Upload}
-                onClick={() => navigate('/assets/import')}
-              />
-            )}
-            {canCreate && (
-              <Btn
-                label={tr('Nouvel actif', 'New asset')}
-                icon={Plus}
-                primary
-                onClick={() => setCreating(true)}
-              />
-            )}
+            <Button variant="secondary" icon={Atom} onClick={() => navigate('/assets/topology')}>
+              {t('inventory.topology')}
+            </Button>
+            <DiscoverButton />
           </>
         }
       />
 
-      <div className="mb-3">
-        <AttributeSearchBar
-          category={attrFilter.category}
-          attributes={attrFilter.attributes}
-          onChange={setAttrFilter}
-          resultCount={assets.length}
-        />
-      </div>
-
-      <DataTable
-        id="assets"
-        ariaLabel={L.n_assets}
-        rows={assets}
-        columns={columns}
-        rowKey={(a) => a.id as string}
-        api={table}
-        mode="client"
-        loading={isLoading}
-        error={isError}
-        onRetry={() => void refetch()}
-        facets={facets}
-        clientSearch={(a, q) =>
-          `${a.name ?? ''} ${a.type ?? ''} ${a.owner ?? ''}`.toLowerCase().includes(q)
-        }
-        searchPlaceholder={tr('Nom, type ou responsable…', 'Name, type or owner…')}
-        selectable
-        rowActions={rowActions}
-        bulkActions={bulkActions}
-        // A member who may not edit opens the asset's read-only history instead
-        // of an edit form the server would refuse (#739).
-        onRowClick={(a) => (canUpdate ? setEditing(a) : setHistoryAssetId(a.id as string))}
-        exportFilename="inventaire-actifs"
-        minWidth={780}
-        empty={
-          <EmptyState
-            icon={Boxes}
-            title={tr('Aucun actif inventorié', 'No assets yet')}
-            description={
-              canCreate
-                ? tr(
-                    'Ajoutez vos serveurs, bases de données et services pour cartographier votre surface d’attaque.',
-                    'Add your servers, databases and services to map your attack surface.',
-                  )
-                : tr(
-                    'Aucun actif n’est encore inventorié. Votre rôle permet de consulter l’inventaire ; un administrateur peut vous donner le droit d’en ajouter.',
-                    'No asset has been inventoried yet. Your role can view the inventory; an administrator can grant you the right to add assets.',
-                  )
-            }
-            primaryAction={
-              canCreate ? (
-                <Btn
-                  label={tr('Nouvel actif', 'New asset')}
-                  icon={Plus}
-                  primary
-                  onClick={() => setCreating(true)}
-                />
-              ) : undefined
-            }
+      {attrOpen && (
+        <div className="mb-3">
+          <AttributeSearchBar
+            category={attrFilter.category}
+            attributes={attrFilter.attributes}
+            onChange={setAttrFilter}
+            resultCount={assets.length}
           />
-        }
+        </div>
+      )}
+
+      <Tabs
+        id="inv-cat"
+        items={tabs}
+        value={tabs.some((x) => x.id === category) ? category : 'all'}
+        onChange={(id) => setCategory(id)}
+        label={t('inventory.typesLabel')}
+        className="mb-3"
       />
+      <TabPanel tabsId="inv-cat" id={tabs.some((x) => x.id === category) ? category : 'all'} active>
+        <DataTable
+          id="assets"
+          ariaLabel={t('inventory.title')}
+          rows={rows}
+          columns={columns}
+          rowKey={(a) => a.id as string}
+          api={table}
+          mode="client"
+          loading={isLoading}
+          error={isError}
+          onRetry={() => void refetch()}
+          facets={facets}
+          clientSearch={(a, q) =>
+            `${a.name ?? ''} ${slugOf(a)} ${a.type ?? ''} ${a.owner ?? ''} ${locationOf(a)}`
+              .toLowerCase()
+              .includes(q)
+          }
+          searchPlaceholder={t('inventory.search')}
+          toolbarExtra={
+            <>
+              {kevAssets > 0 && (
+                <button
+                  type="button"
+                  aria-pressed={kevOnly}
+                  onClick={() => setKevOnly((v) => !v)}
+                  title={t('inventory.kevTitle')}
+                  data-testid="inv-kev-only"
+                  className={`h-9 px-3 rounded-[10px] border text-[12.5px] font-semibold inline-flex items-center gap-1.5 shrink-0 transition-colors ${
+                    kevOnly
+                      ? 'bg-danger-surface border-danger-text text-danger-text'
+                      : 'bg-transparent border-border-default text-ink-soft hover:border-border-strong'
+                  }`}
+                >
+                  {t('inventory.kevOnly')}
+                  <span className="mono text-[11px]">{kevAssets}</span>
+                </button>
+              )}
+              <Button
+                variant={attrOpen || attrFilter.category ? 'secondary' : 'ghost'}
+                icon={SlidersHorizontal}
+                aria-pressed={attrOpen}
+                aria-label={t('inventory.attrSearch')}
+                title={t('inventory.attrSearch')}
+                onClick={() => setAttrOpen((o) => !o)}
+                data-testid="inv-attr"
+              />
+            </>
+          }
+          selectable
+          rowActions={rowActions}
+          bulkActions={bulkActions}
+          onRowClick={(a) => openDrawer('asset', a.id as string)}
+          exportFilename="inventaire-actifs"
+          minWidth={980}
+          empty={
+            <EmptyState
+              icon={Boxes}
+              title={t('inventory.emptyTitle')}
+              description={canCreate ? t('inventory.emptyCreate') : t('inventory.emptyRead')}
+              primaryAction={
+                canCreate ? (
+                  <Button variant="primary" icon={Plus} onClick={() => setCreating(true)}>
+                    {t('inventory.newAsset')}
+                  </Button>
+                ) : undefined
+              }
+            />
+          }
+        />
+      </TabPanel>
 
       <CreateAssetModal isOpen={creating} onClose={() => setCreating(false)} />
       <EditAssetModal
@@ -457,36 +558,33 @@ export function InventoryPage() {
       />
       <AssetHistoryDrawer assetId={historyAssetId} onClose={() => setHistoryAssetId(null)} />
 
-      <BulkPreviewDialog bulk={bulk} entityLabel={tr('actifs', 'assets')} />
+      <BulkPreviewDialog bulk={bulk} entityLabel={t('inventory.delete.entity')} />
 
       <ImpactDialog
         open={!!toDelete}
-        title={tr('Supprimer cet actif ?', 'Delete this asset?')}
+        title={t('inventory.delete.title')}
         subject={toDelete?.name ?? ''}
-        description={tr(
-          'Action irréversible. Voici ce qui sera supprimé :',
-          'This cannot be undone. Here is what will be removed:',
-        )}
+        description={t('inventory.delete.description')}
         impacts={
           toDelete
             ? [
                 {
-                  label: tr('Risques liés', 'Linked risks'),
+                  label: t('inventory.delete.risks'),
                   detail: String(toDelete.risks?.length ?? 0),
                 },
                 {
-                  label: tr('Dépendances cartographiées', 'Mapped dependencies'),
-                  detail: tr('supprimées', 'removed'),
+                  label: t('inventory.delete.deps'),
+                  detail: t('inventory.delete.depsDetail'),
                 },
                 {
-                  label: tr('Historique des modifications', 'Change history'),
-                  detail: tr('conservé mais inaccessible', 'kept but unreachable'),
+                  label: t('inventory.delete.history'),
+                  detail: t('inventory.delete.historyDetail'),
                 },
               ]
             : []
         }
-        confirmLabel={tr('Supprimer définitivement', 'Delete permanently')}
-        cancelLabel={tr('Annuler', 'Cancel')}
+        confirmLabel={t('inventory.delete.confirm')}
+        cancelLabel={t('inventory.delete.cancel')}
         loading={deleting}
         onConfirm={confirmDelete}
         onClose={() => setToDelete(null)}
