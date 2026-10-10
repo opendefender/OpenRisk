@@ -3740,6 +3740,8 @@ export interface components {
                 id: string;
                 title: string;
                 score: number;
+                /** @description The engine's band for the score (critical, high, medium, low). */
+                criticality: string;
                 status: string;
             }[];
             findings: {

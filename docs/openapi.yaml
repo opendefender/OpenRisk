@@ -6526,11 +6526,14 @@ components:
           type: array
           items:
             type: object
-            required: [id, title, score, status]
+            required: [id, title, score, criticality, status]
             properties:
               id: { type: string, format: uuid }
               title: { type: string }
               score: { type: number }
+              criticality:
+                type: string
+                description: The engine's band for the score (critical, high, medium, low).
               status: { type: string }
         findings:
           type: array
