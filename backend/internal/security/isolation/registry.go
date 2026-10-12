@@ -540,6 +540,8 @@ var decisions = []Decision{
 		"the inventory list, one of the largest tenant collections in the product. ListAssetsUseCase.Search delegates to GormAssetRepository.List, which is `Where(\"tenant_id = ?\")`; repository/gorm_asset_repository_test TestAssetRepository_List_ScopedToTenant seeds both tenants and asserts each sees only its own. The category and attr.* filters are applied in memory AFTER that scoped read, so they can only narrow it"},
 	{"/api/v1/assets/statistics", Covered,
 		"repository/gorm_asset_statistics_test TestAssetStatistics_IsTenantScoped, plus TestAssetStatistics_RefusesWithoutTenant — the repository refuses uuid.Nil outright rather than emitting a predicate that matches nothing"},
+	{"/api/v1/assets/exposure", Covered,
+		"#906, the inventory's vulnerability columns. AssetExposureUseCase refuses uuid.Nil, then GormVulnerabilityRepository.ExposureByAsset groups one `Where(\"tenant_id = ? AND asset_id IS NOT NULL\")` query; repository/gorm_vulnerability_exposure_test TestExposureByAsset_Success seeds a finding on the same asset id in a second tenant and asserts it is not counted"},
 	{"/api/v1/saved-views", Covered,
 		"repository/gorm_saved_view_repository_test TestSavedViewRepo_ListVisible_IsTenantAndVisibilityScoped seeds views in two tenants and asserts the listing returns only the caller's tenant, and within it only the caller's own views plus the tenant's shared ones; the caller's tenant and user id come from the JWT (savedViewCaller), never from the query string, which carries only table_id"},
 	{"/api/v1/asset-dependencies", Covered,

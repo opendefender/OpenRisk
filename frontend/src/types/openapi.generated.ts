@@ -347,6 +347,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/assets/exposure": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Vulnerability exposure per asset
+         * @description For each asset with a finding: unresolved vulnerabilities, unresolved ones on the CISA KEV list, and the last time a scan reported anything on it (resolved findings included). An asset absent from the list has no finding. Guarded by `vulnerabilities:read`, separately from the inventory, so reading assets does not reveal their vulnerabilities. `last_detected_at` is not a last-scan date: a scan that finds nothing leaves no row.
+         */
+        get: operations["listAssetExposure"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/timeline": {
         parameters: {
             query?: never;
@@ -3660,6 +3680,14 @@ export interface components {
             /** @enum {string} */
             code: "wrong_password" | "wrong_code" | "mfa_required_by_role" | "no_local_password" | "not_enrolled" | "too_many_attempts" | "rejected" | "internal";
         };
+        AssetExposure: {
+            /** Format: uuid */
+            asset_id: string;
+            open_vulnerabilities: number;
+            kev_open: number;
+            /** Format: date-time */
+            last_detected_at: string | null;
+        };
         TimelineActor: {
             /** Format: uuid */
             id?: string;
@@ -4752,6 +4780,42 @@ export interface operations {
             };
             /** @description Risk not found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    listAssetExposure: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Exposure per asset */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["AssetExposure"][];
+                    };
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing `vulnerabilities:read`, or no organization in the session */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
