@@ -32,7 +32,7 @@ export function isEntityType(v: string | null | undefined): v is EntityType {
 /** Which region of the drawer. The server says which ones a type — and this
  *  caller — actually has, so a tab that would always be empty or always 403 is
  *  never rendered. */
-export type EntitySection = 'summary' | 'relations' | 'timeline' | 'audit';
+export type EntitySection = 'summary' | 'exposure' | 'relations' | 'timeline' | 'audit';
 
 /** Design-system badge intents. */
 export type Tone =

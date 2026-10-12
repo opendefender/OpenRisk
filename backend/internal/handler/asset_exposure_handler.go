@@ -7,6 +7,7 @@ package handler
 
 import (
 	"github.com/gofiber/fiber/v2"
+	"github.com/google/uuid"
 
 	"github.com/opendefender/openrisk/internal/application/vulnerability"
 )
@@ -28,4 +29,27 @@ func (h *AssetExposureHandler) List(c *fiber.Ctx) error {
 		return writeAppError(c, err)
 	}
 	return c.JSON(fiber.Map{"items": out})
+}
+
+// AssetAnalysisHandler serves GET /assets/:id/analysis (#937).
+type AssetAnalysisHandler struct {
+	uc *vulnerability.AssetAnalysisUseCase
+}
+
+// NewAssetAnalysisHandler builds the handler.
+func NewAssetAnalysisHandler(uc *vulnerability.AssetAnalysisUseCase) *AssetAnalysisHandler {
+	return &AssetAnalysisHandler{uc: uc}
+}
+
+// Get returns the asset's exposure analysis.
+func (h *AssetAnalysisHandler) Get(c *fiber.Ctx) error {
+	id, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid UUID"})
+	}
+	out, err := h.uc.Execute(c.UserContext(), tenantID(c), id)
+	if err != nil {
+		return writeAppError(c, err)
+	}
+	return c.JSON(out)
 }

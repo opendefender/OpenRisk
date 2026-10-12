@@ -117,6 +117,9 @@ const (
 	SectionRelations Section = "relations"
 	SectionTimeline  Section = "timeline"
 	SectionAudit     Section = "audit"
+	// SectionExposure is an asset's vulnerability analysis (#937), offered to a
+	// caller who may read vulnerabilities.
+	SectionExposure Section = "exposure"
 )
 
 // =============================================================================

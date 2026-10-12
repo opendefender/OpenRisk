@@ -1734,6 +1734,11 @@ func main() {
 	assetExposureHandler := handlers.NewAssetExposureHandler(
 		vulnapp.NewAssetExposureUseCase(repository.NewGormVulnerabilityRepository(database.DB)))
 	protected.Get("/assets/exposure", middleware.RequirePermission("vulnerabilities:read"), assetExposureHandler.List)
+	// #937 — one asset's exposure analysis for its drawer: reading it needs both
+	// the asset and its vulnerabilities.
+	assetAnalysisHandler := handlers.NewAssetAnalysisHandler(vulnapp.NewAssetAnalysisUseCase(
+		assetRepo, repository.NewGormVulnerabilityRepository(database.DB)))
+	protected.Get("/assets/:id/analysis", assetRead, middleware.RequirePermission("vulnerabilities:read"), assetAnalysisHandler.Get)
 	// #861 — CSV import of the inventory: every row or none, one transaction,
 	// and the plan cap checked against the whole file.
 	assetImportHandler := handlers.NewAssetImportHandler(
