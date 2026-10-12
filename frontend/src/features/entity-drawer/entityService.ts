@@ -94,12 +94,13 @@ export function fetchAudit(
 
 /** The tenant-wide activity feed. */
 export function fetchTenantTimeline(
-  opts: { cursor?: string; limit?: number; kind?: string } = {},
+  opts: { cursor?: string; limit?: number; kind?: string; domain?: string } = {},
 ): Promise<TimelinePage> {
   return get<TimelinePage>('/timeline', {
     cursor: opts.cursor || undefined,
     limit: opts.limit,
     kind: opts.kind || undefined,
+    domain: opts.domain || undefined,
   });
 }
 

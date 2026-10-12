@@ -143,7 +143,10 @@ func (h *EntityHandler) GetCatalogue(c *fiber.Ctx) error {
 // because their actor id had a typo would read the result as "Alice did all of
 // this".
 func timelineFilterFrom(c *fiber.Ctx) (entity.TimelineFilter, error) {
-	f := entity.TimelineFilter{Kind: strings.TrimSpace(c.Query("kind"))}
+	f := entity.TimelineFilter{
+		Kind:   strings.TrimSpace(c.Query("kind")),
+		Domain: strings.TrimSpace(c.Query("domain")),
+	}
 
 	if v := strings.TrimSpace(c.Query("limit")); v != "" {
 		n, err := strconv.Atoi(v)

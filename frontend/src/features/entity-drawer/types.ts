@@ -181,6 +181,11 @@ export interface TimelineEvent {
   changes?: TimelineChange[];
   source: TimelineSourceName;
   target_url?: string;
+  /** Journal domain (#905): risk, incident, vulnerability, mitigation,
+   *  evidence, compliance, report, asset, governance. */
+  domain?: string;
+  /** The object's name, when the journal knows it. */
+  object?: string;
 }
 
 export interface TimelinePage {

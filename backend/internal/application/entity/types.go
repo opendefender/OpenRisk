@@ -338,6 +338,10 @@ type TimelineEvent struct {
 	// TargetURL deep-links the event's subject — this is what makes the tenant
 	// timeline navigable (§36).
 	TargetURL string `json:"target_url,omitempty"`
+	// Domain and Object make the tenant feed read as a journal (#905): which
+	// part of the product the event belongs to, and the object's name.
+	Domain string `json:"domain,omitempty"`
+	Object string `json:"object,omitempty"`
 }
 
 // TimelinePage is one cursor-paginated slice, newest first.
@@ -358,6 +362,10 @@ type TimelinePage struct {
 type TimelineFilter struct {
 	// Kind filters on the event verb (create/update/delete/...).
 	Kind string
+	// Domain filters the tenant feed to one journal domain (risk, incident,
+	// vulnerability, mitigation, evidence, compliance, report, asset,
+	// governance). #905.
+	Domain string
 	// ActorID filters to one actor.
 	ActorID *uuid.UUID
 	// Since / Until bound the window.

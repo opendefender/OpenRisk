@@ -3,14 +3,16 @@
 //
 // The last six events of the organisation's journal (#901), read from the same
 // feed as the Activity page (GET /timeline), already filtered server-side to
-// what the member may see. The wording of each event is the feed's own; the
-// Activity page issue (#905) owns making it read as a sentence.
+// what the member may see. Each entry reads as the Activity journal's sentence
+// (#905).
 
 import { Link } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
 import { useI18n } from '../../../hooks/useI18n';
 import { formatTime } from '../../../i18n/format';
 import { fetchTenantTimeline } from '../../entity-drawer/entityService';
+import type { TimelineEvent } from '../../entity-drawer/types';
+import { phraseKeys } from '../../activity/journal';
 import { BlockEmpty, BlockError, BlockSkeleton, HeaderLink, Panel, PanelTitle } from './Panel';
 
 export function RecentActivity({ className = '' }: { className?: string }) {
@@ -21,6 +23,13 @@ export function RecentActivity({ className = '' }: { className?: string }) {
     staleTime: 30_000,
   });
   const events = feed.data?.events ?? [];
+  // The journal's own sentence (#905); the raw summary only for an entry the
+  // journal could not classify.
+  const phrase = (e: TimelineEvent) => {
+    if (!e.domain) return e.summary;
+    const k = phraseKeys(e);
+    return [t(k.verb), k.noun ? t(k.noun) : '', e.object ?? ''].filter(Boolean).join(' ');
+  };
 
   return (
     <Panel testId="dash-activity" className={`pb-1.5 ${className}`}>
@@ -48,13 +57,15 @@ export function RecentActivity({ className = '' }: { className?: string }) {
               {formatTime(locale, e.occurred_at)}
             </span>
             <span className="text-ink-soft min-w-0 break-words">
-              <b className="text-ink font-semibold">{e.actor?.label ?? t('dashboard.activity.system')}</b>{' '}
+              <b className="text-ink font-semibold">
+                {e.actor?.label ?? t('dashboard.activity.system')}
+              </b>{' '}
               {e.target_url ? (
                 <Link to={e.target_url} className="hover:underline">
-                  {e.summary}
+                  {phrase(e)}
                 </Link>
               ) : (
-                e.summary
+                phrase(e)
               )}
             </span>
           </div>

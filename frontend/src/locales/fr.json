@@ -1356,5 +1356,64 @@
       "residualAle": "ALE résiduel",
       "avoided": "Perte évitée / an :"
     }
+  },
+  "activity": {
+    "title": "Activité",
+    "subtitle": "Journal de l'organisation, filtré selon ce que vos droits vous permettent de consulter.",
+    "filterLabel": "Filtrer le journal",
+    "filters": {
+      "all": "Tout",
+      "risk": "Risques",
+      "incident": "Incidents",
+      "vulnerability": "Vulnérabilités",
+      "mitigation": "Mitigations",
+      "evidence": "Preuves",
+      "compliance": "Conformité",
+      "report": "Rapports"
+    },
+    "today": "Aujourd'hui",
+    "yesterday": "Hier",
+    "system": "OpenRisk",
+    "verb": {
+      "create": "a créé",
+      "update": "a modifié",
+      "delete": "a supprimé",
+      "approve": "a approuvé",
+      "reject": "a rejeté",
+      "defer": "a reporté",
+      "submit": "a soumis",
+      "cancel": "a annulé",
+      "simulate": "a simulé",
+      "status": "a changé le statut",
+      "fallback": "a agi sur"
+    },
+    "noun": {
+      "risk": "le risque",
+      "incident": "l'incident",
+      "vulnerability": "la vulnérabilité",
+      "mitigation": "la mitigation",
+      "evidence": "la preuve",
+      "compliance": "l'élément de conformité",
+      "report": "le rapport",
+      "asset": "l'actif"
+    },
+    "nounAfterDe": {
+      "risk": "du risque",
+      "incident": "de l'incident",
+      "vulnerability": "de la vulnérabilité",
+      "mitigation": "de la mitigation",
+      "evidence": "de la preuve",
+      "compliance": "de l'élément de conformité",
+      "report": "du rapport",
+      "asset": "de l'actif"
+    },
+    "loadMore": "Afficher les entrées plus anciennes",
+    "loadingMore": "Chargement…",
+    "end": "Début du journal",
+    "loadError": "Le journal n'a pas pu être chargé.",
+    "retry": "Réessayer",
+    "empty": "Rien encore. Ce qui est fait dans l'organisation apparaît ici.",
+    "emptyFiltered": "Rien dans cette catégorie pour l'instant.",
+    "showAll": "Tout afficher"
   }
 }

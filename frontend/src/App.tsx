@@ -183,9 +183,9 @@ const FinancialDashboard = lazy(() =>
     default: m.FinancialDashboard,
   })),
 );
-const GlobalTimelinePage = lazy(() =>
-  import('./features/entity-drawer/GlobalTimelinePage').then((m) => ({
-    default: m.GlobalTimelinePage,
+const ActivityPage = lazy(() =>
+  import('./features/activity/ActivityPage').then((m) => ({
+    default: m.ActivityPage,
   })),
 );
 const AutomationPage = lazy(() =>
@@ -768,7 +768,7 @@ function App() {
             {/* The tenant-wide activity feed (W1-02). RBAC filtering is the
               server's, so any authenticated member may open it — they simply see
               only what they may read. */}
-            <Route path="activity" element={<GlobalTimelinePage />} />
+            <Route path="activity" element={<ActivityPage />} />
             <Route path="leaderboard" element={<LeaderboardPage />} />
 
             {/* ---------------- Reports ----------------
