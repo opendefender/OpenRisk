@@ -284,16 +284,19 @@ describe('VendorsPage', () => {
     renderAt('/vendors');
 
     expect(await screen.findByText('Acme Cloud')).toBeInTheDocument();
-    expect(screen.getByText('Soumis')).toBeInTheDocument();
-    expect(screen.getByText('42,5 · Élevé')).toBeInTheDocument();
-    expect(screen.getByText('Haute')).toBeInTheDocument();
+    const row = screen.getByTestId('vendor-row');
+    // A submitted assessment in the high tier needs an action plan.
+    expect(row).toHaveTextContent("Plan d'action requis");
+    // The server's tier read as a grade: high → C.
+    expect(within(row).getByTestId('vendor-letter')).toHaveTextContent('C');
+    expect(row).toHaveTextContent('Service Haute');
     expect(svc.list).toHaveBeenCalledWith({ limit: 50, offset: 0 });
   });
 
   it('shows a skeleton while the register loads', () => {
     svc.list.mockReturnValue(new Promise(() => {}));
-    renderAt('/vendors');
-    expect(screen.getByTestId('table-skeleton')).toBeInTheDocument();
+    const { container } = renderAt('/vendors');
+    expect(container.querySelector('[aria-busy="true"]')).not.toBeNull();
   });
 
   it('offers a retry when the register fails', async () => {
@@ -310,7 +313,7 @@ describe('VendorsPage', () => {
     renderAt('/vendors');
 
     expect(await screen.findByText("Aucun fournisseur pour l'instant")).toBeInTheDocument();
-    const buttons = screen.getAllByRole('button', { name: 'Ajouter un fournisseur' });
+    const buttons = screen.getAllByRole('button', { name: 'Référencer un fournisseur' });
     fireEvent.click(buttons[buttons.length - 1]);
     expect(screen.getByRole('dialog', { name: 'create-asset-Supplier' })).toBeInTheDocument();
   });
@@ -321,7 +324,54 @@ describe('VendorsPage', () => {
     renderAt('/vendors');
 
     expect(await screen.findByText(/Demandez à une personne autorisée/)).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Ajouter un fournisseur' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Référencer un fournisseur' })).toBeNull();
+  });
+
+  it('opens the profile beside the list: risk score, data, weak points', async () => {
+    svc.list.mockResolvedValue({ items: [entry()], total: 1, limit: 50, offset: 0 });
+    svc.listAssessments.mockResolvedValue([submitted()]);
+    svc.getAssessment.mockResolvedValue(submitted());
+    assetSvc.getAsset.mockResolvedValue({
+      id: 'v-1',
+      name: 'Acme Cloud',
+      attributes: { data_shared: 'financieres', contact_email: 'secu@acme.test' },
+    } as Asset);
+    renderAt('/vendors');
+
+    await screen.findByText('Acme Cloud');
+    expect(await screen.findByTestId('vendor-panel-empty')).toHaveTextContent(
+      'Sélectionnez un fournisseur',
+    );
+    expect(screen.getByTestId('vendor-panel-empty')).toHaveTextContent(
+      "1 fournisseur avec plan d'action requis",
+    );
+    fireEvent.click(screen.getByTestId('vendor-row'));
+    const panel = await screen.findByTestId('vendor-panel');
+    expect(await within(panel).findByTestId('vendor-score')).toHaveTextContent('38/100');
+    expect(panel).toHaveTextContent('Financières');
+    const weakest = await within(panel).findByTestId('vendor-weakest');
+    expect(weakest).toHaveTextContent('Imposez-vous le MFA ?');
+    // The N/A answer adds nothing and is not listed.
+    expect(weakest).not.toHaveTextContent('Avez-vous un PCA ?');
+    expect(weakest).toHaveTextContent('25 pts');
+    expect(screen.getByTestId('vendor-row')).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('says a vendor was never assessed rather than showing an empty score', async () => {
+    svc.list.mockResolvedValue({
+      items: [entry({ latest_assessment: null })],
+      total: 1,
+      limit: 50,
+      offset: 0,
+    });
+    svc.listAssessments.mockResolvedValue([]);
+    renderAt('/vendors?v=v-1');
+    const panel = await screen.findByTestId('vendor-panel');
+    expect(await within(panel).findByTestId('vendor-weakest-empty')).toHaveTextContent(
+      "n'a jamais été évalué",
+    );
+    expect(within(panel).getByTestId('vendor-score')).toHaveTextContent('—');
+    expect(within(panel).getByTestId('vendor-letter')).toHaveTextContent('–');
   });
 
   it('shows the upsell lock on a plan without vendor risk', async () => {

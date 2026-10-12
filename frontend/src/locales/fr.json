@@ -802,6 +802,88 @@
       "contribution": "Contribution",
       "excluded": "Non applicable : exclue du score.",
       "notScored": "Réponse libre : non notée."
+    },
+    "board": {
+      "summary": {
+        "one": "{count} fournisseur référencé",
+        "other": "{count} fournisseurs référencés"
+      },
+      "summaryCritical": {
+        "exact": {
+          "0": "aucun service critique"
+        },
+        "one": "{count} service critique",
+        "other": "{count} services critiques"
+      },
+      "add": "Référencer un fournisseur",
+      "search": "Rechercher un fournisseur…",
+      "listLabel": "Fournisseurs",
+      "more": "Afficher plus",
+      "service": "Service {level}",
+      "noService": "Criticité non renseignée",
+      "standing": {
+        "never": "Jamais évalué",
+        "sent": "Questionnaire envoyé",
+        "in_progress": "Réponse en cours",
+        "overdue": "Questionnaire en retard",
+        "action": "Plan d'action requis",
+        "uptodate": "À jour",
+        "closed": "Pas d'évaluation en cours"
+      },
+      "due": "échéance {date}",
+      "noDue": "—",
+      "ratingTitle": "Niveau de risque de la dernière évaluation : {tier}",
+      "unrated": "Non évalué",
+      "riskScore": "Score de risque",
+      "riskScoreHint": "Plus le score est haut, plus le fournisseur est risqué (seuils 70 / 40 / 20).",
+      "dataShared": "Données confiées",
+      "contractEnd": "Fin de contrat",
+      "questionnaireDue": "Échéance du questionnaire",
+      "owner": "Responsable",
+      "status": "Statut",
+      "linkedAssets": {
+        "exact": {
+          "0": "Aucun actif lié"
+        },
+        "one": "{count} actif lié",
+        "other": "{count} actifs liés"
+      },
+      "data": {
+        "aucune": "Aucune",
+        "personnelles": "Personnelles",
+        "sensibles": "Sensibles",
+        "financieres": "Financières",
+        "sante": "Santé"
+      },
+      "weakest": "Points faibles de la dernière évaluation",
+      "weakestHint": "Les réponses qui pèsent le plus dans le score de risque.",
+      "weakestNone": "Aucune réponse n'alourdit le score.",
+      "notScored": "La dernière évaluation n'a pas encore de score : le questionnaire attend la réponse du fournisseur.",
+      "neverAssessed": "Ce fournisseur n'a jamais été évalué. Envoyez-lui un questionnaire pour obtenir un score.",
+      "points": "{pts} pts",
+      "send": "Envoyer un questionnaire",
+      "createRisk": "Créer un risque",
+      "riskTitle": "Défaillance du fournisseur {name}",
+      "openProfile": "Ouvrir la fiche complète",
+      "openAssessment": "Voir l'évaluation",
+      "panelEmptyTitle": "Sélectionnez un fournisseur",
+      "panelEmptyBody": "Sa notation, ses échéances et les points faibles de sa dernière évaluation s'affichent ici.",
+      "attention": "À surveiller",
+      "attOverdue": {
+        "one": "{count} questionnaire en retard",
+        "other": "{count} questionnaires en retard"
+      },
+      "attAction": {
+        "one": "{count} fournisseur avec plan d'action requis",
+        "other": "{count} fournisseurs avec plan d'action requis"
+      },
+      "attNever": {
+        "one": "{count} fournisseur jamais évalué",
+        "other": "{count} fournisseurs jamais évalués"
+      },
+      "attNone": "Rien d'urgent sur les fournisseurs affichés.",
+      "close": "Fermer",
+      "noMatch": "Aucun fournisseur ne correspond à cette recherche."
     }
   },
   "vendorQuestionnaire": {

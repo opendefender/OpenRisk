@@ -5,66 +5,15 @@ recommends, and surfaces these in the daily brief. Run `/decide` to clear them.
 
 ## Open
 
-### D-069 — Console redesign: the owner's review of the epic · decided 2026-10-09
-**Decided** — Comments on #899, applying to every child issue still open:
-- **A. Risk score, no ambiguity.** The frozen formula is never bent to the mockup (no
-  "sur 25"). One source of truth for the computation; one display format in the register,
-  the matrix, the risk detail and exports; inherent and residual scores always labelled
-  as such; automated tests on both the figures and how they are shown.
-- **B. Dashboard keeps role and period.** The role selector stays where switching really
-  changes the view (it does: counters and priorities differ per business role). The
-  period control stays, and applies consistently to every period-bound indicator without
-  recomputing scores over another window. Alerts form a compact stack under the title,
-  critical first: active P1 incident, security block (e.g. MFA obligation), onboarding or
-  configuration action.
-- **C. One shared Select.** A single design-system Select replaces native selects:
-  keyboard navigation and visible focus, search on long lists, disabled / loading / error
-  states, accessible labels, menus not clipped by containers, Escape closes without
-  losing the value. Shared by filters, infrastructure forms, roles and mitigation owners.
-- **D. Topology keeps its power.** Zoom and pan, search and centre on an asset, node
-  selection with details, critical assets distinguished, an accessible list/table of
-  dependencies. Labels adapt to zoom; details on hover or selection.
-- **E. AI and Threat Intel claim no certainty.** Threat Intel relevance is explained
-  (assets, CVEs, sector, sources). The AI assistant entry stays on recommendations with
-  the risk's context, and is never the sole justification of a risk or compliance
-  decision. IOC matches are absent or explicitly unavailable until log ingestion exists.
-- **Validation checklist** (16 items) posted on #899; every child PR checks itself
-  against it, including 1440 px, 1280 px and a narrow viewport.
-**Supersedes** — D-067's "the design's role switch is not built".
-**Consequence** — #901 merged without the role switch, the period control and the
-alert stack: tracked as a follow-up. The shared Select is its own issue, a prerequisite
-for #912, #913, #914 and #923. A, D and E are noted on #913, #907, #911 and #920.
+Nothing open.
 
-### D-068 — Loss-exceedance curve: sample how often losses happen? · raised 2026-10-09
+## Resolved
 
-**Raised by** — #904, tracked in #931. A change to the quantification model, so it is
-escalated rather than made in place.
-
-**Context**
-- The financial page now draws the loss-exceedance curve from the portfolio Monte Carlo
-  (FAIR-lite 1.0). That model fixes each risk's yearly frequency at its ARO and samples
-  only the loss size, so every simulated year contains every expected event.
-- Result: the curve is an S between the best and worst plausible totals, and the
-  probability of a quiet year is 0. On the parity dataset it reads 100 % up to ~90 M FCFA,
-  then falls to 0 % by ~180 M. The mockup shows a decaying curve, which is what a model
-  that also samples the number of events produces.
-- The ALE (the mean) does not depend on this choice; the P10/P50/P90/P95 band and the
-  curve do.
-
-**Options**
-- **A — keep FAIR-lite 1.0.** The page shows the S honestly; nothing else moves.
-- **B — FAIR-lite 1.1.** Draw events per year from Poisson(ARO). ALE unchanged, bands
-  widen, the curve decays like the mockup. `FormulaVersion` bump and a release note,
-  because every band on every screen moves.
-
-**Recommendation** — **B**, in its own release. Frequency is half of FAIR, and a curve
-that says "a calm year is impossible" is not one a risk committee should read.
-
-**Cost of delay** — Low. The page is correct for the model it states.
-
-**Blocks** — #931 only.
-
-### D-066 — MFA: one authenticator per person, or one per organisation? · raised 2026-10-07
+### D-066 — MFA: one authenticator per person, or one per organisation? · decided 2026-10-11
+**Decided** — Option B, per membership. The unique index on `mfa_secrets` becomes `(user_id, tenant_id)`; each organisation enrols its own factor.
+**Rationale (owner)** — Matches the recommendation: every query is already scoped by membership, and each tenant keeps its own security posture.
+**Consequence** — #897 implements it: one migration relaxing the index, `StartMFAEnrolment` upserts on `(user_id, tenant_id)`, a test enrolling one person in two organisations. Going back to A later would need secrets deduplicated, so treat the migration as one-way.
+**Unblocked** — #897.
 
 **Raised by** — #714, tracked in #897. This is tenant-isolation design, so it is escalated rather
 than fixed in place.
@@ -97,7 +46,71 @@ customer.
 
 **Blocks** — #897.
 
-### D-064 — Sign-in lock: anyone can keep an address locked · raised 2026-10-02
+### D-070 — Vendors: ship without domains and review dates? · decided 2026-10-11
+**Decided** — Option A. #908 ships with the weak points and the questionnaire due date; questionnaire domains and a review cadence are built in #942.
+**Rationale (owner)** — Matches the recommendation: the page is honest and useful now, and #942 is a model change that deserves its own review.
+**Consequence** — #908 criteria 2 and 3 are met as delivered in PR #943, the "by domain" and "next review" parts moving to #942, which still needs its Definition of Done and a milestone.
+**Unblocked** — #908 (PR #943).
+
+**Raised by** — #908, tracked in #942. It narrows two acceptance criteria of a milestone
+issue, so it is escalated rather than decided in place.
+
+**Context**
+- The vendors design shows a score per questionnaire domain and a "prochaine revue" date.
+- Questions have no domain, and there is no review cadence. Both would be invented.
+- #908 shows instead the five answers that weigh most in the latest score (same
+  contributions as the score itself) and the questionnaire due date while one is open.
+
+**Options**
+- **A — ship #908 as is**, and do domains and cadence in #942 (a migration on
+  questionnaire questions, a setting per service criticality).
+- **B — hold #908** until #942 is done.
+
+**Recommendation** — **A**. The page is honest and useful today; #942 is a model change
+that deserves its own review.
+
+**Cost of delay** — Low for A. B holds the whole vendors redesign.
+
+**Blocks** — #908 criteria 2 and 3 (the "next review" and "by domain" parts only).
+
+### D-068 — Loss-exceedance curve: sample how often losses happen? · decided 2026-10-11
+**Decided** — Option B, FAIR-lite 1.1: events per year drawn from Poisson(ARO), in a dedicated release.
+**Rationale (owner)** — Matches the recommendation: frequency is half of FAIR, and a curve saying a calm year is impossible should not reach a risk committee.
+**Consequence** — #931 follows its option-2 criteria: Poisson draws, `FormulaVersion` bump, FR/EN methodology text, convergence test (mean within 1 % of LEF × PERT mean), release note saying the bands moved. The ALE does not change. The frozen Risk.Score formula is not touched.
+**Unblocked** — #931 (still needs a Definition of Done and a milestone).
+
+**Raised by** — #904, tracked in #931. A change to the quantification model, so it is
+escalated rather than made in place.
+
+**Context**
+- The financial page now draws the loss-exceedance curve from the portfolio Monte Carlo
+  (FAIR-lite 1.0). That model fixes each risk's yearly frequency at its ARO and samples
+  only the loss size, so every simulated year contains every expected event.
+- Result: the curve is an S between the best and worst plausible totals, and the
+  probability of a quiet year is 0. On the parity dataset it reads 100 % up to ~90 M FCFA,
+  then falls to 0 % by ~180 M. The mockup shows a decaying curve, which is what a model
+  that also samples the number of events produces.
+- The ALE (the mean) does not depend on this choice; the P10/P50/P90/P95 band and the
+  curve do.
+
+**Options**
+- **A — keep FAIR-lite 1.0.** The page shows the S honestly; nothing else moves.
+- **B — FAIR-lite 1.1.** Draw events per year from Poisson(ARO). ALE unchanged, bands
+  widen, the curve decays like the mockup. `FormulaVersion` bump and a release note,
+  because every band on every screen moves.
+
+**Recommendation** — **B**, in its own release. Frequency is half of FAIR, and a curve
+that says "a calm year is impossible" is not one a risk committee should read.
+
+**Cost of delay** — Low. The page is correct for the model it states.
+
+**Blocks** — #931 only.
+
+### D-064 — Sign-in lock: anyone can keep an address locked · decided 2026-10-11
+**Decided** — Option B, a trusted-device cookie (OWASP "device cookies").
+**Rationale (owner)** — Matches the recommendation: it removes the lock-out where it hurts, the owner on their usual device, without loosening anything for an unknown device, and needs no third party.
+**Consequence** — #879 criterion 1: a successful sign-in plants a signed cookie tied to the account; a locked address still accepts attempts from a browser carrying a valid cookie for it, with its own small budget. The key is a server secret with rotation, and the cookie is revoked with the sessions. Until it ships, A stands: the lock is bounded and the reset works.
+**Unblocked** — #879 criterion 1.
 
 **Raised by** — #688 (PR #874), tracked in #879. Since #688, 10 failed sign-ins on one
 address, from any source, lock that address for 15 minutes. The lock is bounded (refused
@@ -136,7 +149,11 @@ meantime: the lock is bounded and the reset works.
 
 **Blocks** — #879 criterion 1.
 
-### D-065 — Audit trail: hash the address with a key, not plain SHA-256 · raised 2026-10-02
+### D-065 — Audit trail: hash the address with a key, not plain SHA-256 · decided 2026-10-11
+**Decided** — Option B, HMAC-SHA256 with a dedicated server key (`AUDIT_HASH_KEY`, required in production).
+**Rationale (owner)** — Matches the recommendation: the trail keeps the "one address hammered from many IPs" signal and becomes useless for re-identification without the key.
+**Consequence** — #879 criterion 2: audit entries and the Redis lock keys use the keyed hash; the reset limiter may follow (only in-flight one-hour counters reset). Boot in production refuses a missing key with a message naming the variable; self-hosting docs list it. Rotating the key breaks correlation between periods of the trail, which the docs say.
+**Unblocked** — #879 criterion 2.
 
 **Raised by** — #688 (PR #874), tracked in #879. Every failed sign-in is audited with
 `email_sha256=<hex>`. Changing that hash means a server key, so a crypto design choice.
@@ -167,7 +184,35 @@ so the boot should say clearly which variable is missing.
 
 **Blocks** — #879 criterion 2.
 
-## Resolved
+### D-069 — Console redesign: the owner's review of the epic · decided 2026-10-09
+**Decided** — Comments on #899, applying to every child issue still open:
+- **A. Risk score, no ambiguity.** The frozen formula is never bent to the mockup (no
+  "sur 25"). One source of truth for the computation; one display format in the register,
+  the matrix, the risk detail and exports; inherent and residual scores always labelled
+  as such; automated tests on both the figures and how they are shown.
+- **B. Dashboard keeps role and period.** The role selector stays where switching really
+  changes the view (it does: counters and priorities differ per business role). The
+  period control stays, and applies consistently to every period-bound indicator without
+  recomputing scores over another window. Alerts form a compact stack under the title,
+  critical first: active P1 incident, security block (e.g. MFA obligation), onboarding or
+  configuration action.
+- **C. One shared Select.** A single design-system Select replaces native selects:
+  keyboard navigation and visible focus, search on long lists, disabled / loading / error
+  states, accessible labels, menus not clipped by containers, Escape closes without
+  losing the value. Shared by filters, infrastructure forms, roles and mitigation owners.
+- **D. Topology keeps its power.** Zoom and pan, search and centre on an asset, node
+  selection with details, critical assets distinguished, an accessible list/table of
+  dependencies. Labels adapt to zoom; details on hover or selection.
+- **E. AI and Threat Intel claim no certainty.** Threat Intel relevance is explained
+  (assets, CVEs, sector, sources). The AI assistant entry stays on recommendations with
+  the risk's context, and is never the sole justification of a risk or compliance
+  decision. IOC matches are absent or explicitly unavailable until log ingestion exists.
+- **Validation checklist** (16 items) posted on #899; every child PR checks itself
+  against it, including 1440 px, 1280 px and a narrow viewport.
+**Supersedes** — D-067's "the design's role switch is not built".
+**Consequence** — #901 merged without the role switch, the period control and the
+alert stack: tracked as a follow-up. The shared Select is its own issue, a prerequisite
+for #912, #913, #914 and #923. A, D and E are noted on #913, #907, #911 and #920.
 
 ### D-067 — Console redesign: four calls made at kick-off · decided 2026-10-08
 **Decided** — For the October 2026 redesign (#899), the owner chose:

@@ -119,3 +119,68 @@ export function httpStatus(err: unknown): number | undefined {
 export function formatNumber(value: number, locale: string, digits = 1): string {
   return new Intl.NumberFormat(locale, { maximumFractionDigits: digits }).format(value);
 }
+
+/* ------------------------------------------------- the register board (#908) */
+
+/**
+ * The letter tile of a vendor: the server's risk tier of its latest scored
+ * assessment, read as a grade (low → A … critical → D). A presentation of an
+ * existing value, not a new score; null when the vendor was never scored.
+ */
+export function ratingLetter(tier: string | null | undefined): 'A' | 'B' | 'C' | 'D' | null {
+  switch (knownTier(tier)) {
+    case 'low':
+      return 'A';
+    case 'medium':
+      return 'B';
+    case 'high':
+      return 'C';
+    case 'critical':
+      return 'D';
+    default:
+      return null;
+  }
+}
+
+/** Where a vendor stands, from its latest assessment. */
+export type VendorStanding =
+  'never' | 'sent' | 'in_progress' | 'overdue' | 'action' | 'uptodate' | 'closed';
+
+/**
+ * The standing the list shows. A submitted assessment with a high or critical
+ * tier needs an action plan; a lower tier is up to date. An open questionnaire
+ * past its due date is overdue. Revoked or expired with nothing newer means the
+ * vendor has no current assessment.
+ */
+export function standingOf(
+  latest:
+    { status?: string | null; tier?: string | null; due_at?: string | null } | null | undefined,
+  now: Date = new Date(),
+): VendorStanding {
+  if (!latest) return 'never';
+  const status = knownStatus(latest.status);
+  if (status === 'sent' || status === 'in_progress') {
+    if (latest.due_at && new Date(latest.due_at).getTime() < now.getTime()) return 'overdue';
+    return status;
+  }
+  if (status === 'submitted') {
+    const tier = knownTier(latest.tier);
+    return tier === 'high' || tier === 'critical' ? 'action' : 'uptodate';
+  }
+  return 'closed';
+}
+
+export function standingIntent(s: VendorStanding): BadgeIntent {
+  switch (s) {
+    case 'uptodate':
+      return 'success';
+    case 'action':
+    case 'overdue':
+      return 'warning';
+    case 'sent':
+    case 'in_progress':
+      return 'info';
+    default:
+      return 'neutral';
+  }
+}
