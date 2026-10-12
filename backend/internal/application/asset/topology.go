@@ -27,11 +27,19 @@ type VulnCounter interface {
 	CountOpenByAsset(ctx context.Context, tenantID uuid.UUID) (map[uuid.UUID]int, error)
 }
 
+// ExposureReader reports, per asset, open and known-exploited vulnerabilities.
+// Optional and richer than VulnCounter: when wired, the nodes carry their KEV
+// count too (#907).
+type ExposureReader interface {
+	ExposureByAsset(ctx context.Context, tenantID uuid.UUID) (map[uuid.UUID]domain.AssetExposure, error)
+}
+
 // GetTopologyUseCase assembles the tenant's asset topology.
 type GetTopologyUseCase struct {
-	assets domain.AssetRepository
-	deps   domain.AssetDependencyRepository
-	vulns  VulnCounter // optional
+	assets   domain.AssetRepository
+	deps     domain.AssetDependencyRepository
+	vulns    VulnCounter    // optional
+	exposure ExposureReader // optional
 }
 
 func NewGetTopologyUseCase(assets domain.AssetRepository, deps domain.AssetDependencyRepository) *GetTopologyUseCase {
@@ -41,6 +49,13 @@ func NewGetTopologyUseCase(assets domain.AssetRepository, deps domain.AssetDepen
 // WithVulnCounter adds open-vulnerability counts to the nodes. Optional.
 func (uc *GetTopologyUseCase) WithVulnCounter(v VulnCounter) *GetTopologyUseCase {
 	uc.vulns = v
+	return uc
+}
+
+// WithExposureReader adds open and KEV counts to the nodes. Optional; it takes
+// precedence over the plain vulnerability counter.
+func (uc *GetTopologyUseCase) WithExposureReader(r ExposureReader) *GetTopologyUseCase {
+	uc.exposure = r
 	return uc
 }
 
@@ -65,13 +80,29 @@ func (uc *GetTopologyUseCase) Execute(ctx context.Context, tenantID uuid.UUID, n
 
 	// Optional slice: a failure here costs the vulnerability badge, not the graph.
 	var vulnCounts map[uuid.UUID]int
-	if uc.vulns != nil {
+	var kev map[uuid.UUID]int
+	if uc.exposure != nil {
+		if ex, err := uc.exposure.ExposureByAsset(ctx, tenantID); err == nil {
+			vulnCounts = make(map[uuid.UUID]int, len(ex))
+			kev = make(map[uuid.UUID]int, len(ex))
+			for id, e := range ex {
+				vulnCounts[id] = e.OpenVulnerabilities
+				kev[id] = e.KEVOpen
+			}
+		}
+	} else if uc.vulns != nil {
 		if counts, err := uc.vulns.CountOpenByAsset(ctx, tenantID); err == nil {
 			vulnCounts = counts
 		}
 	}
 
 	topo := domain.BuildTopology(assets, deps, vulnCounts, nodeLimit)
+	for i := range topo.Nodes {
+		topo.Nodes[i].KEVCount = kev[topo.Nodes[i].ID]
+	}
+	// Paths are computed on the whole estate, not the capped picture: a route
+	// to a critical asset exists whether or not the view could draw it.
+	topo.ExposurePaths = domain.BuildExposurePaths(assets, deps, domain.MaxExposureHops)
 	return &topo, nil
 }
 

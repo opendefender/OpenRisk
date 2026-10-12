@@ -2037,7 +2037,7 @@ func main() {
 	// just above. The vulnerability counter is optional: if it fails, the graph
 	// still renders, minus one badge.
 	assetTopologyHandler := handlers.NewAssetTopologyHandler(
-		assetapp.NewGetTopologyUseCase(assetRepo, assetDepRepo).WithVulnCounter(vulnRepo),
+		assetapp.NewGetTopologyUseCase(assetRepo, assetDepRepo).WithVulnCounter(vulnRepo).WithExposureReader(vulnRepo),
 		assetapp.NewGetCompromiseChainUseCase(assetRepo, assetDepRepo),
 	)
 	// Static sub-paths BEFORE /:id (the Fiber trap): "edge-types" must never be

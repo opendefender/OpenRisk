@@ -105,7 +105,11 @@ func (r *GormAssetRepository) Update(ctx context.Context, asset *domain.Asset) e
 	result := r.db.WithContext(ctx).
 		Model(&domain.Asset{}).
 		Where("id = ? AND tenant_id = ?", asset.ID, asset.TenantID).
-		Select("name", "type", "criticality", "owner").
+		// Every field an edit can change, including the attribute bag and the
+		// fingerprints derived from it (#940: these were dropped while the API
+		// answered 200).
+		Select("name", "type", "criticality", "owner", "category", "attributes",
+			"hostnames", "ip_addresses", "cpes", "cloud_resource_id").
 		Updates(asset)
 
 	if result.Error != nil {
