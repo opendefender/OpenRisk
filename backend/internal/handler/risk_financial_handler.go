@@ -27,7 +27,8 @@ type OrgCurrencyWriter interface {
 // (GET /analytics/financial) that backs the CISO/CFO screen.
 type FinancialAnalyticsHandler struct {
 	summaryUC  *risk.FinancialSummaryUseCase
-	currencyWr OrgCurrencyWriter // optional
+	currencyWr OrgCurrencyWriter            // optional
+	appetiteUC *risk.SetRiskAppetiteUseCase // optional
 }
 
 // NewFinancialAnalyticsHandler builds the handler.
@@ -39,6 +40,39 @@ func NewFinancialAnalyticsHandler(summaryUC *risk.FinancialSummaryUseCase) *Fina
 func (h *FinancialAnalyticsHandler) WithCurrencyWriter(w OrgCurrencyWriter) *FinancialAnalyticsHandler {
 	h.currencyWr = w
 	return h
+}
+
+// WithAppetiteUseCase attaches the risk-appetite setter (for PUT appetite).
+func (h *FinancialAnalyticsHandler) WithAppetiteUseCase(uc *risk.SetRiskAppetiteUseCase) *FinancialAnalyticsHandler {
+	h.appetiteUC = uc
+	return h
+}
+
+// SetAppetiteInput is the body of PUT /analytics/financial/appetite.
+type SetAppetiteInput struct {
+	AppetiteXAF float64 `json:"appetite_xaf"`
+}
+
+// SetAppetite PUT /analytics/financial/appetite — stores the annual loss the
+// board accepts, drawn on the loss-exceedance curve (#904). Amount in XAF.
+// Guarded admin at the route, like the currency: it is a tenant policy.
+func (h *FinancialAnalyticsHandler) SetAppetite(c *fiber.Ctx) error {
+	if h.appetiteUC == nil {
+		return c.Status(500).JSON(fiber.Map{"error": "risk appetite not configured"})
+	}
+	orgID := uuid.Nil
+	if mwCtx := middleware.GetContext(c); mwCtx != nil {
+		orgID = mwCtx.OrganizationID
+	}
+	in := new(SetAppetiteInput)
+	if err := c.BodyParser(in); err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "Invalid input"})
+	}
+	v, err := h.appetiteUC.Execute(c.UserContext(), orgID, in.AppetiteXAF)
+	if err != nil {
+		return writeAppError(c, err)
+	}
+	return c.JSON(fiber.Map{"appetite_xaf": v})
 }
 
 // SetCurrencyInput is the body of PUT /analytics/financial/currency.

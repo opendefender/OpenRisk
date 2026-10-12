@@ -5,6 +5,35 @@ recommends, and surfaces these in the daily brief. Run `/decide` to clear them.
 
 ## Open
 
+### D-068 — Loss-exceedance curve: sample how often losses happen? · raised 2026-10-09
+
+**Raised by** — #904, tracked in #931. A change to the quantification model, so it is
+escalated rather than made in place.
+
+**Context**
+- The financial page now draws the loss-exceedance curve from the portfolio Monte Carlo
+  (FAIR-lite 1.0). That model fixes each risk's yearly frequency at its ARO and samples
+  only the loss size, so every simulated year contains every expected event.
+- Result: the curve is an S between the best and worst plausible totals, and the
+  probability of a quiet year is 0. On the parity dataset it reads 100 % up to ~90 M FCFA,
+  then falls to 0 % by ~180 M. The mockup shows a decaying curve, which is what a model
+  that also samples the number of events produces.
+- The ALE (the mean) does not depend on this choice; the P10/P50/P90/P95 band and the
+  curve do.
+
+**Options**
+- **A — keep FAIR-lite 1.0.** The page shows the S honestly; nothing else moves.
+- **B — FAIR-lite 1.1.** Draw events per year from Poisson(ARO). ALE unchanged, bands
+  widen, the curve decays like the mockup. `FormulaVersion` bump and a release note,
+  because every band on every screen moves.
+
+**Recommendation** — **B**, in its own release. Frequency is half of FAIR, and a curve
+that says "a calm year is impossible" is not one a risk committee should read.
+
+**Cost of delay** — Low. The page is correct for the model it states.
+
+**Blocks** — #931 only.
+
 ### D-066 — MFA: one authenticator per person, or one per organisation? · raised 2026-10-07
 
 **Raised by** — #714, tracked in #897. This is tenant-isolation design, so it is escalated rather

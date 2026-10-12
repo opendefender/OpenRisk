@@ -4,7 +4,12 @@
 // the terms of the GNU Affero General Public License v3.0 (see LICENSE).
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { financialService, type SimulateInput, type CurrencyCode } from './financialService';
+import {
+  financialService,
+  type CurrencyCode,
+  type FinancialSummary,
+  type SimulateInput,
+} from './financialService';
 
 /** Shared query key so mutations can invalidate the summary (real recompute). */
 export const FINANCIAL_SUMMARY_KEY = ['financial', 'summary'] as const;
@@ -25,6 +30,32 @@ export function useSetCurrency() {
     mutationFn: (currency: CurrencyCode) => financialService.setCurrency(currency),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: FINANCIAL_SUMMARY_KEY });
+    },
+  });
+}
+
+/**
+ * Save the risk appetite (#904). Optimistic: the summary carries the new value
+ * at once, and goes back to the stored one if the server refuses. No retry —
+ * a 403 for a non-admin is final.
+ */
+export function useSetAppetite() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (appetiteXaf: number) => financialService.setAppetite(appetiteXaf),
+    retry: false,
+    onMutate: async (appetiteXaf: number) => {
+      await qc.cancelQueries({ queryKey: FINANCIAL_SUMMARY_KEY });
+      const prev = qc.getQueryData<FinancialSummary>(FINANCIAL_SUMMARY_KEY);
+      if (prev)
+        qc.setQueryData<FinancialSummary>(FINANCIAL_SUMMARY_KEY, {
+          ...prev,
+          risk_appetite_xaf: appetiteXaf,
+        });
+      return { prev };
+    },
+    onError: (_e, _v, ctx) => {
+      if (ctx?.prev) qc.setQueryData(FINANCIAL_SUMMARY_KEY, ctx.prev);
     },
   });
 }

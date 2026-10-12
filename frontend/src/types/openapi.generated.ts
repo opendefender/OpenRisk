@@ -367,6 +367,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/analytics/financial/appetite": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Set the tenant's risk appetite
+         * @description Stores the annual loss the board accepts, drawn as the threshold on the loss-exceedance curve. Amount in XAF, the canonical currency. Admin only.
+         */
+        put: operations["setRiskAppetite"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/risks/{id}/transfer-owner": {
         parameters: {
             query?: never;
@@ -2135,8 +2155,25 @@ export interface components {
             criticality: string;
             ale: components["schemas"]["Money"];
             ale_worst: components["schemas"]["Money"];
+            /** @description Exposure targeted once the risk's treatment plan is in place. */
+            ale_after?: components["schemas"]["Money"];
             rosi: number;
             rosi_computable: boolean;
+        };
+        /** @description Loss-exceedance curve of the register in compact form: total annual loss (XAF) at every percentile 0..100 from one shared Monte Carlo run, before and after the treatment plans. P(loss > x) is the share of percentiles above x. */
+        LossExceedance: {
+            inherent: number[];
+            residual: number[];
+        };
+        /** @description One risk's treatment plan as an investment. */
+        TreatmentPayback: {
+            /** Format: uuid */
+            risk_id: string;
+            title: string;
+            cost: components["schemas"]["Money"];
+            /** @description Annual loss avoided. */
+            reduction: components["schemas"]["Money"];
+            payback_months: number;
         };
         /** @description Tenant-wide financial posture for the CFO/CISO dashboard. */
         FinancialSummary: {
@@ -2153,6 +2190,17 @@ export interface components {
             portfolio_rosi_computable: boolean;
             by_criticality: components["schemas"]["CriticalityBucket"][];
             top_risks: components["schemas"]["TopRiskFinancial"][];
+            /** @description (3 × annual reduction − plan cost) / plan cost. */
+            portfolio_rosi_3y?: number;
+            portfolio_rosi_3y_computable?: boolean;
+            /** @description Risks whose treatment plan has a cost. */
+            treated_risks?: number;
+            /** @description Null when the register is empty. */
+            loss_exceedance?: components["schemas"]["LossExceedance"] | null;
+            /** @description Treatment plans with a measurable reduction, shortest payback first. */
+            treatments?: components["schemas"]["TreatmentPayback"][];
+            /** @description Annual loss the board accepts (XAF); null until set. */
+            risk_appetite_xaf?: number | null;
         };
         LoginInput: {
             /**
@@ -4635,6 +4683,62 @@ export interface operations {
             };
             /** @description Unauthorized */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    setRiskAppetite: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    appetite_xaf: number;
+                };
+            };
+        };
+        responses: {
+            /** @description Appetite stored (rounded to the unit) */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        appetite_xaf: number;
+                    };
+                };
+            };
+            /** @description Not a positive amount */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not an administrator, or no organization in the session */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Organization not found */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

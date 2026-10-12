@@ -1253,5 +1253,108 @@
       "forbidden": "You cannot sign this step.",
       "failed": "The decision could not be recorded."
     }
+  },
+  "financial": {
+    "title": "Financial quantification",
+    "subtitle": "Annualised amounts in millions of {currency} · ",
+    "method": "simplified FAIR method, {iterations} draws",
+    "currencyLabel": "Display currency",
+    "loadError": "Could not load the financial posture.",
+    "emptyRegister": "No risk to quantify. Add risks and fill in their losses (SLE, ARO, downtime cost) to see your exposure in money.",
+    "kpi": {
+      "inherent": "Inherent ALE",
+      "inherentSub": {
+        "one": "{currency} / yr, {count} risk",
+        "other": "{currency} / yr, {count} risks"
+      },
+      "residual": "Targeted residual ALE",
+      "residualSub": "once the plan is carried out",
+      "plan": "Plan cost",
+      "planSub": {
+        "exact": {
+          "0": "{currency}, no costed plan"
+        },
+        "one": "{currency}, {count} treated risk",
+        "other": "{currency}, {count} treated risks"
+      },
+      "rosi": "3-year return",
+      "rosiSub": "ROSI, cumulative reduction vs cost",
+      "rosiNone": "no costed plan"
+    },
+    "lec": {
+      "title": "Loss-exceedance curve",
+      "sub": "Probability that a year's loss exceeds a given amount",
+      "appetite": "Risk appetite",
+      "appetiteUnset": "not set",
+      "appetiteReadOnly": "Set by an administrator",
+      "saved": "Risk appetite saved",
+      "saveFailed": "The risk appetite could not be saved.",
+      "forbidden": "Only an administrator can set the risk appetite.",
+      "inherent": "Inherent:",
+      "exceed": "of exceeding {amount} M",
+      "residual": "After plan:",
+      "xAxis": "Annual loss (M {currency})",
+      "yAxis": "Probability of exceedance",
+      "aria": "Loss-exceedance curve, inherent and after plan; appetite at {amount} M {currency}",
+      "empty": "The curve appears once a risk is quantified."
+    },
+    "exposure": {
+      "title": "Exposure by risk",
+      "risk": "Risk",
+      "inherent": "Inherent",
+      "residual": "Residual",
+      "reduction": "Reduction",
+      "empty": "No quantified risk. Fill in a risk's single loss and frequency to see it here."
+    },
+    "payback": {
+      "title": "Mitigation payback",
+      "sub": "Sorted by time to pay back the investment",
+      "row": "cost {cost} · −{reduction}/yr",
+      "months": "{n} mo",
+      "empty": "No costed treatment plan. Fill in a risk's treatment cost and expected effectiveness to compute its return."
+    },
+    "methodology": {
+      "title": "Methodology",
+      "model": "Model",
+      "modelValue": "FAIR-lite: ALE = LEF × LM (PERT), Monte Carlo (portfolio)",
+      "formula": "Formula version",
+      "iterations": "Iterations",
+      "seed": "Seed (deterministic)",
+      "computedAt": "Computed at",
+      "currency": "Currency",
+      "inputs": "Inputs used",
+      "assumptions": "Assumptions",
+      "doc": "Model documentation",
+      "risks": "Risks aggregated",
+      "quantified": "Risks quantified",
+      "unitRisks": "risks",
+      "src": {
+        "input": "input",
+        "derived": "derived",
+        "reference": "reference"
+      },
+      "a1": "Total exposure = one Monte Carlo run summing each risk's loss per iteration (diversification accounted for).",
+      "a2": "Each risk: ALE = LEF × LM; LM follows a 3-point PERT distribution (min / most likely / max).",
+      "a3": "The \"after plan\" curve applies each risk's expected treatment effectiveness, on the same draws."
+    },
+    "sim": {
+      "title": "Investment simulator",
+      "sub": "Three settings, one decision sentence. Nothing is saved.",
+      "risk": "Risk",
+      "measure": "Planned measure",
+      "measurePh": "e.g. MFA on privileged accounts",
+      "budget": "Budget",
+      "effectiveness": "Measure effectiveness",
+      "run": "Compute return",
+      "failed": "Simulation failed",
+      "thisMeasure": "this measure",
+      "sentence": "Investing {cost} in {measure}{forRisk} would cut its expected annual exposure from {before} to {after}{rosi}{payback}.",
+      "forRisk": " for the \"{title}\" risk",
+      "rosiPart": ", a {rosi} return",
+      "paybackPart": " — paying for itself in ~{months} months",
+      "currentAle": "Current ALE",
+      "residualAle": "Residual ALE",
+      "avoided": "Loss avoided / yr:"
+    }
   }
 }

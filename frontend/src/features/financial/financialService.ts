@@ -116,6 +116,22 @@ export interface TopRiskFinancial {
   rosi_computable: boolean;
 }
 
+/** Total annual loss (XAF) at every percentile 0..100, before and after the plans (#904). */
+export interface LossExceedance {
+  inherent: number[];
+  residual: number[];
+}
+
+/** One risk's treatment plan as an investment (#904). */
+export interface TreatmentPayback {
+  risk_id: string;
+  title: string;
+  cost: Money;
+  /** Annual loss avoided. */
+  reduction: Money;
+  payback_months: number;
+}
+
 /** Tenant-wide financial posture for the CFO/CISO dashboard. */
 export interface FinancialSummary {
   currency: string;
@@ -138,6 +154,17 @@ export interface FinancialSummary {
   portfolio_rosi_computable: boolean;
   by_criticality: CriticalityBucket[];
   top_risks: TopRiskFinancial[];
+  /** (3 × annual reduction − plan cost) / plan cost (#904). */
+  portfolio_rosi_3y: number;
+  portfolio_rosi_3y_computable: boolean;
+  /** Risks whose treatment plan has a cost. */
+  treated_risks: number;
+  /** Null when the register is empty. */
+  loss_exceedance: LossExceedance | null;
+  /** Shortest payback first. */
+  treatments: TreatmentPayback[];
+  /** Annual loss the board accepts (XAF); null until set. */
+  risk_appetite_xaf: number | null;
 }
 
 /** Per-field overrides for a what-if investment scenario (all optional). */
@@ -169,6 +196,14 @@ export const financialService = {
   /** What-if assessment with overrides layered on the risk's stored drivers. */
   simulate: async (riskId: string, overrides: SimulateInput): Promise<FinancialAssessment> => {
     const res = await api.post<FinancialAssessment>(`/risks/${riskId}/simulate`, overrides);
+    return res.data;
+  },
+
+  /** Store the tenant's risk appetite in XAF (admin, #904). */
+  setAppetite: async (appetiteXaf: number): Promise<{ appetite_xaf: number }> => {
+    const res = await api.put<{ appetite_xaf: number }>('/analytics/financial/appetite', {
+      appetite_xaf: appetiteXaf,
+    });
     return res.data;
   },
 
