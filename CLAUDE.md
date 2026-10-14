@@ -181,3 +181,5 @@ working on something else. Never block waiting for me.
 - Never report done without pasting the verification command output.
 - Never say "should work". Either it is verified or it is not done.
 - Honest remainders: every report ends with what is NOT done and why.
+- Screenshots taken as proof are attached to the issue comment. Never commit
+  them; `.playwright-mcp/` is ignored for that reason.
