@@ -295,10 +295,10 @@ go test -v ./internal/workers/... ./internal/adapters/thehive/...
 
 ### Integration Tests
 
-Full end-to-end tests with real PostgreSQL database are in:
-- `backend/internal/handlers/risk_handler_integration_test.go`
-
-These test the complete pipeline from incident creation to database persistence.
+No test currently runs the pipeline from incident creation to database
+persistence against PostgreSQL. `TestProcessIncidentHighSeverity` is skipped
+for that reason. The handler integration test this section used to cite
+targeted functions that no longer exist and was removed in #957.
 
 ## Configuration
 
