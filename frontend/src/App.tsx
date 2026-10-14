@@ -17,15 +17,10 @@ import {
 
 // --- Imports des Stores & Hooks ---
 import { useAuthStore } from './hooks/useAuthStore';
-import { useRiskStore } from './hooks/useRiskStore';
 import { usePermissions } from './hooks/usePermissions';
 import { useUIStore } from './store/uiStore';
 import { useHotkeys } from './shared/useHotkeys';
-import { ShortcutsOverlay } from './shared/ShortcutsOverlay';
 import { permissionFor } from './shared/routeModel';
-import { AccessDenied } from './shared/AccessDenied';
-import { NotFound } from './shared/system/NotFound';
-import { Maintenance } from './shared/system/Maintenance';
 import {
   OnboardingGuard,
   OnboardingCompletedRedirect,
@@ -41,10 +36,29 @@ import { AppHeader } from './components/layout/AppHeader';
 const CommandPalette = lazy(() =>
   import('./components/layout/CommandPalette').then((m) => ({ default: m.CommandPalette })),
 );
+/* Shell pieces the first frame never shows (#966): the `?` overlay opens on a
+   key press, the tour waits 900 ms before its first coach mark, and the
+   refusal, 404 and maintenance screens are destinations, not the shell. Each
+   was in the preloaded entry chunk. */
+const ShortcutsOverlay = lazy(() =>
+  import('./shared/ShortcutsOverlay').then((m) => ({ default: m.ShortcutsOverlay })),
+);
+const ProductTour = lazy(() =>
+  import('./features/onboarding/ProductTour').then((m) => ({ default: m.ProductTour })),
+);
+const AccessDenied = lazy(() =>
+  import('./shared/AccessDenied').then((m) => ({ default: m.AccessDenied })),
+);
+const NotFound = lazy(() =>
+  import('./shared/system/NotFound').then((m) => ({ default: m.NotFound })),
+);
+const Maintenance = lazy(() =>
+  import('./shared/system/Maintenance').then((m) => ({ default: m.Maintenance })),
+);
+import { QuietBoundary } from './shared/system/QuietBoundary';
 import { BannerStack } from './shared/BannerStack';
 import { DemoBanner } from './shared/DemoBanner';
 import { OfflineBanner } from './shared/OfflineBanner';
-import { ProductTour } from './features/onboarding/ProductTour';
 import { EntityDrawerHost } from './features/entity-drawer';
 import { useRealtimeQuerySync } from './features/realtime/useRealtime';
 // The dc.html-redesign Create-Risk modal (crash-free, correct P×I×AC score scale).
@@ -490,14 +504,24 @@ const DashboardLayout = () => {
       )}
       {/* Three non-blocking coach marks, shown once and replayable from the
           header's help button (spec §8). It never covers the app. */}
-      <ProductTour />
+      <QuietBoundary>
+        <Suspense fallback={null}>
+          <ProductTour />
+        </Suspense>
+      </QuietBoundary>
       {/* The universal entity drawer (W1-02). Mounted ONCE for the whole app and
           driven entirely by the URL, which is what makes it a navigation
           primitive rather than a per-screen feature: a deep link opens it on any
           route, Back closes it, and the page behind keeps its filters. It
           renders nothing until the URL names an entity. */}
       <EntityDrawerHost />
-      <ShortcutsOverlay open={showShortcuts} onClose={() => setShowShortcuts(false)} lang={lang} />
+      {showShortcuts && (
+        <QuietBoundary>
+          <Suspense fallback={null}>
+            <ShortcutsOverlay open onClose={() => setShowShortcuts(false)} lang={lang} />
+          </Suspense>
+        </QuietBoundary>
+      )}
       {/* Only mounted when opened, and behind its own Suspense — so the form
           stack (react-hook-form + zod) loads on first use, not at app start. */}
       {newRiskOpen && (
@@ -506,7 +530,11 @@ const DashboardLayout = () => {
             isOpen={newRiskOpen}
             onClose={() => setNewRiskOpen(false)}
             onCreated={() => {
-              void useRiskStore.getState().fetchRisks();
+              // Imported here, not at the top: the shell itself never reads the
+              // risk store, and a static import put it in the entry chunk (#966).
+              void import('./hooks/useRiskStore').then(({ useRiskStore }) =>
+                useRiskStore.getState().fetchRisks(),
+              );
             }}
           />
         </Suspense>

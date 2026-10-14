@@ -35,6 +35,7 @@ import { OpenRiskLogo } from '../../shared/Logo';
 import { AlertDialog, Checkbox, RadioGroup } from '../../shared/ds';
 import { catalogs, localeTag, translate, type LocaleCode, type TranslateParams } from '../../i18n';
 import { useUIStore } from '../../store/uiStore';
+import { useCatalog } from '../../hooks/useI18n';
 import {
   classifyQuestionnaireError,
   vendorQuestionnaireService,
@@ -149,10 +150,17 @@ export function VendorQuestionnairePage() {
         ? fallbackLang
         : 'fr');
 
+  // The page follows the questionnaire's language, not the store's, so it
+  // fetches that catalogue itself: only the default language is in the entry
+  // bundle (#966). The form waits for it rather than flashing French at an
+  // English vendor; if the fetch fails it renders in the fallback language.
+  const catalogStatus = useCatalog(lang);
+  const waitingForWords = catalogStatus === 'loading';
   const tt = useCallback(
     (key: string, params?: TranslateParams) =>
       translate(catalogs, lang, `vendorQuestionnaire.${key}`, { params }),
-    [lang],
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- the catalogue's status is its identity
+    [lang, catalogStatus],
   );
 
   // No Referer leaves this page, whatever a browser extension or a future link
@@ -350,13 +358,15 @@ export function VendorQuestionnairePage() {
           </button>
         </header>
 
-        {current.kind === 'loading' && <QuestionnaireSkeleton label={tt('loading')} />}
+        {(current.kind === 'loading' || (view && waitingForWords)) && (
+          <QuestionnaireSkeleton label={tt('loading')} />
+        )}
 
         {current.kind === 'failed' && (
           <FailurePanel failure={current.failure} tt={tt} onRetry={retry} />
         )}
 
-        {view && (
+        {view && !waitingForWords && (
           <form onSubmit={requestSubmit} noValidate>
             <Card>
               <h1 className="text-[20px] font-bold text-ink mb-2">{tt('pageTitle')}</h1>
