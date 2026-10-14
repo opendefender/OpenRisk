@@ -57,6 +57,7 @@ import (
 	savedviewapp "github.com/opendefender/openrisk/internal/application/savedview"
 	scanapp "github.com/opendefender/openrisk/internal/application/scanner"
 	searchapp "github.com/opendefender/openrisk/internal/application/search"
+	"github.com/opendefender/openrisk/internal/application/threatintel"
 	tprmapp "github.com/opendefender/openrisk/internal/application/tprm"
 	vulnapp "github.com/opendefender/openrisk/internal/application/vulnerability"
 	coreauth "github.com/opendefender/openrisk/internal/auth"
@@ -2894,6 +2895,18 @@ func main() {
 	protected.Get("/cti/stats", ctiRead, ctiHandler.Stats)
 	protected.Post("/cti/sync", ctiAdmin, ctiHandler.Sync)
 	protected.Post("/cti/match", ctiAdmin, ctiHandler.Match)
+
+	// Threats (#911): the catalogue entries that touch this tenant's assets, by
+	// CPE or by a scanner finding, ranked by an explained relevance. "Not
+	// relevant" is a triage call on the tenant's own reading list.
+	threatRepo := repository.NewGormThreatRepository(database.DB)
+	threatHandler := handlers.NewThreatHandler(
+		threatintel.NewListThreatsUseCase(threatRepo, ctiRepo),
+		threatintel.NewDismissThreatUseCase(threatRepo, ctiRepo),
+	)
+	protected.Get("/cti/threats", ctiRead, threatHandler.List)
+	protected.Put("/cti/threats/:cve/dismissal", riskUpdate, threatHandler.Dismiss)
+	protected.Delete("/cti/threats/:cve/dismissal", riskUpdate, threatHandler.Restore)
 
 	// =========================================================================
 	// Universal Search (UX-1) — one GET /search behind the ⌘K palette. Composes

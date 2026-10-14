@@ -479,7 +479,11 @@ var decisions = []Decision{
 	{"/api/v1/reports/types", PublicByDesign,
 		"the report catalogue: template keys, versions, titles and formats, all compiled in and localised. No table is read"},
 
-	// --- CTI (2) ----------------------------------------------------------
+	// --- CTI (4) ----------------------------------------------------------
+	{"/api/v1/cti/threats", Covered,
+		"#911. Built only from the caller's own rows: GormThreatRepository reads assets, findings and dismissals on `tenant_id = ?`, the tenant from the JWT (handler.tenantID, 401 on a zero tenant); the CTI catalogue it joins is global NVD/KEV data. application/threatintel TestListThreats_Unauthorized gives another tenant an asset on the same CPE and a dismissal and proves neither reaches the list; repository/gorm_threat_repository_pg_test TestThreatRepository_Postgres proves the same on PostgreSQL (skips on an unmigrated database)"},
+	{"/api/v1/cti/threats/{id}/dismissal", Covered,
+		"#911. The path id is a CVE, public; the dismissal row is keyed on (tenant_id, cve_id) with the tenant from the JWT. TestDismissThreat_Unauthorized and TestThreatRepository_Postgres prove another tenant's restore finds nothing and leaves the dismissal in place"},
 	{"/api/v1/cti/vulnerabilities", PublicByDesign,
 		"the NVD/CISA feed is global threat intelligence, not tenant-owned — the same reasoning already recorded for /cti/vulnerabilities/{id}. Nothing in the response is derived from a tenant's data"},
 	{"/api/v1/cti/stats", PublicByDesign,
