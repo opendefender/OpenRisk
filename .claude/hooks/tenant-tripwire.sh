@@ -86,10 +86,16 @@ FINDINGS=$(printf '%s\n' "$ADDED" | awk -v file="$FILE" '
     return 0
   }
   END {
-    q = "\\.(Where|Or|Not|Raw|Exec)\\(|\\.(First|Find|Take|Last|Delete|Save)\\(&|\\.(Updates?|UpdateColumns?|Count|Pluck)\\("
+    # Delete/Save without & only on a db/tx receiver or after a call, so a
+    # service method like svc.Save(ctx, x) is not taken for a query.
+    q = "\\.(Where|Or|Not|Raw|Exec|First|Find|Take|Last)\\(|\\.(Delete|Save)\\(&|([dD][bB]|tx|\\))\\.(Delete|Save)\\(|\\.(Updates?|UpdateColumns?|Count|Pluck)\\("
+    # Standard-library calls that share a name with a GORM method.
+    stdlib = "(^|[^A-Za-z0-9_.])(bytes|strings|cmp|slices|maps|utf8|regexp|re)\\.(Count|Or|Find)[A-Za-z]*\\("
     t = "[tT]enant"
     for (n = 1; n <= FNR; n++) {
       if (!(n in added) || iscomment(line[n]) || line[n] !~ q) continue
+      probe = line[n]; gsub(stdlib, "", probe)
+      if (probe !~ q) continue
       # Statement extent.
       s = n
       while (s > 1 && !isfunc(line[s-1]) && !iscomment(line[s-1]) && (cont_after(line[s-1]) || cont_before(line[s]))) s--
@@ -115,7 +121,8 @@ FINDINGS=$(printf '%s\n' "$ADDED" | awk -v file="$FILE" '
       # in this change (an old comment does not cover a new query).
       j = s - 1
       while (j >= 1 && line[j] ~ /^[[:space:]]*$/) j--
-      if (j >= 1 && (j in added) && iscomment(line[j]) && tolower(line[j]) ~ /tenant:/) ok = 1
+      # The comment must give a reason: "tenant:" then at least ten characters.
+      if (j >= 1 && (j in added) && iscomment(line[j]) && tolower(line[j]) ~ /tenant:[[:space:]]*[^[:space:]].........../) ok = 1
       if (!ok) printf "%s:%d: query without a tenant filter in its statement: %s\n", file, n, line[n]
     }
   }' - "$FILE")

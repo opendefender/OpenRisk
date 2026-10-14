@@ -24,13 +24,16 @@ printf '%s' "$CMD" | grep -qE 'rm[[:space:]]+-[a-z]*r[a-z]*f?[[:space:]]+(/|~|\$
 printf '%s' "$CMD" | grep -qE 'terraform[[:space:]]+apply'                    && block "terraform apply needs human approval"
 printf '%s' "$CMD" | grep -qE 'kubectl[[:space:]]+delete'                     && block "kubectl delete needs human approval"
 printf '%s' "$CMD" | grep -qiE 'DROP[[:space:]]+(TABLE|DATABASE|SCHEMA)'      && block "destructive DDL"
-# gh api -f/--field never expands @file: it posts the literal path, answers 200,
-# and has overwritten issue bodies and checkpoint comments that way. -F reads
-# it. Covers -fkey=@x, --field=key=@x, --raw-field and array keys.
-printf '%s' "$CMD" | grep -qE 'gh[[:space:]]+api.*(-f|--field|--raw-field)([[:space:]]+|=)?["'"'"']?[^[:space:]=]+=@' \
+# gh api -f (long form --raw-field) never expands @file: it posts the literal
+# path, answers 200, and has overwritten issue bodies and checkpoint comments
+# that way. -F (long form --field) reads the file and stays allowed.
+# Covers -fkey=@x, --raw-field=key=@x and array keys.
+printf '%s' "$CMD" | grep -qE 'gh[[:space:]]+api.*(^|[[:space:]])(-f|--raw-field)([[:space:]]+|=)?["'"'"']?[^[:space:]=]+=@' \
   && block "gh api -f key=@file posts the literal path — use -F key=@file"
 
-# Never send a secret file to GitHub. -F body=@file and --body-file are the
+# Never send a secret file to GitHub. This matches paths, so it is an aid
+# against a planted instruction, not a control: --body "$(cat .env)" or
+# --body-file - get past it. Review and the Read deny rules are the control. -F body=@file and --body-file are the
 # normal way to post, so an injected "post this file" instruction in an issue
 # would otherwise publish .env, a private key or the generated admin password,
 # around the Read deny rules (#959 security review).
