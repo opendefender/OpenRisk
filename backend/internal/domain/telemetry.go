@@ -27,10 +27,10 @@ type TelemetryConfig struct {
 	Enabled    bool      `gorm:"default:false" json:"enabled"`
 	// UpdatedBy records which admin last changed consent, for the local audit
 	// trail only — it is never transmitted.
-	UpdatedBy   *uuid.UUID `gorm:"type:uuid" json:"updated_by,omitempty"`
-	LastSentAt  *time.Time `json:"last_sent_at,omitempty"`
-	CreatedAt   time.Time  `gorm:"autoCreateTime" json:"created_at"`
-	UpdatedAt   time.Time  `gorm:"autoUpdateTime" json:"updated_at"`
+	UpdatedBy  *uuid.UUID `gorm:"type:uuid" json:"updated_by,omitempty"`
+	LastSentAt *time.Time `json:"last_sent_at,omitempty"`
+	CreatedAt  time.Time  `gorm:"autoCreateTime" json:"created_at"`
+	UpdatedAt  time.Time  `gorm:"autoUpdateTime" json:"updated_at"`
 }
 
 func (TelemetryConfig) TableName() string { return "telemetry_config" }

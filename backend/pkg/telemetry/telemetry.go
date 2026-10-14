@@ -39,7 +39,7 @@ type Payload struct {
 
 	// Aggregate, non-identifying counts. Bucketed where a raw count could be
 	// re-identifying for a tiny deployment (see Bucket).
-	Orgs         int `json:"orgs"`
+	Orgs         int    `json:"orgs"`
 	UsersBucket  string `json:"users_bucket"`
 	RisksBucket  string `json:"risks_bucket"`
 	AssetsBucket string `json:"assets_bucket"`

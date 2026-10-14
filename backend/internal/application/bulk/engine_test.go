@@ -47,8 +47,8 @@ func (f *fakeStore) seed(tenant uuid.UUID, label, status string) uuid.UUID {
 	return id
 }
 
-func (f *fakeStore) EntityType() string                          { return "vulnerability" }
-func (f *fakeStore) SupportedBulkActions() []domain.BulkAction    { return f.supported }
+func (f *fakeStore) EntityType() string                        { return "vulnerability" }
+func (f *fakeStore) SupportedBulkActions() []domain.BulkAction { return f.supported }
 func (f *fakeStore) ValidateBulkChange(c domain.BulkChange) error {
 	if c.Action == domain.BulkActionChangeStatus && c.Status == "not_a_status" {
 		return domain.NewValidationError("unknown status")

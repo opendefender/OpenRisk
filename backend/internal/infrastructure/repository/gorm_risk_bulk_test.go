@@ -224,7 +224,6 @@ func TestBulkDelete_ForeignTenantIDDeletesNothing(t *testing.T) {
 	assert.Equal(t, int64(2), riskCount(t, db), "neither row may go")
 }
 
-
 // createTableFromModel builds a permissive SQLite table with one column per
 // persisted field of the model. SQLite's dynamic typing makes the affinities
 // below sufficient for a round trip; nothing here asserts on the DDL itself.
