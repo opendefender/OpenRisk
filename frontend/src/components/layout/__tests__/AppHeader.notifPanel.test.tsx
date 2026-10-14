@@ -8,7 +8,7 @@
 
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeAll, beforeEach } from 'vitest';
 import { render, screen, waitFor, fireEvent, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router';
@@ -69,6 +69,18 @@ function renderHeader() {
 const bell = () => screen.getByRole('button', { name: /notifications/i });
 
 describe('AppHeader — notification panel (#751 phase 4)', () => {
+  // The panel is a lazy module (#966): the first open in a run suspends while
+  // it loads. One open up front settles it, so the synchronous fake-timer test
+  // below does not depend on which test happens to run first.
+  beforeAll(async () => {
+    unreadCountMock.mockReturnValue({ count: 0, isFetched: true });
+    notificationsMock.mockReturnValue({ notifications: [], isLoading: false, isError: false });
+    const { unmount } = renderHeader();
+    await userEvent.click(bell());
+    await screen.findByRole('dialog');
+    unmount();
+  });
+
   beforeEach(() => {
     unreadCountMock.mockReset().mockReturnValue({ count: 1, isFetched: true });
     notificationsMock.mockReset().mockReturnValue({
@@ -83,7 +95,7 @@ describe('AppHeader — notification panel (#751 phase 4)', () => {
   it('Escape closes the panel and returns focus to the bell trigger', async () => {
     renderHeader();
     await userEvent.click(bell());
-    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expect(await screen.findByRole('dialog')).toBeInTheDocument();
 
     await userEvent.keyboard('{Escape}');
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
@@ -95,6 +107,7 @@ describe('AppHeader — notification panel (#751 phase 4)', () => {
     expect(bell()).toHaveAttribute('aria-expanded', 'false');
     await userEvent.click(bell());
     expect(bell()).toHaveAttribute('aria-expanded', 'true');
+    await screen.findByRole('dialog');
     await userEvent.keyboard('{Escape}');
     await waitFor(() => expect(bell()).toHaveAttribute('aria-expanded', 'false'));
   });
