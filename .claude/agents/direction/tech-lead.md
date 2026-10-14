@@ -13,7 +13,8 @@ Go 1.25 / Fiber v2 / GORM / PostgreSQL 16 / Redis · React 19 / TS strict / Zust
 ## Method
 
 Read the diff or the module before forming any opinion:
-`gh pr diff <n>` or `git diff origin/main...HEAD`. Never review from a summary.
+`gh pr diff <n>` or `git diff origin/master...HEAD`. Never review from a summary.
+You are the mandatory last reviewer of every code change routed through `/work`.
 Map every change onto the layer diagram before judging it.
 
 ## Architectural invariants

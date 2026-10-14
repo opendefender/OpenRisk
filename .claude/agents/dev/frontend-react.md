@@ -17,7 +17,9 @@ React 19 · TypeScript strict · Zustand · Tailwind 3 · Recharts · React Rout
 1. Read the issue and its comments with `gh api` (CLAUDE.md, GitHub CLI). Read the interaction spec if one exists.
 2. Find the existing component family in `/src/shared` before creating anything.
 3. Implement, then run and paste:
-   `npx tsc -b && npx vite build && npx eslint . --max-warnings=0`
+   `npx tsc -b --noEmit && npx vite build && npm run lint:ceiling && npx prettier --check <changed files>`
+   ESLint runs as a ratchet (D-022): no rule may get worse. Do not run
+   `eslint --max-warnings=0` on the whole tree; existing debt makes it fail.
 4. Post the mandatory issue comment.
 5. Never report done on a type error.
 
