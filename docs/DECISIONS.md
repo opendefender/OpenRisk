@@ -23,6 +23,19 @@ recommends, and surfaces these in the daily brief. Run `/decide` to clear them.
 
 ## Resolved
 
+### D-071 — Vulnerabilities from the agent's packages: collection, Windows, egress, UI · decided 2026-10-14
+**Decided (owner)**
+1. **osquery required**: no native fallback. A host without it reports `osquery_missing`, and the README documents installing it.
+2. **Windows matched now through NVD**, against the recommendation (collect now, match later). Each program is resolved to a CPE whose vendor matches the publisher, then checked with `virtualMatchString`. Findings carry `match_method=nvd_cpe` and confidence 0.6, and are marked "à confirmer".
+3. **OSV and NVD lookups on by default**, with a per-tenant switch. Only package or program name, version and ecosystem are sent, never hostnames, IPs or tenant identifiers.
+4. **UI**: "Lancer un scan" on the vulnerability page, with per-host inventory status in the asset drawer. The Infrastructure launcher's "Vulnérabilités" type ships with #912.
+
+EPSS stays empty (no feed exists, follow-up to propose), and air-gapped installs show "source injoignable".
+
+**Raised by** — #910. The issue assumed an embedded osquery, an EPSS feed and a design screen; none exists (spec `docs/910_AGENT_PACKAGE_VULN_SCAN.md`, "Current state").
+**Consequence** — Windows coverage depends on NVD's CPE dictionary and rate limits (5 requests/30 s without `NVD_API_KEY`), so a Windows host is matched in the background over minutes. Every NVD-derived finding states its lower confidence.
+**Unblocked** — #910.
+
 ### D-066 — MFA: one authenticator per person, or one per organisation? · decided 2026-10-11
 **Decided** — Option B, per membership. The unique index on `mfa_secrets` becomes `(user_id, tenant_id)`; each organisation enrols its own factor.
 **Rationale (owner)** — Matches the recommendation: every query is already scoped by membership, and each tenant keeps its own security posture.

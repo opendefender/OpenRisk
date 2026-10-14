@@ -285,6 +285,40 @@ describe('VulnerabilitiesPage', () => {
     expect(patch).toHaveBeenCalledWith('/vulnerabilities/v1/status', { status: 'in_remediation' });
   });
 
+  // #910: a finding from the agent's inventory says what to upgrade, and an
+  // NVD product match says it is to be confirmed.
+  it('shows the package to upgrade on an inventory finding', async () => {
+    rows[0] = vuln({
+      source: 'agent',
+      raw_data: {
+        package: 'openssl',
+        installed_version: '3.0.2-0ubuntu1.10',
+        fixed_version: '3.0.2-0ubuntu1.14',
+        lookup: 'osv',
+      },
+    });
+    rows[1] = vuln({
+      id: 'v2',
+      cve_id: 'CVE-2024-11477',
+      title: '7-Zip',
+      source: 'agent',
+      raw_data: { package: '7-Zip 23.01 (x64)', installed_version: '23.01', lookup: 'nvd_cpe' },
+    });
+    renderPage();
+    await screen.findByText('7-Zip');
+    fireEvent.click(screen.getByRole('button', { name: 'Détails de CVE-2026-21873' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Détails de CVE-2024-11477' }));
+    const [osv, nvd] = screen.getAllByTestId('vuln-package');
+    expect(osv).toHaveTextContent('Mettre à jour openssl vers 3.0.2-0ubuntu1.14 ou plus récent.');
+    expect(osv).toHaveTextContent('Installé : openssl 3.0.2-0ubuntu1.10');
+    expect(osv).not.toHaveTextContent('à confirmer');
+    expect(nvd).toHaveTextContent(
+      "Aucune version corrigée de 7-Zip 23.01 (x64) n'est encore publiée.",
+    );
+    expect(nvd).toHaveTextContent('Correspondance par produit NVD (CPE), à confirmer.');
+    expect(screen.getAllByText('Agent OpenRisk').length).toBeGreaterThan(0);
+  });
+
   it('puts the status back when the server refuses', async () => {
     patch.mockRejectedValue(new Error('403'));
     renderPage();

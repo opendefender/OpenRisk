@@ -14,6 +14,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 
+	invapp "github.com/opendefender/openrisk/internal/application/inventory"
 	scanapp "github.com/opendefender/openrisk/internal/application/scanner"
 	"github.com/opendefender/openrisk/internal/domain"
 	"github.com/opendefender/openrisk/internal/infrastructure/redis"
@@ -46,6 +47,16 @@ type ScannerHandler struct {
 	rsaKeys   *authpkg.RSAKeys
 	blacklist func(jti string) (bool, error)
 	redis     *redis.Client
+
+	// inventory stores the software inventory an agent reports (#910). Nil
+	// until wired; the route then answers 503.
+	inventory *invapp.StoreInventoryUseCase
+}
+
+// WithInventory wires the software-inventory endpoint (#910).
+func (h *ScannerHandler) WithInventory(uc *invapp.StoreInventoryUseCase) *ScannerHandler {
+	h.inventory = uc
+	return h
 }
 
 // NewScannerHandler wires the scan-engine use cases and the agent-auth deps.

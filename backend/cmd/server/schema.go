@@ -129,6 +129,9 @@ func schemaModels() []interface{} {
 		&cti.CTIVulnerability{},
 		// A tenant's "not relevant" on a threat (#911, migration 0074).
 		&domain.CTIThreatDismissal{},
+		// The software inventory the agent reports for its host (#910, migration 0075).
+		&domain.HostInventory{},
+		&domain.HostPackage{},
 		// Vulnerability Management (Module 3) — the tenant-scoped vulnerability
 		// register: findings normalised from Nessus/OpenVAS/Qualys/Defender/
 		// Inspector/Azure Defender/CrowdStrike and risk-based prioritised.

@@ -22,7 +22,10 @@ export interface SourceMeta {
   creds: CredField[];
 }
 
-export const INTEGRATION_META: Record<Exclude<VulnSource, 'scanner' | 'manual'>, SourceMeta> = {
+export const INTEGRATION_META: Record<
+  Exclude<VulnSource, 'scanner' | 'manual' | 'agent'>,
+  SourceMeta
+> = {
   nessus: {
     label: 'Tenable Nessus / Tenable.io',
     category: 'network_scanner',

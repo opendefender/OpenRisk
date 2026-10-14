@@ -44,6 +44,7 @@ import (
 	"github.com/opendefender/openrisk/internal/application/evidence"
 	"github.com/opendefender/openrisk/internal/application/governance"
 	appinc "github.com/opendefender/openrisk/internal/application/incident"
+	invapp "github.com/opendefender/openrisk/internal/application/inventory"
 	"github.com/opendefender/openrisk/internal/application/membership"
 	appmitigation "github.com/opendefender/openrisk/internal/application/mitigation"
 	notificationapp "github.com/opendefender/openrisk/internal/application/notification"
@@ -78,9 +79,11 @@ import (
 	"github.com/opendefender/openrisk/internal/infrastructure/integrations/thehive"
 	orgdeletioninfra "github.com/opendefender/openrisk/internal/infrastructure/orgdeletion"
 	"github.com/opendefender/openrisk/internal/infrastructure/orgexport"
+	"github.com/opendefender/openrisk/internal/infrastructure/osv"
 	redisclient "github.com/opendefender/openrisk/internal/infrastructure/redis"
 	"github.com/opendefender/openrisk/internal/infrastructure/repository"
 	"github.com/opendefender/openrisk/internal/infrastructure/scanmitigation"
+	"github.com/opendefender/openrisk/internal/infrastructure/vulnlookup"
 	"github.com/opendefender/openrisk/internal/infrastructure/vulnrisk"
 	"github.com/opendefender/openrisk/internal/infrastructure/workers"
 	"github.com/opendefender/openrisk/internal/middleware"
@@ -895,6 +898,8 @@ func main() {
 	app.Post("/api/v1/scanner/agents/register", func(c *fiber.Ctx) error { return scannerHandler.RegisterAgent(c) })
 	app.Get("/api/v1/scanner/agent/stream", func(c *fiber.Ctx) error { return scannerHandler.AgentStream(c) })
 	app.Post("/api/v1/scanner/agent/push", func(c *fiber.Ctx) error { return scannerHandler.AgentPush(c) })
+	// The host's software inventory (#910), same agent gate as push.
+	app.Post("/api/v1/scanner/agent/inventory", func(c *fiber.Ctx) error { return scannerHandler.AgentInventory(c) })
 	app.Post("/api/v1/scanner/agent/heartbeat", func(c *fiber.Ctx) error { return scannerHandler.AgentHeartbeat(c) })
 
 	// Mitigation SSE stream — mounted here (before the /api/v1 user middleware) so it
@@ -2802,6 +2807,15 @@ func main() {
 		scanAgentRepo, scanJobRepo, scannerCipher, rsaKeys, jtiBlacklistChecker, redisClientInstance,
 	)
 
+	// Software inventory (#910): what the agent's host has installed, checked
+	// for known vulnerabilities after every report.
+	hostInventoryRepo := repository.NewGormHostInventoryRepository(database.DB)
+	storeInventoryUC := invapp.NewStoreInventoryUseCase(hostInventoryRepo, assetRepo)
+	if redisClientInstance != nil {
+		storeInventoryUC.WithGate(redisClientInstance)
+	}
+	scannerHandler.WithInventory(storeInventoryUC)
+
 	// User-facing routes (RS256 user token). Admin/root pass via the "*" wildcard.
 	scannerRead := middleware.RequirePermission("scanner:read")
 	scannerCreate := middleware.RequirePermission("scanner:create")
@@ -2854,6 +2868,54 @@ func main() {
 	// auto-create risks (Source=cti_auto). NVD hourly, CISA KEV every 6h.
 	ctiRepo := repository.NewGormCTIRepository(database.DB)
 	ctiClient := cti.NewExternalClient(nil, os.Getenv("NVD_API_KEY"))
+
+	// Inventory matching (#910): Linux packages on OSV, Windows programs on NVD,
+	// findings through the vulnerability ingest, fixed ones closed. OSV_API_URL
+	// can point at a mirror.
+	var vulnLookupCache *vulnlookup.RedisCache
+	if redisClientInstance != nil {
+		vulnLookupCache = vulnlookup.NewRedisCache(redisClientInstance)
+	}
+	osvClient, err := osv.NewClient(os.Getenv("OSV_API_URL"), vulnLookupCache)
+	if err != nil {
+		log.Fatalf("OSV_API_URL: %v", err)
+	}
+	matchInventoryUC := invapp.NewMatchInventoryUseCase(
+		hostInventoryRepo,
+		vulnlookup.NewOSV(osvClient),
+		vulnlookup.NewNVDPrograms(ctiClient, vulnLookupCache, os.Getenv("NVD_API_KEY") != ""),
+		vulnIngestUC, vulnRepo,
+	)
+	// Tenants can stop anything leaving (D-071); unreadable means off.
+	matchInventoryUC.WithPolicy(repository.NewGormLookupPolicy(database.DB))
+	storeInventoryUC.WithMatcher(matchInventoryUC)
+
+	// "Lancer un scan" and the asset drawer's inventory status. The trigger
+	// asks the tenant's online agents (10-minute cooldown per tenant).
+	if redisClientInstance != nil {
+		inventoryHandler := handlers.NewInventoryHandler(
+			invapp.NewTriggerScanUseCase(scanAgentRepo, redisClientInstance),
+			invapp.NewListAssetInventoriesUseCase(hostInventoryRepo),
+		)
+		protected.Post("/vulnerabilities/scan", middleware.RequirePermission("scanner:scan"), inventoryHandler.Scan)
+		protected.Get("/assets/:id/inventories", middleware.RequirePermission("assets:read"),
+			middleware.RequirePermission("vulnerabilities:read"), inventoryHandler.ForAsset)
+	}
+
+	// Daily re-match of every stored inventory: advisories published since the
+	// last scan land without the agents doing anything. Cross-tenant by design,
+	// tenant by tenant through the scoped repository.
+	rematchAll := invapp.NewRematchAllUseCase(hostInventoryRepo, matchInventoryUC)
+	go func() {
+		ticker := time.NewTicker(24 * time.Hour)
+		defer ticker.Stop()
+		for range ticker.C {
+			ctx, cancel := context.WithTimeout(context.Background(), 6*time.Hour)
+			n := rematchAll.Execute(ctx)
+			cancel()
+			log.Printf("inventory re-match: %d host(s) matched", n)
+		}
+	}()
 	ctiService := cti.NewService(ctiRepo, ctiClient)
 	ctiRiskCreator := ctimatch.NewAutoRiskCreator(database.DB)
 	ctiMatcher := ctimatch.NewTenantSweepMatcher(database.DB, ctiRepo, ctiRiskCreator)

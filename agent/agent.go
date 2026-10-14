@@ -41,7 +41,9 @@ type Agent struct {
 
 	State State
 	busy  atomic.Bool
-	http  *http.Client
+	// invBusy guards the inventory slot, separate from scans (#910).
+	invBusy atomic.Bool
+	http    *http.Client
 }
 
 func (a *Agent) client() *http.Client {
@@ -176,6 +178,8 @@ func (a *Agent) stream(ctx context.Context) error {
 			return errRevoked
 		case "scan.job":
 			a.dispatchJob(ctx, d)
+		case "inventory.job":
+			a.dispatchInventory(ctx, d)
 		}
 	}
 }
@@ -191,6 +195,22 @@ func (a *Agent) dispatchJob(ctx context.Context, d jobDispatch) {
 	go func() {
 		defer a.busy.Store(false)
 		a.runJob(ctx, d)
+	}()
+}
+
+// dispatchInventory runs an inventory job on its own slot: it is quick and
+// must not wait behind, or block, a network scan (#910).
+func (a *Agent) dispatchInventory(ctx context.Context, d jobDispatch) {
+	if !a.forMe(d.AgentIDs) {
+		return
+	}
+	if !a.invBusy.CompareAndSwap(false, true) {
+		log.Printf("inventory %s arrived while one is running — skipping", d.JobID)
+		return
+	}
+	go func() {
+		defer a.invBusy.Store(false)
+		a.runInventory(ctx, d)
 	}()
 }
 

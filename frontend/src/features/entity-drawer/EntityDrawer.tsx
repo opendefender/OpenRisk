@@ -42,6 +42,7 @@ import {
 } from './useEntityDrawer';
 import { AuditSection } from './sections/AuditSection';
 import { ExposureDigest, ExposureSection } from './sections/ExposureSection';
+import { InventorySection } from './sections/InventorySection';
 import { RelationsSection } from './sections/RelationsSection';
 import { SummarySection } from './sections/SummarySection';
 import { TimelineSection } from './sections/TimelineSection';
@@ -172,6 +173,12 @@ export function EntityDrawer({
               onRetry={() => void analysis.refetch()}
               onOpen={onOpenEntity}
             />
+            {/* What the agent reported for this asset's hosts (#910). */}
+            {type === 'asset' && id && (
+              <div className="mt-5">
+                <InventorySection assetId={id} enabled={activeTab === 'exposure'} />
+              </div>
+            )}
           </TabPanel>
 
           <TabPanel tabsId={tabsId} id="relations" active={activeTab === 'relations'}>

@@ -101,6 +101,8 @@ var decisions = []Decision{
 		"repository/actioncenter_repository_test TestActionCenter_TenantIsolation seeds the same qualifying row in two tenants and asserts each of the SIX source queries (mitigations, risks, approvals, incidents, evidence, remediation plans) returns only the caller's; TestActionCenter_NilTenantIsRefused proves a zero tenant fails closed with ErrForbidden rather than returning an unscoped set, and TestActionCenter_BusinessRoleIsScopedToTheTenant proves the role driving what is shown is read per (user, tenant). The caller's tenant comes only from the JWT (handler.callerFromCtx), never from the query string. Note incidents.tenant_id is a VARCHAR, compared as a string on purpose"},
 	{"/api/v1/assets/{id}", Covered,
 		"application/asset get/update/delete cross-tenant tests + gorm_asset_repository_test"},
+	{"/api/v1/assets/{id}/inventories", Covered,
+		"#910. Reads host_inventories on `tenant_id = ? AND asset_id = ?` with the tenant from the JWT (handler.tenantID, 401 on a zero tenant), so another tenant's asset id lists nothing. repository/gorm_host_inventory_repository_test TestHostInventoryRepo_TenantIsolation asks for my asset as the other tenant and gets an empty list, and reads, packages and match writes across tenants are refused the same way"},
 	{"/api/v1/assets/{id}/analysis", Covered,
 		"#937. AssetAnalysisUseCase resolves the asset through GormAssetRepository.GetByID (`id = ? AND tenant_id = ?`) before reading any finding, then lists findings with the tenant-scoped vulnerability List filtered by that asset; vulnerability/asset_analysis_test TestAssetAnalysis_NotFound asks for the asset as another tenant, gets not found, and proves no finding was read"},
 	{"/api/v1/assets/{id}/history", Covered,
