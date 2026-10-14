@@ -12,7 +12,7 @@ code and never change an issue's substance.
 
 ## Per issue
 
-1. `gh issue view <n> --comments`
+1. `gh api repos/opendefender/OpenRisk/issues/<n> --jq '.title, .body, [.labels[].name]'` and its `/comments`
 2. Duplicates: `gh search issues --repo :owner/:repo "<key terms>" --state all`
 3. Label against the fixed taxonomy in CLAUDE.md (`type:` `area:` `priority:`).
 4. Readiness: `status:ready` only with problem statement + numbered acceptance

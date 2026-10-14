@@ -14,7 +14,7 @@ React 19 · TypeScript strict · Zustand · Tailwind 3 · Recharts · React Rout
 
 ## Protocol
 
-1. `gh issue view <n> --comments`. Read the interaction spec if one exists.
+1. Read the issue and its comments with `gh api` (CLAUDE.md, GitHub CLI). Read the interaction spec if one exists.
 2. Find the existing component family in `/src/shared` before creating anything.
 3. Implement, then run and paste:
    `npx tsc -b && npx vite build && npx eslint . --max-warnings=0`

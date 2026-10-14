@@ -12,7 +12,8 @@ session — start a new session instead. This keeps context small and resumable.
 ## 1. Load (cheap)
 
 ```
-gh issue view $ARGUMENTS --comments
+gh api repos/opendefender/OpenRisk/issues/$ARGUMENTS --jq '.title, .body, [.labels[].name], .milestone.title'
+gh api repos/opendefender/OpenRisk/issues/$ARGUMENTS/comments --jq '.[] | .user.login + " " + .created_at + "\n" + .body'
 ```
 If `status:ready` is absent: stop. Report what is missing and delegate to
 `po-openrisk` to refine it. Do not implement an unready issue.

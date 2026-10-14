@@ -12,7 +12,7 @@ Repository: https://github.com/opendefender/OpenRisk
 
 | Question | File | How to read it |
 |---|---|---|
-| What is the work? | GitHub issues | `gh issue view <n> --comments` |
+| What is the work? | GitHub issues | `gh api repos/opendefender/OpenRisk/issues/<n>` and `/comments` (see GitHub CLI below) |
 | Is a module done? | `ROADMAP.md` | Read the module section only |
 | Was this done before? | `docs/JOURNAL.md` | `grep -n` first, never read whole |
 | Is a claim true? | `docs/MARKETING_CLAIM_MATRIX.md` | Read the row |
@@ -103,13 +103,32 @@ urgent, tier says how strategic. An issue may be `priority:P1-high` and `tier:5-
 — urgent if we did it, and not what we are doing.
 
 ### Branch, commit, PR
-- Branch: `gh issue develop <n> --checkout` → `<type>/<n>-<slug>`
-- Commit: `type(scope): subject (#<n>)` — Conventional Commits, English, imperative
+- Branch: `<type>/<n>-<slug>`, in a worktree of your own:
+  `git worktree add ../OpenRisk-wt-<n> -b <type>/<n>-<slug> origin/master`
+- Commit: `type(scope): subject (#<n>)` — Conventional Commits, English, imperative.
+  Always `git commit -s`: the DCO check rejects a commit without `Signed-off-by`.
 - PR body contains `Closes #<n>`. One issue → one branch → one PR.
 - **Never merge a PR.** Merging is the owner's decision.
 
+### GitHub CLI on this repository
+Viewing issues or PRs and editing PRs through `gh issue`/`gh pr` fails here (Projects classic
+GraphQL error). Use REST:
+```
+gh api repos/opendefender/OpenRisk/issues/<n> --jq '.title, .body'
+gh api repos/opendefender/OpenRisk/issues/<n>/comments --jq '.[] | .user.login + ": " + .body'
+gh api repos/opendefender/OpenRisk/issues/<n>/comments -F body=@comment.md --jq '.body | length'
+gh api -X PATCH repos/opendefender/OpenRisk/pulls/<pr> -F body=@pr.md
+```
+Capital `-F` reads the file. Lowercase `-f body=@file` posts the literal path,
+returns 200, and has already destroyed comments; the bash guard blocks it.
+Check the length the command prints: a body of a dozen characters is the tell.
+`gh issue edit`, `gh issue create`, `gh issue list`, `gh pr list` and
+`gh pr checks` work normally.
+If `gh pr create` fails with the same error, check `gh pr list --head <branch>`
+first, then `gh api -X POST repos/opendefender/OpenRisk/pulls -f title=… -f head=… -f base=master -F body=@pr.md`.
+
 ### The loop every agent follows on an issue
-1. `gh issue view <n> --comments` — read the issue and its discussion.
+1. Read the issue and its discussion through `gh api` (see GitHub CLI above).
 2. If not `status:ready`, stop and report why.
 3. `gh issue edit <n> --add-label status:in-progress --remove-label status:ready`
 4. Work on the linked branch.
