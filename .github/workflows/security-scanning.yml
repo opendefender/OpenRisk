@@ -8,10 +8,8 @@ on:
   schedule:
     - cron: '0 2 * * *'  # Daily at 2 AM
 
-# Needed by upload-sarif to write gosec findings to the Security tab.
 permissions:
   contents: read
-  security-events: write
 
 jobs:
   # Go modules, npm production dependencies and the published image are gated
@@ -27,6 +25,12 @@ jobs:
   sast:
     runs-on: ubuntu-latest
     name: SAST Analysis
+    # Needed by upload-sarif to write gosec findings to the Security tab. Kept
+    # on this job only, so TruffleHog never holds a token that can dismiss
+    # code-scanning alerts.
+    permissions:
+      contents: read
+      security-events: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5

@@ -17,9 +17,12 @@ on:
 #     Lint & Format) and in SAST Analysis (security-scanning.yml).
 #   - Code Quality Analysis: staticcheck runs in golangci-lint; its gofmt check
 #     moved into Backend Lint & Format.
-#   - Semgrep and OWASP ZAP: wired to deprecated actions, and ZAP started a
-#     server with no keys and no migrations. Bring them back as working gates in
-#     their own issue, not as decoration.
+#   - Semgrep: the scan ran, but its upload used codeql-action v2, which
+#     GitHub refuses, so the job was red on every run and nobody read the
+#     findings. It was the only static scan of the frontend, the Dockerfiles
+#     and the workflow YAML; #988 brings it back as a working job.
+#   - OWASP ZAP: started a server with no keys and no migrations, so it never
+#     scanned a running app.
 #   - License Compliance Check: wrote a file and echoed success (D-017). The
 #     real licence gate is #457.
 #   - Security Scan Summary: printed "all passed" whatever happened.

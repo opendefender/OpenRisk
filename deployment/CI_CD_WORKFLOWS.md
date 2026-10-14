@@ -52,12 +52,17 @@ Runs on every push and pull request to verify code quality and build artifacts.
 
 ### 2. **Security workflows**
 
-Four workflows. Three of them gate: Tenant Isolation, Secret Detection and the
-Dependency gate fail on a finding. SAST Analysis only reports: gosec runs with
-`-no-fail`, so it fails on an infrastructure error, never on a finding. The
-scanners that could not pass or checked nothing were retired in #978 (Semgrep, OWASP ZAP,
-SonarQube, OWASP Dependency-Check, a duplicate gosec run, a licence "check"
-that only echoed success, and two summaries that always reported success).
+Three workflows, four jobs. Three jobs gate: Tenant Isolation, Secret Detection
+and the Dependency gate fail on a finding. SAST Analysis only reports: gosec
+runs with `-no-fail`, so it fails on an infrastructure error, never on a
+finding.
+
+#978 retired the jobs that were red on every run or checked nothing: OWASP
+ZAP, SonarQube, OWASP Dependency-Check, a duplicate gosec run, a licence
+"check" that only echoed success, and two summaries that always reported
+success. Semgrep was retired too, but it is a real loss: its scan ran, only its
+upload was broken, and it was the only static scan of the frontend, the
+Dockerfiles and the workflow YAML. #988 brings it back.
 
 | Workflow | Job | Tool | Purpose | Runs |
 |----------|-----|------|---------|------|
@@ -70,7 +75,8 @@ gosec and staticcheck also run inside golangci-lint in the CI Pipeline
 (Backend Lint & Format), together with the `gofmt -s` check.
 
 Not covered today: dynamic testing (DAST), static security analysis of the
-frontend TypeScript, and a licence gate (#457).
+frontend TypeScript, Dockerfiles and workflow YAML (#988), and a licence gate
+(#457).
 
 ### 3. **E2E Tests** (`.github/workflows/e2e.yml`)
 
