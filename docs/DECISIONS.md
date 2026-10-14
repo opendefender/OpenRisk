@@ -36,7 +36,9 @@ shipping reachable vulnerabilities. C: retire the gate.
 `golang:1.26-alpine`, CI uses `go-version: '1.26'`, and CLAUDE.md's Stack
 line says Go 1.26. Under 1.26.9, backend build, vet, tests and golangci-lint
 v1.64.8 pass, and govulncheck reports 0 reachable vulnerabilities.
-`agent/go.mod` (the separate agent module) is unchanged: nothing flags it.
+`agent/go.mod` (the separate agent module) stays on go 1.25. Nothing flags it
+only because nothing scans it: the Dependency gate covers backend/ and
+frontend/. Its upgrade, its scan and the committed binary are #989.
 **Reversible** — Yes, but going back means shipping the advisories above.
 
 ### D-071 — Vulnerabilities from the agent's packages: collection, Windows, egress, UI · decided 2026-10-14
