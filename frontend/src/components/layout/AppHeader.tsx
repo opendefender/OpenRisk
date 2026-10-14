@@ -40,6 +40,11 @@ import { QuietBoundary } from '../../shared/system/QuietBoundary';
 // click lands the module is usually already there.
 const loadNotifPanel = () => import('./NotifPanel');
 const NotifPanel = lazy(() => loadNotifPanel().then((m) => ({ default: m.NotifPanel })));
+// A prefetch is a hint: if it fails, the click retries and QuietBoundary
+// reports that failure, so this one is not left as an unhandled rejection.
+const prefetchNotifPanel = () => {
+  loadNotifPanel().catch(() => undefined);
+};
 
 interface AppHeaderProps {
   onOpenMobileNav: () => void;
@@ -192,8 +197,8 @@ export const AppHeader = ({ onOpenMobileNav }: AppHeaderProps) => {
         <div className="relative">
           <button
             onClick={() => setNotifOpen((v) => !v)}
-            onPointerEnter={() => void loadNotifPanel()}
-            onFocus={() => void loadNotifPanel()}
+            onPointerEnter={prefetchNotifPanel}
+            onFocus={prefetchNotifPanel}
             className={cn(iconBtn, 'relative', notifOpen && 'bg-surface-3')}
             title={L.notifTitle}
             // The count is real server data (polled, never invented), so the
