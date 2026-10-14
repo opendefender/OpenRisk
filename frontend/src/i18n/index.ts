@@ -72,5 +72,5 @@ export {
   type TranslateParams,
 } from './translate';
 
-export { catalogs, merge } from './catalog';
+export { catalogs, isCatalogLoaded, loadCatalog, merge } from './catalog';
 export { runtimeMessages } from './messages';

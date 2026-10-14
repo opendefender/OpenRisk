@@ -16,6 +16,8 @@ import { installGlobalErrorReporting } from './lib/observability';
 import { registerQueryClient } from './lib/sessionScope';
 import { onMFARequired } from './lib/api';
 import { MFA_STATUS_KEY } from './features/auth/useMfa';
+import { loadCatalog } from './i18n/catalog';
+import { useUIStore } from './store/uiStore';
 
 // Unstable-connectivity tolerance (task §2). Queries are offline-first: they serve
 // the cached value immediately and revalidate when the network allows (SWR), and
@@ -68,15 +70,26 @@ installGlobalErrorReporting();
  */
 const ThemedToaster = React.lazy(() => import('./shared/system/ThemedToaster'));
 
-ReactDOM.createRoot(document.getElementById('root')!).render(
-  <React.StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <ErrorBoundary>
-        <App />
-      </ErrorBoundary>
-      <React.Suspense fallback={null}>
-        <ThemedToaster />
-      </React.Suspense>
-    </QueryClientProvider>
-  </React.StrictMode>,
-);
+function render() {
+  ReactDOM.createRoot(document.getElementById('root')!).render(
+    <React.StrictMode>
+      <QueryClientProvider client={queryClient}>
+        <ErrorBoundary>
+          <App />
+        </ErrorBoundary>
+        <React.Suspense fallback={null}>
+          <ThemedToaster />
+        </React.Suspense>
+      </QueryClientProvider>
+    </React.StrictMode>,
+  );
+}
+
+/*
+ * Only the default language ships in the entry bundle (#966). A reader who chose
+ * another one gets its catalogue before the first render, so the first frame is
+ * already in their language. For the default language this resolves at once.
+ * If the fetch fails the app still renders, in the default language, rather
+ * than not at all.
+ */
+loadCatalog(useUIStore.getState().lang).then(render, render);

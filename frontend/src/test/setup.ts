@@ -6,6 +6,13 @@
 import { afterEach, vi, beforeAll, afterAll } from 'vitest';
 import { cleanup } from '@testing-library/react';
 import '@testing-library/jest-dom';
+import { loadCatalog } from '../i18n/catalog';
+import { LOCALE_CODES } from '../i18n/locales';
+
+// Outside the default language, catalogues are lazy chunks the app fetches
+// before it renders or switches (#966). Tests set the language directly on the
+// store, so every catalogue is loaded once, up front, as the app would have.
+await Promise.all(LOCALE_CODES.map(loadCatalog));
 
 // Cleanup after each test
 afterEach(() => {

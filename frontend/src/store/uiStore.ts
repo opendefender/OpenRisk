@@ -10,6 +10,7 @@ import {
   resolveLocale,
   type LocaleCode,
 } from '../i18n/locales';
+import { isCatalogLoaded, loadCatalog } from '../i18n/catalog';
 
 export type Theme = 'dark' | 'light';
 /**
@@ -121,6 +122,10 @@ const legacyLocale: Lang = resolveLocale(
   DEFAULT_LOCALE,
 );
 
+/** The language most recently asked for, so a slow catalogue fetch cannot
+ *  overwrite a choice made after it. */
+let latestLangRequest: Lang | undefined;
+
 export const useUIStore = create<UIState>()(
   persist(
     (set, get) => ({
@@ -157,11 +162,29 @@ export const useUIStore = create<UIState>()(
         // become the active language, however it arrives — a stale localStorage
         // value, a deep link, or a switcher rendered from a stale build.
         const lang = resolveLocale(requested, get().lang);
-        if (typeof localStorage !== 'undefined') localStorage.setItem('locale', lang);
-        applyDom(get().theme, get().variant, lang);
-        set({ lang });
-        // Keep any consumer listening on the legacy event in sync.
-        window.dispatchEvent(new CustomEvent('locale-change', { detail: { locale: lang } }));
+        const apply = () => {
+          if (typeof localStorage !== 'undefined') localStorage.setItem('locale', lang);
+          applyDom(get().theme, get().variant, lang);
+          set({ lang });
+          // Keep any consumer listening on the legacy event in sync.
+          window.dispatchEvent(new CustomEvent('locale-change', { detail: { locale: lang } }));
+        };
+        latestLangRequest = lang;
+        // A loaded language switches synchronously, as it always has.
+        if (isCatalogLoaded(lang)) {
+          apply();
+          return;
+        }
+        // A lazy one switches once its words have arrived (#966), so the screen
+        // never flips to a language it cannot yet print. If the fetch fails the
+        // language stays as it was, and choosing it again retries. A second,
+        // later choice wins over a slow first one.
+        loadCatalog(lang).then(
+          () => {
+            if (latestLangRequest === lang) apply();
+          },
+          () => undefined,
+        );
       },
       /** Cycle through the languages actually offered, in registry order. */
       toggleLang: () => {
