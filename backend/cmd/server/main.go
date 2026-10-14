@@ -27,6 +27,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rs/zerolog"
 
+	"github.com/opendefender/openrisk/internal/api/http/router"
 	actioncenterapp "github.com/opendefender/openrisk/internal/application/actioncenter"
 	appactivation "github.com/opendefender/openrisk/internal/application/activation"
 	appai "github.com/opendefender/openrisk/internal/application/ai"
@@ -2464,15 +2465,9 @@ func main() {
 	rbacUsers.Get("/stats", rbacUserHandler.GetTenantUserStats)
 
 	// Role Management Endpoints (admin-only)
-	rbacRoles := protected.Group("/rbac/roles", adminRole)
-	rbacRoles.Get("", rbacRoleHandler.ListRoles)
-	rbacRoles.Post("", rbacRoleHandler.CreateRole)
-	rbacRoles.Get("/:role_id", rbacRoleHandler.GetRole)
-	rbacRoles.Patch("/:role_id", rbacRoleHandler.UpdateRole)
-	rbacRoles.Delete("/:role_id", rbacRoleHandler.DeleteRole)
-	rbacRoles.Get("/:role_id/permissions", rbacRoleHandler.GetRolePermissions)
-	rbacRoles.Post("/:role_id/permissions", rbacRoleHandler.AssignPermissionToRole)
-	rbacRoles.Delete("/:role_id/permissions", rbacRoleHandler.RemovePermissionFromRole)
+	// #992 spike: the same eight routes, mounted through the recording Mounter.
+	var routeMatrix router.Matrix
+	router.RegisterRBACRoleRoutes(router.New(protected, "/api/v1", router.Authenticated, &routeMatrix), rbacRoleHandler)
 
 	// Tenant Management Endpoints
 	rbacTenants := protected.Group("/rbac/tenants")
