@@ -14,11 +14,16 @@ import type { DashboardVariant } from '../dashboardVariant';
 import { DuePill } from '../../action-center/DuePill';
 import { BlockEmpty, BlockError, BlockSkeleton, HeaderLink, Panel, PanelTitle } from './Panel';
 
-
 // What each view acts on. The RSSI view takes everything.
 const KINDS: Record<DashboardVariant, ActionItemType[] | null> = {
   rssi: null,
-  rm: ['critical_risk', 'overdue_mitigation', 'mitigation_review', 'pending_approval', 'vendor_followup'],
+  rm: [
+    'critical_risk',
+    'overdue_mitigation',
+    'mitigation_review',
+    'pending_approval',
+    'vendor_followup',
+  ],
   audit: ['expiring_evidence', 'overdue_remediation', 'pending_approval'],
   exec: ['pending_approval', 'critical_risk'],
 };
@@ -55,7 +60,10 @@ export function PriorityList({
           <BlockError onRetry={refetch} />
         </div>
       ) : shown.length === 0 ? (
-        <div className="px-5 pb-3 border-t border-border-subtle" data-testid="dash-priorities-empty">
+        <div
+          className="px-5 pb-3 border-t border-border-subtle"
+          data-testid="dash-priorities-empty"
+        >
           <BlockEmpty>{t('dashboard.priorities.empty')}</BlockEmpty>
         </div>
       ) : (
@@ -69,7 +77,12 @@ export function PriorityList({
               data-action-type={a.type}
               className="flex items-center gap-3 px-5 py-[11px] border-t border-border-subtle hover:bg-surface-2 transition-colors"
             >
-              <Icon size={16} strokeWidth={1.75} className="text-ink-muted w-[18px] shrink-0" aria-hidden="true" />
+              <Icon
+                size={16}
+                strokeWidth={1.75}
+                className="text-ink-muted w-[18px] shrink-0"
+                aria-hidden="true"
+              />
               <span className="flex-1 min-w-0">
                 <span className="block text-[13px] font-medium text-ink truncate">{a.title}</span>
                 <span className="block text-[11.5px] text-ink-muted truncate">

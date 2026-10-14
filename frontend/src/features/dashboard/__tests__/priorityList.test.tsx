@@ -30,8 +30,9 @@ import { safeDeepLink } from '../../action-center/actionLinks';
 import type { ActionCenterResponse, ActionItem } from '../../action-center/actionCenterService';
 
 vi.mock('../../action-center/actionCenterService', async () => {
-  const actual =
-    await vi.importActual<typeof import('../../action-center/actionCenterService')>('../../action-center/actionCenterService');
+  const actual = await vi.importActual<typeof import('../../action-center/actionCenterService')>(
+    '../../action-center/actionCenterService',
+  );
   return { ...actual, actionCenterService: { list: vi.fn() } };
 });
 
@@ -122,9 +123,27 @@ afterEach(() => {
 describe('dashboard PriorityList', () => {
   it('renders items in the exact order the API returned, across categories', async () => {
     const returned = [
-      item({ id: 'incident:412', type: 'open_incident', title: 'Ransomware', deep_link: '/incidents/412/war-room', category_rank: 4 }),
-      item({ id: 'mitigation:1', type: 'overdue_mitigation', title: 'Patch the VPN', deep_link: '/risks/mitigations/8f1e2d3c-4b5a-6978-8796-a5b4c3d2e1f0', category_rank: 1 }),
-      item({ id: 'approval:2', type: 'pending_approval', title: 'Accept SFTP', deep_link: '/governance', category_rank: 3 }),
+      item({
+        id: 'incident:412',
+        type: 'open_incident',
+        title: 'Ransomware',
+        deep_link: '/incidents/412/war-room',
+        category_rank: 4,
+      }),
+      item({
+        id: 'mitigation:1',
+        type: 'overdue_mitigation',
+        title: 'Patch the VPN',
+        deep_link: '/risks/mitigations/8f1e2d3c-4b5a-6978-8796-a5b4c3d2e1f0',
+        category_rank: 1,
+      }),
+      item({
+        id: 'approval:2',
+        type: 'pending_approval',
+        title: 'Accept SFTP',
+        deep_link: '/governance',
+        category_rank: 3,
+      }),
     ];
     list.mockResolvedValue(page(returned));
     renderList();
@@ -140,7 +159,11 @@ describe('dashboard PriorityList', () => {
 
   it('shows at most five rows', async () => {
     list.mockResolvedValue(
-      page(Array.from({ length: 8 }, (_, i) => item({ id: `risk:${i}`, type: 'critical_risk', title: `R${i}` }))),
+      page(
+        Array.from({ length: 8 }, (_, i) =>
+          item({ id: `risk:${i}`, type: 'critical_risk', title: `R${i}` }),
+        ),
+      ),
     );
     renderList();
     await waitFor(() => expect(screen.getAllByTestId('dash-priority-item')).toHaveLength(5));
@@ -175,7 +198,12 @@ describe('dashboard PriorityList', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     list.mockResolvedValue(
       page([
-        item({ id: 'ghost:1', type: 'critical_risk', title: 'Ghost', deep_link: '/nowhere/at/all' }),
+        item({
+          id: 'ghost:1',
+          type: 'critical_risk',
+          title: 'Ghost',
+          deep_link: '/nowhere/at/all',
+        }),
         item({ id: 'risk:2', type: 'critical_risk', title: 'Real', deep_link: '/risks' }),
       ]),
     );
@@ -214,14 +242,23 @@ describe('dashboard PriorityList', () => {
     list.mockResolvedValue(
       page(
         CONTRACT_LINKS.slice(0, 5).map(({ type, rank, deepLink }) =>
-          item({ id: `${type}:x`, type, title: `A ${type}`, deep_link: deepLink, category_rank: rank, due_at: '2026-07-01T00:00:00Z' }),
+          item({
+            id: `${type}:x`,
+            type,
+            title: `A ${type}`,
+            deep_link: deepLink,
+            category_rank: rank,
+            due_at: '2026-07-01T00:00:00Z',
+          }),
         ),
       ),
     );
     const { container } = renderList();
     await waitFor(() => expect(screen.getAllByTestId('dash-priority-item')).toHaveLength(5));
     const results = await axe.run(container, { rules: { 'color-contrast': { enabled: false } } });
-    const blocking = results.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical');
+    const blocking = results.violations.filter(
+      (v) => v.impact === 'serious' || v.impact === 'critical',
+    );
     expect(blocking.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
   });
 });

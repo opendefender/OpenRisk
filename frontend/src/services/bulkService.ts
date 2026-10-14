@@ -75,10 +75,7 @@ export const bulkService = {
     action: BulkActionKind,
     input: BulkApplyInput,
   ): Promise<BulkResult> {
-    const { data } = await api.post<BulkResult>(
-      `/${register}/bulk/${ACTION_PATH[action]}`,
-      input,
-    );
+    const { data } = await api.post<BulkResult>(`/${register}/bulk/${ACTION_PATH[action]}`, input);
     return data;
   },
 };

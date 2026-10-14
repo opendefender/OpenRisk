@@ -33,7 +33,8 @@ export function RiskMatrixCard({ className = '' }: { className?: string }) {
   const { t } = useI18n();
   const stats = useDashboardStats(ALL_TIME);
   const counts = new Map<string, number>();
-  for (const c of stats.data?.risk_matrix ?? []) counts.set(`${c.probability}-${c.impact}`, c.count);
+  for (const c of stats.data?.risk_matrix ?? [])
+    counts.set(`${c.probability}-${c.impact}`, c.count);
   const total = (stats.data?.risk_matrix ?? []).reduce((n, c) => n + c.count, 0);
 
   return (
@@ -75,7 +76,9 @@ function Row({ p, counts }: { p: number; counts: Map<string, number> }) {
   const { t } = useI18n();
   return (
     <>
-      <span className="mono text-[10.5px] text-ink-muted flex items-center justify-center">{p}</span>
+      <span className="mono text-[10.5px] text-ink-muted flex items-center justify-center">
+        {p}
+      </span>
       {FIVE.map((i) => {
         const n = counts.get(`${p}-${i}`) ?? 0;
         const band = gridBand(p * i);

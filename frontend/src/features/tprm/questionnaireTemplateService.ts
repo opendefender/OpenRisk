@@ -33,7 +33,10 @@ export const questionnaireTemplateService = {
   },
 
   async update(id: string, input: QuestionnaireTemplateInput): Promise<QuestionnaireTemplate> {
-    const { data } = await api.put<QuestionnaireTemplate>(`${BASE}/${encodeURIComponent(id)}`, input);
+    const { data } = await api.put<QuestionnaireTemplate>(
+      `${BASE}/${encodeURIComponent(id)}`,
+      input,
+    );
     return data;
   },
 

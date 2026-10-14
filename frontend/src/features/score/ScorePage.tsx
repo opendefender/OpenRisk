@@ -70,7 +70,11 @@ export function ScorePage() {
         {/* #287 — nothing to score yet: say so, and say what would change it. */}
         {score && !score.measured && (
           <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-4">
-            <ScoreGauge score={score} fresh={scoreFresh} title={tr('Score global', 'Overall score')} />
+            <ScoreGauge
+              score={score}
+              fresh={scoreFresh}
+              title={tr('Score global', 'Overall score')}
+            />
             <Empty
               variant="first-use"
               title={tr('Score non mesuré', 'Score not measured')}
@@ -92,7 +96,11 @@ export function ScorePage() {
         {score?.measured && (
           <>
             <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-4 mb-4">
-              <ScoreGauge score={score} fresh={scoreFresh} title={tr('Score global', 'Overall score')} />
+              <ScoreGauge
+                score={score}
+                fresh={scoreFresh}
+                title={tr('Score global', 'Overall score')}
+              />
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Metric

@@ -250,7 +250,13 @@ export const NAV_GROUPS: NavGroup[] = [
         path: '/reports',
         perm: 'reports:board:read',
       },
-      { key: 'ai', labelKey: 'n_ai', icon: Lightbulb, path: '/recommendations', perm: 'risks:read' },
+      {
+        key: 'ai',
+        labelKey: 'n_ai',
+        icon: Lightbulb,
+        path: '/recommendations',
+        perm: 'risks:read',
+      },
       {
         key: 'emerging',
         labelKey: 'n_emerging',

@@ -28,7 +28,8 @@ vi.mock('../../../lib/api', () => ({
 }));
 
 vi.mock('../actionCenterService', async () => {
-  const actual = await vi.importActual<typeof import('../actionCenterService')>('../actionCenterService');
+  const actual =
+    await vi.importActual<typeof import('../actionCenterService')>('../actionCenterService');
   return { ...actual, actionCenterService: { list: vi.fn() } };
 });
 import { actionCenterService } from '../actionCenterService';
@@ -71,16 +72,30 @@ const ITEMS: ActionItem[] = [
     due_at: at(2),
     meta: { status: 'REVIEW' },
   }),
-  item({ id: 'evidence:1', type: 'expiring_evidence', title: 'External scan', deep_link: '/compliance/evidence', due_at: at(12) }),
+  item({
+    id: 'evidence:1',
+    type: 'expiring_evidence',
+    title: 'External scan',
+    deep_link: '/compliance/evidence',
+    due_at: at(12),
+  }),
   item({ id: 'risk:1', type: 'critical_risk', title: 'Ransomware', deep_link: '/risks' }),
 ];
 
 function envelope(items: ActionItem[]): ActionCenterResponse {
-  return { data: items, generated_at: new Date().toISOString(), limit: 100, offset: 0, total: items.length };
+  return {
+    data: items,
+    generated_at: new Date().toISOString(),
+    limit: 100,
+    offset: 0,
+    total: items.length,
+  };
 }
 
 function renderPage() {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false, refetchInterval: false } } });
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false, refetchInterval: false } },
+  });
   return render(
     <QueryClientProvider client={client}>
       <MemoryRouter initialEntries={['/action-center']}>
@@ -101,7 +116,9 @@ describe('ActionCenterPage (#902)', () => {
   it('says how much is waiting and how much is late', async () => {
     renderPage();
     await waitFor(() =>
-      expect(screen.getByTestId('action-center-summary')).toHaveTextContent('5 actions vous attendent · 1 en retard'),
+      expect(screen.getByTestId('action-center-summary')).toHaveTextContent(
+        '5 actions vous attendent · 1 en retard',
+      ),
     );
   });
 
@@ -128,7 +145,9 @@ describe('ActionCenterPage (#902)', () => {
     fireEvent.click(screen.getByTestId('action-filter-plans'));
     expect(screen.getAllByTestId('action-center-item')).toHaveLength(2);
     fireEvent.click(screen.getByTestId('action-filter-vendor'));
-    expect(screen.getByTestId('action-center-empty')).toHaveTextContent('Rien en attente dans cette catégorie');
+    expect(screen.getByTestId('action-center-empty')).toHaveTextContent(
+      'Rien en attente dans cette catégorie',
+    );
   });
 
   it('offers a tick only where the work can be finished from here', async () => {
@@ -157,7 +176,8 @@ describe('ActionCenterPage (#902)', () => {
 });
 
 describe('actionFacts', () => {
-  const t = (key: string, p?: Record<string, string | number>) => (p ? `${key}(${JSON.stringify(p)})` : key);
+  const t = (key: string, p?: Record<string, string | number>) =>
+    p ? `${key}(${JSON.stringify(p)})` : key;
 
   it('words a vulnerability from its facts, never from a server sentence', () => {
     expect(actionFacts(ITEMS[0], t)).toBe(
@@ -167,7 +187,12 @@ describe('actionFacts', () => {
 
   it('counts the days a vendor has not answered', () => {
     const now = new Date('2026-10-08T12:00:00Z');
-    const v = item({ id: 'v:1', type: 'vendor_followup', title: 'PayLink', meta: { sent_at: '2026-09-29T09:00:00Z' } });
+    const v = item({
+      id: 'v:1',
+      type: 'vendor_followup',
+      title: 'PayLink',
+      meta: { sent_at: '2026-09-29T09:00:00Z' },
+    });
     expect(actionFacts(v, t, now)).toContain('actionCenter.fact.unanswered({"count":9})');
   });
 

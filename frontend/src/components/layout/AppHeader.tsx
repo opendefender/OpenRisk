@@ -166,7 +166,6 @@ export const AppHeader = ({ onOpenMobileNav }: AppHeaderProps) => {
           </button>
         </Hint>
 
-
         <button
           onClick={toggleTheme}
           className={iconBtn}
@@ -498,7 +497,9 @@ function NotifPanel({ open, onClose }: { open: boolean; onClose: () => void }) {
                       {it.title}
                     </div>
                     {it.body && (
-                      <div className="text-[12px] text-ink-muted mt-0.5 leading-snug">{it.body}</div>
+                      <div className="text-[12px] text-ink-muted mt-0.5 leading-snug">
+                        {it.body}
+                      </div>
                     )}
                     <div className="text-[11px] text-ink-muted mt-1 flex items-center gap-1.5">
                       {it.time}

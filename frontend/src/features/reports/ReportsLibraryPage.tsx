@@ -184,9 +184,7 @@ export function ReportsLibraryPage() {
                     </div>
 
                     <div className="text-[12px] text-ink-muted mt-1 flex items-center gap-2 flex-wrap">
-                      <span>
-                        {new Date(r.created_at).toLocaleString(localeTag(lang))}
-                      </span>
+                      <span>{new Date(r.created_at).toLocaleString(localeTag(lang))}</span>
                       {r.requested_by_email ? <span>· {r.requested_by_email}</span> : null}
                       <span>
                         · {r.template_key} v{r.template_version}

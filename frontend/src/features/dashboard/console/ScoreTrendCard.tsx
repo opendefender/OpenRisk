@@ -19,7 +19,13 @@ const RIGHT = 600;
 const TOP = 20;
 const BOTTOM = 160;
 
-export function ScoreTrendCard({ months = 12, className = '' }: { months?: number; className?: string }) {
+export function ScoreTrendCard({
+  months = 12,
+  className = '',
+}: {
+  months?: number;
+  className?: string;
+}) {
   const { t, locale } = useI18n();
   const history = useScoreHistory(months);
   const points = useMemo(() => history.data?.points ?? [], [history.data]);

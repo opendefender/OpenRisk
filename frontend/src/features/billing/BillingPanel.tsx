@@ -251,7 +251,9 @@ export function BillingPanel() {
                 {plan === 'pro' && <Sparkles size={14} className="text-accent" />}
               </div>
               <div className="text-[12px] text-ink-soft mb-2">{PLAN_PITCH[plan]}</div>
-              <div className="disp text-[20px] font-bold text-ink mb-3">{formatPrice(price, fmt)}</div>
+              <div className="disp text-[20px] font-bold text-ink mb-3">
+                {formatPrice(price, fmt)}
+              </div>
               <ul className="space-y-1.5 mb-4 flex-1">
                 {PLAN_HIGHLIGHTS[plan].map((h) => (
                   <li key={h} className="flex items-start gap-1.5 text-[12.5px] text-ink-soft">
@@ -295,8 +297,7 @@ export function BillingPanel() {
             {billing.invoices.map((inv) => (
               <div key={inv.id} className="flex items-center justify-between text-[12.5px]">
                 <span className="text-ink-soft">
-                  {inv.number || inv.id.slice(0, 8)} ·{' '}
-                  {fmt.date(inv.created_at)}
+                  {inv.number || inv.id.slice(0, 8)} · {fmt.date(inv.created_at)}
                 </span>
                 <span className="flex items-center gap-3">
                   <span className="font-semibold text-ink">

@@ -64,7 +64,11 @@ export function formatNumber(
 }
 
 /** "1,2 M" / "1.2M" — for dense tiles where the exact figure is not the point. */
-export function formatCompact(locale: LocaleCode, value: number, maximumFractionDigits = 1): string {
+export function formatCompact(
+  locale: LocaleCode,
+  value: number,
+  maximumFractionDigits = 1,
+): string {
   if (!Number.isFinite(value)) return '—';
   return numberFormat(localeTag(locale), {
     notation: 'compact',

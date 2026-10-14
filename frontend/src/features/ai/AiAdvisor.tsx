@@ -228,9 +228,7 @@ export function AiAdvisor() {
             <button
               onClick={() => send()}
               disabled={ask.isPending}
-              aria-label={
-                ask.isPending ? tr('Envoi en cours…', 'Sending…') : tr('Envoyer', 'Send')
-              }
+              aria-label={ask.isPending ? tr('Envoi en cours…', 'Sending…') : tr('Envoyer', 'Send')}
               title={ask.isPending ? tr('Envoi en cours…', 'Sending…') : tr('Envoyer', 'Send')}
               className="w-12 h-12 rounded-[14px] flex items-center justify-center text-fg-primary shrink-0 disabled:opacity-60"
               style={{ background: 'var(--accent-solid)', color: 'var(--fg-on-solid)' }}

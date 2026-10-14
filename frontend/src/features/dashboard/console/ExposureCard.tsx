@@ -46,7 +46,9 @@ export function ExposureCard({ className = '' }: { className?: string }) {
       {locked ? (
         <div className="mt-4">
           <BlockEmpty>
-            {t('dashboard.exposure.locked', { plan: PLAN_NAME[feature.requiredPlan] ?? 'Business' })}
+            {t('dashboard.exposure.locked', {
+              plan: PLAN_NAME[feature.requiredPlan] ?? 'Business',
+            })}
           </BlockEmpty>
           <Link
             to="/settings?tab=billing"
@@ -110,15 +112,14 @@ export function ExposureCard({ className = '' }: { className?: string }) {
   );
 }
 
-function ExposureBands({
-  buckets,
-}: {
-  buckets: { key: string; color: string; value: number }[];
-}) {
+function ExposureBands({ buckets }: { buckets: { key: string; color: string; value: number }[] }) {
   const { t, locale } = useI18n();
   return (
     <>
-      <div className="flex h-2 rounded-[8px] overflow-hidden mt-[18px] gap-[2px]" aria-hidden="true">
+      <div
+        className="flex h-2 rounded-[8px] overflow-hidden mt-[18px] gap-[2px]"
+        aria-hidden="true"
+      >
         {buckets.map((b) => (
           <span
             key={b.key}

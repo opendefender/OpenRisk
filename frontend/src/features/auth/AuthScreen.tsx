@@ -408,7 +408,9 @@ function MFAChallenge({
         case 'locked':
           setLockedUntil(
             Date.now() +
-              (refusal.retryAfterSeconds === null ? UNKNOWN_LOCK_MS : refusal.retryAfterSeconds * 1000),
+              (refusal.retryAfterSeconds === null
+                ? UNKNOWN_LOCK_MS
+                : refusal.retryAfterSeconds * 1000),
           );
           setError(
             refusal.retryAfterSeconds === null

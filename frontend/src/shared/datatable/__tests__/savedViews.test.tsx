@@ -123,7 +123,9 @@ beforeEach(() => {
   listed([]);
   vi.mocked(api.post).mockImplementation(async (_url, body) => {
     const b = body as { name: string; visibility?: SavedViewDTO['visibility'] };
-    return { data: dto({ id: `srv-${b.name}`, name: b.name, visibility: b.visibility ?? 'personal' }) };
+    return {
+      data: dto({ id: `srv-${b.name}`, name: b.name, visibility: b.visibility ?? 'personal' }),
+    };
   });
   vi.mocked(api.patch).mockResolvedValue({ data: dto() });
   vi.mocked(api.delete).mockResolvedValue({ data: undefined });
@@ -180,8 +182,16 @@ describe('Issue 580, criterion 7 — a saved-views outage never blocks the regis
 
 describe('Issue 580, criterion 6 — the one-time localStorage migration', () => {
   const legacy = [
-    { id: '1700000000000', name: 'Mon comité', state: { q: 'log4j', filters: { sev: ['critical'] }, sort: null } },
-    { id: '1700000000001', name: 'Revue trimestrielle', state: { q: '', filters: {}, sort: { key: 'score', dir: 'desc' } } },
+    {
+      id: '1700000000000',
+      name: 'Mon comité',
+      state: { q: 'log4j', filters: { sev: ['critical'] }, sort: null },
+    },
+    {
+      id: '1700000000001',
+      name: 'Revue trimestrielle',
+      state: { q: '', filters: {}, sort: { key: 'score', dir: 'desc' } },
+    },
   ];
 
   it('moves the local views to the server once, then clears the local copy', async () => {
@@ -201,9 +211,7 @@ describe('Issue 580, criterion 6 — the one-time localStorage migration', () =>
       }),
     );
 
-    await waitFor(() =>
-      expect(window.localStorage.getItem(legacyViewsKey(TABLE_ID))).toBeNull(),
-    );
+    await waitFor(() => expect(window.localStorage.getItem(legacyViewsKey(TABLE_ID))).toBeNull());
   });
 
   // The destructive failure mode the issue names: read, post, clear before the
@@ -235,9 +243,7 @@ describe('Issue 580, criterion 6 — the one-time localStorage migration', () =>
     });
 
     renderTable();
-    await waitFor(() =>
-      expect(window.localStorage.getItem(legacyViewsKey(TABLE_ID))).toBeNull(),
-    );
+    await waitFor(() => expect(window.localStorage.getItem(legacyViewsKey(TABLE_ID))).toBeNull());
   });
 
   it('ignores a corrupted local payload instead of throwing', async () => {
@@ -292,7 +298,9 @@ describe('Issue 580 — sharing a view within the tenant', () => {
 
   it('lets a tenant admin edit a shared view they do not own', async () => {
     useAuthStore.setState({ user: { id: ME, role: 'admin' } as never });
-    listed([dto({ id: 'v3', user_id: 'someone-else', name: 'Vue partagée', visibility: 'shared' })]);
+    listed([
+      dto({ id: 'v3', user_id: 'someone-else', name: 'Vue partagée', visibility: 'shared' }),
+    ]);
     renderTable();
     openPanel();
 
@@ -376,7 +384,13 @@ describe('Issue 580 — accessibility of the view picker', () => {
   it('has no serious or critical violations with views listed', async () => {
     listed([
       dto({ visibility: 'shared' }),
-      dto({ id: 'v9', user_id: 'other', name: 'Vue du RSSI', visibility: 'shared', owner_email: 'amina@banque.cm' }),
+      dto({
+        id: 'v9',
+        user_id: 'other',
+        name: 'Vue du RSSI',
+        visibility: 'shared',
+        owner_email: 'amina@banque.cm',
+      }),
     ]);
     renderTable();
     openPanel();

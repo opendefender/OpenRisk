@@ -136,9 +136,7 @@ export function negotiateLocale(
   const ranked = raw
     .map((entry, index) => {
       const [tag, ...params] = entry.split(';').map((part: string) => part.trim());
-      const q = params
-        .map((param: string) => /^q=([0-9.]+)$/i.exec(param))
-        .find(Boolean)?.[1];
+      const q = params.map((param: string) => /^q=([0-9.]+)$/i.exec(param)).find(Boolean)?.[1];
       return { tag, q: q === undefined ? 1 : Number(q), index };
     })
     .filter((e) => e.tag !== '' && Number.isFinite(e.q) && e.q > 0)

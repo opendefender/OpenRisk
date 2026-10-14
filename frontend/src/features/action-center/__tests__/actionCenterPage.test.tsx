@@ -207,7 +207,9 @@ describe('ActionCenterPage', () => {
   });
 
   it('opens directly on the page named in the URL', async () => {
-    list.mockImplementation(async ({ offset = 0 } = {}) => envelope(approvals(PAGE_LIMIT + 1, 5), TOTAL, offset));
+    list.mockImplementation(async ({ offset = 0 } = {}) =>
+      envelope(approvals(PAGE_LIMIT + 1, 5), TOTAL, offset),
+    );
 
     renderPage('/action-center?page=2');
 
@@ -398,9 +400,7 @@ describe('ActionCenterPage', () => {
     list.mockResolvedValue(envelope(approvals(1, 20), TOTAL, 0));
 
     const { container } = renderPage();
-    await waitFor(() =>
-      expect(screen.getAllByTestId('action-center-item')).toHaveLength(20),
-    );
+    await waitFor(() => expect(screen.getAllByTestId('action-center-item')).toHaveLength(20));
 
     const results = await axe.run(container, {
       // jsdom has no layout engine, so contrast cannot be evaluated here; it is
@@ -413,4 +413,3 @@ describe('ActionCenterPage', () => {
     expect(blocking.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
   });
 });
-

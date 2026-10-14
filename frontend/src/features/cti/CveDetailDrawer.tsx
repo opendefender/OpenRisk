@@ -142,9 +142,7 @@ export function CveDetailDrawer({
               {v.cisa_known && v.cisa_due_date && (
                 <Section title={tr('Échéance CISA', 'CISA due date')}>
                   <p className="text-[13px]" style={{ color: 'var(--critical)' }}>
-                    {new Date(v.cisa_due_date).toLocaleDateString(
-                      localeTag(lang),
-                    )}
+                    {new Date(v.cisa_due_date).toLocaleDateString(localeTag(lang))}
                   </p>
                 </Section>
               )}

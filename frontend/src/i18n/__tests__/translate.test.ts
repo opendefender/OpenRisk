@@ -8,11 +8,23 @@ import { lookup, translate, type Catalog } from '../translate';
 const fixture: Partial<Record<'fr' | 'en' | 'ar', Catalog>> = {
   fr: {
     risks: { title: 'Registre des risques', greet: 'Bonjour {name}', blank: '' },
-    common: { results: { exact: { 0: 'Aucun résultat' }, one: '{count, number} résultat', other: '{count, number} résultats' } },
+    common: {
+      results: {
+        exact: { 0: 'Aucun résultat' },
+        one: '{count, number} résultat',
+        other: '{count, number} résultats',
+      },
+    },
   },
   en: {
     risks: { title: 'Risk register' },
-    common: { results: { exact: { 0: 'No results' }, one: '{count, number} result', other: '{count, number} results' } },
+    common: {
+      results: {
+        exact: { 0: 'No results' },
+        one: '{count, number} result',
+        other: '{count, number} results',
+      },
+    },
   },
 };
 
@@ -28,7 +40,9 @@ describe('translate', () => {
 
   it('falls back to the default locale before giving up', () => {
     // `risks.greet` exists only in French.
-    expect(translate(fixture, 'en', 'risks.greet', { params: { name: 'Awa' } })).toBe('Bonjour Awa');
+    expect(translate(fixture, 'en', 'risks.greet', { params: { name: 'Awa' } })).toBe(
+      'Bonjour Awa',
+    );
   });
 
   it('shows the key rather than a blank when nothing matches', () => {
@@ -66,7 +80,9 @@ describe('translate', () => {
       'Perte : 1 234 567 FCFA',
     );
     expect(norm(translate(c, 'fr', 'share', { params: { ratio: 0.42 } }))).toBe('42 %');
-    expect(translate(c, 'fr', 'when', { params: { day: '2026-03-12T00:00:00Z' } })).toContain('2026');
+    expect(translate(c, 'fr', 'when', { params: { day: '2026-03-12T00:00:00Z' } })).toContain(
+      '2026',
+    );
     expect(norm(translate(c, 'fr', 'big', { params: { n: 1_200_000 } }))).toBe('1,2 M');
   });
 
@@ -82,7 +98,9 @@ describe('the real catalogues', () => {
   });
 
   it('merge the TypeScript plural overlay over the JSON', () => {
-    expect(translate(catalogs, 'en', 'common.results', { params: { count: 0 } })).toBe('No results');
+    expect(translate(catalogs, 'en', 'common.results', { params: { count: 0 } })).toBe(
+      'No results',
+    );
     expect(translate(catalogs, 'en', 'common.results', { params: { count: 2 } })).toBe('2 results');
     expect(translate(catalogs, 'fr', 'common.days', { params: { count: 1 } })).toBe('1 jour');
     expect(translate(catalogs, 'fr', 'common.days', { params: { count: 3 } })).toBe('3 jours');

@@ -48,7 +48,9 @@ describe('AttributeSearchBar accessible names', () => {
   });
 
   it('names each active filter’s remove button after the filter it removes', () => {
-    render(<AttributeSearchBar category="server" attributes={{ os: 'linux' }} onChange={vi.fn()} />);
+    render(
+      <AttributeSearchBar category="server" attributes={{ os: 'linux' }} onChange={vi.fn()} />,
+    );
     // Not a bare "Retirer": the announcement has to say WHICH filter (WCAG 2.4.6).
     expect(
       screen.getByRole('button', { name: /Retirer le filtre Système = linux/i }),

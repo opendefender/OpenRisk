@@ -5,14 +5,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router';
-import {
-  PanelLeftClose,
-  PanelLeftOpen,
-  Plus,
-  Settings,
-  LogOut,
-  UserRound,
-} from 'lucide-react';
+import { PanelLeftClose, PanelLeftOpen, Plus, Settings, LogOut, UserRound } from 'lucide-react';
 import { cn } from '../../shared/ds';
 import { useUIStore } from '../../store/uiStore';
 import { useUIStrings } from '../../shared/uiStrings';
@@ -174,7 +167,10 @@ export const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => 
           'group/nav relative flex items-center gap-[11px] h-[34px] px-2.5 mb-px rounded-[8px] text-[13px] transition-colors',
           active
             ? 'bg-surface-3 text-fg-primary font-semibold'
-            : cn('text-fg-secondary font-medium hover:text-fg-primary', !glide.enabled && 'hover:bg-surface-3'),
+            : cn(
+                'text-fg-secondary font-medium hover:text-fg-primary',
+                !glide.enabled && 'hover:bg-surface-3',
+              ),
           collapsed && 'justify-center px-0',
         )}
       >

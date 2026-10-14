@@ -111,9 +111,7 @@ export function VendorDetailPage() {
             <p role="alert" className="text-[14px] text-ink mb-4">
               {notFound ? t('vendors.detail.notFound') : t('vendors.detail.loadFailed')}
             </p>
-            {!notFound && (
-              <Btn label={t('vendors.retry')} onClick={() => void chain.refetch()} />
-            )}
+            {!notFound && <Btn label={t('vendors.retry')} onClick={() => void chain.refetch()} />}
           </Card>
         )}
 
@@ -298,7 +296,10 @@ function ChainSection({
                           {l.risks.map((r) => {
                             const level = knownRiskLevel(r.criticality);
                             return (
-                              <li key={r.id} className="flex flex-wrap items-center gap-2 text-[13px]">
+                              <li
+                                key={r.id}
+                                className="flex flex-wrap items-center gap-2 text-[13px]"
+                              >
                                 <Link
                                   to={drawerHref(here, 'risk', r.id)}
                                   className="text-ink underline-offset-2 hover:underline break-words"
@@ -594,7 +595,9 @@ function AssessmentsSection({
                           </Badge>
                         )}
                       </div>
-                      <p className="text-[12.5px] text-ink-muted break-words">{facts.join(' · ')}</p>
+                      <p className="text-[12.5px] text-ink-muted break-words">
+                        {facts.join(' · ')}
+                      </p>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
                       <Link
@@ -619,8 +622,7 @@ function AssessmentsSection({
                                 onError: (e) =>
                                   toast.error(
                                     t('vendors.assessments.resendFailed', {
-                                      message:
-                                        apiErrorMessage(e) || t('vendors.send.unknownError'),
+                                      message: apiErrorMessage(e) || t('vendors.send.unknownError'),
                                     }),
                                   ),
                               })

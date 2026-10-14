@@ -55,7 +55,13 @@ export const PROVIDERS: Record<ScannerProvider, ProviderMeta> = {
     cloud: true,
     category: 'container',
   },
-  vmware: { short: 'VMware', color: 'var(--chart-8)', icon: Server, cloud: true, category: 'container' },
+  vmware: {
+    short: 'VMware',
+    color: 'var(--chart-8)',
+    icon: Server,
+    cloud: true,
+    category: 'container',
+  },
   active_directory: {
     short: 'Active Directory',
     color: 'var(--chart-6)',
@@ -70,10 +76,34 @@ export const PROVIDERS: Record<ScannerProvider, ProviderMeta> = {
     cloud: true,
     category: 'identity',
   },
-  github: { short: 'GitHub', color: 'var(--chart-7)', icon: GitBranch, cloud: true, category: 'forge' },
-  gitlab: { short: 'GitLab', color: 'var(--chart-4)', icon: GitBranch, cloud: true, category: 'forge' },
-  nmap: { short: 'On-Premise', color: 'var(--chart-2)', icon: Network, cloud: false, category: 'onprem' },
-  agent: { short: 'Agent', color: 'var(--chart-6)', icon: Server, cloud: false, category: 'onprem' },
+  github: {
+    short: 'GitHub',
+    color: 'var(--chart-7)',
+    icon: GitBranch,
+    cloud: true,
+    category: 'forge',
+  },
+  gitlab: {
+    short: 'GitLab',
+    color: 'var(--chart-4)',
+    icon: GitBranch,
+    cloud: true,
+    category: 'forge',
+  },
+  nmap: {
+    short: 'On-Premise',
+    color: 'var(--chart-2)',
+    icon: Network,
+    cloud: false,
+    category: 'onprem',
+  },
+  agent: {
+    short: 'Agent',
+    color: 'var(--chart-6)',
+    icon: Server,
+    cloud: false,
+    category: 'onprem',
+  },
 };
 
 export interface CredField {
