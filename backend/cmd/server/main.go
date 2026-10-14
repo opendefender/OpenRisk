@@ -79,9 +79,11 @@ import (
 	"github.com/opendefender/openrisk/internal/infrastructure/integrations/thehive"
 	orgdeletioninfra "github.com/opendefender/openrisk/internal/infrastructure/orgdeletion"
 	"github.com/opendefender/openrisk/internal/infrastructure/orgexport"
+	"github.com/opendefender/openrisk/internal/infrastructure/osv"
 	redisclient "github.com/opendefender/openrisk/internal/infrastructure/redis"
 	"github.com/opendefender/openrisk/internal/infrastructure/repository"
 	"github.com/opendefender/openrisk/internal/infrastructure/scanmitigation"
+	"github.com/opendefender/openrisk/internal/infrastructure/vulnlookup"
 	"github.com/opendefender/openrisk/internal/infrastructure/vulnrisk"
 	"github.com/opendefender/openrisk/internal/infrastructure/workers"
 	"github.com/opendefender/openrisk/internal/middleware"
@@ -2891,6 +2893,21 @@ func main() {
 	// auto-create risks (Source=cti_auto). NVD hourly, CISA KEV every 6h.
 	ctiRepo := repository.NewGormCTIRepository(database.DB)
 	ctiClient := cti.NewExternalClient(nil, os.Getenv("NVD_API_KEY"))
+
+	// Inventory matching (#910): Linux packages on OSV, Windows programs on NVD,
+	// findings through the vulnerability ingest, fixed ones closed. OSV_API_URL
+	// can point at a mirror.
+	var vulnLookupCache *vulnlookup.RedisCache
+	if redisClientInstance != nil {
+		vulnLookupCache = vulnlookup.NewRedisCache(redisClientInstance)
+	}
+	matchInventoryUC := invapp.NewMatchInventoryUseCase(
+		hostInventoryRepo,
+		vulnlookup.NewOSV(osv.NewClient(os.Getenv("OSV_API_URL"), vulnLookupCache)),
+		vulnlookup.NewNVDPrograms(ctiClient, vulnLookupCache, os.Getenv("NVD_API_KEY") != ""),
+		vulnIngestUC, vulnRepo,
+	)
+	storeInventoryUC.WithMatcher(matchInventoryUC)
 	ctiService := cti.NewService(ctiRepo, ctiClient)
 	ctiRiskCreator := ctimatch.NewAutoRiskCreator(database.DB)
 	ctiMatcher := ctimatch.NewTenantSweepMatcher(database.DB, ctiRepo, ctiRiskCreator)
