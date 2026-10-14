@@ -76,7 +76,8 @@ credential, never from the body.
 |---|---|---|
 | `deb_packages` | Debian 12 | `Debian:12` |
 | `deb_packages` | Ubuntu 22.04 | `Ubuntu:22.04:LTS` (LTS suffix only for LTS releases) |
-| `rpm_packages` | RHEL / Rocky / Alma 9 | `Red Hat`, `Rocky Linux:9`, `AlmaLinux:9` |
+| `rpm_packages` | Rocky / Alma 9 | `Rocky Linux:9`, `AlmaLinux:9` |
+| `rpm_packages` | RHEL, SUSE | **none in v1**: OSV's Red Hat ecosystem is `Red Hat:<repo CPE>` (e.g. `rhel_aus:8.4::appstream`), which depends on the repository each package came from, and osquery does not report it; SUSE needs the exact `PRETTY_NAME`. Stored, counted "non vérifiable" (checked against the OSV schema 2026-10-14) |
 | `apk_packages` | Alpine 3.19 | `Alpine:v3.19` |
 | `programs` (Windows) | any | **none in OSV** → see Q2 |
 
