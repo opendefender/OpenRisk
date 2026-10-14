@@ -2,7 +2,7 @@
 name: data-analyst
 description: Product data analyst for OpenRisk. Defines the metrics that matter, designs privacy-respecting instrumentation, and analyzes activation, retention and feature adoption. Use when deciding what to measure, or when a product decision needs evidence rather than opinion.
 tools: Read, Write, Edit, Grep, Glob, Bash
-model: claude-sonnet-5
+model: sonnet
 memory: project
 color: purple
 ---

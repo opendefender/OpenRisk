@@ -2,7 +2,7 @@
 name: performance-engineer
 description: Performance engineer for OpenRisk. Owns backend latency budgets, database query performance, N+1 detection, frontend Core Web Vitals and bundle size. Use before a release, when a page or endpoint feels slow, or when a data view must scale beyond a few thousand rows.
 tools: Read, Write, Edit, Grep, Glob, Bash
-model: claude-sonnet-5
+model: opus
 memory: project
 color: orange
 ---

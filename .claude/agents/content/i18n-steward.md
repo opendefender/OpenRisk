@@ -2,7 +2,7 @@
 name: i18n-steward
 description: Localization steward for OpenRisk. Guards FR/EN parity across the product, the site and the docs, maintains the terminology glossary, and catches missing or drifted translation keys. Use before any release and whenever new user-facing strings are added. Fast and cheap.
 tools: Read, Write, Edit, Grep, Glob, Bash(grep:*), Bash(rg:*), Bash(jq:*), Bash(gh:*)
-model: claude-sonnet-5
+model: sonnet
 memory: project
 color: yellow
 ---

@@ -2,7 +2,7 @@
 name: support-engineer
 description: Customer support and solutions engineer for OpenRisk. Writes troubleshooting guides, FAQ, onboarding playbooks and deployment support material, and turns recurring user problems into product issues. Use when a user-facing problem needs a documented answer or a support path.
 tools: Read, Write, Edit, Grep, Glob, Bash(gh:*), Bash(grep:*), Bash(rg:*)
-model: claude-sonnet-5
+model: sonnet
 memory: project
 color: cyan
 ---

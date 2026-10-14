@@ -2,7 +2,7 @@
 name: frontend-react
 description: Senior React/TypeScript engineer for OpenRisk. Builds feature pages, shared design-system components, Zustand stores, data visualization and i18n under /src. Use for any frontend change. Owns component-level accessibility and the three UI states.
 tools: Read, Write, Edit, Grep, Glob, Bash
-model: sonnet
+model: opus
 memory: project
 color: green
 skills:

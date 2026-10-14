@@ -2,8 +2,7 @@
   "env": {
     "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
     "CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH": "2",
-    "CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS": "4",
-    "CLAUDE_CODE_SUBAGENT_MODEL": "sonnet"
+    "CLAUDE_CODE_MAX_CONCURRENT_SUBAGENTS": "4"
   },
   "includeGitInstructions": true,
   "permissions": {
