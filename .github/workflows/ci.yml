@@ -70,13 +70,15 @@ jobs:
       # The old 50% line had never been met, so the step failed on every run and
       # a real drop was invisible. Raise the floor when coverage goes up; never
       # lower it without an owner decision (docs/DECISIONS.md, #957).
-      - name: Coverage does not drop below the floor (44%)
+      # Compared to one decimal: master measured 44.4% on 2026-10-14, so the
+      # 44.0 floor leaves 0.4 points for run-to-run noise and nothing more.
+      - name: Coverage does not drop below the floor (44.0%)
         run: |
           cd backend
-          FLOOR=44
-          COVERAGE=$(go tool cover -func=coverage.out | grep total | awk '{print int($3)}')
+          FLOOR=44.0
+          COVERAGE=$(go tool cover -func=coverage.out | awk '/^total:/ {sub("%", "", $3); print $3}')
           echo "Code coverage: ${COVERAGE}% (floor ${FLOOR}%)"
-          if [ "${COVERAGE}" -lt "${FLOOR}" ]; then
+          if awk -v c="$COVERAGE" -v f="$FLOOR" 'BEGIN { exit !(c < f) }'; then
             echo "Coverage ${COVERAGE}% is below the ${FLOOR}% floor"
             exit 1
           fi

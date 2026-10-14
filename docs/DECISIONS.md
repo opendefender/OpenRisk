@@ -14,7 +14,7 @@ recommends, and surfaces these in the daily brief. Run `/decide` to clear them.
 
 **Options**
 - A — Keep 50% and leave the job red until coverage reaches it. Nothing else in CI Pipeline can go green meanwhile.
-- B — Floor at the measured 44%, raised by hand whenever coverage goes up, never lowered without a decision here. *(applied in #957)*
+- B — Floor at 44.0%, compared to one decimal, raised by hand whenever coverage goes up, never lowered without a decision here. Master measured 44.4%, so the floor leaves 0.4 points for run-to-run noise. *(applied in #957)*
 - C — Drop the backend gate and rely on per-use-case test rules in CLAUDE.md.
 
 **Recommendation** — B. It catches every drop from today, and it puts 50% back as a goal to reach rather than a failure nobody reads. Raising the floor can be part of each PR that adds tests.
