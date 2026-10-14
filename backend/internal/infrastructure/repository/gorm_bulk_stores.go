@@ -9,6 +9,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -256,7 +257,7 @@ func (s *VulnerabilityBulkStore) ApplyBulk(
 	return bulkApply(ctx, s.db, tenantID, ids, "vulnerability", vulnRow,
 		func(v *domain.Vulnerability) error {
 			if change.Action == domain.BulkActionChangeStatus {
-				v.Status = domain.VulnStatus(change.Status)
+				v.SetStatus(domain.VulnStatus(change.Status), time.Now())
 			}
 			return nil
 		})
