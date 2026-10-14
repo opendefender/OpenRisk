@@ -8,8 +8,10 @@ package domain
 import (
 	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestOSVEcosystem(t *testing.T) {
@@ -44,6 +46,20 @@ func TestHostKey(t *testing.T) {
 	assert.Equal(t, "srv-core-01", HostKey("SRV-Core-01.corp.local."))
 	assert.Equal(t, "srv-core-01", HostKey("  srv-core-01 "))
 	assert.Equal(t, "", HostKey("   "))
+	// The key prefixes finding ids: no separator, no non-ASCII, a DNS label.
+	assert.Equal(t, "", HostKey("web|x"))
+	assert.Equal(t, "", HostKey("serveur-é"))
+	assert.Equal(t, "", HostKey(strings.Repeat("a", 64)))
+	assert.Equal(t, "db_02", HostKey("DB_02"))
+}
+
+func TestCapField_KeepsValidUTF8(t *testing.T) {
+	long := strings.Repeat("é", 200) // 400 bytes
+	got := NormalisePackages([]HostPackageInput{{Name: long, Version: "1\x00", Source: "deb"}})
+	require.Len(t, got, 1)
+	assert.True(t, utf8.ValidString(got[0].Name))
+	assert.LessOrEqual(t, len(got[0].Name), maxPackageField)
+	assert.Equal(t, "1", got[0].Version, "NUL bytes dropped")
 }
 
 func TestNormalisePackages(t *testing.T) {

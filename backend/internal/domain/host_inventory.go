@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	"github.com/google/uuid"
 )
@@ -92,14 +93,22 @@ type HostPackageInput struct {
 
 // HostKey normalises a hostname into the host's identity: lower case, first
 // label only, so "SRV-Core-01.corp.local." and "srv-core-01" are one host.
+// Anything that is not a DNS label (a-z, 0-9, "-", "_", at most 63) gives "":
+// the key prefixes the host's finding ids, so a "|" or a non-ASCII byte must
+// never reach it (security review of #910).
 func HostKey(hostname string) string {
 	h := strings.ToLower(strings.TrimSpace(hostname))
 	h = strings.TrimSuffix(h, ".")
 	if i := strings.IndexByte(h, '.'); i > 0 {
 		h = h[:i]
 	}
+	if h == "" || len(h) > 63 || !hostLabel.MatchString(h) {
+		return ""
+	}
 	return h
 }
+
+var hostLabel = regexp.MustCompile(`^[a-z0-9_-]+$`)
 
 // NormalisePackages trims, caps and de-duplicates what the agent sent. A
 // package with no name is dropped; nothing else is guessed.
@@ -127,10 +136,17 @@ func NormalisePackages(in []HostPackageInput) []HostPackageInput {
 	return out
 }
 
+// capField trims, drops NUL bytes and invalid UTF-8, and cuts at a rune
+// boundary, so PostgreSQL never refuses the row.
 func capField(s string) string {
+	s = strings.ToValidUTF8(strings.ReplaceAll(s, "\x00", ""), "")
 	s = strings.TrimSpace(s)
 	if len(s) > maxPackageField {
-		s = s[:maxPackageField]
+		cut := maxPackageField
+		for cut > 0 && !utf8.RuneStart(s[cut]) {
+			cut--
+		}
+		s = s[:cut]
 	}
 	return s
 }

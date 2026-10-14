@@ -2839,6 +2839,9 @@ func main() {
 	// for known vulnerabilities after every report.
 	hostInventoryRepo := repository.NewGormHostInventoryRepository(database.DB)
 	storeInventoryUC := invapp.NewStoreInventoryUseCase(hostInventoryRepo, assetRepo)
+	if redisClientInstance != nil {
+		storeInventoryUC.WithGate(redisClientInstance)
+	}
 	scannerHandler.WithInventory(storeInventoryUC)
 
 	// User-facing routes (RS256 user token). Admin/root pass via the "*" wildcard.
