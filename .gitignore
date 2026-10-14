@@ -43,3 +43,8 @@ backend/openrisk-server
 .claude/agent-memory-local/
 .claude/CHECKPOINT.md
 CLAUDE.md.backup-*
+
+# Playwright MCP screenshots and the backend test log. Proof screenshots go in
+# the issue comment, not the repo (#956).
+.playwright-mcp/
+test.log
