@@ -119,6 +119,9 @@ func newStreamTestEnv(t *testing.T, opts apprealtime.HubOptions) *streamTestEnv 
 		for hub.Stats().Connections > 0 && time.Now().Before(deadline) {
 			time.Sleep(10 * time.Millisecond)
 		}
+		if n := hub.Stats().Connections; n > 0 {
+			t.Errorf("%d realtime stream(s) still open 5s after shutdown", n)
+		}
 	})
 
 	return &streamTestEnv{

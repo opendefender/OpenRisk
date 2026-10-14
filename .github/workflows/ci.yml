@@ -78,6 +78,7 @@ jobs:
           FLOOR=44.0
           COVERAGE=$(go tool cover -func=coverage.out | awk '/^total:/ {sub("%", "", $3); print $3}')
           echo "Code coverage: ${COVERAGE}% (floor ${FLOOR}%)"
+          case "$COVERAGE" in ''|*[!0-9.]*) echo "unparseable coverage: '$COVERAGE'"; exit 1 ;; esac
           if awk -v c="$COVERAGE" -v f="$FLOOR" 'BEGIN { exit !(c < f) }'; then
             echo "Coverage ${COVERAGE}% is below the ${FLOOR}% floor"
             exit 1
