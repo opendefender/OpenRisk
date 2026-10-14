@@ -107,5 +107,17 @@ guard 'gh api repos/o/r/issues/1/comments --field "body=@c.md"'; expect "guard b
 guard 'gh api repos/o/r/issues/1/comments -F body=@c.md'; expect "guard lets gh api -F body=@file through" 0 $?
 guard 'gh api -X POST repos/o/r/pulls -f title=x -f head=b'; expect "guard lets plain -f fields through" 0 $?
 
+# --- checkpoint ------------------------------------------------------------
+cp_line() { printf '%s' "$2" | bash "$HOOKS/checkpoint.sh"; tail -1 "$1/.claude/CHECKPOINT.md"; }
+new_repo c1; L=$(cp_line "$R" "{\"cwd\":\"$R\",\"agent_type\":\"backend-go\"}")
+[[ "$L" == *"agent=backend-go"* ]]; expect "checkpoint records a named agent" 0 $? "$L"
+new_repo c2; L=$(cp_line "$R" "{\"cwd\":\"$R\",\"agent_id\":\"a1b2c3d4e5f6a7b8\"}")
+[[ "$L" == *"agent=built-in:a1b2c3d4e5f6"* ]]; expect "checkpoint falls back to the agent id" 0 $? "$L"
+new_repo c3; L=$(cp_line "$R" "{\"cwd\":\"$R\",\"session_id\":\"s\"}")
+[[ "$L" == *"keys:cwd,session_id"* ]]; expect "checkpoint shows the keys when no name came" 0 $? "$L"
+new_repo c4; git -C "$R" commit -q --allow-empty -m "fix(x): something (#4242)"
+L=$(cp_line "$R" "{\"cwd\":\"$R\",\"agent_type\":\"x\"}")
+[[ "$L" == *"issue=#4242(from commits)"* ]]; expect "checkpoint infers the issue from commits" 0 $? "$L"
+
 echo; echo "$PASS passed, $FAILS failed"
 [ "$FAILS" -eq 0 ]
