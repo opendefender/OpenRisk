@@ -15,60 +15,25 @@ case "$FILE" in
   *.go)
     command -v gofmt     >/dev/null 2>&1 && gofmt -s -w "$FILE"
     command -v goimports >/dev/null 2>&1 && goimports -w "$FILE"
-    # Tenant-isolation tripwire on persistence code (ABSOLUTE RULE 2).
+    # Tenant-isolation tripwire (ABSOLUTE RULE 2), on every non-test Go file
+    # under backend/internal and backend/pkg: handlers and use cases call
+    # database.DB directly too, not only repositories. The logic lives in
+    # tenant-tripwire.sh, which the completion gate also runs on the whole
+    # branch, so a query added through Bash does not escape it.
     case "$FILE" in
-      */infrastructure/*|*repository*|*repo.go)
-        # Only lines this edit ADDED are checked (git diff against HEAD; a new
-        # file counts as all added). Code that was already there and already
-        # reviewed never re-trips the wire, so the escape hatch can be strict.
-        #
-        # Reported, on an added line, with no tenant reference within three
-        # lines either side:
-        #   .Where(  .Raw(  .Exec(
-        #   .First/.Find/.Take/.Last called with an inline condition, as in
-        #   First(&x, id) or Find(&xs, "owner_id = ?", id)
-        # The escape hatch is a comment in the two lines above that contains
-        # "tenant:" and a reason, e.g. `// tenant: gated by ownsRisk above`.
-        # Before #958 any comment at all silenced it, and Raw/Exec/First were
-        # never looked at.
-        if git -C "$(dirname "$FILE")" ls-files --error-unmatch "$FILE" >/dev/null 2>&1; then
-          ADDED=$(git -C "$(dirname "$FILE")" diff -U0 HEAD -- "$FILE" 2>/dev/null \
-            | awk '/^@@/ { split($3, a, ","); s = substr(a[1], 2); n = (a[2] == "" ? 1 : a[2]);
-                           for (i = 0; i < n; i++) print s + i }')
-        else
-          ADDED=$(awk '{ print NR }' "$FILE")
-        fi
-
-        UNJUSTIFIED=""
-        if [ -n "$ADDED" ]; then
-          UNJUSTIFIED=$(printf '%s\n' "$ADDED" | awk -v file="$FILE" '
-            FNR == NR { added[$1] = 1; next }
-            { line[FNR] = $0 }
-            END {
-              q = "\\.(Where|Raw|Exec)\\(|\\.(First|Find|Take|Last)\\([^,()]+,"
-              t = "tenant_id|TenantID|tenantID"
-              for (n = 1; n <= FNR; n++) {
-                if (!(n in added) || line[n] !~ q || line[n] ~ /^[[:space:]]*\/\//) continue
-                ok = 0
-                for (k = n - 3; k <= n + 3; k++) if (k >= 1 && line[k] ~ t) ok = 1
-                for (k = n - 2; k < n; k++) if (k >= 1 && tolower(line[k]) ~ /^[[:space:]]*\/\/.*tenant:/) ok = 1
-                if (!ok) printf "%d:%s\n", n, line[n]
-              }
-            }' - "$FILE")
-        fi
-
-        if [ -n "$UNJUSTIFIED" ]; then
+      *_test.go) ;;
+      */backend/internal/*|*/backend/pkg/*)
+        if ! FOUND=$(bash "$DIR/tenant-tripwire.sh" "$FILE"); then
           {
             echo "TENANT TRIPWIRE — $FILE"
-            echo "A query you just added has no tenant_id near it and no tenant: comment:"
-            printf '%s\n' "$UNJUSTIFIED" | head -5
+            printf '%s\n' "$FOUND" | head -5
             echo ""
-            echo "ABSOLUTE RULE 2: every DB query filters by tenant_id."
+            echo "ABSOLUTE RULE 2: every DB query filters by tenant_id, in the same"
+            echo "statement. A tenantID parameter in the func signature does not count."
             echo "If this table has no tenant column, gate it through the parent"
             echo "entity with an ownsX helper and say so explicitly in your report."
             echo "If the query is genuinely tenant-agnostic (migrations, health"
-            echo "checks) or chained onto a base that already filters by tenant,"
-            echo "put the reason on the line above: // tenant: <why>"
+            echo "checks), put the reason right above it: // tenant: <why>"
           } >&2
           exit 2
         fi ;;
