@@ -1877,7 +1877,8 @@ func main() {
 		WithAssetExposure(assetExposure)
 	vulnHandler := handlers.NewVulnerabilityHandler(
 		vulnIngestUC,
-		vulnapp.NewListUseCase(vulnRepo),
+		// The severity pills count under the register's own filters (#909).
+		vulnapp.NewListUseCase(vulnRepo).WithSeverityCounts(vulnRepo),
 		vulnapp.NewGetUseCase(vulnRepo),
 		vulnapp.NewUpdateStatusUseCase(vulnRepo),
 		vulnapp.NewDeleteUseCase(vulnRepo),
