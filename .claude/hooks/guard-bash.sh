@@ -24,6 +24,10 @@ printf '%s' "$CMD" | grep -qE 'rm[[:space:]]+-[a-z]*r[a-z]*f?[[:space:]]+(/|~|\$
 printf '%s' "$CMD" | grep -qE 'terraform[[:space:]]+apply'                    && block "terraform apply needs human approval"
 printf '%s' "$CMD" | grep -qE 'kubectl[[:space:]]+delete'                     && block "kubectl delete needs human approval"
 printf '%s' "$CMD" | grep -qiE 'DROP[[:space:]]+(TABLE|DATABASE|SCHEMA)'      && block "destructive DDL"
+# gh api -f/--field never expands @file: it posts the literal path, answers 200,
+# and has overwritten issue bodies and checkpoint comments that way. -F reads it.
+printf '%s' "$CMD" | grep -qE 'gh[[:space:]]+api.*(-f|--field|--raw-field)[[:space:]]+["'"'"']?[A-Za-z_]+=@' \
+  && block "gh api -f key=@file posts the literal path — use -F key=@file"
 printf '%s' "$CMD" | grep -qE '(curl|wget)[^|]*\|[[:space:]]*(ba)?sh'         && block "pipe-to-shell"
 printf '%s' "$CMD" | grep -qE '^[[:space:]]*(ls[[:space:]]+-[a-zA-Z]*R|find[[:space:]]+/[[:space:]])' && block "full-tree scan wastes context — use rg or gh instead"
 exit 0

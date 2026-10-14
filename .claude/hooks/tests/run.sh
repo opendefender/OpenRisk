@@ -102,6 +102,10 @@ expect "gate blocks backend-go on SubagentStop" 2 $? "$(cat "$TMP/err")"
 guard() { python3 -c 'import json,sys;print(json.dumps({"tool_input":{"command":sys.argv[1]}}))' "$1" | bash "$HOOKS/guard-bash.sh" 2>/dev/null; }
 guard "gh pr $(echo merge) 12"; expect "guard blocks merging a PR" 2 $?
 guard 'git status'; expect "guard lets git status through" 0 $?
+guard 'gh api repos/o/r/issues/1/comments -f body=@c.md'; expect "guard blocks gh api -f body=@file" 2 $?
+guard 'gh api repos/o/r/issues/1/comments --field "body=@c.md"'; expect "guard blocks gh api --field body=@file" 2 $?
+guard 'gh api repos/o/r/issues/1/comments -F body=@c.md'; expect "guard lets gh api -F body=@file through" 0 $?
+guard 'gh api -X POST repos/o/r/pulls -f title=x -f head=b'; expect "guard lets plain -f fields through" 0 $?
 
 echo; echo "$PASS passed, $FAILS failed"
 [ "$FAILS" -eq 0 ]
