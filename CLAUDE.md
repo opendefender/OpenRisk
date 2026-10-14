@@ -116,7 +116,10 @@ urgent, tier says how strategic. An issue may be `priority:P1-high` and `tier:5-
 5. **Post progress as an issue comment before you finish** — see the report
    format below. This comment is what lets a fresh session resume your work
    with zero re-reading. It is not optional.
-6. Open the PR with `Closes #<n>`, set `status:in-review`.
+6. Open the PR with `Closes #<n>`. Wait for `gh pr checks <pr>`. A check
+   your branch turned red is fixed before anything else; a check already red
+   on `master` is named in the PR body with its tracking issue. Only then set
+   `status:in-review`. A red CI is not a gate anyone reads.
 7. Never close an issue. The merge closes it.
 
 ### Mandatory issue comment format (this is the resume anchor)
