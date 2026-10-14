@@ -2907,7 +2907,36 @@ func main() {
 		vulnlookup.NewNVDPrograms(ctiClient, vulnLookupCache, os.Getenv("NVD_API_KEY") != ""),
 		vulnIngestUC, vulnRepo,
 	)
+	// Tenants can stop anything leaving (D-071); unreadable means off.
+	matchInventoryUC.WithPolicy(repository.NewGormLookupPolicy(database.DB))
 	storeInventoryUC.WithMatcher(matchInventoryUC)
+
+	// "Lancer un scan" and the asset drawer's inventory status. The trigger
+	// asks the tenant's online agents (10-minute cooldown per tenant).
+	if redisClientInstance != nil {
+		inventoryHandler := handlers.NewInventoryHandler(
+			invapp.NewTriggerScanUseCase(scanAgentRepo, redisClientInstance),
+			invapp.NewListAssetInventoriesUseCase(hostInventoryRepo),
+		)
+		protected.Post("/vulnerabilities/scan", middleware.RequirePermission("scanner:scan"), inventoryHandler.Scan)
+		protected.Get("/assets/:id/inventories", middleware.RequirePermission("assets:read"),
+			middleware.RequirePermission("vulnerabilities:read"), inventoryHandler.ForAsset)
+	}
+
+	// Daily re-match of every stored inventory: advisories published since the
+	// last scan land without the agents doing anything. Cross-tenant by design,
+	// tenant by tenant through the scoped repository.
+	rematchAll := invapp.NewRematchAllUseCase(hostInventoryRepo, matchInventoryUC)
+	go func() {
+		ticker := time.NewTicker(24 * time.Hour)
+		defer ticker.Stop()
+		for range ticker.C {
+			ctx, cancel := context.WithTimeout(context.Background(), 6*time.Hour)
+			n := rematchAll.Execute(ctx)
+			cancel()
+			log.Printf("inventory re-match: %d host(s) matched", n)
+		}
+	}()
 	ctiService := cti.NewService(ctiRepo, ctiClient)
 	ctiRiskCreator := ctimatch.NewAutoRiskCreator(database.DB)
 	ctiMatcher := ctimatch.NewTenantSweepMatcher(database.DB, ctiRepo, ctiRiskCreator)

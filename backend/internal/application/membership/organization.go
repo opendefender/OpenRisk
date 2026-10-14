@@ -43,10 +43,13 @@ type OrganizationView struct {
 	DefaultLocale string `json:"default_locale,omitempty"`
 	DateFormat    string `json:"date_format,omitempty"`
 	// HasLogo and Accent are the organization's branding (#718).
-	HasLogo   bool      `json:"has_logo"`
-	Accent    string    `json:"accent,omitempty"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	HasLogo bool   `json:"has_logo"`
+	Accent  string `json:"accent,omitempty"`
+	// OnlineVulnLookup: package names and versions may be sent to OSV and NVD
+	// to find the agent's host vulnerabilities (#910, D-071; on by default).
+	OnlineVulnLookup bool      `json:"online_vuln_lookup"`
+	CreatedAt        time.Time `json:"created_at"`
+	UpdatedAt        time.Time `json:"updated_at"`
 	// Counts are the live membership numbers, so the profile and the members
 	// screen can never disagree about how many people are in the organization.
 	Counts domain.OrganizationCounts `json:"counts"`
@@ -94,6 +97,7 @@ func (s *Service) GetOrganization(ctx context.Context, tenantID uuid.UUID, canEd
 	view.DefaultLocale = str(domain.OrgSettingDefaultLocale)
 	view.DateFormat = str(domain.OrgSettingDateFormat)
 	view.Accent = str(domain.OrgSettingAccent)
+	view.OnlineVulnLookup = domain.OnlineVulnLookupEnabled(settings)
 	view.HasLogo = org.LogoKey != ""
 	if !view.HasLogo {
 		// logo_url may hold an address written before uploads existed; only a
