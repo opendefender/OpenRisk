@@ -103,7 +103,7 @@
           {
             "type": "command",
             "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/gate-task-complete.sh",
-            "timeout": 600
+            "timeout": 900
           },
           {
             "type": "command",
@@ -118,7 +118,7 @@
           {
             "type": "command",
             "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/gate-task-complete.sh",
-            "timeout": 600
+            "timeout": 900
           }
         ]
       }
