@@ -52,22 +52,25 @@ Runs on every push and pull request to verify code quality and build artifacts.
 
 ### 2. **Security workflows**
 
-Four workflows, each with one job that can actually fail. The scanners that
-could not pass or checked nothing were retired in #978 (Semgrep, OWASP ZAP,
+Four workflows. Three of them gate: Tenant Isolation, Secret Detection and the
+Dependency gate fail on a finding. SAST Analysis only reports: gosec runs with
+`-no-fail`, so it fails on an infrastructure error, never on a finding. The
+scanners that could not pass or checked nothing were retired in #978 (Semgrep, OWASP ZAP,
 SonarQube, OWASP Dependency-Check, a duplicate gosec run, a licence "check"
 that only echoed success, and two summaries that always reported success).
 
 | Workflow | Job | Tool | Purpose | Runs |
 |----------|-----|------|---------|------|
 | `security.yml` (Tenant Isolation) | `tenant-isolation` | `go test ./internal/security/...` | Every parameterised route has a recorded tenant-isolation decision. Blocking | Push, PR, daily |
-| `security-scanning.yml` | `sast` | gosec | Go static security analysis, uploaded to the Security tab | Push, PR, daily |
+| `security-scanning.yml` | `sast` | gosec | Go static security analysis, uploaded to the Security tab. Reports, does not gate | Push, PR, daily |
 | `security-scanning.yml` | `secret-scan` | TruffleHog | Verified secrets in the commit range | Push, PR, daily |
 | `dependency-gate.yml` | `gate` | Trivy, govulncheck | HIGH/CRITICAL vulnerabilities in Go modules, npm production dependencies and the shipped images. Blocking, with dated exceptions in `security/vulnerability-exceptions.yaml` | Push, PR, daily |
 
 gosec and staticcheck also run inside golangci-lint in the CI Pipeline
 (Backend Lint & Format), together with the `gofmt -s` check.
 
-Not covered today: dynamic testing (DAST) and a licence gate (#457).
+Not covered today: dynamic testing (DAST), static security analysis of the
+frontend TypeScript, and a licence gate (#457).
 
 ### 3. **E2E Tests** (`.github/workflows/e2e.yml`)
 
@@ -178,8 +181,8 @@ OPSGENIE_API_KEY         # Opsgenie integration
 ### Security Workflow Triggers
 
 **On**:
-- Push to `master` (and `develop`)
-- Pull request to `master` (and `develop`)
+- Push to `master` (and `develop`; Tenant Isolation also on `main` and `stag`)
+- Pull request to `master` (and `develop`; Tenant Isolation also on `main` and `stag`)
 - Daily schedule: 2 AM UTC
 
 ### Deployment Workflow Triggers
