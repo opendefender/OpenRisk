@@ -86,9 +86,9 @@ func (s *revocationSpy) askedAbout(jti string) int {
 func installRevocationSpy(t *testing.T) *revocationSpy {
 	t.Helper()
 	spy := newRevocationSpy()
-	previous := sseRevocationChecker
+	previous := currentSSERevocationChecker()
 	SetSSERevocationChecker(spy.check)
-	t.Cleanup(func() { sseRevocationChecker = previous })
+	t.Cleanup(func() { SetSSERevocationChecker(previous) })
 	return spy
 }
 
