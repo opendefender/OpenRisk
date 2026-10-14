@@ -3,7 +3,8 @@
 //
 // "Lancer une découverte" (#906) runs a real scan: with one discovery source it
 // starts it, with several it asks which, with none it goes to Infrastructure to
-// set one up. The toast follows the job on its own page.
+// set one up. The toast follows the job on its own page. The vulnerability
+// queue reuses it as "Lancer un scan" (#909) with its own strings.
 
 import { useNavigate } from 'react-router';
 import { ScanSearch } from 'lucide-react';
@@ -15,7 +16,14 @@ import { useAuthStore } from '../../hooks/useAuthStore';
 import { Button, Menu } from '../../shared/ds';
 import { scannerService, type ScanConfig } from '../infrastructure/scannerService';
 
-export function DiscoverButton() {
+export function DiscoverButton({
+  strings = 'inventory.discover',
+  testId = 'inv-discover',
+}: {
+  /** Locale prefix holding label, started, follow and failed. */
+  strings?: string;
+  testId?: string;
+} = {}) {
   const { t } = useI18n();
   const navigate = useNavigate();
   const canScan = useAuthStore((s) => s.hasPermission('scanner:scan'));
@@ -30,13 +38,13 @@ export function DiscoverButton() {
     mutationFn: (c: ScanConfig) => scannerService.triggerScan(c.id),
     retry: false,
     onSuccess: (job, c) =>
-      toast.success(t('inventory.discover.started', { name: c.name }), {
+      toast.success(t(`${strings}.started`, { name: c.name }), {
         action: {
-          label: t('inventory.discover.follow'),
+          label: t(`${strings}.follow`),
           onClick: () => navigate(`/infrastructure/scans/${job.id}`),
         },
       }),
-    onError: () => toast.error(t('inventory.discover.failed')),
+    onError: () => toast.error(t(`${strings}.failed`)),
   });
 
   if (!canScan || !canRead) return null;
@@ -48,9 +56,9 @@ export function DiscoverButton() {
       icon={ScanSearch}
       loading={run.isPending || configs.isLoading}
       onClick={onClick}
-      data-testid="inv-discover"
+      data-testid={testId}
     >
-      {t('inventory.discover.label')}
+      {t(`${strings}.label`)}
     </Button>
   );
 

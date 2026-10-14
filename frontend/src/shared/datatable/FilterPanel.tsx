@@ -142,8 +142,11 @@ export function FilterPanel<T>({
     useRole(context, { role: 'dialog' }),
   ]);
 
-  const active = api.activeFilterCount;
-  const canSaveView = active > 0 || api.state.q.length > 0;
+  // The badge counts what this panel shows. A page may keep other filters in
+  // its own toolbar (the vulnerability queue's severity pills and switches,
+  // #909); they stay in the URL and in saved views, but are not counted here.
+  const active = facets.filter((f) => (api.state.filters[f.key]?.length ?? 0) > 0).length;
+  const canSaveView = api.activeFilterCount > 0 || api.state.q.length > 0;
 
   // floating-ui hands back *callback ref setters*, not ref objects. Wrapping
   // them keeps the JSX free of member access, which the react-hooks/refs rule

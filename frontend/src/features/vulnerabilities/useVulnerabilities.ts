@@ -9,6 +9,7 @@ import {
   type VulnQueryParams,
   type VulnStatus,
   type IngestInput,
+  type VulnListResponse,
 } from './vulnerabilityService';
 
 const VULNS_KEY = ['vulnerabilities'];
@@ -39,9 +40,25 @@ export function useVulnMutations() {
     mutationFn: (input: IngestInput) => vulnerabilityService.ingest(input),
     onSettled: invalidate,
   });
+  // Optimistic (ABSOLUTE RULE 10): the row shows its new status at once and
+  // goes back to the old one if the server refuses.
   const updateStatus = useMutation({
     mutationFn: ({ id, status }: { id: string; status: VulnStatus }) =>
       vulnerabilityService.updateStatus(id, status),
+    onMutate: async ({ id, status }) => {
+      const key = [...VULNS_KEY, 'list'];
+      await qc.cancelQueries({ queryKey: key });
+      const before = qc.getQueriesData<VulnListResponse>({ queryKey: key });
+      qc.setQueriesData<VulnListResponse>({ queryKey: key }, (page) =>
+        page?.items
+          ? { ...page, items: page.items.map((v) => (v.id === id ? { ...v, status } : v)) }
+          : page,
+      );
+      return { before };
+    },
+    onError: (_e, _v, ctx) => {
+      for (const [key, data] of ctx?.before ?? []) qc.setQueryData(key, data);
+    },
     onSettled: invalidate,
   });
   const createTicket = useMutation({

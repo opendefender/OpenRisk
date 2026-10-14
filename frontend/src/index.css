@@ -525,6 +525,16 @@ layer(base);
   .or-table tbody tr[data-selected='true'] {
     background: var(--accent-soft);
   }
+  /* An open row's detail (#909): its own height, no hover, a quiet surface. */
+  .or-table tbody tr.or-row-detail,
+  .or-table tbody tr.or-row-detail:hover {
+    background: var(--bg-secondary);
+    cursor: default;
+  }
+  .or-table tbody tr.or-row-detail > td {
+    height: auto;
+    padding: 16px 20px 18px 48px;
+  }
   .or-table .num {
     text-align: right;
     font-family: 'JetBrains Mono', monospace;

@@ -30,7 +30,8 @@
     "description": "Description",
     "noResults": "Aucun résultat trouvé",
     "emptyState": "Rien à afficher ici",
-    "planName": "Plan {plan}"
+    "planName": "Plan {plan}",
+    "rowDetails": "Détails"
   },
   "risks": {
     "title": "Registre des Risques",
@@ -1824,5 +1825,141 @@
       },
       "failed": "Non enregistré pour : {names}. Le schéma de ces actifs n'a peut-être pas l'attribut « Exposé sur Internet »."
     }
+  },
+  "vulns": {
+    "title": "Vulnérabilités",
+    "subtitle": "Priorisées par gravité, exploitation (KEV, EPSS) et criticité de l'actif. Une faille KEV passe toujours en P1.",
+    "more": "Plus d'actions",
+    "unassigned": "Non rattachées",
+    "riskRule": "Règle → risque",
+    "integrations": "Intégrations",
+    "import": "Importer",
+    "scan": {
+      "label": "Lancer un scan",
+      "started": "Scan lancé : {name}",
+      "follow": "Suivre",
+      "failed": "Le scan n'a pas pu être lancé."
+    },
+    "kpi": {
+      "open": "Ouvertes",
+      "openHint": "Ouvertes, triées ou en correction",
+      "kevOpen": "KEV ouvertes",
+      "kevOpenHint": "Exploitées activement selon la CISA, pas encore corrigées",
+      "sla": "SLA dépassé",
+      "slaHint": "Échéance de correction passée : critique 7 j, élevée 14 j, moyenne 30 j, faible 60 j, KEV 14 j au plus",
+      "mttr": "MTTR critiques",
+      "mttrValue": "{value} j",
+      "mttrSample": {
+        "one": "sur {count} critique corrigée en {days} j",
+        "other": "sur {count} critiques corrigées en {days} j"
+      },
+      "mttrNone": "Aucune critique corrigée en {days} j",
+      "mttrHint": "Délai moyen entre la détection et la correction"
+    },
+    "search": "CVE, titre, actif…",
+    "severityGroup": "Sévérité",
+    "sev": {
+      "critical": "Critique",
+      "high": "Élevée",
+      "medium": "Moyenne",
+      "low": "Faible",
+      "info": "Info"
+    },
+    "kevOnly": "KEV uniquement",
+    "includeFixed": "Inclure corrigées",
+    "includeFixedHint": "Affiche aussi les corrigées et les faux positifs",
+    "col": {
+      "cve": "CVE",
+      "vuln": "Vulnérabilité",
+      "cvss": "CVSS",
+      "epss": "EPSS",
+      "asset": "Actif",
+      "sla": "SLA",
+      "status": "Statut",
+      "priority": "Priorité",
+      "source": "Source"
+    },
+    "sla": {
+      "left": {
+        "one": "{count} j restant",
+        "other": "{count} j restants"
+      },
+      "today": "Échéance aujourd'hui",
+      "late": {
+        "one": "Dépassé de {count} j",
+        "other": "Dépassé de {count} j"
+      }
+    },
+    "status": {
+      "open": "Ouverte",
+      "triaged": "Triée",
+      "in_remediation": "En correction",
+      "remediated": "Corrigée",
+      "accepted": "Acceptée",
+      "false_positive": "Faux positif"
+    },
+    "kev": "KEV",
+    "expand": "Détails de {name}",
+    "why": "Pourquoi {tier} · {score}",
+    "signal": {
+      "cvss": "CVSS {value}",
+      "kev": "Exploitée activement (CISA KEV)",
+      "exploit": "Exploit public disponible",
+      "epss": "EPSS {value} % : probabilité d'exploitation sous 30 jours",
+      "asset": "Actif de criticité {crit}",
+      "affected": {
+        "one": "{count} actif touché",
+        "other": "{count} actifs touchés"
+      },
+      "kevFloor": "Une faille KEV passe toujours en P1."
+    },
+    "field": {
+      "asset": "Actif",
+      "source": "Source",
+      "firstSeen": "Détectée le",
+      "lastSeen": "Vue le",
+      "due": "Échéance",
+      "remediatedAt": "Corrigée le",
+      "vector": "Vecteur CVSS",
+      "description": "Description",
+      "remediation": "Remédiation",
+      "ticket": "Ticket ITSM",
+      "noTicket": "Aucun ticket",
+      "linkedRisk": "Risque lié",
+      "openRisk": "Voir le risque"
+    },
+    "act": {
+      "label": "Traiter",
+      "take": "Prendre en charge",
+      "fixed": "Marquer corrigée",
+      "accept": "Accepter le risque",
+      "falsePositive": "Faux positif",
+      "reopen": "Rouvrir",
+      "createRisk": "Créer un risque",
+      "openTicket": "Ouvrir un ticket",
+      "delete": "Supprimer"
+    },
+    "toast": {
+      "status": "Statut mis à jour",
+      "statusFailed": "Le statut n'a pas pu être changé.",
+      "ticket": "Ticket ouvert",
+      "ticketFailed": "Le ticket n'a pas pu être ouvert. L'intégration ITSM est-elle configurée ?",
+      "deleted": "Vulnérabilité « {title} » supprimée",
+      "bulkDeleted": {
+        "one": "{count} vulnérabilité supprimée",
+        "other": "{count} vulnérabilités supprimées"
+      },
+      "bulkUpdated": {
+        "one": "{count} vulnérabilité mise à jour",
+        "other": "{count} vulnérabilités mises à jour"
+      }
+    },
+    "empty": {
+      "title": "Aucune vulnérabilité",
+      "body": "Importez les résultats d'un scanner (Nessus, Qualys, Defender, Inspector, CrowdStrike…) ou lancez un scan.",
+      "readOnly": "Aucune vulnérabilité n'est encore importée. Votre rôle permet de les consulter ; un administrateur peut vous donner le droit d'en importer."
+    },
+    "entity": "vulnérabilités",
+    "riskTitle": "{title} ({cve})"
   }
 }
