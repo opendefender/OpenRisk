@@ -36,7 +36,9 @@ func TestOSVAdapter_MapsCVEAndScore(t *testing.T) {
 	defer srv.Close()
 
 	q := inventory.PackageQuery{Ecosystem: "Debian:12", Name: "openssl", Version: "3.0.11-1~deb12u2"}
-	got, err := NewOSV(osv.NewClient(srv.URL, nil)).Lookup(context.Background(), []inventory.PackageQuery{q})
+	client, err := osv.NewClient(srv.URL, nil)
+	require.NoError(t, err)
+	got, err := NewOSV(client).Lookup(context.Background(), []inventory.PackageQuery{q})
 	require.NoError(t, err)
 	require.Len(t, got[q], 1)
 	a := got[q][0]

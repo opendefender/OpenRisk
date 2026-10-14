@@ -14,7 +14,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
+	"net/url"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -68,17 +71,43 @@ type Client struct {
 	limit *Interval
 }
 
-// NewClient builds a client. cache may be nil (no caching).
-func NewClient(baseURL string, cache Cache) *Client {
+// NewClient builds a client. cache may be nil (no caching). A base URL that
+// is not https is refused, except on loopback (tests, a local mirror): package
+// lists must not travel in the clear. Redirects to another host are refused.
+func NewClient(baseURL string, cache Cache) (*Client, error) {
 	if baseURL == "" {
 		baseURL = DefaultBaseURL
 	}
+	u, err := url.Parse(baseURL)
+	if err != nil || u.Host == "" {
+		return nil, fmt.Errorf("osv: invalid base URL %q", baseURL)
+	}
+	if u.Scheme != "https" && !isLoopback(u.Hostname()) {
+		return nil, fmt.Errorf("osv: base URL must be https: %q", baseURL)
+	}
+	host := u.Host
 	return &Client{
-		base:  strings.TrimRight(baseURL, "/"),
-		http:  &http.Client{Timeout: 10 * time.Second},
+		base: strings.TrimRight(baseURL, "/"),
+		http: &http.Client{
+			Timeout: 10 * time.Second,
+			CheckRedirect: func(req *http.Request, _ []*http.Request) error {
+				if req.URL.Host != host {
+					return fmt.Errorf("osv: redirect to another host refused")
+				}
+				return nil
+			},
+		},
 		cache: cache,
 		limit: NewInterval(100 * time.Millisecond), // ≤ 10 requests/s, whole process
+	}, nil
+}
+
+func isLoopback(h string) bool {
+	if h == "localhost" {
+		return true
 	}
+	ip := net.ParseIP(h)
+	return ip != nil && ip.IsLoopback()
 }
 
 // Lookup returns, per query, the advisories affecting that exact version. A
@@ -196,11 +225,19 @@ type osvRecord struct {
 	DatabaseSpecific map[string]any `json:"database_specific"`
 }
 
+// advisoryID is what an OSV id looks like (GHSA-…, DEBIAN-CVE-…, USN-…-1).
+var advisoryID = regexp.MustCompile(`^[A-Za-z0-9._:-]{1,128}$`)
+
 func (c *Client) advisory(ctx context.Context, id string, q Query) (Advisory, error) {
+	// The id comes from OSV's (or a mirror's) answer: it becomes a path, so it
+	// is checked, escaped, and the record must say it is that id.
+	if !advisoryID.MatchString(id) {
+		return Advisory{}, fmt.Errorf("osv: unexpected advisory id %q", id)
+	}
 	raw, ok := c.cacheGet(ctx, "osv:v:"+id)
 	if !ok {
 		var err error
-		raw, err = c.do(ctx, http.MethodGet, "/v1/vulns/"+id, nil)
+		raw, err = c.do(ctx, http.MethodGet, "/v1/vulns/"+url.PathEscape(id), nil)
 		if err != nil {
 			return Advisory{}, err
 		}
@@ -209,6 +246,9 @@ func (c *Client) advisory(ctx context.Context, id string, q Query) (Advisory, er
 	var rec osvRecord
 	if err := json.Unmarshal(raw, &rec); err != nil {
 		return Advisory{}, fmt.Errorf("osv vuln %s: %w", id, err)
+	}
+	if rec.ID != id {
+		return Advisory{}, fmt.Errorf("osv: asked %s, got %s", id, rec.ID)
 	}
 	adv := Advisory{ID: rec.ID, Summary: rec.Summary, Details: rec.Details, Aliases: rec.Aliases}
 	for _, s := range rec.Severity {

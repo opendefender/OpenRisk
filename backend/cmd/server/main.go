@@ -2904,9 +2904,13 @@ func main() {
 	if redisClientInstance != nil {
 		vulnLookupCache = vulnlookup.NewRedisCache(redisClientInstance)
 	}
+	osvClient, err := osv.NewClient(os.Getenv("OSV_API_URL"), vulnLookupCache)
+	if err != nil {
+		log.Fatalf("OSV_API_URL: %v", err)
+	}
 	matchInventoryUC := invapp.NewMatchInventoryUseCase(
 		hostInventoryRepo,
-		vulnlookup.NewOSV(osv.NewClient(os.Getenv("OSV_API_URL"), vulnLookupCache)),
+		vulnlookup.NewOSV(osvClient),
 		vulnlookup.NewNVDPrograms(ctiClient, vulnLookupCache, os.Getenv("NVD_API_KEY") != ""),
 		vulnIngestUC, vulnRepo,
 	)

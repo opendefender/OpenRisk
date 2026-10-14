@@ -80,7 +80,8 @@ func TestLookup_Success(t *testing.T) {
 	var sent []string
 	srv := fakeOSV(t, &batches, &sent)
 	defer srv.Close()
-	c := NewClient(srv.URL, &mapCache{m: map[string][]byte{}})
+	c, err := NewClient(srv.URL, &mapCache{m: map[string][]byte{}})
+	require.NoError(t, err)
 
 	ssl := Query{Ecosystem: "Ubuntu:22.04:LTS", Name: "openssl", Version: "3.0.2-0ubuntu1.10"}
 	bash := Query{Ecosystem: "Ubuntu:22.04:LTS", Name: "bash", Version: "5.1-6ubuntu1"}
@@ -109,7 +110,9 @@ func TestLookup_Unreachable(t *testing.T) {
 		w.WriteHeader(http.StatusServiceUnavailable)
 	}))
 	defer srv.Close()
-	got, err := NewClient(srv.URL, nil).Lookup(context.Background(),
+	c, err := NewClient(srv.URL, nil)
+	require.NoError(t, err)
+	got, err := c.Lookup(context.Background(),
 		[]Query{{Ecosystem: "Debian:12", Name: "openssl", Version: "1"}})
 	assert.Error(t, err)
 	assert.Nil(t, got)
@@ -128,4 +131,39 @@ func TestInterval_SpacesCalls(t *testing.T) {
 	l2 := NewInterval(time.Hour)
 	_ = l2.Wait(context.Background())
 	assert.Error(t, l2.Wait(ctx), "a cancelled wait returns")
+}
+
+// Package lists never travel in the clear, except to a loopback mirror.
+func TestNewClient_HTTPSOnly(t *testing.T) {
+	_, err := NewClient("http://osv-mirror.example.org", nil)
+	assert.Error(t, err)
+	_, err = NewClient("http://127.0.0.1:9000", nil)
+	assert.NoError(t, err)
+	_, err = NewClient("", nil)
+	assert.NoError(t, err, "the default is OSV over https")
+}
+
+// An id from the answer becomes a path: a traversal is refused before any
+// request, and a record that is not the asked id is refused too.
+func TestAdvisory_RefusesForeignIDs(t *testing.T) {
+	var paths []string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		paths = append(paths, r.URL.Path)
+		switch r.URL.Path {
+		case "/v1/querybatch":
+			_, _ = w.Write([]byte(`{"results":[{"vulns":[{"id":"../../admin"}]},{"vulns":[{"id":"GHSA-x"}]}]}`))
+		case "/v1/vulns/GHSA-x":
+			_, _ = w.Write([]byte(`{"id":"GHSA-other"}`))
+		}
+	}))
+	defer srv.Close()
+	c, err := NewClient(srv.URL, nil)
+	require.NoError(t, err)
+	_, err = c.Lookup(context.Background(), []Query{{Ecosystem: "Debian:12", Name: "a", Version: "1"}})
+	assert.Error(t, err)
+	_, err = c.Lookup(context.Background(), []Query{{Ecosystem: "Debian:12", Name: "b", Version: "1"}})
+	assert.Error(t, err)
+	for _, p := range paths {
+		assert.NotContains(t, p, "admin")
+	}
 }
