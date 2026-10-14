@@ -64,6 +64,14 @@ if [ -n "$GO_FILES" ] && command -v go >/dev/null 2>&1; then
   # shellcheck disable=SC2086
   UNFORMATTED=$(cd backend && gofmt -l $REL 2>/dev/null)
   [ -z "$UNFORMATTED" ] || FAIL+=$'\n'"✗ gofmt — not formatted:"$'\n'"$UNFORMATTED"$'\n'
+  # The tenant tripwire on the whole branch, not only on Edit/Write: a query
+  # added through sed or a heredoc, or a tenant filter deleted, lands here.
+  TRIP=""
+  while IFS= read -r f; do
+    case "$f" in *_test.go) continue ;; backend/internal/*|backend/pkg/*) ;; *) continue ;; esac
+    out=$(bash "$DIR/tenant-tripwire.sh" "$ROOT/$f" "$BASE") || TRIP+="$out"$'\n'
+  done <<< "$GO_FILES"
+  [ -z "$TRIP" ] || FAIL+=$'\n'"✗ tenant tripwire — add the tenant filter, or // tenant: <why> right above:"$'\n'"$TRIP"
   run "go build ./..." backend go build ./...
   # shellcheck disable=SC2086
   run "go vet (changed packages)" backend go vet $PKGS
@@ -91,13 +99,19 @@ if [ -n "$FE_FILES" ]; then
   fi
 fi
 
-STATE="${TMPDIR:-/tmp}/openrisk-gate-$(printf '%s' "$ROOT|$AGENT" | cksum | cut -d' ' -f1)"
+# Per-user state, read as a number only: a predictable file in a shared /tmp
+# fed to $(( )) could run commands (#958 security review).
+STATE_DIR="${XDG_RUNTIME_DIR:-$(git rev-parse --git-common-dir 2>/dev/null || echo "$ROOT/.git")}"
+[ "${OPENRISK_GATE_STATE_DIR:-}" ] && STATE_DIR="$OPENRISK_GATE_STATE_DIR"
+STATE="$STATE_DIR/openrisk-gate-$(printf '%s' "$ROOT|$AGENT" | cksum | cut -d' ' -f1)"
 if [ -z "$FAIL" ]; then
   rm -f "$STATE"
   exit 0
 fi
 
-COUNT=$(( $(cat "$STATE" 2>/dev/null || echo 0) + 1 ))
+PREV=$(cat "$STATE" 2>/dev/null)
+[[ "$PREV" =~ ^[0-9]+$ ]] || PREV=0
+COUNT=$((PREV + 1))
 echo "$COUNT" > "$STATE"
 if [ "$COUNT" -gt 3 ]; then
   rm -f "$STATE"
