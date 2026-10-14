@@ -59,7 +59,9 @@ which. **Never skip the review.**
    `REVIEW: BLOCK — <n> critical` (devsecops: `SECURITY: PASS|FAIL`).
 2. BLOCK or FAIL goes back to the implementing agent with the findings
    verbatim. It fixes them, then the same reviewer reads the new diff.
-3. After two blocked rounds, stop. Append the disagreement to
+3. A PASS covers the diff it read. Any later change, a CI fix included, goes
+   back to the same reviewer before the PR is handed over.
+4. After two blocked rounds, stop. Append the disagreement to
    `docs/DECISIONS.md` with both positions and the reviewer's findings, and
    report it. Do not open the PR over a block.
 
@@ -84,7 +86,7 @@ Stage by explicit path, never `git add -A`, and look at what you stage:
 git status --short
 git add <path> <path>
 git commit -s -m "type(scope): subject (#$ARGUMENTS)"
-git log --format='%h %s' origin/master..HEAD   # every line must carry #$ARGUMENTS
+git log --no-merges --format='%h %s' origin/master..HEAD   # every line must carry #$ARGUMENTS
 git push -u origin HEAD
 gh pr create --base master --title "type(scope): subject (#$ARGUMENTS)" --body-file pr.md
 ```

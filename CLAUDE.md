@@ -103,7 +103,8 @@ urgent, tier says how strategic. An issue may be `priority:P1-high` and `tier:5-
 — urgent if we did it, and not what we are doing.
 
 ### Branch, commit, PR
-- Branch: `gh issue develop <n> --checkout` → `<type>/<n>-<slug>`
+- Branch: `<type>/<n>-<slug>`, in a worktree of your own:
+  `git worktree add ../OpenRisk-wt-<n> -b <type>/<n>-<slug> origin/master`
 - Commit: `type(scope): subject (#<n>)` — Conventional Commits, English, imperative.
   Always `git commit -s`: the DCO check rejects a commit without `Signed-off-by`.
 - PR body contains `Closes #<n>`. One issue → one branch → one PR.
@@ -121,17 +122,21 @@ gh api -X PATCH repos/opendefender/OpenRisk/pulls/<pr> -F body=@pr.md
 Capital `-F` reads the file. Lowercase `-f body=@file` posts the literal path,
 returns 200, and has already destroyed comments; the bash guard blocks it.
 Check the length the command prints: a body of a dozen characters is the tell.
+`gh issue edit`, `gh issue create`, `gh issue list`, `gh pr list` and
+`gh pr checks` work normally.
 If `gh pr create` fails with the same error, check `gh pr list --head <branch>`
 first, then `gh api -X POST repos/opendefender/OpenRisk/pulls -f title=… -f head=… -f base=master -F body=@pr.md`.
 
 ### The loop every agent follows on an issue
-1. Read the issue and its discussion through `gh api` (see GitHub CLI below).
+1. Read the issue and its discussion through `gh api` (see GitHub CLI above).
 2. If not `status:ready`, stop and report why.
 3. `gh issue edit <n> --add-label status:in-progress --remove-label status:ready`
 4. Work on the issue's branch, in a worktree of your own.
-5. Before the PR, tech-lead reviews the full diff (`REVIEW: PASS`), and
-   devsecops too for backend, infra, security or auth/tenant/upload changes
-   (`SECURITY: PASS`). Two blocked rounds go to `docs/DECISIONS.md`.
+5. Before the PR, the reviewers in the `/work` table read the full diff
+   (tech-lead `REVIEW: PASS` on any code; devsecops `SECURITY: PASS` for
+   backend, infra, security or auth/tenant/upload changes). If the diff
+   changes after a PASS, including a fix to turn CI green, it is reviewed
+   again. Two blocked rounds go to `docs/DECISIONS.md`.
 6. **Post progress as an issue comment before you finish** — see the report
    format below. This comment is what lets a fresh session resume your work
    with zero re-reading. It is not optional.
