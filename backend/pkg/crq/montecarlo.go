@@ -122,7 +122,7 @@ func Simulate(in SimulationInput) LossDistribution {
 		return dist
 	}
 
-	rng := rand.New(rand.NewSource(in.Seed))
+	rng := rand.New(rand.NewSource(in.Seed)) //nolint:gosec // seeded so a simulation is reproducible; not a secret
 	alpha, beta := pertBetaParams(lm)
 
 	samples := make([]float64, iters)
@@ -229,7 +229,7 @@ func portfolioSamples(inputs []SimulationInput, iterations int, seed int64) ([]f
 		rs = append(rs, risk{lef: lef, min: lm.Min, span: lm.Max - lm.Min, alpha: a, beta: b})
 	}
 
-	rng := rand.New(rand.NewSource(seed))
+	rng := rand.New(rand.NewSource(seed)) //nolint:gosec // seeded so a simulation is reproducible; not a secret
 	samples := make([]float64, iterations)
 	var sum float64
 	for i := 0; i < iterations; i++ {
