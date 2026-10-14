@@ -69,7 +69,9 @@ function threat(over: Partial<Threat>): Threat {
     published_at: '2026-10-04T00:00:00Z',
     techniques: ['T1190', 'T1133'],
     tactics: [],
-    assets: [{ id: 'a1', name: 'Pare-feu périmétrique', criticality: 'CRITICAL', via: ['scan', 'cpe'] }],
+    assets: [
+      { id: 'a1', name: 'Pare-feu périmétrique', criticality: 'CRITICAL', via: ['scan', 'cpe'] },
+    ],
     relevance: 100,
     factors: [
       { key: 'asset', points: 40, max: 40, value: 'CRITICAL' },
@@ -186,7 +188,9 @@ describe('ThreatsPage', () => {
     const card = screen.getByTestId('threat-CVE-2026-21873');
     await waitFor(() => expect(card).toHaveAttribute('data-dismissed', 'true'));
     expect(put).toHaveBeenCalledWith('/cti/threats/CVE-2026-21873/dismissal');
-    await waitFor(() => expect(within(card).getByRole('button', { name: 'Restaurer' })).toBeInTheDocument());
+    await waitFor(() =>
+      expect(within(card).getByRole('button', { name: 'Restaurer' })).toBeInTheDocument(),
+    );
   });
 
   it('brings the threat back and says so when the server refuses', async () => {
