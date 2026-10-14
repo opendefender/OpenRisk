@@ -3,10 +3,14 @@
 // This program is free software: you can redistribute it and/or modify it under
 // the terms of the GNU Affero General Public License v3.0 (see LICENSE).
 
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import {
   boundFormatters,
   catalogs,
+  catalogsVersion,
+  isCatalogLoaded,
+  loadCatalog,
+  subscribeCatalogs,
   formatPreferredDate,
   translate,
   type BoundFormatters,
@@ -43,9 +47,51 @@ export interface UseI18nReturn {
   fmt: BoundFormatters;
 }
 
+export type CatalogStatus = 'ready' | 'loading' | 'failed';
+
+/**
+ * Makes sure `locale`'s catalogue is loaded and re-renders when it lands (#966).
+ *
+ * Only the default language ships in the entry bundle. The store's `setLang`
+ * already waits for a catalogue before switching, but a screen that picks its
+ * own language (the public vendor questionnaire follows the language the
+ * organization chose) or a boot whose fetch failed would otherwise translate
+ * against a catalogue that is not there and never notice when it arrives.
+ * A failed fetch is retried when the browser comes back online.
+ */
+export function useCatalog(locale: LocaleCode): CatalogStatus {
+  useSyncExternalStore(subscribeCatalogs, catalogsVersion, catalogsVersion);
+  const ready = isCatalogLoaded(locale);
+  const [failedFor, setFailedFor] = useState<LocaleCode | null>(null);
+
+  useEffect(() => {
+    if (ready) return;
+    let live = true;
+    const attempt = () => {
+      loadCatalog(locale).then(
+        () => undefined,
+        () => {
+          if (live) setFailedFor(locale);
+        },
+      );
+    };
+    attempt();
+    window.addEventListener('online', attempt);
+    return () => {
+      live = false;
+      window.removeEventListener('online', attempt);
+    };
+  }, [locale, ready]);
+
+  if (ready) return 'ready';
+  return failedFor === locale ? 'failed' : 'loading';
+}
+
 export function useI18n(): UseI18nReturn {
   const locale = useUIStore((s) => s.lang);
   const setLocale = useUIStore((s) => s.setLang);
+  // Re-render, and rebuild `t`, when the active catalogue lands.
+  const status = useCatalog(locale);
 
   const t = useCallback(
     (key: string, defaultOrParams?: string | TranslateParams): string => {
@@ -54,7 +100,8 @@ export function useI18n(): UseI18nReturn {
       }
       return translate(catalogs, locale, key, { params: defaultOrParams });
     },
-    [locale],
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- status is the catalogue's identity
+    [locale, status],
   );
 
   const fmt = useMemo(() => boundFormatters(locale), [locale]);

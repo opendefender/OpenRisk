@@ -82,6 +82,26 @@ function mergeFor(code: LocaleCode, json: Catalog | undefined): Catalog | undefi
 const loaded = new Set<LocaleCode>([DEFAULT_LOCALE]);
 const inFlight = new Map<LocaleCode, Promise<void>>();
 
+/*
+ * Bumped each time a catalogue lands, so React can re-render on it (see
+ * useCatalog in hooks/useI18n). The language alone is not enough: when a fetch
+ * fails and a retry succeeds, the language has not changed, yet every string
+ * on screen has.
+ */
+let version = 0;
+const listeners = new Set<() => void>();
+
+export function subscribeCatalogs(listener: () => void): () => void {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
+}
+
+export function catalogsVersion(): number {
+  return version;
+}
+
 /** True once `code` has every word it will ever have — nothing left to fetch. */
 export function isCatalogLoaded(code: LocaleCode): boolean {
   return loaded.has(code) || !jsonLoaders[code];
@@ -101,6 +121,8 @@ export function loadCatalog(code: LocaleCode): Promise<void> {
       const catalog = mergeFor(code, json);
       if (catalog) catalogs[code] = catalog;
       loaded.add(code);
+      version += 1;
+      listeners.forEach((listener) => listener());
     })
     .finally(() => inFlight.delete(code));
   inFlight.set(code, load);
