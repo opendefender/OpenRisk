@@ -1,0 +1,12 @@
+- [CSS motion tricks](feedback_css-motion-tricks.md) — peer-selector depth limit workaround (custom-property bridge) + asymmetric enter/exit transition durations, no JS
+- [Pre-existing lint debt](feedback_lint-pre-existing-debt.md) — CreateRiskModal/EditRiskModal fail eslint on master too; don't fix unrelated debt in passing, cite `git stash` proof instead
+- [#751 phase 2 status](project_751-phase2-feedback.md) — what shipped on feat/751-phase2-feedback, what was deliberately deferred and why, verification figures
+- [#751 phase 3 status](project_751-phase3-status.md) — SlotReel, WidgetState cross-fade, Empty reveal; spec-vs-code calls made, verification figures
+- [set-state-in-effect lint rule](feedback_set-state-in-effect-lint.md) — eslint-plugin-react-hooks v7 rejects setState in a useEffect body; fix is React's "adjust state while rendering" pattern, not a bigger effect
+- [Don't declare a requirement unreachable](feedback_dont-declare-requirement-unreachable.md) — check for a caller-supplied signal (e.g. isFetchedAfterMount) before dropping a spec bullet as impossible from inside a component
+- [#751 phase 4 status](project_751-phase4-status.md) — bell badge, notif panel dismissable layer, toast restyle, banner stack/collapse; sonner internals verified not assumed
+- [git stash untracked-path footgun](feedback_git-stash-untracked-path-footgun.md) — `stash push -- <untracked>` no-ops silently; a chained `pop` after it can pop an unrelated pre-existing stash instead
+- [React Compiler purity rule](feedback_react-compiler-purity-rule.md) — Date.now()/impure calls rejected in render body even inside a legit render-time state-adjust; capture in a useEffect+ref instead
+- [#751 phase 5 status](project_751-phase5-status.md) — Modal/Drawer real exit transition, OTP auto-submit, theme-toggle cross-fade, stopgap dialog entrances; cutting callers list, verification figures
+- [matchMedia spy-restore trap](feedback_matchmedia-spy-restore-trap.md) — `vi.spyOn(window,'matchMedia').mockRestore()` clears setup.ts's own mock implementation instead of restoring it; reassign directly instead
+- [Shake remounts, detaching node refs](feedback_shake-remounts-detach-node-refs.md) — Shake's `key={errorKey}` remounts children on a new error nonce; re-query the field after a failed submit, don't reuse the earlier handle
