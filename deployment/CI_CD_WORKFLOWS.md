@@ -50,26 +50,24 @@ Runs on every push and pull request to verify code quality and build artifacts.
 - **Frontend**: 70% minimum code coverage (enforced)
 - Uploaded to Codecov for tracking
 
-### 2. **Security Workflow** (`.github/workflows/security.yml`)
+### 2. **Security workflows**
 
-Comprehensive security scanning on push and daily schedule.
+Four workflows, each with one job that can actually fail. The scanners that
+could not pass or checked nothing were retired in #978 (Semgrep, OWASP ZAP,
+SonarQube, OWASP Dependency-Check, a duplicate gosec run, a licence "check"
+that only echoed success, and two summaries that always reported success).
 
-#### Jobs:
+| Workflow | Job | Tool | Purpose | Runs |
+|----------|-----|------|---------|------|
+| `security.yml` (Tenant Isolation) | `tenant-isolation` | `go test ./internal/security/...` | Every parameterised route has a recorded tenant-isolation decision. Blocking | Push, PR, daily |
+| `security-scanning.yml` | `sast` | gosec | Go static security analysis, uploaded to the Security tab | Push, PR, daily |
+| `security-scanning.yml` | `secret-scan` | TruffleHog | Verified secrets in the commit range | Push, PR, daily |
+| `dependency-gate.yml` | `gate` | Trivy, govulncheck | HIGH/CRITICAL vulnerabilities in Go modules, npm production dependencies and the shipped images. Blocking, with dated exceptions in `security/vulnerability-exceptions.yaml` | Push, PR, daily |
 
-| Job | Tool | Purpose | Frequency |
-|-----|------|---------|-----------|
-| `dependency-check` | Trivy | Scan dependencies for CVEs | Push + Daily |
-| `golang-security` | gosec | Static Go security analysis | Push + Daily |
-| `container-scan` | Trivy | Docker image vulnerability scan | Push + Daily |
-| `code-quality` | gofmt, staticcheck | Code style and quality | Push |
-| `sast-semgrep` | Semgrep | SAST for OWASP Top 10 | Push + Daily |
-| `dast-owasp-zap` | OWASP ZAP | Dynamic security testing | Daily |
-| `license-check` | Go mod | License compliance verification | Push |
+gosec and staticcheck also run inside golangci-lint in the CI Pipeline
+(Backend Lint & Format), together with the `gofmt -s` check.
 
-**Triggers**:
-- Every push to `main`, `stag`, `develop`
-- Daily at 2 AM UTC
-- Can be run manually via workflow dispatch
+Not covered today: dynamic testing (DAST) and a licence gate (#457).
 
 ### 3. **E2E Tests** (`.github/workflows/e2e.yml`)
 
@@ -180,10 +178,9 @@ OPSGENIE_API_KEY         # Opsgenie integration
 ### Security Workflow Triggers
 
 **On**:
-- Push to `main`, `stag`, `develop`
-- Pull request to `main`, `stag`, `develop`
+- Push to `master` (and `develop`)
+- Pull request to `master` (and `develop`)
 - Daily schedule: 2 AM UTC
-- Manual trigger available
 
 ### Deployment Workflow Triggers
 
@@ -244,40 +241,21 @@ OPSGENIE_API_KEY         # Opsgenie integration
 
 ### Dependency Scanning
 
-**Tool**: Trivy
-
-```
-Scans for:
-├─ Known CVEs in dependencies
-├─ License compliance
-├─ License restrictions
-└─ Outdated versions
-```
+**Workflow**: `dependency-gate.yml` (#487). Fails on any HIGH or CRITICAL
+finding without an exception. Each exception names an owner and an issue and
+expires within 90 days.
 
 ### SAST - Static Application Security Testing
 
 **Tools**:
-- **Semgrep**: OWASP Top 10, CWE top 25, language-specific rules
-- **gosec**: Go-specific security issues
-- **staticcheck**: Code correctness issues
+- **gosec**: Go-specific security issues (SAST Analysis, and inside golangci-lint)
+- **staticcheck**: code correctness issues (inside golangci-lint)
 
 ### DAST - Dynamic Application Security Testing
 
-**Tool**: OWASP ZAP
-
-```
-Tests for:
-├─ SQL injection
-├─ Cross-site scripting (XSS)
-├─ Cross-site request forgery (CSRF)
-├─ Broken authentication
-├─ Sensitive data exposure
-├─ XML external entities (XXE)
-├─ Broken access control
-├─ Security misconfiguration
-├─ Insecure deserialization
-└─ Vulnerable libraries
-```
+None today. The OWASP ZAP job was retired in #978: it was wired to a
+deprecated action and started the server with no keys and no migrations, so it
+never scanned a running instance.
 
 ---
 
