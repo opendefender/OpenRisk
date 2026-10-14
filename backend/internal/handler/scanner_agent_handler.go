@@ -160,6 +160,20 @@ func (h *ScannerHandler) queuedJobFrames(ctx context.Context, agent *domain.Scan
 			frames = append(frames, string(payload))
 		}
 	}
+	// An inventory job asked while this agent was reconnecting (#910).
+	if h.redis != nil {
+		if job, err := h.redis.Get(ctx, invapp.PendingKey(agent.ID.String())); err == nil && job != "" {
+			if jobID, err := uuid.Parse(job); err == nil {
+				payload, err := json.Marshal(scanpkg.AgentJobDispatch{
+					Type: "inventory.job", JobID: jobID, TenantID: agent.TenantID,
+					AgentIDs: []string{agent.ID.String()},
+				})
+				if err == nil {
+					frames = append(frames, string(payload))
+				}
+			}
+		}
+	}
 	return frames
 }
 
@@ -270,6 +284,10 @@ func (h *ScannerHandler) AgentInventory(c *fiber.Ctx) error {
 	})
 	if err != nil {
 		return writeAppError(c, err)
+	}
+	// Answered: a reconnect must not replay the job (#910).
+	if h.redis != nil {
+		_ = h.redis.Del(c.UserContext(), invapp.PendingKey(agent.ID.String()))
 	}
 	return c.Status(fiber.StatusAccepted).JSON(fiber.Map{
 		"inventory_id": inv.ID, "packages": inv.PackageCount, "asset_id": inv.AssetID,

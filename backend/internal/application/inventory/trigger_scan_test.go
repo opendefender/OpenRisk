@@ -22,6 +22,7 @@ import (
 
 type fakeKV struct {
 	locks     map[string]bool
+	sets      map[string]string
 	published []scanpkg.AgentJobDispatch
 	channels  []string
 }
@@ -32,6 +33,14 @@ func (f *fakeKV) SetNX(_ context.Context, k, _ string, _ time.Duration) (bool, e
 	}
 	f.locks[k] = true
 	return true, nil
+}
+
+func (f *fakeKV) Set(_ context.Context, k, v string, _ time.Duration) error {
+	if f.sets == nil {
+		f.sets = map[string]string{}
+	}
+	f.sets[k] = v
+	return nil
 }
 
 func (f *fakeKV) Publish(_ context.Context, ch string, p interface{}) error {
@@ -65,6 +74,10 @@ func TestTriggerScan_Success(t *testing.T) {
 	assert.Equal(t, "inventory.job", d.Type)
 	assert.ElementsMatch(t, []string{on.String(), busy.String()}, d.AgentIDs)
 	assert.Equal(t, scanpkg.AgentJobChannel(tenant), kv.channels[0], "only this tenant's channel")
+	// Each asked agent has the job pending, so a reconnect replays it.
+	assert.Equal(t, d.JobID.String(), kv.sets[PendingKey(on.String())])
+	assert.Equal(t, d.JobID.String(), kv.sets[PendingKey(busy.String())])
+	assert.NotContains(t, kv.sets, PendingKey(off.String()))
 
 	// A second scan within the cooldown is refused with 429.
 	_, err = NewTriggerScanUseCase(agents, kv).Execute(context.Background(), tenant)

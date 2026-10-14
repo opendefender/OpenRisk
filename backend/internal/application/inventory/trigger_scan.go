@@ -20,8 +20,16 @@ import (
 // the agents' job channel.
 type TriggerKV interface {
 	SetNX(ctx context.Context, key, value string, ttl time.Duration) (bool, error)
+	Set(ctx context.Context, key, value string, ttl time.Duration) error
 	Publish(ctx context.Context, channel string, payload interface{}) error
 }
+
+// PendingKey marks an inventory job an agent has not answered yet. Redis
+// pub/sub is fire-and-forget and an agent's stream reconnects now and then, so
+// the stream replays a pending job on connect (as it replays queued scan jobs)
+// and the agent's inventory clears the mark. Found in the #910 live run: a job
+// published during a reconnect was otherwise lost.
+func PendingKey(agentID string) string { return "inventory:pending:" + agentID }
 
 // AgentLister lists a tenant's agents.
 type AgentLister interface {
@@ -83,6 +91,11 @@ func (uc *TriggerScanUseCase) Execute(ctx context.Context, tenantID uuid.UUID) (
 	}
 	dispatch := scanpkg.AgentJobDispatch{
 		Type: "inventory.job", JobID: uuid.New(), TenantID: tenantID, AgentIDs: online,
+	}
+	for _, id := range online {
+		if err := uc.kv.Set(ctx, PendingKey(id), dispatch.JobID.String(), ScanCooldown); err != nil {
+			return nil, domain.NewInternalError("could not queue the job: " + err.Error())
+		}
 	}
 	if err := uc.kv.Publish(ctx, scanpkg.AgentJobChannel(tenantID), dispatch); err != nil {
 		return nil, domain.NewInternalError("could not reach the agents: " + err.Error())
