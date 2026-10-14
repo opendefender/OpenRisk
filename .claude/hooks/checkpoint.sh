@@ -19,7 +19,9 @@ INPUT=$(cat)
 # read from the transcript), not the session's cwd. The file itself stays in
 # the project the session runs from, where /resume reads it.
 ROOT=$(edited_roots "$INPUT" | grep -vx '!unreadable' | head -1)
-PROJECT="${CLAUDE_PROJECT_DIR:-${ROOT:-$PWD}}"
+SESSION=$(json_get "$INPUT" '.cwd')
+PROJECT="${CLAUDE_PROJECT_DIR:-${SESSION:-$PWD}}"
+PROJECT=$(git -C "$PROJECT" rev-parse --show-toplevel 2>/dev/null || printf '%s' "$PROJECT")
 { [ -n "$ROOT" ] && cd "$ROOT"; } || cd "$PROJECT" || exit 0
 
 AGENT=$(json_get "$INPUT" '.agent_type')
