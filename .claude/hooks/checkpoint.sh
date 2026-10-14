@@ -18,7 +18,7 @@ INPUT=$(cat)
 # Branch and sha come from the checkout the agent worked in (its worktree,
 # read from the transcript), not the session's cwd. The file itself stays in
 # the project the session runs from, where /resume reads it.
-ROOT=$(edited_roots "$INPUT" | head -1)
+ROOT=$(edited_roots "$INPUT" | grep -vx '!unreadable' | head -1)
 PROJECT="${CLAUDE_PROJECT_DIR:-${ROOT:-$PWD}}"
 { [ -n "$ROOT" ] && cd "$ROOT"; } || cd "$PROJECT" || exit 0
 
