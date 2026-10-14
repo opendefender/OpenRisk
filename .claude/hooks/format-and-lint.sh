@@ -38,7 +38,7 @@ case "$FILE" in
           exit 2
         fi ;;
     esac ;;
-  *.ts|*.tsx|*.css)
+  *.ts|*.tsx|*.js|*.jsx|*.mjs|*.css|*.json)
     # Prettier lives in frontend/node_modules. This used to run from the repo
     # root, where `npx --no-install prettier` finds nothing and fails silently,
     # so no agent edit was ever formatted; 62 unformatted files reached master
