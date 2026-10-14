@@ -80,3 +80,9 @@ func TestFetchNVDByCPE(t *testing.T) {
 	require.NoError(t, err)
 	assert.Nil(t, none, "an unresolved program is never queried")
 }
+
+func TestCPEEscape(t *testing.T) {
+	assert.Equal(t, "23.01", cpeEscape("23.01"))
+	assert.Equal(t, `1\\x\:y\*`, cpeEscape(`1\x:y*`))
+	assert.Equal(t, "10_build_7", cpeEscape("10 build 7"))
+}

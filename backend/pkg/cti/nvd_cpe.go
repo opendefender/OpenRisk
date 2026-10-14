@@ -128,8 +128,22 @@ func (c *ExternalClient) FetchNVDByCPE(ctx context.Context, vendorProduct, versi
 	return out, nil
 }
 
-// cpeEscape escapes the characters CPE 2.3 formatted strings reserve.
+// cpeEscape writes a version as a CPE 2.3 formatted-string value: letters,
+// digits, "_", "-" and "." stay, a space becomes "_", and every other
+// character is backslash-quoted (backslash first, so it is never doubled by
+// mistake). A host's own software can carry any of them.
 func cpeEscape(v string) string {
-	r := strings.NewReplacer(":", `\:`, "*", `\*`, "?", `\?`, " ", "_")
-	return r.Replace(strings.TrimSpace(v))
+	var b strings.Builder
+	for _, r := range strings.TrimSpace(v) {
+		switch {
+		case r == ' ':
+			b.WriteByte('_')
+		case r >= 'a' && r <= 'z', r >= 'A' && r <= 'Z', r >= '0' && r <= '9', r == '_', r == '-', r == '.':
+			b.WriteRune(r)
+		default:
+			b.WriteByte('\\')
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
 }
