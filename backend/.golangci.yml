@@ -19,9 +19,10 @@ issues:
       linters:
         - errcheck
         - gosec
-    # Tests read responses from Fiber's app.Test and httptest, whose bodies are
-    # already in memory; there is no connection to leak. Production code is
-    # still checked.
+    # Nearly all of these are tests reading Fiber app.Test responses, which are
+    # buffered in memory. A few use httptest.NewServer, where an unclosed body
+    # holds a connection until the test process exits; that costs a test run
+    # nothing. Production code is still checked.
     - path: _test\.go
       linters:
         - bodyclose
@@ -30,8 +31,10 @@ issues:
     # 0046 moved them to Ownership and risk_control_mappings, and the old
     # columns are still read and written so existing filters keep answering
     # until callers move. The marker is there to stop new code reaching for
-    # them, not to fail the build on the readers that remain. Excluded by name
-    # so any other deprecation still fails lint.
+    # them, not to fail the build on the readers that remain.
+    # The match is by FIELD NAME only: a field called AssignedTo, Owner or
+    # ControlIDs on any other type that gets deprecated later is hidden too.
+    # Remove this rule when the legacy columns go.
     - linters:
         - staticcheck
       text: "SA1019: [A-Za-z_.\\[\\]]*\\.(AssignedTo|Owner|ControlIDs) is deprecated"
