@@ -43,6 +43,7 @@ if [ "$(json_get "$INPUT" '.hook_event_name')" = "SubagentStop" ]; then
 fi
 
 PINNED_LINT="v1.64.8"
+PINNED_RE=${PINNED_LINT#v}; PINNED_RE=${PINNED_RE//./\\.}
 FAIL=""
 run() { # run <label> <dir> <cmd...>
   local label="$1" dir="$2" out
@@ -92,7 +93,7 @@ check_root() {
       [ -n "$LINT" ] || { [ -x "$(go env GOPATH)/bin/golangci-lint" ] && LINT="$(go env GOPATH)/bin/golangci-lint"; }
       if [ -z "$LINT" ]; then
         FAIL+=$'\n'"✗ golangci-lint is not installed, and CI runs it. Install the pinned version:"$'\n'"  go install github.com/golangci/golangci-lint/cmd/golangci-lint@$PINNED_LINT"$'\n'
-      elif ! "$LINT" --version 2>/dev/null | grep -q "version ${PINNED_LINT#v}\|version $PINNED_LINT"; then
+      elif ! "$LINT" --version 2>/dev/null | grep -qE "version v?${PINNED_RE}( |$)"; then
         FAIL+=$'\n'"✗ golangci-lint is not the version CI pins ($PINNED_LINT): $("$LINT" --version 2>&1 | head -1)"$'\n'"  go install github.com/golangci/golangci-lint/cmd/golangci-lint@$PINNED_LINT"$'\n'
       else
         # shellcheck disable=SC2086
@@ -115,8 +116,13 @@ check_root() {
 }
 
 ROOTS=$(edited_roots "$INPUT")
+if printf '%s\n' "$ROOTS" | grep -qx '!unreadable'; then
+  FAIL+=$'\n'"✗ could not read the agent transcript, so the gate does not know which checkout to check; nothing was checked."$'\n'
+  ROOTS=$(printf '%s\n' "$ROOTS" | grep -vx '!unreadable')
+  [ -n "$ROOTS" ] || ROOTS="${CLAUDE_PROJECT_DIR:-$PWD}"
+fi
 [ -n "$ROOTS" ] || exit 0
-while IFS= read -r r; do (cd "$r" && true) && check_root "$r"; done <<< "$ROOTS"
+while IFS= read -r r; do [ -d "$r" ] && check_root "$r"; done <<< "$ROOTS"
 ROOT=$(printf '%s\n' "$ROOTS" | head -1)
 cd "$ROOT" || exit 0
 

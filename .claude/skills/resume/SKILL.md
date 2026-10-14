@@ -33,8 +33,12 @@ you which commands already passed.
 
 ## 3. Confirm the branch, then continue
 
+The issue's branch lives in its own worktree, `../OpenRisk-wt-<n>`. Never
+`git switch` in the main checkout: other sessions share it.
 ```
-git switch <the branch from gh issue develop>
+git worktree list                      # find ../OpenRisk-wt-<n>
+cd ../OpenRisk-wt-<n>                  # or, if it is missing:
+git worktree add ../OpenRisk-wt-<n> <type>/<n>-<slug>
 git log --oneline -5
 ```
 
