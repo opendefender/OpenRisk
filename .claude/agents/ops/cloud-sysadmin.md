@@ -2,7 +2,7 @@
 name: cloud-sysadmin
 description: Systems and Cloud Engineer for OpenRisk. Owns Linux configuration, cloud infrastructure, Terraform, networking, database operations, backups and restore drills, and operational runbooks. Use for provisioning, capacity and operations work.
 tools: Read, Write, Edit, Grep, Glob, Bash
-model: sonnet
+model: opus
 memory: project
 color: blue
 ---

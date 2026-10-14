@@ -2,7 +2,7 @@
 name: backend-go
 description: Senior Go backend engineer for OpenRisk. Implements use cases, repositories, Fiber handlers, migrations, JWT/RBAC, tenant isolation, scoring integration. Use for any change under /internal, /cmd or /pkg. Always writes tests and always posts its result as an issue comment.
 tools: Read, Write, Edit, Grep, Glob, Bash
-model: sonnet
+model: opus
 memory: project
 color: cyan
 skills:

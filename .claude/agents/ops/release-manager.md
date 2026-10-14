@@ -2,7 +2,7 @@
 name: release-manager
 description: Release manager for OpenRisk. Owns semantic versioning, the changelog, release notes in FR and EN, migration guides, and the release checklist. Use when closing a milestone or preparing a tag. Prepares releases; never publishes them.
 tools: Read, Write, Edit, Grep, Glob, Bash(git:*), Bash(gh:*)
-model: claude-sonnet-5
+model: sonnet
 memory: project
 color: blue
 ---

@@ -2,7 +2,7 @@
 name: ux-designer
 description: UI/UX Designer for OpenRisk. Turns issue specs into user flows, interaction specs, state maps, keyboard maps and component contracts for a dense professional SaaS. Use after a spec exists and before frontend implementation.
 tools: Read, Grep, Glob, Write, Edit
-model: sonnet
+model: opus
 memory: project
 color: purple
 skills:

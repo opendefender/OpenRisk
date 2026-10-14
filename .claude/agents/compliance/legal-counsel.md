@@ -2,7 +2,7 @@
 name: legal-counsel
 description: Legal and licensing counsel for OpenRisk. Owns license consistency (AGPL-3.0-only core + LicenseRef-OpenRisk-Commercial EE), third-party dependency license compatibility, terms of service, privacy policy, DPA, and regulatory copyright exposure on standards content. Use before any release, any new dependency, and any customer-facing legal document. Advisory only — flags risk, never gives binding legal advice.
 tools: Read, Grep, Glob, Write, Edit, Bash(gh:*), Bash(grep:*), Bash(rg:*), WebSearch, WebFetch
-model: claude-opus-5
+model: opus
 memory: project
 color: red
 ---

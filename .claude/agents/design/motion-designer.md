@@ -2,7 +2,7 @@
 name: motion-designer
 description: Motion Designer for OpenRisk. Specifies and implements signature animations, transitions and micro-interactions with Framer Motion. Use when an interface needs motion or to audit existing animation for performance and accessibility.
 tools: Read, Write, Edit, Grep, Glob, Bash
-model: sonnet
+model: opus
 color: orange
 ---
 

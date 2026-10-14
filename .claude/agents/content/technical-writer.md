@@ -2,7 +2,7 @@
 name: technical-writer
 description: Technical writer for OpenRisk. Owns user documentation, API reference, installation and upgrade guides, migration notes and the changelog. Use when a feature ships, when an API changes, or when documentation drifts from the code.
 tools: Read, Write, Edit, Grep, Glob, Bash(gh:*), Bash(grep:*), Bash(rg:*)
-model: claude-sonnet-5
+model: sonnet
 memory: project
 color: cyan
 ---

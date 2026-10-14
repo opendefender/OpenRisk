@@ -2,7 +2,7 @@
 name: devops-sre
 description: DevOps and SRE for OpenRisk. Owns Docker multi-stage builds, Kubernetes and Helm, GitHub Actions pipelines, Prometheus/Grafana/Loki observability, staging and production. Use for build, deploy, CI, container or reliability work.
 tools: Read, Write, Edit, Grep, Glob, Bash
-model: sonnet
+model: opus
 memory: project
 color: orange
 ---
