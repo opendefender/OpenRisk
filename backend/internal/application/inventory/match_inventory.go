@@ -7,6 +7,8 @@ package inventory
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"regexp"
 	"strings"
 	"time"
@@ -148,7 +150,7 @@ func (uc *MatchInventoryUseCase) Execute(ctx context.Context, tenantID, inventor
 		if key == "" {
 			key = a.ID
 		}
-		ext := inv.HostKey + "|" + eco + "|" + p.Name + "|" + key
+		ext := FindingID(inv.HostKey, eco, p.Name, key)
 		if keep[ext] {
 			return // two advisories for the same CVE on the same package
 		}
@@ -200,18 +202,28 @@ func (uc *MatchInventoryUseCase) Execute(ctx context.Context, tenantID, inventor
 		}
 	}
 
-	// Windows programs through NVD.
+	// Windows programs through NVD. One program NVD refuses is not the host's
+	// failure: it counts as not checkable and the others are still checked.
+	// But then nothing is closed, since a refused lookup is not a fix.
+	lookupFailed := false
+	asked := 0
 	for _, p := range pkgs {
 		if p.Source != domain.PackageSourceWindows {
 			continue
 		}
-		if uc.nvd == nil || p.Version == "" {
+		if uc.nvd == nil || p.Version == "" || asked >= MaxProgramLookups {
 			res.Uncheckable++
 			continue
 		}
+		asked++
 		advs, resolved, err := uc.nvd.Lookup(ctx, p.Publisher, p.Name, p.Version)
 		if err != nil {
-			return uc.unreachable(ctx, tenantID, inv, err)
+			if ctx.Err() != nil {
+				return uc.unreachable(ctx, tenantID, inv, err)
+			}
+			lookupFailed = true
+			res.Uncheckable++
+			continue
 		}
 		if !resolved {
 			res.Uncheckable++
@@ -232,17 +244,22 @@ func (uc *MatchInventoryUseCase) Execute(ctx context.Context, tenantID, inventor
 		}
 		res.Findings = out.Created + out.Updated
 	}
-	keepList := make([]string, 0, len(keep))
-	for k := range keep {
-		keepList = append(keepList, k)
-	}
 	now := uc.now()
-	closed, err := uc.closer.CloseAbsent(ctx, tenantID, domain.VulnSourceAgent, inv.HostKey+"|", keepList, now)
-	if err != nil {
-		return nil, domain.NewInternalError("could not close fixed findings: " + err.Error())
+	code := ""
+	if lookupFailed {
+		code = MatchErrUnreachable
+	} else {
+		keepList := make([]string, 0, len(keep))
+		for k := range keep {
+			keepList = append(keepList, k)
+		}
+		closed, err := uc.closer.CloseAbsent(ctx, tenantID, domain.VulnSourceAgent, inv.HostKey+"|", keepList, now)
+		if err != nil {
+			return nil, domain.NewInternalError("could not close fixed findings: " + err.Error())
+		}
+		res.Closed = int(closed)
 	}
-	res.Closed = int(closed)
-	if err := uc.repo.MarkMatched(ctx, tenantID, inv.ID, now, "", res.Uncheckable); err != nil {
+	if err := uc.repo.MarkMatched(ctx, tenantID, inv.ID, now, code, res.Uncheckable); err != nil {
 		return nil, domain.NewInternalError("could not record the match: " + err.Error())
 	}
 	return res, nil
@@ -251,6 +268,20 @@ func (uc *MatchInventoryUseCase) Execute(ctx context.Context, tenantID, inventor
 func (uc *MatchInventoryUseCase) unreachable(ctx context.Context, tenantID uuid.UUID, inv *domain.HostInventory, cause error) (*MatchResult, error) {
 	_ = uc.repo.MarkMatched(ctx, tenantID, inv.ID, uc.now(), MatchErrUnreachable, inv.UncheckableCount)
 	return nil, domain.NewInternalError("vulnerability lookup failed: " + cause.Error())
+}
+
+// MaxProgramLookups caps the NVD lookups of one match: NVD allows 5 requests
+// per 30 s without a key, so a host with thousands of programs would hold the
+// shared budget for hours (security review of #910). The rest count as not
+// checkable and are tried again on the next match, cache first.
+const MaxProgramLookups = 300
+
+// FindingID is a finding's external id: the host key, then a fixed-length
+// hash of (ecosystem, package, CVE or advisory), so it always fits the 255
+// column whatever the package name, and the host prefix stays exact.
+func FindingID(hostKey, ecosystem, name, key string) string {
+	sum := sha256.Sum256([]byte(ecosystem + "\x00" + name + "\x00" + key))
+	return hostKey + "|" + hex.EncodeToString(sum[:16])
 }
 
 // FirstCVE picks the CVE among an advisory's id and aliases, or "".

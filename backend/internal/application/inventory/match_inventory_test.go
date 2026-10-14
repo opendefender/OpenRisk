@@ -8,6 +8,7 @@ package inventory
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -105,14 +106,14 @@ func TestMatchInventory_Success(t *testing.T) {
 	assert.True(t, in.FromAgent && in.ReopenRemediated)
 	assert.Equal(t, domain.VulnSourceAgent, in.Source)
 	f := in.Findings[0]
-	assert.Equal(t, "srv-core-01|Ubuntu:22.04:LTS|openssl|CVE-2024-0727", f["external_id"])
+	assert.Equal(t, FindingID("srv-core-01", "Ubuntu:22.04:LTS", "openssl", "CVE-2024-0727"), f["external_id"])
 	assert.Equal(t, "3.0.2-0ubuntu1.14", f["fixed_version"])
 	assert.Equal(t, LookupOSV, f["lookup"])
 	assert.Equal(t, "srv-core-01", f["hostname"])
 
 	require.Len(t, c.calls, 1)
 	assert.Equal(t, "srv-core-01|", c.calls[0].prefix)
-	assert.Equal(t, []string{"srv-core-01|Ubuntu:22.04:LTS|openssl|CVE-2024-0727"}, c.calls[0].keep)
+	assert.Equal(t, []string{FindingID("srv-core-01", "Ubuntu:22.04:LTS", "openssl", "CVE-2024-0727")}, c.calls[0].keep)
 
 	got, _ := repo.Get(context.Background(), tenant, inv.ID)
 	assert.NotNil(t, got.MatchedAt)
@@ -166,6 +167,42 @@ func TestMatchInventory_Windows(t *testing.T) {
 	assert.Equal(t, 1, res.Findings)
 	assert.Equal(t, 1, res.Uncheckable)
 	assert.Equal(t, LookupNVDCPE, w.batches[0].Findings[0]["lookup"])
+}
+
+type flakyNVD struct{}
+
+func (flakyNVD) Lookup(_ context.Context, _, name, _ string) ([]Advisory, bool, error) {
+	if name == "Broken" {
+		return nil, true, errors.New("NVD HTTP 400")
+	}
+	return []Advisory{{ID: "CVE-2024-11477", CVE: "CVE-2024-11477", CVSS: 7.8}}, true, nil
+}
+
+// One program NVD refuses does not hide the others, and nothing is closed
+// while any lookup failed (security review of #910).
+func TestMatchInventory_OneProgramFails(t *testing.T) {
+	tenant := uuid.New()
+	repo := newFakeRepo()
+	inv := storeInv(t, repo, tenant, "windows", "10.0", []domain.HostPackageInput{
+		{Name: "Broken", Version: "1\\x", Source: "programs"},
+		{Name: "7-Zip", Version: "23.01", Source: "programs"},
+	})
+	w, c := &fakeWriter{}, &fakeCloser{}
+	res, err := NewMatchInventoryUseCase(repo, &fakeOSV{}, flakyNVD{}, w, c).Execute(context.Background(), tenant, inv.ID)
+	require.NoError(t, err)
+	assert.Equal(t, 1, res.Findings)
+	assert.Equal(t, 1, res.Uncheckable)
+	assert.Empty(t, c.calls, "no closing after a failed lookup")
+	got, _ := repo.Get(context.Background(), tenant, inv.ID)
+	assert.Equal(t, MatchErrUnreachable, got.MatchError)
+}
+
+func TestFindingID_FixedLength(t *testing.T) {
+	long := strings.Repeat("x", 256)
+	id := FindingID(strings.Repeat("h", 63), "Debian:12", long, "CVE-2024-0727")
+	assert.LessOrEqual(t, len(id), 255)
+	assert.True(t, strings.HasPrefix(id, strings.Repeat("h", 63)+"|"))
+	assert.NotEqual(t, id, FindingID(strings.Repeat("h", 63), "Debian:12", long, "CVE-2024-0728"))
 }
 
 func TestMatchInventory_Disabled(t *testing.T) {
