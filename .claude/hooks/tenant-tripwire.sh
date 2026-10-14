@@ -58,7 +58,12 @@ FINDINGS=$(printf '%s\n' "$ADDED" | awk -v file="$FILE" '
   function cont_before(s) { return s ~ /^[[:space:]]*[.)]/ }
   # The part of a line that can hold a query: for a func line, only its body
   # after the first "{", so a tenantID parameter never counts.
-  function body(s,   i) { if (!isfunc(s)) return s; i = index(s, "{"); return i ? substr(s, i + 1) : "" }
+  # Without a trailing // comment, so "// tenant checked by caller" is no scope.
+  function body(s,   i) {
+    sub(/[[:space:]]\/\/[^"`]*$/, "", s)
+    if (!isfunc(s)) return s
+    i = index(s, "{"); return i ? substr(s, i + 1) : ""
+  }
   # The local variable a statement queries through, or "" (r.db, a field,
   # does not count: that is the unscoped IDOR shape).
   function receiver(s, e,   k, txt, m) {
@@ -80,18 +85,24 @@ FINDINGS=$(printf '%s\n' "$ADDED" | awk -v file="$FILE" '
       if (iscomment(line[j]) || line[j] !~ assign) continue
       ej = j
       while (ej < FNR && (cont_after(line[ej]) || cont_before(line[ej+1]))) ej++
-      for (k = j; k <= ej; k++) if (!iscomment(line[k]) && body(line[k]) ~ "[tT]enant") return 1
+      for (k = j; k <= ej; k++) if (!iscomment(line[k]) && body(line[k]) ~ TENANT_RE) return 1
       if (line[j] ~ decl) return 0
+      # Only q = q.<more chain> keeps the scope of an earlier assignment;
+      # q = r.db.Model(...) starts over from an unscoped handle.
+      if (line[j] !~ ("=[[:space:]]*" v "[[:space:]]*\\.")) return 0
     }
     return 0
   }
+  BEGIN { TENANT_RE = "tenant_id|organization_id|OrganizationID|[tT]enant(ID|Id)?\\(|[tT]enant(ID|Id)([^A-Za-z0-9_]|$)|[tT]enant[A-Za-z]*Scope|[sS]cope[A-Za-z]*Tenant|(For|By|In)Tenant|[tT]enantDB" }
   END {
     # Delete/Save without & only on a db/tx receiver or after a call, so a
     # service method like svc.Save(ctx, x) is not taken for a query.
     q = "\\.(Where|Or|Not|Raw|Exec|First|Find|Take|Last)\\(|\\.(Delete|Save)\\(&|([dD][bB]|tx|\\))\\.(Delete|Save)\\(|\\.(Updates?|UpdateColumns?|Count|Pluck)\\("
     # Standard-library calls that share a name with a GORM method.
     stdlib = "(^|[^A-Za-z0-9_.])(bytes|strings|cmp|slices|maps|utf8|regexp|re)\\.(Count|Or|Find)[A-Za-z]*\\("
-    t = "[tT]enant"
+    # What counts as scoping: the column, or a tenant id, accessor or scope.
+    # Not the bare word: &tenantInc or Preload("Tenant") scope nothing.
+    t = TENANT_RE
     for (n = 1; n <= FNR; n++) {
       if (!(n in added) || iscomment(line[n]) || line[n] !~ q) continue
       probe = line[n]; gsub(stdlib, "", probe)
