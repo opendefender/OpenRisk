@@ -132,7 +132,7 @@ func NewLoginUseCase(userRepo UserRepository, tokenManager *auth.TokenManager, p
 
 // loginTimingDummyPassword is hashed at start-up and never matches anything a
 // person can sign in with: it is compared only when there is no account.
-const loginTimingDummyPassword = "openrisk-login-timing-equaliser"
+const loginTimingDummyPassword = "openrisk-login-timing-equaliser" //nolint:gosec // matches no account by design, see above
 
 // RequireMFAForRoles makes MFA mandatory for the named org roles and business
 // roles.

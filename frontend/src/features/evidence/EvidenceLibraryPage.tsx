@@ -262,9 +262,7 @@ export function EvidenceLibraryPage() {
                         ) : null}
                       </td>
                       <td className="px-4 py-3 text-ink-muted whitespace-nowrap">
-                        {new Date(e.collected_at).toLocaleDateString(
-                          localeTag(lang),
-                        )}
+                        {new Date(e.collected_at).toLocaleDateString(localeTag(lang))}
                       </td>
                       <td className="px-4 py-3">
                         <span

@@ -10,6 +10,7 @@ package incident
 
 import (
 	"context"
+	"strconv"
 	"strings"
 	"time"
 
@@ -286,7 +287,7 @@ func buildActionDescription(a *domain.CorrectiveAction, inc *domain.Incident) st
 		b.WriteString("\n\n")
 	}
 	b.WriteString("Corrective action from the post-mortem of incident INC-")
-	b.WriteString(itoa(int(inc.ID)))
+	b.WriteString(strconv.FormatUint(uint64(inc.ID), 10))
 	b.WriteString(" (")
 	b.WriteString(inc.Title)
 	b.WriteString(").")
@@ -346,26 +347,4 @@ func (s *PostMortemService) resolveAuthor(ctx context.Context, pm *domain.Incide
 	if emails, err := s.lookup.EmailsByIDs(ctx, []uuid.UUID{*pm.AuthorID}); err == nil {
 		pm.AuthorEmail = emails[*pm.AuthorID]
 	}
-}
-
-func itoa(i int) string {
-	if i == 0 {
-		return "0"
-	}
-	neg := i < 0
-	if neg {
-		i = -i
-	}
-	var b [20]byte
-	p := len(b)
-	for i > 0 {
-		p--
-		b[p] = byte('0' + i%10)
-		i /= 10
-	}
-	if neg {
-		p--
-		b[p] = '-'
-	}
-	return string(b[p:])
 }

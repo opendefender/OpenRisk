@@ -58,7 +58,11 @@ export function useSoftDelete<T>(opts: SoftDeleteOptions<T>) {
           .then(() => unhide(id))
           .catch(() => {
             toast.error(
-              failureMessage ? failureMessage(lang) : lang === 'fr' ? 'Suppression échouée' : 'Delete failed',
+              failureMessage
+                ? failureMessage(lang)
+                : lang === 'fr'
+                  ? 'Suppression échouée'
+                  : 'Delete failed',
             );
             unhide(id);
           });

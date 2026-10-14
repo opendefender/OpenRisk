@@ -16,11 +16,7 @@
  *      can say `{count, number} risques` and still be singular at one.
  */
 
-import {
-  boundFormatters,
-  type CurrencyOptions,
-  type DateInput,
-} from './format';
+import { boundFormatters, type CurrencyOptions, type DateInput } from './format';
 import { DEFAULT_LOCALE, type LocaleCode } from './locales';
 import { isPluralForms, resolveMessage, type Message } from './plural';
 
@@ -30,10 +26,7 @@ export interface Catalog {
 }
 
 /** What a component may interpolate. `count` additionally drives pluralization. */
-export type TranslateParams = Record<
-  string,
-  string | number | boolean | Date | null | undefined
->;
+export type TranslateParams = Record<string, string | number | boolean | Date | null | undefined>;
 
 function isCatalog(value: unknown): value is Catalog {
   return typeof value === 'object' && value !== null && !Array.isArray(value);

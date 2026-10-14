@@ -110,7 +110,19 @@ func newStreamTestEnv(t *testing.T, opts apprealtime.HubOptions) *streamTestEnv 
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(t, err)
 	go func() { _ = app.Listener(ln) }()
-	t.Cleanup(func() { _ = app.Shutdown() })
+	// Shutdown does not wait for stream writers, which keep ticking until a
+	// keepalive write fails. Wait for the hub to empty, so no stream from this
+	// test is still calling a revocation checker the next test installs (#957).
+	t.Cleanup(func() {
+		_ = app.Shutdown()
+		deadline := time.Now().Add(5 * time.Second)
+		for hub.Stats().Connections > 0 && time.Now().Before(deadline) {
+			time.Sleep(10 * time.Millisecond)
+		}
+		if n := hub.Stats().Connections; n > 0 {
+			t.Errorf("%d realtime stream(s) still open 5s after shutdown", n)
+		}
+	})
 
 	return &streamTestEnv{
 		baseURL: "http://" + ln.Addr().String(),

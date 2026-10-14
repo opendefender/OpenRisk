@@ -11,7 +11,6 @@ import { ArrowLeft, ArrowRight, Loader2 } from 'lucide-react';
 
 import { useI18n } from '../../../hooks/useI18n';
 
-
 export function Field({
   label,
   hint,

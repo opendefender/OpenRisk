@@ -275,7 +275,11 @@ export interface SavedViewsApi {
   status: SavedViewsStatus;
   /** Set when a save/rename/share/delete failed. Cleared by the next attempt. */
   mutationError: boolean;
-  save: (name: string, state: SavedView['state'], visibility?: SavedViewVisibility) => Promise<void>;
+  save: (
+    name: string,
+    state: SavedView['state'],
+    visibility?: SavedViewVisibility,
+  ) => Promise<void>;
   remove: (id: string) => Promise<void>;
   setVisibility: (id: string, visibility: SavedViewVisibility) => Promise<void>;
   /** Refetch after an error — the affordance behind criterion 7. */
@@ -347,7 +351,11 @@ export function useSavedViews(tableId: string): SavedViewsApi {
   const retry = useCallback(() => setReloadToken((n) => n + 1), []);
 
   const save = useCallback(
-    async (name: string, state: SavedView['state'], visibility: SavedViewVisibility = 'personal') => {
+    async (
+      name: string,
+      state: SavedView['state'],
+      visibility: SavedViewVisibility = 'personal',
+    ) => {
       setMutationError(false);
       // Optimistic: the view appears the instant it is named (rule 10). The
       // temporary id is replaced by the server's on success.

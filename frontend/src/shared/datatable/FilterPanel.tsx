@@ -42,11 +42,7 @@ interface FilterPanelProps<T> {
   viewsMutationError: boolean;
   /** Whether the signed-in user is a tenant admin (may edit a shared view they do not own). */
   canEditOthersViews: boolean;
-  onSaveView: (
-    name: string,
-    state: SavedView['state'],
-    visibility: SavedViewVisibility,
-  ) => void;
+  onSaveView: (name: string, state: SavedView['state'], visibility: SavedViewVisibility) => void;
   onDeleteView: (id: string) => void;
   onSetViewVisibility: (id: string, visibility: SavedViewVisibility) => void;
   onRetryViews: () => void;
@@ -289,7 +285,11 @@ export function FilterPanel<T>({
                     role="status"
                     data-testid="saved-views-error"
                   >
-                    <AlertCircle size={14} style={{ color: 'var(--danger)' }} className="mt-[2px]" />
+                    <AlertCircle
+                      size={14}
+                      style={{ color: 'var(--danger)' }}
+                      className="mt-[2px]"
+                    />
                     <div className="flex-1">
                       <p className="text-[11.5px] text-ink-muted">{labels.saved.error}</p>
                       <button
@@ -372,7 +372,10 @@ export function FilterPanel<T>({
                           ) : (
                             <span
                               className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full shrink-0"
-                              style={{ background: 'var(--accent-soft)', color: 'var(--accent-500)' }}
+                              style={{
+                                background: 'var(--accent-soft)',
+                                color: 'var(--accent-500)',
+                              }}
                             >
                               {labels.saved.sharedBadge}
                             </span>

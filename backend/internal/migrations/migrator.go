@@ -95,7 +95,7 @@ func RunMigrations() error {
 		}
 		var dirtyErr migrate.ErrDirty
 		if errors.As(err, &dirtyErr) {
-			return dirtyStateError(uint(dirtyErr.Version))
+			return dirtyStateError(uint(dirtyErr.Version)) //nolint:gosec // migrate only records versions it applied, all positive
 		}
 		return fmt.Errorf("migrations: apply: %w", err)
 	}

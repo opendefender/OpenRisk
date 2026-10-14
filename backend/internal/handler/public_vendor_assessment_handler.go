@@ -19,7 +19,7 @@ import (
 // VendorAssessmentTokenHeader carries the questionnaire token (ADR 0004 D4).
 // Never a path segment or a query parameter: those are recorded by every access
 // log and proxy, and leak through Referer.
-const VendorAssessmentTokenHeader = "X-Vendor-Assessment-Token"
+const VendorAssessmentTokenHeader = "X-Vendor-Assessment-Token" //nolint:gosec // a header name, not a credential
 
 const (
 	// publicTokenRequestsPerHour caps all requests presenting the same token.

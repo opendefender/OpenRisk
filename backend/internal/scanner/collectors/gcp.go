@@ -44,7 +44,7 @@ func (GCP) Collect(ctx context.Context, cfg scanner.ScanConfig, assets chan<- sc
 
 	opts := []option.ClientOption{}
 	if saJSON != "" {
-		opts = append(opts, option.WithCredentialsJSON([]byte(saJSON)))
+		opts = append(opts, option.WithAuthCredentialsJSON(option.ServiceAccount, []byte(saJSON)))
 	}
 	client, err := compute.NewInstancesRESTClient(ctx, opts...)
 	if err != nil {

@@ -821,38 +821,10 @@ func main() {
 	//
 	// A failed probe answers 503, because a readiness probe that cannot fail is
 	// not a readiness probe.
-	api.Get("/health", func(c *fiber.Ctx) error {
-		dbUp := true
-		if sqlDB, err := database.DB.DB(); err != nil {
-			dbUp = false
-		} else {
-			// Bounded: a probe that blocks on a wedged connection turns a health
-			// check into an outage of its own.
-			ctx, cancel := context.WithTimeout(c.UserContext(), 2*time.Second)
-			defer cancel()
-			if sqlDB.PingContext(ctx) != nil {
-				dbUp = false
-			}
-		}
-
-		status := "UP"
-		code := fiber.StatusOK
-		if !dbUp {
-			status = "DOWN"
-			code = fiber.StatusServiceUnavailable
-		}
-
-		return c.Status(code).JSON(fiber.Map{
-			"status":  status,
-			"version": Version,
-			"commit":  Commit,
-			"db":      map[bool]string{true: "CONNECTED", false: "DISCONNECTED"}[dbUp],
-			// Drives the permanent "demonstration data" banner. Served from the
-			// backend rather than a frontend build flag so the two cannot disagree
-			// about whether the data on screen is real.
-			"demo_mode": demoseed.Enabled(),
-		})
-	})
+	//
+	// The handler lives in health_wiring.go, where it is tested; it used to be
+	// an inline copy here, so the tested version was never the one served.
+	api.Get("/health", healthHandler(gormHealthPinger(database.DB), demoseed.Enabled))
 
 	// Per-IP throttles on the auth routes, one bucket per purpose (#688). Backed
 	// by Redis so the counters are shared across every instance; degrades to a

@@ -295,7 +295,7 @@ func (h *Argon2idPasswordHasher) verifyArgon2id(hashedPassword, plainPassword st
 		parsed.time,
 		parsed.memory,
 		parsed.threads,
-		uint32(len(parsed.digest)),
+		uint32(len(parsed.digest)), //nolint:gosec // digest decoded from a stored hash, a few dozen bytes
 	)
 
 	return subtle.ConstantTimeCompare(rehashed, parsed.digest) == 1
@@ -335,7 +335,7 @@ func (h *Argon2idPasswordHasher) NeedsRehash(hashed string) bool {
 		}
 		return parsed.memory < h.params.Memory ||
 			parsed.time < h.params.Time ||
-			uint32(len(parsed.digest)) < h.params.KeyLen
+			uint32(len(parsed.digest)) < h.params.KeyLen //nolint:gosec // digest decoded from a stored hash, a few dozen bytes
 	default:
 		return false
 	}

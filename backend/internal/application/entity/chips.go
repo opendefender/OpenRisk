@@ -36,7 +36,8 @@ func severityChip(raw string) *Chip {
 	if v == "" {
 		return nil
 	}
-	label, tone := v, toneNeutral
+	var label string
+	tone := toneNeutral
 	switch v {
 	case "critical":
 		label, tone = "Critical", toneCritical

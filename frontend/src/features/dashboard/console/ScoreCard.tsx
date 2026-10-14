@@ -99,9 +99,14 @@ export function ScoreCard({ className = '' }: { className?: string }) {
             </div>
           ) : (
             <div className="mt-5" data-testid="dash-score-unmeasured">
-              <p className="m-0 text-[13px] font-semibold text-ink">{bandLabel(undefined, locale)}</p>
+              <p className="m-0 text-[13px] font-semibold text-ink">
+                {bandLabel(undefined, locale)}
+              </p>
               <p className="m-0 mt-1 text-[12.5px] text-ink-muted leading-relaxed">
-                {unmeasuredReason(data && !data.measured ? data.reason_i18n_key : undefined, locale)}
+                {unmeasuredReason(
+                  data && !data.measured ? data.reason_i18n_key : undefined,
+                  locale,
+                )}
               </p>
             </div>
           )}
@@ -163,7 +168,9 @@ function FactorRow({ factor, model }: { factor: ScoreFactor; model?: ScoreModel 
         style={{ background: 'var(--chart-track)' }}
         role="img"
         aria-label={
-          factor.available ? `${label} ${Math.round(factor.raw)}/100` : `${label} — ${t('dashboard.score.notMeasured')}`
+          factor.available
+            ? `${label} ${Math.round(factor.raw)}/100`
+            : `${label} — ${t('dashboard.score.notMeasured')}`
         }
       >
         <span

@@ -118,10 +118,7 @@ describe('#287 — empty tenant, every score surface agrees', () => {
   it('no surface prints a number or a grade; all say "non mesuré", from one /score request', async () => {
     renderSurfaces();
 
-    const gauges = [
-      'surface-home',
-      'surface-score-page',
-    ];
+    const gauges = ['surface-home', 'surface-score-page'];
 
     await waitFor(() => {
       for (const id of gauges) {

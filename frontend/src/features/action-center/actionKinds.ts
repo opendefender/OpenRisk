@@ -27,7 +27,8 @@ import { api } from '../../lib/api';
 import type { ActionItem, ActionItemType } from './actionCenterService';
 
 /** The redesign's filter chips. `incident` shows only when there is one. */
-export type ActionFilter = 'all' | 'approval' | 'vuln' | 'plans' | 'incident' | 'compliance' | 'vendor';
+export type ActionFilter =
+  'all' | 'approval' | 'vuln' | 'plans' | 'incident' | 'compliance' | 'vendor';
 
 export const FILTER_ORDER: ActionFilter[] = [
   'all',

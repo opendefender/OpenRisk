@@ -177,8 +177,10 @@ func TestProcessIncidentLowSeverity(t *testing.T) {
 func TestProcessIncidentHighSeverity(t *testing.T) {
 	// This is a documentation test showing the expected behavior
 	// HIGH/CRITICAL severity incidents should trigger repository operations
-	// Full integration tests with real DB are in risk_handler_integration_test.go
-	t.Skip("Integration test - requires real database. See risk_handler_integration_test.go")
+	// No Postgres-backed test covers this path yet. The handler integration
+	// test this used to point at targeted functions that no longer exist and
+	// was removed in #957.
+	t.Skip("needs a Postgres-backed test; none covers the incident pipeline yet")
 }
 
 // TestStartAndStop verifies graceful start/stop lifecycle

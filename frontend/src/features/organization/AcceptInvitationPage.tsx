@@ -373,14 +373,11 @@ export function AcceptInvitationPage() {
 
               <p className="text-[11.5px] text-ink-muted mt-4 text-center leading-snug">
                 {tr('Ce lien expire le ', 'This link expires on ')}
-                {new Date(preview.expires_at).toLocaleDateString(
-                  localeTag(lang),
-                  {
-                    day: 'numeric',
-                    month: 'long',
-                    year: 'numeric',
-                  },
-                )}
+                {new Date(preview.expires_at).toLocaleDateString(localeTag(lang), {
+                  day: 'numeric',
+                  month: 'long',
+                  year: 'numeric',
+                })}
                 .
               </p>
             </>

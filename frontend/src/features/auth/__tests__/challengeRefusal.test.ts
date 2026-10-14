@@ -43,7 +43,9 @@ describe('classifyChallengeRefusal (#872)', () => {
   });
 
   it('reads the wait from the body first, then from Retry-After', () => {
-    expect(classifyChallengeRefusal(refused(429, { code: 'MFA_LOCKED', retry_after: 900 }))).toEqual({
+    expect(
+      classifyChallengeRefusal(refused(429, { code: 'MFA_LOCKED', retry_after: 900 })),
+    ).toEqual({
       kind: 'locked',
       retryAfterSeconds: 900,
     });
@@ -53,7 +55,9 @@ describe('classifyChallengeRefusal (#872)', () => {
   });
 
   it('treats the per-address limit as a wait of unknown length', () => {
-    expect(classifyChallengeRefusal(refused(429, { error: true, msg: 'Rate limit exceeded' }))).toEqual({
+    expect(
+      classifyChallengeRefusal(refused(429, { error: true, msg: 'Rate limit exceeded' })),
+    ).toEqual({
       kind: 'locked',
       retryAfterSeconds: null,
     });

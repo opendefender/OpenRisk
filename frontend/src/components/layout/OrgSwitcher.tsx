@@ -186,9 +186,7 @@ export function OrgSwitcher({
           </div>
         )}
         <div className="min-w-0 flex-1 text-left">
-          <div className="text-[12.5px] font-semibold text-ink truncate">
-            {orgName}
-          </div>
+          <div className="text-[12.5px] font-semibold text-ink truncate">{orgName}</div>
           <OrgPlanLabel />
         </div>
         <ChevronsUpDown size={14} className="text-ink-muted shrink-0" aria-hidden="true" />
