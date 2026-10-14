@@ -110,7 +110,13 @@ Both tables carry `tenant_id`, and every query filters on it.
 - **Close on fix**: after a match, every unresolved `agent` finding of that host
   that the new result no longer contains moves to `remediated` through
   `SetStatus` (stamps `remediated_at`). Accepted or false-positive findings are
-  never touched. A finding that reappears is reopened by the existing ingest upsert.
+  never touched. A finding that reappears is reopened: the ingest upsert keeps
+  triage status, so the matcher sets the opt-in `ReopenRemediated` (only
+  `remediated` reopens; accepted and false positive stay).
+- *Found while building (2026-10-14)*: the ingest never persisted `raw_data`.
+  An opt-in `KeepRawKeys` now stores the package, installed and fixed version,
+  ecosystem, lookup method and advisory id on each agent finding. The ingest
+  accepts the `agent` source only with `FromAgent`, so an import cannot pose as it.
 - OSV unreachable: the match fails, `match_error` is stored, and existing
   findings are left unchanged. A failed match never closes anything.
 
@@ -254,9 +260,11 @@ func OSVEcosystem(os, osVersion, source string) string
      vérifiable", never a guess;
    - query `GET /rest/json/cves/2.0?virtualMatchString=cpe:2.3:a:<vendor>:<product>:<version>`
      so NVD applies its own version ranges;
-   - findings carry `match_method = "nvd_cpe"` and `match_confidence = 0.6`
-     (OSV matches: `"osv"`, 1.0), and the open row says "Correspondance par CPE
-     (NVD), à confirmer";
+   - findings carry `raw_data.lookup = "nvd_cpe"` (OSV matches: `"osv"`), and the
+     open row says "Correspondance par CPE (NVD), à confirmer". *Changed while
+     building*: `match_method`/`match_confidence` already mean the **asset**
+     correlation's method and confidence, so the lookup's own certainty lives
+     in `raw_data` instead of overloading them;
    - NVD limits: 5 requests / 30 s without a key, 50 with `NVD_API_KEY`
      (already read by the server). A Windows host is matched in the background
      over minutes; CPE resolutions and CVE answers are cached 7 days, shared
