@@ -14,7 +14,15 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { toast } from 'sonner';
 
-import { Button, Field, Input, Select, Textarea, useSuccessFeedback } from '../../shared/ds';
+import {
+  Button,
+  Field,
+  Input,
+  Select,
+  Switch,
+  Textarea,
+  useSuccessFeedback,
+} from '../../shared/ds';
 import { apiErrorMessage } from '../../lib/apiError';
 import { ENABLED_LOCALES, LOCALES } from '../../i18n/locales';
 import { ACCENT_LABELS, ACCENT_PRESETS } from '../../shared/accentPresets';
@@ -59,6 +67,8 @@ function valuesOf(org: OrganizationView): OrganizationProfileValues {
     default_locale: org.default_locale ?? '',
     date_format: org.date_format ?? '',
     accent: org.accent ?? '',
+    // Absent from an older server means the default: on (#910).
+    online_vuln_lookup: org.online_vuln_lookup ?? true,
   };
 }
 
@@ -84,7 +94,11 @@ export function OrganizationProfileForm({ org, tr }: { org: OrganizationView; tr
   }, [org, isDirty, reset]);
 
   const onSubmit = (values: OrganizationProfileValues) => {
-    const patch: OrganizationProfilePatch = values as OrganizationProfilePatch;
+    const { online_vuln_lookup, ...rest } = values;
+    const patch: OrganizationProfilePatch = {
+      ...(rest as OrganizationProfilePatch),
+      online_vuln_lookup: online_vuln_lookup ? 'on' : 'off',
+    };
     update.mutate(patch, {
       onSuccess: (saved) => {
         reset(valuesOf(saved));
@@ -236,6 +250,21 @@ export function OrganizationProfileForm({ org, tr }: { org: OrganizationView; tr
             ))}
           </Select>
         </Field>
+      </fieldset>
+
+      <fieldset className="grid gap-2">
+        <legend className="text-[12px] font-semibold uppercase tracking-wide text-ink-muted mb-3">
+          {tr('Données envoyées', 'Data sent out')}
+        </legend>
+        <Switch
+          {...register('online_vuln_lookup')}
+          data-testid="org-online-vuln-lookup"
+          label={tr('Recherche de vulnérabilités en ligne', 'Online vulnerability lookup')}
+          description={tr(
+            'Pour trouver les vulnérabilités des hôtes où l’agent OpenRisk est installé, OpenRisk envoie le nom, la version et l’écosystème de leurs paquets à OSV (Linux) et NVD (Windows). Jamais de nom d’hôte, d’adresse IP ni d’identifiant de votre organisation. Désactivée, les paquets restent listés mais ne sont pas vérifiés.',
+            'To find vulnerabilities on hosts running the OpenRisk agent, OpenRisk sends the name, version and ecosystem of their packages to OSV (Linux) and NVD (Windows). Never a hostname, an IP address or your organization’s identity. Turned off, packages stay listed but are not checked.',
+          )}
+        />
       </fieldset>
 
       <div className="flex justify-end gap-2">

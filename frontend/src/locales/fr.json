@@ -1836,9 +1836,15 @@
     "import": "Importer",
     "scan": {
       "label": "Lancer un scan",
-      "started": "Scan lancé : {name}",
-      "follow": "Suivre",
-      "failed": "Le scan n'a pas pu être lancé."
+      "started": {
+        "one": "Inventaire demandé à {count} agent. Les vulnérabilités arrivent dans quelques minutes.",
+        "other": "Inventaire demandé à {count} agents. Les vulnérabilités arrivent dans quelques minutes."
+      },
+      "noAgent": "Aucun agent en ligne. Installez ou démarrez l'agent OpenRisk sur vos serveurs.",
+      "configure": "Infrastructure",
+      "cooldown": "Un scan a déjà été lancé il y a moins de 10 minutes.",
+      "failed": "Le scan n'a pas pu être lancé.",
+      "hint": "Demande aux agents en ligne la liste des paquets installés sur leur hôte, puis la compare aux vulnérabilités connues (OSV, NVD)."
     },
     "kpi": {
       "open": "Ouvertes",
@@ -1960,7 +1966,14 @@
       "readOnly": "Aucune vulnérabilité n'est encore importée. Votre rôle permet de les consulter ; un administrateur peut vous donner le droit d'en importer."
     },
     "entity": "vulnérabilités",
-    "riskTitle": "{title} ({cve})"
+    "riskTitle": "{title} ({cve})",
+    "pkg": {
+      "title": "Paquet concerné",
+      "upgrade": "Mettre à jour {name} vers {version} ou plus récent.",
+      "noFix": "Aucune version corrigée de {name} n'est encore publiée.",
+      "installed": "Installé : {name} {version}",
+      "cpeMatch": "Correspondance par produit NVD (CPE), à confirmer."
+    }
   },
   "threats": {
     "title": "Threat Intel",
@@ -2011,5 +2024,25 @@
       "why": "OpenRisk n'ingère pas encore vos journaux, et les sources actuelles (NVD, CISA KEV) ne publient pas d'indicateurs. Aucune correspondance n'est donc calculée ni affichée."
     },
     "backToThreats": "Menaces pour vos actifs"
+  },
+  "hostInventory": {
+    "title": "Inventaire logiciel",
+    "empty": "Aucun inventaire : l'agent OpenRisk n'est pas installé sur cet hôte, ou son nom ne correspond pas à l'actif.",
+    "packages": {
+      "one": "{n} paquet",
+      "other": "{n} paquets"
+    },
+    "uncheckable": {
+      "one": "{n} non vérifiable",
+      "other": "{n} non vérifiables"
+    },
+    "collected": "Collecté le {date}",
+    "matched": "vérifié le {date}",
+    "error": {
+      "osquery_missing": "osquery requis : installez-le sur l'hôte pour lister ses paquets.",
+      "source_unreachable": "Source de vulnérabilités injoignable (OSV, NVD) : rien n'a été fermé, nouvel essai au prochain scan.",
+      "lookup_disabled": "Recherche en ligne désactivée pour votre organisation : les paquets sont listés mais pas vérifiés.",
+      "unknown": "La dernière vérification a échoué."
+    }
   }
 }

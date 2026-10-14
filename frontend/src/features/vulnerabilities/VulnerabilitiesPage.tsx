@@ -46,7 +46,6 @@ import { useSoftDelete } from '../../shared/useSoftDelete';
 import { safeExternalUrl } from '../../shared/safeUrl';
 import { BulkPreviewDialog, useGovernedBulk, type BulkChangeInput } from '../../shared/bulk';
 import { BlockError } from '../dashboard/console/Panel';
-import { DiscoverButton } from '../assets/DiscoverButton';
 import { CreateRiskModal } from '../risks/CreateRiskModal';
 import { useVulnerabilities, useVulnStats, useVulnMutations } from './useVulnerabilities';
 import {
@@ -56,6 +55,7 @@ import {
   type VulnQueryParams,
   type VulnSeverity,
   type VulnStats,
+  type VulnRawData,
   type VulnStatus,
 } from './vulnerabilityService';
 import { SEVERITY_META, SOURCE_LABEL, STATUS_ORDER, TIER_META } from './vulnMeta';
@@ -69,6 +69,7 @@ import {
   type PrioritySignal,
 } from './vulnQueue';
 import { IngestModal } from './IngestModal';
+import { PackageScanButton } from './PackageScanButton';
 import { IntegrationsPanel } from './IntegrationsPanel';
 
 const PILLS: readonly VulnSeverity[] = ['critical', 'high', 'medium', 'low'];
@@ -517,7 +518,7 @@ export function VulnerabilitiesPage() {
                 {t('vulns.import')}
               </Button>
             )}
-            <DiscoverButton strings="vulns.scan" testId="vuln-scan" />
+            <PackageScanButton />
           </>
         }
       />
@@ -866,6 +867,7 @@ function VulnDetail({
             </p>
           </div>
         )}
+        {v.raw_data?.package && <PackageFacts raw={v.raw_data} />}
         <dl className="m-0 grid grid-cols-[auto_1fr] sm:grid-cols-[auto_1fr_auto_1fr] gap-x-4 gap-y-1.5 text-[12.5px]">
           <dt className="text-ink-muted">{t('vulns.field.asset')}</dt>
           <dd className="m-0 text-ink">
@@ -985,6 +987,34 @@ function VulnDetail({
           initialAssetIds={v.asset_id ? [v.asset_id] : []}
           initialTitle={t('vulns.riskTitle', { title: v.title, cve: v.cve_id || v.external_id })}
         />
+      )}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------ inventory finding */
+
+/** What the agent's inventory says about the flaw (#910): the package, the
+ *  installed and the fixed version, and how sure the match is. */
+function PackageFacts({ raw }: { raw: VulnRawData }) {
+  const { t } = useI18n();
+  const label = 'text-[10.5px] tracking-[.06em] uppercase font-semibold text-ink-muted';
+  return (
+    <div data-testid="vuln-package">
+      <div className={label}>{t('vulns.pkg.title')}</div>
+      <p className="m-0 mt-1 text-[13px] leading-relaxed text-ink max-w-[75ch]">
+        {raw.fixed_version
+          ? t('vulns.pkg.upgrade', { name: raw.package ?? '', version: raw.fixed_version })
+          : t('vulns.pkg.noFix', { name: raw.package ?? '' })}
+      </p>
+      <p className="m-0 mt-1 text-[12px] text-ink-muted mono">
+        {t('vulns.pkg.installed', {
+          name: raw.package ?? '',
+          version: raw.installed_version ?? '—',
+        })}
+      </p>
+      {raw.lookup === 'nvd_cpe' && (
+        <p className="m-0 mt-1 text-[12px] text-warning-text">{t('vulns.pkg.cpeMatch')}</p>
       )}
     </div>
   );

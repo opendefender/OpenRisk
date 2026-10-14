@@ -50,6 +50,7 @@ export const SOURCE_LABEL: Record<VulnSource, string> = {
   crowdstrike: 'CrowdStrike',
   scanner: 'Scanner',
   manual: 'Manuel',
+  agent: 'Agent OpenRisk',
 };
 
 export const pick = <T>(v: [T, T], lang: LocaleCode): T => (lang === 'fr' ? v[0] : v[1]);

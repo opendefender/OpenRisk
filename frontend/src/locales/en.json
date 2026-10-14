@@ -1836,9 +1836,15 @@
     "import": "Import",
     "scan": {
       "label": "Run a scan",
-      "started": "Scan started: {name}",
-      "follow": "Follow",
-      "failed": "The scan could not start."
+      "started": {
+        "one": "Inventory requested from {count} agent. Vulnerabilities arrive within minutes.",
+        "other": "Inventory requested from {count} agents. Vulnerabilities arrive within minutes."
+      },
+      "noAgent": "No agent is online. Install or start the OpenRisk agent on your servers.",
+      "configure": "Infrastructure",
+      "cooldown": "A scan was already started less than 10 minutes ago.",
+      "failed": "The scan could not start.",
+      "hint": "Asks the online agents for the packages installed on their host, then checks them against known vulnerabilities (OSV, NVD)."
     },
     "kpi": {
       "open": "Open",
@@ -1960,7 +1966,14 @@
       "readOnly": "No vulnerability has been imported yet. Your role can view them; an administrator can grant you the right to import."
     },
     "entity": "vulnerabilities",
-    "riskTitle": "{title} ({cve})"
+    "riskTitle": "{title} ({cve})",
+    "pkg": {
+      "title": "Affected package",
+      "upgrade": "Upgrade {name} to {version} or later.",
+      "noFix": "No fixed version of {name} is published yet.",
+      "installed": "Installed: {name} {version}",
+      "cpeMatch": "Matched through the NVD product (CPE), to be confirmed."
+    }
   },
   "threats": {
     "title": "Threat Intel",
@@ -2011,5 +2024,25 @@
       "why": "OpenRisk does not ingest your logs yet, and the current sources (NVD, CISA KEV) publish no indicators. No match is computed or shown."
     },
     "backToThreats": "Threats to your assets"
+  },
+  "hostInventory": {
+    "title": "Software inventory",
+    "empty": "No inventory: the OpenRisk agent is not installed on this host, or its name does not match the asset.",
+    "packages": {
+      "one": "{n} package",
+      "other": "{n} packages"
+    },
+    "uncheckable": {
+      "one": "{n} not checkable",
+      "other": "{n} not checkable"
+    },
+    "collected": "Collected {date}",
+    "matched": "checked {date}",
+    "error": {
+      "osquery_missing": "osquery required: install it on the host to list its packages.",
+      "source_unreachable": "Vulnerability source unreachable (OSV, NVD): nothing was closed, the next scan tries again.",
+      "lookup_disabled": "Online lookup is turned off for your organization: packages are listed but not checked.",
+      "unknown": "The last check failed."
+    }
   }
 }
