@@ -101,6 +101,8 @@ var decisions = []Decision{
 		"repository/actioncenter_repository_test TestActionCenter_TenantIsolation seeds the same qualifying row in two tenants and asserts each of the SIX source queries (mitigations, risks, approvals, incidents, evidence, remediation plans) returns only the caller's; TestActionCenter_NilTenantIsRefused proves a zero tenant fails closed with ErrForbidden rather than returning an unscoped set, and TestActionCenter_BusinessRoleIsScopedToTheTenant proves the role driving what is shown is read per (user, tenant). The caller's tenant comes only from the JWT (handler.callerFromCtx), never from the query string. Note incidents.tenant_id is a VARCHAR, compared as a string on purpose"},
 	{"/api/v1/assets/{id}", Covered,
 		"application/asset get/update/delete cross-tenant tests + gorm_asset_repository_test"},
+	{"/api/v1/assets/{id}/inventories", Covered,
+		"#910. Reads host_inventories on `tenant_id = ? AND asset_id = ?` with the tenant from the JWT (handler.tenantID, 401 on a zero tenant), so another tenant's asset id lists nothing. repository/gorm_host_inventory_repository_test TestHostInventoryRepo_TenantIsolation asks for my asset as the other tenant and gets an empty list, and reads, packages and match writes across tenants are refused the same way"},
 	{"/api/v1/assets/{id}/analysis", Covered,
 		"#937. AssetAnalysisUseCase resolves the asset through GormAssetRepository.GetByID (`id = ? AND tenant_id = ?`) before reading any finding, then lists findings with the tenant-scoped vulnerability List filtered by that asset; vulnerability/asset_analysis_test TestAssetAnalysis_NotFound asks for the asset as another tenant, gets not found, and proves no finding was read"},
 	{"/api/v1/assets/{id}/history", Covered,
@@ -479,7 +481,11 @@ var decisions = []Decision{
 	{"/api/v1/reports/types", PublicByDesign,
 		"the report catalogue: template keys, versions, titles and formats, all compiled in and localised. No table is read"},
 
-	// --- CTI (2) ----------------------------------------------------------
+	// --- CTI (4) ----------------------------------------------------------
+	{"/api/v1/cti/threats", Covered,
+		"#911. Built only from the caller's own rows: GormThreatRepository reads assets, findings and dismissals on `tenant_id = ?`, the tenant from the JWT (handler.tenantID, 401 on a zero tenant); the CTI catalogue it joins is global NVD/KEV data. application/threatintel TestListThreats_Unauthorized gives another tenant an asset on the same CPE and a dismissal and proves neither reaches the list; repository/gorm_threat_repository_pg_test TestThreatRepository_Postgres proves the same on PostgreSQL (skips on an unmigrated database)"},
+	{"/api/v1/cti/threats/{id}/dismissal", Covered,
+		"#911. The path id is a CVE, public; the dismissal row is keyed on (tenant_id, cve_id) with the tenant from the JWT. TestDismissThreat_Unauthorized and TestThreatRepository_Postgres prove another tenant's restore finds nothing and leaves the dismissal in place"},
 	{"/api/v1/cti/vulnerabilities", PublicByDesign,
 		"the NVD/CISA feed is global threat intelligence, not tenant-owned — the same reasoning already recorded for /cti/vulnerabilities/{id}. Nothing in the response is derived from a tenant's data"},
 	{"/api/v1/cti/stats", PublicByDesign,

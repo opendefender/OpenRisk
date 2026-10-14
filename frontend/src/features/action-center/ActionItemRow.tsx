@@ -25,7 +25,9 @@ export interface ActionItemRowProps {
 
 export function ActionItemRow({ item, href, onDone }: ActionItemRowProps) {
   const { t } = useI18n();
-  const cta = kindOf(item.type) ? t(`actionCenter.cta.${item.type}`) : t('actionCenter.cta.unknown');
+  const cta = kindOf(item.type)
+    ? t(`actionCenter.cta.${item.type}`)
+    : t('actionCenter.cta.unknown');
 
   return (
     <li
@@ -42,7 +44,9 @@ export function ActionItemRow({ item, href, onDone }: ActionItemRowProps) {
 
       <span className="flex-1 min-w-0">
         <span className="block text-[13.5px] font-semibold text-ink truncate">{item.title}</span>
-        <span className="block text-[12px] text-ink-muted mt-0.5 truncate">{actionFacts(item, t)}</span>
+        <span className="block text-[12px] text-ink-muted mt-0.5 truncate">
+          {actionFacts(item, t)}
+        </span>
       </span>
 
       {item.due_at && <DuePill iso={item.due_at} />}

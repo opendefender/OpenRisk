@@ -72,7 +72,17 @@ docker run -d --network host -e OPENRISK_SERVER=https://app.openrisk.io \
 
 - **nmap** in `PATH` (required for network scans). `--script vuln` provides CVE
   matching; `-O` (OS detection) needs root / `CAP_NET_RAW`.
-- **osquery** (`osqueryi`) optional — augments discovery with local inventory.
+- **osquery** (`osqueryi`) **required for the software inventory** (#910). The
+  agent reads the packages installed on *this* host (deb, rpm, apk, Windows
+  programs) so OpenRisk can find their known vulnerabilities. Without it, an
+  inventory job reports `osquery_missing` and the console shows "osquery requis"
+  for the host. Network scans still work without it. Install it from the
+  official packages at <https://osquery.io/downloads>: the `.deb` on
+  Debian/Ubuntu, the `.rpm` on RHEL/Rocky/Alma, the `.msi` on Windows. The
+  inventory sends package names, versions and the OS release to your OpenRisk
+  server. With online lookup enabled for your organisation, the server sends
+  only package names, versions and ecosystem to OSV (Linux) and NVD (Windows),
+  and never hostnames or IPs.
 
 ## Security
 

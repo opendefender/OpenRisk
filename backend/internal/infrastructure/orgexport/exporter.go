@@ -76,7 +76,7 @@ func (e *Exporter) Export(ctx context.Context, tenant uuid.UUID) (string, error)
 	if err != nil {
 		return "", err
 	}
-	if err := os.WriteFile(path, data, 0o640); err != nil {
+	if err := os.WriteFile(path, data, 0o600); err != nil {
 		return "", err
 	}
 	return path, nil

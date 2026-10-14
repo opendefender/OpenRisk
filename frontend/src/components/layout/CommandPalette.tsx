@@ -218,7 +218,8 @@ export const CommandPalette = () => {
           : r.subtitle,
       badge: r.badge
         ? {
-            text: (SEVERITY_LABEL[r.badge] && pickLocalized(lang, SEVERITY_LABEL[r.badge])) ?? r.badge,
+            text:
+              (SEVERITY_LABEL[r.badge] && pickLocalized(lang, SEVERITY_LABEL[r.badge])) ?? r.badge,
             tone: TONE[r.badge] ?? 'var(--fg-muted)',
           }
         : undefined,
@@ -248,7 +249,9 @@ export const CommandPalette = () => {
       e.preventDefault();
       if (flat.length === 0) return;
       const next =
-        e.key === 'ArrowDown' ? (current + 1) % flat.length : (current - 1 + flat.length) % flat.length;
+        e.key === 'ArrowDown'
+          ? (current + 1) % flat.length
+          : (current - 1 + flat.length) % flat.length;
       setActive(next);
       listRef.current
         ?.querySelector<HTMLElement>(`[data-cmd-index="${next}"]`)
@@ -329,7 +332,11 @@ export const CommandPalette = () => {
                       className="absolute left-0 top-2.5 bottom-2.5 w-[2px] rounded-[2px]"
                       style={{ background: on ? 'var(--accent)' : 'transparent' }}
                     />
-                    <Icon size={16} strokeWidth={1.75} className="text-ink-soft shrink-0 w-[18px]" />
+                    <Icon
+                      size={16}
+                      strokeWidth={1.75}
+                      className="text-ink-soft shrink-0 w-[18px]"
+                    />
                     <span className="flex-1 min-w-0 text-[13px] text-ink whitespace-nowrap overflow-hidden text-ellipsis">
                       {it.label}
                     </span>
@@ -369,9 +376,7 @@ export const CommandPalette = () => {
         <div className="flex gap-4 px-4 py-[9px] border-t border-border-subtle text-[11.5px] text-ink-muted">
           <span>↑↓ {L.navigate}</span>
           <span>↵ {L.open}</span>
-          {can('risks:create') && (
-            <span>N {L.cmdNewRiskHint}</span>
-          )}
+          {can('risks:create') && <span>N {L.cmdNewRiskHint}</span>}
         </div>
       </div>
     </div>

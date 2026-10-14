@@ -39,7 +39,11 @@ export function OrgLogo({
         height: size,
         borderRadius: radius,
         fontSize: Math.round(size * 0.38),
-        background: src ? 'var(--bg-elevated)' : neutral ? 'var(--surface-3)' : 'var(--accent-soft)',
+        background: src
+          ? 'var(--bg-elevated)'
+          : neutral
+            ? 'var(--surface-3)'
+            : 'var(--accent-soft)',
       }}
       aria-hidden="true"
       data-testid="org-logo"

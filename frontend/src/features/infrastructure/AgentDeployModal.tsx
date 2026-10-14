@@ -68,7 +68,10 @@ export function AgentDeployModal({ config, onClose }: { config: ScanConfig; onCl
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div
         className="absolute inset-0"
-        style={{ background: 'var(--surface-overlay)', backdropFilter: 'blur(var(--overlay-blur))' }}
+        style={{
+          background: 'var(--surface-overlay)',
+          backdropFilter: 'blur(var(--overlay-blur))',
+        }}
         onClick={onClose}
       />
       <div
@@ -76,7 +79,10 @@ export function AgentDeployModal({ config, onClose }: { config: ScanConfig; onCl
         aria-modal="true"
         aria-labelledby="agent-deploy-title"
         className="relative w-full max-w-[520px] max-h-[90vh] flex flex-col rounded-2xl glass-strong overflow-hidden"
-        style={{ border: '1px solid var(--border-strong)', animation: 'or-scalein var(--motion-enter)' }}
+        style={{
+          border: '1px solid var(--border-strong)',
+          animation: 'or-scalein var(--motion-enter)',
+        }}
       >
         <div
           className="flex items-center justify-between px-5 py-4"

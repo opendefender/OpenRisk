@@ -217,9 +217,7 @@ export function MissingEvidencePage() {
                                   <span className="text-ink-muted">
                                     {' '}
                                     · {tr('échéance', 'due')}{' '}
-                                    {new Date(m.nearest_expiry).toLocaleDateString(
-                                      localeTag(lang),
-                                    )}
+                                    {new Date(m.nearest_expiry).toLocaleDateString(localeTag(lang))}
                                   </span>
                                 ) : null}
                               </div>

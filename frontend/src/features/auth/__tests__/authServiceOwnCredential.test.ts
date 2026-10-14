@@ -13,7 +13,8 @@ vi.mock('../../../lib/api', () => ({
 
 import { challengeMFA, setupMFA, verifyMFA } from '../authService';
 
-function configOfLastCall(): { ownCredential?: boolean; headers?: Record<string, string> } | undefined {
+function configOfLastCall():
+  { ownCredential?: boolean; headers?: Record<string, string> } | undefined {
   return post.mock.calls.at(-1)?.[2] as ReturnType<typeof configOfLastCall>;
 }
 

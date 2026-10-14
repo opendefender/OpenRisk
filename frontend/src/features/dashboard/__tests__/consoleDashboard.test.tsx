@@ -29,8 +29,10 @@ const STATS = {
 vi.mock('../../../lib/api', () => {
   const get = (url: string) => {
     if (url === '/stats') return Promise.resolve({ data: STATS });
-    if (url === '/vulnerabilities/stats') return Promise.resolve({ data: { kev_open: 3, kev_count: 7 } });
-    if (url === '/incidents/stats') return Promise.resolve({ data: { open_incidents: 5, critical_incidents: 1 } });
+    if (url === '/vulnerabilities/stats')
+      return Promise.resolve({ data: { kev_open: 3, kev_count: 7 } });
+    if (url === '/incidents/stats')
+      return Promise.resolve({ data: { open_incidents: 5, critical_incidents: 1 } });
     if (url === '/compliance/gap-analysis')
       return Promise.resolve({
         data: {
@@ -42,7 +44,12 @@ vi.mock('../../../lib/api', () => {
       });
     if (url.startsWith('/evidence/missing'))
       return Promise.resolve({
-        data: { frameworks: [{ expiring_soon: 2, no_evidence: 7 }, { expiring_soon: 1, no_evidence: 3 }] },
+        data: {
+          frameworks: [
+            { expiring_soon: 2, no_evidence: 7 },
+            { expiring_soon: 1, no_evidence: 3 },
+          ],
+        },
       });
     if (url === '/compliance/audits') return Promise.resolve({ data: [] });
     if (url === '/analytics/financial')
@@ -126,7 +133,9 @@ describe('CounterList', () => {
     await waitFor(() => expect(value('expiring')).toHaveTextContent('3'));
     expect(value('no-evidence')).toHaveTextContent('10');
     await waitFor(() =>
-      expect(screen.getByTestId('dash-counter-next-audit')).toHaveTextContent('aucun audit planifié'),
+      expect(screen.getByTestId('dash-counter-next-audit')).toHaveTextContent(
+        'aucun audit planifié',
+      ),
     );
   });
 

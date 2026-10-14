@@ -30,7 +30,8 @@
     "description": "Description",
     "noResults": "No results found",
     "emptyState": "Nothing to show here",
-    "planName": "{plan} plan"
+    "planName": "{plan} plan",
+    "rowDetails": "Details"
   },
   "risks": {
     "title": "Risk Register",
@@ -1823,6 +1824,225 @@
         "other": "{count} assets declared exposed."
       },
       "failed": "Not saved for: {names}. Their schema may not have the \"Internet exposed\" attribute."
+    }
+  },
+  "vulns": {
+    "title": "Vulnerabilities",
+    "subtitle": "Prioritised by severity, exploitation (KEV, EPSS) and asset criticality. A KEV flaw always goes to P1.",
+    "more": "More actions",
+    "unassigned": "Unassigned",
+    "riskRule": "Risk rule",
+    "integrations": "Integrations",
+    "import": "Import",
+    "scan": {
+      "label": "Run a scan",
+      "started": {
+        "one": "Inventory requested from {count} agent. Vulnerabilities arrive within minutes.",
+        "other": "Inventory requested from {count} agents. Vulnerabilities arrive within minutes."
+      },
+      "noAgent": "No agent is online. Install or start the OpenRisk agent on your servers.",
+      "configure": "Infrastructure",
+      "cooldown": "A scan was already started less than 10 minutes ago.",
+      "failed": "The scan could not start.",
+      "hint": "Asks the online agents for the packages installed on their host, then checks them against known vulnerabilities (OSV, NVD)."
+    },
+    "kpi": {
+      "open": "Open",
+      "openHint": "Open, triaged or in remediation",
+      "kevOpen": "Open KEV",
+      "kevOpenHint": "Actively exploited per CISA, not fixed yet",
+      "sla": "SLA breached",
+      "slaHint": "Fix deadline passed: critical 7 d, high 14 d, medium 30 d, low 60 d, KEV 14 d at most",
+      "mttr": "Critical MTTR",
+      "mttrValue": "{value} d",
+      "mttrSample": {
+        "one": "over {count} critical fixed in {days} d",
+        "other": "over {count} criticals fixed in {days} d"
+      },
+      "mttrNone": "No critical fixed in {days} d",
+      "mttrHint": "Mean time from detection to fix"
+    },
+    "search": "CVE, title, asset…",
+    "severityGroup": "Severity",
+    "sev": {
+      "critical": "Critical",
+      "high": "High",
+      "medium": "Medium",
+      "low": "Low",
+      "info": "Info"
+    },
+    "kevOnly": "KEV only",
+    "includeFixed": "Include fixed",
+    "includeFixedHint": "Also shows fixed findings and false positives",
+    "col": {
+      "cve": "CVE",
+      "vuln": "Vulnerability",
+      "cvss": "CVSS",
+      "epss": "EPSS",
+      "asset": "Asset",
+      "sla": "SLA",
+      "status": "Status",
+      "priority": "Priority",
+      "source": "Source"
+    },
+    "sla": {
+      "left": {
+        "one": "{count} d left",
+        "other": "{count} d left"
+      },
+      "today": "Due today",
+      "late": {
+        "one": "{count} d late",
+        "other": "{count} d late"
+      }
+    },
+    "status": {
+      "open": "Open",
+      "triaged": "Triaged",
+      "in_remediation": "In remediation",
+      "remediated": "Fixed",
+      "accepted": "Accepted",
+      "false_positive": "False positive"
+    },
+    "kev": "KEV",
+    "expand": "Details of {name}",
+    "why": "Why {tier} · {score}",
+    "signal": {
+      "cvss": "CVSS {value}",
+      "kev": "Actively exploited (CISA KEV)",
+      "exploit": "Public exploit available",
+      "epss": "EPSS {value} %: chance of exploitation within 30 days",
+      "asset": "Asset criticality {crit}",
+      "affected": {
+        "one": "{count} affected asset",
+        "other": "{count} affected assets"
+      },
+      "kevFloor": "A KEV flaw always goes to P1."
+    },
+    "field": {
+      "asset": "Asset",
+      "source": "Source",
+      "firstSeen": "Detected",
+      "lastSeen": "Last seen",
+      "due": "Due",
+      "remediatedAt": "Fixed on",
+      "vector": "CVSS vector",
+      "description": "Description",
+      "remediation": "Remediation",
+      "ticket": "ITSM ticket",
+      "noTicket": "No ticket",
+      "linkedRisk": "Linked risk",
+      "openRisk": "Open the risk"
+    },
+    "act": {
+      "label": "Handle",
+      "take": "Take it on",
+      "fixed": "Mark fixed",
+      "accept": "Accept the risk",
+      "falsePositive": "False positive",
+      "reopen": "Reopen",
+      "createRisk": "Create a risk",
+      "openTicket": "Open a ticket",
+      "delete": "Delete"
+    },
+    "toast": {
+      "status": "Status updated",
+      "statusFailed": "The status could not be changed.",
+      "ticket": "Ticket opened",
+      "ticketFailed": "The ticket could not be opened. Is the ITSM integration set up?",
+      "deleted": "Vulnerability \"{title}\" deleted",
+      "bulkDeleted": {
+        "one": "{count} vulnerability deleted",
+        "other": "{count} vulnerabilities deleted"
+      },
+      "bulkUpdated": {
+        "one": "{count} vulnerability updated",
+        "other": "{count} vulnerabilities updated"
+      }
+    },
+    "empty": {
+      "title": "No vulnerabilities",
+      "body": "Import results from a scanner (Nessus, Qualys, Defender, Inspector, CrowdStrike…) or run a scan.",
+      "readOnly": "No vulnerability has been imported yet. Your role can view them; an administrator can grant you the right to import."
+    },
+    "entity": "vulnerabilities",
+    "riskTitle": "{title} ({cve})",
+    "pkg": {
+      "title": "Affected package",
+      "upgrade": "Upgrade {name} to {version} or later.",
+      "noFix": "No fixed version of {name} is published yet.",
+      "installed": "Installed: {name} {version}",
+      "cpeMatch": "Matched through the NVD product (CPE), to be confirmed."
+    }
+  },
+  "threats": {
+    "title": "Threat Intel",
+    "subtitle": "Catalogue threats (NVD, CISA KEV, MITRE ATT&CK) that touch your assets, by relevance.",
+    "feedLink": "Full CVE feed",
+    "modeLabel": "Threats shown",
+    "mode": {
+      "all": "All",
+      "high": "Relevance ≥ 70"
+    },
+    "relevance": "Relevance",
+    "relevanceSr": "Relevance {value} out of 100, see why",
+    "why": "Why {value}/100",
+    "factor": {
+      "asset": "Most critical asset touched: {crit}",
+      "kev": "Actively exploited (CISA KEV)",
+      "epss_high": "Exploitation probability (EPSS) ≥ 50%",
+      "epss_medium": "Exploitation probability (EPSS) ≥ 10%",
+      "noExploitation": "No exploitation signal",
+      "cvss": "CVSS severity {value}",
+      "noCvss": "CVSS severity unknown",
+      "scan": "Found by a scanner on your assets",
+      "cpe": "Inferred from your assets' CPEs",
+      "sector": "Sector: not counted, none of these sources describes which sectors are targeted."
+    },
+    "sources": "Sources: {list}",
+    "via": {
+      "scan": "found by a scanner",
+      "cpe": "by its CPEs"
+    },
+    "createRisk": "Create a risk",
+    "dismiss": "Not relevant",
+    "restore": "Restore",
+    "riskTitle": "{title} ({cve})",
+    "toast": {
+      "dismissFailed": "The change was not saved."
+    },
+    "empty": "No catalogue threat touches your assets.",
+    "emptyNoCpe": "No threat can be related to your assets yet: add their CPEs or import scan results.",
+    "emptyHigh": "No threat with relevance ≥ 70.",
+    "showAll": "Show all threats",
+    "toAssets": "Open the inventory",
+    "truncated": "Only the 200 most relevant threats are shown.",
+    "ioc": {
+      "title": "Indicators of compromise",
+      "subtitle": "Matches in your logs over 7 days",
+      "unavailable": "Matches unavailable",
+      "why": "OpenRisk does not ingest your logs yet, and the current sources (NVD, CISA KEV) publish no indicators. No match is computed or shown."
+    },
+    "backToThreats": "Threats to your assets"
+  },
+  "hostInventory": {
+    "title": "Software inventory",
+    "empty": "No inventory: the OpenRisk agent is not installed on this host, or its name does not match the asset.",
+    "packages": {
+      "one": "{n} package",
+      "other": "{n} packages"
+    },
+    "uncheckable": {
+      "one": "{n} not checkable",
+      "other": "{n} not checkable"
+    },
+    "collected": "Collected {date}",
+    "matched": "checked {date}",
+    "error": {
+      "osquery_missing": "osquery required: install it on the host to list its packages.",
+      "source_unreachable": "Vulnerability source unreachable (OSV, NVD): nothing was closed, the next scan tries again.",
+      "lookup_disabled": "Online lookup is turned off for your organization: packages are listed but not checked.",
+      "unknown": "The last check failed."
     }
   }
 }

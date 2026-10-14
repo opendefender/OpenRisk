@@ -6,6 +6,7 @@
 package handler
 
 import (
+	"sync/atomic"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -38,14 +39,29 @@ import (
 // predicates would be a bug waiting to happen.
 type SSERevocationChecker func(jti string) (bool, error)
 
-// sseRevocationChecker is nil until main.go wires it. nil is valid and means the
-// streams behave exactly as before — an un-wired deployment must not panic.
-var sseRevocationChecker SSERevocationChecker
+// sseRevocationChecker is empty until main.go wires it. Empty is valid and means
+// the streams behave exactly as before — an un-wired deployment must not panic.
+//
+// Atomic because stream goroutines read it while a test may be swapping it
+// back in t.Cleanup; the plain variable raced there under -race (#957).
+var sseRevocationChecker atomic.Pointer[SSERevocationChecker]
 
 // SetSSERevocationChecker injects the blacklist predicate from main.go. Call
 // once at boot, before the server starts serving.
 func SetSSERevocationChecker(f SSERevocationChecker) {
-	sseRevocationChecker = f
+	if f == nil {
+		sseRevocationChecker.Store(nil)
+		return
+	}
+	sseRevocationChecker.Store(&f)
+}
+
+// currentSSERevocationChecker returns the wired predicate, or nil.
+func currentSSERevocationChecker() SSERevocationChecker {
+	if p := sseRevocationChecker.Load(); p != nil {
+		return *p
+	}
+	return nil
 }
 
 // streamJTI reads the token id the auth middleware stored for this request.
@@ -70,7 +86,7 @@ func streamJTI(c *fiber.Ctx) string {
 // incident for a security one. The consequence — an outage suspends revocation
 // for the duration — is real and recorded on the issue rather than hidden here.
 func sseSessionRevoked(jti string) bool {
-	return sseRevokedWith(sseRevocationChecker, jti)
+	return sseRevokedWith(currentSSERevocationChecker(), jti)
 }
 
 // sseRevokedWith is the same decision for a handler that already holds its own

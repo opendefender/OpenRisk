@@ -31,12 +31,42 @@ describe('validateTemplate', () => {
   it.each([
     ['a blank name', (d: TemplateDraft) => (d.name = '   '), 'name', 'name'],
     ['no question', (d: TemplateDraft) => (d.questions = []), 'questions', 'oneQuestion'],
-    ['a blank question', (d: TemplateDraft) => (d.questions[0].text = ''), 'questions.0.text', 'questionText'],
-    ['one option only', (d: TemplateDraft) => (d.questions[0].options = d.questions[0].options.slice(0, 1)), 'questions.0.options', 'twoOptions'],
-    ['a weight above 10', (d: TemplateDraft) => (d.questions[0].weight = 11), 'questions.0.weight', 'weight'],
-    ['points above 1', (d: TemplateDraft) => (d.questions[0].options[0].points = 1.5), 'questions.0.options.0.points', 'points'],
-    ['an option without a label', (d: TemplateDraft) => (d.questions[0].options[1].label = ' '), 'questions.0.options.1.label', 'optionLabel'],
-    ['two options with the same label', (d: TemplateDraft) => (d.questions[0].options[1].label = 'oui'), 'questions.0.options.1.label', 'uniqueOptions'],
+    [
+      'a blank question',
+      (d: TemplateDraft) => (d.questions[0].text = ''),
+      'questions.0.text',
+      'questionText',
+    ],
+    [
+      'one option only',
+      (d: TemplateDraft) => (d.questions[0].options = d.questions[0].options.slice(0, 1)),
+      'questions.0.options',
+      'twoOptions',
+    ],
+    [
+      'a weight above 10',
+      (d: TemplateDraft) => (d.questions[0].weight = 11),
+      'questions.0.weight',
+      'weight',
+    ],
+    [
+      'points above 1',
+      (d: TemplateDraft) => (d.questions[0].options[0].points = 1.5),
+      'questions.0.options.0.points',
+      'points',
+    ],
+    [
+      'an option without a label',
+      (d: TemplateDraft) => (d.questions[0].options[1].label = ' '),
+      'questions.0.options.1.label',
+      'optionLabel',
+    ],
+    [
+      'two options with the same label',
+      (d: TemplateDraft) => (d.questions[0].options[1].label = 'oui'),
+      'questions.0.options.1.label',
+      'uniqueOptions',
+    ],
   ])('refuses %s', (_name, mutate, path, message) => {
     const draft = valid();
     mutate(draft);

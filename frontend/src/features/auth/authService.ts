@@ -312,7 +312,5 @@ export async function challengeMFA(code: string, mfaToken: string): Promise<MFAC
  * (enrolment from Settings) the request runs on the session as usual.
  */
 function authHeaders(token?: string) {
-  return token
-    ? { headers: { Authorization: `Bearer ${token}` }, ownCredential: true }
-    : undefined;
+  return token ? { headers: { Authorization: `Bearer ${token}` }, ownCredential: true } : undefined;
 }

@@ -136,9 +136,7 @@ export function ReportJobPage() {
               {formatBytes(job.size_bytes, lang)}
             </DetailField>
             <DetailField label={tr('Généré le', 'Generated at')}>
-              {job.completed_at
-                ? new Date(job.completed_at).toLocaleString(localeTag(lang))
-                : '—'}
+              {job.completed_at ? new Date(job.completed_at).toLocaleString(localeTag(lang)) : '—'}
             </DetailField>
           </Card>
 

@@ -42,6 +42,7 @@ export function organizationProfileSchema(tr: Tr) {
     default_locale: z.string(),
     date_format: z.union([z.enum(DATE_FORMATS as [string, ...string[]]), z.literal('')]),
     accent: z.union([z.enum(ACCENT_PRESETS), z.literal('')]),
+    online_vuln_lookup: z.boolean(),
   });
 }
 

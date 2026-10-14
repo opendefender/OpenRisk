@@ -228,7 +228,6 @@ func (f *fakeControls) ListFrameworks(_ context.Context, tenantID uuid.UUID) ([]
 type fakeStorage struct {
 	saved   map[string][]byte
 	deleted []string
-	failing bool
 }
 
 func newFakeStorage() *fakeStorage { return &fakeStorage{saved: map[string][]byte{}} }

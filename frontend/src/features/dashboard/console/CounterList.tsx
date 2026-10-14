@@ -160,12 +160,17 @@ function useCounters(variant: DashboardVariant): Counter[] {
     case 'audit': {
       const fw = gaps.data?.frameworks ?? [];
       const cov = missing.data ?? [];
-      const nonCompliant = gaps.data ? fw.reduce((a, f) => a + (f.not_implemented ?? 0), 0) : undefined;
+      const nonCompliant = gaps.data
+        ? fw.reduce((a, f) => a + (f.not_implemented ?? 0), 0)
+        : undefined;
       const expiring = missing.data ? cov.reduce((a, f) => a + f.expiring_soon, 0) : undefined;
       const noEvidence = missing.data ? cov.reduce((a, f) => a + f.no_evidence, 0) : undefined;
       const today = new Date().toISOString().slice(0, 10);
       const next = (audits.data ?? [])
-        .filter((a) => a.status === 'planned' && a.scheduled_start && a.scheduled_start.slice(0, 10) >= today)
+        .filter(
+          (a) =>
+            a.status === 'planned' && a.scheduled_start && a.scheduled_start.slice(0, 10) >= today,
+        )
         .sort((a, b) => (a.scheduled_start ?? '').localeCompare(b.scheduled_start ?? ''))[0];
       return [
         {

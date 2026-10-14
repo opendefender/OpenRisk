@@ -199,7 +199,10 @@ export function RemediationDetailPage() {
           )}
           impact={[
             { label: tr('Statut', 'Status'), value: pickLocalized(lang, status) ?? plan.status },
-            { label: tr('Priorité', 'Priority'), value: pickLocalized(lang, priority) ?? plan.priority },
+            {
+              label: tr('Priorité', 'Priority'),
+              value: pickLocalized(lang, priority) ?? plan.priority,
+            },
             { label: tr('Échéance', 'Due date'), value: formatDate(plan.due_date, lang) },
           ]}
           confirmLabel={tr('Supprimer', 'Delete')}

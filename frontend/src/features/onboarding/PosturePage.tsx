@@ -21,7 +21,12 @@ import { AlertTriangle, ArrowRight, Check, Copy, Users } from 'lucide-react';
 
 import { useI18n } from '../../hooks/useI18n';
 import type { PostureRiskView, PostureSummary } from '../../services/activationService';
-import { useOnboardingState, usePosture, useCountUp, usePrefersReducedMotion } from './useActivation';
+import {
+  useOnboardingState,
+  usePosture,
+  useCountUp,
+  usePrefersReducedMotion,
+} from './useActivation';
 
 export function PosturePage() {
   const { t } = useI18n();

@@ -37,7 +37,10 @@ export function ActionCenterPage() {
 
   const page = pageFromParam(params.get('page'));
   const offset = (page - 1) * PAGE_SIZE;
-  const { items, total, isLoading, isError, refetch } = useActionItems({ limit: PAGE_SIZE, offset });
+  const { items, total, isLoading, isError, refetch } = useActionItems({
+    limit: PAGE_SIZE,
+    offset,
+  });
   const linkable = useMemo(() => linkableItems(items), [items]);
 
   const done = useSoftDelete<LinkableActionItem>({
@@ -81,9 +84,10 @@ export function ActionCenterPage() {
   }, [rows]);
 
   const shown = filter === 'all' ? rows : rows.filter((r) => filterOf(r.item) === filter);
-  const grouped = GROUPS.map((g) => ({ g, rows: shown.filter((r) => dueGroup(r.item) === g) })).filter(
-    (x) => x.rows.length > 0,
-  );
+  const grouped = GROUPS.map((g) => ({
+    g,
+    rows: shown.filter((r) => dueGroup(r.item) === g),
+  })).filter((x) => x.rows.length > 0);
   const late = rows.filter((r) => dueGroup(r.item) === 'late').length;
 
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
@@ -226,7 +230,10 @@ export function ActionCenterPage() {
             >
               <ChevronLeft size={15} aria-hidden="true" />
             </button>
-            <span className="px-1.5 text-xs text-fg-primary" data-testid="action-center-page-indicator">
+            <span
+              className="px-1.5 text-xs text-fg-primary"
+              data-testid="action-center-page-indicator"
+            >
               {interpolate(t('actionCenter.pageOf'), { page, pageCount })}
             </span>
             <button

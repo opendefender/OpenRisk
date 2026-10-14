@@ -64,7 +64,10 @@ export const vendorService = {
     return data;
   },
 
-  async send(vendorId: string, input: SendVendorAssessmentInput): Promise<VendorAssessmentDelivery> {
+  async send(
+    vendorId: string,
+    input: SendVendorAssessmentInput,
+  ): Promise<VendorAssessmentDelivery> {
     const { data } = await api.post<VendorAssessmentDelivery>(
       `/vendors/${id(vendorId)}/assessments`,
       input,

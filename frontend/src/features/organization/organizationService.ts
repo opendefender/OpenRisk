@@ -101,6 +101,8 @@ export interface OrganizationProfilePatch {
   default_locale?: string;
   date_format?: DateFormat | '';
   accent?: AccentPreset | '';
+  /** #910: "off" stops package names and versions from being sent to OSV and NVD. */
+  online_vuln_lookup?: 'on' | 'off';
 }
 
 /** What every member's interface wears (#718). */
@@ -129,6 +131,8 @@ export interface OrganizationView {
   /** An uploaded logo exists; read it through GET /organization/logo (#718). */
   has_logo: boolean;
   accent?: AccentPreset;
+  /** Online vulnerability lookup for the agent's packages (#910, on by default). */
+  online_vuln_lookup?: boolean;
   created_at: string;
   updated_at: string;
   counts: OrganizationCounts;

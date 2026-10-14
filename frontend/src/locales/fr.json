@@ -30,7 +30,8 @@
     "description": "Description",
     "noResults": "Aucun résultat trouvé",
     "emptyState": "Rien à afficher ici",
-    "planName": "Plan {plan}"
+    "planName": "Plan {plan}",
+    "rowDetails": "Détails"
   },
   "risks": {
     "title": "Registre des Risques",
@@ -1823,6 +1824,225 @@
         "other": "{count} actifs déclarés exposés."
       },
       "failed": "Non enregistré pour : {names}. Le schéma de ces actifs n'a peut-être pas l'attribut « Exposé sur Internet »."
+    }
+  },
+  "vulns": {
+    "title": "Vulnérabilités",
+    "subtitle": "Priorisées par gravité, exploitation (KEV, EPSS) et criticité de l'actif. Une faille KEV passe toujours en P1.",
+    "more": "Plus d'actions",
+    "unassigned": "Non rattachées",
+    "riskRule": "Règle → risque",
+    "integrations": "Intégrations",
+    "import": "Importer",
+    "scan": {
+      "label": "Lancer un scan",
+      "started": {
+        "one": "Inventaire demandé à {count} agent. Les vulnérabilités arrivent dans quelques minutes.",
+        "other": "Inventaire demandé à {count} agents. Les vulnérabilités arrivent dans quelques minutes."
+      },
+      "noAgent": "Aucun agent en ligne. Installez ou démarrez l'agent OpenRisk sur vos serveurs.",
+      "configure": "Infrastructure",
+      "cooldown": "Un scan a déjà été lancé il y a moins de 10 minutes.",
+      "failed": "Le scan n'a pas pu être lancé.",
+      "hint": "Demande aux agents en ligne la liste des paquets installés sur leur hôte, puis la compare aux vulnérabilités connues (OSV, NVD)."
+    },
+    "kpi": {
+      "open": "Ouvertes",
+      "openHint": "Ouvertes, triées ou en correction",
+      "kevOpen": "KEV ouvertes",
+      "kevOpenHint": "Exploitées activement selon la CISA, pas encore corrigées",
+      "sla": "SLA dépassé",
+      "slaHint": "Échéance de correction passée : critique 7 j, élevée 14 j, moyenne 30 j, faible 60 j, KEV 14 j au plus",
+      "mttr": "MTTR critiques",
+      "mttrValue": "{value} j",
+      "mttrSample": {
+        "one": "sur {count} critique corrigée en {days} j",
+        "other": "sur {count} critiques corrigées en {days} j"
+      },
+      "mttrNone": "Aucune critique corrigée en {days} j",
+      "mttrHint": "Délai moyen entre la détection et la correction"
+    },
+    "search": "CVE, titre, actif…",
+    "severityGroup": "Sévérité",
+    "sev": {
+      "critical": "Critique",
+      "high": "Élevée",
+      "medium": "Moyenne",
+      "low": "Faible",
+      "info": "Info"
+    },
+    "kevOnly": "KEV uniquement",
+    "includeFixed": "Inclure corrigées",
+    "includeFixedHint": "Affiche aussi les corrigées et les faux positifs",
+    "col": {
+      "cve": "CVE",
+      "vuln": "Vulnérabilité",
+      "cvss": "CVSS",
+      "epss": "EPSS",
+      "asset": "Actif",
+      "sla": "SLA",
+      "status": "Statut",
+      "priority": "Priorité",
+      "source": "Source"
+    },
+    "sla": {
+      "left": {
+        "one": "{count} j restant",
+        "other": "{count} j restants"
+      },
+      "today": "Échéance aujourd'hui",
+      "late": {
+        "one": "Dépassé de {count} j",
+        "other": "Dépassé de {count} j"
+      }
+    },
+    "status": {
+      "open": "Ouverte",
+      "triaged": "Triée",
+      "in_remediation": "En correction",
+      "remediated": "Corrigée",
+      "accepted": "Acceptée",
+      "false_positive": "Faux positif"
+    },
+    "kev": "KEV",
+    "expand": "Détails de {name}",
+    "why": "Pourquoi {tier} · {score}",
+    "signal": {
+      "cvss": "CVSS {value}",
+      "kev": "Exploitée activement (CISA KEV)",
+      "exploit": "Exploit public disponible",
+      "epss": "EPSS {value} % : probabilité d'exploitation sous 30 jours",
+      "asset": "Actif de criticité {crit}",
+      "affected": {
+        "one": "{count} actif touché",
+        "other": "{count} actifs touchés"
+      },
+      "kevFloor": "Une faille KEV passe toujours en P1."
+    },
+    "field": {
+      "asset": "Actif",
+      "source": "Source",
+      "firstSeen": "Détectée le",
+      "lastSeen": "Vue le",
+      "due": "Échéance",
+      "remediatedAt": "Corrigée le",
+      "vector": "Vecteur CVSS",
+      "description": "Description",
+      "remediation": "Remédiation",
+      "ticket": "Ticket ITSM",
+      "noTicket": "Aucun ticket",
+      "linkedRisk": "Risque lié",
+      "openRisk": "Voir le risque"
+    },
+    "act": {
+      "label": "Traiter",
+      "take": "Prendre en charge",
+      "fixed": "Marquer corrigée",
+      "accept": "Accepter le risque",
+      "falsePositive": "Faux positif",
+      "reopen": "Rouvrir",
+      "createRisk": "Créer un risque",
+      "openTicket": "Ouvrir un ticket",
+      "delete": "Supprimer"
+    },
+    "toast": {
+      "status": "Statut mis à jour",
+      "statusFailed": "Le statut n'a pas pu être changé.",
+      "ticket": "Ticket ouvert",
+      "ticketFailed": "Le ticket n'a pas pu être ouvert. L'intégration ITSM est-elle configurée ?",
+      "deleted": "Vulnérabilité « {title} » supprimée",
+      "bulkDeleted": {
+        "one": "{count} vulnérabilité supprimée",
+        "other": "{count} vulnérabilités supprimées"
+      },
+      "bulkUpdated": {
+        "one": "{count} vulnérabilité mise à jour",
+        "other": "{count} vulnérabilités mises à jour"
+      }
+    },
+    "empty": {
+      "title": "Aucune vulnérabilité",
+      "body": "Importez les résultats d'un scanner (Nessus, Qualys, Defender, Inspector, CrowdStrike…) ou lancez un scan.",
+      "readOnly": "Aucune vulnérabilité n'est encore importée. Votre rôle permet de les consulter ; un administrateur peut vous donner le droit d'en importer."
+    },
+    "entity": "vulnérabilités",
+    "riskTitle": "{title} ({cve})",
+    "pkg": {
+      "title": "Paquet concerné",
+      "upgrade": "Mettre à jour {name} vers {version} ou plus récent.",
+      "noFix": "Aucune version corrigée de {name} n'est encore publiée.",
+      "installed": "Installé : {name} {version}",
+      "cpeMatch": "Correspondance par produit NVD (CPE), à confirmer."
+    }
+  },
+  "threats": {
+    "title": "Threat Intel",
+    "subtitle": "Les menaces du catalogue (NVD, CISA KEV, MITRE ATT&CK) qui touchent vos actifs, par pertinence.",
+    "feedLink": "Flux CVE complet",
+    "modeLabel": "Menaces affichées",
+    "mode": {
+      "all": "Toutes",
+      "high": "Pertinence ≥ 70"
+    },
+    "relevance": "Pertinence",
+    "relevanceSr": "Pertinence {value} sur 100, voir pourquoi",
+    "why": "Pourquoi {value}/100",
+    "factor": {
+      "asset": "Actif le plus critique touché : {crit}",
+      "kev": "Exploitée activement (CISA KEV)",
+      "epss_high": "Probabilité d'exploitation (EPSS) ≥ 50 %",
+      "epss_medium": "Probabilité d'exploitation (EPSS) ≥ 10 %",
+      "noExploitation": "Aucun signal d'exploitation",
+      "cvss": "Gravité CVSS {value}",
+      "noCvss": "Gravité CVSS inconnue",
+      "scan": "Trouvée par un scanner sur vos actifs",
+      "cpe": "Déduite des CPE de vos actifs",
+      "sector": "Secteur : non pris en compte, aucune de ces sources ne décrit les secteurs visés."
+    },
+    "sources": "Sources : {list}",
+    "via": {
+      "scan": "trouvée par un scanner",
+      "cpe": "par ses CPE"
+    },
+    "createRisk": "Créer un risque",
+    "dismiss": "Non pertinent",
+    "restore": "Restaurer",
+    "riskTitle": "{title} ({cve})",
+    "toast": {
+      "dismissFailed": "Le changement n'a pas été enregistré."
+    },
+    "empty": "Aucune menace du catalogue ne touche vos actifs.",
+    "emptyNoCpe": "Aucune menace ne peut encore être rapportée à vos actifs : renseignez leurs CPE ou importez des résultats de scan.",
+    "emptyHigh": "Aucune menace de pertinence ≥ 70.",
+    "showAll": "Voir toutes les menaces",
+    "toAssets": "Ouvrir l'inventaire",
+    "truncated": "Seules les 200 menaces les plus pertinentes sont affichées.",
+    "ioc": {
+      "title": "Indicateurs de compromission",
+      "subtitle": "Correspondances dans vos journaux sur 7 jours",
+      "unavailable": "Correspondances indisponibles",
+      "why": "OpenRisk n'ingère pas encore vos journaux, et les sources actuelles (NVD, CISA KEV) ne publient pas d'indicateurs. Aucune correspondance n'est donc calculée ni affichée."
+    },
+    "backToThreats": "Menaces pour vos actifs"
+  },
+  "hostInventory": {
+    "title": "Inventaire logiciel",
+    "empty": "Aucun inventaire : l'agent OpenRisk n'est pas installé sur cet hôte, ou son nom ne correspond pas à l'actif.",
+    "packages": {
+      "one": "{n} paquet",
+      "other": "{n} paquets"
+    },
+    "uncheckable": {
+      "one": "{n} non vérifiable",
+      "other": "{n} non vérifiables"
+    },
+    "collected": "Collecté le {date}",
+    "matched": "vérifié le {date}",
+    "error": {
+      "osquery_missing": "osquery requis : installez-le sur l'hôte pour lister ses paquets.",
+      "source_unreachable": "Source de vulnérabilités injoignable (OSV, NVD) : rien n'a été fermé, nouvel essai au prochain scan.",
+      "lookup_disabled": "Recherche en ligne désactivée pour votre organisation : les paquets sont listés mais pas vérifiés.",
+      "unknown": "La dernière vérification a échoué."
     }
   }
 }

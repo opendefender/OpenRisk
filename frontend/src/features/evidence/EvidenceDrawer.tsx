@@ -103,9 +103,7 @@ export function EvidenceDrawer({
                   <Calendar size={13} /> {tr('Collectée le', 'Collected on')}
                 </dt>
                 <dd className="text-ink mt-0.5">
-                  {new Date(evidence.collected_at).toLocaleDateString(
-                    localeTag(lang),
-                  )}
+                  {new Date(evidence.collected_at).toLocaleDateString(localeTag(lang))}
                 </dd>
               </div>
               <div>
@@ -114,9 +112,7 @@ export function EvidenceDrawer({
                 </dt>
                 <dd className="text-ink mt-0.5">
                   {evidence.valid_until
-                    ? new Date(evidence.valid_until).toLocaleDateString(
-                        localeTag(lang),
-                      )
+                    ? new Date(evidence.valid_until).toLocaleDateString(localeTag(lang))
                     : tr("N'expire pas", 'Never expires')}
                   {evidence.days_until_expiry !== undefined ? (
                     <span className="text-ink-muted">

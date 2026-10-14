@@ -46,7 +46,9 @@ export function actionFacts(item: ActionItem, t: T, now = new Date()): string {
       break;
     case 'vendor_followup':
       if (meta.sent_at) {
-        parts.push(t('actionCenter.fact.unanswered', { count: Math.max(0, -daysUntil(meta.sent_at, now)) }));
+        parts.push(
+          t('actionCenter.fact.unanswered', { count: Math.max(0, -daysUntil(meta.sent_at, now)) }),
+        );
       }
       break;
     default:

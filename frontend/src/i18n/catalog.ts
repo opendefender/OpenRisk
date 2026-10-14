@@ -28,7 +28,9 @@ import type { Catalog } from './translate';
 
 /** A branch of the tree — as opposed to a leaf, which is a string or a plural set. */
 function isBranch(value: unknown): value is Catalog {
-  return typeof value === 'object' && value !== null && !Array.isArray(value) && !isPluralForms(value);
+  return (
+    typeof value === 'object' && value !== null && !Array.isArray(value) && !isPluralForms(value)
+  );
 }
 
 /** Deep-merge two catalogues, with `overlay` winning at every leaf. */

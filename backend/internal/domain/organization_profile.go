@@ -24,7 +24,17 @@ const (
 	OrgSettingDefaultLocale = "default_locale"
 	OrgSettingDateFormat    = "date_format"
 	OrgSettingAccent        = "accent"
+	// OrgSettingOnlineVulnLookup lets a tenant stop package names and versions
+	// from being sent to OSV and NVD (#910, D-071): "off" stops it; absent or
+	// "on" allows it (on by default).
+	OrgSettingOnlineVulnLookup = "online_vuln_lookup"
 )
+
+// OnlineVulnLookupEnabled reads the switch from an organization's settings.
+func OnlineVulnLookupEnabled(settings map[string]interface{}) bool {
+	v, _ := settings[OrgSettingOnlineVulnLookup].(string)
+	return strings.TrimSpace(v) != "off"
+}
 
 // accentPresets are the accent variants the design system declares and has
 // contrast-checked in both themes (frontend/src/styles/tokens.css,
@@ -107,6 +117,8 @@ type OrganizationProfilePatch struct {
 	DefaultLocale *string `json:"default_locale,omitempty"`
 	DateFormat    *string `json:"date_format,omitempty"`
 	Accent        *string `json:"accent,omitempty"`
+	// OnlineVulnLookup is "on" or "off" (#910); "" clears it, which means on.
+	OnlineVulnLookup *string `json:"online_vuln_lookup,omitempty"`
 }
 
 // Normalize trims every provided field and validates it. It returns the first
@@ -117,7 +129,7 @@ func (p *OrganizationProfilePatch) Normalize() error {
 			*s = strings.TrimSpace(*s)
 		}
 	}
-	for _, f := range []*string{p.Name, p.Industry, p.Size, p.Website, p.Description, p.Timezone, p.DefaultLocale, p.DateFormat, p.Accent} {
+	for _, f := range []*string{p.Name, p.Industry, p.Size, p.Website, p.Description, p.Timezone, p.DefaultLocale, p.DateFormat, p.Accent, p.OnlineVulnLookup} {
 		trim(f)
 	}
 
@@ -150,6 +162,9 @@ func (p *OrganizationProfilePatch) Normalize() error {
 	if p.Accent != nil && *p.Accent != "" && !IsAccentPreset(*p.Accent) {
 		return NewValidationError("accent: must be one of " + strings.Join(accentPresets, ", "))
 	}
+	if p.OnlineVulnLookup != nil && *p.OnlineVulnLookup != "" && *p.OnlineVulnLookup != "on" && *p.OnlineVulnLookup != "off" {
+		return NewValidationError("online_vuln_lookup: must be on or off")
+	}
 	return nil
 }
 
@@ -157,7 +172,7 @@ func (p *OrganizationProfilePatch) Normalize() error {
 func (p *OrganizationProfilePatch) IsEmpty() bool {
 	return p.Name == nil && p.Industry == nil && p.Size == nil && p.Website == nil &&
 		p.Description == nil && p.Timezone == nil && p.DefaultLocale == nil && p.DateFormat == nil &&
-		p.Accent == nil
+		p.Accent == nil && p.OnlineVulnLookup == nil
 }
 
 func isHTTPSURL(raw string) bool {

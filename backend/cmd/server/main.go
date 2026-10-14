@@ -44,6 +44,7 @@ import (
 	"github.com/opendefender/openrisk/internal/application/evidence"
 	"github.com/opendefender/openrisk/internal/application/governance"
 	appinc "github.com/opendefender/openrisk/internal/application/incident"
+	invapp "github.com/opendefender/openrisk/internal/application/inventory"
 	"github.com/opendefender/openrisk/internal/application/membership"
 	appmitigation "github.com/opendefender/openrisk/internal/application/mitigation"
 	notificationapp "github.com/opendefender/openrisk/internal/application/notification"
@@ -57,6 +58,7 @@ import (
 	savedviewapp "github.com/opendefender/openrisk/internal/application/savedview"
 	scanapp "github.com/opendefender/openrisk/internal/application/scanner"
 	searchapp "github.com/opendefender/openrisk/internal/application/search"
+	"github.com/opendefender/openrisk/internal/application/threatintel"
 	tprmapp "github.com/opendefender/openrisk/internal/application/tprm"
 	vulnapp "github.com/opendefender/openrisk/internal/application/vulnerability"
 	coreauth "github.com/opendefender/openrisk/internal/auth"
@@ -77,9 +79,11 @@ import (
 	"github.com/opendefender/openrisk/internal/infrastructure/integrations/thehive"
 	orgdeletioninfra "github.com/opendefender/openrisk/internal/infrastructure/orgdeletion"
 	"github.com/opendefender/openrisk/internal/infrastructure/orgexport"
+	"github.com/opendefender/openrisk/internal/infrastructure/osv"
 	redisclient "github.com/opendefender/openrisk/internal/infrastructure/redis"
 	"github.com/opendefender/openrisk/internal/infrastructure/repository"
 	"github.com/opendefender/openrisk/internal/infrastructure/scanmitigation"
+	"github.com/opendefender/openrisk/internal/infrastructure/vulnlookup"
 	"github.com/opendefender/openrisk/internal/infrastructure/vulnrisk"
 	"github.com/opendefender/openrisk/internal/infrastructure/workers"
 	"github.com/opendefender/openrisk/internal/middleware"
@@ -820,38 +824,10 @@ func main() {
 	//
 	// A failed probe answers 503, because a readiness probe that cannot fail is
 	// not a readiness probe.
-	api.Get("/health", func(c *fiber.Ctx) error {
-		dbUp := true
-		if sqlDB, err := database.DB.DB(); err != nil {
-			dbUp = false
-		} else {
-			// Bounded: a probe that blocks on a wedged connection turns a health
-			// check into an outage of its own.
-			ctx, cancel := context.WithTimeout(c.UserContext(), 2*time.Second)
-			defer cancel()
-			if sqlDB.PingContext(ctx) != nil {
-				dbUp = false
-			}
-		}
-
-		status := "UP"
-		code := fiber.StatusOK
-		if !dbUp {
-			status = "DOWN"
-			code = fiber.StatusServiceUnavailable
-		}
-
-		return c.Status(code).JSON(fiber.Map{
-			"status":  status,
-			"version": Version,
-			"commit":  Commit,
-			"db":      map[bool]string{true: "CONNECTED", false: "DISCONNECTED"}[dbUp],
-			// Drives the permanent "demonstration data" banner. Served from the
-			// backend rather than a frontend build flag so the two cannot disagree
-			// about whether the data on screen is real.
-			"demo_mode": demoseed.Enabled(),
-		})
-	})
+	//
+	// The handler lives in health_wiring.go, where it is tested; it used to be
+	// an inline copy here, so the tested version was never the one served.
+	api.Get("/health", healthHandler(gormHealthPinger(database.DB), demoseed.Enabled))
 
 	// Per-IP throttles on the auth routes, one bucket per purpose (#688). Backed
 	// by Redis so the counters are shared across every instance; degrades to a
@@ -922,6 +898,8 @@ func main() {
 	app.Post("/api/v1/scanner/agents/register", func(c *fiber.Ctx) error { return scannerHandler.RegisterAgent(c) })
 	app.Get("/api/v1/scanner/agent/stream", func(c *fiber.Ctx) error { return scannerHandler.AgentStream(c) })
 	app.Post("/api/v1/scanner/agent/push", func(c *fiber.Ctx) error { return scannerHandler.AgentPush(c) })
+	// The host's software inventory (#910), same agent gate as push.
+	app.Post("/api/v1/scanner/agent/inventory", func(c *fiber.Ctx) error { return scannerHandler.AgentInventory(c) })
 	app.Post("/api/v1/scanner/agent/heartbeat", func(c *fiber.Ctx) error { return scannerHandler.AgentHeartbeat(c) })
 
 	// Mitigation SSE stream — mounted here (before the /api/v1 user middleware) so it
@@ -1877,7 +1855,8 @@ func main() {
 		WithAssetExposure(assetExposure)
 	vulnHandler := handlers.NewVulnerabilityHandler(
 		vulnIngestUC,
-		vulnapp.NewListUseCase(vulnRepo),
+		// The severity pills count under the register's own filters (#909).
+		vulnapp.NewListUseCase(vulnRepo).WithSeverityCounts(vulnRepo),
 		vulnapp.NewGetUseCase(vulnRepo),
 		vulnapp.NewUpdateStatusUseCase(vulnRepo),
 		vulnapp.NewDeleteUseCase(vulnRepo),
@@ -2828,6 +2807,15 @@ func main() {
 		scanAgentRepo, scanJobRepo, scannerCipher, rsaKeys, jtiBlacklistChecker, redisClientInstance,
 	)
 
+	// Software inventory (#910): what the agent's host has installed, checked
+	// for known vulnerabilities after every report.
+	hostInventoryRepo := repository.NewGormHostInventoryRepository(database.DB)
+	storeInventoryUC := invapp.NewStoreInventoryUseCase(hostInventoryRepo, assetRepo)
+	if redisClientInstance != nil {
+		storeInventoryUC.WithGate(redisClientInstance)
+	}
+	scannerHandler.WithInventory(storeInventoryUC)
+
 	// User-facing routes (RS256 user token). Admin/root pass via the "*" wildcard.
 	scannerRead := middleware.RequirePermission("scanner:read")
 	scannerCreate := middleware.RequirePermission("scanner:create")
@@ -2880,6 +2868,54 @@ func main() {
 	// auto-create risks (Source=cti_auto). NVD hourly, CISA KEV every 6h.
 	ctiRepo := repository.NewGormCTIRepository(database.DB)
 	ctiClient := cti.NewExternalClient(nil, os.Getenv("NVD_API_KEY"))
+
+	// Inventory matching (#910): Linux packages on OSV, Windows programs on NVD,
+	// findings through the vulnerability ingest, fixed ones closed. OSV_API_URL
+	// can point at a mirror.
+	var vulnLookupCache *vulnlookup.RedisCache
+	if redisClientInstance != nil {
+		vulnLookupCache = vulnlookup.NewRedisCache(redisClientInstance)
+	}
+	osvClient, err := osv.NewClient(os.Getenv("OSV_API_URL"), vulnLookupCache)
+	if err != nil {
+		log.Fatalf("OSV_API_URL: %v", err)
+	}
+	matchInventoryUC := invapp.NewMatchInventoryUseCase(
+		hostInventoryRepo,
+		vulnlookup.NewOSV(osvClient),
+		vulnlookup.NewNVDPrograms(ctiClient, vulnLookupCache, os.Getenv("NVD_API_KEY") != ""),
+		vulnIngestUC, vulnRepo,
+	)
+	// Tenants can stop anything leaving (D-071); unreadable means off.
+	matchInventoryUC.WithPolicy(repository.NewGormLookupPolicy(database.DB))
+	storeInventoryUC.WithMatcher(matchInventoryUC)
+
+	// "Lancer un scan" and the asset drawer's inventory status. The trigger
+	// asks the tenant's online agents (10-minute cooldown per tenant).
+	if redisClientInstance != nil {
+		inventoryHandler := handlers.NewInventoryHandler(
+			invapp.NewTriggerScanUseCase(scanAgentRepo, redisClientInstance),
+			invapp.NewListAssetInventoriesUseCase(hostInventoryRepo),
+		)
+		protected.Post("/vulnerabilities/scan", middleware.RequirePermission("scanner:scan"), inventoryHandler.Scan)
+		protected.Get("/assets/:id/inventories", middleware.RequirePermission("assets:read"),
+			middleware.RequirePermission("vulnerabilities:read"), inventoryHandler.ForAsset)
+	}
+
+	// Daily re-match of every stored inventory: advisories published since the
+	// last scan land without the agents doing anything. Cross-tenant by design,
+	// tenant by tenant through the scoped repository.
+	rematchAll := invapp.NewRematchAllUseCase(hostInventoryRepo, matchInventoryUC)
+	go func() {
+		ticker := time.NewTicker(24 * time.Hour)
+		defer ticker.Stop()
+		for range ticker.C {
+			ctx, cancel := context.WithTimeout(context.Background(), 6*time.Hour)
+			n := rematchAll.Execute(ctx)
+			cancel()
+			log.Printf("inventory re-match: %d host(s) matched", n)
+		}
+	}()
 	ctiService := cti.NewService(ctiRepo, ctiClient)
 	ctiRiskCreator := ctimatch.NewAutoRiskCreator(database.DB)
 	ctiMatcher := ctimatch.NewTenantSweepMatcher(database.DB, ctiRepo, ctiRiskCreator)
@@ -2893,6 +2929,18 @@ func main() {
 	protected.Get("/cti/stats", ctiRead, ctiHandler.Stats)
 	protected.Post("/cti/sync", ctiAdmin, ctiHandler.Sync)
 	protected.Post("/cti/match", ctiAdmin, ctiHandler.Match)
+
+	// Threats (#911): the catalogue entries that touch this tenant's assets, by
+	// CPE or by a scanner finding, ranked by an explained relevance. "Not
+	// relevant" is a triage call on the tenant's own reading list.
+	threatRepo := repository.NewGormThreatRepository(database.DB)
+	threatHandler := handlers.NewThreatHandler(
+		threatintel.NewListThreatsUseCase(threatRepo, ctiRepo),
+		threatintel.NewDismissThreatUseCase(threatRepo, ctiRepo),
+	)
+	protected.Get("/cti/threats", ctiRead, threatHandler.List)
+	protected.Put("/cti/threats/:cve/dismissal", riskUpdate, threatHandler.Dismiss)
+	protected.Delete("/cti/threats/:cve/dismissal", riskUpdate, threatHandler.Restore)
 
 	// =========================================================================
 	// Universal Search (UX-1) — one GET /search behind the ⌘K palette. Composes

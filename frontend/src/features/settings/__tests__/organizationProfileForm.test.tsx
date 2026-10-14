@@ -115,6 +115,19 @@ describe('OrganizationProfileForm', () => {
     await waitFor(() => expect(qc.getQueryState(BRANDING_KEY)?.isInvalidated).toBe(true));
   });
 
+  // #910, D-071: on by default; turning it off sends "off", never a boolean.
+  it('turns the online vulnerability lookup off and on', async () => {
+    updateOrganization.mockResolvedValue(org({ online_vuln_lookup: false }));
+    renderForm(org());
+    const sw = screen.getByTestId('org-online-vuln-lookup');
+    expect(sw).toBeChecked();
+    expect(screen.getByText(/Never a hostname, an IP address/)).toBeInTheDocument();
+    await userEvent.click(sw);
+    await userEvent.click(screen.getByTestId('org-profile-save'));
+    await waitFor(() => expect(updateOrganization).toHaveBeenCalledTimes(1));
+    expect(updateOrganization.mock.calls[0][0]).toMatchObject({ online_vuln_lookup: 'off' });
+  });
+
   it('refuses an insecure website before calling the API', async () => {
     renderForm(org());
     await userEvent.type(screen.getByLabelText('Website'), 'http://ba.cm');

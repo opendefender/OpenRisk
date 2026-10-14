@@ -21,13 +21,7 @@ import { localeTag } from '../../i18n';
 import { useQuestionnaireTemplates } from './useQuestionnaireTemplates';
 import { useVendorAssessment, useVendorChain } from './useVendors';
 import { useVendorLabels } from './useVendorLabels';
-import {
-  formatNumber,
-  httpStatus,
-  knownStatus,
-  statusIntent,
-  tierIntent,
-} from './vendorDisplay';
+import { formatNumber, httpStatus, knownStatus, statusIntent, tierIntent } from './vendorDisplay';
 import type { VendorAssessmentItem } from './vendorService';
 
 export function VendorAssessmentPage() {
@@ -98,9 +92,7 @@ export function VendorAssessmentPage() {
             <p role="alert" className="text-[14px] text-ink mb-4">
               {notFound ? t('vendors.review.notFound') : t('vendors.review.loadFailed')}
             </p>
-            {!notFound && (
-              <Btn label={t('vendors.retry')} onClick={() => void query.refetch()} />
-            )}
+            {!notFound && <Btn label={t('vendors.retry')} onClick={() => void query.refetch()} />}
           </Card>
         )}
 
@@ -126,7 +118,9 @@ export function VendorAssessmentPage() {
                       <span className="text-[32px] font-bold tabular-nums text-ink">
                         {num(a.score)}
                       </span>
-                      <span className="text-[13px] text-ink-muted">{t('vendors.review.outOf')}</span>
+                      <span className="text-[13px] text-ink-muted">
+                        {t('vendors.review.outOf')}
+                      </span>
                     </p>
                   ) : (
                     <p className="text-[14px] text-ink mt-1">

@@ -50,7 +50,7 @@ PRINCIPES : garder la liste focalisée (3–5 priorités actives), commencer les
  - Actions:
    - ✅ Set up docker-compose: test_db (PostgreSQL), Redis, health checks.
    - ✅ GitHub Actions pipeline: golangci-lint, go test, npm test, Docker build, GHCR push.
-   - ✅ Integration test suite: risk_handler_integration_test.go (5 test cases: create, read, update, delete, list).
+   - ❌ Integration test suite: risk_handler_integration_test.go stopped compiling when the risk handlers moved, and was removed in #957. Risk CRUD is covered by the use case and repository tests.
    - ⚠️ Pending: Full integration test run in CI (requires GHCR secrets setup).
  - Livré:
    - ✅ `.github/workflows/ci.yml` : lint → test → build → push pipeline.
@@ -153,7 +153,7 @@ Critères d'acceptation pour un connecteur prêt-prod:
   - Frontend: ESLint, tsc, npm test
 - Docker: Multi-stage build (backend Go → Node frontend → Alpine runtime)
 - docker-compose: test_db, Redis, health checks, networks
-- Integration tests: risk_handler_integration_test.go (5 CRUD tests)
+- Integration tests: risk_handler_integration_test.go (removed in #957, see above)
 - Makefile: 15+ development tasks
 - docs/CI_CD.md: comprehensive documentation
 - Status: Pipeline ready, GHCR push pending credentials
