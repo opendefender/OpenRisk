@@ -126,17 +126,14 @@ func (m Mounter) Group(prefix string, checks ...Check) Mounter {
 	}
 }
 
-func (m Mounter) add(method, path string, g Guard, hs []fiber.Handler) {
+func (m Mounter) add(mount func(string, ...fiber.Handler) fiber.Router, method, path string, g Guard, hs []fiber.Handler) {
 	chain := make([]fiber.Handler, 0, len(g)+len(hs))
 	for _, c := range g {
 		chain = append(chain, c.handler())
 	}
 	chain = append(chain, hs...)
-	m.r.Add(method, path, chain...)
-	if method == fiber.MethodGet {
-		// fiber.Router.Get also registers HEAD; Add does not. Keep it.
-		m.r.Add(fiber.MethodHead, path, chain...)
-	}
+	// The same fiber.Router method main.go calls today (Get also adds HEAD).
+	mount(path, chain...)
 	m.matrix.rows = append(m.matrix.rows, Row{
 		Method: method,
 		Path:   joinPath(m.prefix, path),
@@ -146,19 +143,19 @@ func (m Mounter) add(method, path string, g Guard, hs []fiber.Handler) {
 }
 
 func (m Mounter) Get(path string, g Guard, hs ...fiber.Handler) {
-	m.add(fiber.MethodGet, path, g, hs)
+	m.add(m.r.Get, fiber.MethodGet, path, g, hs)
 }
 func (m Mounter) Post(path string, g Guard, hs ...fiber.Handler) {
-	m.add(fiber.MethodPost, path, g, hs)
+	m.add(m.r.Post, fiber.MethodPost, path, g, hs)
 }
 func (m Mounter) Put(path string, g Guard, hs ...fiber.Handler) {
-	m.add(fiber.MethodPut, path, g, hs)
+	m.add(m.r.Put, fiber.MethodPut, path, g, hs)
 }
 func (m Mounter) Patch(path string, g Guard, hs ...fiber.Handler) {
-	m.add(fiber.MethodPatch, path, g, hs)
+	m.add(m.r.Patch, fiber.MethodPatch, path, g, hs)
 }
 func (m Mounter) Delete(path string, g Guard, hs ...fiber.Handler) {
-	m.add(fiber.MethodDelete, path, g, hs)
+	m.add(m.r.Delete, fiber.MethodDelete, path, g, hs)
 }
 
 // Verify compares the matrix with the routes Fiber actually holds. A route
