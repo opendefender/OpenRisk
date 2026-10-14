@@ -39,6 +39,23 @@ type AgentLister interface {
 // ScanCooldown is the minimum time between two manual scans of a tenant.
 const ScanCooldown = 10 * time.Minute
 
+// reconnectGrace: an agent whose stream dropped this recently is reconnecting,
+// not gone. The pending job is replayed when it is back (PendingKey), so it is
+// asked like an online one. Found in the #910 live run, where agent streams
+// reconnect every ~20 s.
+const reconnectGrace = 2 * time.Minute
+
+// reachable says whether an agent can still take a job.
+func reachable(a domain.ScannerAgent, now time.Time) bool {
+	switch a.Status {
+	case domain.AgentOnline, domain.AgentScanning:
+		return true
+	case domain.AgentOffline:
+		return !a.LastHeartbeat.IsZero() && now.Sub(a.LastHeartbeat) < reconnectGrace
+	}
+	return false
+}
+
 // TriggerResult says how many agents were asked for an inventory.
 type TriggerResult struct {
 	Agents int `json:"agents"`
@@ -75,7 +92,7 @@ func (uc *TriggerScanUseCase) Execute(ctx context.Context, tenantID uuid.UUID) (
 	}
 	var online []string
 	for _, a := range agents {
-		if a.TenantID == tenantID && (a.Status == domain.AgentOnline || a.Status == domain.AgentScanning) {
+		if a.TenantID == tenantID && reachable(a, time.Now()) {
 			online = append(online, a.ID.String())
 		}
 	}

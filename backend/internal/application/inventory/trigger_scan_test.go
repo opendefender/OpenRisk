@@ -87,6 +87,22 @@ func TestTriggerScan_Success(t *testing.T) {
 	assert.Len(t, kv.published, 1)
 }
 
+// An agent whose stream dropped a moment ago is reconnecting: it is asked, and
+// the replay delivers the job when it is back. One gone for long is not.
+func TestTriggerScan_ReconnectingAgent(t *testing.T) {
+	tenant := uuid.New()
+	recent, stale := uuid.New(), uuid.New()
+	agents := fakeAgents{map[uuid.UUID][]domain.ScannerAgent{tenant: {
+		{ID: recent, TenantID: tenant, Status: domain.AgentOffline, LastHeartbeat: time.Now().Add(-10 * time.Second)},
+		{ID: stale, TenantID: tenant, Status: domain.AgentOffline, LastHeartbeat: time.Now().Add(-time.Hour)},
+	}}}
+	kv := &fakeKV{locks: map[string]bool{}}
+	res, err := NewTriggerScanUseCase(agents, kv).Execute(context.Background(), tenant)
+	require.NoError(t, err)
+	assert.Equal(t, 1, res.Agents)
+	assert.Equal(t, []string{recent.String()}, kv.published[0].AgentIDs)
+}
+
 func TestTriggerScan_NotFound(t *testing.T) {
 	tenant := uuid.New()
 	kv := &fakeKV{locks: map[string]bool{}}
