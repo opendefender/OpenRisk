@@ -11,10 +11,16 @@ DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=/dev/null
 . "$DIR/_json.sh"
 
+# shellcheck source=/dev/null
+. "$DIR/_roots.sh"
+
 INPUT=$(cat)
-ROOT=$(json_get "$INPUT" '.cwd')
-{ [ -n "$ROOT" ] && [ -d "$ROOT" ]; } && { cd "$ROOT" 2>/dev/null || true; }
-cd "$(git rev-parse --show-toplevel 2>/dev/null || pwd)" || exit 0
+# Branch and sha come from the checkout the agent worked in (its worktree,
+# read from the transcript), not the session's cwd. The file itself stays in
+# the project the session runs from, where /resume reads it.
+ROOT=$(edited_roots "$INPUT" | head -1)
+PROJECT="${CLAUDE_PROJECT_DIR:-${ROOT:-$PWD}}"
+{ [ -n "$ROOT" ] && cd "$ROOT"; } || cd "$PROJECT" || exit 0
 
 AGENT=$(json_get "$INPUT" '.agent_type')
 if [ -z "$AGENT" ]; then
@@ -41,7 +47,8 @@ if [ -z "$ISSUE" ]; then
   [ -n "$ISSUE" ] && ISSUE="$ISSUE(from commits)"
 fi
 
-mkdir -p .claude
+mkdir -p "$PROJECT/.claude"
+CP="$PROJECT/$CP"
 [ -f "$CP" ] || printf '# Checkpoints — machine written. Read by /resume.\n\n' > "$CP"
 printf -- '- %s | agent=%s | branch=%s | sha=%s | uncommitted=%s | issue=#%s\n' \
   "$(date -u +%FT%TZ)" "$AGENT" "$BRANCH" "$SHA" "$DIRTY" "${ISSUE:-?}" >> "$CP"
