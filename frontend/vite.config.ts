@@ -1,9 +1,64 @@
-import { defineConfig } from 'vite';
+import { dirname, join } from 'node:path';
+import { defineConfig, type Rollup } from 'vite';
 import react from '@vitejs/plugin-react';
 
 // Backend origin for the dev proxy. Override with BACKEND_URL when the API runs
 // somewhere other than the default docker compose mapping.
 const backendURL = process.env.BACKEND_URL ?? 'http://localhost:8080';
+
+/*
+ * The lucide icons the entry chunk draws (#966), as module ids.
+ *
+ * Every icon used to go into one `icons` chunk, which the entry imported, so
+ * all of them were preloaded for a first screen that draws a few dozen. Left
+ * entirely to Rollup instead, each icon used only behind lazy routes became a
+ * chunk of its own, some eighty files of 200 bytes. So: the icons the entry
+ * graph go to `icons` with lucide's runtime, and every other icon goes to one
+ * `icons-lazy` chunk that only lazy chunks import.
+ *
+ * Both are named explicitly. Rollup pulls a manual chunk's unassigned
+ * dependencies into it, so leaving the entry's icons and lucide's runtime
+ * unassigned put them in `icons-lazy`, and the entry then imported that.
+ *
+ * "Names" is read, not guessed: the names come from the `import { … } from
+ * 'lucide-react'` statements of the modules statically reachable from the
+ * entry, and each name is mapped to its file through lucide's own barrel,
+ * which is a list of `export { default as Name } from './icons/name.js'`.
+ */
+let entryIconIds: Set<string> | undefined;
+function iconsOfEntry(meta: Rollup.ManualChunkMeta): Set<string> {
+  if (entryIconIds) return entryIconIds;
+  const names = new Set<string>();
+  let barrel: string | undefined;
+  const seen = new Set<string>();
+  const queue = [...meta.getModuleIds()].filter((id) => meta.getModuleInfo(id)?.isEntry);
+  while (queue.length) {
+    const id = queue.pop()!;
+    if (seen.has(id)) continue;
+    seen.add(id);
+    const info = meta.getModuleInfo(id);
+    if (!info) continue;
+    for (const dep of info.importedIds) {
+      if (dep.includes('lucide-react/dist/esm/lucide-react')) barrel = dep;
+      if (!dep.includes('node_modules')) queue.push(dep);
+    }
+    for (const m of (info.code ?? '').matchAll(
+      /import\s*\{([^}]*)\}\s*from\s*["']lucide-react["']/g,
+    )) {
+      for (const spec of m[1].split(',')) {
+        const name = spec.trim().split(/\s+as\s+/)[0];
+        if (name) names.add(name);
+      }
+    }
+  }
+  entryIconIds = new Set();
+  const barrelCode = barrel ? (meta.getModuleInfo(barrel)?.code ?? '') : '';
+  for (const m of barrelCode.matchAll(/export\s*\{([^}]*)\}\s*from\s*'(\.\/icons\/[^']+)'/g)) {
+    const exported = m[1].split(',').map((spec) => spec.trim().split(/\s+as\s+/)[1]);
+    if (exported.some((name) => names.has(name))) entryIconIds.add(join(dirname(barrel!), m[2]));
+  }
+  return entryIconIds;
+}
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -39,7 +94,7 @@ export default defineConfig({
     chunkSizeWarningLimit: 300,
     rollupOptions: {
       output: {
-        manualChunks(id) {
+        manualChunks(id, meta) {
           if (!id.includes('node_modules')) return undefined;
           // Heavy, rarely-on-first-paint libraries: their own chunks so they load
           // only with the routes that use them and never bloat the entry.
@@ -69,7 +124,9 @@ export default defineConfig({
           // scripts/check-anime-budget.mjs measurable at all: mixed into the
           // charts chunk alongside visx there would be no number to assert.
           if (id.includes('animejs')) return 'anime';
-          if (id.includes('@zxcvbn-ts')) return 'zxcvbn'; // password-strength dictionaries (huge)
+          // password-strength dictionaries (huge), and the edit-distance helper
+          // @zxcvbn-ts/core depends on, which otherwise fell through to `vendor`.
+          if (id.includes('@zxcvbn-ts') || id.includes('fastest-levenshtein')) return 'zxcvbn';
           if (id.includes('leaflet')) return 'maps';
           if (
             id.includes('@hello-pangea') ||
@@ -88,8 +145,18 @@ export default defineConfig({
           if (id.includes('zxcvbn')) return 'zxcvbn';
           if (id.includes('framer-motion') || id.includes('popmotion') || id.includes('@motionone'))
             return 'motion';
+          /* The virtualizer serves the long tables (shared/datatable), all of
+             them behind lazy routes. Under the `@tanstack` rule below it rode in
+             `query`, which is preloaded for the QueryClient in main.tsx. */
+          if (id.includes('@tanstack/react-virtual') || id.includes('@tanstack/virtual-core'))
+            return 'virtual';
           if (id.includes('@tanstack')) return 'query';
           if (id.includes('react-router')) return 'router';
+          /* The entry's icons and lucide's runtime: `icons`, preloaded. Every
+             other icon: `icons-lazy`, fetched with the first route that draws
+             one. See iconsOfEntry. */
+          if (id.includes('lucide-react/dist/esm/icons/'))
+            return iconsOfEntry(meta).has(id) ? 'icons' : 'icons-lazy';
           if (id.includes('lucide-react')) return 'icons';
           if (id.includes('/react/') || id.includes('/react-dom/') || id.includes('/scheduler/'))
             return 'react';
