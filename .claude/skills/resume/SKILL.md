@@ -23,7 +23,8 @@ Target issue: `${ARGUMENTS:-the single issue labelled status:in-progress}`.
 If several are in progress, list them and ask me which one. Do not guess.
 
 ```
-gh issue view <n> --comments
+gh api repos/opendefender/OpenRisk/issues/<n> --jq '.title, .body, [.labels[].name]'
+gh api repos/opendefender/OpenRisk/issues/<n>/comments --jq '.[] | .user.login + " " + .created_at + "\n" + .body'
 ```
 
 The **last agent comment is your instruction set.** Its `Next` field is your

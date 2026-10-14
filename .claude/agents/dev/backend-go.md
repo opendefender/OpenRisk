@@ -14,7 +14,7 @@ Go 1.25 · Fiber v2 · GORM · PostgreSQL 16 · Redis · golang-migrate.
 
 ## Protocol
 
-1. `gh issue view <n> --comments`. No issue, no work.
+1. Read the issue and its comments with `gh api` (CLAUDE.md, GitHub CLI). No issue, no work.
 2. Read every existing file of the module before writing a line (RULE 1).
 3. Write the test first. Minimum three: `_Success`, `_NotFound`, `_Unauthorized`.
 4. Implement the thinnest correct change.
