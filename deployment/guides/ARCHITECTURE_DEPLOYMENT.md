@@ -29,7 +29,7 @@
       ║      🟩 RENDER.COM - BACKEND           ║
       ║  https://openrisk-api.onrender.com     ║
       ║                                         ║
-      ║  Go 1.25.4 + Fiber API Server          ║
+      ║  Go 1.26 + Fiber API Server          ║
       ║  ✅ Docker container                   ║
       ║  ✅ Auto-deploy from GitHub            ║
       ║  ✅ Free tier with 15min sleep         ║
@@ -109,7 +109,7 @@
         │  Auto-renewal certificates         │
         │                                      │
         ├──────────────────────────────────────┤
-        │  Go 1.25.4 Application              │
+        │  Go 1.26 Application              │
         │  ├─ Fiber v2.52 Web Framework      │
         │  ├─ RESTful API endpoints           │
         │  ├─ Middleware (CORS, Auth, etc)   │
@@ -285,7 +285,7 @@ Frontend        React               19.2.0         ✅ Latest
                 Zustand (state)     5.0.8          ✅ Latest
                 Axios (HTTP)        1.13.2         ✅ Latest
 
-Backend         Go                  1.25.4         ✅ Latest
+Backend         Go                  1.26           ✅ Supported
                 Fiber               2.52.10        ✅ Latest
                 GORM (ORM)          1.31.1         ✅ Latest
                 JWT (auth)          5.3.0          ✅ Latest

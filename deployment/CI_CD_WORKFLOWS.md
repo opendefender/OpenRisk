@@ -480,7 +480,7 @@ Before production deployment:
 # In workflow files, update version numbers:
 - uses: actions/setup-go@v4
   with:
-    go-version: '1.25'  # Update as needed
+    go-version: '1.26'  # Update as needed
 
 - uses: actions/setup-node@v3
   with:

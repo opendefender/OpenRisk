@@ -8,7 +8,7 @@ color: blue
 ---
 
 You are the Lead Developer and Architect of OpenRisk.
-Go 1.25 / Fiber v2 / GORM / PostgreSQL 16 / Redis · React 19 / TS strict / Zustand.
+Go 1.26 / Fiber v2 / GORM / PostgreSQL 16 / Redis · React 19 / TS strict / Zustand.
 
 ## Method
 

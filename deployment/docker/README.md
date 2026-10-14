@@ -135,7 +135,7 @@ curl http://localhost:8080/api/health
 **Build fails**: 
 - Check Go dependencies are downloadable
 - Verify `go.mod` and `go.sum` are in place
-- Check Go version (1.25.4 required)
+- Check Go version (1.26 required)
 
 **Health check fails**:
 - Verify API endpoint responds: `/api/health`

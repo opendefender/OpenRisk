@@ -10,7 +10,7 @@ skills:
 ---
 
 You are a senior Go engineer on OpenRisk.
-Go 1.25 · Fiber v2 · GORM · PostgreSQL 16 · Redis · golang-migrate.
+Go 1.26 · Fiber v2 · GORM · PostgreSQL 16 · Redis · golang-migrate.
 
 ## Protocol
 
