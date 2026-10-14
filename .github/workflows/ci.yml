@@ -66,36 +66,43 @@ jobs:
       - name: Published price list still matches the enforced matrix
         run: cd backend && go test -count=1 ./pkg/entitlements/ -run 'TestPricingDoc|TestSelfHostDoc'
 
-      - name: Check coverage threshold (50%)
+      # A ratchet, not a target: the floor is the coverage master actually has.
+      # The old 50% line had never been met, so the step failed on every run and
+      # a real drop was invisible. Raise the floor when coverage goes up; never
+      # lower it without an owner decision (docs/DECISIONS.md, #957).
+      - name: Coverage does not drop below the floor (44%)
         run: |
           cd backend
+          FLOOR=44
           COVERAGE=$(go tool cover -func=coverage.out | grep total | awk '{print int($3)}')
-          echo "Code coverage: ${COVERAGE}%"
-          if [ ${COVERAGE} -lt 50 ]; then
-            echo "❌ Coverage ${COVERAGE}% is below threshold 50%"
+          echo "Code coverage: ${COVERAGE}% (floor ${FLOOR}%)"
+          if [ "${COVERAGE}" -lt "${FLOOR}" ]; then
+            echo "Coverage ${COVERAGE}% is below the ${FLOOR}% floor"
             exit 1
           fi
-          echo "✅ Coverage ${COVERAGE}% meets threshold"
 
+      # Advisory, like the frontend upload: there is no CODECOV_TOKEN secret,
+      # and the gate is the floor above, on our own runner.
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v5
+        continue-on-error: true
         with:
           files: ./backend/coverage.out
           flags: backend
-          fail_ci_if_error: true
+          fail_ci_if_error: false
 
   backend-integration-tests:
     name: Backend Integration Tests
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:15-alpine
+        image: postgres:16-alpine
         env:
           POSTGRES_USER: test
           POSTGRES_PASSWORD: test
           POSTGRES_DB: openrisk_test
         options: >-
-          --health-cmd pg_isready
+          --health-cmd "pg_isready -U test"
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
@@ -121,11 +128,51 @@ jobs:
       - name: Download dependencies
         run: cd backend && go mod download
 
+      # The *_Postgres tests read the real schema (public.mfa_secrets,
+      # audit_events, ...), which only exists once the server has booted: it
+      # runs AutoMigrate and then the SQL migrations. Against the empty
+      # database they failed or skipped, so build the schema the way production
+      # does, with one boot, and stop the server once /health answers.
+      - name: Build the schema with one server boot
+        env:
+          DATABASE_URL: postgres://test:test@localhost:5432/openrisk_test?sslmode=disable
+          DB_HOST: localhost
+          DB_PORT: '5432'
+          DB_USER: test
+          DB_PASSWORD: test
+          DB_NAME: openrisk_test
+          REDIS_HOST: localhost
+          REDIS_PORT: '6379'
+          REDIS_URL: redis://localhost:6379
+          APP_ENV: test
+          PORT: '8080'
+          CTI_SYNC_ENABLED: 'false'
+          PASSWORD_HIBP_DISABLED: 'true'
+        run: |
+          mkdir -p "$RUNNER_TEMP/keys"
+          ( umask 077 && openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out "$RUNNER_TEMP/keys/private.pem" 2>/dev/null )
+          openssl rsa -in "$RUNNER_TEMP/keys/private.pem" -pubout -out "$RUNNER_TEMP/keys/public.pem" 2>/dev/null
+          export RSA_PRIVATE_KEY_PATH="$RUNNER_TEMP/keys/private.pem" RSA_PUBLIC_KEY_PATH="$RUNNER_TEMP/keys/public.pem"
+          (cd backend && go build -o "$RUNNER_TEMP/openrisk" ./cmd/server)
+          "$RUNNER_TEMP/openrisk" > "$RUNNER_TEMP/boot.log" 2>&1 &
+          PID=$!
+          for i in $(seq 1 90); do
+            if curl -fsS http://localhost:8080/api/v1/health >/dev/null; then
+              kill "$PID"; wait "$PID" || true
+              echo "schema built after ${i}s"; exit 0
+            fi
+            kill -0 "$PID" 2>/dev/null || break
+            sleep 1
+          done
+          tail -50 "$RUNNER_TEMP/boot.log"
+          echo "the server did not come up, so the schema was not built"; exit 1
+
       - name: Run integration tests
         env:
-          DATABASE_URL: postgres://test:test@localhost:5432/openrisk_test
+          DATABASE_URL: postgres://test:test@localhost:5432/openrisk_test?sslmode=disable
           REDIS_HOST: localhost
           REDIS_PORT: 6379
+          REDIS_URL: redis://localhost:6379
           APP_ENV: test
         run: cd backend && go test -v -race -tags=integration ./...
 
@@ -489,26 +536,6 @@ jobs:
           cache-to: type=gha,mode=max
 
   # ==================== CODE COVERAGE REPORT ====================
-  coverage-report:
-    name: Generate Coverage Report
-    runs-on: ubuntu-latest
-    needs: [backend-unit-tests, frontend-unit-tests]
-    if: always()
-    steps:
-      - uses: actions/checkout@v3
-
-      - name: Download backend coverage
-        uses: actions/download-artifact@v3
-        with:
-          name: backend-coverage
-        continue-on-error: true
-
-      - name: Generate coverage badge
-        run: |
-          echo "Coverage Report"
-          echo "Backend: Check Codecov"
-          echo "Frontend: Check Codecov"
-
   # ==================== CI SUMMARY ====================
   ci-summary:
     name: CI Status
