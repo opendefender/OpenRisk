@@ -1,6 +1,6 @@
 # Spec — #910 Vulnerabilities from the agent's package inventory
 
-Status: **draft, awaiting owner review** (2026-10-14) · Branch: `feat/910-agent-package-scan`
+Status: **approved by owner 2026-10-14** (osquery required · Windows matched by NVD CPE now · OSV on by default with a per-tenant switch · UI = button + asset drawer; EPSS and air-gap take the stated defaults) · Branch: `feat/910-agent-package-scan`
 (stacked on `feat/911-threat-intel` → `feat/909-vulnerabilities`) · Parent: #899 ·
 Owner decision this rests on: D-067 point 2 ("auto vuln scan = agent package
 inventory + OSV/NVD, no paid service").
@@ -235,13 +235,53 @@ func OSVEcosystem(os, osVersion, source string) string
    *Recommended: on by default, with the switch.*
 6. **Air-gapped self-hosting.** Without internet, OSV is unreachable and the feature shows "source injoignable". An offline OSV mirror is out of scope.
 
-## Plan — tasks in dependency order (after approval)
+## Decisions (owner, 2026-10-14)
+
+1. **osquery is required.** There is no installer to extend (the agent is a
+   binary + the systemd unit printed by `-install`), so: an `inventory` job on a
+   host without `osqueryi` returns the error code `osquery_missing`, the UI
+   says "osquery requis" for that host, and `agent/README.md` documents installing
+   it (official packages for Debian/Ubuntu, RHEL family, Windows MSI). No
+   native fallback.
+2. **Windows is matched now, through NVD.** The local catalogue cannot do it:
+   `pkg/cti/client.go` keeps only `criteria` and drops NVD's version ranges, and
+   it holds only CVEs synced since deployment plus KEV. So for each distinct
+   Windows program (publisher, name, version):
+   - resolve a CPE with NVD `GET /rest/json/cpes/2.0?keywordSearch=<name>`,
+     keeping only candidates whose **vendor matches the normalised publisher**
+     and whose product matches the normalised name; no candidate → "non
+     vérifiable", never a guess;
+   - query `GET /rest/json/cves/2.0?virtualMatchString=cpe:2.3:a:<vendor>:<product>:<version>`
+     so NVD applies its own version ranges;
+   - findings carry `match_method = "nvd_cpe"` and `match_confidence = 0.6`
+     (OSV matches: `"osv"`, 1.0), and the open row says "Correspondance par CPE
+     (NVD), à confirmer";
+   - NVD limits: 5 requests / 30 s without a key, 50 with `NVD_API_KEY`
+     (already read by the server). A Windows host is matched in the background
+     over minutes; CPE resolutions and CVE answers are cached 7 days, shared
+     across tenants because they are public NVD data keyed only on
+     (publisher, name, version).
+3. **OSV and NVD are on by default, with a per-tenant switch** ("Recherche de
+   vulnérabilités en ligne"), in the organisation settings. Off → inventories are
+   still stored, no match runs, the UI says why. `docs/` privacy line: what is
+   sent (package/program name, version, ecosystem), to whom (OSV, NVD), never
+   hostnames, IPs or tenant identifiers.
+4. **UI**: "Lancer un scan" on the vulnerability page starts the package scan;
+   per-host inventory status (OS, collector, packages, last collected, last
+   matched, "non vérifiable" count, error) sits in the asset drawer's analysis
+   (#937). Hosts with no matching asset are listed under the existing
+   "Non rattachées" view of the queue. The Infrastructure launcher's
+   "Vulnérabilités" type ships with #912.
+5. **EPSS** stays empty (no feed exists); a follow-up issue proposes the FIRST
+   EPSS feed. **Air-gapped** installs show "source injoignable".
+
+## Plan — tasks in dependency order
 
 1. `inventory-store` domain + migration 0075 + repository (pg-gated test) — *Verify*: `go test ./internal/domain ./internal/infrastructure/repository`.
-2. Agent `inventory` job: collection + push + tests — *Verify*: `cd agent && go test ./...`.
+2. Agent `inventory` job: osquery collection (deb/rpm/apk/programs + os_version), `osquery_missing` error, push + tests, README — *Verify*: `cd agent && go test ./...`.
 3. Agent endpoint + store use case + isolation entries — *Verify*: use-case tests, registry ratchet.
-4. OSV client with cache and limiter (`httptest`) — *Verify*: client tests.
+4. OSV client and NVD CPE client (resolve + virtualMatchString), each with cache and limiter (`httptest`) — *Verify*: client tests.
 5. Match use case: ingest through the pipeline + close on fix — *Verify*: Success/NotFound/Unauthorized + fix-closes + outage-closes-nothing.
-6. Triggers: manual endpoint (lock + 429) and daily job — *Verify*: trigger tests; `go test ./...`.
-7. Frontend: "Lancer un scan" wiring + inventory status + finding detail — *Verify*: tsc/eslint/vitest.
-8. Live run on a container with an old package; issue comment; PR.
+6. Triggers: manual endpoint (lock + 429), daily job, per-tenant online-lookup switch — *Verify*: trigger tests; `go test ./...`.
+7. Frontend: "Lancer un scan" wiring, inventory status in the asset drawer, match method in the open row, settings switch — *Verify*: tsc/eslint/vitest.
+8. Live run: agent with osquery on a Debian container with an old package (finding appears, upgrade closes it); NVD path exercised with a recorded Windows program list; issue comment; PR.
