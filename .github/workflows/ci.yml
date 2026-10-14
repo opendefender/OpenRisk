@@ -522,7 +522,10 @@ jobs:
             type=ref,event=branch
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
-            type=sha,prefix={{branch}}-
+            # {{branch}} is empty on pull_request events, which made the tag
+            # ":-<sha>" and failed the build on every PR (#957). PRs get pr-<n>.
+            type=ref,event=pr
+            type=sha,prefix={{branch}}-,enable=${{ github.event_name == 'push' }}
             type=raw,value=latest,enable={{is_default_branch}}
 
       - name: Build and push Docker image
@@ -535,7 +538,6 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  # ==================== CODE COVERAGE REPORT ====================
   # ==================== CI SUMMARY ====================
   ci-summary:
     name: CI Status
