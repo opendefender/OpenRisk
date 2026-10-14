@@ -130,7 +130,13 @@ export const ROUTES: RouteNode[] = [
     parent: '/vendors/questionnaires',
     perm: 'vendors:read',
   },
-  { path: '/threat-map', labelKey: 'n_cti', perm: 'risks:read' },
+  { path: '/threat-intel', labelKey: 'n_cti', perm: 'risks:read' },
+  {
+    path: '/threat-map',
+    label: { fr: 'Flux CVE', en: 'CVE feed' },
+    parent: '/threat-intel',
+    perm: 'risks:read',
+  },
   { path: '/ai/emerging-risks', labelKey: 'n_emerging', perm: 'risks:read', topLevel: true },
   { path: '/simulations', labelKey: 'n_simulations', perm: 'risks:read' },
 

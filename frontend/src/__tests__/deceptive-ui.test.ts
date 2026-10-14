@@ -72,7 +72,8 @@ describe('placeholder routes', () => {
       'assets/universe',
       'compliance/gap-analysis',
       'compliance/remediations',
-      'threat-intel',
+      // 'threat-intel' left this list in #911: it is the Threat Intel page now,
+      // and the CVE feed it used to redirect to stays at /threat-map.
     ];
     for (const path of legacy) {
       const route = new RegExp(

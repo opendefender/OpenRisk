@@ -11,7 +11,7 @@
 // report what actually happened — including "0 new CVEs", which is a result,
 // not a silence.
 
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { Globe, Crosshair, ShieldAlert, Search, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { PageFrame, PageHeader, Btn, Card, SkeletonRows, EmptyState } from '../../shared/ui';
@@ -21,6 +21,8 @@ import { useUIStore } from '../../store/uiStore';
 import { useCTIStats, useCTIVulnerabilities, useCTISync, useCTIMatch } from './useCTI';
 import type { CTIVulnerability } from './ctiService';
 import { CveDetailDrawer } from './CveDetailDrawer';
+import { HeaderLink } from '../dashboard/console/Panel';
+import { useI18n } from '../../hooks/useI18n';
 
 const sevToCrit = (s: string): Criticality => {
   switch ((s || '').toUpperCase()) {
@@ -48,6 +50,7 @@ function relTime(iso: string, tr: (fr: string, en: string) => string): string {
 
 export function ThreatIntel() {
   const L = useUIStrings();
+  const { t } = useI18n();
   const lang = useUIStore((s) => s.lang);
   const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
 
@@ -97,19 +100,17 @@ export function ThreatIntel() {
     });
   };
 
-  const statCards: [string, string, string][] = useMemo(
-    () => [
-      [String(stats?.total ?? 0), tr('CVE actives', 'Active CVEs'), 'var(--accent)'],
-      [String(stats?.critical ?? 0), tr('Critiques', 'Critical'), 'var(--critical)'],
-      [
-        String(stats?.cisa_known ?? 0),
-        tr('CISA KEV (exploitées)', 'CISA KEV (exploited)'),
-        'var(--high)',
-      ],
-      [String(stats?.cti_risks ?? 0), tr('Risques auto-créés', 'Auto-created risks'), 'var(--low)'],
+  // Four strings: nothing worth memoising.
+  const statCards: [string, string, string][] = [
+    [String(stats?.total ?? 0), tr('CVE actives', 'Active CVEs'), 'var(--accent)'],
+    [String(stats?.critical ?? 0), tr('Critiques', 'Critical'), 'var(--critical)'],
+    [
+      String(stats?.cisa_known ?? 0),
+      tr('CISA KEV (exploitées)', 'CISA KEV (exploited)'),
+      'var(--high)',
     ],
-    [stats, lang],
-  ); // eslint-disable-line react-hooks/exhaustive-deps
+    [String(stats?.cti_risks ?? 0), tr('Risques auto-créés', 'Auto-created risks'), 'var(--low)'],
+  ];
 
   const list: CTIVulnerability[] = vulns ?? [];
 
@@ -120,6 +121,8 @@ export function ThreatIntel() {
         count={stats ? String(stats.total) : null}
         actions={
           <div className="flex items-center gap-2">
+            {/* Back to the tenant's threats, by relevance (#911). */}
+            <HeaderLink to="/threat-intel">{t('threats.backToThreats')}</HeaderLink>
             <Btn
               label={
                 matching

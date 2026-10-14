@@ -1961,5 +1961,55 @@
     },
     "entity": "vulnerabilities",
     "riskTitle": "{title} ({cve})"
+  },
+  "threats": {
+    "title": "Threat Intel",
+    "subtitle": "Catalogue threats (NVD, CISA KEV, MITRE ATT&CK) that touch your assets, by relevance.",
+    "feedLink": "Full CVE feed",
+    "modeLabel": "Threats shown",
+    "mode": {
+      "all": "All",
+      "high": "Relevance ≥ 70"
+    },
+    "relevance": "Relevance",
+    "relevanceSr": "Relevance {value} out of 100, see why",
+    "why": "Why {value}/100",
+    "factor": {
+      "asset": "Most critical asset touched: {crit}",
+      "kev": "Actively exploited (CISA KEV)",
+      "epss_high": "Exploitation probability (EPSS) ≥ 50%",
+      "epss_medium": "Exploitation probability (EPSS) ≥ 10%",
+      "noExploitation": "No exploitation signal",
+      "cvss": "CVSS severity {value}",
+      "noCvss": "CVSS severity unknown",
+      "scan": "Found by a scanner on your assets",
+      "cpe": "Inferred from your assets' CPEs",
+      "sector": "Sector: not counted, none of these sources describes which sectors are targeted."
+    },
+    "sources": "Sources: {list}",
+    "via": {
+      "scan": "found by a scanner",
+      "cpe": "by its CPEs"
+    },
+    "createRisk": "Create a risk",
+    "dismiss": "Not relevant",
+    "restore": "Restore",
+    "riskTitle": "{title} ({cve})",
+    "toast": {
+      "dismissFailed": "The change was not saved."
+    },
+    "empty": "No catalogue threat touches your assets.",
+    "emptyNoCpe": "No threat can be related to your assets yet: add their CPEs or import scan results.",
+    "emptyHigh": "No threat with relevance ≥ 70.",
+    "showAll": "Show all threats",
+    "toAssets": "Open the inventory",
+    "truncated": "Only the 200 most relevant threats are shown.",
+    "ioc": {
+      "title": "Indicators of compromise",
+      "subtitle": "Matches in your logs over 7 days",
+      "unavailable": "Matches unavailable",
+      "why": "OpenRisk does not ingest your logs yet, and the current sources (NVD, CISA KEV) publish no indicators. No match is computed or shown."
+    },
+    "backToThreats": "Threats to your assets"
   }
 }
