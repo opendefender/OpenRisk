@@ -13,7 +13,7 @@ DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 INPUT=$(cat)
 ROOT=$(json_get "$INPUT" '.cwd')
-{ [ -n "$ROOT" ] && [ -d "$ROOT" ]; } && cd "$ROOT" 2>/dev/null
+{ [ -n "$ROOT" ] && [ -d "$ROOT" ]; } && { cd "$ROOT" 2>/dev/null || true; }
 cd "$(git rev-parse --show-toplevel 2>/dev/null || pwd)" || exit 0
 
 AGENT=$(json_get "$INPUT" '.agent_type')
