@@ -31,7 +31,7 @@
 //                  an unpaginated array (assets, mitigations, incidents, API
 //                  tokens) — see docs/ui/dead-controls.md § "Server vs client".
 
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import {
   ChevronDown,
@@ -102,6 +102,21 @@ export interface DataTableProps<T> {
   /** Accessible name of the grid. */
   ariaLabel: string;
   pageSizeOptions?: number[];
+  /**
+   * Rows that open in place (#909): a leading chevron toggles a detail row
+   * rendered under the row, across every column. The caller owns which rows are
+   * open. The body stops virtualising while one is, since an open row breaks
+   * the fixed row height the virtualiser counts on.
+   */
+  expansion?: RowExpansion<T>;
+}
+
+export interface RowExpansion<T> {
+  isOpen: (row: T) => boolean;
+  onToggle: (row: T) => void;
+  render: (row: T) => ReactNode;
+  /** Accessible name of the chevron, e.g. "Détails de CVE-2026-21873". */
+  label: (row: T) => string;
 }
 
 /* ------------------------------------------------------------------- labels */
@@ -167,6 +182,7 @@ function useLabels() {
       selected: (n: number) => t('common.selected', { count: n }),
       failed: fr ? 'Échec' : 'Failed',
       actions: fr ? 'Actions' : 'Actions',
+      details: t('common.rowDetails'),
       rowsRange: (from: number, to: number, total: number) =>
         fr ? `${from}–${to} sur ${total}` : `${from}–${to} of ${total}`,
       prev: fr ? 'Page précédente' : 'Previous page',
@@ -216,6 +232,7 @@ export function DataTable<T>({
   virtualThreshold = 30,
   ariaLabel,
   pageSizeOptions = [25, 50, 100],
+  expansion,
 }: DataTableProps<T>) {
   const L = useLabels();
   /* The density ramp, unless the caller opted out. See useDensityRowHeight:
@@ -374,7 +391,8 @@ export function DataTable<T>({
   );
 
   /* ------------------------------------------------------------ virtualiser */
-  const virtualise = pageRows.length > virtualThreshold;
+  const anyOpen = !!expansion && pageRows.some((r) => expansion.isOpen(r));
+  const virtualise = pageRows.length > virtualThreshold && !anyOpen;
   const virtualizer = useVirtualizer({
     count: pageRows.length,
     getScrollElement: () => bodyRef.current,
@@ -519,7 +537,11 @@ export function DataTable<T>({
   /* -------------------------------------------------------------- rendering */
   const sortableKey = (col: Column<T>) =>
     mode === 'server' ? col.sortKey : col.sortValue ? col.key : undefined;
-  const colCount = visibleColumns.length + (selectable ? 1 : 0) + (rowActions.length ? 1 : 0);
+  const colCount =
+    visibleColumns.length +
+    (selectable ? 1 : 0) +
+    (rowActions.length ? 1 : 0) +
+    (expansion ? 1 : 0);
   const firstIndexOnPage = resultCount === 0 ? 0 : (currentPage - 1) * state.pageSize + 1;
   const lastIndexOnPage = Math.min(currentPage * state.pageSize, resultCount);
   const hasQueryOrFilters = state.q.length > 0 || api.activeFilterCount > 0;
@@ -632,62 +654,90 @@ export function DataTable<T>({
   const renderRow = (row: T, index: number) => {
     const rid = rowKey(row);
     const isSelected = allMatching || selectedIds.has(rid);
+    const open = !!expansion && expansion.isOpen(row);
+    const detailId = `${id}-detail-${rid}`;
     return (
-      <tr
-        key={rid}
-        ref={(node) => {
-          rowRefs.current[index] = node;
-        }}
-        tabIndex={index === Math.max(0, focusIndex) ? 0 : -1}
-        aria-rowindex={firstIndexOnPage + index}
-        aria-selected={selectable ? isSelected : undefined}
-        data-selected={isSelected || undefined}
-        data-testid="table-row"
-        data-row-id={rid}
-        onFocus={() => setFocusIndex(index)}
-        onClick={onRowClick ? () => onRowClick(row) : undefined}
-        style={{
-          height: rowHeight,
-          cursor: onRowClick ? 'pointer' : 'default',
-          outlineOffset: -2,
-        }}
-      >
-        {selectable && (
-          <td
-            style={{ width: 38 }}
-            onClick={(e) => {
-              e.stopPropagation();
-              toggleRow(rid);
-            }}
-          >
-            <input
-              type="checkbox"
-              checked={isSelected}
-              onChange={() => toggleRow(rid)}
-              onClick={(e) => e.stopPropagation()}
-              aria-label={L.selectRow}
-              data-testid={`row-select-${rid}`}
-              style={{ accentColor: 'var(--accent)', width: 15, height: 15 }}
-            />
-          </td>
+      <Fragment key={rid}>
+        <tr
+          ref={(node) => {
+            rowRefs.current[index] = node;
+          }}
+          tabIndex={index === Math.max(0, focusIndex) ? 0 : -1}
+          aria-rowindex={firstIndexOnPage + index}
+          aria-selected={selectable ? isSelected : undefined}
+          data-selected={isSelected || undefined}
+          data-testid="table-row"
+          data-row-id={rid}
+          onFocus={() => setFocusIndex(index)}
+          onClick={onRowClick ? () => onRowClick(row) : undefined}
+          style={{
+            height: rowHeight,
+            cursor: onRowClick ? 'pointer' : 'default',
+            outlineOffset: -2,
+          }}
+        >
+          {selectable && (
+            <td
+              style={{ width: 38 }}
+              onClick={(e) => {
+                e.stopPropagation();
+                toggleRow(rid);
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={isSelected}
+                onChange={() => toggleRow(rid)}
+                onClick={(e) => e.stopPropagation()}
+                aria-label={L.selectRow}
+                data-testid={`row-select-${rid}`}
+                style={{ accentColor: 'var(--accent)', width: 15, height: 15 }}
+              />
+            </td>
+          )}
+          {expansion && (
+            <td style={{ width: 36 }} onClick={(e) => e.stopPropagation()}>
+              <button
+                type="button"
+                aria-expanded={open}
+                aria-controls={open ? detailId : undefined}
+                aria-label={expansion.label(row)}
+                onClick={() => expansion.onToggle(row)}
+                data-testid={`row-expand-${rid}`}
+                className="inline-flex items-center justify-center size-7 rounded-md text-fg-muted hover:bg-surface-2 hover:text-fg-primary"
+              >
+                <ChevronRight
+                  size={15}
+                  aria-hidden="true"
+                  className="transition-transform duration-fast ease-out"
+                  style={{ transform: open ? 'rotate(90deg)' : undefined }}
+                />
+              </button>
+            </td>
+          )}
+          {visibleColumns.map((col) => (
+            <td
+              key={col.key}
+              className={[col.frozen ? 'frozen' : '', col.align === 'right' ? 'num' : '']
+                .join(' ')
+                .trim()}
+              style={{ width: col.width }}
+            >
+              {col.render(row)}
+            </td>
+          ))}
+          {rowActions.length > 0 && (
+            <td style={{ width: 48, textAlign: 'right' }} onClick={(e) => e.stopPropagation()}>
+              <RowMenu row={row} actions={rowActions} label={L.actions} />
+            </td>
+          )}
+        </tr>
+        {open && (
+          <tr id={detailId} data-testid="table-row-detail" className="or-row-detail">
+            <td colSpan={colCount}>{expansion.render(row)}</td>
+          </tr>
         )}
-        {visibleColumns.map((col) => (
-          <td
-            key={col.key}
-            className={[col.frozen ? 'frozen' : '', col.align === 'right' ? 'num' : '']
-              .join(' ')
-              .trim()}
-            style={{ width: col.width }}
-          >
-            {col.render(row)}
-          </td>
-        ))}
-        {rowActions.length > 0 && (
-          <td style={{ width: 48, textAlign: 'right' }} onClick={(e) => e.stopPropagation()}>
-            <RowMenu row={row} actions={rowActions} label={L.actions} />
-          </td>
-        )}
-      </tr>
+      </Fragment>
     );
   };
 
@@ -780,6 +830,11 @@ export function DataTable<T>({
                     data-testid="select-all-page"
                     style={{ accentColor: 'var(--accent)', width: 15, height: 15 }}
                   />
+                </th>
+              )}
+              {expansion && (
+                <th style={{ width: 36 }}>
+                  <span className="sr-only">{L.details}</span>
                 </th>
               )}
               {visibleColumns.map((col) => {

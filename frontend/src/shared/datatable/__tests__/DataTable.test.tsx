@@ -205,6 +205,13 @@ describe('search and facets are distinct affordances', () => {
     expect(screen.getByTestId('url').textContent).not.toContain('f.sev');
   });
 
+  // A filter the page drives from its own toolbar is not one of the panel's,
+  // so the badge does not count it (#909).
+  it('counts only the facets the panel shows', () => {
+    renderTable({}, ['/?f.kev=true']);
+    expect(screen.queryByTestId('filters-active-count')).toBeNull();
+  });
+
   it('shows a live result count for the current filter', () => {
     renderTable({}, ['/?f.sev=critical']);
     fireEvent.click(screen.getByTestId('filters-trigger'));
