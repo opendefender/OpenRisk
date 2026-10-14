@@ -19,3 +19,19 @@ issues:
       linters:
         - errcheck
         - gosec
+    # Tests read responses from Fiber's app.Test and httptest, whose bodies are
+    # already in memory; there is no connection to leak. Production code is
+    # still checked.
+    - path: _test\.go
+      linters:
+        - bodyclose
+    # Risk.Owner/AssignedTo, Mitigation.AssignedTo, RemediationPlan.AssignedTo
+    # and Risk.ControlIDs are marked Deprecated on purpose: migrations 0044 and
+    # 0046 moved them to Ownership and risk_control_mappings, and the old
+    # columns are still read and written so existing filters keep answering
+    # until callers move. The marker is there to stop new code reaching for
+    # them, not to fail the build on the readers that remain. Excluded by name
+    # so any other deprecation still fails lint.
+    - linters:
+        - staticcheck
+      text: "SA1019: [A-Za-z_.\\[\\]]*\\.(AssignedTo|Owner|ControlIDs) is deprecated"

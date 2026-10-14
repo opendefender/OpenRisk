@@ -30,9 +30,12 @@ jobs:
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@v3
         with:
-          version: latest
+          # Pinned: "latest" let the rule set move under a green branch. Bump it
+          # deliberately, in its own PR, and fix what the new version reports.
+          version: v1.64.8
           working-directory: backend
-          args: --timeout=5m
+          # No caps: the default of 3 per message hid 44 of 47 findings.
+          args: --timeout=5m --max-issues-per-linter=0 --max-same-issues=0
           install-mode: goinstall
 
       - name: Check go mod tidy
