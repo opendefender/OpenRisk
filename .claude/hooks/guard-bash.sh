@@ -31,17 +31,17 @@ printf '%s' "$CMD" | grep -qiE 'DROP[[:space:]]+(TABLE|DATABASE|SCHEMA)'      &&
 printf '%s' "$CMD" | grep -qE 'gh[[:space:]]+api.*(^|[[:space:]])(-f|--raw-field)([[:space:]]+|=)?["'"'"']?[^[:space:]=]+=@' \
   && block "gh api -f key=@file posts the literal path — use -F key=@file"
 
-# Never send a secret file to GitHub. This matches paths, so it is an aid
-# against a planted instruction, not a control: --body "$(cat .env)" or
-# --body-file - get past it. Review and the Read deny rules are the control. -F body=@file and --body-file are the
-# normal way to post, so an injected "post this file" instruction in an issue
-# would otherwise publish .env, a private key or the generated admin password,
-# around the Read deny rules (#959 security review).
-SECRET_PATH='(\.env([.][a-z]+)?|\.pem|\.key|\.p12|\.pfx|id_rsa[^[:space:]]*|id_ed25519[^[:space:]]*|/\.ssh/[^[:space:]]*|secrets/[^[:space:]]*|initial_admin_password[^[:space:]]*)'
+# Never send a secret file to GitHub. -F body=@file, --body-file and -F <file>
+# are the normal way to post, so an instruction planted in an issue could
+# otherwise get .env, a key or the generated admin password published, around
+# the Read deny rules (#959 security reviews).
+# This matches paths, so it is an aid, not a control: --body "$(cat .env)" or
+# --body-file - still get past it. Review and the deny rules are the control.
+SECRET_PATH='(\.env(rc)?([.][A-Za-z0-9_]+)*|\.pem|\.key|\.p12|\.pfx|id_rsa[^[:space:]]*|id_ed25519[^[:space:]]*|/\.ssh/[^[:space:]]*|secrets/[^[:space:]]*|initial_admin_password[^[:space:]]*|\.netrc|\.git-credentials|gh/hosts\.yml|\.npmrc|\.pgpass|kubeconfig[^[:space:]]*|\.kube/config)'
 if printf '%s' "$CMD" | grep -qE "gh[[:space:]]+(api|issue|pr|gist|release)"; then
-  if printf '%s' "$CMD" | grep -oE "(=@|--body-file[[:space:]=]+|gist[[:space:]]+create[[:space:]]+)[\"']?[^[:space:]\"']+" \
+  if printf '%s' "$CMD" | grep -oE "(=@|(--body-file|-F)[[:space:]=]+|gist[[:space:]]+create[^|;&]*[[:space:]])[\"']?[^[:space:]\"']+" \
      | grep -vE '\.env\.example' | grep -qE "${SECRET_PATH}([\"']|$)"; then
-    block "sending a secret file (.env, key, secrets/) to GitHub"
+    block "sending a secret file (.env, key, credentials, secrets/) to GitHub"
   fi
 fi
 
