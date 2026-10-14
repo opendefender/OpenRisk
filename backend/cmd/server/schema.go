@@ -127,6 +127,8 @@ func schemaModels() []interface{} {
 		// CTI / Intel Threat — vulnerabilities pulled from NVD + CISA KEV, enriched
 		// with MITRE ATT&CK. Matched against asset CPEs to auto-create risks.
 		&cti.CTIVulnerability{},
+		// A tenant's "not relevant" on a threat (#911, migration 0074).
+		&domain.CTIThreatDismissal{},
 		// Vulnerability Management (Module 3) — the tenant-scoped vulnerability
 		// register: findings normalised from Nessus/OpenVAS/Qualys/Defender/
 		// Inspector/Azure Defender/CrowdStrike and risk-based prioritised.
