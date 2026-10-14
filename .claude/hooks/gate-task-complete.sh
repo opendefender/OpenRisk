@@ -30,6 +30,16 @@ AGENT=$(json_get "$INPUT" '.agent_type')
 [ -n "$AGENT" ] || AGENT=$(json_get "$INPUT" '.agent_id')
 AGENT="${AGENT:-main}"
 
+# On SubagentStop only the agents that write code are gated. A reviewer or an
+# explorer stopping in a shared, dirty checkout must not be blocked for
+# changes that are not its own. TaskCompleted (team mode) is always gated.
+if [ "$(json_get "$INPUT" '.hook_event_name')" = "SubagentStop" ]; then
+  case "$AGENT" in
+    backend-go|frontend-react|qa-automation|performance-engineer|devops-sre|cloud-sysadmin|website-dev|motion-designer) ;;
+    *) exit 0 ;;
+  esac
+fi
+
 BASE=$(git merge-base HEAD origin/master 2>/dev/null || git merge-base HEAD master 2>/dev/null || echo HEAD)
 CHANGED=$({ git diff --name-only "$BASE"; git ls-files --others --exclude-standard; } 2>/dev/null | sort -u)
 [ -n "$CHANGED" ] || exit 0

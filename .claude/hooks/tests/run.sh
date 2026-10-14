@@ -92,6 +92,12 @@ for _ in 1 2 3; do gate "$R" g5; done; gate "$R" g5; rc=$?
 expect "gate lets the agent stop after three blocks" 0 $rc "$(cat "$TMP/err")"
 grep -q "GATE RED" "$R/.claude/CHECKPOINT.md" 2>/dev/null; expect "gate records GATE RED in the checkpoint" 0 $?
 
+new_repo g6; add_func "$R" 'func broken() int { return "x" }'
+printf '{"cwd":"%s","agent_type":"tech-lead","hook_event_name":"SubagentStop"}' "$R" | TMPDIR="$TMP" bash "$HOOKS/gate-task-complete.sh" 2>"$TMP/err"
+expect "gate leaves a reviewer stopping on SubagentStop alone" 0 $? "$(cat "$TMP/err")"
+printf '{"cwd":"%s","agent_type":"backend-go","hook_event_name":"SubagentStop"}' "$R" | TMPDIR="$TMP" bash "$HOOKS/gate-task-complete.sh" 2>"$TMP/err"
+expect "gate blocks backend-go on SubagentStop" 2 $? "$(cat "$TMP/err")"
+
 # --- bash guard ------------------------------------------------------------
 guard() { python3 -c 'import json,sys;print(json.dumps({"tool_input":{"command":sys.argv[1]}}))' "$1" | bash "$HOOKS/guard-bash.sh" 2>/dev/null; }
 guard "gh pr $(echo merge) 12"; expect "guard blocks merging a PR" 2 $?
