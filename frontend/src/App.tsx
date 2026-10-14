@@ -55,6 +55,7 @@ const NotFound = lazy(() =>
 const Maintenance = lazy(() =>
   import('./shared/system/Maintenance').then((m) => ({ default: m.Maintenance })),
 );
+import { QuietBoundary } from './shared/system/QuietBoundary';
 import { BannerStack } from './shared/BannerStack';
 import { DemoBanner } from './shared/DemoBanner';
 import { OfflineBanner } from './shared/OfflineBanner';
@@ -503,9 +504,11 @@ const DashboardLayout = () => {
       )}
       {/* Three non-blocking coach marks, shown once and replayable from the
           header's help button (spec §8). It never covers the app. */}
-      <Suspense fallback={null}>
-        <ProductTour />
-      </Suspense>
+      <QuietBoundary>
+        <Suspense fallback={null}>
+          <ProductTour />
+        </Suspense>
+      </QuietBoundary>
       {/* The universal entity drawer (W1-02). Mounted ONCE for the whole app and
           driven entirely by the URL, which is what makes it a navigation
           primitive rather than a per-screen feature: a deep link opens it on any
@@ -513,9 +516,11 @@ const DashboardLayout = () => {
           renders nothing until the URL names an entity. */}
       <EntityDrawerHost />
       {showShortcuts && (
-        <Suspense fallback={null}>
-          <ShortcutsOverlay open onClose={() => setShowShortcuts(false)} lang={lang} />
-        </Suspense>
+        <QuietBoundary>
+          <Suspense fallback={null}>
+            <ShortcutsOverlay open onClose={() => setShowShortcuts(false)} lang={lang} />
+          </Suspense>
+        </QuietBoundary>
       )}
       {/* Only mounted when opened, and behind its own Suspense — so the form
           stack (react-hook-form + zod) loads on first use, not at app start. */}

@@ -1,4 +1,4 @@
-import { dirname, join } from 'node:path';
+import { posix } from 'node:path';
 import { defineConfig, type Rollup } from 'vite';
 import react from '@vitejs/plugin-react';
 
@@ -24,6 +24,12 @@ const backendURL = process.env.BACKEND_URL ?? 'http://localhost:8080';
  * 'lucide-react'` statements of the modules statically reachable from the
  * entry, and each name is mapped to its file through lucide's own barrel,
  * which is a list of `export { default as Name } from './icons/name.js'`.
+ *
+ * A name this misses (an `import * as` or a re-export from 'lucide-react',
+ * none of which exist today) fails the build, not the app: its icon lands in
+ * `icons-lazy`, the entry then imports that chunk statically, index.html
+ * preloads it, and `npm run budget` goes over. Module ids use forward slashes on
+ * every platform, hence `posix`. The cache is cleared at each build start.
  */
 let entryIconIds: Set<string> | undefined;
 function iconsOfEntry(meta: Rollup.ManualChunkMeta): Set<string> {
@@ -55,14 +61,23 @@ function iconsOfEntry(meta: Rollup.ManualChunkMeta): Set<string> {
   const barrelCode = barrel ? (meta.getModuleInfo(barrel)?.code ?? '') : '';
   for (const m of barrelCode.matchAll(/export\s*\{([^}]*)\}\s*from\s*'(\.\/icons\/[^']+)'/g)) {
     const exported = m[1].split(',').map((spec) => spec.trim().split(/\s+as\s+/)[1]);
-    if (exported.some((name) => names.has(name))) entryIconIds.add(join(dirname(barrel!), m[2]));
+    if (exported.some((name) => names.has(name)))
+      entryIconIds.add(posix.join(posix.dirname(barrel!), m[2]));
   }
   return entryIconIds;
 }
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react(),
+    {
+      name: 'openrisk:reset-entry-icons',
+      buildStart() {
+        entryIconIds = undefined;
+      },
+    },
+  ],
   server: {
     // Proxy the API so the browser sees a single origin.
     //

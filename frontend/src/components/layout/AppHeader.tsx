@@ -33,6 +33,7 @@ import { useUnreadCount } from '../../features/notifications/useNotifications';
 import type { LocaleCode } from '../../i18n/locales';
 import { ENABLED_LOCALES, localeDefinition } from '../../i18n/locales';
 import { NOTIF_EXIT_MS } from './notifMotion';
+import { QuietBoundary } from '../../shared/system/QuietBoundary';
 
 // The panel and everything it draws load on the first open, not with the shell
 // (#966). Hovering or focusing the bell starts the fetch, so by the time the
@@ -214,9 +215,11 @@ export const AppHeader = ({ onOpenMobileNav }: AppHeaderProps) => {
             <NotifBadge count={unreadCount} armed={badgeArmed} />
           </button>
           {notifMounted && (
-            <Suspense fallback={null}>
-              <NotifPanel open={notifOpen} onClose={() => setNotifOpen(false)} />
-            </Suspense>
+            <QuietBoundary>
+              <Suspense fallback={null}>
+                <NotifPanel open={notifOpen} onClose={() => setNotifOpen(false)} />
+              </Suspense>
+            </QuietBoundary>
           )}
         </div>
 
