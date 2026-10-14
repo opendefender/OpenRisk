@@ -13,6 +13,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 
+	invapp "github.com/opendefender/openrisk/internal/application/inventory"
 	scanapp "github.com/opendefender/openrisk/internal/application/scanner"
 	"github.com/opendefender/openrisk/internal/domain"
 	scanpkg "github.com/opendefender/openrisk/internal/scanner"
@@ -227,4 +228,50 @@ func (h *ScannerHandler) AgentPush(c *fiber.Ctx) error {
 		return writeAppError(c, err)
 	}
 	return c.JSON(job)
+}
+
+// inventoryInput is the body of POST /scanner/agent/inventory (#910).
+type inventoryInput struct {
+	JobID     string                    `json:"job_id"`
+	Host      invapp.HostReport         `json:"host"`
+	Packages  []domain.HostPackageInput `json:"packages"`
+	Collector string                    `json:"collector"`
+	Errors    []string                  `json:"errors"`
+}
+
+// AgentInventory POST /scanner/agent/inventory — the packages installed on the
+// agent's host (#910). Same gate as a scan push: the scanner:push scope AND a
+// valid HMAC-SHA256 signature of the body. The tenant is the agent's, never the
+// body's. Answers 202: the vulnerability match runs after the response.
+func (h *ScannerHandler) AgentInventory(c *fiber.Ctx) error {
+	if h.inventory == nil {
+		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": "inventory not enabled"})
+	}
+	agent, ok := h.authenticateAgent(c, scanpkg.ScopePush)
+	if !ok {
+		return nil // response already written
+	}
+	body := c.Body()
+	sig := c.Get("X-OpenRisk-Signature")
+	secret, err := h.cipher.DecryptString(agent.PushSecretEnc)
+	if err != nil || secret == "" {
+		return c.Status(401).JSON(fiber.Map{"error": "agent push secret unavailable"})
+	}
+	if sig == "" || !scanpkg.VerifyPushSignature(secret, body, sig) {
+		return c.Status(401).JSON(fiber.Map{"error": "invalid push signature"})
+	}
+	in := new(inventoryInput)
+	if err := json.Unmarshal(body, in); err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "invalid input format"})
+	}
+	inv, err := h.inventory.Execute(c.UserContext(), invapp.StoreInput{
+		Agent: agent, JobID: in.JobID, Host: in.Host, Packages: in.Packages,
+		Collector: in.Collector, Errors: in.Errors,
+	})
+	if err != nil {
+		return writeAppError(c, err)
+	}
+	return c.Status(fiber.StatusAccepted).JSON(fiber.Map{
+		"inventory_id": inv.ID, "packages": inv.PackageCount, "asset_id": inv.AssetID,
+	})
 }

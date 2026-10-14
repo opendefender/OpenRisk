@@ -1,0 +1,108 @@
+// Copyright (c) 2026 OpenDefender Contributors
+// SPDX-License-Identifier: AGPL-3.0-only
+// This program is free software: you can redistribute it and/or modify it under
+// the terms of the GNU Affero General Public License v3.0 (see LICENSE).
+
+package inventory
+
+import (
+	"context"
+	"errors"
+	"testing"
+
+	"github.com/google/uuid"
+	"github.com/lib/pq"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/opendefender/openrisk/internal/domain"
+)
+
+func agentOf(tenant uuid.UUID) *domain.ScannerAgent {
+	return &domain.ScannerAgent{ID: uuid.New(), TenantID: tenant, Name: "dc-agent", Hostname: "srv-core-01"}
+}
+
+func ubuntuInput(a *domain.ScannerAgent) StoreInput {
+	return StoreInput{
+		Agent:     a,
+		Host:      HostReport{Hostname: "srv-core-01.corp", Platform: "ubuntu", OS: "Ubuntu", OSVersion: "22.04.3 LTS"},
+		Packages:  []domain.HostPackageInput{{Name: "openssl", Version: "3.0.2-0ubuntu1.10", Source: "deb"}},
+		Collector: "osquery",
+	}
+}
+
+func TestStoreInventory_Success(t *testing.T) {
+	tenant := uuid.New()
+	asset := domain.Asset{ID: uuid.New(), TenantID: tenant, Name: "srv-core-01", Hostnames: pq.StringArray{"srv-core-01.corp"}}
+	repo, m := newFakeRepo(), &recordingMatcher{}
+	uc := syncNow(NewStoreInventoryUseCase(repo, fakeAssets{map[uuid.UUID][]domain.Asset{tenant: {asset}}}).WithMatcher(m))
+
+	inv, err := uc.Execute(context.Background(), ubuntuInput(agentOf(tenant)))
+	require.NoError(t, err)
+	assert.Equal(t, "srv-core-01", inv.HostKey)
+	assert.Equal(t, "Ubuntu:22.04:LTS", inv.Ecosystem)
+	assert.Equal(t, 1, inv.PackageCount)
+	require.NotNil(t, inv.AssetID, "the host matches one asset by hostname")
+	assert.Equal(t, asset.ID, *inv.AssetID)
+	assert.Equal(t, []uuid.UUID{inv.ID}, m.calls, "every stored inventory is matched")
+}
+
+// Without osquery there is nothing to match; the host is still recorded, under
+// the agent's registered hostname, with the reason.
+func TestStoreInventory_OsqueryMissing(t *testing.T) {
+	tenant := uuid.New()
+	repo, m := newFakeRepo(), &recordingMatcher{}
+	uc := syncNow(NewStoreInventoryUseCase(repo, fakeAssets{}).WithMatcher(m))
+
+	inv, err := uc.Execute(context.Background(), StoreInput{Agent: agentOf(tenant), Errors: []string{domain.InventoryErrNoOsquery}})
+	require.NoError(t, err)
+	assert.Equal(t, "srv-core-01", inv.HostKey)
+	assert.Equal(t, domain.InventoryErrNoOsquery, inv.MatchError)
+	assert.Empty(t, m.calls)
+	assert.Nil(t, inv.AssetID)
+}
+
+func TestStoreInventory_NotFound(t *testing.T) {
+	// No asset carries the hostname: the inventory is stored unattached.
+	tenant := uuid.New()
+	uc := syncNow(NewStoreInventoryUseCase(newFakeRepo(), fakeAssets{}))
+	inv, err := uc.Execute(context.Background(), ubuntuInput(agentOf(tenant)))
+	require.NoError(t, err)
+	assert.Nil(t, inv.AssetID)
+
+	// A report that names no host at all is refused.
+	a := agentOf(tenant)
+	a.Hostname = ""
+	_, err = uc.Execute(context.Background(), StoreInput{Agent: a})
+	assert.True(t, errors.Is(err, domain.ErrValidation), "%v", err)
+}
+
+func TestStoreInventory_Unauthorized(t *testing.T) {
+	uc := NewStoreInventoryUseCase(newFakeRepo(), fakeAssets{})
+	_, err := uc.Execute(context.Background(), StoreInput{})
+	assert.True(t, errors.Is(err, domain.ErrUnauthorized), "%v", err)
+	_, err = uc.Execute(context.Background(), StoreInput{Agent: &domain.ScannerAgent{ID: uuid.New()}})
+	assert.True(t, errors.Is(err, domain.ErrUnauthorized), "an agent with no tenant: %v", err)
+}
+
+// An agent of one tenant never attaches its host to another tenant's asset,
+// even when the hostnames are the same.
+func TestStoreInventory_CrossTenantAsset(t *testing.T) {
+	mine, theirs := uuid.New(), uuid.New()
+	theirAsset := domain.Asset{ID: uuid.New(), TenantID: theirs, Name: "srv-core-01", Hostnames: pq.StringArray{"srv-core-01.corp"}}
+	repo := newFakeRepo()
+	uc := syncNow(NewStoreInventoryUseCase(repo, fakeAssets{map[uuid.UUID][]domain.Asset{theirs: {theirAsset}}}))
+
+	inv, err := uc.Execute(context.Background(), ubuntuInput(agentOf(mine)))
+	require.NoError(t, err)
+	assert.Nil(t, inv.AssetID)
+	got, _ := repo.List(context.Background(), theirs)
+	assert.Empty(t, got, "nothing was written to their tenant")
+}
+
+func TestStoreInventory_TooManyPackages(t *testing.T) {
+	in := ubuntuInput(agentOf(uuid.New()))
+	in.Packages = make([]domain.HostPackageInput, domain.MaxInventoryPackages+1)
+	_, err := NewStoreInventoryUseCase(newFakeRepo(), fakeAssets{}).Execute(context.Background(), in)
+	assert.True(t, errors.Is(err, domain.ErrValidation))
+}

@@ -44,6 +44,7 @@ import (
 	"github.com/opendefender/openrisk/internal/application/evidence"
 	"github.com/opendefender/openrisk/internal/application/governance"
 	appinc "github.com/opendefender/openrisk/internal/application/incident"
+	invapp "github.com/opendefender/openrisk/internal/application/inventory"
 	"github.com/opendefender/openrisk/internal/application/membership"
 	appmitigation "github.com/opendefender/openrisk/internal/application/mitigation"
 	notificationapp "github.com/opendefender/openrisk/internal/application/notification"
@@ -923,6 +924,8 @@ func main() {
 	app.Post("/api/v1/scanner/agents/register", func(c *fiber.Ctx) error { return scannerHandler.RegisterAgent(c) })
 	app.Get("/api/v1/scanner/agent/stream", func(c *fiber.Ctx) error { return scannerHandler.AgentStream(c) })
 	app.Post("/api/v1/scanner/agent/push", func(c *fiber.Ctx) error { return scannerHandler.AgentPush(c) })
+	// The host's software inventory (#910), same agent gate as push.
+	app.Post("/api/v1/scanner/agent/inventory", func(c *fiber.Ctx) error { return scannerHandler.AgentInventory(c) })
 	app.Post("/api/v1/scanner/agent/heartbeat", func(c *fiber.Ctx) error { return scannerHandler.AgentHeartbeat(c) })
 
 	// Mitigation SSE stream — mounted here (before the /api/v1 user middleware) so it
@@ -2829,6 +2832,12 @@ func main() {
 		listScanJobsUC, getScanPreviewUC, importPreviewUC, ignorePreviewUC,
 		scanAgentRepo, scanJobRepo, scannerCipher, rsaKeys, jtiBlacklistChecker, redisClientInstance,
 	)
+
+	// Software inventory (#910): what the agent's host has installed, checked
+	// for known vulnerabilities after every report.
+	hostInventoryRepo := repository.NewGormHostInventoryRepository(database.DB)
+	storeInventoryUC := invapp.NewStoreInventoryUseCase(hostInventoryRepo, assetRepo)
+	scannerHandler.WithInventory(storeInventoryUC)
 
 	// User-facing routes (RS256 user token). Admin/root pass via the "*" wildcard.
 	scannerRead := middleware.RequirePermission("scanner:read")
