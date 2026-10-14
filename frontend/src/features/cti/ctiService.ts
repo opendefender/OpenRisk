@@ -37,7 +37,65 @@ export interface CTIListParams {
   offset?: number;
 }
 
+/** One part of a threat's relevance (backend domain.ThreatFactor). */
+export interface ThreatFactor {
+  key: 'asset' | 'exploitation' | 'severity' | 'evidence';
+  points: number;
+  max: number;
+  /** A criticality, kev / epss_high / epss_medium, or scan / cpe. */
+  value: string;
+}
+
+export interface ThreatAsset {
+  /** Null for a scanned host that matches no asset of the inventory. */
+  id: string | null;
+  name: string;
+  criticality: string;
+  via: ('scan' | 'cpe')[];
+}
+
+/** A catalogue entry that touches the tenant's assets (#911). */
+export interface Threat {
+  cve_id: string;
+  /** The scanner's title when one found it, else empty. */
+  title: string;
+  description: string;
+  severity: string;
+  cvss: number;
+  epss: number;
+  kev: boolean;
+  kev_due_date?: string | null;
+  published_at: string | null;
+  techniques: string[];
+  tactics: string[];
+  assets: ThreatAsset[];
+  relevance: number;
+  factors: ThreatFactor[];
+  /** nvd, cisa_kev, mitre_attack, and the scanners that reported it. */
+  sources: string[];
+  dismissed_at: string | null;
+}
+
+export interface ThreatList {
+  threats: Threat[];
+  assets_with_cpes: number;
+  truncated: boolean;
+}
+
 export const ctiService = {
+  async threats(): Promise<ThreatList> {
+    const { data } = await api.get<ThreatList>('/cti/threats');
+    return data;
+  },
+
+  async dismiss(cve: string): Promise<void> {
+    await api.put(`/cti/threats/${encodeURIComponent(cve)}/dismissal`);
+  },
+
+  async restore(cve: string): Promise<void> {
+    await api.delete(`/cti/threats/${encodeURIComponent(cve)}/dismissal`);
+  },
+
   async list(params: CTIListParams = {}): Promise<CTIVulnerability[]> {
     const { data } = await api.get('/cti/vulnerabilities', { params });
     return data.vulnerabilities ?? [];

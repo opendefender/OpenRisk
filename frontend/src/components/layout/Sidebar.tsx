@@ -25,6 +25,7 @@ import {
   visibleNavGroups,
   pinnedItems,
   ALL_NAV_ITEMS,
+  activeNavKey,
   type NavItem,
   type NavBadgeTone,
 } from '../../shared/navModel';
@@ -111,25 +112,10 @@ export const Sidebar = ({ mobileOpen = false, onMobileClose }: SidebarProps) => 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname]);
 
-  // Longest-prefix match so /assets/universe highlights Universe, not Inventory.
-  const activeKey = useMemo(() => {
-    let best = '';
-    let bestLen = -1;
-    for (const it of ALL_NAV_ITEMS) {
-      const p = it.path;
-      // Items sharing a pathname (Dashboard vs Executive, both "/") are told
-      // apart by ?view=; an item without a `view` is active only when the param
-      // is absent, so the two never light up together.
-      const viewParam = new URLSearchParams(search).get('view');
-      if ((it.view ?? null) !== (viewParam || null)) continue;
-      const match = p === '/' ? pathname === '/' : pathname === p || pathname.startsWith(p + '/');
-      if (match && p.length > bestLen) {
-        best = it.key;
-        bestLen = p.length;
-      }
-    }
-    return best;
-  }, [pathname, search]);
+  const activeKey = useMemo(
+    () => activeNavKey(ALL_NAV_ITEMS, pathname, search),
+    [pathname, search],
+  );
 
   // Posture footer. No thresholds live here any more: the band comes from the
   // server alongside the value, and bandColor maps a BAND (never a number) to a

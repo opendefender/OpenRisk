@@ -211,6 +211,9 @@ const IncidentSourcesPage = lazy(() =>
 const ThreatIntel = lazy(() =>
   import('./features/cti/ThreatIntel').then((m) => ({ default: m.ThreatIntel })),
 );
+const ThreatsPage = lazy(() =>
+  import('./features/cti/ThreatsPage').then((m) => ({ default: m.ThreatsPage })),
+);
 const InfrastructurePage = lazy(() =>
   import('./features/infrastructure/InfrastructurePage').then((m) => ({
     default: m.InfrastructurePage,
@@ -698,10 +701,10 @@ function App() {
             <Route path="vulnerabilities" element={<VulnerabilitiesPage />} />
             <Route path="vulnerabilities/unassigned" element={<UnassignedVulnerabilitiesPage />} />
             <Route path="vulnerabilities/risk-rule" element={<RiskRulePage />} />
+            {/* Threat Intel is the tenant's threats, by relevance (#911); the full
+                CVE feed it draws on stays at /threat-map, linked both ways. */}
+            <Route path="threat-intel" element={<ThreatsPage />} />
             <Route path="threat-map" element={<ThreatIntel />} />
-            {/* The page is called Threat Intel everywhere it is named, so that is the
-                URL people type and share; it 404'd (#737). */}
-            <Route path="threat-intel" element={<Navigate to="/threat-map" replace />} />
             <Route path="ai/emerging-risks" element={<EmergingRisksPage />} />
             <Route path="simulations" element={<SimulationsPage />} />
 

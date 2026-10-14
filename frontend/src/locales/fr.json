@@ -1961,5 +1961,55 @@
     },
     "entity": "vulnérabilités",
     "riskTitle": "{title} ({cve})"
+  },
+  "threats": {
+    "title": "Threat Intel",
+    "subtitle": "Les menaces du catalogue (NVD, CISA KEV, MITRE ATT&CK) qui touchent vos actifs, par pertinence.",
+    "feedLink": "Flux CVE complet",
+    "modeLabel": "Menaces affichées",
+    "mode": {
+      "all": "Toutes",
+      "high": "Pertinence ≥ 70"
+    },
+    "relevance": "Pertinence",
+    "relevanceSr": "Pertinence {value} sur 100, voir pourquoi",
+    "why": "Pourquoi {value}/100",
+    "factor": {
+      "asset": "Actif le plus critique touché : {crit}",
+      "kev": "Exploitée activement (CISA KEV)",
+      "epss_high": "Probabilité d'exploitation (EPSS) ≥ 50 %",
+      "epss_medium": "Probabilité d'exploitation (EPSS) ≥ 10 %",
+      "noExploitation": "Aucun signal d'exploitation",
+      "cvss": "Gravité CVSS {value}",
+      "noCvss": "Gravité CVSS inconnue",
+      "scan": "Trouvée par un scanner sur vos actifs",
+      "cpe": "Déduite des CPE de vos actifs",
+      "sector": "Secteur : non pris en compte, aucune de ces sources ne décrit les secteurs visés."
+    },
+    "sources": "Sources : {list}",
+    "via": {
+      "scan": "trouvée par un scanner",
+      "cpe": "par ses CPE"
+    },
+    "createRisk": "Créer un risque",
+    "dismiss": "Non pertinent",
+    "restore": "Restaurer",
+    "riskTitle": "{title} ({cve})",
+    "toast": {
+      "dismissFailed": "Le changement n'a pas été enregistré."
+    },
+    "empty": "Aucune menace du catalogue ne touche vos actifs.",
+    "emptyNoCpe": "Aucune menace ne peut encore être rapportée à vos actifs : renseignez leurs CPE ou importez des résultats de scan.",
+    "emptyHigh": "Aucune menace de pertinence ≥ 70.",
+    "showAll": "Voir toutes les menaces",
+    "toAssets": "Ouvrir l'inventaire",
+    "truncated": "Seules les 200 menaces les plus pertinentes sont affichées.",
+    "ioc": {
+      "title": "Indicateurs de compromission",
+      "subtitle": "Correspondances dans vos journaux sur 7 jours",
+      "unavailable": "Correspondances indisponibles",
+      "why": "OpenRisk n'ingère pas encore vos journaux, et les sources actuelles (NVD, CISA KEV) ne publient pas d'indicateurs. Aucune correspondance n'est donc calculée ni affichée."
+    },
+    "backToThreats": "Menaces pour vos actifs"
   }
 }

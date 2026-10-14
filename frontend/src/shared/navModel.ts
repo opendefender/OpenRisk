@@ -90,6 +90,9 @@ export interface NavItem {
   /** Hoisted above the grouped nav as a standalone entry (e.g. Dashboard).
    *  Still lives inside its group for routing/palette/breadcrumb lookups. */
   pinned?: boolean;
+  /** Other pathnames that light this item up: pages it owns that live
+   *  outside its own path (the CVE feed at /threat-map under Threat Intel). */
+  alsoActive?: string[];
 }
 
 export interface NavGroup {
@@ -177,7 +180,14 @@ export const NAV_GROUPS: NavGroup[] = [
         perm: 'vulnerabilities:read',
         badge: { count: 'kev_open', tone: 'danger' },
       },
-      { key: 'cti', labelKey: 'n_cti', icon: Globe, path: '/threat-map', perm: 'risks:read' },
+      {
+        key: 'cti',
+        labelKey: 'n_cti',
+        icon: Globe,
+        path: '/threat-intel',
+        alsoActive: ['/threat-map'],
+        perm: 'risks:read',
+      },
       {
         key: 'infrastructure',
         labelKey: 'n_infra',
@@ -289,6 +299,34 @@ export const NAV_GROUPS: NavGroup[] = [
 
 /** Flat list of all nav items, for the command palette. */
 export const ALL_NAV_ITEMS: NavItem[] = NAV_GROUPS.flatMap((g) => g.items);
+
+/**
+ * The item the sidebar highlights for a location: the longest path that
+ * matches, so /assets/universe lights Universe, not Inventory. Items sharing a
+ * pathname (Dashboard vs Executive, both "/") are told apart by ?view=; an item
+ * without a `view` is active only when the param is absent, so the two never
+ * light up together.
+ */
+export function activeNavKey(
+  items: readonly NavItem[],
+  pathname: string,
+  search: string,
+): string {
+  const viewParam = new URLSearchParams(search).get('view');
+  let best = '';
+  let bestLen = -1;
+  for (const it of items) {
+    if ((it.view ?? null) !== (viewParam || null)) continue;
+    for (const p of [it.path, ...(it.alsoActive ?? [])]) {
+      const match = p === '/' ? pathname === '/' : pathname === p || pathname.startsWith(p + '/');
+      if (match && p.length > bestLen) {
+        best = it.key;
+        bestLen = p.length;
+      }
+    }
+  }
+  return best;
+}
 
 /** Items hoisted above the grouped nav (e.g. Dashboard), in the given (already
  *  permission-filtered) groups. The Sidebar renders these first, then renders the
