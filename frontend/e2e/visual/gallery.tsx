@@ -559,7 +559,7 @@ function I18nPressure() {
           Field labels — Label, description and error, all translated
         </p>
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label={t('risks.riskOwner')} description={t('risks.dragDropHint')} required>
+          <Field label={t('risks.riskOwner')} description={t('risks.tagInput.hint')} required>
             <Input placeholder={t('common.search')} />
           </Field>
           <Field
