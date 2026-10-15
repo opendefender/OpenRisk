@@ -26,7 +26,9 @@ func (m *memStore) SetOrganizationPlanAndRegion(_ context.Context, _ uuid.UUID, 
 	m.plan = plan
 	return nil
 }
-func (m *memStore) ListInvoices(context.Context, uuid.UUID) ([]domain.Invoice, error) { return nil, nil }
+func (m *memStore) ListInvoices(context.Context, uuid.UUID) ([]domain.Invoice, error) {
+	return nil, nil
+}
 
 func TestStartTrial(t *testing.T) {
 	m := &memStore{}

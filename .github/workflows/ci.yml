@@ -27,6 +27,19 @@ jobs:
       - name: Vet
         run: cd backend && go vet ./...
 
+      # Moved here from security.yml's "Code Quality Analysis" (#978), where it
+      # sat beside a staticcheck run that golangci-lint already does.
+      - name: Check gofmt -s
+        run: |
+          cd backend
+          unformatted="$(gofmt -s -l .)"
+          if [ -n "$unformatted" ]; then
+            echo "Not gofmt -s clean. Run: cd backend && gofmt -s -w <file>"
+            echo "$unformatted"
+            gofmt -s -d .
+            exit 1
+          fi
+
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@v3
         with:

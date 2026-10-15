@@ -167,9 +167,11 @@ We would rather tell you than let you assume:
   [`security/vulnerability-exceptions.yaml`](security/vulnerability-exceptions.yaml).
   Each exception names an owner and an issue, and expires within 90 days. A
   release is not published while the gate fails.
-- Secret and static-analysis scans are configured in
-  [`.github/workflows/security.yml`](.github/workflows/security.yml) and
-  [`.github/workflows/security-scanning.yml`](.github/workflows/security-scanning.yml).
+- Secret detection (TruffleHog) and Go static analysis (gosec) run in
+  [`.github/workflows/security-scanning.yml`](.github/workflows/security-scanning.yml),
+  and a blocking tenant-isolation gate runs in
+  [`.github/workflows/security.yml`](.github/workflows/security.yml). There is
+  no dynamic (DAST) scan yet.
 - Release files and images are not signed yet (tracked in
   [#795](https://github.com/opendefender/OpenRisk/issues/795)).
 - OpenRisk ships no default password. The first administrator gets the

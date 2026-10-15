@@ -11,7 +11,7 @@ func TestParsePlan_LegacyAndUnknown(t *testing.T) {
 		"starter": PlanPro, "pro": PlanPro,
 		"professional": PlanBusiness, "business": PlanBusiness,
 		"enterprise": PlanEnterprise,
-		"":            PlanFree, "nonsense": PlanFree, "  PRO  ": PlanPro,
+		"":           PlanFree, "nonsense": PlanFree, "  PRO  ": PlanPro,
 	}
 	for in, want := range cases {
 		if got := ParsePlan(in); got != want {

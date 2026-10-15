@@ -2091,95 +2091,10 @@ echo "Done."
 EOF
 chmod +x "$ROOT/scripts/gh-labels.sh"
 
-# =============================================================================
-#  CI — headless agent gates on every PR
-# =============================================================================
-echo "==> Writing .github/workflows/claude-review.yml"
-cat > "$ROOT/.github/workflows/claude-review.yml" << 'EOF'
-name: Agent Review
-
-on:
-  pull_request:
-    types: [opened, synchronize]
-
-permissions:
-  contents: read
-  pull-requests: write
-
-jobs:
-  agent-review:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with: { fetch-depth: 0 }
-      - uses: actions/setup-node@v4
-        with: { node-version: '20' }
-
-      - name: Install Claude Code
-        run: npm install -g @anthropic-ai/claude-code
-
-      - name: Tenant isolation and security audit
-        env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-        run: |
-          claude -p "Use the devsecops agent. Audit only the diff against origin/${{ github.base_ref }}. Priority one: every new or modified DB query must filter by tenant_id, and every endpoint taking a sequential integer ID must verify ownership. Report findings by severity. End with 'SECURITY: PASS' or 'SECURITY: FAIL'." \
-            --permission-mode plan --output-format text > security.md
-          cat security.md
-
-      - name: Product truth check
-        env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-        run: |
-          claude -p "Use the product-verifier agent. Verify only the claims touched by this diff — README, ROADMAP, docs, release notes. End with 'RELEASE: GO' or 'RELEASE: NO-GO'." \
-            --permission-mode plan --output-format text > claims.md
-          cat claims.md
-
-      - name: Post review
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const fs = require('fs');
-            const body = ['## Agent review',
-              '### Security & tenant isolation', fs.readFileSync('security.md','utf8'),
-              '### Product truth', fs.readFileSync('claims.md','utf8')].join('\n\n');
-            await github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner, repo: context.repo.repo, body });
-
-      - name: Enforce gates
-        run: |
-          grep -q 'SECURITY: PASS' security.md || { echo 'Security gate failed'; exit 1; }
-          grep -q 'RELEASE: GO'    claims.md   || { echo 'Claim gate failed';    exit 1; }
-EOF
-
-echo "==> Writing .github/workflows/claude-triage.yml"
-cat > "$ROOT/.github/workflows/claude-triage.yml" << 'EOF'
-name: Agent Triage
-
-on:
-  issues:
-    types: [opened, reopened]
-
-permissions:
-  contents: read
-  issues: write
-
-jobs:
-  triage:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: '20' }
-      - run: npm install -g @anthropic-ai/claude-code
-      - name: Triage the new issue
-        env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          claude -p "Use the issue-triage agent on issue #${{ github.event.issue.number }}. Apply the fixed label taxonomy, check for duplicates, assess readiness, and comment with the routing. Do not close anything." \
-            --permission-mode acceptEdits --output-format text
-EOF
+# The headless agent gates (claude-review.yml, claude-triage.yml) were retired
+# by #978: they needed an ANTHROPIC_API_KEY secret the repository does not
+# set, so they failed on every pull request and every new issue. Reviews run
+# in the working session instead (see the work skill).
 
 # =============================================================================
 #  .gitignore
