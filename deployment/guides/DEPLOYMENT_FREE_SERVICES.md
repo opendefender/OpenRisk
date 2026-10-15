@@ -52,7 +52,7 @@ Le Dockerfile doit être adapté pour Render. Créez le fichier :
 **`backend/Dockerfile.render`**
 ```dockerfile
 # Build stage
-FROM golang:1.25.4-alpine AS builder
+FROM golang:1.26-alpine AS builder
 
 WORKDIR /app
 

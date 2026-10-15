@@ -10,7 +10,7 @@
   [![License: AGPL v3](https://img.shields.io/badge/license-AGPL%20v3%20%2B%20Commercial-blue.svg)](LICENSING.md)
   [![GitHub release](https://img.shields.io/badge/version-1.0.6-brightgreen.svg)](https://github.com/opendefender/OpenRisk/releases)
   [![GitHub Actions CI/CD](https://github.com/opendefender/OpenRisk/workflows/CI/badge.svg)](https://github.com/opendefender/OpenRisk/actions)
-  [![Go version](https://img.shields.io/badge/go-1.25.4-blue.svg)](https://golang.org)
+  [![Go version](https://img.shields.io/badge/go-1.26-blue.svg)](https://golang.org)
   [![React version](https://img.shields.io/badge/react-19.2.0-61dafb.svg)](https://react.dev)
 </div>
 
@@ -163,7 +163,7 @@ To report a vulnerability, see [SECURITY.md](SECURITY.md).
 ### Backend
 | Component | Technology | Version |
 |-----------|-----------|---------|
-| **Language** | Go | 1.25.4 |
+| **Language** | Go | 1.26 |
 | **Framework** | Fiber | v2.52 |
 | **Database** | PostgreSQL | 16 |
 | **ORM** | GORM | v1.31 |

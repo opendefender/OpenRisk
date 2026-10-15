@@ -21,7 +21,7 @@ Repository: https://github.com/opendefender/OpenRisk
 
 ## Stack
 
-- Backend — Go 1.25 · Fiber v2 · GORM · PostgreSQL 16 · Redis · golang-migrate
+- Backend — Go 1.26 · Fiber v2 · GORM · PostgreSQL 16 · Redis · golang-migrate
 - Frontend — React 19 · TypeScript strict · Zustand · Tailwind 3 · Recharts · React Router v7
 - Infra — Docker multi-stage · Kubernetes + Helm · GitHub Actions
 - Obs. — Prometheus · Grafana · Loki · zerolog JSON · Sentry

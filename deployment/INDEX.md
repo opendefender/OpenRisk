@@ -273,7 +273,7 @@ OpenRisk/
 
 - **Created**: December 25, 2025
 - **OpenRisk Version**: 1.0.4
-- **Go Version**: 1.25.4
+- **Go Version**: 1.26
 - **React Version**: 19.2.0
 - **Status**: Ready for deployment
 

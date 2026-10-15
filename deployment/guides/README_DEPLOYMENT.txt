@@ -9,7 +9,7 @@ SITUATION ACTUELLE:
 
 ✅ Vous avez une application Full-Stack complète:
    • Frontend: React 19 + Vite + TailwindCSS
-   • Backend: Go 1.25.4 + Fiber v2 + PostgreSQL
+   • Backend: Go 1.26 + Fiber v2 + PostgreSQL
    • Infrastructure Docker & Kubernetes ready
    • Base de code production-ready
 

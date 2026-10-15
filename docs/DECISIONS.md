@@ -23,6 +23,24 @@ recommends, and surfaces these in the daily brief. Run `/decide` to clear them.
 
 ## Resolved
 
+### D-072 — Go toolchain: 1.25 → 1.26 · decided 2026-10-14
+**Decided (owner)** — Move to Go 1.26 (option A), in #979.
+**Context** — The Dependency gate was red on master. Five HIGH advisories in
+the Go 1.25.14 standard library (CVE-2026-78667, -78669, -97031; GO-2026-6599
+and -6600, which govulncheck marks REACHABLE) have fixes only in 1.26.9 and
+1.27.2. Go 1.25 gets no more security releases now that 1.27 is out. The fix
+for golang.org/x/net (CVE-2026-78669, v0.60.0) also requires go 1.26.
+**Options** — A: upgrade to 1.26. B: a dated 90-day exception, which keeps
+shipping reachable vulnerabilities. C: retire the gate.
+**Applied** — `backend/go.mod` sets `go 1.26.9`. The builders use
+`golang:1.26-alpine`, CI uses `go-version: '1.26'`, and CLAUDE.md's Stack
+line says Go 1.26. Under 1.26.9, backend build, vet, tests and golangci-lint
+v1.64.8 pass, and govulncheck reports 0 reachable vulnerabilities.
+`agent/go.mod` (the separate agent module) stays on go 1.25. Nothing flags it
+only because nothing scans it: the Dependency gate covers backend/ and
+frontend/. Its upgrade, its scan and the committed binary are #989.
+**Reversible** — Yes, but going back means shipping the advisories above.
+
 ### D-071 — Vulnerabilities from the agent's packages: collection, Windows, egress, UI · decided 2026-10-14
 **Decided (owner)**
 1. **osquery required**: no native fallback. A host without it reports `osquery_missing`, and the README documents installing it.

@@ -72,7 +72,7 @@ Repository: https://github.com/opendefender/OpenRisk
 
 ## Stack
 
-- Backend — Go 1.25 · Fiber v2 · GORM · PostgreSQL 16 · Redis · golang-migrate
+- Backend — Go 1.26 · Fiber v2 · GORM · PostgreSQL 16 · Redis · golang-migrate
 - Frontend — React 19 · TypeScript strict · Zustand · Tailwind 3 · Recharts · React Router v7
 - Infra — Docker multi-stage · Kubernetes + Helm · GitHub Actions
 - Obs. — Prometheus · Grafana · Loki · zerolog JSON · Sentry
@@ -404,7 +404,7 @@ color: blue
 ---
 
 You are the Lead Developer and Architect of OpenRisk.
-Go 1.25 / Fiber v2 / GORM / PostgreSQL 16 / Redis · React 19 / TS strict / Zustand.
+Go 1.26 / Fiber v2 / GORM / PostgreSQL 16 / Redis · React 19 / TS strict / Zustand.
 
 ## Method
 
@@ -520,7 +520,7 @@ skills:
 ---
 
 You are a senior Go engineer on OpenRisk.
-Go 1.25 · Fiber v2 · GORM · PostgreSQL 16 · Redis · golang-migrate.
+Go 1.26 · Fiber v2 · GORM · PostgreSQL 16 · Redis · golang-migrate.
 
 ## Protocol
 
