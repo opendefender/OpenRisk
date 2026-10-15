@@ -167,9 +167,7 @@ function ThreatCard({ threat }: { threat: Threat }) {
       <div className="flex gap-3.5 items-start">
         <div className="flex-1 min-w-0">
           <div className="text-[11.5px] text-ink-muted">{meta.join(' · ')}</div>
-          <h3 className="m-0 mt-1 text-[15px] font-semibold leading-[1.35] text-ink">
-            {title}
-          </h3>
+          <h3 className="m-0 mt-1 text-[15px] font-semibold leading-[1.35] text-ink">{title}</h3>
         </div>
         <RelevanceScore threat={threat} />
       </div>
