@@ -11,6 +11,8 @@ import (
 	"regexp"
 	"sort"
 	"testing"
+
+	"github.com/opendefender/openrisk/pkg/realtime"
 )
 
 // ---------------------------------------------------------------------------
@@ -72,4 +74,45 @@ A route gating on a key the catalog does not know has two consequences:
     permission the API is really enforcing.
 
 Add each one to PermissionCatalog with its group and its bilingual labels.`, keys)
+}
+
+// TestPermissionCatalog_CoversTheRealtimePermissions closes what the regex above
+// cannot see (#416). The SSE stream is gated by realtime.StreamPermission and
+// filtered per event by the aggregate permissions, and none of those reach the
+// catalog through a RequirePermission("...") literal unless main.go happens to
+// spell them out. So the realtime package's own strings are checked directly,
+// and the stream's gate in main.go must stay a literal the sync test can read.
+func TestPermissionCatalog_CoversTheRealtimePermissions(t *testing.T) {
+	if !IsCatalogPermission(realtime.StreamPermission) {
+		t.Errorf("realtime.StreamPermission %q gates /realtime/events but is absent from PermissionCatalog", realtime.StreamPermission)
+	}
+
+	for _, agg := range realtime.Aggregates() {
+		perm, ok := realtime.PermissionForAggregate(agg)
+		if !ok {
+			continue // pkg/realtime's own catalog test owns this failure
+		}
+		if !IsCatalogPermission(perm) {
+			t.Errorf("aggregate %q streams under %q, which is absent from PermissionCatalog", agg, perm)
+		}
+	}
+
+	src, err := os.ReadFile(filepath.Join("..", "..", "cmd", "server", "main.go"))
+	if err != nil {
+		t.Fatalf("cmd/server/main.go must be readable from the domain package: %v", err)
+	}
+	gated := false
+	for _, m := range requirePermissionCall.FindAllStringSubmatch(string(src), -1) {
+		if m[1] == realtime.StreamPermission {
+			gated = true
+			break
+		}
+	}
+	if !gated {
+		t.Errorf(`main.go has no RequirePermission(%q) literal any more.
+
+Either the realtime stream lost its gate, or the call site now passes a
+constant, which TestPermissionCatalog_CoversEveryGuardedPermission cannot read.
+Keep the literal, or move that test onto the router's registered routes.`, realtime.StreamPermission)
+	}
 }
