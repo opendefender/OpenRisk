@@ -5,23 +5,20 @@ recommends, and surfaces these in the daily brief. Run `/decide` to clear them.
 
 ## Open
 
-### D-071 — Backend coverage gate: a 44% ratchet instead of a 50% line nobody met · raised 2026-10-14
-**Raised by** — #957. Lowering a quality gate is not an agent's call, so it is recorded here even though it is already in the PR.
-
-**Context**
-- The CI step required 50% backend coverage. Master measures 44%, so the step failed on every run, together with lint and the integration build, and the whole CI Pipeline stayed red for at least 60 runs on master.
-- While a gate is always red it protects nothing: a drop from 44% to 30% would have looked exactly the same.
-
-**Options**
-- A — Keep 50% and leave the job red until coverage reaches it. Nothing else in CI Pipeline can go green meanwhile.
-- B — Floor at 44.0%, compared to one decimal, raised by hand whenever coverage goes up, never lowered without a decision here. Master measured 44.4%, so the floor leaves 0.4 points for run-to-run noise. *(applied in #957)*
-- C — Drop the backend gate and rely on per-use-case test rules in CLAUDE.md.
-
-**Recommendation** — B. It catches every drop from today, and it puts 50% back as a goal to reach rather than a failure nobody reads. Raising the floor can be part of each PR that adds tests.
-
-**Cost of delay** — None for B, it is already applied. If you prefer A, say so and the PR gets reverted to 50%.
+Nothing open.
 
 ## Resolved
+
+### D-072 — Backend coverage gate: a 44% ratchet instead of a 50% line nobody met · decided 2026-10-15
+**Decided** — Option B. The backend coverage gate is a floor at 44.0%, compared to one decimal. It is raised by hand whenever coverage goes up, and never lowered without a decision here.
+**Rationale (owner)** — Matches the recommendation. A gate that fails on every run protects nothing: a drop from 44% to 30% would have looked the same as today. The floor catches every drop from now on, and 50% stays as a goal to reach rather than a failure nobody reads.
+**Consequence** — Already applied by PR #963 (`.github/workflows/ci.yml`, `FLOOR=44.0`). "Backend Unit Tests" is green on master. A PR that adds tests may raise `FLOOR` in the same diff. Lowering it needs a new entry here. Going back to A is a one-line change.
+**Unblocked** — nothing was blocked. #957 is already closed.
+**Renumbered** — this entry was raised as D-071 on 2026-10-14, a number already taken by the agent-package vulnerability decision (#910) below. D-071 now refers only to that one.
+
+**Raised by** — #957. Lowering a quality gate is not an agent's call, so it was recorded here even though it was already in the PR.
+- The CI step required 50% backend coverage. Master measured 44.4%, so the step failed on every run and the whole CI Pipeline stayed red for at least 60 runs on master.
+- Options were A (keep 50% and stay red), B (the floor) and C (drop the gate and rely on the per-use-case test rules in CLAUDE.md).
 
 ### D-071 — Vulnerabilities from the agent's packages: collection, Windows, egress, UI · decided 2026-10-14
 **Decided (owner)**
