@@ -114,14 +114,33 @@ const TABBABLE = [
   '[tabindex]:not([tabindex="-1"])',
 ].join(',');
 
-/** The tabbable element next to `from`, within its dialog if it sits in one. */
-function neighbourOf(from: HTMLElement, delta: 1 | -1): HTMLElement {
-  const scope = from.closest<HTMLElement>('[role="dialog"]') ?? document.body;
-  const all = Array.from(scope.querySelectorAll<HTMLElement>(TABBABLE)).filter(
-    (el) => el === from || (el.tabIndex >= 0 && !el.closest('[hidden],[inert]')),
+/**
+ * The tabbable element next to `from`. Inside a dialog it wraps, as the
+ * dialog's own Tab trap would (that trap is paused while the list is the top
+ * layer). Outside one it stops at the ends and returns null, so the browser's
+ * own Tab takes over. `exclude` is the popup, whose search field is about to
+ * unmount and must never be the target.
+ */
+function neighbourOf(
+  from: HTMLElement,
+  delta: 1 | -1,
+  exclude: HTMLElement | null,
+): HTMLElement | null {
+  const dialog = from.closest<HTMLElement>('[role="dialog"]');
+  const all = Array.from((dialog ?? document.body).querySelectorAll<HTMLElement>(TABBABLE)).filter(
+    (el) =>
+      el === from ||
+      (el.tabIndex >= 0 &&
+        !exclude?.contains(el) &&
+        !el.closest('[hidden],[inert]') &&
+        // CSS-hidden (`hidden md:flex`) is not [hidden]. jsdom lacks the API.
+        (el.checkVisibility?.() ?? true)),
   );
   const at = all.indexOf(from);
-  return all[at + delta] ?? from;
+  const next = all[at + delta];
+  if (next) return next;
+  if (!dialog) return null;
+  return all[delta > 0 ? 0 : all.length - 1] ?? null;
 }
 
 /** Substring match on the folded label; an empty query keeps every option. */
@@ -349,15 +368,22 @@ export function Listbox<V extends string = string>({
       event.preventDefault();
       pick(activeIndex);
     } else if (key === 'Tab') {
-      // Leave without picking. From the trigger the browser's own Tab is right.
-      // The search field lives in a portal at the end of the body, so there the
-      // move is ours: to the control before or after the trigger in the page.
-      if (inSearch) {
+      // Leave without picking. The move is ours when the browser's would be
+      // wrong: from the search field (in a portal at the end of the body), and
+      // inside a dialog, whose Tab trap is paused while the list is on top.
+      const trigger = triggerRef.current;
+      const target =
+        trigger && (inSearch || trigger.closest('[role="dialog"]'))
+          ? neighbourOf(trigger, event.shiftKey ? -1 : 1, floatingNode.current)
+          : null;
+      close(false);
+      if (target) {
         event.preventDefault();
-        const trigger = triggerRef.current;
-        close(false);
-        if (trigger) neighbourOf(trigger, event.shiftKey ? -1 : 1).focus({ preventScroll: true });
-      } else close(false);
+        target.focus({ preventScroll: true });
+      } else if (inSearch) {
+        // Last control of the page: back on the trigger, the browser goes on.
+        trigger?.focus({ preventScroll: true });
+      }
     } else if (!inSearch && key === ' ') {
       event.preventDefault();
       if (typeahead.current.buffer && Date.now() - typeahead.current.at < TYPEAHEAD_MS) {
@@ -375,6 +401,7 @@ export function Listbox<V extends string = string>({
   const isEmpty = !loading && options.length === 0;
   const noMatch = !loading && options.length > 0 && visible.length === 0;
   const hidden = Boolean(middlewareData.hide?.referenceHidden);
+  const showList = !loading && !isEmpty && !noMatch;
 
   return (
     <>
@@ -385,7 +412,7 @@ export function Listbox<V extends string = string>({
         role="combobox"
         aria-haspopup="listbox"
         aria-expanded={open}
-        aria-controls={open ? listId : undefined}
+        aria-controls={open && showList ? listId : undefined}
         aria-activedescendant={searchable ? undefined : activeId}
         aria-label={ariaLabel}
         aria-labelledby={ariaLabelledBy}
@@ -463,7 +490,7 @@ export function Listbox<V extends string = string>({
                   type="text"
                   role="combobox"
                   aria-expanded
-                  aria-controls={listId}
+                  aria-controls={showList ? listId : undefined}
                   aria-autocomplete="list"
                   aria-activedescendant={activeId}
                   aria-label={t('common.listbox.search', 'Rechercher dans la liste')}
@@ -483,7 +510,7 @@ export function Listbox<V extends string = string>({
             )}
 
             {loading || isEmpty || noMatch ? (
-              <p id={listId} role="status" className="px-3 py-2.5 text-sm text-fg-muted">
+              <p role="status" className="px-3 py-2.5 text-sm text-fg-muted">
                 {loading
                   ? t('common.listbox.loading', 'Chargement…')
                   : isEmpty

@@ -18,6 +18,7 @@ import userEvent from '@testing-library/user-event';
 import { Listbox, type ListboxOption } from '../Listbox';
 import { Field } from '../Field';
 import { Modal } from '../Modal';
+import { useEscapeToClose } from '../../useBackTo';
 
 const ROLES: ListboxOption[] = [
   { value: 'viewer', label: 'Lecteur' },
@@ -214,6 +215,50 @@ describe('Listbox — keyboard', () => {
     expect(onClose).not.toHaveBeenCalled();
     await user.keyboard('{Escape}');
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('Listbox — inside dialogs', () => {
+  it('Tab from the last control of a modal stays in the modal', async () => {
+    const user = userEvent.setup();
+    render(
+      <Modal open onClose={() => {}} title="Inviter">
+        <Field label="Rôle">
+          <Listbox value="viewer" options={ROLES} onChange={() => {}} />
+        </Field>
+      </Modal>,
+    );
+    const dialog = await screen.findByRole('dialog');
+    combo().focus();
+    await user.keyboard('{Enter}');
+    await user.tab();
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+    expect(dialog).toContainElement(document.activeElement as HTMLElement);
+    expect(combo()).not.toHaveFocus();
+  });
+
+  it('Escape closes the list, not a dialog closed through useEscapeToClose', async () => {
+    const user = userEvent.setup();
+    const onClose = vi.fn();
+    function EscDialog() {
+      useEscapeToClose(true, onClose);
+      return <Harness />;
+    }
+    render(<EscDialog />);
+    combo().focus();
+    await user.keyboard('{Enter}');
+    await user.keyboard('{Escape}');
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
+    expect(onClose).not.toHaveBeenCalled();
+    await user.keyboard('{Escape}');
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('points aria-controls only at a real listbox', async () => {
+    const user = userEvent.setup();
+    render(<Harness loading />);
+    await user.click(combo());
+    expect(combo()).not.toHaveAttribute('aria-controls');
   });
 });
 
