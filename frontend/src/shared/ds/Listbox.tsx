@@ -38,6 +38,7 @@
 
 import {
   useCallback,
+  useContext,
   useEffect,
   useId,
   useMemo,
@@ -57,10 +58,10 @@ import {
   useFloating,
 } from '@floating-ui/react';
 import { Check, ChevronDown, Loader2, Search } from 'lucide-react';
-import { useI18n } from '../../hooks/useI18n';
 import { cn } from './cn';
 import { controlClasses, useControlWiring } from './fieldContext';
 import { useEscapeLayer } from './useDismissableLayer';
+import { ListboxLabelsContext } from './listboxLabels';
 
 export interface ListboxOption<V extends string = string> {
   value: V;
@@ -175,7 +176,7 @@ export function Listbox<V extends string = string>({
   'data-testid': testId,
   ref,
 }: ListboxProps<V>) {
-  const { t } = useI18n();
+  const labels = useContext(ListboxLabelsContext);
   const { id: triggerId, status, aria } = useControlWiring(id);
   const listId = useId();
   const optionIdBase = useId();
@@ -439,7 +440,7 @@ export function Listbox<V extends string = string>({
         )}
       >
         <span className={cn('min-w-0 flex-1 truncate', !selected && 'text-fg-muted')}>
-          {selected?.label ?? placeholder ?? t('common.listbox.placeholder', 'Choisir…')}
+          {selected?.label ?? placeholder ?? labels.placeholder}
         </span>
         {loading ? (
           <Loader2
@@ -493,11 +494,11 @@ export function Listbox<V extends string = string>({
                   aria-controls={showList ? listId : undefined}
                   aria-autocomplete="list"
                   aria-activedescendant={activeId}
-                  aria-label={t('common.listbox.search', 'Rechercher dans la liste')}
+                  aria-label={labels.search}
                   autoComplete="off"
                   spellCheck={false}
                   value={query}
-                  placeholder={t('common.listbox.searchPlaceholder', 'Rechercher…')}
+                  placeholder={labels.searchPlaceholder}
                   onChange={(e) => {
                     setQuery(e.target.value);
                     setActiveIndex(firstEnabled(filterBy(e.target.value)));
@@ -511,11 +512,7 @@ export function Listbox<V extends string = string>({
 
             {loading || isEmpty || noMatch ? (
               <p role="status" className="px-3 py-2.5 text-sm text-fg-muted">
-                {loading
-                  ? t('common.listbox.loading', 'Chargement…')
-                  : isEmpty
-                    ? (emptyLabel ?? t('common.listbox.empty', 'Aucune option'))
-                    : t('common.listbox.noMatch', 'Aucun résultat')}
+                {loading ? labels.loading : isEmpty ? (emptyLabel ?? labels.empty) : labels.noMatch}
               </p>
             ) : (
               <ul

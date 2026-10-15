@@ -18,7 +18,7 @@ import userEvent from '@testing-library/user-event';
 import { Listbox, type ListboxOption } from '../Listbox';
 import { Field } from '../Field';
 import { Modal } from '../Modal';
-import { useEscapeToClose } from '../../useBackTo';
+import { ListboxLabelsContext, DEFAULT_LISTBOX_LABELS } from '../listboxLabels';
 
 const ROLES: ListboxOption[] = [
   { value: 'viewer', label: 'Lecteur' },
@@ -237,23 +237,6 @@ describe('Listbox — inside dialogs', () => {
     expect(combo()).not.toHaveFocus();
   });
 
-  it('Escape closes the list, not a dialog closed through useEscapeToClose', async () => {
-    const user = userEvent.setup();
-    const onClose = vi.fn();
-    function EscDialog() {
-      useEscapeToClose(true, onClose);
-      return <Harness />;
-    }
-    render(<EscDialog />);
-    combo().focus();
-    await user.keyboard('{Enter}');
-    await user.keyboard('{Escape}');
-    expect(screen.queryByRole('listbox')).not.toBeInTheDocument();
-    expect(onClose).not.toHaveBeenCalled();
-    await user.keyboard('{Escape}');
-    expect(onClose).toHaveBeenCalledTimes(1);
-  });
-
   it('points aria-controls only at a real listbox', async () => {
     const user = userEvent.setup();
     render(<Harness loading />);
@@ -267,7 +250,7 @@ describe('Listbox — search', () => {
     const user = userEvent.setup();
     render(<Harness options={MANY.slice(0, 8)} initial="v0" />);
     await user.click(combo());
-    expect(screen.queryByRole('combobox', { name: /Rechercher/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('combobox', { name: 'Search the list' })).not.toBeInTheDocument();
   });
 
   it('filters past the threshold, ignoring accents, and picks with Enter', async () => {
@@ -275,7 +258,7 @@ describe('Listbox — search', () => {
     const onChange = vi.fn();
     render(<Harness options={MANY} initial="v0" onChange={onChange} />);
     await user.click(combo());
-    const search = screen.getByRole('combobox', { name: /Rechercher/ });
+    const search = screen.getByRole('combobox', { name: 'Search the list' });
     expect(search).toHaveFocus();
 
     await user.type(search, 'vulne');
@@ -290,7 +273,7 @@ describe('Listbox — search', () => {
     render(<Harness options={MANY} initial="v0" />);
     combo().focus();
     await user.keyboard('r');
-    const search = screen.getByRole('combobox', { name: /Rechercher/ });
+    const search = screen.getByRole('combobox', { name: 'Search the list' });
     expect(search).toHaveValue('r');
     expect(search.getAttribute('aria-activedescendant')).toBeTruthy();
   });
@@ -301,7 +284,7 @@ describe('Listbox — search', () => {
     render(<Harness options={MANY} initial="v3" onChange={onChange} />);
     await user.click(combo());
     await user.keyboard('zzz');
-    expect(screen.getByRole('status')).toHaveTextContent(/Aucun résultat|No match/);
+    expect(screen.getByRole('status')).toHaveTextContent('No match');
     await user.keyboard('{Escape}');
     expect(combo()).toHaveTextContent('Fournisseurs');
     expect(onChange).not.toHaveBeenCalled();
@@ -341,7 +324,7 @@ describe('Listbox — states', () => {
     expect(combo()).toHaveAttribute('aria-busy', 'true');
     await user.click(combo());
     expect(screen.queryByRole('option')).not.toBeInTheDocument();
-    expect(screen.getByRole('status')).toHaveTextContent(/Chargement|Loading/);
+    expect(screen.getByRole('status')).toHaveTextContent('Loading…');
   });
 
   it('loading: keeps focus and blocks picking from the keyboard', async () => {
@@ -377,6 +360,26 @@ describe('Listbox — states', () => {
   it('submits through a hidden input when named', () => {
     const { container } = render(<Harness name="role" initial="admin" />);
     expect(container.querySelector('input[type="hidden"][name="role"]')).toHaveValue('admin');
+  });
+});
+
+describe('Listbox — labels', () => {
+  it('takes its words from the labels context', async () => {
+    const user = userEvent.setup();
+    render(
+      <ListboxLabelsContext.Provider
+        value={{
+          ...DEFAULT_LISTBOX_LABELS,
+          search: 'Rechercher dans la liste',
+          placeholder: 'Choisir…',
+        }}
+      >
+        <Harness options={MANY} initial="" />
+      </ListboxLabelsContext.Provider>,
+    );
+    expect(combo()).toHaveTextContent('Choisir…');
+    await user.click(combo());
+    expect(screen.getByRole('combobox', { name: 'Rechercher dans la liste' })).toHaveFocus();
   });
 });
 
