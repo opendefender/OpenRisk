@@ -79,7 +79,7 @@ func (uc *ValidateMitigationPlanUseCase) notifyValidated(tenantID uuid.UUID, m *
 	if uc.notifier == nil || m == nil {
 		return
 	}
-	recipient := uuid.Nil
+	var recipient uuid.UUID
 	switch {
 	case m.AssigneeID != nil && *m.AssigneeID != uuid.Nil:
 		recipient = *m.AssigneeID
