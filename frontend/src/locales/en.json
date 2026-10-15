@@ -31,7 +31,15 @@
     "noResults": "No results found",
     "emptyState": "Nothing to show here",
     "planName": "{plan} plan",
-    "rowDetails": "Details"
+    "rowDetails": "Details",
+    "listbox": {
+      "placeholder": "Choose…",
+      "search": "Search the list",
+      "searchPlaceholder": "Search…",
+      "loading": "Loading…",
+      "empty": "No option",
+      "noMatch": "No match"
+    }
   },
   "risks": {
     "title": "Risk Register",
