@@ -6,8 +6,6 @@
 package main
 
 import (
-	"github.com/opendefender/openrisk/internal/infrastructure/email"
-
 	"context"
 	"encoding/json"
 	"errors"
@@ -17,6 +15,8 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/opendefender/openrisk/internal/infrastructure/email"
 )
 
 // #647: the health endpoint answered 200 with "db": "CONNECTED" whatever the

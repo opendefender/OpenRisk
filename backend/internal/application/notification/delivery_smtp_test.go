@@ -237,3 +237,28 @@ func TestNoticeDelivery_CrossTenantReceivesNothing(t *testing.T) {
 		require.False(t, strings.Contains(m.Data, "secret"))
 	}
 }
+
+// A title is typed by a user and becomes part of the Subject header (deadline
+// and state-change notices put it there). A CR/LF in it must not start a new
+// header: the transport Q-encodes any control byte, even in plain ASCII.
+func TestNoticeDelivery_TitleCannotInjectHeaders(t *testing.T) {
+	r := newRig(t)
+	id := uuid.New()
+	err := r.dispatcher.Deliver(context.Background(), domain.Notice{
+		TenantID: r.tenantA, UserID: r.alice,
+		Type:       domain.NotificationTypeMitigationDeadline,
+		ResourceID: &id, ResourceType: "mitigation",
+		Compose: func(string) domain.NoticeMessage {
+			return domain.NoticeMessage{Subject: "Due: x\r\nBcc: spy@evil.example", Lines: []string{"x"}}
+		},
+	})
+	require.NoError(t, err)
+
+	msgs := r.smtp.Messages()
+	require.Len(t, msgs, 1)
+	require.Equal(t, []string{"alice@a.example"}, msgs[0].To, "no extra recipient")
+	headers, _, found := strings.Cut(msgs[0].Data, "\r\n\r\n")
+	require.True(t, found)
+	require.NotContains(t, headers, "\nBcc:")
+	require.Contains(t, headers, "Subject: =?UTF-8?q?Due:_x=0D=0ABcc:")
+}
