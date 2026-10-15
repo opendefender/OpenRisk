@@ -74,6 +74,13 @@ type TransitionRiskStateUseCase struct {
 	riskRepo    domain.RiskRepository
 	mitigations MitigationInspector
 	approvals   ApprovalChecker
+	notices     NoticeDeliverer
+}
+
+// NoticeDeliverer tells one member about an event, in-app and by e-mail
+// (application/notification.Dispatcher). Optional port.
+type NoticeDeliverer interface {
+	Deliver(ctx context.Context, n domain.Notice) error
 }
 
 func NewTransitionRiskStateUseCase(riskRepo domain.RiskRepository) *TransitionRiskStateUseCase {
@@ -89,6 +96,13 @@ func (uc *TransitionRiskStateUseCase) WithMitigations(m MitigationInspector) *Tr
 // WithApprovals attaches the checker backing the residual-acceptance guard.
 func (uc *TransitionRiskStateUseCase) WithApprovals(a ApprovalChecker) *TransitionRiskStateUseCase {
 	uc.approvals = a
+	return uc
+}
+
+// WithNotices tells the risk's owner when someone else moves it through the
+// lifecycle (#757). Nil-safe.
+func (uc *TransitionRiskStateUseCase) WithNotices(n NoticeDeliverer) *TransitionRiskStateUseCase {
+	uc.notices = n
 	return uc
 }
 
@@ -239,7 +253,56 @@ func (uc *TransitionRiskStateUseCase) Execute(ctx context.Context, tenantID, ris
 		fmt.Printf("Warning: failed to audit lifecycle transition on risk %s: %v\n", riskID, err)
 	}
 
+	uc.notifyOwner(ctx, tenantID, r, current, target, in.Actor)
 	return r, nil
+}
+
+// notifyOwner tells the risk's owner that it changed state — best-effort, the
+// transition is already committed. Nobody is told about their own move.
+//
+// A risk reaching an end state (mitigated, residual accepted, closed) is a
+// "risk resolved" notice; every other move is a "risk update". Each follows
+// its own e-mail switch in the owner's preferences, so the Settings screen
+// keeps meaning what it says.
+func (uc *TransitionRiskStateUseCase) notifyOwner(ctx context.Context, tenantID uuid.UUID, r *domain.Risk, from, to domain.RiskState, actor uuid.UUID) {
+	if uc.notices == nil || r.OwnerID == nil || *r.OwnerID == uuid.Nil || *r.OwnerID == actor {
+		return
+	}
+	notifType := domain.NotificationTypeRiskUpdate
+	switch to {
+	case domain.StateMitigated, domain.StateResidualAccepted, domain.StateClosed:
+		notifType = domain.NotificationTypeRiskResolved
+	}
+	title := r.Title
+	if title == "" {
+		title = r.Name
+	}
+	id := r.ID
+	_ = uc.notices.Deliver(ctx, domain.Notice{
+		TenantID:     tenantID,
+		UserID:       *r.OwnerID,
+		Type:         notifType,
+		ResourceID:   &id,
+		ResourceType: "risk",
+		Compose: func(locale string) domain.NoticeMessage {
+			return riskStateNoticeCopy(locale, title, from, to)
+		},
+	})
+}
+
+func riskStateNoticeCopy(locale, title string, from, to domain.RiskState) domain.NoticeMessage {
+	if locale == "en" {
+		return domain.NoticeMessage{
+			Subject: fmt.Sprintf("Risk “%s”: %s", title, to.Label("en")),
+			Lines: []string{fmt.Sprintf("“%s”, a risk you own, moved from %s to %s.",
+				title, from.Label("en"), to.Label("en"))},
+		}
+	}
+	return domain.NoticeMessage{
+		Subject: fmt.Sprintf("Risque « %s » : %s", title, to.Label("fr")),
+		Lines: []string{fmt.Sprintf("« %s », un risque dont vous êtes responsable, est passé de %s à %s.",
+			title, from.Label("fr"), to.Label("fr"))},
+	}
 }
 
 // evaluate runs the guards a target state imposes. It returns ("", "") when the

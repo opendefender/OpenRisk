@@ -33,3 +33,27 @@ func (s *LogService) SendEmail(_ context.Context, to, subject, _ string) error {
 	log.Printf("email[log-transport]: to=%s subject=%q (body withheld — it may carry a credential)", to, subject)
 	return nil
 }
+
+// Delivery modes reported by Mode.
+const (
+	ModeSMTP     = "smtp"     // mail leaves the building
+	ModeLog      = "log"      // mail is logged, not delivered (development)
+	ModeDisabled = "disabled" // no transport: in-app notifications only
+)
+
+// Mode says what a transport does with a message, so the deployment can say
+// it out loud (/health) instead of failing quietly on every send (#757).
+func Mode(s Service) string {
+	switch s.(type) {
+	case *Transport:
+		return ModeSMTP
+	case *LogService:
+		return ModeLog
+	default:
+		return ModeDisabled
+	}
+}
+
+// Delivers reports whether a message handed to the transport can reach a
+// mailbox, or at least the log a developer is watching.
+func Delivers(s Service) bool { return Mode(s) != ModeDisabled }

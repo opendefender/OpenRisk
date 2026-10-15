@@ -146,10 +146,47 @@ func TestMitigation_DueReminder_SendsEachNudgeOnce(t *testing.T) {
 	}
 	m.MarkReminderSent(offset, atD1)
 
-	// And nothing after that, however overdue it gets — the badge carries the
-	// lateness, the inbox does not need to repeat it daily.
+	// Nothing more until the deadline has passed (#757)...
+	if _, ok := m.DueReminderDue(day(2026, time.August, 20)); ok {
+		t.Fatal("due today is covered by D-1")
+	}
+
+	// ...then exactly one "deadline passed" nudge, and nothing after that,
+	// however overdue it gets — the badge carries the lateness, the inbox does
+	// not need to repeat it daily.
+	late := day(2026, time.August, 21)
+	offset, ok = m.DueReminderDue(late)
+	if !ok || offset != DueReminderOverdue {
+		t.Fatalf("expected the overdue nudge, got %d (%v)", offset, ok)
+	}
+	m.MarkReminderSent(offset, late)
 	if _, ok := m.DueReminderDue(day(2026, time.September, 1)); ok {
-		t.Fatal("no further reminders after D-1")
+		t.Fatal("no further reminders after the overdue one")
+	}
+}
+
+// A plan first seen after its deadline gets the overdue nudge only — never a
+// "due tomorrow" after the fact.
+func TestMitigation_DueReminder_LateDiscoveryAfterDeadline(t *testing.T) {
+	m := planDue(day(2026, time.August, 20), MitigationInProgress)
+	late := day(2026, time.August, 25)
+
+	offset, ok := m.DueReminderDue(late)
+	if !ok || offset != DueReminderOverdue {
+		t.Fatalf("expected the overdue nudge, got %d (%v)", offset, ok)
+	}
+	m.MarkReminderSent(offset, late)
+	if m.ReminderD1SentAt == nil || m.ReminderD7SentAt == nil {
+		t.Fatal("the overdue nudge closes D-1 and D-7")
+	}
+	if _, ok := m.DueReminderDue(late.Add(time.Hour)); ok {
+		t.Fatal("nothing left to send")
+	}
+
+	// Moving the deadline starts the cycle again.
+	m.ClearReminders()
+	if m.ReminderOverdueSentAt != nil {
+		t.Fatal("ClearReminders must forget the overdue stamp too")
 	}
 }
 

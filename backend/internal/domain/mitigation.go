@@ -74,11 +74,12 @@ type Mitigation struct {
 	// board can sort and filter on it; every mutation recomputes it server-side.
 	Progress int `gorm:"default:0;check:progress >= 0 AND progress <= 100" json:"progress"`
 
-	// Reminder bookkeeping for the D-7 / D-1 due-date nudges. Each is stamped
+	// Reminder bookkeeping for the D-7 / D-1 / overdue nudges. Each is stamped
 	// once, so a sweep that runs every hour does not send the same reminder
 	// twenty-four times. Cleared when the due date moves.
-	ReminderD7SentAt *time.Time `json:"reminder_d7_sent_at,omitempty"`
-	ReminderD1SentAt *time.Time `json:"reminder_d1_sent_at,omitempty"`
+	ReminderD7SentAt      *time.Time `json:"reminder_d7_sent_at,omitempty"`
+	ReminderD1SentAt      *time.Time `json:"reminder_d1_sent_at,omitempty"`
+	ReminderOverdueSentAt *time.Time `json:"reminder_overdue_sent_at,omitempty"`
 
 	// Lifecycle tracking
 	CreatedBy  uuid.UUID  `gorm:"type:uuid;not null;index" json:"created_by"`
@@ -175,8 +176,13 @@ func (m *Mitigation) DaysUntilDue(now time.Time) (int, bool) {
 // before the due date. The spec asks for J-7 and J-1.
 var DueReminderOffsets = []int{7, 1}
 
-// DueReminderDue reports which reminder (7 or 1) should be sent now, and false
-// when none is. A plan that is finished, cancelled, has no due date, or has
+// DueReminderOverdue is the offset of the single "deadline passed" nudge
+// (#757). Sent once, the first sweep after the due date: the badge carries the
+// lateness from then on, and a daily repeat is how reminders get muted.
+const DueReminderOverdue = 0
+
+// DueReminderDue reports which reminder (7, 1 or DueReminderOverdue) should be
+// sent now, and false when none is. A plan that is finished, cancelled, has no due date, or has
 // already had that reminder sent is never nudged again.
 //
 // The rule is "on or past the threshold, and not yet sent", not "exactly on the
@@ -193,9 +199,12 @@ func (m *Mitigation) DueReminderDue(now time.Time) (int, bool) {
 	if !ok {
 		return 0, false
 	}
-	// D-1 is checked first: a plan discovered late should get the more urgent
-	// nudge, not the one it already blew past.
-	if days <= 1 && m.ReminderD1SentAt == nil {
+	// The most urgent nudge is checked first: a plan discovered late should get
+	// the one that matches where it is, not the one it already blew past.
+	if days < 0 && m.ReminderOverdueSentAt == nil {
+		return DueReminderOverdue, true
+	}
+	if days >= 0 && days <= 1 && m.ReminderD1SentAt == nil {
 		return 1, true
 	}
 	if days <= 7 && m.ReminderD7SentAt == nil {
@@ -211,6 +220,16 @@ func (m *Mitigation) MarkReminderSent(offset int, at time.Time) {
 	}
 	stamp := at
 	switch offset {
+	case DueReminderOverdue:
+		// Past the deadline, the earlier nudges are moot: stamping them stops a
+		// postponed-then-late plan from sending "due tomorrow" after the fact.
+		m.ReminderOverdueSentAt = &stamp
+		if m.ReminderD1SentAt == nil {
+			m.ReminderD1SentAt = &stamp
+		}
+		if m.ReminderD7SentAt == nil {
+			m.ReminderD7SentAt = &stamp
+		}
 	case 1:
 		m.ReminderD1SentAt = &stamp
 		// Reaching D-1 without ever sending D-7 (a plan created inside the
@@ -231,4 +250,5 @@ func (m *Mitigation) ClearReminders() {
 	}
 	m.ReminderD7SentAt = nil
 	m.ReminderD1SentAt = nil
+	m.ReminderOverdueSentAt = nil
 }
