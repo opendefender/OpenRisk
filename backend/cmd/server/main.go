@@ -827,7 +827,7 @@ func main() {
 	//
 	// The handler lives in health_wiring.go, where it is tested; it used to be
 	// an inline copy here, so the tested version was never the one served.
-	api.Get("/health", healthHandler(gormHealthPinger(database.DB), demoseed.Enabled))
+	api.Get("/health", healthHandler(gormHealthPinger(database.DB), demoseed.Enabled, email.Mode(emailTransport)))
 
 	// Per-IP throttles on the auth routes, one bucket per purpose (#688). Backed
 	// by Redis so the counters are shared across every instance; degrades to a

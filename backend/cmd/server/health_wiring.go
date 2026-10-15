@@ -36,7 +36,10 @@ func gormHealthPinger(db *gorm.DB) healthPinger {
 	}
 }
 
-func healthHandler(ping healthPinger, demoMode func() bool) fiber.Handler {
+// emailMode is email.Mode of the boot transport: "smtp", "log" or "disabled".
+// A self-hosted install without SMTP keeps in-app notifications, and says here
+// that e-mail is off rather than failing quietly on every send (#757).
+func healthHandler(ping healthPinger, demoMode func() bool, emailMode string) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		ctx, cancel := context.WithTimeout(c.UserContext(), healthPingTimeout)
 		defer cancel()
@@ -55,6 +58,7 @@ func healthHandler(ping healthPinger, demoMode func() bool) fiber.Handler {
 			// backend rather than a frontend build flag so the two cannot disagree
 			// about whether the data on screen is real.
 			"demo_mode": demoMode(),
+			"email":     emailMode,
 		})
 	}
 }

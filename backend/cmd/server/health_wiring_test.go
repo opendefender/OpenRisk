@@ -6,6 +6,8 @@
 package main
 
 import (
+	"github.com/opendefender/openrisk/internal/infrastructure/email"
+
 	"context"
 	"encoding/json"
 	"errors"
@@ -25,9 +27,13 @@ import (
 // database being unreachable.
 
 func getHealth(t *testing.T, ping healthPinger) (int, map[string]any) {
+	return getHealthWithEmail(t, ping, "disabled")
+}
+
+func getHealthWithEmail(t *testing.T, ping healthPinger, emailMode string) (int, map[string]any) {
 	t.Helper()
 	app := fiber.New()
-	app.Get("/health", healthHandler(ping, func() bool { return false }))
+	app.Get("/health", healthHandler(ping, func() bool { return false }, emailMode))
 
 	resp, err := app.Test(httptest.NewRequest("GET", "/health", nil))
 	require.NoError(t, err)
@@ -65,4 +71,15 @@ func TestHealthHandler_PingIsBounded(t *testing.T) {
 	})
 
 	assert.True(t, deadlineSet, "a hung database must not hang the probe")
+}
+
+// #757 criterion 4: with no SMTP configured, the deployment says e-mail is off.
+func TestHealthHandler_ReportsEmailMode(t *testing.T) {
+	ok := func(context.Context) error { return nil }
+
+	_, body := getHealthWithEmail(t, ok, email.Mode(email.NewUnconfigured()))
+	assert.Equal(t, "disabled", body["email"])
+
+	_, body = getHealthWithEmail(t, ok, email.Mode(email.NewTransport(email.Config{Host: "smtp.example", Port: 587})))
+	assert.Equal(t, "smtp", body["email"])
 }
