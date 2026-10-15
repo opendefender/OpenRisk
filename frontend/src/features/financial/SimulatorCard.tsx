@@ -10,7 +10,7 @@ import { useState } from 'react';
 import { Coins, FlaskConical, Info, ShieldCheck } from 'lucide-react';
 
 import { useI18n } from '../../hooks/useI18n';
-import { Button, Select } from '../../shared/ds';
+import { Button, Listbox } from '../../shared/ds';
 import { Panel } from '../dashboard/console/Panel';
 import type { FinancialAssessment, FinancialSummary, Methodology } from './financialService';
 import { currencyLabel, millions, toDisplay } from './money';
@@ -65,13 +65,12 @@ export function SimulatorCard({
             <span className="text-[11px] font-semibold uppercase tracking-[.04em] text-ink-muted">
               {t('financial.sim.risk')}
             </span>
-            <Select value={riskId} onChange={(e) => setRiskId(e.target.value)}>
-              {rows.map((r) => (
-                <option key={r.id} value={r.id}>
-                  {r.title}
-                </option>
-              ))}
-            </Select>
+            <Listbox
+              aria-label={t('financial.sim.risk')}
+              value={riskId}
+              onChange={setRiskId}
+              options={rows.map((r) => ({ value: r.id, label: r.title }))}
+            />
           </label>
           <label className="grid gap-1.5">
             <span className="text-[11px] font-semibold uppercase tracking-[.04em] text-ink-muted">
