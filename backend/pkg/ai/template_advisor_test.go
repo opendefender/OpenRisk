@@ -13,15 +13,15 @@ import (
 
 func samplePosture(loc Locale) BoardPosture {
 	return BoardPosture{
-		Locale:                loc,
-		OrganizationName:      "Banque Atlantique",
-		PeriodLabel:           "Juillet 2026",
-		RisksCritical:         2,
-		RisksHigh:             5,
-		RisksMedium:           8,
-		RisksLow:              3,
-		RisksTotal:            18,
-		FinancialExposureFCFA: 175_000_000,
+		Locale:                   loc,
+		OrganizationName:         "Banque Atlantique",
+		PeriodLabel:              "Juillet 2026",
+		RisksCritical:            2,
+		RisksHigh:                5,
+		RisksMedium:              8,
+		RisksLow:                 3,
+		RisksTotal:               18,
+		FinancialExposureFCFA:    175_000_000,
 		OverallCompliancePercent: 62,
 		Frameworks: []FrameworkPosture{
 			{Name: "ISO 27001", Version: "2022", Total: 93, Applicable: 93, Implemented: 60, PercentComplete: 64},
@@ -32,11 +32,11 @@ func samplePosture(loc Locale) BoardPosture {
 
 func TestFormatFCFA(t *testing.T) {
 	cases := map[int64]string{
-		0:           "0 FCFA",
-		500:         "500 FCFA",
-		1500:        "1 500 FCFA",
-		1000000:     "1 000 000 FCFA",
-		175000000:   "175 000 000 FCFA",
+		0:         "0 FCFA",
+		500:       "500 FCFA",
+		1500:      "1 500 FCFA",
+		1000000:   "1 000 000 FCFA",
+		175000000: "175 000 000 FCFA",
 	}
 	for in, want := range cases {
 		if got := FormatFCFA(in); got != want {

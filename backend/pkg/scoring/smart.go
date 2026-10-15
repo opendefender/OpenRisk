@@ -31,12 +31,12 @@ type FactorKey string
 const (
 	FactorBusinessCriticality FactorKey = "business_criticality" // 1. importance of the asset to the business
 	FactorInternetExposure    FactorKey = "internet_exposure"    // 2. publicly reachable vs. isolated
-	FactorVulnerabilities     FactorKey = "vulnerabilities"       // 3. number + severity (CVSS) of findings
-	FactorControlMaturity     FactorKey = "control_maturity"      // 4. effectiveness of controls already in place
-	FactorIncidentHistory     FactorKey = "incident_history"      // 5. frequency of past compromises on the asset
-	FactorExploitability      FactorKey = "exploitability"        // 6. public exploit code / attack complexity
-	FactorFinancialValue      FactorKey = "financial_value"       // 7. estimated loss on C/I/A compromise
-	FactorThreatIntel         FactorKey = "threat_intel"          // 8. correlation with live threat intelligence (CTI)
+	FactorVulnerabilities     FactorKey = "vulnerabilities"      // 3. number + severity (CVSS) of findings
+	FactorControlMaturity     FactorKey = "control_maturity"     // 4. effectiveness of controls already in place
+	FactorIncidentHistory     FactorKey = "incident_history"     // 5. frequency of past compromises on the asset
+	FactorExploitability      FactorKey = "exploitability"       // 6. public exploit code / attack complexity
+	FactorFinancialValue      FactorKey = "financial_value"      // 7. estimated loss on C/I/A compromise
+	FactorThreatIntel         FactorKey = "threat_intel"         // 8. correlation with live threat intelligence (CTI)
 )
 
 // FactorKeys is the canonical ordering of the eight factors — used for stable

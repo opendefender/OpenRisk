@@ -21,7 +21,7 @@
 
 Reprend `CLAUDE.md` (règles 1→11) et sert de référence à toute PR.
 
-- **Backend** : Go 1.25, Clean Architecture stricte. Domaine pur (zéro Fiber/GORM). `tenant_id` filtré **au repository** sur chaque query. Erreurs typées uniquement (`ErrNotFound`, `ErrForbidden`, `ErrConflict`, `ErrValidation`). Transactions sur toute opération multi-table.
+- **Backend** : Go 1.26, Clean Architecture stricte. Domaine pur (zéro Fiber/GORM). `tenant_id` filtré **au repository** sur chaque query. Erreurs typées uniquement (`ErrNotFound`, `ErrForbidden`, `ErrConflict`, `ErrValidation`). Transactions sur toute opération multi-table.
 - **Frontend** : React 19, TypeScript strict, **zéro `any`**. 3 états UI obligatoires (loading skeleton / error / empty). Optimistic updates sur toute mutation critique. Zod sur tous les formulaires. Client API **généré depuis OpenAPI** (contract-first).
 - **Sécurité** : JWT **RS256** (jamais HMAC). AES-256-GCM câblé sur **tous** les champs sensibles (credentials, secrets MFA, PII) ; clé via env/KMS, jamais en dur. Aucun secret dans les logs.
 - **Naming** : « **OpenRisk** » partout (code, UI, copy, OpenAPI). Décision close — purger toute occurrence de « Karath ».

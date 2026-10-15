@@ -36,11 +36,11 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
-      # Latest 1.25 patch, as the golang:1.25-alpine builder in the Dockerfile
+      # Latest 1.26 patch, as the golang:1.26-alpine builder in the Dockerfile
       # uses: govulncheck judges the standard library by the Go that runs it.
       - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
         with:
-          go-version: '1.25'
+          go-version: '1.26'
           check-latest: true
           cache-dependency-path: backend/go.sum
 

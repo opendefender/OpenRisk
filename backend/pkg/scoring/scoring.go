@@ -25,8 +25,8 @@ type ScoreBreakdown struct {
 	Score float64 `json:"score"`
 
 	// Composants du calcul
-	Probability      float64 `json:"probability"`      // 0.0 – 1.0
-	Impact           float64 `json:"impact"`           // 0.0 – 10.0
+	Probability      float64 `json:"probability"`       // 0.0 – 1.0
+	Impact           float64 `json:"impact"`            // 0.0 – 10.0
 	AssetCriticality float64 `json:"asset_criticality"` // 0.1 – 3.0
 
 	// Résultat de criticité

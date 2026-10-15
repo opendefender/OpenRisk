@@ -313,11 +313,7 @@ export const ALL_NAV_ITEMS: NavItem[] = NAV_GROUPS.flatMap((g) => g.items);
  * without a `view` is active only when the param is absent, so the two never
  * light up together.
  */
-export function activeNavKey(
-  items: readonly NavItem[],
-  pathname: string,
-  search: string,
-): string {
+export function activeNavKey(items: readonly NavItem[], pathname: string, search: string): string {
   const viewParam = new URLSearchParams(search).get('view');
   let best = '';
   let bestLen = -1;

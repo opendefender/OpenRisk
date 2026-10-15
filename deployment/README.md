@@ -221,7 +221,7 @@ All answers are in the guides. Quick reference:
 
 - **Created**: December 25, 2025
 - **OpenRisk Version**: 1.0.4
-- **Framework**: React 19 + Go 1.25.4
+- **Framework**: React 19 + Go 1.26
 - **Status**: Production-ready deployment package
 
 ---

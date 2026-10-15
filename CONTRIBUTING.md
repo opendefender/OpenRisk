@@ -81,7 +81,7 @@ File one bug per issue. Do not enumerate multiple bugs in a single issue.
 - OS and Version: [e.g. macOS 13.0, Ubuntu 22.04, Windows 11]
 - Browser: [e.g. Chrome, Firefox, Safari]
 - Node Version: [e.g. 18.0.0]
-- Go Version: [e.g. 1.25.4]
+- Go Version: [e.g. 1.26.9]
 - Docker/Kubernetes: [if using containerized deployment]
 ```
 

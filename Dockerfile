@@ -1,9 +1,9 @@
 # Multi-stage build for OpenRisk
 
 # Stage 1: Build backend
-# Float to the latest 1.25.x patch so the binary's standard library carries Go
+# Float to the latest 1.26.x patch so the binary's standard library carries Go
 # security fixes; go.mod's `go` line sets the floor.
-FROM golang:1.25-alpine AS backend-builder
+FROM golang:1.26-alpine AS backend-builder
 WORKDIR /app
 RUN apk add --no-cache git make
 

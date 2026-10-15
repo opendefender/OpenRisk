@@ -44,7 +44,5 @@ const FEED_LABEL: Record<string, string> = {
 
 /** Source codes as names: the feeds, then the scanners that reported it. */
 export function sourceLabels(sources: readonly string[]): string[] {
-  return sources.map(
-    (s) => FEED_LABEL[s] ?? SOURCE_LABEL[s as VulnSource] ?? s,
-  );
+  return sources.map((s) => FEED_LABEL[s] ?? SOURCE_LABEL[s as VulnSource] ?? s);
 }
