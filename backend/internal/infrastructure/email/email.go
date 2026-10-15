@@ -10,6 +10,7 @@ package email
 import (
 	"context"
 	"log"
+	"strings"
 )
 
 // Service defines the email transport interface.
@@ -27,11 +28,21 @@ type LogService struct{}
 // NewLogService builds the development transport.
 func NewLogService() *LogService { return &LogService{} }
 
-// SendEmail logs the recipient and subject. The body is deliberately not
-// logged: these messages carry invitation links and reset tokens (RULE #6).
+// SendEmail logs the recipient's domain and the subject. The body is
+// deliberately not logged: these messages carry invitation links and reset
+// tokens (RULE #6). Nor is the full address: every work notice goes through
+// here when the log transport is on (#757), and a log is not a mailbox.
 func (s *LogService) SendEmail(_ context.Context, to, subject, _ string) error {
-	log.Printf("email[log-transport]: to=%s subject=%q (body withheld — it may carry a credential)", to, subject)
+	log.Printf("email[log-transport]: to=%s subject=%q (body withheld — it may carry a credential)", MaskAddress(to), subject)
 	return nil
+}
+
+// MaskAddress keeps only the domain of an address: "a@b.example" → "***@b.example".
+func MaskAddress(to string) string {
+	if i := strings.LastIndex(to, "@"); i >= 0 {
+		return "***" + to[i:]
+	}
+	return "***"
 }
 
 // Delivery modes reported by Mode.
