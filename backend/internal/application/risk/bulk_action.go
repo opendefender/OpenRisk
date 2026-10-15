@@ -148,7 +148,10 @@ func (uc *BulkActionUseCase) Execute(
 		}
 		// Changes are collected inside the transaction and announced only once
 		// it has committed: a rolled-back batch must not have told anyone.
-		var changes []riskStateChange
+		// Keyed by risk: if the transaction ever replays the mutate pass, a risk
+		// is still announced once.
+		var order []uuid.UUID
+		changes := map[uuid.UUID]riskStateChange{}
 		result, err := uc.apply(ctx, tenantID, ids, performedBy, input,
 			fmt.Sprintf("bulk status change to %q", *input.Status),
 			func(r *domain.Risk) error {
@@ -157,14 +160,17 @@ func (uc *BulkActionUseCase) Execute(
 				// canonical state from one another (Risk.SetState), and writing one
 				// of the three by hand is what let them disagree in the first place.
 				r.SetState(domain.RiskStateFromLegacy(*input.Status, r.LifecyclePhase))
-				changes = append(changes, riskStateChangeOf(r, from, r.State()))
+				if _, seen := changes[r.ID]; !seen {
+					order = append(order, r.ID)
+					changes[r.ID] = riskStateChangeOf(r, from, r.State())
+				}
 				return nil
 			})
 		if err != nil {
 			return nil, err
 		}
-		for _, ch := range changes {
-			notifyRiskStateChange(ctx, uc.notices, tenantID, ch, performedBy)
+		for _, id := range order {
+			notifyRiskStateChange(ctx, uc.notices, tenantID, changes[id], performedBy)
 		}
 		return result, nil
 
