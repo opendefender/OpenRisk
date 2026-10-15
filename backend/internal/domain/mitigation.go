@@ -201,10 +201,16 @@ func (m *Mitigation) DueReminderDue(now time.Time) (int, bool) {
 	}
 	// The most urgent nudge is checked first: a plan discovered late should get
 	// the one that matches where it is, not the one it already blew past.
-	if days < 0 && m.ReminderOverdueSentAt == nil {
-		return DueReminderOverdue, true
+	if days < 0 {
+		// Past the deadline only the overdue nudge applies. A plan whose
+		// overdue stamp is set but whose D-7 is not (a backfilled row) must
+		// not fall through to "due in N days".
+		if m.ReminderOverdueSentAt == nil {
+			return DueReminderOverdue, true
+		}
+		return 0, false
 	}
-	if days >= 0 && days <= 1 && m.ReminderD1SentAt == nil {
+	if days <= 1 && m.ReminderD1SentAt == nil {
 		return 1, true
 	}
 	if days <= 7 && m.ReminderD7SentAt == nil {

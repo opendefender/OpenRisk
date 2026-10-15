@@ -252,3 +252,15 @@ func TestMitigation_ClearReminders_RestartsTheSchedule(t *testing.T) {
 		t.Fatal("a postponed plan must be nudged again")
 	}
 }
+
+// A backfilled row: overdue already stamped, D-7 never sent. Nothing is due —
+// least of all a D-7 nudge worded as overdue.
+func TestMitigation_DueReminder_BackfilledOverdueSendsNothing(t *testing.T) {
+	m := planDue(day(2026, time.August, 20), MitigationInProgress)
+	stamp := day(2026, time.August, 22)
+	m.ReminderOverdueSentAt = &stamp
+
+	if offset, ok := m.DueReminderDue(day(2026, time.August, 25)); ok {
+		t.Fatalf("an overdue plan already told must get nothing, got offset %d", offset)
+	}
+}
