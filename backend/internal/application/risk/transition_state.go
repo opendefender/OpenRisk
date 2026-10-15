@@ -258,34 +258,60 @@ func (uc *TransitionRiskStateUseCase) Execute(ctx context.Context, tenantID, ris
 }
 
 // notifyOwner tells the risk's owner that it changed state — best-effort, the
-// transition is already committed. Nobody is told about their own move.
+// transition is already committed.
+func (uc *TransitionRiskStateUseCase) notifyOwner(ctx context.Context, tenantID uuid.UUID, r *domain.Risk, from, to domain.RiskState, actor uuid.UUID) {
+	notifyRiskStateChange(ctx, uc.notices, tenantID, riskStateChangeOf(r, from, to), actor)
+}
+
+// riskStateChange is what a state-change notice needs to know about one risk,
+// captured at the moment of the change.
+type riskStateChange struct {
+	RiskID  uuid.UUID
+	OwnerID *uuid.UUID
+	Title   string
+	From    domain.RiskState
+	To      domain.RiskState
+}
+
+func riskStateChangeOf(r *domain.Risk, from, to domain.RiskState) riskStateChange {
+	title := r.Title
+	if title == "" {
+		title = r.Name
+	}
+	var owner *uuid.UUID
+	if r.OwnerID != nil {
+		id := *r.OwnerID
+		owner = &id
+	}
+	return riskStateChange{RiskID: r.ID, OwnerID: owner, Title: title, From: from, To: to}
+}
+
+// notifyRiskStateChange is shared by every path that moves a risk's state
+// (lifecycle transition, bulk status change). Nobody is told about their own
+// move, and a move that changes nothing is not news.
 //
 // A risk reaching an end state (mitigated, residual accepted, closed) is a
 // "risk resolved" notice; every other move is a "risk update". Each follows
 // its own e-mail switch in the owner's preferences, so the Settings screen
 // keeps meaning what it says.
-func (uc *TransitionRiskStateUseCase) notifyOwner(ctx context.Context, tenantID uuid.UUID, r *domain.Risk, from, to domain.RiskState, actor uuid.UUID) {
-	if uc.notices == nil || r.OwnerID == nil || *r.OwnerID == uuid.Nil || *r.OwnerID == actor {
+func notifyRiskStateChange(ctx context.Context, notices NoticeDeliverer, tenantID uuid.UUID, ch riskStateChange, actor uuid.UUID) {
+	if notices == nil || ch.OwnerID == nil || *ch.OwnerID == uuid.Nil || *ch.OwnerID == actor || ch.From == ch.To {
 		return
 	}
 	notifType := domain.NotificationTypeRiskUpdate
-	switch to {
+	switch ch.To {
 	case domain.StateMitigated, domain.StateResidualAccepted, domain.StateClosed:
 		notifType = domain.NotificationTypeRiskResolved
 	}
-	title := r.Title
-	if title == "" {
-		title = r.Name
-	}
-	id := r.ID
-	_ = uc.notices.Deliver(ctx, domain.Notice{
+	id := ch.RiskID
+	_ = notices.Deliver(ctx, domain.Notice{
 		TenantID:     tenantID,
-		UserID:       *r.OwnerID,
+		UserID:       *ch.OwnerID,
 		Type:         notifType,
 		ResourceID:   &id,
 		ResourceType: "risk",
 		Compose: func(locale string) domain.NoticeMessage {
-			return riskStateNoticeCopy(locale, title, from, to)
+			return riskStateNoticeCopy(locale, ch.Title, ch.From, ch.To)
 		},
 	})
 }

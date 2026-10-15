@@ -598,3 +598,51 @@ func TestBulkAction_DocCommentsDoNotOverclaim(t *testing.T) {
 	assert.False(t, strings.Contains(text, "result.Failed"),
 		"the partial-success tally is gone with the semantics it described (D-036)")
 }
+
+// #757: a bulk status change tells each risk's owner, once the batch has
+// committed. The actor is not told about their own move.
+func TestBulkActionNotice_Success(t *testing.T) {
+	ctx := context.Background()
+	tenant, actor := uuid.New(), uuid.New()
+	ownerA := uuid.New()
+	a, b, mine := seedRisk(tenant, "Fuite S3"), seedRisk(tenant, "Sans responsable"), seedRisk(tenant, "Le mien")
+	a.OwnerID = &ownerA
+	mine.OwnerID = &actor
+	notices := &recordedNotices{}
+	uc, _ := newUC(newBulkRepo(tenant, a, b, mine))
+	uc.WithNotices(notices)
+
+	status := domain.RiskMitigated
+	_, err := uc.Execute(ctx, tenant, BulkActionRequest{
+		Type: BulkActionChangeStatus, RiskIDs: []uuid.UUID{a.ID, b.ID, mine.ID}, Status: &status,
+	}, actor)
+	require.NoError(t, err)
+
+	require.Len(t, notices.got, 1, "only the owner who is not the actor is told")
+	n := notices.got[0]
+	assert.Equal(t, ownerA, n.UserID)
+	assert.Equal(t, tenant, n.TenantID)
+	assert.Equal(t, domain.NotificationTypeRiskResolved, n.Type)
+	assert.Contains(t, n.Compose("en").InAppText(), "Fuite S3")
+}
+
+// A rolled-back batch tells nobody: the change never happened.
+func TestBulkActionNotice_RollbackTellsNobody(t *testing.T) {
+	ctx := context.Background()
+	tenant := uuid.New()
+	owner := uuid.New()
+	a, b := seedRisk(tenant, "A"), seedRisk(tenant, "B")
+	a.OwnerID, b.OwnerID = &owner, &owner
+	repo := newBulkRepo(tenant, a, b)
+	repo.failOnSave = b.ID
+	notices := &recordedNotices{}
+	uc, _ := newUC(repo)
+	uc.WithNotices(notices)
+
+	status := domain.RiskMitigated
+	_, err := uc.Execute(ctx, tenant, BulkActionRequest{
+		Type: BulkActionChangeStatus, RiskIDs: []uuid.UUID{a.ID, b.ID}, Status: &status,
+	}, uuid.New())
+	require.Error(t, err)
+	assert.Empty(t, notices.got)
+}
