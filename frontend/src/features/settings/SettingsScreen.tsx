@@ -990,7 +990,10 @@ function NotifTab({ tr }: { tr: Tr }) {
             [
               'email_on_mitigation_deadline',
               tr('Une échéance de mitigation approche', 'A mitigation deadline approaches'),
-              tr('Rappels à J-7 et J-1.', 'Reminders at D-7 and D-1.'),
+              tr(
+                'Rappels à J-7, à J-1 et une fois l’échéance dépassée.',
+                'Reminders at D-7, at D-1 and once the deadline has passed.',
+              ),
             ],
             [
               'email_on_action_assigned',
