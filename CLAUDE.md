@@ -136,7 +136,8 @@ first, then `gh api -X POST repos/opendefender/OpenRisk/pulls -f title=… -f he
    (code-reviewer `REVIEW: PASS` on any code; devsecops `SECURITY: PASS` for
    backend, infra, security or auth/tenant/upload changes). If the diff
    changes after a PASS, including a fix to turn CI green, it is reviewed
-   again. Two blocked rounds go to `docs/DECISIONS.md`.
+   again. Two blocked rounds go to tech-lead for arbitration, then to
+   `docs/DECISIONS.md` if it cannot settle them.
 6. **Post progress as an issue comment before you finish** — see the report
    format below. This comment is what lets a fresh session resume your work
    with zero re-reading. It is not optional.

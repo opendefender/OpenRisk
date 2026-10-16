@@ -18,7 +18,8 @@ runs on `haiku`.
 Mode says what starts an agent:
 - **loop** — a step of `/work` on an issue;
 - **triggered** — the paths or labels of a change, computed by a script
-  (#1005), never by an agent's judgement;
+  (#1005), never by an agent's judgement; until that script lands, the
+  review column of the `/work` table;
 - **scheduled** — a fixed cadence;
 - **on demand** — the owner or the orchestrator calls it.
 
@@ -28,7 +29,7 @@ first BLOCK (#1006); the frontmatter stays `opus`, the safe default.
 
 | Agent | Model | Mode | Trigger | Why this model |
 |---|---|---|---|---|
-| scout | haiku | loop | first step of M and L issues; writes `brief.md` | reads and locates, decides nothing |
+| scout | haiku | loop | first step of M and L issues; returns the brief the orchestrator saves as `brief.md` | reads and locates, decides nothing |
 | tech-lead | opus | loop | design gate of M and L issues; arbitration after two blocked rounds | architecture and ADRs |
 | qa-automation | opus | loop | failing tests from the criteria before code; live pass when the UI changed | writes the tests that decide what is proven |
 | backend-go | opus | loop | `area:backend`; sonnet on S | writes production Go, tenant isolation |
