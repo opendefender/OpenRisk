@@ -21,7 +21,11 @@ export type NotificationType =
   // A J-7 / J-3 / J-1 questionnaire reminder went to a vendor, or could not (#672).
   | 'vendor_assessment_reminder'
   // Two-factor authentication was turned off on the account (#754).
-  | 'mfa_disabled';
+  | 'mfa_disabled'
+  // A reviewer approved a mitigation plan you worked on (#757).
+  | 'mitigation_validated'
+  // A risk you own moved to another state that does not end it (#757).
+  | 'risk_state_changed';
 
 export interface Notification {
   id: string;

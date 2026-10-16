@@ -1003,7 +1003,10 @@ function NotifTab({ tr }: { tr: Tr }) {
             [
               'email_on_risk_update',
               tr('Un risque que je suis est modifié', 'A risk I follow is updated'),
-              null,
+              tr(
+                'Les changements d’état des risques dont vous êtes responsable vous sont toujours envoyés.',
+                'State changes on risks you own are always sent to you.',
+              ),
             ],
             ['email_on_risk_resolved', tr('Un risque est résolu', 'A risk is resolved'), null],
           ] as const
