@@ -317,6 +317,73 @@ func notifyRiskStateChange(ctx context.Context, notices NoticeDeliverer, tenantI
 	})
 }
 
+// notifyRiskStatusChange is the status-column counterpart of
+// notifyRiskStateChange, for the one endpoint that writes the status without
+// moving the lifecycle state (PATCH /risks/:id). A new status that ends the
+// risk follows the "risk resolved" switch; any other change is a
+// risk_state_changed notice.
+func notifyRiskStatusChange(ctx context.Context, notices NoticeDeliverer, tenantID uuid.UUID, r *domain.Risk, from, to domain.RiskStatus, actor uuid.UUID) {
+	if notices == nil || r == nil || r.OwnerID == nil || *r.OwnerID == uuid.Nil || *r.OwnerID == actor || from == to {
+		return
+	}
+	notifType := domain.NotificationTypeRiskStateChanged
+	switch to {
+	case domain.RiskMitigated, domain.RiskAccepted, domain.RiskClosed,
+		domain.StatusMitigated, domain.StatusAccepted:
+		notifType = domain.NotificationTypeRiskResolved
+	}
+	title := r.Title
+	if title == "" {
+		title = r.Name
+	}
+	id := r.ID
+	_ = notices.Deliver(ctx, domain.Notice{
+		TenantID:     tenantID,
+		UserID:       *r.OwnerID,
+		Type:         notifType,
+		ResourceID:   &id,
+		ResourceType: "risk",
+		Compose: func(locale string) domain.NoticeMessage {
+			if locale == "en" {
+				return domain.NoticeMessage{
+					Subject: fmt.Sprintf("Risk “%s”: %s", title, riskStatusLabel(to, "en")),
+					Lines: []string{fmt.Sprintf("The status of “%s”, a risk you own, changed from %s to %s.",
+						title, riskStatusLabel(from, "en"), riskStatusLabel(to, "en"))},
+				}
+			}
+			return domain.NoticeMessage{
+				Subject: fmt.Sprintf("Risque « %s » : %s", title, riskStatusLabel(to, "fr")),
+				Lines: []string{fmt.Sprintf("Le statut de « %s », un risque dont vous êtes responsable, est passé de « %s » à « %s ».",
+					title, riskStatusLabel(from, "fr"), riskStatusLabel(to, "fr"))},
+			}
+		},
+	})
+}
+
+// riskStatusLabel uses the register's own words for a status, so the e-mail
+// and the dropdown the change was made in say the same thing.
+func riskStatusLabel(s domain.RiskStatus, locale string) string {
+	labels := map[domain.RiskStatus][2]string{
+		domain.RiskOpen:        {"Ouvert", "Open"},
+		domain.RiskInProgress:  {"En cours", "In progress"},
+		domain.RiskMitigated:   {"Atténué", "Mitigated"},
+		domain.RiskAccepted:    {"Accepté", "Accepted"},
+		domain.RiskClosed:      {"Clôturé", "Closed"},
+		domain.StatusDraft:     {"Brouillon", "Draft"},
+		domain.StatusActive:    {"Actif", "Active"},
+		domain.StatusMitigated: {"Atténué", "Mitigated"},
+		domain.StatusAccepted:  {"Accepté", "Accepted"},
+	}
+	pair, ok := labels[s]
+	if !ok {
+		return string(s)
+	}
+	if locale == "en" {
+		return pair[1]
+	}
+	return pair[0]
+}
+
 func riskStateNoticeCopy(locale, title string, from, to domain.RiskState) domain.NoticeMessage {
 	if locale == "en" {
 		return domain.NoticeMessage{

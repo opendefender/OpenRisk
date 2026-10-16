@@ -215,3 +215,30 @@ func TestDraftAcceptNotice_Unauthorized(t *testing.T) {
 		t.Fatal("an owner accepting their own draft is not mailed about it")
 	}
 }
+
+// The register's inline dropdown moves Open → In progress. Both map to the
+// same lifecycle state, so a state comparison would stay silent; the owner
+// must still hear about it, in the dropdown's words.
+func TestUpdateStatusNotice_OpenToInProgressIsMailed(t *testing.T) {
+	repo, tenant, id := newFixture(domain.StateAssessed)
+	repo.risk.Status = domain.RiskOpen
+	owner := uuid.New()
+	repo.risk.OwnerID = &owner
+	notices := &recordedNotices{}
+	status := domain.RiskInProgress
+
+	if _, err := NewUpdateRiskUseCase(repo).WithNotices(notices).
+		Execute(context.Background(), tenant, id, UpdateRiskInput{Status: &status, Actor: uuid.New()}); err != nil {
+		t.Fatal(err)
+	}
+	if len(notices.got) != 1 || notices.got[0].Type != domain.NotificationTypeRiskStateChanged {
+		t.Fatalf("expected one risk-state-changed notice: %+v", notices.got)
+	}
+	fr := notices.got[0].Compose("fr").InAppText()
+	if !strings.Contains(fr, "« Ouvert » à « En cours »") {
+		t.Fatalf("the notice must name the statuses as the register does: %q", fr)
+	}
+	if strings.Contains(fr, "Évalué") {
+		t.Fatalf("the notice must not claim a lifecycle move that did not happen: %q", fr)
+	}
+}

@@ -103,8 +103,8 @@ func (uc *UpdateRiskUseCase) Execute(ctx context.Context, orgID uuid.UUID, riskI
 		return nil, domain.NewNotFoundError("risk", riskID)
 	}
 
-	// Where the risk stood before this request, for the owner's notice.
-	statusBefore, phaseBefore := risk.Status, risk.LifecyclePhase
+	// The status before this request, for the owner's notice.
+	statusBefore := risk.Status
 
 	// 2. Apply partial updates
 	if input.Title != nil {
@@ -262,13 +262,13 @@ func (uc *UpdateRiskUseCase) Execute(ctx context.Context, orgID uuid.UUID, riskI
 		})
 	}
 
-	// 6. A status written through this endpoint is a change of where the risk
-	// stands, and its owner hears about it like any other (#757). The status
-	// is compared as the state it maps to, the vocabulary the notice uses.
+	// 6. The owner hears about every status change (#757). This endpoint
+	// writes the status column and leaves the lifecycle state alone, so the
+	// notice says what changed — the status — in the status vocabulary the
+	// register's dropdown uses, rather than claiming a state move the stepper
+	// would not show.
 	if input.Status != nil && *input.Status != statusBefore {
-		from := domain.RiskStateFromLegacy(statusBefore, phaseBefore)
-		to := domain.RiskStateFromLegacy(risk.Status, risk.LifecyclePhase)
-		notifyRiskStateChange(ctx, uc.notices, orgID, riskStateChangeOf(risk, from, to), input.Actor)
+		notifyRiskStatusChange(ctx, uc.notices, orgID, risk, statusBefore, risk.Status, input.Actor)
 	}
 
 	return risk, nil
