@@ -64,6 +64,7 @@ type UpdateRiskUseCase struct {
 	ownership OwnershipManager
 	assets    RiskAssetStore
 	engine    pkgscoring.Engine
+	notices   NoticeDeliverer
 }
 
 func NewUpdateRiskUseCase(riskRepo domain.RiskRepository) *UpdateRiskUseCase {
@@ -84,6 +85,13 @@ func (uc *UpdateRiskUseCase) WithOwnership(m OwnershipManager) *UpdateRiskUseCas
 	return uc
 }
 
+// WithNotices tells the risk's owner when this update changes its status
+// (#757). Nil-safe.
+func (uc *UpdateRiskUseCase) WithNotices(n NoticeDeliverer) *UpdateRiskUseCase {
+	uc.notices = n
+	return uc
+}
+
 // Execute updates a risk by ID, scoped to the organization.
 func (uc *UpdateRiskUseCase) Execute(ctx context.Context, orgID uuid.UUID, riskID uuid.UUID, input UpdateRiskInput) (*domain.Risk, error) {
 	// 1. Fetch existing risk (tenant-scoped)
@@ -94,6 +102,9 @@ func (uc *UpdateRiskUseCase) Execute(ctx context.Context, orgID uuid.UUID, riskI
 	if risk == nil {
 		return nil, domain.NewNotFoundError("risk", riskID)
 	}
+
+	// Where the risk stood before this request, for the owner's notice.
+	statusBefore, phaseBefore := risk.Status, risk.LifecyclePhase
 
 	// 2. Apply partial updates
 	if input.Title != nil {
@@ -249,6 +260,15 @@ func (uc *UpdateRiskUseCase) Execute(ctx context.Context, orgID uuid.UUID, riskI
 			Title:        risk.Title,
 			Locale:       input.Locale,
 		})
+	}
+
+	// 6. A status written through this endpoint is a change of where the risk
+	// stands, and its owner hears about it like any other (#757). The status
+	// is compared as the state it maps to, the vocabulary the notice uses.
+	if input.Status != nil && *input.Status != statusBefore {
+		from := domain.RiskStateFromLegacy(statusBefore, phaseBefore)
+		to := domain.RiskStateFromLegacy(risk.Status, risk.LifecyclePhase)
+		notifyRiskStateChange(ctx, uc.notices, orgID, riskStateChangeOf(risk, from, to), input.Actor)
 	}
 
 	return risk, nil

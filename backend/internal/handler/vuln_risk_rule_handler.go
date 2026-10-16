@@ -124,7 +124,12 @@ func (h *VulnRiskRuleHandler) BulkReview(c *fiber.Ctx) error {
 		ids = append(ids, id)
 	}
 
-	res, err := h.drafts.BulkReview(c.UserContext(), h.tenant(c), ids, riskapp.BulkDecision(body.Decision))
+	// The reviewer, so an owner accepting their own drafts is not mailed about it.
+	actor := uuid.Nil
+	if mw := middleware.GetContext(c); mw != nil {
+		actor = mw.UserID
+	}
+	res, err := h.drafts.BulkReview(c.UserContext(), h.tenant(c), actor, ids, riskapp.BulkDecision(body.Decision))
 	if err != nil {
 		return writeAppError(c, err)
 	}

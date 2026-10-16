@@ -1227,6 +1227,7 @@ func main() {
 		WithMappings(riskControlMappingRepo).
 		WithOwnership(ownershipService)
 	updateRiskUseCase := risk.NewUpdateRiskUseCase(riskRepo).
+		WithNotices(requestNoticeDispatcher).
 		WithOwnership(ownershipService).
 		WithAssets(riskAssetStore)
 	deleteRiskUseCase := risk.NewDeleteRiskUseCase(riskRepo)
@@ -2019,7 +2020,7 @@ func main() {
 	// it is admin, because it changes what appears in everyone's register.
 	vulnRiskRuleHandler := handlers.NewVulnRiskRuleHandler(
 		vulnapp.NewRiskRuleService(vulnRiskRuleRepo, vulnRepo).WithAssetExposure(assetExposure),
-		risk.NewDraftReviewUseCase(riskRepo),
+		risk.NewDraftReviewUseCase(riskRepo).WithNotices(requestNoticeDispatcher),
 	)
 	protected.Get("/attack-surface/risk-rule", vulnRead, vulnRiskRuleHandler.GetRule)
 	protected.Put("/attack-surface/risk-rule", adminOnly, vulnRiskRuleHandler.UpdateRule)

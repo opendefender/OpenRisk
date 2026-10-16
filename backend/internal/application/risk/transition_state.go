@@ -290,15 +290,16 @@ func riskStateChangeOf(r *domain.Risk, from, to domain.RiskState) riskStateChang
 // (lifecycle transition, bulk status change). Nobody is told about their own
 // move, and a move that changes nothing is not news.
 //
-// A risk reaching an end state (mitigated, residual accepted, closed) is a
-// "risk resolved" notice; every other move is a "risk update". Each follows
-// its own e-mail switch in the owner's preferences, so the Settings screen
-// keeps meaning what it says.
+// The owner hears about every change (owner decision, #757). A risk reaching an
+// end state (mitigated, residual accepted, closed) is a "risk resolved" notice
+// and follows that e-mail switch, on by default. Every other move is a
+// "risk state changed" notice, which only the global pause silences — the
+// "a risk I follow is updated" switch is about following, not owning.
 func notifyRiskStateChange(ctx context.Context, notices NoticeDeliverer, tenantID uuid.UUID, ch riskStateChange, actor uuid.UUID) {
 	if notices == nil || ch.OwnerID == nil || *ch.OwnerID == uuid.Nil || *ch.OwnerID == actor || ch.From == ch.To {
 		return
 	}
-	notifType := domain.NotificationTypeRiskUpdate
+	notifType := domain.NotificationTypeRiskStateChanged
 	switch ch.To {
 	case domain.StateMitigated, domain.StateResidualAccepted, domain.StateClosed:
 		notifType = domain.NotificationTypeRiskResolved
@@ -326,7 +327,9 @@ func riskStateNoticeCopy(locale, title string, from, to domain.RiskState) domain
 	}
 	return domain.NoticeMessage{
 		Subject: fmt.Sprintf("Risque « %s » : %s", title, to.Label("fr")),
-		Lines: []string{fmt.Sprintf("« %s », un risque dont vous êtes responsable, est passé de %s à %s.",
+		// "de l'état « … »" rather than "de …": half the labels start with a
+		// vowel (Identifié, Évalué, En traitement) and would need elision.
+		Lines: []string{fmt.Sprintf("« %s », un risque dont vous êtes responsable, est passé de l’état « %s » à l’état « %s ».",
 			title, from.Label("fr"), to.Label("fr"))},
 	}
 }

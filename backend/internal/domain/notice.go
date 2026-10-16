@@ -16,6 +16,13 @@ import (
 // follows the global switch, as scan_complete does.
 const NotificationTypeMitigationValidated NotificationType = "mitigation_validated"
 
+// NotificationTypeRiskStateChanged tells a risk's owner that someone else moved
+// it to another state that does not end it (#757). The owner hears about every
+// change: there is no per-event column, so only the global "pause everything"
+// switch silences it. Moves that end the risk are NotificationTypeRiskResolved
+// and keep their own switch.
+const NotificationTypeRiskStateChanged NotificationType = "risk_state_changed"
+
 // NoticeMessage is the copy of one notification in one language.
 //
 // Lines are plain sentences. Whoever renders them escapes them: a risk title is

@@ -23,11 +23,19 @@ import (
 // be opened individually is a queue that gets ignored, which quietly turns the
 // whole vuln→risk feature off.
 type DraftReviewUseCase struct {
-	repo domain.RiskRepository
+	repo    domain.RiskRepository
+	notices NoticeDeliverer
 }
 
 func NewDraftReviewUseCase(repo domain.RiskRepository) *DraftReviewUseCase {
 	return &DraftReviewUseCase{repo: repo}
+}
+
+// WithNotices tells each accepted draft's owner that it entered the register
+// (#757). Nil-safe.
+func (uc *DraftReviewUseCase) WithNotices(n NoticeDeliverer) *DraftReviewUseCase {
+	uc.notices = n
+	return uc
 }
 
 // List returns the tenant's proposed drafts, newest first.
@@ -75,7 +83,7 @@ type BulkReviewResult struct {
 // Partial success is reported rather than rolled back: with fifty drafts, one
 // bad id must not discard the reviewer's forty-nine good decisions. Every
 // failure is named so nothing disappears silently.
-func (uc *DraftReviewUseCase) BulkReview(ctx context.Context, tenantID uuid.UUID, ids []uuid.UUID, decision BulkDecision) (*BulkReviewResult, error) {
+func (uc *DraftReviewUseCase) BulkReview(ctx context.Context, tenantID, actor uuid.UUID, ids []uuid.UUID, decision BulkDecision) (*BulkReviewResult, error) {
 	if tenantID == uuid.Nil {
 		return nil, domain.NewForbiddenError("missing tenant context")
 	}
@@ -123,6 +131,7 @@ func (uc *DraftReviewUseCase) BulkReview(ctx context.Context, tenantID uuid.UUID
 			continue
 		}
 		out.Accepted = append(out.Accepted, id)
+		notifyRiskStateChange(ctx, uc.notices, tenantID, riskStateChangeOf(r, domain.StateDraft, domain.StateIdentified), actor)
 	}
 	if len(out.Failed) == 0 {
 		out.Failed = nil
