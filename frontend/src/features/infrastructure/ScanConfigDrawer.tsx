@@ -10,6 +10,7 @@ import { useState } from 'react';
 import { X, ShieldCheck, Info } from 'lucide-react';
 import { toast } from 'sonner';
 import { Btn } from '../../shared/ui';
+import { Listbox } from '../../shared/ds';
 import { useUIStore } from '../../store/uiStore';
 import { PROVIDERS, CLOUD_CRED_FIELDS, SCOPE_HINTS } from './scannerMeta';
 import type { ScannerProvider, CreateScanConfigInput } from './scannerService';
@@ -237,16 +238,18 @@ export function ScanConfigDrawer({
           )}
 
           <Field label={tr('Fréquence automatique', 'Automatic schedule')}>
-            <select
-              value={scheduleMin}
-              onChange={(e) => setScheduleMin(Number(e.target.value))}
-              style={inputStyle}
-            >
-              <option value={0}>{tr('Manuel uniquement', 'Manual only')}</option>
-              <option value={60}>{tr('Toutes les heures', 'Hourly')}</option>
-              <option value={1440}>{tr('Quotidien', 'Daily')}</option>
-              <option value={10080}>{tr('Hebdomadaire', 'Weekly')}</option>
-            </select>
+            <Listbox
+              aria-label={tr('Fréquence automatique', 'Automatic schedule')}
+              className="h-[38px] rounded-[10px] text-[13px]"
+              value={String(scheduleMin)}
+              onChange={(v) => setScheduleMin(Number(v))}
+              options={[
+                { value: '0', label: tr('Manuel uniquement', 'Manual only') },
+                { value: '60', label: tr('Toutes les heures', 'Hourly') },
+                { value: '1440', label: tr('Quotidien', 'Daily') },
+                { value: '10080', label: tr('Hebdomadaire', 'Weekly') },
+              ]}
+            />
           </Field>
         </div>
 

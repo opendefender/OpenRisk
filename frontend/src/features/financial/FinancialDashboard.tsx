@@ -18,7 +18,7 @@ import { useI18n } from '../../hooks/useI18n';
 import { useAuthStore } from '../../hooks/useAuthStore';
 import { formatNumber } from '../../i18n/format';
 import { FeatureGate } from '../../shared/FeatureGate';
-import { Select } from '../../shared/ds';
+import { Listbox } from '../../shared/ds';
 import { PageFrame, PageHeader } from '../../shared/ui';
 import { useFeature } from '../billing/useEntitlements';
 import { BlockEmpty, BlockError, BlockSkeleton, Panel } from '../dashboard/console/Panel';
@@ -348,20 +348,15 @@ function CurrencyPicker({ current }: { current: string }) {
   const setCur = useSetCurrency();
   if (!allowed) return null;
   return (
-    <Select
+    <Listbox
       value={SUPPORTED_CURRENCIES.includes(current as CurrencyCode) ? current : 'XAF'}
-      onChange={(e) => setCur.mutate(e.target.value as CurrencyCode)}
-      disabled={setCur.isPending}
+      onChange={(v) => setCur.mutate(v as CurrencyCode)}
+      loading={setCur.isPending}
       aria-label={t('financial.currencyLabel')}
       title={t('financial.currencyLabel')}
       className="w-auto"
       data-testid="fin-currency"
-    >
-      {SUPPORTED_CURRENCIES.map((c) => (
-        <option key={c} value={c}>
-          {currencyLabel(c)}
-        </option>
-      ))}
-    </Select>
+      options={SUPPORTED_CURRENCIES.map((c) => ({ value: c, label: currencyLabel(c) }))}
+    />
   );
 }

@@ -31,7 +31,7 @@ import {
   Search,
 } from 'lucide-react';
 import { Card, Chip, SkeletonRows, ErrorState } from '../../shared/ui';
-import { DeleteButton, TabPanel, Tabs } from '../../shared/ds';
+import { DeleteButton, Listbox, TabPanel, Tabs } from '../../shared/ds';
 import { EmptyState } from '../../shared/EmptyState';
 import { DangerConfirm } from '../../shared/DangerConfirm';
 import { useUIStore } from '../../store/uiStore';
@@ -425,30 +425,34 @@ function MembersTable({ tr, lang }: { tr: Tr; lang: LocaleCode }) {
                               : tr('Votre propre rôle', 'Your own role')}
                           </span>
                         ) : (
-                          <select
+                          <Listbox
+                            size="sm"
+                            className="w-auto min-w-[200px]"
                             value={selectValue}
-                            disabled={!canUpdate || busy}
-                            onChange={(e) => changeRole(m, e.target.value)}
+                            disabled={!canUpdate}
+                            /* loading, not disabled: a disabled button drops
+                               keyboard focus mid-save; loading blocks picking. */
+                            loading={busy}
+                            onChange={(v) => changeRole(m, v)}
                             aria-label={tr(`Rôle de ${m.email}`, `Role for ${m.email}`)}
-                            className="h-8 px-2 rounded-[8px] text-[12.5px] bg-transparent"
-                            style={{
-                              border: '1px solid var(--border-strong)',
-                              color: 'var(--fg-primary)',
-                              opacity: busy ? 0.6 : 1,
-                            }}
-                          >
-                            <option value={ADMIN_OPTION}>
-                              {tr('Administrateur (accès complet)', 'Administrator (full access)')}
-                            </option>
-                            <option value="">
-                              {tr('— Aucun rôle métier —', '— No business role —')}
-                            </option>
-                            {catalog?.business_roles.map((r) => (
-                              <option key={r.key} value={r.key}>
-                                {roleLabel(r.key)}
-                              </option>
-                            ))}
-                          </select>
+                            options={[
+                              {
+                                value: ADMIN_OPTION,
+                                label: tr(
+                                  'Administrateur (accès complet)',
+                                  'Administrator (full access)',
+                                ),
+                              },
+                              {
+                                value: '',
+                                label: tr('— Aucun rôle métier —', '— No business role —'),
+                              },
+                              ...(catalog?.business_roles ?? []).map((r) => ({
+                                value: r.key,
+                                label: roleLabel(r.key),
+                              })),
+                            ]}
+                          />
                         )}
                       </td>
                       <td className="px-4 py-3 text-ink-soft text-[12px]">
@@ -922,23 +926,25 @@ function InviteDialog({ tr, onClose }: { tr: Tr; onClose: () => void }) {
         <label className="block text-[12px] font-semibold text-ink-soft mb-1.5" htmlFor="inv-role">
           {tr('Accès', 'Access')}
         </label>
-        <select
-          id="inv-role"
-          value={role}
-          onChange={(e) => setRole(e.target.value)}
-          className="w-full h-[42px] px-3 rounded-[11px] text-[14px] text-ink outline-none mb-2"
-          style={{ border: '1px solid var(--border-strong)', background: 'var(--bg-app)' }}
-        >
-          <option value="">{tr('— Aucun rôle métier —', '— No business role —')}</option>
-          {catalog?.business_roles.map((r) => (
-            <option key={r.key} value={r.key}>
-              {lang === 'fr' ? r.label_fr : r.label_en}
-            </option>
-          ))}
-          <option value={ADMIN_OPTION}>
-            {tr('Administrateur (accès complet)', 'Administrator (full access)')}
-          </option>
-        </select>
+        <div className="mb-2">
+          <Listbox
+            id="inv-role"
+            className="h-[42px] rounded-[11px] text-[14px]"
+            value={role}
+            onChange={setRole}
+            options={[
+              { value: '', label: tr('— Aucun rôle métier —', '— No business role —') },
+              ...(catalog?.business_roles ?? []).map((r) => ({
+                value: r.key,
+                label: lang === 'fr' ? r.label_fr : r.label_en,
+              })),
+              {
+                value: ADMIN_OPTION,
+                label: tr('Administrateur (accès complet)', 'Administrator (full access)'),
+              },
+            ]}
+          />
+        </div>
         {/* The default option grants nothing — least privilege is the right
             default, but an admin who does not know that invites a colleague
             who then sees an almost empty product and assumes it is broken. */}

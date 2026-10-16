@@ -41,7 +41,7 @@ import {
 } from 'react';
 import { Loader2 } from 'lucide-react';
 import { cn } from './cn';
-import { FieldContext, useControlWiring, type FieldStatus } from './fieldContext';
+import { FieldContext, controlClasses, useControlWiring, type FieldStatus } from './fieldContext';
 import { Shake } from './Shake';
 
 /* Re-exported so `import { type FieldStatus } from './Field'` keeps working —
@@ -141,30 +141,6 @@ export function Field({
         )}
       </div>
     </FieldContext.Provider>
-  );
-}
-
-/* The border is the state. --border-control is the contrast-verified default;
-   invalid/warning/success swap it for the matching semantic colour and are
-   always accompanied by text in the message slot. */
-const STATUS_BORDER: Record<FieldStatus, string> = {
-  default: 'border-control',
-  invalid: 'border-danger',
-  warning: 'border-warning',
-  success: 'border-success',
-};
-
-function controlClasses(status: FieldStatus, extra?: string): string {
-  return cn(
-    'w-full bg-surface-1 text-fg-primary placeholder:text-fg-muted',
-    'border rounded-md px-(--control-px-md)',
-    'transition-[border-color,background-color] duration-fast ease-out',
-    'hover:border-strong',
-    'focus:border-accent',
-    'disabled:opacity-55 disabled:pointer-events-none',
-    'read-only:bg-surface-sunken read-only:text-fg-secondary',
-    STATUS_BORDER[status],
-    extra,
   );
 }
 

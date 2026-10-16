@@ -27,6 +27,8 @@ export {
   type TextareaProps,
   type SelectProps,
 } from './Field';
+export { Listbox, type ListboxProps, type ListboxOption, type ListboxSize } from './Listbox';
+export { ListboxLabelsContext, DEFAULT_LISTBOX_LABELS, type ListboxLabels } from './listboxLabels';
 export { Label, type LabelProps } from './Label';
 export { Shake } from './Shake';
 export { Fieldset, type FieldsetProps } from './Fieldset';

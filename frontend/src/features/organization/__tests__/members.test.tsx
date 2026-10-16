@@ -143,6 +143,12 @@ afterEach(() => vi.restoreAllMocks());
 
 /* ------------------------------------------------------------- the state matrix */
 
+/** Opens the row's role picker and chooses the administrator option. */
+function pickAdmin(row: HTMLElement) {
+  fireEvent.click(row.querySelector<HTMLElement>('[role="combobox"]')!);
+  fireEvent.click(screen.getByRole('option', { name: /Administrat/ }));
+}
+
 describe('members — UI state matrix', () => {
   it('shows a loading state before the roster arrives', () => {
     vi.spyOn(organizationService, 'listMembers').mockImplementation(() => new Promise(() => {}));
@@ -201,7 +207,7 @@ describe('members — roster', () => {
     const ownerRow = rows.find((r) => r.textContent?.includes('owner@acme.io'))!;
     // The server refuses both; the row says so instead of offering a click
     // that would come back 403.
-    expect(ownerRow.querySelector('select')).toBeNull();
+    expect(ownerRow.querySelector('[role="combobox"]')).toBeNull();
     expect(ownerRow.textContent).toMatch(/propriétaire|owner/i);
   });
 
@@ -212,8 +218,7 @@ describe('members — roster', () => {
     renderMembers();
     const rows = await screen.findAllByTestId('member-row');
     const patRow = rows.find((r) => r.textContent?.includes('pat@acme.io'))!;
-    const select = patRow.querySelector('select')!;
-    fireEvent.change(select, { target: { value: '__admin__' } });
+    pickAdmin(patRow);
     await waitFor(() => expect(setRole).toHaveBeenCalledWith('m-plain', 'admin', ''));
     await waitFor(() => expect(toastCalls.some((t) => t.startsWith('success:'))).toBe(true));
   });
@@ -228,7 +233,7 @@ describe('members — roster', () => {
     renderMembers();
     const rows = await screen.findAllByTestId('member-row');
     const patRow = rows.find((r) => r.textContent?.includes('pat@acme.io'))!;
-    fireEvent.change(patRow.querySelector('select')!, { target: { value: '__admin__' } });
+    pickAdmin(patRow);
     // The server names the invariant that was broken; a generic "update failed"
     // would erase the one piece of information the admin can act on.
     await waitFor(() =>
