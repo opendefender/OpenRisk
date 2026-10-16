@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
@@ -38,6 +39,14 @@ type RiskHandler struct {
 	presenters        *risk.FinancialPresenterFactory // optional: tenant currency + FX
 	bulkActionUC      *risk.BulkActionUseCase         // #581, attached via WithBulkAction
 	importRisksUC     *risk.ImportRisksUseCase        // #755, attached via WithImport
+	// #811, attached via WithAcceptancePolicy
+	acceptancePolicyUC *risk.AcceptancePolicyUseCase
+}
+
+// WithAcceptancePolicy attaches the tenant's acceptance-length policy.
+func (h *RiskHandler) WithAcceptancePolicy(uc *risk.AcceptancePolicyUseCase) *RiskHandler {
+	h.acceptancePolicyUC = uc
+	return h
 }
 
 // WithBulkAction attaches the bulk-action use case behind POST /risks/bulk.
@@ -111,6 +120,26 @@ type TransitionRiskInput struct {
 	Comment string `json:"comment" validate:"omitempty,max=1000"`
 	Phase   string `json:"phase" validate:"omitempty"`
 	Note    string `json:"note" validate:"omitempty,max=1000"`
+	// AcceptanceExpiresAt ends a residual-risk acceptance (#811): a date
+	// (2027-10-15) or an RFC 3339 timestamp. Read only when the target is
+	// residual_accepted; empty means the default of 12 months.
+	AcceptanceExpiresAt string `json:"acceptance_expires_at" validate:"omitempty,max=40"`
+}
+
+// acceptanceExpiry parses the optional end date. A bare date is read as
+// midnight UTC of that day.
+func (in TransitionRiskInput) acceptanceExpiry() (*time.Time, error) {
+	raw := strings.TrimSpace(in.AcceptanceExpiresAt)
+	if raw == "" {
+		return nil, nil
+	}
+	if t, err := time.Parse(time.RFC3339, raw); err == nil {
+		return &t, nil
+	}
+	if t, err := time.Parse("2006-01-02", raw); err == nil {
+		return &t, nil
+	}
+	return nil, domain.NewValidationError("acceptance_expires_at must be a date (YYYY-MM-DD) or an RFC 3339 timestamp")
 }
 
 // target resolves the requested state from either spelling. A legacy ISO 31000
@@ -173,16 +202,106 @@ func (h *RiskHandler) TransitionPhase(c *fiber.Ctx) error {
 		actorID = mwCtx.UserID
 	}
 
+	expiresAt, err := input.acceptanceExpiry()
+	if err != nil {
+		return writeAppError(c, err)
+	}
+
 	r, err := h.transitionStateUC.Execute(c.UserContext(), orgID, riskID, risk.TransitionRiskStateInput{
-		To:      domain.RiskState(input.target()),
-		Comment: input.comment(),
-		Actor:   actorID,
-		Locale:  c.Query("locale", "fr"),
+		To:                  domain.RiskState(input.target()),
+		Comment:             input.comment(),
+		Actor:               actorID,
+		Locale:              c.Query("locale", "fr"),
+		AcceptanceExpiresAt: expiresAt,
 	})
 	if err != nil {
 		return writeAppError(c, err)
 	}
 
+	h.quantify(r)
+	return c.JSON(r)
+}
+
+// AcceptancePolicyInput is the body of PUT /risk-acceptance/policy.
+type AcceptancePolicyInput struct {
+	MaxAcceptanceMonths int `json:"max_acceptance_months"`
+}
+
+// GetAcceptancePolicy GET /risk-acceptance/policy — how long a residual-risk
+// acceptance may run in this tenant (#811).
+func (h *RiskHandler) GetAcceptancePolicy(c *fiber.Ctx) error {
+	if h.acceptancePolicyUC == nil {
+		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": "acceptance policy unavailable"})
+	}
+	orgID := uuid.Nil
+	if mwCtx := middleware.GetContext(c); mwCtx != nil {
+		orgID = mwCtx.OrganizationID
+	}
+	v, err := h.acceptancePolicyUC.Get(c.UserContext(), orgID)
+	if err != nil {
+		return writeAppError(c, err)
+	}
+	return c.JSON(v)
+}
+
+// SetAcceptancePolicy PUT /risk-acceptance/policy — sets the tenant maximum.
+// Admin only (route guard): it is a tenant policy, not a risk edit.
+func (h *RiskHandler) SetAcceptancePolicy(c *fiber.Ctx) error {
+	if h.acceptancePolicyUC == nil {
+		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": "acceptance policy unavailable"})
+	}
+	in := new(AcceptancePolicyInput)
+	if err := c.BodyParser(in); err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "Invalid input"})
+	}
+	orgID := uuid.Nil
+	if mwCtx := middleware.GetContext(c); mwCtx != nil {
+		orgID = mwCtx.OrganizationID
+	}
+	v, err := h.acceptancePolicyUC.Set(c.UserContext(), orgID, in.MaxAcceptanceMonths)
+	if err != nil {
+		return writeAppError(c, err)
+	}
+	return c.JSON(v)
+}
+
+// RenewAcceptance POST /risks/:id/acceptance/renew — extends a residual-risk
+// acceptance that still stands (#811). Needs a NEW approved governance
+// request; the approval behind the current acceptance does not count twice.
+// Body: {acceptance_expires_at?, comment?}.
+func (h *RiskHandler) RenewAcceptance(c *fiber.Ctx) error {
+	riskID, err := uuid.Parse(c.Params("id"))
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "Invalid UUID"})
+	}
+	input := new(TransitionRiskInput)
+	if err := c.BodyParser(input); err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "Invalid input"})
+	}
+	if err := validation.GetValidator().Struct(input); err != nil {
+		return badValidation(c, err)
+	}
+	expiresAt, err := input.acceptanceExpiry()
+	if err != nil {
+		return writeAppError(c, err)
+	}
+	mwCtx := middleware.GetContext(c)
+	orgID := uuid.Nil
+	actorID := uuid.Nil
+	if mwCtx != nil {
+		orgID = mwCtx.OrganizationID
+		actorID = mwCtx.UserID
+	}
+	r, err := h.transitionStateUC.RenewAcceptance(c.UserContext(), orgID, riskID, risk.RenewAcceptanceInput{
+		To:                  domain.StateResidualAccepted,
+		Comment:             input.comment(),
+		Actor:               actorID,
+		Locale:              c.Query("locale", "fr"),
+		AcceptanceExpiresAt: expiresAt,
+	})
+	if err != nil {
+		return writeAppError(c, err)
+	}
 	h.quantify(r)
 	return c.JSON(r)
 }
@@ -480,6 +599,15 @@ func (h *RiskHandler) GetRisks(c *fiber.Ctx) error {
 	}
 	if c.Query("unmapped") == "true" {
 		query.Unmapped = true
+	}
+	// #811 — "acceptances that expire within N days". 0 means already due.
+	if raw := c.Query("acceptance_expires_within"); raw != "" {
+		days, err := strconv.Atoi(raw)
+		if err != nil || days < 0 || days > 3650 {
+			return c.Status(400).JSON(fiber.Map{"error": "validation_failed", "message": "acceptance_expires_within must be a number of days between 0 and 3650"})
+		}
+		by := time.Now().UTC().AddDate(0, 0, days)
+		query.AcceptanceExpiresBy = &by
 	}
 
 	// Page & Limit

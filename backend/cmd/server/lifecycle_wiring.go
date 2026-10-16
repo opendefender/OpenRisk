@@ -8,6 +8,7 @@ package main
 import (
 	"context"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	riskapp "github.com/opendefender/openrisk/internal/application/risk"
@@ -98,7 +99,7 @@ func newApprovalChecker(requests domain.ApprovalRequestRepository) riskapp.Appro
 // workflow to in Governance.
 const RiskAcceptanceEntityType = "risk_acceptance"
 
-func (a *approvalCheckerAdapter) HasApprovedAcceptance(ctx context.Context, tenantID, riskID uuid.UUID) (bool, *uuid.UUID, error) {
+func (a *approvalCheckerAdapter) AcceptanceApproval(ctx context.Context, tenantID, riskID uuid.UUID, since *time.Time) (*domain.AcceptanceApproval, *uuid.UUID, error) {
 	// Tenant-scoped by the repository (RULE #2); the entity filter narrows to
 	// acceptance requests, and the entity id is matched here because the filter
 	// has no field for it.
@@ -106,25 +107,63 @@ func (a *approvalCheckerAdapter) HasApprovedAcceptance(ctx context.Context, tena
 		EntityType: RiskAcceptanceEntityType,
 	})
 	if err != nil {
-		return false, nil, err
+		return nil, nil, err
 	}
 	var pending *uuid.UUID
+	var best *domain.AcceptanceApproval
 	want := riskID.String()
 	for i := range rows {
-		if rows[i].EntityID != want {
+		req := &rows[i]
+		if req.EntityID != want {
 			continue
 		}
-		switch rows[i].Status {
+		switch req.Status {
 		case domain.ApprovalApproved:
-			// One validated approval is enough, and it wins over any other
-			// request in flight.
-			return true, nil, nil
+			at := approvedAt(req)
+			// #811 — an approval decided before the current acceptance began
+			// was spent on it. Accepting or renewing again needs a new one.
+			if since != nil && !at.After(*since) {
+				continue
+			}
+			if best == nil || at.After(best.ApprovedAt) {
+				best = &domain.AcceptanceApproval{RequestID: req.ID, ApproverID: finalApprover(req), ApprovedAt: at}
+			}
 		case domain.ApprovalPending:
 			if pending == nil {
-				id := rows[i].ID
+				id := req.ID
 				pending = &id
 			}
 		}
 	}
-	return false, pending, nil
+	if best != nil {
+		// One validated approval is enough, and it wins over any other request
+		// in flight.
+		return best, nil, nil
+	}
+	return nil, pending, nil
+}
+
+// approvedAt is when the request was resolved; rows from before ResolvedAt
+// was recorded fall back to their last update.
+func approvedAt(req *domain.ApprovalRequest) time.Time {
+	if req.ResolvedAt != nil {
+		return *req.ResolvedAt
+	}
+	return req.UpdatedAt
+}
+
+// finalApprover is the person whose approval closed the circuit: the last
+// "approve" decision recorded. Nil when none parses — the acceptance then
+// records no approver rather than a guessed one.
+func finalApprover(req *domain.ApprovalRequest) *uuid.UUID {
+	for i := len(req.Decisions) - 1; i >= 0; i-- {
+		d := req.Decisions[i]
+		if d.Decision != "approve" {
+			continue
+		}
+		if id, err := uuid.Parse(d.ApproverID); err == nil {
+			return &id
+		}
+	}
+	return nil
 }
