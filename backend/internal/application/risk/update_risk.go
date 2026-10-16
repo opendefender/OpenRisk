@@ -64,6 +64,7 @@ type UpdateRiskUseCase struct {
 	ownership OwnershipManager
 	assets    RiskAssetStore
 	engine    pkgscoring.Engine
+	notices   NoticeDeliverer
 }
 
 func NewUpdateRiskUseCase(riskRepo domain.RiskRepository) *UpdateRiskUseCase {
@@ -84,6 +85,13 @@ func (uc *UpdateRiskUseCase) WithOwnership(m OwnershipManager) *UpdateRiskUseCas
 	return uc
 }
 
+// WithNotices tells the risk's owner when this update changes its status
+// (#757). Nil-safe.
+func (uc *UpdateRiskUseCase) WithNotices(n NoticeDeliverer) *UpdateRiskUseCase {
+	uc.notices = n
+	return uc
+}
+
 // Execute updates a risk by ID, scoped to the organization.
 func (uc *UpdateRiskUseCase) Execute(ctx context.Context, orgID uuid.UUID, riskID uuid.UUID, input UpdateRiskInput) (*domain.Risk, error) {
 	// 1. Fetch existing risk (tenant-scoped)
@@ -94,6 +102,9 @@ func (uc *UpdateRiskUseCase) Execute(ctx context.Context, orgID uuid.UUID, riskI
 	if risk == nil {
 		return nil, domain.NewNotFoundError("risk", riskID)
 	}
+
+	// The status before this request, for the owner's notice.
+	statusBefore := risk.Status
 
 	// 2. Apply partial updates
 	if input.Title != nil {
@@ -249,6 +260,15 @@ func (uc *UpdateRiskUseCase) Execute(ctx context.Context, orgID uuid.UUID, riskI
 			Title:        risk.Title,
 			Locale:       input.Locale,
 		})
+	}
+
+	// 6. The owner hears about every status change (#757). This endpoint
+	// writes the status column and leaves the lifecycle state alone, so the
+	// notice says what changed — the status — in the status vocabulary the
+	// register's dropdown uses, rather than claiming a state move the stepper
+	// would not show.
+	if input.Status != nil && *input.Status != statusBefore {
+		notifyRiskStatusChange(ctx, uc.notices, orgID, risk, statusBefore, risk.Status, input.Actor)
 	}
 
 	return risk, nil

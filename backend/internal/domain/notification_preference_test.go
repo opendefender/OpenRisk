@@ -191,3 +191,17 @@ func TestNotificationPreference_JSONContract(t *testing.T) {
 		}
 	}
 }
+
+// #757 owner decision: the owner of a risk is mailed at every state change.
+// The "a risk I follow is updated" switch does not govern it; only the global
+// pause does.
+func TestNotificationPreference_RiskStateChangedFollowsOnlyTheGlobalPause(t *testing.T) {
+	prefs := &NotificationPreference{EmailOnRiskUpdate: false}
+	if !prefs.Allows(NotificationTypeRiskStateChanged, NotificationChannelEmail) {
+		t.Fatal("an owned risk changing state is mailed even with risk updates off")
+	}
+	prefs.DisableAllNotifications = true
+	if prefs.Allows(NotificationTypeRiskStateChanged, NotificationChannelEmail) {
+		t.Fatal("pausing everything silences it too")
+	}
+}

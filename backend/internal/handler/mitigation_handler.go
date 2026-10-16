@@ -6,7 +6,6 @@
 package handler
 
 import (
-	"context"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -343,8 +342,7 @@ func ValidateMitigation(c *fiber.Ctx) error {
 	}
 
 	repo := repository.NewGormMitigationRepository(database.DB)
-	notifier := &NoOpNotifier{} // Placeholder
-	useCase := mitigation.NewValidateMitigationPlanUseCase(repo, notifier)
+	useCase := mitigation.NewValidateMitigationPlanUseCase(repo, noticeDeliverer)
 
 	input := mitigation.ValidateMitigationPlanInput{
 		TenantID:   ctx.OrganizationID,
@@ -358,11 +356,4 @@ func ValidateMitigation(c *fiber.Ctx) error {
 
 	validated, _ := repo.GetByIDWithSubActions(ctx.OrganizationID.String(), uuid.MustParse(planID))
 	return c.JSON(validated)
-}
-
-// NoOpNotifier is a placeholder notify.Service (TODO: implement real notification system)
-type NoOpNotifier struct{}
-
-func (n *NoOpNotifier) SendWelcomeEmail(ctx context.Context, email, fullName string) error {
-	return nil
 }

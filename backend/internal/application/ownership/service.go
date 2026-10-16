@@ -27,6 +27,13 @@ type InAppNotifier interface {
 	NotifyInApp(userID, tenantID uuid.UUID, notifType domain.NotificationType, subject, message string, resourceID *uuid.UUID, resourceType string) error
 }
 
+// NoticeDeliverer is the dispatcher that reaches a member in-app AND by e-mail,
+// in their own language (application/notification.Dispatcher). Preferred over
+// InAppNotifier when both are wired (#757).
+type NoticeDeliverer interface {
+	Deliver(ctx context.Context, n domain.Notice) error
+}
+
 // Service validates ownership changes and tells people about them.
 //
 // Every dependency is optional and nil-safe, the same contract the rest of the
@@ -35,9 +42,10 @@ type InAppNotifier interface {
 // means nobody is told. Assigning work must not break because the notification
 // centre is down.
 type Service struct {
-	members  MemberRepository
-	users    UserLookup
-	notifier InAppNotifier
+	members   MemberRepository
+	users     UserLookup
+	notifier  InAppNotifier
+	deliverer NoticeDeliverer
 }
 
 func NewService() *Service { return &Service{} }
@@ -45,6 +53,10 @@ func NewService() *Service { return &Service{} }
 func (s *Service) WithMembers(m MemberRepository) *Service { s.members = m; return s }
 func (s *Service) WithUsers(u UserLookup) *Service         { s.users = u; return s }
 func (s *Service) WithNotifier(n InAppNotifier) *Service   { s.notifier = n; return s }
+
+// WithDeliverer routes assignment notices through the dispatcher, which adds
+// the e-mail and words it in the assignee's language.
+func (s *Service) WithDeliverer(d NoticeDeliverer) *Service { s.deliverer = d; return s }
 
 // Validate checks that every user the patch wants to assign is an ACTIVE member
 // of the tenant. This is the guard that makes cross-tenant assignment
@@ -132,20 +144,40 @@ func (s *Service) ResolveEmails(ctx context.Context, entities ...domain.OwnedEnt
 // Best-effort by construction: errors are swallowed. Nobody's risk assignment
 // should fail because a notification row could not be written — and no actor is
 // notified about assigning something to themselves.
-func (s *Service) Notify(_ context.Context, tenantID uuid.UUID, changes []domain.OwnershipChange, subject domain.OwnershipSubject) {
-	if s.notifier == nil || len(changes) == 0 || tenantID == uuid.Nil {
+func (s *Service) Notify(ctx context.Context, tenantID uuid.UUID, changes []domain.OwnershipChange, subject domain.OwnershipSubject) {
+	if (s.notifier == nil && s.deliverer == nil) || len(changes) == 0 || tenantID == uuid.Nil {
 		return
+	}
+	if ctx == nil {
+		ctx = context.Background()
 	}
 	for _, ch := range changes {
 		if ch.To == nil || *ch.To == uuid.Nil || *ch.To == ch.Actor {
 			continue
 		}
-		title, message := assignmentCopy(ch.Role, subject)
 		var resourceID *uuid.UUID
 		if subject.ResourceID != uuid.Nil {
 			id := subject.ResourceID
 			resourceID = &id
 		}
+		if s.deliverer != nil {
+			role := ch.Role
+			_ = s.deliverer.Deliver(ctx, domain.Notice{
+				TenantID:     tenantID,
+				UserID:       *ch.To,
+				Type:         domain.NotificationTypeActionAssigned,
+				ResourceID:   resourceID,
+				ResourceType: subject.ResourceType,
+				Compose: func(locale string) domain.NoticeMessage {
+					localized := subject
+					localized.Locale = locale
+					title, message := assignmentCopy(role, localized)
+					return domain.NoticeMessage{Subject: title, Lines: []string{message}}
+				},
+			})
+			continue
+		}
+		title, message := assignmentCopy(ch.Role, subject)
 		_ = s.notifier.NotifyInApp(
 			*ch.To, tenantID,
 			domain.NotificationTypeActionAssigned,
