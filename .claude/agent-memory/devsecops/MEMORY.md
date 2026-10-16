@@ -1,2 +1,8 @@
 - [SSRF / outbound posture](ssrf-outbound-posture.md) — netguard review of PR #743: zone-suffix bypass, unguarded tenant-URL sinks
 - [Recurring defect areas](recurring-defect-areas.md) — outbound HTTP, err.Error() echo, scanner collectors, test seams
+- [Auth token-type posture](auth-token-type-posture.md) — Protected accepts MFA_REQUIRED/ENROLLMENT tokens (MFA bypass, 2026-10-11); MFA Save/race debts
+- [Agent hooks posture](agent-hooks-posture.md) — 2026-10-14 r2: _roots.sh runs go test/git in transcript-named dirs (HIGH), builder reassign, -F gaps
+- [CI security gates posture](ci-security-gates-posture.md) — #980/#982 2026-10-14: branch protection requires retired checks, Semgrep loss, unscanned agent + stray binary
+- [Router extraction posture](router-extraction-posture.md) — ADR 0005/#991: Mounter evidence-only PASS 2026-10-15; MEDIUM caller-asserted access; child-PR conditions
+- [Notification e-mail posture](notification-email-posture.md) — #757 2026-10-15: dispatcher tenant gate, Subject CRLF not injectable, LogService logs addresses
+- [Transcript tooling posture](transcript-tooling-posture.md) — #1003 token_usage.py 2026-10-15: printed channels, meta.json task text, PASS after LOW fixes
