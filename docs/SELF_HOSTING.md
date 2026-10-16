@@ -265,8 +265,9 @@ stack builds and runs natively on ARM64 — `./install.sh` works unchanged
 on a Graviton VM. To build and publish a multi-arch image:
 
 ```bash
+# The backend builds from the repository root: its image carries migrations/.
 docker buildx build --platform linux/amd64,linux/arm64 \
-  -t openrisk/backend:latest ./backend --push
+  -t openrisk/backend:latest -f backend/Dockerfile . --push
 docker buildx build --platform linux/amd64,linux/arm64 \
   -t openrisk/frontend:latest ./frontend --push
 ```

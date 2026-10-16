@@ -49,8 +49,9 @@ services:
 
   test_backend:
     build:
-      context: ./backend
-      dockerfile: Dockerfile
+      # Repository root: the image carries ../migrations (#1001).
+      context: .
+      dockerfile: backend/Dockerfile
     container_name: openrisk_test_backend
     environment:
       DB_HOST: test_db

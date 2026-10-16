@@ -1,0 +1,29 @@
+# Build context hygiene for backend/Dockerfile, whose context is the repository
+# root (#1001). BuildKit reads this file instead of the root .dockerignore.
+# Only the backend sources and the SQL migrations go in.
+*
+!backend/
+!migrations/
+
+# The migrations the server never reads (they were superseded and archived).
+migrations/_archive/
+
+# Keys must NEVER enter a build context — they are gitignored and per-install.
+backend/keys/
+backend/secrets/
+**/*.pem
+**/*.key
+
+# Runtime data and local build artifacts.
+backend/uploads/
+backend/openrisk-server
+backend/openrisk
+backend/server
+
+# Tests and docs are not needed to compile the binary.
+backend/tests/
+backend/**/*_test.go
+backend/**/*.md
+
+# Local env files.
+**/.env

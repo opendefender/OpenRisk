@@ -36,6 +36,11 @@ COPY --from=backend-builder /app/openrisk /app/openrisk
 # Copy frontend build from builder
 COPY --from=frontend-builder /app/dist /app/public
 
+# The SQL migration layer (#1001). The Helm chart sets DATABASE_URL, and with it
+# the server runs these at boot and refuses to start when it cannot find them.
+COPY migrations/ /app/migrations/
+ENV MIGRATIONS_DIR=/app/migrations
+
 # Create non-root user
 RUN addgroup -g 1000 openrisk && \
     adduser -D -u 1000 -G openrisk openrisk

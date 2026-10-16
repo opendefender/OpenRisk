@@ -58,7 +58,7 @@ jobs:
         run: |
           set -euo pipefail
           docker build -t openrisk:gate -f Dockerfile .
-          docker build -t openrisk-backend:gate backend
+          docker build -t openrisk-backend:gate -f backend/Dockerfile .
           docker build -t openrisk-frontend:gate frontend
 
       - name: Scan and gate

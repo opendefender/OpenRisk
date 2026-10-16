@@ -40,8 +40,9 @@ services:
 
   backend-staging:
     build:
-      context: ./backend
-      dockerfile: Dockerfile
+      # Repository root: the image carries ../migrations (#1001).
+      context: .
+      dockerfile: backend/Dockerfile
     environment:
       ENV: staging
       DB_HOST: postgres-staging

@@ -73,8 +73,9 @@ services:
 
   backend:
     build:
-      context: ./backend
-      dockerfile: Dockerfile
+      # Repository root: the image carries ../migrations (#1001).
+      context: .
+      dockerfile: backend/Dockerfile
     container_name: openrisk_backend
     depends_on:
       db:

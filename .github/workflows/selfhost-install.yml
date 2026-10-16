@@ -18,6 +18,9 @@ on:
       - 'scripts/restore.sh'
       - 'deploy/selfhost/**'
       - 'backend/Dockerfile'
+      - 'backend/Dockerfile.dockerignore'
+      - 'backend/docker-entrypoint.sh'
+      - 'migrations/**'
       - 'frontend/Dockerfile'
       - '.github/workflows/selfhost-install.yml'
 
