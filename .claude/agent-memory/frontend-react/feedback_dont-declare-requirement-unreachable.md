@@ -5,7 +5,7 @@ metadata:
   type: feedback
 ---
 
-On #751 phase 3, SlotReel's spec had two
+On #751 phase 3 (see [[project_751-phase3-status]]), SlotReel's spec had two
 bullets that looked contradictory from the COMPONENT's own lifecycle alone:
 "first data arrival: rolls from 0" vs "mount with data already present:
 plain, no roll" — in this codebase's WidgetState-gated architecture, every

@@ -5,7 +5,7 @@ metadata:
   type: feedback
 ---
 
-Kept from the #751 phase status files (2026-09-29) when those were dropped.
+Drawn from the #751 phase 4 and 5 status files (2026-09-29).
 
 - **The exit transition needs a mounted component.** ds `Modal`/`Drawer` play
   their exit only when the caller passes `open={false}`. A caller that writes
