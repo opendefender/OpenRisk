@@ -50,6 +50,9 @@ const (
 	ItemTypeVulnerabilitySLA ItemType = "vulnerability_sla"
 	ItemTypeVendorFollowUp   ItemType = "vendor_followup"
 	ItemTypeMitigationReview ItemType = "mitigation_review"
+	// #811 — a residual-risk acceptance lapsed and the risk is back in
+	// ASSESSED, waiting to be re-assessed.
+	ItemTypeExpiredAcceptance ItemType = "expired_acceptance"
 )
 
 // Category ranks. Lower sorts first. These are the priority order itself, not a
@@ -66,6 +69,9 @@ const (
 	RankVulnerabilitySLA   = 7
 	RankVendorFollowUp     = 8
 	RankMitigationReview   = 9
+	// Appended rather than slotted in: the ranks are contract, and renumbering
+	// would reorder every existing client's list.
+	RankExpiredAcceptance = 10
 )
 
 // vulnSLAHorizon is how far ahead a remediation deadline becomes an action:
@@ -148,6 +154,9 @@ type Repository interface {
 	VulnerabilitiesDueBy(tenantID uuid.UUID, by time.Time, limit int) ([]domain.Vulnerability, error)
 	VendorAssessmentsDueBy(tenantID uuid.UUID, by time.Time, limit int) ([]VendorFollowUp, error)
 	MitigationsInReview(tenantID uuid.UUID, limit int) ([]domain.Mitigation, error)
+
+	// #811. Risks whose acceptance lapsed and that still sit in ASSESSED.
+	ExpiredAcceptances(tenantID uuid.UUID, limit int) ([]domain.Risk, error)
 }
 
 // VendorFollowUp is an unanswered questionnaire and the vendor it was sent to.
@@ -185,8 +194,8 @@ type Caller struct {
 // permission to complete is worse than showing them nothing, because the item
 // looks like a task and behaves like a locked door.
 var roleCategories = map[domain.BusinessRoleKey][]int{
-	domain.BusinessRoleRSSI:              {RankCriticalRisk, RankOpenIncident, RankVulnerabilitySLA, RankMitigationReview},
-	domain.BusinessRoleRiskManager:       {RankOverdueMitigation, RankCriticalRisk, RankVendorFollowUp, RankMitigationReview},
+	domain.BusinessRoleRSSI:              {RankCriticalRisk, RankOpenIncident, RankVulnerabilitySLA, RankMitigationReview, RankExpiredAcceptance},
+	domain.BusinessRoleRiskManager:       {RankOverdueMitigation, RankCriticalRisk, RankVendorFollowUp, RankMitigationReview, RankExpiredAcceptance},
 	domain.BusinessRoleAuditor:           {RankExpiringEvidence},
 	domain.BusinessRoleComplianceOfficer: {RankExpiringEvidence, RankOverdueRemediation, RankVendorFollowUp},
 	domain.BusinessRoleSecurityAnalyst:   {RankVulnerabilitySLA, RankOpenIncident},
@@ -200,6 +209,7 @@ var roleCategories = map[domain.BusinessRoleKey][]int{
 var allCategories = []int{
 	RankOverdueMitigation, RankCriticalRisk, RankOpenIncident, RankExpiringEvidence,
 	RankOverdueRemediation, RankVulnerabilitySLA, RankVendorFollowUp, RankMitigationReview,
+	RankExpiredAcceptance,
 }
 
 // UseCase is the read-only aggregation. It writes nothing, so it needs no
@@ -445,7 +455,59 @@ func (uc *UseCase) gather(caller Caller, role domain.BusinessRoleKey, cats []int
 		}
 	}
 
+	// Category 10 (#811) is shown to the roles above AND, like approvals, to
+	// the people the acceptance names — its owner and its approver — whatever
+	// their job role: an expired acceptance is theirs to re-open.
+	{
+		rows, err := uc.repo.ExpiredAcceptances(caller.TenantID, perSourceFetchLimit)
+		if err != nil {
+			return nil, err
+		}
+		roleSees := allows(cats, RankExpiredAcceptance)
+		for i := range rows {
+			if roleSees || namedOnAcceptance(&rows[i], caller.UserID) {
+				items = append(items, expiredAcceptanceItem(&rows[i]))
+			}
+		}
+	}
+
 	return items, nil
+}
+
+// namedOnAcceptance reports whether the caller owns the risk or approved its
+// acceptance.
+func namedOnAcceptance(r *domain.Risk, user uuid.UUID) bool {
+	if r.OwnerID != nil && *r.OwnerID == user {
+		return true
+	}
+	if r.OwnerID == nil && r.AssigneeID != nil && *r.AssigneeID == user {
+		return true
+	}
+	return r.AcceptanceApprovedBy != nil && *r.AcceptanceApprovedBy == user
+}
+
+func expiredAcceptanceItem(r *domain.Risk) ActionItem {
+	var expired float64
+	if r.AcceptanceExpiredAt != nil {
+		expired = float64(r.AcceptanceExpiredAt.Unix())
+	}
+	meta := map[string]string{"reason": domain.AcceptanceExpiredReason}
+	if r.AcceptanceExpiresAt != nil {
+		meta["expired_on"] = r.AcceptanceExpiresAt.UTC().Format("2006-01-02")
+	}
+	return ActionItem{
+		ID:                  "acceptance:" + r.ID.String(),
+		Type:                ItemTypeExpiredAcceptance,
+		Title:               r.Title,
+		SubjectResourceType: "risk",
+		SubjectResourceID:   r.ID.String(),
+		DeepLink:            RiskLink(r.ID.String()),
+		DueAt:               r.AcceptanceExpiresAt,
+		Meta:                meta,
+		CategoryRank:        RankExpiredAcceptance,
+		TenantID:            r.TenantID,
+		sortA:               expired, // longest-lapsed first
+	}
 }
 
 // ---------------------------------------------------------------------------

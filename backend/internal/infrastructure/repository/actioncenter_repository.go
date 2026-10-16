@@ -278,3 +278,21 @@ func (r *ActionCenterRepository) MitigationsInReview(tenantID uuid.UUID, limit i
 }
 
 var _ actioncenter.Repository = (*ActionCenterRepository)(nil)
+
+// ExpiredAcceptances — category 10 (#811). Risks the expiry sweep moved back
+// to ASSESSED and that nobody has re-assessed yet. The item disappears as soon
+// as the risk leaves ASSESSED (the transition clears the stamp).
+func (r *ActionCenterRepository) ExpiredAcceptances(tenantID uuid.UUID, limit int) ([]domain.Risk, error) {
+	if err := guard(tenantID); err != nil {
+		return nil, err
+	}
+	var rows []domain.Risk
+	err := r.db.
+		Where("risks.tenant_id = ?", tenantID).
+		Where("risks.acceptance_expired_at IS NOT NULL").
+		Where("risks.lifecycle_state = ?", domain.StateAssessed).
+		Order("risks.acceptance_expired_at ASC").
+		Limit(limit).
+		Find(&rows).Error
+	return rows, err
+}

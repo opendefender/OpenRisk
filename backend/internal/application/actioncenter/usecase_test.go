@@ -38,6 +38,7 @@ type stubRepo struct {
 	vulns       []domain.Vulnerability
 	vendors     []VendorFollowUp
 	reviews     []domain.Mitigation
+	expired     []domain.Risk
 
 	called map[string]bool
 	err    error
@@ -86,6 +87,10 @@ func (s *stubRepo) VendorAssessmentsDueBy(_ uuid.UUID, _ time.Time, _ int) ([]Ve
 func (s *stubRepo) MitigationsInReview(_ uuid.UUID, _ int) ([]domain.Mitigation, error) {
 	s.mark("reviews")
 	return s.reviews, s.err
+}
+func (s *stubRepo) ExpiredAcceptances(_ uuid.UUID, _ int) ([]domain.Risk, error) {
+	s.mark("expired_acceptances")
+	return s.expired, s.err
 }
 
 var (
