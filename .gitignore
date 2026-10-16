@@ -42,6 +42,8 @@ backend/openrisk-server
 .claude/settings.local.json
 .claude/agent-memory-local/
 .claude/CHECKPOINT.md
+# The scout's per-issue brief, read by the agents of that issue only (#1004).
+/brief.md
 CLAUDE.md.backup-*
 
 # Playwright MCP screenshots and the backend test log. Proof screenshots go in
