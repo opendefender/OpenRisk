@@ -286,6 +286,18 @@ func TestCreateRisk_CannotBeBornAccepted(t *testing.T) {
 	}
 }
 
+func TestUpdateRisk_CannotMarkAccepted(t *testing.T) {
+	repo, tenant, id := newFixture(domain.StateInTreatment)
+	status := domain.RiskAccepted
+	_, err := NewUpdateRiskUseCase(repo).Execute(context.Background(), tenant, id, UpdateRiskInput{Status: &status})
+	if !errors.Is(err, domain.ErrValidation) || !strings.Contains(err.Error(), "by an edit") {
+		t.Fatalf("want ErrValidation, got %v", err)
+	}
+	if repo.updated != nil {
+		t.Fatal("a refused edit wrote to the risk")
+	}
+}
+
 func TestBulkAction_CannotAcceptInBulk(t *testing.T) {
 	status := domain.RiskAccepted
 	uc := NewBulkActionUseCase(&stateRepo{}, &memJournal{})

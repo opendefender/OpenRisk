@@ -118,6 +118,12 @@ func (uc *UpdateRiskUseCase) Execute(ctx context.Context, orgID uuid.UUID, riskI
 		risk.Probability = *input.Probability
 	}
 	if input.Status != nil {
+		// #811 — "accepted" is a governed, dated decision. Writing the status
+		// here would show a risk as accepted with no approval and no end date;
+		// only the lifecycle transition may record it.
+		if domain.RiskStateFromLegacy(*input.Status, "") == domain.StateResidualAccepted {
+			return nil, domain.NewValidationError("a risk cannot be marked accepted by an edit: accept its residual risk through the lifecycle transition, with a governance approval")
+		}
 		risk.Status = *input.Status
 	}
 	if input.Tags != nil {
