@@ -30,4 +30,4 @@ parameterised — if not, the isolation gate did not check it and you must. Also
 `internal/handler/context_helpers.go:safeGetUUID`, which returns `uuid.Nil` rather than
 failing closed; any handler using it for a tenant is a latent shape-2 defect.
 
-See [[w1-02-entity-drawer-boundaries]] and [[adr-0001-entity-registry]].
+The gating contract that answers shape 1 is ADR 0001 (`docs/adr/0001-polymorphic-entity-contract-and-registry.md`).
