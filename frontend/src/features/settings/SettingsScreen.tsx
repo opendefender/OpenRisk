@@ -1004,8 +1004,8 @@ function NotifTab({ tr }: { tr: Tr }) {
               'email_on_risk_update',
               tr('Un risque que je suis est modifié', 'A risk I follow is updated'),
               tr(
-                'Les changements d’état des risques dont vous êtes responsable vous sont toujours envoyés.',
-                'State changes on risks you own are always sent to you.',
+                'Hors risques dont vous êtes responsable : leurs changements d’état vous sont envoyés dans tous les cas, sauf la résolution (réglage ci-dessous) et la pause globale.',
+                'Not for risks you own: their state changes are always sent to you, except resolution (setting below) and the global pause.',
               ),
             ],
             ['email_on_risk_resolved', tr('Un risque est résolu', 'A risk is resolved'), null],
