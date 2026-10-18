@@ -10,3 +10,4 @@
 - [#751 phase 5 status](project_751-phase5-status.md) — Modal/Drawer real exit transition, OTP auto-submit, theme-toggle cross-fade, stopgap dialog entrances; cutting callers list, verification figures
 - [matchMedia spy-restore trap](feedback_matchmedia-spy-restore-trap.md) — `vi.spyOn(window,'matchMedia').mockRestore()` clears setup.ts's own mock implementation instead of restoring it; reassign directly instead
 - [Shake remounts, detaching node refs](feedback_shake-remounts-detach-node-refs.md) — Shake's `key={errorKey}` remounts children on a new error nonce; re-query the field after a failed submit, don't reuse the earlier handle
+- [Exit transitions and test env](feedback_exit-transitions-and-test-env.md) — ds Modal/Drawer exit needs a mounted caller; sonner a11y facts; jsdom clipboard spy

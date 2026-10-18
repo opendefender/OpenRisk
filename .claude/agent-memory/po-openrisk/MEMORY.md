@@ -6,3 +6,4 @@
 - [Cleanup PRs leave ratchets loose](cleanup-prs-leave-ratchets-loose.md) — #645 deleted 108 orphans but kept the <=110 test; grep the pin before closing as delivered
 - [Red CI gates are not gates](red-ci-gates-are-not-gates.md) — security jobs were red on master and non-required (#487); check runs + branch protection before drafting
 - [Owner overrides on scope and polish](owner-overrides-on-scope-and-polish.md) — owner rejects scope cuts/less-motion recs (D-054, D-058, D-060), follows security/licence recs; bring burn-down data
+- [Large refactor design gate](large-refactor-design-gate.md) — #991/#992 precedent: ready ADR issue + spike, parent stays needs-refinement, owner tripwires; recount on origin/master
