@@ -58,6 +58,16 @@ jobs:
         run: |
           curl -fsS http://localhost:8080/api/v1/health
 
+      # A healthy backend says nothing about the SQL layer: without DATABASE_URL
+      # it skips migrations/ and still answers /health (#1001).
+      - name: Assert the SQL migrations ran (#1001)
+        run: |
+          cd deploy/selfhost
+          docker compose logs backend > backend.log 2>&1
+          grep -E 'migrations: applied successfully \(version=[0-9]+ dirty=false\)' backend.log || {
+            grep -i 'migrations' backend.log || true
+            echo "the backend did not apply the SQL migrations"; exit 1; }
+
       # The install is only finished if the operator can actually get in. #328's
       # criterion 1 is exactly this: credentials at the end, not a README telling
       # you to go and make an account. Asserting the printed pair really signs in
