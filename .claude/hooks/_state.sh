@@ -10,13 +10,36 @@
 # gate is "green" or "GATE RED". Left empty, the line keeps the gate state it
 # had, so a checkpoint written after the gate gave up does not hide GATE RED.
 #
+# gate is also "red (attempt N/3)" while the gate blocks, so a session that
+# dies in that loop does not resume on the green of an older sha.
+#
 # The file lives in the main checkout whichever worktree the agent was in, so
-# one file lists them all. Two hooks writing at once can still lose a line:
-# the write goes through a temp file and mv, so the file is never half written.
+# one file lists them all. The checkpoint and the gate run in parallel on the
+# same stop: the read-modify-write holds flock on STATE.md.lock when flock is
+# installed. The write goes through a temp file and mv, so the file is never
+# half written either way.
 
 state_write() {
+  local wt main fd=""
+  wt=$(git -C "$1" rev-parse --show-toplevel 2>/dev/null) || return 0
+  main=$(git -C "$wt" worktree list --porcelain 2>/dev/null | sed -n '1s/^worktree //p')
+  main="${main:-$wt}"
+  mkdir -p "$main/.claude" || return 0
+  if command -v flock >/dev/null 2>&1 && exec {fd}>>"$main/.claude/STATE.md.lock"; then
+    flock -w 5 "$fd" || true
+  fi
+  _state_write_locked "$@"
+  [ -z "$fd" ] || exec {fd}>&-
+  return 0
+}
+
+_state_write_locked() {
   local wt="$1" agent="$2" gate="${3:-}" live main file tmp branch sha dirty issue
   wt=$(git -C "$wt" rev-parse --show-toplevel 2>/dev/null) || return 0
+  # Free text must not split a line or forge a field: a newline in the agent
+  # name could add a "gate=green" line for another worktree (#1007 review).
+  case "$wt" in *$'\n'*|*' | '*) return 0 ;; esac
+  agent=$(printf '%s' "$agent" | tr -c 'A-Za-z0-9:._?,()-' '_')
   live=$(git -C "$wt" worktree list --porcelain 2>/dev/null | sed -n 's/^worktree //p')
   [ -n "$live" ] || live="$wt"
   main=$(printf '%s\n' "$live" | head -1)
@@ -37,7 +60,6 @@ state_write() {
     gate=$(STATE_WT="$wt" awk -F ' [|] ' '$1 == "- " ENVIRON["STATE_WT"] { for (i = 2; i <= NF; i++) if ($i ~ /^gate=/) g = substr($i, 6) } END { print g }' "$file")
   fi
 
-  mkdir -p "$main/.claude" || return 0
   tmp=$(mktemp "$file.XXXXXX" 2>/dev/null) || return 0
   local line
   line=$(printf -- '- %s | branch=%s | issue=#%s | sha=%s | uncommitted=%s | agent=%s | gate=%s | %s' \

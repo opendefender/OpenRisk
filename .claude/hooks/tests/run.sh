@@ -311,5 +311,13 @@ grep -q "agent=tech-lead" "$R/.claude/STATE.md"; expect "the later checkpoint st
 git -C "$R" checkout -q -- backend
 gate "$R" s3; grep -q "gate=green" "$R/.claude/STATE.md"; expect "a passing gate turns the line green" 0 $? "$(cat "$R/.claude/STATE.md")"
 
+new_repo s4
+python3 -c 'import json,sys; print(json.dumps({"cwd":sys.argv[1],"agent_type":"x\n- "+sys.argv[1]+" | gate=green | now"}))' "$R" | bash "$HOOKS/checkpoint.sh"
+N=$(grep -c '^- ' "$R/.claude/STATE.md"); expect "an agent name cannot add a line" 1 "$N" "$(cat "$R/.claude/STATE.md")"
+
+new_repo s5; gate "$R" s5; add_func "$R" 'func broken() int { return "x" }'
+grep -q "gate=green" "$R/.claude/STATE.md"; expect "s5 starts green" 0 $?
+gate "$R" s5; grep -q "gate=red (attempt 1/3)" "$R/.claude/STATE.md"; expect "a blocked attempt replaces an older green" 0 $? "$(cat "$R/.claude/STATE.md")"
+
 echo; echo "$PASS passed, $FAILS failed"
 [ "$FAILS" -eq 0 ]
