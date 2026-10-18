@@ -9,8 +9,8 @@
 #
 # Exit 2 blocks the stop and hands the failing output back to the agent. After
 # three blocks for the same agent it lets the agent stop, so a gate it cannot
-# satisfy never loops forever, and records GATE RED in the checkpoint so the
-# next session sees it.
+# satisfy never loops forever, and records GATE RED on the checkout's line in
+# .claude/STATE.md so the next session sees it. A pass records green there.
 #
 # It checks the checkouts the agent actually edited, read from its transcript
 # (see _roots.sh), not the session's cwd: /work puts agents in a sibling
@@ -27,6 +27,8 @@ DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 INPUT=$(cat)
 # shellcheck source=/dev/null
 . "$DIR/_roots.sh"
+# shellcheck source=/dev/null
+. "$DIR/_state.sh"
 
 AGENT=$(json_get "$INPUT" '.agent_type')
 [ -n "$AGENT" ] || AGENT=$(json_get "$INPUT" '.agent_id')
@@ -133,6 +135,7 @@ STATE_DIR="${XDG_RUNTIME_DIR:-$(git rev-parse --git-common-dir 2>/dev/null || ec
 STATE="$STATE_DIR/openrisk-gate-$(printf '%s' "$ROOTS|$AGENT" | cksum | cut -d' ' -f1)"
 if [ -z "$FAIL" ]; then
   rm -f "$STATE"
+  while IFS= read -r r; do [ -d "$r" ] && state_write "$r" "$AGENT" green; done <<< "$ROOTS"
   exit 0
 fi
 
@@ -142,11 +145,8 @@ COUNT=$((PREV + 1))
 echo "$COUNT" > "$STATE"
 if [ "$COUNT" -gt 3 ]; then
   rm -f "$STATE"
-  CP_DIR="${CLAUDE_PROJECT_DIR:-$ROOT}/.claude"
-  mkdir -p "$CP_DIR"
-  printf -- '- %s | GATE RED | agent=%s | roots=%s | stopped after 3 blocked attempts\n' \
-    "$(date -u +%FT%TZ)" "$AGENT" "$(printf '%s' "$ROOTS" | tr '\n' ' ')" >> "$CP_DIR/CHECKPOINT.md" 2>/dev/null
-  echo "Gate still red after 3 attempts; letting $AGENT stop. Recorded in .claude/CHECKPOINT.md. Report this work as NOT done." >&2
+  while IFS= read -r r; do [ -d "$r" ] && state_write "$r" "$AGENT" "GATE RED"; done <<< "$ROOTS"
+  echo "Gate still red after 3 attempts; letting $AGENT stop. Recorded in .claude/STATE.md. Report this work as NOT done." >&2
   exit 0
 fi
 

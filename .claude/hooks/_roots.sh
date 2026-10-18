@@ -16,7 +16,7 @@
 # Matches come from Edit/Write/MultiEdit/NotebookEdit paths and from every
 # absolute path (and `cd <relative>`) inside Bash commands, so an edit made
 # with sed on /abs/worktree/file, or inside bash -c "cd …", still counts.
-# Agent memory and the checkpoint file are bookkeeping and never count.
+# Agent memory and the state files are bookkeeping and never count.
 # Order: worktrees other than the main checkout first, most-touched first.
 # With no match, the session's own checkout. "!unreadable" when a transcript
 # was named but could not be read, so the caller can refuse to guess.
@@ -58,7 +58,7 @@ def count(p, hits, base=cwd):
     if not p or not isinstance(p, str) or "\n" in p:
         return
     p = norm(p, base)
-    if "/.claude/agent-memory/" in p + "/" or p.endswith("/.claude/CHECKPOINT.md"):
+    if "/.claude/agent-memory/" in p + "/" or re.search(r"/\.claude/(CHECKPOINT|STATE)\.md", p):
         return
     for root in allowed:
         if p == root or p.startswith(root + os.sep):
