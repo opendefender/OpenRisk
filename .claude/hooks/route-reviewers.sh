@@ -22,6 +22,10 @@ set -uo pipefail
 export LC_ALL=C
 
 die() { echo "route-reviewers: $2" >&2; exit "$1"; }
+# load_diff uses a nameref; on an older bash it would fail silently and drop
+# every content rule (macOS /bin/bash is 3.2).
+(( BASH_VERSINFO[0] > 4 || (BASH_VERSINFO[0] == 4 && BASH_VERSINFO[1] >= 3) )) \
+  || die 2 "bash 4.3 or later is required"
 
 BASE="" LABELS="" HAVE_LABELS=0
 while [ $# -gt 0 ]; do
@@ -39,7 +43,8 @@ git rev-parse --verify --quiet --end-of-options "$BASE^{commit}" >/dev/null \
 # Paths from git diff are relative to the top level; so are the pathspecs.
 cd "$(git rev-parse --show-toplevel)" || die 2 "not inside a git work tree"
 G=(git -c core.fsmonitor=false --literal-pathspecs --no-pager)
-RANGE="$BASE...HEAD"
+# Pinned to SHAs so every git call below sees the same two commits.
+RANGE="$(git rev-parse "$BASE^{commit}")...$(git rev-parse HEAD)"
 # Fail closed: with no merge base (orphan branch, shallow clone) or a failing
 # git diff, an empty list would mean "no reviewer" (#1005 security review).
 "${G[@]}" merge-base "$BASE" HEAD >/dev/null 2>&1 \
@@ -53,10 +58,10 @@ load_diff() {
   _out=$(printf '%s\n' "$_out" | grep -E '^[+-]' | grep -vE '^(\+\+\+|---) ')
 }
 
-"${G[@]}" diff --name-only -z --no-renames "$RANGE" >/dev/null || die 2 "git diff failed on $RANGE"
 FILES=()
 while IFS= read -r -d '' f; do FILES+=("$f"); done \
   < <("${G[@]}" diff --name-only -z --no-renames "$RANGE")
+wait $! || die 2 "git diff failed on $RANGE"
 
 if [ "$HAVE_LABELS" -eq 0 ]; then
   branch=$(git symbolic-ref --short -q HEAD || true)
