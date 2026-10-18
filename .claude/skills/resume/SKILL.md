@@ -7,12 +7,12 @@ argument-hint: "[issue-number — optional, defaults to whatever is in progress]
 # Resume work
 
 Your context is empty. **Do not explore the repository.** State does not live in
-the conversation — it lives in GitHub and in `.claude/CHECKPOINT.md`. Read those.
+the conversation — it lives in GitHub and in `.claude/STATE.md`. Read those.
 
 ## 1. Where were we — exactly three commands
 
 ```
-cat .claude/CHECKPOINT.md 2>/dev/null | tail -30
+cat "$(git worktree list --porcelain | sed -n '1s/^worktree //p')/.claude/STATE.md" 2>/dev/null
 gh issue list --label status:in-progress --json number,title,labels,url
 git status --short && git branch --show-current
 ```

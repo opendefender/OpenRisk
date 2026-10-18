@@ -121,6 +121,8 @@ func newLifecycleHarness(t *testing.T) *lifecycleHarness {
 	})
 	api := app.Group("/api/v1")
 	api.Post("/risks", riskHandler.CreateRisk)
+	api.Get("/risks", riskHandler.GetRisks)
+	api.Post("/risks/:id/acceptance/renew", riskHandler.RenewAcceptance)
 	api.Get("/risks/:id", riskHandler.GetRisk)
 	api.Post("/risks/:id/transition", riskHandler.TransitionPhase)
 	api.Get("/risks/:id/transitions", riskHandler.ListTransitions)
@@ -168,31 +170,42 @@ func (a *e2eMitigationInspector) SnapshotForRisk(_ context.Context, tenantID, ri
 
 type e2eApprovalChecker struct{ db *gorm.DB }
 
-func (a *e2eApprovalChecker) HasApprovedAcceptance(_ context.Context, tenantID, riskID uuid.UUID) (bool, *uuid.UUID, error) {
+func (a *e2eApprovalChecker) AcceptanceApproval(_ context.Context, tenantID, riskID uuid.UUID, since *time.Time) (*domain.AcceptanceApproval, *uuid.UUID, error) {
 	type row struct {
-		ID     string
-		Status string
+		ID         string
+		Status     string
+		ResolvedAt *time.Time
+		UpdatedAt  time.Time
 	}
 	var rows []row
 	if err := a.db.Raw(
-		`SELECT id, status FROM approval_requests WHERE tenant_id = ? AND entity_type = 'risk_acceptance' AND entity_id = ?`,
+		`SELECT id, status, resolved_at, updated_at FROM approval_requests WHERE tenant_id = ? AND entity_type = 'risk_acceptance' AND entity_id = ?`,
 		tenantID, riskID.String()).Scan(&rows).Error; err != nil {
-		return false, nil, err
+		return nil, nil, err
 	}
 	var pending *uuid.UUID
 	for _, r := range rows {
+		id, err := uuid.Parse(r.ID)
+		if err != nil {
+			continue
+		}
 		switch domain.ApprovalStatus(r.Status) {
 		case domain.ApprovalApproved:
-			return true, nil, nil
+			at := r.UpdatedAt
+			if r.ResolvedAt != nil {
+				at = *r.ResolvedAt
+			}
+			if since != nil && !at.After(*since) {
+				continue
+			}
+			return &domain.AcceptanceApproval{RequestID: id, ApprovedAt: at}, nil, nil
 		case domain.ApprovalPending:
 			if pending == nil {
-				if id, err := uuid.Parse(r.ID); err == nil {
-					pending = &id
-				}
+				pending = &id
 			}
 		}
 	}
-	return false, pending, nil
+	return nil, pending, nil
 }
 
 func (h *lifecycleHarness) do(t *testing.T, method, path string, body interface{}) (int, map[string]interface{}) {
@@ -409,6 +422,29 @@ func TestRiskLifecycle_EndToEnd_WithResidualAcceptance(t *testing.T) {
 	state, status, _ = h.state(t)
 	require.Equal(t, "residual_accepted", state)
 	require.Equal(t, "accepted", status)
+
+	// #811 — the acceptance is dated: 12 months by default, with the
+	// governance request it rests on.
+	got := h.get(t)
+	expires, err := time.Parse(time.RFC3339, got["acceptance_expires_at"].(string))
+	require.NoError(t, err, "acceptance_expires_at must be set: %v", got)
+	require.WithinDuration(t, time.Now().AddDate(0, 12, 0), expires, time.Hour)
+	require.Equal(t, pendingID.String(), got["acceptance_approval_id"])
+
+	// Renewing on the same, already spent, approval is refused.
+	code, body = h.do(t, http.MethodPost, "/api/v1/risks/"+h.riskID+"/acceptance/renew",
+		map[string]interface{}{"acceptance_expires_at": time.Now().AddDate(0, 6, 0).Format("2006-01-02")})
+	require.Equal(t, http.StatusBadRequest, code, "a renewal needs a new approval: %v", body)
+
+	// The register filters acceptances ending within N days.
+	code, list := h.do(t, http.MethodGet, "/api/v1/risks?acceptance_expires_within=400", nil)
+	require.Equal(t, http.StatusOK, code)
+	require.EqualValues(t, 1, list["total"], "a 12-month acceptance ends within 400 days: %v", list)
+	code, list = h.do(t, http.MethodGet, "/api/v1/risks?acceptance_expires_within=30", nil)
+	require.Equal(t, http.StatusOK, code)
+	require.EqualValues(t, 0, list["total"], "it does not end within 30 days: %v", list)
+	code, _ = h.do(t, http.MethodGet, "/api/v1/risks?acceptance_expires_within=-1", nil)
+	require.Equal(t, http.StatusBadRequest, code)
 
 	// --- 8. Back into treatment, finish the work, then MITIGATED ----------
 	code, body = h.transition(t, "in_treatment")

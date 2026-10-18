@@ -144,6 +144,10 @@ type RiskQuery struct {
 	MinScore      *float64   // Score range (new system: 0.0-30.0)
 	MaxScore      *float64
 	TreatmentPlan []string // accept|mitigate|transfer|avoid
+	// AcceptanceExpiresBy keeps only risks whose residual-risk acceptance
+	// still stands and ends on or before this instant (#811). Already-lapsed
+	// acceptances that the sweep has not reached yet are included.
+	AcceptanceExpiresBy *time.Time
 
 	// Pagination
 	Page  int // 1-indexed, validated in Sanitize()

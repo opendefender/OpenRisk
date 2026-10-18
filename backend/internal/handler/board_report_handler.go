@@ -204,6 +204,19 @@ func (h *BoardReportHandler) toReportData(ctx context.Context, br *domain.BoardR
 		})
 	}
 
+	var acceptSnap []board.AcceptanceSnapshot
+	if len(br.AcceptancesSnapshot) > 0 {
+		_ = json.Unmarshal(br.AcceptancesSnapshot, &acceptSnap)
+	}
+	acceptances := make([]report.BoardAcceptanceRow, 0, len(acceptSnap))
+	for _, a := range acceptSnap {
+		row := report.BoardAcceptanceRow{Title: a.Title, ExpiresAt: a.ExpiresAt}
+		if id, err := uuid.Parse(a.ApprovedBy); err == nil {
+			row.ApprovedBy = h.resolveUser(ctx, id)
+		}
+		acceptances = append(acceptances, row)
+	}
+
 	data := report.BoardReportData{
 		Locale:                   report.Locale(br.Locale),
 		OrganizationName:         br.OrganizationName,
@@ -221,6 +234,7 @@ func (h *BoardReportHandler) toReportData(ctx context.Context, br *domain.BoardR
 		FinancialExposureLabel:   ai.FormatFCFA(br.FinancialExposureFCFA),
 		OverallCompliancePercent: br.OverallCompliancePercent,
 		Frameworks:               frameworks,
+		Acceptances:              acceptances,
 		ExecutiveSummary:         br.ExecutiveSummary,
 		RiskCommentary:           br.RiskCommentary,
 		ComplianceCommentary:     br.ComplianceCommentary,

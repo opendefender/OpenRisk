@@ -275,6 +275,21 @@ type Risk struct {
 	ResidualRisk    *float64      `gorm:"type:numeric(8,3)" json:"residual_risk"`                    // Score after treatments
 	LastMitigatedAt *time.Time    `json:"last_mitigated_at"`
 
+	// Residual-risk acceptance (#811). An acceptance is a dated decision, not a
+	// permanent state: entering RESIDUAL_ACCEPTED records the governance request
+	// that authorised it, the person who approved it and the date it lapses.
+	// The expiry worker reminds the owner and the approver at D-30 and D-7 (each
+	// stamped before sending) and, at the end date, moves the risk back to
+	// ASSESSED and stamps AcceptanceExpiredAt. The update endpoint cannot write
+	// any of these: only a transition or a renewal sets them.
+	AcceptedAt             *time.Time `gorm:"column:accepted_at" json:"accepted_at,omitempty"`
+	AcceptanceApprovalID   *uuid.UUID `gorm:"column:acceptance_approval_id;type:uuid" json:"acceptance_approval_id,omitempty"`
+	AcceptanceApprovedBy   *uuid.UUID `gorm:"column:acceptance_approved_by;type:uuid" json:"acceptance_approved_by,omitempty"`
+	AcceptanceExpiresAt    *time.Time `gorm:"column:acceptance_expires_at;index" json:"acceptance_expires_at,omitempty"`
+	AcceptanceReminder30At *time.Time `gorm:"column:acceptance_reminder30_at" json:"acceptance_reminder30_at,omitempty"`
+	AcceptanceReminder7At  *time.Time `gorm:"column:acceptance_reminder7_at" json:"acceptance_reminder7_at,omitempty"`
+	AcceptanceExpiredAt    *time.Time `gorm:"column:acceptance_expired_at;index" json:"acceptance_expired_at,omitempty"`
+
 	// Cyber Risk Quantification (CRQ) — monetary loss inputs (pkg/crq). Optional:
 	// when both are set, ALE = SLE × ARO; otherwise a reference value per
 	// criticality is used. Amounts are XAF (FCFA); USD is derived on read.

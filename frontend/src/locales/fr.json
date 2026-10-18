@@ -403,7 +403,8 @@
       "unknown": "Action requise",
       "vulnerability_sla": "Échéance de vulnérabilité",
       "vendor_followup": "Relance fournisseur",
-      "mitigation_review": "Mitigation à valider"
+      "mitigation_review": "Mitigation à valider",
+      "expired_acceptance": "Acceptation de risque expirée"
     },
     "summary": {
       "exact": {
@@ -438,7 +439,8 @@
       "expiring_evidence": "Preuve",
       "overdue_remediation": "Remédiation",
       "vulnerability_sla": "Vulnérabilité",
-      "vendor_followup": "Tiers"
+      "vendor_followup": "Tiers",
+      "expired_acceptance": "Risque"
     },
     "cta": {
       "overdue_mitigation": "Ouvrir",
@@ -450,7 +452,8 @@
       "overdue_remediation": "Ouvrir",
       "vulnerability_sla": "Ouvrir",
       "vendor_followup": "Relancer",
-      "unknown": "Ouvrir"
+      "unknown": "Ouvrir",
+      "expired_acceptance": "Réévaluer"
     },
     "fact": {
       "kev": "KEV",
@@ -464,7 +467,8 @@
       "unanswered": {
         "one": "sans réponse depuis {count} jour",
         "other": "sans réponse depuis {count} jours"
-      }
+      },
+      "acceptanceExpired": "acceptation expirée, à réévaluer"
     },
     "done": "Marquer comme fait",
     "doneToast": "Action terminée : {title}",

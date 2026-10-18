@@ -567,6 +567,44 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/risks/{id}/acceptance/renew": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Renew a residual-risk acceptance
+         * @description Extends an acceptance that still stands (#811). Requires a NEW approved governance request (entity_type risk_acceptance) decided after the current acceptance began; the approval behind the current acceptance does not count twice. The end date defaults to 12 months and cannot exceed the tenant maximum.
+         */
+        post: operations["renewRiskAcceptance"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/risk-acceptance/policy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Tenant policy for residual-risk acceptances */
+        get: operations["getRiskAcceptancePolicy"];
+        /** Set the tenant maximum for residual-risk acceptances (admin) */
+        put: operations["setRiskAcceptancePolicy"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/risk-scoring/weights": {
         parameters: {
             query?: never;
@@ -2086,7 +2124,7 @@ export interface components {
              */
             id: string;
             /** @enum {string} */
-            type: "overdue_mitigation" | "critical_risk" | "pending_approval" | "open_incident" | "expiring_evidence" | "overdue_remediation" | "vulnerability_sla" | "vendor_followup" | "mitigation_review";
+            type: "overdue_mitigation" | "critical_risk" | "pending_approval" | "open_incident" | "expiring_evidence" | "overdue_remediation" | "vulnerability_sla" | "vendor_followup" | "mitigation_review" | "expired_acceptance";
             /** @description The underlying record's own title, never a generated sentence. */
             title: string;
             /** @enum {string} */
@@ -2103,7 +2141,7 @@ export interface components {
              * @description Due date, expiry or approval deadline, depending on the type. Null when the category has no date.
              */
             due_at?: string | null;
-            /** @description 1 overdue_mitigation, 2 critical_risk, 3 pending_approval, 4 open_incident, 5 expiring_evidence, 6 overdue_remediation, 7 vulnerability_sla, 8 vendor_followup, 9 mitigation_review. This is the primary sort key, exposed so a client can group without re-deriving the rule. */
+            /** @description 1 overdue_mitigation, 2 critical_risk, 3 pending_approval, 4 open_incident, 5 expiring_evidence, 6 overdue_remediation, 7 vulnerability_sla, 8 vendor_followup, 9 mitigation_review, 10 expired_acceptance. This is the primary sort key, exposed so a client can group without re-deriving the rule. */
             category_rank: number;
             /** Format: uuid */
             tenant_id: string;
@@ -2486,6 +2524,36 @@ export interface components {
             created_at?: string;
             /** Format: date-time */
             updated_at?: string;
+            /**
+             * Format: date-time
+             * @description Start of the current (or last) residual-risk acceptance (#811).
+             */
+            accepted_at?: string | null;
+            /**
+             * Format: date-time
+             * @description End of the residual-risk acceptance. Set only by the transition to residual_accepted or by a renewal.
+             */
+            acceptance_expires_at?: string | null;
+            /**
+             * Format: uuid
+             * @description The approved governance request the acceptance rests on.
+             */
+            acceptance_approval_id?: string | null;
+            /**
+             * Format: uuid
+             * @description The approver who closed that request's circuit.
+             */
+            acceptance_approved_by?: string | null;
+            /**
+             * Format: date-time
+             * @description When the expiry worker moved the risk back to assessed (reason acceptance_expired).
+             */
+            acceptance_expired_at?: string | null;
+        };
+        RiskAcceptancePolicy: {
+            max_acceptance_months?: number;
+            default_months?: number;
+            ceiling_months?: number;
         };
         Mitigation: {
             /** Format: uuid */
@@ -4558,6 +4626,8 @@ export interface operations {
                 page?: number;
                 limit?: number;
                 sort_by?: string;
+                /** @description Keep only risks whose residual-risk acceptance still stands and ends within this many days (0 = already due). #811. */
+                acceptance_expires_within?: number;
             };
             header?: never;
             path?: never;
@@ -5446,6 +5516,109 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    renewRiskAcceptance: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": {
+                    /** @description A date (YYYY-MM-DD) or an RFC 3339 timestamp. */
+                    acceptance_expires_at?: string;
+                    comment?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description The risk with its new acceptance dates */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Risk"];
+                };
+            };
+            /** @description Not accepted, no new approval, or an end date outside the policy */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Risk not found in the caller's tenant */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    getRiskAcceptancePolicy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The tenant maximum, the default and the ceiling, in months */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RiskAcceptancePolicy"];
+                };
+            };
+        };
+    };
+    setRiskAcceptancePolicy: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    max_acceptance_months: number;
+                };
+            };
+        };
+        responses: {
+            /** @description The stored policy */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RiskAcceptancePolicy"];
+                };
+            };
+            /** @description Out of range */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
             };
         };
     };

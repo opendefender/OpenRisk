@@ -27,14 +27,21 @@ import (
 // TemplateAdvisor, so a board report is always producible — and records honestly,
 // in GeneratedByModel, which one actually wrote the prose.
 type GenerateBoardReportUseCase struct {
-	reports    domain.BoardReportRepository
-	risks      RiskPostureSource
-	comp       domain.ComplianceRepository
-	orgs       OrganizationLookup
-	advisor    ai.Advisor
-	exposure   ExposureModel
-	fallback   ai.Advisor
-	activation ActivationRecorder
+	reports     domain.BoardReportRepository
+	risks       RiskPostureSource
+	comp        domain.ComplianceRepository
+	orgs        OrganizationLookup
+	advisor     ai.Advisor
+	exposure    ExposureModel
+	fallback    ai.Advisor
+	activation  ActivationRecorder
+	acceptances AcceptanceSource
+}
+
+// WithAcceptances attaches the source of expiring acceptances (#811).
+func (uc *GenerateBoardReportUseCase) WithAcceptances(src AcceptanceSource) *GenerateBoardReportUseCase {
+	uc.acceptances = src
+	return uc
 }
 
 // ActivationRecorder notes the "generated a report" milestone. Narrow port,
@@ -128,6 +135,28 @@ func (uc *GenerateBoardReportUseCase) Execute(
 
 	snapshot, _ := json.Marshal(frameworks)
 
+	// --- Acceptances ending within the horizon (#811) ---
+	var acceptancesJSON datatypes.JSON
+	if uc.acceptances != nil {
+		rows, err := uc.acceptances.ListAcceptancesExpiring(ctx, tenantID, time.Now().UTC().Add(AcceptanceHorizon))
+		if err != nil {
+			return nil, fmt.Errorf("list expiring acceptances: %w", err)
+		}
+		list := make([]AcceptanceSnapshot, 0, len(rows))
+		for i := range rows {
+			r := &rows[i]
+			if r.AcceptanceExpiresAt == nil {
+				continue
+			}
+			row := AcceptanceSnapshot{RiskID: r.ID.String(), Title: r.Title, ExpiresAt: r.AcceptanceExpiresAt.UTC()}
+			if r.AcceptanceApprovedBy != nil {
+				row.ApprovedBy = r.AcceptanceApprovedBy.String()
+			}
+			list = append(list, row)
+		}
+		acceptancesJSON, _ = json.Marshal(list)
+	}
+
 	title := reportTitle(orgName, period, locale)
 
 	report := &domain.BoardReport{
@@ -145,6 +174,7 @@ func (uc *GenerateBoardReportUseCase) Execute(
 		FinancialExposureFCFA:    exposure,
 		OverallCompliancePercent: overallPct,
 		FrameworksSnapshot:       datatypes.JSON(snapshot),
+		AcceptancesSnapshot:      acceptancesJSON,
 		ExecutiveSummary:         narrative.ExecutiveSummary,
 		RiskCommentary:           narrative.RiskCommentary,
 		ComplianceCommentary:     narrative.ComplianceCommentary,

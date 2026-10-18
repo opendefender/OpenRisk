@@ -11,6 +11,7 @@ package board
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -22,6 +23,25 @@ import (
 // domain.RiskRepository port so existing mocks stay valid).
 type RiskPostureSource interface {
 	CountRisksByCriticality(ctx context.Context, tenantID uuid.UUID) (map[string]int, error)
+}
+
+// AcceptanceSource lists a tenant's residual-risk acceptances that end on or
+// before `by` (#811). Optional; *repository.GormRiskRepository satisfies it.
+type AcceptanceSource interface {
+	ListAcceptancesExpiring(ctx context.Context, tenantID uuid.UUID, by time.Time) ([]domain.Risk, error)
+}
+
+// AcceptanceHorizon is how far ahead the board report looks: a quarter, the
+// usual gap between two board meetings.
+const AcceptanceHorizon = 90 * 24 * time.Hour
+
+// AcceptanceSnapshot is one acceptance frozen into a report.
+type AcceptanceSnapshot struct {
+	RiskID    string    `json:"risk_id"`
+	Title     string    `json:"title"`
+	ExpiresAt time.Time `json:"expires_at"`
+	// ApprovedBy is the approver's user id, resolved to a name on render.
+	ApprovedBy string `json:"approved_by,omitempty"`
 }
 
 // OrganizationLookup resolves a tenant's display name for the cover page.
