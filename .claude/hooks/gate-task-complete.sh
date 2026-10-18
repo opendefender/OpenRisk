@@ -143,6 +143,7 @@ PREV=$(cat "$STATE" 2>/dev/null)
 [[ "$PREV" =~ ^[0-9]+$ ]] || PREV=0
 COUNT=$((PREV + 1))
 echo "$COUNT" > "$STATE"
+while IFS= read -r r; do [ -d "$r" ] && [ "$COUNT" -le 3 ] && state_write "$r" "$AGENT" "red (attempt $COUNT/3)"; done <<< "$ROOTS"
 if [ "$COUNT" -gt 3 ]; then
   rm -f "$STATE"
   while IFS= read -r r; do [ -d "$r" ] && state_write "$r" "$AGENT" "GATE RED"; done <<< "$ROOTS"
