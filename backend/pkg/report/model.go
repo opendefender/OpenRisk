@@ -105,6 +105,9 @@ type BoardReportData struct {
 	FinancialExposureLabel   string // pre-formatted, e.g. "175 000 000 FCFA"
 	OverallCompliancePercent float64
 	Frameworks               []BoardFrameworkRow
+	// Acceptances are the residual-risk acceptances ending within the
+	// horizon, soonest first (#811).
+	Acceptances []BoardAcceptanceRow
 
 	// Narrative (already reviewed by a human)
 	ExecutiveSummary     string
@@ -112,6 +115,13 @@ type BoardReportData struct {
 	ComplianceCommentary string
 	FinancialCommentary  string
 	Recommendations      []string
+}
+
+// BoardAcceptanceRow is one line of the expiring-acceptances table.
+type BoardAcceptanceRow struct {
+	Title      string
+	ExpiresAt  time.Time
+	ApprovedBy string
 }
 
 // BoardFrameworkRow is one line of the compliance-by-framework table.

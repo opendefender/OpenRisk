@@ -23,6 +23,7 @@ const KINDS: Record<DashboardVariant, ActionItemType[] | null> = {
     'mitigation_review',
     'pending_approval',
     'vendor_followup',
+    'expired_acceptance',
   ],
   audit: ['expiring_evidence', 'overdue_remediation', 'pending_approval'],
   exec: ['pending_approval', 'critical_risk'],

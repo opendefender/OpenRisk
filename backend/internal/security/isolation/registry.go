@@ -177,6 +177,8 @@ var decisions = []Decision{
 		"handler/risk_isolation_test TestRiskIsolation_CrossTenantAccessIsRefused/transition_phase"},
 	{"/api/v1/risks/{id}/review", Covered,
 		"handler/risk_isolation_test TestRiskIsolation_CrossTenantAccessIsRefused/mark_reviewed"},
+	{"/api/v1/risks/{id}/acceptance/renew", Covered,
+		"application/risk acceptance_test TestRenewAcceptance_Unauthorized: another tenant's risk id reads back as not-found through the same GetByID(tenant) path and is never written (#811)"},
 	{"/api/v1/risks/{id}/transitions", Covered,
 		"application/risk transition_state_test TestAvailableTransitions_NotFound: an id outside the tenant reads back as not-found through the same GetByID(tenant) path"},
 	// The controlled category vocabulary. Both write routes go through
@@ -622,6 +624,8 @@ var decisions = []Decision{
 	// --- Remaining single routes (7) --------------------------------------
 	{"/api/v1/export/pdf", Covered,
 		"handler/stats_collection_isolation_test TestStatsCollections_NeverCrossTenants/export_pdf inflates the generated document's content streams and asserts no other tenant's risk title was rendered into it — the assertion is on the artifact the user receives, because that is where this leak would be real"},
+	{"/api/v1/risk-acceptance/policy", Covered,
+		"repository/gorm_risk_acceptance_repository_test TestMaxAcceptanceMonths_IsTenantScoped: the maximum lives in the caller's own organization row (id = tenant from the token); setting tenant A leaves tenant B on the default. application/risk TestAcceptancePolicy_Unauthorized refuses an unresolved tenant (#811)"},
 	{"/api/v1/bulk-operations", Covered,
 		"service/bulk_operation_isolation_test TestBulkOperation_ListIsTenantScoped"},
 	{"/api/v1/security/mfa-policy", Covered,

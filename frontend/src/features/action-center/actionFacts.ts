@@ -36,6 +36,9 @@ export function actionFacts(item: ActionItem, t: T, now = new Date()): string {
     case 'critical_risk':
       parts.push(t('actionCenter.fact.noPlan'));
       break;
+    case 'expired_acceptance':
+      parts.push(t('actionCenter.fact.acceptanceExpired'));
+      break;
     case 'open_incident': {
       const code = PRIORITY_CODE[meta.severity as IncidentSeverity];
       if (code) parts.push(code);

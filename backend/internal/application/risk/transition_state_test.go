@@ -8,6 +8,7 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/opendefender/openrisk/internal/domain"
@@ -32,8 +33,11 @@ type fakeApprovals struct {
 	err      error
 }
 
-func (f *fakeApprovals) HasApprovedAcceptance(context.Context, uuid.UUID, uuid.UUID) (bool, *uuid.UUID, error) {
-	return f.approved, f.pending, f.err
+func (f *fakeApprovals) AcceptanceApproval(context.Context, uuid.UUID, uuid.UUID, *time.Time) (*domain.AcceptanceApproval, *uuid.UUID, error) {
+	if f.err != nil || !f.approved {
+		return nil, f.pending, f.err
+	}
+	return &domain.AcceptanceApproval{RequestID: uuid.New()}, nil, nil
 }
 
 // stateRepo is a minimal in-memory RiskRepository for the FSM tests. It is

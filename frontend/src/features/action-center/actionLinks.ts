@@ -109,6 +109,11 @@ export const ACTION_TYPE_PRESENTATION: Record<ActionItemType, ActionTypePresenta
     labelKey: 'mitigation_review',
     tone: 'text-warning-text',
   },
+  expired_acceptance: {
+    icon: AlertTriangle,
+    labelKey: 'expired_acceptance',
+    tone: 'text-warning-text',
+  },
 };
 
 /** The fallback for a category this build has never heard of. */

@@ -155,6 +155,13 @@ func (r *GormRiskRepository) List(ctx context.Context, tenantID uuid.UUID, query
 		db = db.Where("lifecycle_state IN ?", query.LifecycleState)
 	}
 
+	// #811 — acceptances ending within a window, for the register and the
+	// board report.
+	if query.AcceptanceExpiresBy != nil {
+		db = db.Where("lifecycle_state = ? AND acceptance_expires_at IS NOT NULL AND acceptance_expires_at <= ?",
+			domain.StateResidualAccepted, *query.AcceptanceExpiresBy)
+	}
+
 	// Framework filter (single framework)
 	if query.Framework != "" {
 		db = db.Where("? = ANY(frameworks)", query.Framework)
@@ -313,6 +320,21 @@ func (r *GormRiskRepository) Count(ctx context.Context, tenantID uuid.UUID) (int
 //
 // This backs the board report's risk posture; it is a concrete-type method (not on
 // the domain.RiskRepository port) so existing mocks of that interface stay valid.
+// ListAcceptancesExpiring returns the tenant's accepted risks whose acceptance
+// ends on or before `by`, soonest first (#811, board report). Concrete method,
+// off the RiskRepository port, like CountRisksByCriticality.
+func (r *GormRiskRepository) ListAcceptancesExpiring(ctx context.Context, tenantID uuid.UUID, by time.Time) ([]domain.Risk, error) {
+	var rows []domain.Risk
+	err := r.db.WithContext(ctx).
+		Where("tenant_id = ?", tenantID).
+		Where("lifecycle_state = ?", domain.StateResidualAccepted).
+		Where("acceptance_expires_at IS NOT NULL AND acceptance_expires_at <= ?", by).
+		Order("acceptance_expires_at ASC").
+		Limit(200).
+		Find(&rows).Error
+	return rows, err
+}
+
 func (r *GormRiskRepository) CountRisksByCriticality(ctx context.Context, tenantID uuid.UUID) (map[string]int, error) {
 	type row struct {
 		Criticality string
