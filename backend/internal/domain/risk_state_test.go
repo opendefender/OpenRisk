@@ -16,7 +16,8 @@ var specifiedEdges = map[RiskState][]RiskState{
 	StateAssessed:         {StateTreatmentPlanned, StateClosed},
 	StateTreatmentPlanned: {StateInTreatment, StateAssessed, StateClosed},
 	StateInTreatment:      {StateMitigated, StateResidualAccepted, StateTreatmentPlanned},
-	StateResidualAccepted: {StateClosed, StateInTreatment},
+	// #811: an expired acceptance goes back to ASSESSED for re-assessment.
+	StateResidualAccepted: {StateClosed, StateInTreatment, StateAssessed},
 	StateMitigated:        {StateClosed, StateInTreatment},
 	StateClosed:           {StateReopened},
 	StateReopened:         {StateAssessed, StateTreatmentPlanned, StateInTreatment, StateClosed},

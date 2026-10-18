@@ -50,10 +50,21 @@ type MitigationInspector interface {
 // governance approval authorising the acceptance of this risk's residual risk?
 // Optional port.
 type ApprovalChecker interface {
-	// HasApprovedAcceptance reports whether an approval request for this risk
-	// (entity_type "risk_acceptance") has been approved, plus the id of the
-	// pending one if any, so the UI can link straight to it.
-	HasApprovedAcceptance(ctx context.Context, tenantID, riskID uuid.UUID) (approved bool, pendingRequestID *uuid.UUID, err error)
+	// AcceptanceApproval returns the most recent approved request for this risk
+	// (entity_type "risk_acceptance") decided after `since`, or nil when there
+	// is none, plus the id of a pending one if any, so the UI can link straight
+	// to it.
+	//
+	// `since` is the start of the risk's previous acceptance (#811). An approval
+	// decided before it has already been spent on that acceptance; accepting or
+	// renewing again needs a new decision, never a re-used one.
+	AcceptanceApproval(ctx context.Context, tenantID, riskID uuid.UUID, since *time.Time) (approved *domain.AcceptanceApproval, pendingRequestID *uuid.UUID, err error)
+}
+
+// AcceptancePolicy answers the tenant's maximum acceptance length, in months.
+// Optional port: unwired, the default of 12 months is also the maximum.
+type AcceptancePolicy interface {
+	MaxAcceptanceMonths(ctx context.Context, tenantID uuid.UUID) (int, error)
 }
 
 // TransitionRiskStateInput is the payload of POST /risks/:id/transition.
@@ -62,6 +73,10 @@ type TransitionRiskStateInput struct {
 	Comment string
 	Actor   uuid.UUID
 	Locale  string
+	// AcceptanceExpiresAt is the end of a residual-risk acceptance. Read only
+	// when To is RESIDUAL_ACCEPTED; nil means the default (12 months, capped
+	// by the tenant maximum).
+	AcceptanceExpiresAt *time.Time
 }
 
 // TransitionRiskStateUseCase moves a risk through the single canonical
@@ -74,13 +89,9 @@ type TransitionRiskStateUseCase struct {
 	riskRepo    domain.RiskRepository
 	mitigations MitigationInspector
 	approvals   ApprovalChecker
-	notices     NoticeDeliverer
-}
-
-// NoticeDeliverer tells one member about an event, in-app and by e-mail
-// (application/notification.Dispatcher). Optional port.
-type NoticeDeliverer interface {
-	Deliver(ctx context.Context, n domain.Notice) error
+	policy      AcceptancePolicy
+	journal     AuditJournal
+	now         func() time.Time
 }
 
 func NewTransitionRiskStateUseCase(riskRepo domain.RiskRepository) *TransitionRiskStateUseCase {
@@ -99,11 +110,30 @@ func (uc *TransitionRiskStateUseCase) WithApprovals(a ApprovalChecker) *Transiti
 	return uc
 }
 
-// WithNotices tells the risk's owner when someone else moves it through the
-// lifecycle (#757). Nil-safe.
-func (uc *TransitionRiskStateUseCase) WithNotices(n NoticeDeliverer) *TransitionRiskStateUseCase {
-	uc.notices = n
+// WithAcceptancePolicy attaches the tenant maximum for acceptances. Nil-safe.
+func (uc *TransitionRiskStateUseCase) WithAcceptancePolicy(p AcceptancePolicy) *TransitionRiskStateUseCase {
+	uc.policy = p
 	return uc
+}
+
+// WithJournal attaches the hash-chained audit trail. An acceptance and its
+// renewal are recorded there with approver, date and expiry (#811).
+func (uc *TransitionRiskStateUseCase) WithJournal(j AuditJournal) *TransitionRiskStateUseCase {
+	uc.journal = j
+	return uc
+}
+
+// WithClock pins the clock (tests).
+func (uc *TransitionRiskStateUseCase) WithClock(now func() time.Time) *TransitionRiskStateUseCase {
+	uc.now = now
+	return uc
+}
+
+func (uc *TransitionRiskStateUseCase) clock() time.Time {
+	if uc.now != nil {
+		return uc.now().UTC()
+	}
+	return time.Now().UTC()
 }
 
 // AvailableTransitions answers GET /risks/:id/transitions: every reachable
@@ -223,181 +253,118 @@ func (uc *TransitionRiskStateUseCase) Execute(ctx context.Context, tenantID, ris
 		return nil, domain.NewValidationError(reason)
 	}
 
+	now := uc.clock()
+	before := r.AcceptanceSnapshot()
+	if target == domain.StateResidualAccepted {
+		// The guard above proved an unspent approval exists; read it again to
+		// record who gave it and when. Both reads are tenant-scoped.
+		approval, _, err := uc.approvals.AcceptanceApproval(ctx, tenantID, r.ID, r.AcceptedAt)
+		if err != nil {
+			return nil, err
+		}
+		if approval == nil {
+			return nil, domain.NewValidationError("no unspent governance approval for this acceptance")
+		}
+		expiresAt, err := uc.resolveExpiry(ctx, tenantID, now, in.AcceptanceExpiresAt)
+		if err != nil {
+			return nil, err
+		}
+		r.BeginAcceptance(now, expiresAt, *approval)
+	}
+
+	// Leaving ASSESSED after an expiry means someone has picked the risk up
+	// again; the Action Center item that asked for it goes away.
+	if current == domain.StateAssessed && target != domain.StateResidualAccepted {
+		r.AcceptanceExpiredAt = nil
+	}
+
 	r.SetState(target)
 	if target == domain.StateMitigated || target == domain.StateResidualAccepted {
-		now := time.Now()
 		r.LastMitigatedAt = &now
 	}
-	r.UpdatedAt = time.Now()
+	r.UpdatedAt = now
 
 	if err := uc.riskRepo.Update(ctx, r); err != nil {
 		return nil, domain.NewInternalError(fmt.Sprintf("failed to transition risk: %v", err))
 	}
 
 	// Audit trail (best-effort — the risk is already updated).
+	newValue := map[string]interface{}{
+		"lifecycle_state": target,
+		"status":          r.Status,
+		"lifecycle_phase": r.LifecyclePhase,
+		"comment":         in.Comment,
+	}
+	if target == domain.StateResidualAccepted {
+		for k, v := range r.AcceptanceSnapshot() {
+			newValue[k] = v
+		}
+	}
 	entry := &domain.AuditLogEntry{
 		ID:        uuid.New(),
 		RiskID:    riskID,
-		Timestamp: time.Now(),
+		Timestamp: now,
 		ChangedBy: in.Actor,
 		Action:    "lifecycle_transition",
 		OldValue:  map[string]interface{}{"lifecycle_state": current},
-		NewValue: map[string]interface{}{
-			"lifecycle_state": target,
-			"status":          r.Status,
-			"lifecycle_phase": r.LifecyclePhase,
-			"comment":         in.Comment,
-		},
+		NewValue:  newValue,
 	}
 	if err := uc.riskRepo.CreateAuditEntry(ctx, entry); err != nil {
 		fmt.Printf("Warning: failed to audit lifecycle transition on risk %s: %v\n", riskID, err)
+	}
+	if target == domain.StateResidualAccepted {
+		uc.journalAcceptance(ctx, tenantID, r, in.Actor, "residual risk accepted", before, in.Comment)
 	}
 
 	uc.notifyOwner(ctx, tenantID, r, current, target, in.Actor)
 	return r, nil
 }
 
-// notifyOwner tells the risk's owner that it changed state — best-effort, the
-// transition is already committed.
-func (uc *TransitionRiskStateUseCase) notifyOwner(ctx context.Context, tenantID uuid.UUID, r *domain.Risk, from, to domain.RiskState, actor uuid.UUID) {
-	notifyRiskStateChange(ctx, uc.notices, tenantID, riskStateChangeOf(r, from, to), actor)
-}
-
-// riskStateChange is what a state-change notice needs to know about one risk,
-// captured at the moment of the change.
-type riskStateChange struct {
-	RiskID  uuid.UUID
-	OwnerID *uuid.UUID
-	Title   string
-	From    domain.RiskState
-	To      domain.RiskState
-}
-
-func riskStateChangeOf(r *domain.Risk, from, to domain.RiskState) riskStateChange {
-	title := r.Title
-	if title == "" {
-		title = r.Name
-	}
-	var owner *uuid.UUID
-	if r.OwnerID != nil {
-		id := *r.OwnerID
-		owner = &id
-	}
-	return riskStateChange{RiskID: r.ID, OwnerID: owner, Title: title, From: from, To: to}
-}
-
-// notifyRiskStateChange is shared by every path that moves a risk's state
-// (lifecycle transition, bulk status change). Nobody is told about their own
-// move, and a move that changes nothing is not news.
-//
-// The owner hears about every change (owner decision, #757). A risk reaching an
-// end state (mitigated, residual accepted, closed) is a "risk resolved" notice
-// and follows that e-mail switch, on by default. Every other move is a
-// "risk state changed" notice, which only the global pause silences — the
-// "a risk I follow is updated" switch is about following, not owning.
-func notifyRiskStateChange(ctx context.Context, notices NoticeDeliverer, tenantID uuid.UUID, ch riskStateChange, actor uuid.UUID) {
-	if notices == nil || ch.OwnerID == nil || *ch.OwnerID == uuid.Nil || *ch.OwnerID == actor || ch.From == ch.To {
-		return
-	}
-	notifType := domain.NotificationTypeRiskStateChanged
-	switch ch.To {
-	case domain.StateMitigated, domain.StateResidualAccepted, domain.StateClosed:
-		notifType = domain.NotificationTypeRiskResolved
-	}
-	id := ch.RiskID
-	_ = notices.Deliver(ctx, domain.Notice{
-		TenantID:     tenantID,
-		UserID:       *ch.OwnerID,
-		Type:         notifType,
-		ResourceID:   &id,
-		ResourceType: "risk",
-		Compose: func(locale string) domain.NoticeMessage {
-			return riskStateNoticeCopy(locale, ch.Title, ch.From, ch.To)
-		},
-	})
-}
-
-// notifyRiskStatusChange is the status-column counterpart of
-// notifyRiskStateChange, for the one endpoint that writes the status without
-// moving the lifecycle state (PATCH /risks/:id). A new status that ends the
-// risk follows the "risk resolved" switch; any other change is a
-// risk_state_changed notice.
-func notifyRiskStatusChange(ctx context.Context, notices NoticeDeliverer, tenantID uuid.UUID, r *domain.Risk, from, to domain.RiskStatus, actor uuid.UUID) {
-	if notices == nil || r == nil || r.OwnerID == nil || *r.OwnerID == uuid.Nil || *r.OwnerID == actor || from == to {
-		return
-	}
-	notifType := domain.NotificationTypeRiskStateChanged
-	switch to {
-	case domain.RiskMitigated, domain.RiskAccepted, domain.RiskClosed,
-		domain.StatusMitigated, domain.StatusAccepted:
-		notifType = domain.NotificationTypeRiskResolved
-	}
-	title := r.Title
-	if title == "" {
-		title = r.Name
-	}
-	id := r.ID
-	_ = notices.Deliver(ctx, domain.Notice{
-		TenantID:     tenantID,
-		UserID:       *r.OwnerID,
-		Type:         notifType,
-		ResourceID:   &id,
-		ResourceType: "risk",
-		Compose: func(locale string) domain.NoticeMessage {
-			if locale == "en" {
-				return domain.NoticeMessage{
-					Subject: fmt.Sprintf("Risk “%s”: %s", title, riskStatusLabel(to, "en")),
-					Lines: []string{fmt.Sprintf("The status of “%s”, a risk you own, changed from %s to %s.",
-						title, riskStatusLabel(from, "en"), riskStatusLabel(to, "en"))},
-				}
-			}
-			return domain.NoticeMessage{
-				Subject: fmt.Sprintf("Risque « %s » : %s", title, riskStatusLabel(to, "fr")),
-				Lines: []string{fmt.Sprintf("Le statut de « %s », un risque dont vous êtes responsable, est passé de « %s » à « %s ».",
-					title, riskStatusLabel(from, "fr"), riskStatusLabel(to, "fr"))},
-			}
-		},
-	})
-}
-
-// riskStatusLabel uses the register's own words for a status, so the e-mail
-// and the dropdown the change was made in say the same thing.
-func riskStatusLabel(s domain.RiskStatus, locale string) string {
-	labels := map[domain.RiskStatus][2]string{
-		domain.RiskOpen:        {"Ouvert", "Open"},
-		domain.RiskInProgress:  {"En cours", "In progress"},
-		domain.RiskMitigated:   {"Atténué", "Mitigated"},
-		domain.RiskAccepted:    {"Accepté", "Accepted"},
-		domain.RiskClosed:      {"Clôturé", "Closed"},
-		domain.StatusDraft:     {"Brouillon", "Draft"},
-		domain.StatusActive:    {"Actif", "Active"},
-		domain.StatusMitigated: {"Atténué", "Mitigated"},
-		domain.StatusAccepted:  {"Accepté", "Accepted"},
-	}
-	pair, ok := labels[s]
-	if !ok {
-		return string(s)
-	}
-	if locale == "en" {
-		return pair[1]
-	}
-	return pair[0]
-}
-
-func riskStateNoticeCopy(locale, title string, from, to domain.RiskState) domain.NoticeMessage {
-	if locale == "en" {
-		return domain.NoticeMessage{
-			Subject: fmt.Sprintf("Risk “%s”: %s", title, to.Label("en")),
-			Lines: []string{fmt.Sprintf("“%s”, a risk you own, moved from %s to %s.",
-				title, from.Label("en"), to.Label("en"))},
+// resolveExpiry applies the tenant maximum to the requested end date.
+func (uc *TransitionRiskStateUseCase) resolveExpiry(ctx context.Context, tenantID uuid.UUID, now time.Time, requested *time.Time) (time.Time, error) {
+	maxMonths := domain.DefaultAcceptanceMonths
+	if uc.policy != nil {
+		m, err := uc.policy.MaxAcceptanceMonths(ctx, tenantID)
+		if err != nil {
+			return time.Time{}, err
 		}
+		maxMonths = m
 	}
-	return domain.NoticeMessage{
-		Subject: fmt.Sprintf("Risque « %s » : %s", title, to.Label("fr")),
-		// "de l'état « … »" rather than "de …": half the labels start with a
-		// vowel (Identifié, Évalué, En traitement) and would need elision.
-		Lines: []string{fmt.Sprintf("« %s », un risque dont vous êtes responsable, est passé de l’état « %s » à l’état « %s ».",
-			title, from.Label("fr"), to.Label("fr"))},
+	return domain.ResolveAcceptanceExpiry(now, requested, maxMonths)
+}
+
+// journalAcceptance writes the acceptance to the hash-chained trail: the
+// approver, the request, the date and the expiry, so an auditor reading the
+// trail can tell whether the acceptance still stands without opening the risk.
+func (uc *TransitionRiskStateUseCase) journalAcceptance(ctx context.Context, tenantID uuid.UUID, r *domain.Risk, actor uuid.UUID, summary string, before map[string]interface{}, comment string) {
+	if uc.journal == nil {
+		return
+	}
+	var actorID *uuid.UUID
+	if actor != uuid.Nil {
+		a := actor
+		actorID = &a
+	}
+	after := r.AcceptanceSnapshot()
+	if comment != "" {
+		after["comment"] = comment
+	}
+	ev := &domain.AuditEvent{
+		ID:            uuid.New(),
+		TenantID:      tenantID,
+		ActorID:       actorID,
+		ActorType:     domain.AuditActorUser,
+		Action:        domain.AuditActionUpdate,
+		EntityType:    "risk",
+		EntityID:      r.ID.String(),
+		Summary:       summary,
+		Before:        domain.JSONMap(before),
+		After:         domain.JSONMap(after),
+		ChangedFields: domain.StringList{"lifecycle_state", "accepted_at", "acceptance_expires_at", "acceptance_approval_id", "acceptance_approved_by"},
+		Source:        domain.AuditSourceExplicit,
+	}
+	if err := uc.journal.Append(ctx, ev); err != nil {
+		fmt.Printf("Warning: failed to journal acceptance on risk %s: %v\n", r.ID, err)
 	}
 }
 
@@ -450,16 +417,25 @@ func (uc *TransitionRiskStateUseCase) evaluate(ctx context.Context, tenantID uui
 			if uc.approvals == nil {
 				return guard, unverifiable(en, "approvals"), nil
 			}
-			approved, pending, err := uc.approvals.HasApprovedAcceptance(ctx, tenantID, r.ID)
+			approval, pending, err := uc.approvals.AcceptanceApproval(ctx, tenantID, r.ID, r.AcceptedAt)
 			if err != nil {
 				return "", "", err
 			}
+			approved := approval != nil
 			if !approved {
 				if pending != nil {
 					if en {
 						return guard, fmt.Sprintf("Approval request %s is still pending. Residual risk can only be accepted once Governance has validated it.", shortID(*pending)), nil
 					}
 					return guard, fmt.Sprintf("La demande d'approbation %s est encore en attente. Le risque résiduel ne peut être accepté qu'une fois validé par la Gouvernance.", shortID(*pending)), nil
+				}
+				if r.AcceptedAt != nil {
+					// An approval that was already spent on a previous acceptance
+					// does not count again (#811).
+					if en {
+						return guard, "The previous approval was used for the earlier acceptance. Accepting again requires a new validated Governance approval.", nil
+					}
+					return guard, "L'approbation précédente a servi à l'acceptation antérieure. Accepter à nouveau exige une nouvelle approbation Gouvernance validée.", nil
 				}
 				if en {
 					return guard, "Accepting residual risk requires a validated Governance approval. Submit one first.", nil

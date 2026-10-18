@@ -133,10 +133,11 @@ first, then `gh api -X POST repos/opendefender/OpenRisk/pulls -f title=… -f he
 3. `gh issue edit <n> --add-label status:in-progress --remove-label status:ready`
 4. Work on the issue's branch, in a worktree of your own.
 5. Before the PR, the reviewers in the `/work` table read the full diff
-   (tech-lead `REVIEW: PASS` on any code; devsecops `SECURITY: PASS` for
+   (code-reviewer `REVIEW: PASS` on any code; devsecops `SECURITY: PASS` for
    backend, infra, security or auth/tenant/upload changes). If the diff
    changes after a PASS, including a fix to turn CI green, it is reviewed
-   again. Two blocked rounds go to `docs/DECISIONS.md`.
+   again. Two blocked rounds go to tech-lead for arbitration, then to
+   `docs/DECISIONS.md` if it cannot settle them.
 6. **Post progress as an issue comment before you finish** — see the report
    format below. This comment is what lets a fresh session resume your work
    with zero re-reading. It is not optional.
@@ -151,7 +152,7 @@ first, then `gh api -X POST repos/opendefender/OpenRisk/pulls -f title=… -f he
 ### <agent-name> — <date>
 **Done** — what changed, with file paths.
 **Verified** — the exact commands run and their result.
-**Review** — tech-lead PASS/BLOCK · devsecops PASS/FAIL/not needed (why).
+**Review** — code-reviewer PASS/BLOCK · devsecops PASS/FAIL/not needed (why).
 **Criteria** — 1 ✅ · 2 ✅ · 3 ❌ (reason)
 **Next** — the precise next action for whoever picks this up.
 **Blocked on** — nothing | @owner decision | issue #N
