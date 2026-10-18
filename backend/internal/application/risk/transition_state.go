@@ -316,6 +316,7 @@ func (uc *TransitionRiskStateUseCase) Execute(ctx context.Context, tenantID, ris
 		uc.journalAcceptance(ctx, tenantID, r, in.Actor, "residual risk accepted", before, in.Comment)
 	}
 
+	uc.notifyOwner(ctx, tenantID, r, current, target, in.Actor)
 	return r, nil
 }
 

@@ -6,6 +6,7 @@
 package handler
 
 import (
+	"github.com/opendefender/openrisk/internal/application/mitigation"
 	"github.com/opendefender/openrisk/internal/application/ownership"
 )
 
@@ -28,3 +29,13 @@ func SetOwnershipService(s *ownership.Service) { ownershipService = s }
 
 // OwnershipServiceInstance returns the injected service (possibly nil).
 func OwnershipServiceInstance() *ownership.Service { return ownershipService }
+
+// Package-level notice dispatcher for the same legacy handlers (#757). The
+// mitigation validation tells the plan's assignee it was approved through it.
+//
+// nil is valid: the use case then tells nobody, which is the state before
+// notifications were wired — never a crash.
+var noticeDeliverer mitigation.NoticeDeliverer
+
+// SetNoticeDeliverer injects the dispatcher from main.go. Call once at boot.
+func SetNoticeDeliverer(d mitigation.NoticeDeliverer) { noticeDeliverer = d }

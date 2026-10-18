@@ -16,7 +16,7 @@ import (
 )
 
 // GormMitigationDueRepository is a focused, cross-tenant view of mitigation
-// plans used by the D-7 / D-1 deadline sweep.
+// plans used by the D-7 / D-1 / overdue deadline sweep.
 //
 // Cross-tenant on purpose and by necessity: a scheduled job has no session. It
 // is deliberately NOT part of repository.MitigationRepository (which is
@@ -46,7 +46,7 @@ func (r *GormMitigationDueRepository) ListDueForReminder(ctx context.Context, no
 		Where("deleted_at IS NULL").
 		// At least one nudge still unsent. Without this the sweep would re-read
 		// every overdue plan for ever.
-		Where("reminder_d7_sent_at IS NULL OR reminder_d1_sent_at IS NULL").
+		Where("reminder_d7_sent_at IS NULL OR reminder_d1_sent_at IS NULL OR reminder_overdue_sent_at IS NULL").
 		Order("due_date ASC").
 		Limit(500).
 		Find(&rows).Error
@@ -54,11 +54,16 @@ func (r *GormMitigationDueRepository) ListDueForReminder(ctx context.Context, no
 }
 
 // MarkReminderSent stamps the reminder that was just sent. Reaching D-1 also
-// closes D-7 (see domain.Mitigation.MarkReminderSent): sending the earlier,
-// less urgent nudge afterwards would be noise.
-func (r *GormMitigationDueRepository) MarkReminderSent(ctx context.Context, id uuid.UUID, offset int, at time.Time) error {
+// closes D-7, and the overdue nudge closes both (see
+// domain.Mitigation.MarkReminderSent): sending the earlier, less urgent nudge
+// afterwards would be noise.
+func (r *GormMitigationDueRepository) MarkReminderSent(ctx context.Context, tenantID, id uuid.UUID, offset int, at time.Time) error {
 	updates := map[string]interface{}{}
 	switch offset {
+	case domain.DueReminderOverdue:
+		updates["reminder_overdue_sent_at"] = at
+		updates["reminder_d1_sent_at"] = gorm.Expr("COALESCE(reminder_d1_sent_at, ?)", at)
+		updates["reminder_d7_sent_at"] = gorm.Expr("COALESCE(reminder_d7_sent_at, ?)", at)
 	case 1:
 		updates["reminder_d1_sent_at"] = at
 		updates["reminder_d7_sent_at"] = gorm.Expr("COALESCE(reminder_d7_sent_at, ?)", at)
@@ -69,6 +74,6 @@ func (r *GormMitigationDueRepository) MarkReminderSent(ctx context.Context, id u
 	}
 	return r.db.WithContext(ctx).
 		Model(&domain.Mitigation{}).
-		Where("id = ?", id).
+		Where("id = ? AND tenant_id = ?", id, tenantID).
 		Updates(updates).Error
 }

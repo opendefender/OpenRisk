@@ -39,12 +39,12 @@ When `frontend/package-lock.json` matches the main checkout, symlink its
 
 | Label | Implementation, in order | Review, always |
 |---|---|---|
-| `area:backend` | tech-lead (design, if structural) → backend-go → qa-automation | tech-lead + devsecops |
-| `area:frontend` | ux-designer (if no spec) → frontend-react → qa-automation | tech-lead |
-| `area:infra` | devops-sre → cloud-sysadmin | tech-lead + devsecops |
-| `area:design` | art-director → ux-designer → motion-designer | art-director, then tech-lead if code changed |
+| `area:backend` | tech-lead (design, if structural) → backend-go → qa-automation | code-reviewer + devsecops |
+| `area:frontend` | ux-designer (if no spec) → frontend-react → qa-automation | code-reviewer |
+| `area:infra` | devops-sre → cloud-sysadmin | code-reviewer + devsecops |
+| `area:design` | art-director → ux-designer → motion-designer | art-director, then code-reviewer if code changed |
 | `area:marketing` | brand-strategist → copywriter | product-verifier |
-| `type:security` | devsecops (finding) → owning agent → qa-automation | tech-lead + devsecops |
+| `type:security` | devsecops (finding) → owning agent → qa-automation | code-reviewer + devsecops |
 
 Add devsecops to the review of any change that touches auth, sessions, tenant
 data, uploads, outbound requests or secrets, whatever its label.
@@ -61,9 +61,9 @@ which. **Never skip the review.**
    verbatim. It fixes them, then the same reviewer reads the new diff.
 3. A PASS covers the diff it read. Any later change, a CI fix included, goes
    back to the same reviewer before the PR is handed over.
-4. After two blocked rounds, stop. Append the disagreement to
-   `docs/DECISIONS.md` with both positions and the reviewer's findings, and
-   report it. Do not open the PR over a block.
+4. After two blocked rounds, `tech-lead` arbitrates. What it cannot settle
+   goes to `docs/DECISIONS.md` with both positions and the reviewer's
+   findings, and is reported. Do not open the PR over a block.
 
 ### Live check (frontend and any user-visible change)
 

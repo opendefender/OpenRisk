@@ -990,7 +990,10 @@ function NotifTab({ tr }: { tr: Tr }) {
             [
               'email_on_mitigation_deadline',
               tr('Une échéance de mitigation approche', 'A mitigation deadline approaches'),
-              tr('Rappels à J-7 et J-1.', 'Reminders at D-7 and D-1.'),
+              tr(
+                'Rappels à J-7, à J-1 et une fois l’échéance dépassée.',
+                'Reminders at D-7, at D-1 and once the deadline has passed.',
+              ),
             ],
             [
               'email_on_action_assigned',
@@ -1000,7 +1003,10 @@ function NotifTab({ tr }: { tr: Tr }) {
             [
               'email_on_risk_update',
               tr('Un risque que je suis est modifié', 'A risk I follow is updated'),
-              null,
+              tr(
+                'Hors risques dont vous êtes responsable : leurs changements d’état vous sont envoyés dans tous les cas, sauf la résolution (réglage ci-dessous) et la pause globale.',
+                'Not for risks you own: their state changes are always sent to you, except resolution (setting below) and the global pause.',
+              ),
             ],
             ['email_on_risk_resolved', tr('Un risque est résolu', 'A risk is resolved'), null],
           ] as const

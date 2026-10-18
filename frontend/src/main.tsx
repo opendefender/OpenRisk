@@ -18,6 +18,7 @@ import { onMFARequired } from './lib/api';
 import { MFA_STATUS_KEY } from './features/auth/useMfa';
 import { loadCatalog } from './i18n/catalog';
 import { useUIStore } from './store/uiStore';
+import { ListboxI18nProvider } from './shared/ListboxI18n';
 
 // Unstable-connectivity tolerance (task §2). Queries are offline-first: they serve
 // the cached value immediately and revalidate when the network allows (SWR), and
@@ -75,7 +76,9 @@ function render() {
     <React.StrictMode>
       <QueryClientProvider client={queryClient}>
         <ErrorBoundary>
-          <App />
+          <ListboxI18nProvider>
+            <App />
+          </ListboxI18nProvider>
         </ErrorBoundary>
         <React.Suspense fallback={null}>
           <ThemedToaster />

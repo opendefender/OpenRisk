@@ -96,6 +96,14 @@ type AuditJournal interface {
 type BulkActionUseCase struct {
 	riskRepo domain.RiskRepository
 	journal  AuditJournal
+	notices  NoticeDeliverer
+}
+
+// WithNotices tells each risk's owner when a bulk status change moves it
+// (#757). Nil-safe.
+func (uc *BulkActionUseCase) WithNotices(n NoticeDeliverer) *BulkActionUseCase {
+	uc.notices = n
+	return uc
 }
 
 // NewBulkActionUseCase wires the use case.
@@ -146,12 +154,24 @@ func (uc *BulkActionUseCase) Execute(
 		return uc.apply(ctx, tenantID, ids, performedBy, input,
 			fmt.Sprintf("bulk status change to %q", *input.Status),
 			func(r *domain.Risk) error {
+				from := r.State()
 				// Never write Status directly: the domain derives status, phase and
 				// canonical state from one another (Risk.SetState), and writing one
 				// of the three by hand is what let them disagree in the first place.
 				r.SetState(domain.RiskStateFromLegacy(*input.Status, r.LifecyclePhase))
+				if _, seen := changes[r.ID]; !seen {
+					order = append(order, r.ID)
+					changes[r.ID] = riskStateChangeOf(r, from, r.State())
+				}
 				return nil
 			})
+		if err != nil {
+			return nil, err
+		}
+		for _, id := range order {
+			notifyRiskStateChange(ctx, uc.notices, tenantID, changes[id], performedBy)
+		}
+		return result, nil
 
 	case BulkActionAssignTo:
 		if input.AssignToID == nil {

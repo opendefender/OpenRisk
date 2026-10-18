@@ -827,7 +827,7 @@ func main() {
 	//
 	// The handler lives in health_wiring.go, where it is tested; it used to be
 	// an inline copy here, so the tested version was never the one served.
-	api.Get("/health", healthHandler(gormHealthPinger(database.DB), demoseed.Enabled))
+	api.Get("/health", healthHandler(gormHealthPinger(database.DB), demoseed.Enabled, email.Mode(emailTransport)))
 
 	// Per-IP throttles on the auth routes, one bucket per purpose (#688). Backed
 	// by Redis so the counters are shared across every instance; degrades to a
@@ -1164,10 +1164,34 @@ func main() {
 	// database.DB, so instantiating them here (ahead of the RBAC and notification
 	// blocks further down) costs nothing and keeps the risk module's wiring local.
 	ownershipMembers := memberDirectory{repo: membershipRepo}
+
+	// Work notices (#757): assignment, deadlines, plan validated, risk state.
+	// One dispatcher decides who may hear about what — an ACTIVE member of the
+	// tenant the event belongs to, never anyone else — and in which language.
+	// In-app is always on; e-mail is on when a transport delivers, and /health
+	// says which. Request paths send the e-mail in the background so an
+	// assignment never waits on a slow relay; the deadline sweep sends inline.
+	noticeInApp := notificationapp.NewUseCase(repository.NewNotificationRepository(database.DB))
+	noticeMailer := authmail.NewNoticeMailer(emailTransport, appBaseURL)
+	noticeDispatcher := notificationapp.NewDispatcher(noticeInApp, noticeDirectory{members: ownershipMembers}).
+		WithEmail(noticeMailer, email.Delivers(emailTransport)).
+		WithLinks(noticeLink)
+	requestNoticeDispatcher := notificationapp.NewDispatcher(noticeInApp, noticeDirectory{members: ownershipMembers}).
+		WithEmail(noticeMailer, email.Delivers(emailTransport)).
+		WithLinks(noticeLink).
+		InBackground(func(err error) {
+			zeroLogger.Warn().Err(err).Msg("notice: e-mail not delivered")
+		})
+	if !noticeDispatcher.EmailEnabled() {
+		log.Println("Notifications: e-mail disabled (no SMTP transport) — in-app only")
+	}
+	handlers.SetNoticeDeliverer(requestNoticeDispatcher)
+
 	ownershipService := ownership.NewService().
 		WithMembers(ownershipMembers).
 		WithUsers(repository.NewGormUserRepository(database.DB)).
-		WithNotifier(notificationapp.NewUseCase(repository.NewNotificationRepository(database.DB)))
+		WithNotifier(noticeInApp).
+		WithDeliverer(requestNoticeDispatcher)
 	ownershipHandler := handlers.NewOwnershipHandler(ownership.NewListAssignableUseCase(ownershipMembers))
 	// Legacy handlers (mitigation, incident) build their use cases inline and
 	// cannot receive this through the constructor — same seam as the activation
@@ -1203,6 +1227,7 @@ func main() {
 		WithMappings(riskControlMappingRepo).
 		WithOwnership(ownershipService)
 	updateRiskUseCase := risk.NewUpdateRiskUseCase(riskRepo).
+		WithNotices(requestNoticeDispatcher).
 		WithOwnership(ownershipService).
 		WithAssets(riskAssetStore)
 	deleteRiskUseCase := risk.NewDeleteRiskUseCase(riskRepo)
@@ -1247,7 +1272,7 @@ func main() {
 		// implementation accepted a performedBy and discarded it, so a supervisor
 		// asking "who reassigned these and when" had no answer. auditChainRepo is
 		// the same hash-chained, append-only store the rest of the trail uses.
-		WithBulkAction(risk.NewBulkActionUseCase(riskRepo, auditChainRepo)).
+		WithBulkAction(risk.NewBulkActionUseCase(riskRepo, auditChainRepo).WithNotices(requestNoticeDispatcher)).
 		// #755 — CSV import: every row validated first, then all of them written
 		// in one transaction through CreateRiskUseCase, or none. The plan cap is
 		// checked against the whole file, not just the first row.
@@ -2007,7 +2032,7 @@ func main() {
 	// it is admin, because it changes what appears in everyone's register.
 	vulnRiskRuleHandler := handlers.NewVulnRiskRuleHandler(
 		vulnapp.NewRiskRuleService(vulnRiskRuleRepo, vulnRepo).WithAssetExposure(assetExposure),
-		risk.NewDraftReviewUseCase(riskRepo),
+		risk.NewDraftReviewUseCase(riskRepo).WithNotices(requestNoticeDispatcher),
 	)
 	protected.Get("/attack-surface/risk-rule", vulnRead, vulnRiskRuleHandler.GetRule)
 	protected.Put("/attack-surface/risk-rule", adminOnly, vulnRiskRuleHandler.UpdateRule)
@@ -2717,21 +2742,17 @@ func main() {
 	}, zeroLogger)
 	go riskReviewWorker.Start(context.Background())
 
-	// Mitigation deadlines: D-7 and D-1 nudges to whoever is doing the work.
+	// Mitigation deadlines: D-7, D-1 and "deadline passed" nudges to whoever is
+	// doing the work, through the notice dispatcher (in-app + e-mail, FR/EN).
 	// Hourly sweep — day-granularity reminders do not need a per-minute tick, and
 	// the "past the threshold and not yet sent" rule means a missed tick (deploy,
 	// restart) still sends the nudge instead of silently skipping it.
 	mitigationDueWorker := workers.NewMitigationDueWorker(
 		repository.NewGormMitigationDueRepository(database.DB),
-		func(ctx context.Context, tenantID, userID, mitigationID uuid.UUID, subject, message string) {
-			if err := notificationUseCase.NotifyInApp(userID, tenantID,
-				domain.NotificationTypeMitigationDeadline, subject, message, &mitigationID, "mitigation"); err != nil && !errors.Is(err, notificationapp.ErrSuppressed) {
-				zeroLogger.Warn().Err(err).Msg("mitigation due: in-app notification failed")
-			}
-			if notificationUseCase.ShouldNotify(userID, tenantID, domain.NotificationTypeMitigationDeadline, domain.NotificationChannelEmail) {
-				if user, uerr := userRepo.GetByID(ctx, userID); uerr == nil && user != nil && user.Email != "" {
-					_ = emailTransport.SendEmail(ctx, user.Email, subject, message)
-				}
+		func(ctx context.Context, n domain.Notice) {
+			if err := noticeDispatcher.Deliver(ctx, n); err != nil {
+				zeroLogger.Warn().Err(err).Str("tenant_id", n.TenantID.String()).
+					Msg("mitigation due: reminder not fully delivered")
 			}
 		}, zeroLogger)
 	go mitigationDueWorker.Start(context.Background())

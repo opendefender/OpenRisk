@@ -166,3 +166,38 @@ export function useDismissableLayer<T extends HTMLElement>(
     };
   }, [open, closeOnEscape, shouldLock, initialFocusRef, panelRef]);
 }
+
+/**
+ * A light layer that sits on top of the stack without covering the page: a
+ * select's option list. While open it takes Escape, so Escape inside a modal
+ * closes the list and leaves the modal standing. Being the top layer also means
+ * the modal below stops trapping Tab until the list closes.
+ *
+ * Not exported from index.ts: controls in this directory use it, screens don't.
+ */
+export function useEscapeLayer(open: boolean, onEscape: () => void) {
+  const onEscapeRef = useRef(onEscape);
+  useEffect(() => {
+    onEscapeRef.current = onEscape;
+  });
+
+  useEffect(() => {
+    if (!open) return;
+    const token = Symbol('light-layer');
+    layerStack.push(token);
+
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape' || layerStack[layerStack.length - 1] !== token) return;
+      event.stopPropagation();
+      event.preventDefault();
+      onEscapeRef.current();
+    };
+    document.addEventListener('keydown', onKeyDown, true);
+
+    return () => {
+      document.removeEventListener('keydown', onKeyDown, true);
+      const index = layerStack.indexOf(token);
+      if (index !== -1) layerStack.splice(index, 1);
+    };
+  }, [open]);
+}

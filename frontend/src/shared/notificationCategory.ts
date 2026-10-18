@@ -81,11 +81,13 @@ export function categoryForType(type: string): NotifCategory {
     case 'action_assigned':
     case 'mitigation_deadline':
     case 'vendor_assessment_reminder':
+    case 'mitigation_validated':
       return 'tasks';
     case 'risk_review':
       return 'compliance';
     case 'critical_risk':
     case 'risk_update':
+    case 'risk_state_changed':
     case 'risk_resolved':
     case 'scan_complete':
     case 'sla_breach':

@@ -48,8 +48,52 @@ func PrepareForAutoMigrate(db *gorm.DB) error {
 	if err := backfillPersonalAccessTokenTenant(db); err != nil {
 		return fmt.Errorf("personal_access_tokens: %w", err)
 	}
+	if err := prepareMitigationOverdueReminder(db); err != nil {
+		return fmt.Errorf("mitigations: %w", err)
+	}
 	return nil
 }
+
+// prepareMitigationOverdueReminder adds the "deadline passed" stamp (#757) and
+// stamps every plan that is ALREADY late, before the deadline sweep starts.
+//
+// It has to happen here, not only in migrations/0076: the compose files boot
+// with DB_HOST and no DATABASE_URL, which skips the SQL layer. AutoMigrate
+// would then add the column with every row NULL and the first sweep would mail
+// every overdue plan in every tenant, some of them months late.
+//
+// Runs once: only while the column does not exist yet. After that, lateness is
+// news and is announced once by the sweep. D-1 and D-7 are closed too, so a
+// backfilled plan cannot fall through to an earlier nudge worded as overdue.
+// A no-op outside Postgres and on a fresh database.
+func prepareMitigationOverdueReminder(db *gorm.DB) error {
+	if db.Dialector.Name() != "postgres" {
+		return nil
+	}
+	if !db.Migrator().HasTable("mitigations") || db.Migrator().HasColumn("mitigations", "reminder_overdue_sent_at") {
+		return nil
+	}
+	return db.Transaction(func(tx *gorm.DB) error {
+		// The D-7 / D-1 stamps predate this, but a database old enough may not
+		// have them yet (AutoMigrate runs after this function), and the
+		// backfill writes them.
+		for _, col := range []string{"reminder_d7_sent_at", "reminder_d1_sent_at", "reminder_overdue_sent_at"} {
+			if err := tx.Exec(`ALTER TABLE mitigations ADD COLUMN IF NOT EXISTS ` + col + ` timestamptz`).Error; err != nil {
+				return err
+			}
+		}
+		return tx.Exec(overdueReminderBackfill).Error
+	})
+}
+
+// overdueReminderBackfill mirrors migrations/0076_mitigation_overdue_reminder.
+const overdueReminderBackfill = `UPDATE mitigations
+   SET reminder_overdue_sent_at = NOW(),
+       reminder_d1_sent_at = COALESCE(reminder_d1_sent_at, NOW()),
+       reminder_d7_sent_at = COALESCE(reminder_d7_sent_at, NOW())
+ WHERE reminder_overdue_sent_at IS NULL
+   AND due_date IS NOT NULL
+   AND due_date < date_trunc('day', NOW())`
 
 // backfillPersonalAccessTokenTenant gives every pre-existing personal access
 // token the tenant it already acted in, before AutoMigrate makes tenant_id NOT

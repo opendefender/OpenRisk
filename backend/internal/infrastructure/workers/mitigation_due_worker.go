@@ -24,15 +24,17 @@ type MitigationDueStore interface {
 	// widest reminder window that have not had that reminder sent yet.
 	ListDueForReminder(ctx context.Context, now time.Time) ([]domain.Mitigation, error)
 	// MarkReminderSent stamps the reminder so the next tick does not resend it.
-	MarkReminderSent(ctx context.Context, id uuid.UUID, offset int, at time.Time) error
+	// Scoped by the row's own tenant.
+	MarkReminderSent(ctx context.Context, tenantID, id uuid.UUID, offset int, at time.Time) error
 }
 
 // NotifyDueFunc raises the deadline reminder for a mitigation's assignee.
-// Wired in the composition root, so the worker does not depend on the
-// notification use case directly.
-type NotifyDueFunc func(ctx context.Context, tenantID, userID, mitigationID uuid.UUID, subject, message string)
+// Wired in the composition root to the notification dispatcher, so the worker
+// does not depend on it directly. The notice is worded in both languages; the
+// dispatcher picks the recipient's.
+type NotifyDueFunc func(ctx context.Context, n domain.Notice)
 
-// MitigationDueWorker sends the D-7 and D-1 deadline nudges.
+// MitigationDueWorker sends the D-7, D-1 and "deadline passed" nudges.
 //
 // It ticks hourly rather than by the minute: a day-granularity reminder does not
 // need a per-minute sweep, and an hourly cadence keeps a missed tick (deploy,
@@ -60,7 +62,7 @@ func (w *MitigationDueWorker) WithInterval(d time.Duration) *MitigationDueWorker
 func (w *MitigationDueWorker) Start(ctx context.Context) {
 	t := time.NewTicker(w.interval)
 	defer t.Stop()
-	w.logger.Info().Msg("Mitigation due worker started (D-7 / D-1 deadline reminders)")
+	w.logger.Info().Msg("Mitigation due worker started (D-7 / D-1 / overdue deadline reminders)")
 	// Sweep once at boot so a deployment that spans a threshold does not skip it.
 	w.Sweep(ctx)
 	for {
@@ -93,7 +95,7 @@ func (w *MitigationDueWorker) Sweep(ctx context.Context) {
 		// Stamp FIRST. A plan whose notification fails must not be re-notified on
 		// every tick for the rest of the week; a missed nudge is a smaller harm
 		// than an hourly one.
-		if err := w.store.MarkReminderSent(ctx, m.ID, offset, now); err != nil {
+		if err := w.store.MarkReminderSent(ctx, m.TenantID, m.ID, offset, now); err != nil {
 			w.logger.Warn().Err(err).Str("mitigation_id", m.ID.String()).
 				Msg("mitigation due: could not stamp reminder — skipped to avoid resending in a loop")
 			continue
@@ -106,8 +108,18 @@ func (w *MitigationDueWorker) Sweep(ctx context.Context) {
 			continue
 		}
 		if w.notify != nil {
-			subject, message := dueReminderCopy(&m, offset, now)
-			w.notify(ctx, m.TenantID, recipient, m.ID, subject, message)
+			id := m.ID
+			plan := m
+			w.notify(ctx, domain.Notice{
+				TenantID:     m.TenantID,
+				UserID:       recipient,
+				Type:         domain.NotificationTypeMitigationDeadline,
+				ResourceID:   &id,
+				ResourceType: "mitigation",
+				Compose: func(locale string) domain.NoticeMessage {
+					return dueReminderCopy(&plan, offset, now, locale)
+				},
+			})
 		}
 		w.logger.Info().
 			Str("mitigation_id", m.ID.String()).
@@ -135,26 +147,63 @@ func dueRecipient(m *domain.Mitigation) uuid.UUID {
 
 // dueReminderCopy words the nudge. It states the deadline concretely rather than
 // "soon", and says plainly when the plan is already late.
-func dueReminderCopy(m *domain.Mitigation, offset int, now time.Time) (string, string) {
+func dueReminderCopy(m *domain.Mitigation, offset int, now time.Time, locale string) domain.NoticeMessage {
 	days, _ := m.DaysUntilDue(now)
 	when := ""
 	if m.DueDate != nil {
 		when = m.DueDate.Format("02/01/2006")
+		if locale == "en" {
+			when = m.DueDate.Format("2006-01-02")
+		}
 	}
 
+	if locale == "en" {
+		progress := fmt.Sprintf("Progress: %d%%.", m.Progress)
+		switch {
+		case days < 0:
+			return domain.NoticeMessage{
+				Subject: fmt.Sprintf("Mitigation overdue: %s", m.Title),
+				Lines:   []string{fmt.Sprintf("“%s” was due on %s, %d day(s) ago.", m.Title, when, -days), progress},
+			}
+		case days == 0:
+			return domain.NoticeMessage{
+				Subject: fmt.Sprintf("Due today: %s", m.Title),
+				Lines:   []string{fmt.Sprintf("“%s” is due today (%s).", m.Title, when), progress},
+			}
+		case offset == 1:
+			return domain.NoticeMessage{
+				Subject: fmt.Sprintf("Due tomorrow: %s", m.Title),
+				Lines:   []string{fmt.Sprintf("“%s” is due on %s.", m.Title, when), progress},
+			}
+		default:
+			return domain.NoticeMessage{
+				Subject: fmt.Sprintf("Due in %d days: %s", days, m.Title),
+				Lines:   []string{fmt.Sprintf("“%s” is due on %s.", m.Title, when), progress},
+			}
+		}
+	}
+
+	progress := fmt.Sprintf("Progression : %d %%.", m.Progress)
 	switch {
 	case days < 0:
-		return fmt.Sprintf("Mitigation en retard : %s", m.Title),
-			fmt.Sprintf("« %s » devait être terminée le %s, il y a %d jour(s). Progression : %d %%.",
-				m.Title, when, -days, m.Progress)
+		return domain.NoticeMessage{
+			Subject: fmt.Sprintf("Mitigation en retard : %s", m.Title),
+			Lines:   []string{fmt.Sprintf("« %s » devait être terminée le %s, il y a %d jour(s).", m.Title, when, -days), progress},
+		}
 	case days == 0:
-		return fmt.Sprintf("Échéance aujourd'hui : %s", m.Title),
-			fmt.Sprintf("« %s » est due aujourd'hui (%s). Progression : %d %%.", m.Title, when, m.Progress)
+		return domain.NoticeMessage{
+			Subject: fmt.Sprintf("Échéance aujourd'hui : %s", m.Title),
+			Lines:   []string{fmt.Sprintf("« %s » est due aujourd'hui (%s).", m.Title, when), progress},
+		}
 	case offset == 1:
-		return fmt.Sprintf("Échéance demain : %s", m.Title),
-			fmt.Sprintf("« %s » est due le %s. Progression : %d %%.", m.Title, when, m.Progress)
+		return domain.NoticeMessage{
+			Subject: fmt.Sprintf("Échéance demain : %s", m.Title),
+			Lines:   []string{fmt.Sprintf("« %s » est due le %s.", m.Title, when), progress},
+		}
 	default:
-		return fmt.Sprintf("Échéance dans %d jours : %s", days, m.Title),
-			fmt.Sprintf("« %s » est due le %s. Progression : %d %%.", m.Title, when, m.Progress)
+		return domain.NoticeMessage{
+			Subject: fmt.Sprintf("Échéance dans %d jours : %s", days, m.Title),
+			Lines:   []string{fmt.Sprintf("« %s » est due le %s.", m.Title, when), progress},
+		}
 	}
 }

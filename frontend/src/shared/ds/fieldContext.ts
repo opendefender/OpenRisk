@@ -15,6 +15,7 @@
  */
 
 import { createContext, useContext, useId } from 'react';
+import { cn } from './cn';
 
 export type FieldStatus = 'default' | 'invalid' | 'warning' | 'success';
 
@@ -59,4 +60,29 @@ export function useControlWiring(explicitId?: string) {
       disabled: ctx.disabled || undefined,
     },
   };
+}
+
+/* The border is the state. --border-control is the contrast-verified default;
+   invalid/warning/success swap it for the matching semantic colour and are
+   always accompanied by text in the message slot. */
+const STATUS_BORDER: Record<FieldStatus, string> = {
+  default: 'border-control',
+  invalid: 'border-danger',
+  warning: 'border-warning',
+  success: 'border-success',
+};
+
+/** Shared by Input, Textarea, Select and Listbox so the four look like one family. */
+export function controlClasses(status: FieldStatus, extra?: string): string {
+  return cn(
+    'w-full bg-surface-1 text-fg-primary placeholder:text-fg-muted',
+    'border rounded-md px-(--control-px-md)',
+    'transition-[border-color,background-color] duration-fast ease-out',
+    'hover:border-strong',
+    'focus:border-accent',
+    'disabled:opacity-55 disabled:pointer-events-none',
+    'read-only:bg-surface-sunken read-only:text-fg-secondary',
+    STATUS_BORDER[status],
+    extra,
+  );
 }

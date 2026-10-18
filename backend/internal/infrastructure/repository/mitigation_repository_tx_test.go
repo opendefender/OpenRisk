@@ -35,7 +35,7 @@ func setupMitigationTxRepo(t *testing.T, uniqueTitles bool) (*GormMitigationRepo
 		title TEXT, description TEXT, status TEXT, priority TEXT,
 		owner_id TEXT, assignee_id TEXT, reviewer_id TEXT,
 		assigned_to TEXT, progress INTEGER DEFAULT 0,
-		reminder_d7_sent_at DATETIME, reminder_d1_sent_at DATETIME,
+		reminder_d7_sent_at DATETIME, reminder_d1_sent_at DATETIME, reminder_overdue_sent_at DATETIME,
 		created_by TEXT, approved_by TEXT, approved_at DATETIME,
 		source TEXT, auto_detected_at DATETIME, scanner_config_id TEXT,
 		organization_id TEXT, assignee TEXT, cost INTEGER, mitigation_time INTEGER, due_date DATETIME,

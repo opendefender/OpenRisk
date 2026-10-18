@@ -31,7 +31,15 @@
     "noResults": "Aucun résultat trouvé",
     "emptyState": "Rien à afficher ici",
     "planName": "Plan {plan}",
-    "rowDetails": "Détails"
+    "rowDetails": "Détails",
+    "listbox": {
+      "placeholder": "Choisir…",
+      "search": "Rechercher dans la liste",
+      "searchPlaceholder": "Rechercher…",
+      "loading": "Chargement…",
+      "empty": "Aucune option",
+      "noMatch": "Aucun résultat"
+    }
   },
   "risks": {
     "title": "Registre des Risques",
