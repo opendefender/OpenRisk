@@ -51,6 +51,11 @@ services:
       DB_PASSWORD: ${STAGING_DB_PASSWORD:?set STAGING_DB_PASSWORD}
       DB_NAME: openrisk_staging
       DB_SSLMODE: disable
+      # The SQL migration layer runs only when DATABASE_URL is set (#1001).
+      # Built from the same values as DB_*; the server also connects with it.
+      # A password with URL-reserved characters (@ : / ? # %) must be
+      # percent-encoded here: see .env.example.
+      DATABASE_URL: postgres://openrisk_user:${STAGING_DB_PASSWORD:?set STAGING_DB_PASSWORD}@postgres-staging:5432/openrisk_staging?sslmode=disable&TimeZone=UTC
       REDIS_HOST: redis-staging
       REDIS_PORT: 6379
       REDIS_PASSWORD: ${STAGING_REDIS_PASSWORD:?set STAGING_REDIS_PASSWORD}

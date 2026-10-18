@@ -211,8 +211,22 @@ docker compose pull || true         # if using prebuilt images
 docker compose up -d --build        # rebuild + restart; migrations run on boot
 ```
 
-Schema migrations (GORM AutoMigrate + SQL migrations) run automatically on
-backend start. Your `.env` and `secrets/` are preserved across upgrades.
+Schema migrations run automatically on backend start: GORM AutoMigrate, then
+the SQL migrations in `migrations/`, which the backend image carries. The log
+shows `migrations: applied successfully (version=N)` once they are in.
+
+Before #1001 the compose files did not set `DATABASE_URL`, so the SQL layer
+never ran on a compose install. The first boot after this upgrade applies the
+whole chain once on your existing database; that was tested on a database
+built by AutoMigrate alone, with data, and keeps it. Back up first anyway, as
+above.
+
+`docker-compose.yml` builds `DATABASE_URL` from `DB_USER`, `DB_PASSWORD` and
+`DB_NAME`. The password `install.sh` generates is hex and fits in a URL. If you
+set your own, keep to letters, digits and `- _ . ~`: a password containing
+`@ : / ? # %` or a space breaks the URL and the backend refuses to start.
+
+Your `.env` and `secrets/` are preserved across upgrades.
 
 ### Password hashing
 
