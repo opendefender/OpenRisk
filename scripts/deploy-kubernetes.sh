@@ -34,6 +34,21 @@ log_error() {
     echo -e "${RED}✗${NC} $1"
 }
 
+# Percent-encodes $1 for the userinfo part of a URL, byte by byte, so a
+# password with '@', ':', '/', '#', '%' or a space still gives a valid
+# database-url (#1001).
+urlencode() {
+    local LC_ALL=C s="$1" out="" c i
+    for (( i = 0; i < ${#s}; i++ )); do
+        c="${s:i:1}"
+        case "$c" in
+            [A-Za-z0-9.~_-]) out+="$c" ;;
+            *) out+=$(printf '%%%02X' "'$c") ;;
+        esac
+    done
+    printf '%s' "$out"
+}
+
 # Check prerequisites
 check_prerequisites() {
     log_info "Checking prerequisites..."
@@ -108,8 +123,8 @@ create_secrets() {
     
     # Create secret
     kubectl create secret generic openrisk-secrets \
-        --from-literal=database-url="postgresql://openrisk:${DB_PASSWORD}@postgres:5432/openrisk?sslmode=require" \
-        --from-literal=redis-url="redis://:${REDIS_PASSWORD}@redis:6379/0" \
+        --from-literal=database-url="postgresql://openrisk:$(urlencode "$DB_PASSWORD")@postgres:5432/openrisk?sslmode=require" \
+        --from-literal=redis-url="redis://:$(urlencode "$REDIS_PASSWORD")@redis:6379/0" \
         --from-literal=oauth2-client-id="$OAUTH2_CLIENT_ID" \
         --from-literal=oauth2-client-secret="$OAUTH2_CLIENT_SECRET" \
         -n "$NAMESPACE"
