@@ -1248,6 +1248,7 @@
       "appetite": "Appétence",
       "appetiteSub": "M {currency}, fixée par le conseil",
       "appetiteUnset": "à fixer dans la quantification",
+      "unquantified": "aucun risque chiffré",
       "unavailable": "—"
     },
     "trend": {
@@ -1356,6 +1357,11 @@
     "currencyLabel": "Devise d'affichage",
     "loadError": "Impossible de charger la posture financière.",
     "emptyRegister": "Aucun risque à quantifier. Ajoutez des risques et renseignez leurs pertes (SLE, ARO, coût des interruptions) pour voir l'exposition en argent.",
+    "unquantified": {
+      "one": "Données insuffisantes : aucun risque du registre n'a encore ses propres montants de perte, tout chiffre affiché ici viendrait donc du seul modèle de référence. Quantifiez au moins {count} risque (perte unitaire et fréquence annuelle) pour voir votre exposition en argent.",
+      "other": "Données insuffisantes : aucun risque du registre n'a encore ses propres montants de perte, tout chiffre affiché ici viendrait donc du seul modèle de référence. Quantifiez au moins {count} risques (perte unitaire et fréquence annuelle) pour voir votre exposition en argent."
+    },
+    "unquantifiedCta": "Ouvrir le registre des risques",
     "kpi": {
       "inherent": "ALE inhérente",
       "inherentSub": {

@@ -59,6 +59,9 @@ export function FinancialDashboard() {
   const loading = summary.isLoading || fin.loading;
   const failed = !loading && (summary.isError || !data);
   const empty = !!data && data.total_risks === 0;
+  // Risks exist but none has its own loss figures: the amounts would be the
+  // reference model's alone, so they are withheld rather than shown (#756).
+  const unquantified = !!data && !empty && data.data_status === 'insufficient_data';
 
   return (
     <PageFrame>
@@ -95,6 +98,18 @@ export function FinancialDashboard() {
       ) : empty ? (
         <Panel className="px-5 py-[18px]">
           <BlockEmpty>{t('financial.emptyRegister')}</BlockEmpty>
+        </Panel>
+      ) : unquantified ? (
+        <Panel className="px-5 py-[18px]" testId="fin-unquantified">
+          <BlockEmpty>
+            {t('financial.unquantified', { count: data.min_quantified_risks })}
+          </BlockEmpty>
+          <Link
+            to="/risks"
+            className="text-[12.5px] font-semibold text-accent-strong hover:underline"
+          >
+            {t('financial.unquantifiedCta')}
+          </Link>
         </Panel>
       ) : (
         <>
