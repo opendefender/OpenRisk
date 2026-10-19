@@ -68,6 +68,15 @@ jobs:
             grep -i 'migrations' backend.log || true
             echo "the backend did not apply the SQL migrations"; exit 1; }
 
+      # Every migration in the repository is in the image, and nothing else
+      # (#611): a file left out of the build context would be skipped silently
+      # on every install.
+      - name: Assert the image carries every migration (#611)
+        run: |
+          (cd migrations && ls *.sql) | sort > repo-migrations.txt
+          (cd deploy/selfhost && docker compose exec -T backend ls /app/migrations) | sort > image-migrations.txt
+          diff repo-migrations.txt image-migrations.txt && echo "$(wc -l < repo-migrations.txt) migration files, identical"
+
       # The install is only finished if the operator can actually get in. #328's
       # criterion 1 is exactly this: credentials at the end, not a README telling
       # you to go and make an account. Asserting the printed pair really signs in

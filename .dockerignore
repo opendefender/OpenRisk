@@ -69,3 +69,7 @@ backend/keys
 backend/secrets
 deploy/selfhost/secrets
 secrets
+
+# Archived migrations are never run (migrations/_archive/README.md); keep them
+# out of the image, as backend/Dockerfile.dockerignore does.
+migrations/_archive

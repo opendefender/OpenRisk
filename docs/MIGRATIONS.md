@@ -26,8 +26,13 @@ empêché le produit de tourner : AutoMigrate faisait tout le travail.)
 
 ## Configuration
 
-- `DATABASE_URL` — `postgres://user:pass@host:port/db?sslmode=disable`. Absente → couche SQL sautée.
+- `DATABASE_URL` — `postgres://user:pass@host:port/db?sslmode=disable`. Si elle est présente, la
+  couche SQL l'utilise.
 - `MIGRATIONS_DIR` — dossier lu par golang-migrate (défaut `migrations`, relatif au CWD du process).
+  Les deux images le fixent à `/app/migrations`. Sans `DATABASE_URL`, sa présence suffit : l'URL
+  est construite à partir de `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD` et `DB_NAME`, avec le
+  mot de passe encodé (#1001). C'est ainsi que les installations compose exécutent la couche SQL.
+- Ni l'une ni l'autre (lancement local en dev) → couche SQL sautée.
 
 ## État de la couche SQL (P0.5, 2026-08-14)
 
@@ -37,6 +42,16 @@ Le dossier lu ne contient plus que les migrations **bien formées et exécutées
   ignorés ; redondants avec AutoMigrate ; portaient un **doublon de version `0018`**, désamorcé).
 - **`_archive/backend-0026-0047-neverread/`** — l'ancien `backend/migrations/`, jamais lu par le runner
   (ADD COLUMN redondant + backfills legacy sans objet sur base fraîche).
+- **`_archive/root-database-preautomigrate/`** — l'ancien dossier racine `database/` (`0012`–`0029`
+  en `.sql` nus, #611). Rien ne l'a jamais lu : ni golang-migrate (mauvais format, autre dossier), ni
+  aucun script. Ses tables existent aujourd'hui par AutoMigrate. Les rôles, par exemple, vivent dans
+  `roles` (modèle `RoleEnhanced`) et leurs droits dans `role_permissions`, pas dans une colonne
+  `roles.permissions`.
+
+**`migrations/` est la seule couche SQL qui fait autorité**, appliquée après AutoMigrate, sans
+trou dans la chaîne (`0048`+). `TestMigrationChain_OneFilePerVersionAndDirection` refuse deux
+fichiers de même version ; le job `selfhost-install` refuse une image qui n'embarque pas tout
+`migrations/`.
 
 ### Append-only DB sur la piste d'audit — RÈGLE #4 (migration `0055`)
 Un trigger `BEFORE UPDATE OR DELETE` (`openrisk_audit_append_only`) sur `audit_events` **et**

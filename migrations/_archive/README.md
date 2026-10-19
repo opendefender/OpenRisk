@@ -21,3 +21,8 @@ The `0026`–`0047` migrations (plus stray duplicate `0052`–`0054`) that lived
 content is **data backfills** (e.g. `0044` ownership) that apply to a database with pre-existing
 rows. A fresh production database has none, so they are no-ops there. If you ever need to backfill a
 legacy database, run the relevant file by hand and record it — do not wire this directory back in.
+
+## `root-database-preautomigrate/`
+The repository-root `database/` directory (`0012`–`0029`, plain `.sql`, #611). Nothing ever read it:
+not golang-migrate (wrong format and wrong directory), not any script. AutoMigrate builds those
+tables today. Kept here for history; do not wire it back in.
