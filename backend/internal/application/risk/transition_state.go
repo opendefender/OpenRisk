@@ -89,9 +89,16 @@ type TransitionRiskStateUseCase struct {
 	riskRepo    domain.RiskRepository
 	mitigations MitigationInspector
 	approvals   ApprovalChecker
+	notices     NoticeDeliverer
 	policy      AcceptancePolicy
 	journal     AuditJournal
 	now         func() time.Time
+}
+
+// NoticeDeliverer tells one member about an event, in-app and by e-mail
+// (application/notification.Dispatcher). Optional port.
+type NoticeDeliverer interface {
+	Deliver(ctx context.Context, n domain.Notice) error
 }
 
 func NewTransitionRiskStateUseCase(riskRepo domain.RiskRepository) *TransitionRiskStateUseCase {
@@ -107,6 +114,13 @@ func (uc *TransitionRiskStateUseCase) WithMitigations(m MitigationInspector) *Tr
 // WithApprovals attaches the checker backing the residual-acceptance guard.
 func (uc *TransitionRiskStateUseCase) WithApprovals(a ApprovalChecker) *TransitionRiskStateUseCase {
 	uc.approvals = a
+	return uc
+}
+
+// WithNotices tells the risk's owner when someone else moves it through the
+// lifecycle (#757). Nil-safe.
+func (uc *TransitionRiskStateUseCase) WithNotices(n NoticeDeliverer) *TransitionRiskStateUseCase {
+	uc.notices = n
 	return uc
 }
 
@@ -318,6 +332,150 @@ func (uc *TransitionRiskStateUseCase) Execute(ctx context.Context, tenantID, ris
 
 	uc.notifyOwner(ctx, tenantID, r, current, target, in.Actor)
 	return r, nil
+}
+
+// notifyOwner tells the risk's owner that it changed state — best-effort, the
+// transition is already committed.
+func (uc *TransitionRiskStateUseCase) notifyOwner(ctx context.Context, tenantID uuid.UUID, r *domain.Risk, from, to domain.RiskState, actor uuid.UUID) {
+	notifyRiskStateChange(ctx, uc.notices, tenantID, riskStateChangeOf(r, from, to), actor)
+}
+
+// riskStateChange is what a state-change notice needs to know about one risk,
+// captured at the moment of the change.
+type riskStateChange struct {
+	RiskID  uuid.UUID
+	OwnerID *uuid.UUID
+	Title   string
+	From    domain.RiskState
+	To      domain.RiskState
+}
+
+func riskStateChangeOf(r *domain.Risk, from, to domain.RiskState) riskStateChange {
+	title := r.Title
+	if title == "" {
+		title = r.Name
+	}
+	var owner *uuid.UUID
+	if r.OwnerID != nil {
+		id := *r.OwnerID
+		owner = &id
+	}
+	return riskStateChange{RiskID: r.ID, OwnerID: owner, Title: title, From: from, To: to}
+}
+
+// notifyRiskStateChange is shared by every path that moves a risk's state
+// (lifecycle transition, bulk status change). Nobody is told about their own
+// move, and a move that changes nothing is not news.
+//
+// The owner hears about every change (owner decision, #757). A risk reaching an
+// end state (mitigated, residual accepted, closed) is a "risk resolved" notice
+// and follows that e-mail switch, on by default. Every other move is a
+// "risk state changed" notice, which only the global pause silences — the
+// "a risk I follow is updated" switch is about following, not owning.
+func notifyRiskStateChange(ctx context.Context, notices NoticeDeliverer, tenantID uuid.UUID, ch riskStateChange, actor uuid.UUID) {
+	if notices == nil || ch.OwnerID == nil || *ch.OwnerID == uuid.Nil || *ch.OwnerID == actor || ch.From == ch.To {
+		return
+	}
+	notifType := domain.NotificationTypeRiskStateChanged
+	switch ch.To {
+	case domain.StateMitigated, domain.StateResidualAccepted, domain.StateClosed:
+		notifType = domain.NotificationTypeRiskResolved
+	}
+	id := ch.RiskID
+	_ = notices.Deliver(ctx, domain.Notice{
+		TenantID:     tenantID,
+		UserID:       *ch.OwnerID,
+		Type:         notifType,
+		ResourceID:   &id,
+		ResourceType: "risk",
+		Compose: func(locale string) domain.NoticeMessage {
+			return riskStateNoticeCopy(locale, ch.Title, ch.From, ch.To)
+		},
+	})
+}
+
+// notifyRiskStatusChange is the status-column counterpart of
+// notifyRiskStateChange, for the one endpoint that writes the status without
+// moving the lifecycle state (PATCH /risks/:id). A new status that ends the
+// risk follows the "risk resolved" switch; any other change is a
+// risk_state_changed notice.
+func notifyRiskStatusChange(ctx context.Context, notices NoticeDeliverer, tenantID uuid.UUID, r *domain.Risk, from, to domain.RiskStatus, actor uuid.UUID) {
+	if notices == nil || r == nil || r.OwnerID == nil || *r.OwnerID == uuid.Nil || *r.OwnerID == actor || from == to {
+		return
+	}
+	notifType := domain.NotificationTypeRiskStateChanged
+	switch to {
+	case domain.RiskMitigated, domain.RiskAccepted, domain.RiskClosed,
+		domain.StatusMitigated, domain.StatusAccepted:
+		notifType = domain.NotificationTypeRiskResolved
+	}
+	title := r.Title
+	if title == "" {
+		title = r.Name
+	}
+	id := r.ID
+	_ = notices.Deliver(ctx, domain.Notice{
+		TenantID:     tenantID,
+		UserID:       *r.OwnerID,
+		Type:         notifType,
+		ResourceID:   &id,
+		ResourceType: "risk",
+		Compose: func(locale string) domain.NoticeMessage {
+			if locale == "en" {
+				return domain.NoticeMessage{
+					Subject: fmt.Sprintf("Risk “%s”: %s", title, riskStatusLabel(to, "en")),
+					Lines: []string{fmt.Sprintf("The status of “%s”, a risk you own, changed from %s to %s.",
+						title, riskStatusLabel(from, "en"), riskStatusLabel(to, "en"))},
+				}
+			}
+			return domain.NoticeMessage{
+				Subject: fmt.Sprintf("Risque « %s » : %s", title, riskStatusLabel(to, "fr")),
+				Lines: []string{fmt.Sprintf("Le statut de « %s », un risque dont vous êtes responsable, est passé de « %s » à « %s ».",
+					title, riskStatusLabel(from, "fr"), riskStatusLabel(to, "fr"))},
+			}
+		},
+	})
+}
+
+// riskStatusLabel uses the register's own words for a status, so the e-mail
+// and the dropdown the change was made in say the same thing.
+func riskStatusLabel(s domain.RiskStatus, locale string) string {
+	labels := map[domain.RiskStatus][2]string{
+		domain.RiskOpen:        {"Ouvert", "Open"},
+		domain.RiskInProgress:  {"En cours", "In progress"},
+		domain.RiskMitigated:   {"Atténué", "Mitigated"},
+		domain.RiskAccepted:    {"Accepté", "Accepted"},
+		domain.RiskClosed:      {"Clôturé", "Closed"},
+		domain.StatusDraft:     {"Brouillon", "Draft"},
+		domain.StatusActive:    {"Actif", "Active"},
+		domain.StatusMitigated: {"Atténué", "Mitigated"},
+		domain.StatusAccepted:  {"Accepté", "Accepted"},
+	}
+	pair, ok := labels[s]
+	if !ok {
+		return string(s)
+	}
+	if locale == "en" {
+		return pair[1]
+	}
+	return pair[0]
+}
+
+func riskStateNoticeCopy(locale, title string, from, to domain.RiskState) domain.NoticeMessage {
+	if locale == "en" {
+		return domain.NoticeMessage{
+			Subject: fmt.Sprintf("Risk “%s”: %s", title, to.Label("en")),
+			Lines: []string{fmt.Sprintf("“%s”, a risk you own, moved from %s to %s.",
+				title, from.Label("en"), to.Label("en"))},
+		}
+	}
+	return domain.NoticeMessage{
+		Subject: fmt.Sprintf("Risque « %s » : %s", title, to.Label("fr")),
+		// "de l'état « … »" rather than "de …": half the labels start with a
+		// vowel (Identifié, Évalué, En traitement) and would need elision.
+		Lines: []string{fmt.Sprintf("« %s », un risque dont vous êtes responsable, est passé de l’état « %s » à l’état « %s ».",
+			title, from.Label("fr"), to.Label("fr"))},
+	}
 }
 
 // resolveExpiry applies the tenant maximum to the requested end date.
