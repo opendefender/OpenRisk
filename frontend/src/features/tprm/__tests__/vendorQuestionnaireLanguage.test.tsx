@@ -42,7 +42,11 @@ async function freshPage(language: string) {
     };
   });
   const { VendorQuestionnairePage } = await import('../VendorQuestionnairePage');
-  const { isCatalogLoaded } = await import('../../../i18n/catalog');
+  const { isCatalogLoaded, loadScreenCatalogs } = await import('../../../i18n/catalog');
+  // In the app the page is a lazyScreen route, which fetches the screens' part
+  // of the default language with the page's code (#858). These modules are
+  // fresh, so do what that loader does before rendering.
+  await loadScreenCatalogs();
   render(
     <MemoryRouter initialEntries={[`/vendor-questionnaire#${TOKEN}`]}>
       <VendorQuestionnairePage />
