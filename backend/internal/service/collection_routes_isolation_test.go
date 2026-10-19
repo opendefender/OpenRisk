@@ -151,7 +151,8 @@ func TestAnalyticsCollections_NeverCrossTenants(t *testing.T) {
 		// predicate were gone the last bucket would carry all four risks.
 		require.Equal(t, int64(1), points[len(points)-1].Count,
 			"tenant B's three risks must not appear in tenant A's trend")
-		require.InDelta(t, 8.5, points[len(points)-1].AvgScore, 0.001,
+		require.NotNil(t, points[len(points)-1].AvgScore)
+		require.InDelta(t, 8.5, *points[len(points)-1].AvgScore, 0.001,
 			"the average score must be over tenant A's register alone")
 	})
 

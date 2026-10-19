@@ -87,9 +87,17 @@ func (h *AnalyticsHandler) GetRiskTrends(c *fiber.Ctx) error {
 		})
 	}
 
+	// Below MinTrendPoints the series is withheld rather than drawn as zeros (#756).
+	status := service.RiskTrendStatus(trends)
+	if status != service.TrendStatusOK {
+		trends = []service.RiskTrendPoint{}
+	}
+
 	return c.Status(http.StatusOK).JSON(fiber.Map{
-		"days":   days,
-		"trends": trends,
+		"days":       days,
+		"status":     status,
+		"min_points": service.MinTrendPoints,
+		"trends":     trends,
 	})
 }
 

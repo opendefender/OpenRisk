@@ -110,11 +110,11 @@ func (s *DashboardDataService) GetDashboardMetrics(ctx context.Context, tenantID
 
 // RiskTrendDataPoint represents a data point in risk trend
 type RiskTrendDataPoint struct {
-	Date      string  `json:"date"`
-	Score     float64 `json:"score"`
-	Count     int64   `json:"count"`
-	NewRisks  int64   `json:"new_risks"`
-	Mitigated int64   `json:"mitigated"`
+	Date      string   `json:"date"`
+	Score     *float64 `json:"score"` // nil on a day with no risk: there is nothing to average
+	Count     int64    `json:"count"`
+	NewRisks  int64    `json:"new_risks"`
+	Mitigated int64    `json:"mitigated"`
 }
 
 // GetRiskTrends returns risk trends for the last 7 days (tenant-scoped)
@@ -136,16 +136,18 @@ func (s *DashboardDataService) GetRiskTrends(ctx context.Context, tenantID uuid.
 			Where("created_at <= ?", endOfDay).
 			Count(&point.Count)
 
-		// Average score as of this date
-		type scoreResult struct {
-			AvgScore float64
+		// Average score as of this date, only when the register held a risk (#756)
+		if point.Count > 0 {
+			type scoreResult struct {
+				AvgScore float64
+			}
+			var scoreRes scoreResult
+			s.scoped(ctx, tenantID).Model(&domain.Risk{}).
+				Where("created_at <= ?", endOfDay).
+				Select("AVG(score) as avg_score").
+				Scan(&scoreRes)
+			point.Score = &scoreRes.AvgScore
 		}
-		var scoreRes scoreResult
-		s.scoped(ctx, tenantID).Model(&domain.Risk{}).
-			Where("created_at <= ?", endOfDay).
-			Select("COALESCE(AVG(score), 0) as avg_score").
-			Scan(&scoreRes)
-		point.Score = scoreRes.AvgScore
 
 		// New risks created this day
 		s.scoped(ctx, tenantID).Model(&domain.Risk{}).
