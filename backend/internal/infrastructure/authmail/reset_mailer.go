@@ -83,6 +83,19 @@ func (m *Mailer) SendMFADisabled(ctx context.Context, to, fullName, locale strin
 	return m.sender.SendEmail(ctx, to, c.subject, m.render(c))
 }
 
+// SendMFABackupCodesPurged tells someone that their backup codes were deleted
+// by the universal-code purge (#1001): they came from the generator fixed in
+// #240, were the same for everyone and could be derived from the public source.
+// Their authenticator app still works; new codes come from setting two-factor
+// up again.
+func (m *Mailer) SendMFABackupCodesPurged(ctx context.Context, to, fullName, locale string) error {
+	if m == nil || m.sender == nil {
+		return nil
+	}
+	c := mfaBackupCodesPurgedCopy(locale, displayName(fullName, locale))
+	return m.sender.SendEmail(ctx, to, c.subject, m.render(c))
+}
+
 // SendMFALocked tells the owner that two-factor sign-in was locked after
 // repeated wrong codes (#689). Reaching the code step takes the password, so
 // the message says so plainly: the remedy is a password reset.
@@ -214,6 +227,31 @@ func mfaDisabledCopy(locale, name string) copyBlock {
 			"La double authentification vient d'être désactivée sur ce compte OpenRisk, après confirmation de l'identité du titulaire (mot de passe, ou code de l'application d'authentification pour les comptes connectés via un fournisseur d'identité). Votre application d'authentification et vos codes de secours ne fonctionnent plus. Le mot de passe seul suffit désormais pour ouvrir le compte.",
 		},
 		footnote: "Si vous n'êtes pas à l'origine de ce changement, quelqu'un d'autre peut se faire passer pour vous : réinitialisez votre mot de passe (ou alertez l'administrateur de votre fournisseur d'identité), réactivez la double authentification et contactez votre administrateur OpenRisk.",
+	}
+}
+
+func mfaBackupCodesPurgedCopy(locale, name string) copyBlock {
+	if locale == "en" {
+		return copyBlock{
+			subject: "Your OpenRisk backup codes were replaced: get new ones",
+			heading: "Your backup codes no longer work",
+			paragraphs: []string{
+				fmt.Sprintf("Hello %s,", name),
+				"The two-factor backup codes on your OpenRisk account came from an old version that gave every account the same codes. Anyone who read the public source could work them out, so this update deleted them. If you ever saw a sign-in you did not make, tell your administrator.",
+				"Your authenticator app still works as before. To get new backup codes, unique to you, go to Settings › Security, turn two-factor authentication off, then set it up again: the new codes are shown at the end.",
+			},
+			footnote: "Until you do, keep your authenticator app at hand: without it or new codes, only an administrator can let you back in.",
+		}
+	}
+	return copyBlock{
+		subject: "Vos codes de secours OpenRisk ont été supprimés : générez-en de nouveaux",
+		heading: "Vos codes de secours ne fonctionnent plus",
+		paragraphs: []string{
+			fmt.Sprintf("Bonjour %s,", name),
+			"Les codes de secours de double authentification de votre compte OpenRisk venaient d'une ancienne version qui donnait les mêmes codes à tous les comptes. N'importe qui pouvait les retrouver en lisant le code source public : cette mise à jour les a donc supprimés. Si vous avez déjà constaté une connexion qui n'était pas de vous, prévenez votre administrateur.",
+			"Votre application d'authentification fonctionne toujours. Pour obtenir de nouveaux codes de secours, propres à vous, allez dans Réglages › Sécurité, désactivez la double authentification, puis configurez-la à nouveau : les nouveaux codes s'affichent à la fin.",
+		},
+		footnote: "D'ici là, gardez votre application d'authentification à portée de main : sans elle ni nouveaux codes, seul un administrateur peut vous rendre l'accès.",
 	}
 }
 

@@ -24,6 +24,7 @@ package main
 // Runs in the CI "Backend Integration Tests" job (DATABASE_URL, -tags=integration).
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"strings"
@@ -36,6 +37,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/opendefender/openrisk/internal/infrastructure/database"
+	"github.com/opendefender/openrisk/internal/infrastructure/repository"
 	"github.com/opendefender/openrisk/internal/migrations"
 )
 
@@ -87,6 +89,11 @@ func TestComposeUpgrade_SQLLayerKeepsCustomerData(t *testing.T) {
 	require.NoError(t, tx.Exec(`INSERT INTO automation_rules (id, tenant_id, name, enabled, trigger, suspended_reason, created_at, updated_at)
 		VALUES (?, ?, 'Escalate criticals', false, 'risk_created', '', now(), now())`,
 		disabledRule, tenant).Error)
+	// A residual-risk acceptance made in the app after #811, so it already has
+	// its end date: 0077's backfill must leave it alone (#1023).
+	require.NoError(t, tx.Exec(`INSERT INTO risks (id, tenant_id, name, title, created_by, lifecycle_state, accepted_at, acceptance_expires_at, created_at, updated_at)
+		VALUES (?, ?, 'Legacy VPN appliance', 'Legacy VPN appliance', ?, 'residual_accepted', ?, ?, now(), now())`,
+		uuid.New(), tenant, uuid.New(), time.Now().Add(-30*24*time.Hour), time.Now().Add(335*24*time.Hour)).Error)
 	codes := func(user uuid.UUID, plain []string, at time.Time) {
 		for _, c := range plain {
 			h, err := bcrypt.GenerateFromPassword([]byte(c), bcrypt.MinCost)
@@ -154,6 +161,20 @@ func TestComposeUpgrade_SQLLayerKeepsCustomerData(t *testing.T) {
 		require.NoError(t, db.Raw(`SELECT count(*) FROM mfa_backup_codes WHERE user_id = ?`, user).Scan(&n).Error)
 		require.Equal(t, want, n, "backup codes left for user %s", user)
 	}
+
+	// Everyone who lost codes is on the ledger once, and is handed out once:
+	// that is what the boot reads to mail them (#1001).
+	ledger := repository.NewGormMFABackupCodePurgeRepository(db)
+	claimed, err := ledger.ClaimPending(context.Background(), 100)
+	require.NoError(t, err)
+	got := map[uuid.UUID]uuid.UUID{}
+	for _, c := range claimed {
+		got[c.UserID] = c.TenantID
+	}
+	require.Equal(t, map[uuid.UUID]uuid.UUID{universalUser: tenant, oldUniversalUser: tenant}, got)
+	again, err := ledger.ClaimPending(context.Background(), 100)
+	require.NoError(t, err)
+	require.Empty(t, again, "a second boot must not mail anyone again")
 }
 
 type tableDigest struct {

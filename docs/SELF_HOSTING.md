@@ -226,17 +226,25 @@ first boot after this upgrade applies the whole chain once on your existing
 database. Back up first anyway, as above.
 
 That first pass is written to keep your data. It was replayed on databases
-built by earlier releases, and every row was compared before and after. Three
+built by earlier releases, and every row was compared before and after. Four
 things change on purpose:
 
 - MFA backup codes made by the generator fixed in August 2026 (#240) were the
   same for every user, so anyone could derive them. They are deleted. Codes
-  made after the fix are kept. Users whose codes were deleted generate new ones
-  by setting up MFA again.
+  made after the fix are kept. Each person whose codes were deleted gets one
+  e-mail, in their language, once the backend is up: their authenticator app
+  still works, and new codes come from Settings › Security (turn two-factor
+  off, then set it up again). Nobody is mailed twice, even across restarts or
+  replicas.
 - Assets created before asset categories existed get the category their type
   names (`Server` becomes `server`, `SaaS` becomes `application`). A type with
   no matching category stays uncategorised. Other installs got this when
   categories shipped.
+- Residual-risk acceptances recorded before acceptances had an end date get
+  one. The acceptance date was not recorded then, so it counts from when the
+  risk was last marked mitigated (or last changed): 12 months after that, and
+  never less than 30 days from the upgrade, so the owner gets the 30-day reminder before anything expires.
+  Acceptances made since already have their date and are left alone.
 - Empty fields that the application already reads as a default are filled with
   that default, for example a membership's MFA grace start. This changes no
   screen and no decision.

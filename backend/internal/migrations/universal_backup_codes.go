@@ -22,6 +22,18 @@ import (
 // code (0056). The exact purge below runs just before it.
 const purgeBeforeVersion = 56
 
+// purgeLedgerDDL is the table the purge writes its victims to, so the backend
+// can tell each of them once it is up (application/auth
+// NotifyPurgedBackupCodesUseCase). The purge can run before 0078 declares the
+// table, so it creates it too; the shape is the same.
+const purgeLedgerDDL = `CREATE TABLE IF NOT EXISTS mfa_backup_code_purges (
+	id          uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
+	tenant_id   uuid        NOT NULL,
+	user_id     uuid        NOT NULL,
+	purged_at   timestamptz NOT NULL DEFAULT now(),
+	notified_at timestamptz
+)`
+
 // legacyUniversalBackupCodes rebuilds the eight backup codes every user got
 // before ff6961ba (#240). The old generator seeded an LCG with a constant, so
 // the codes were the same for everyone and derivable from the public source.
@@ -127,7 +139,11 @@ func purgeUniversalBackupCodes(ctx context.Context, db *sql.DB) error {
 		return fmt.Errorf("migrations: purge universal backup codes: %w", err)
 	}
 	defer func() { _ = tx.Rollback() }()
+	if _, err := tx.ExecContext(ctx, purgeLedgerDDL); err != nil {
+		return fmt.Errorf("migrations: create the backup-code purge ledger: %w", err)
+	}
 	var purged, kept int
+	told := map[[2]string]bool{}
 	for i, b := range batches {
 		if !compromised[i] {
 			kept++
@@ -141,6 +157,17 @@ func purgeUniversalBackupCodes(ctx context.Context, db *sql.DB) error {
 			return fmt.Errorf("migrations: purge universal backup codes: %w", err)
 		}
 		purged++
+		// One notice per person, however many batches they had. Written in the
+		// same transaction as the delete: nobody loses codes without a record
+		// that they must be told.
+		if who := [2]string{b.tenantID, b.userID}; !told[who] {
+			told[who] = true
+			if _, err := tx.ExecContext(ctx,
+				`INSERT INTO mfa_backup_code_purges (tenant_id, user_id) VALUES ($1, $2)`,
+				b.tenantID, b.userID); err != nil {
+				return fmt.Errorf("migrations: record a backup-code purge: %w", err)
+			}
+		}
 	}
 	if err := tx.Commit(); err != nil {
 		return fmt.Errorf("migrations: purge universal backup codes: %w", err)

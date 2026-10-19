@@ -714,6 +714,23 @@ func main() {
 	challengeMFAUseCase := auth.NewChallengeMFAUseCase(mfaRepo, mfaKey[:]).
 		WithAttemptLimits(authmfa.NewAttemptStore(redisClientInstance), tokenBlacklistManager).
 		WithLockNotice(userRepo, securityMailer)
+	// #1001 — tell everyone whose universal MFA backup codes the SQL layer just
+	// purged. Off the boot path: the ledger is claimed row by row, so a replica
+	// that stops half-way leaves the rest to the next boot, never a duplicate.
+	go func() {
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+		defer cancel()
+		notifyPurged := auth.NewNotifyPurgedBackupCodesUseCase(
+			repository.NewGormMFABackupCodePurgeRepository(database.DB), userRepo, securityMailer)
+		sent, err := notifyPurged.Execute(ctx)
+		if err != nil {
+			log.Printf("MFA: purged backup-code notices stopped after %d: %v", sent, err)
+			return
+		}
+		if sent > 0 {
+			log.Printf("MFA: told %d account(s) that their universal backup codes were purged", sent)
+		}
+	}()
 	// OR26-03 — one resolver answers "must this member enrol now?" for /auth/me
 	// and for the request-time guard, so the banner and the enforcement can never
 	// disagree. Cached per (user, tenant) for a minute; enrolment, disabling and
