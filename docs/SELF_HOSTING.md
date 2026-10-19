@@ -226,16 +226,20 @@ first boot after this upgrade applies the whole chain once on your existing
 database. Back up first anyway, as above.
 
 That first pass is written to keep your data. It was replayed on databases
-built by earlier releases, and every row was compared before and after. Two
+built by earlier releases, and every row was compared before and after. Three
 things change on purpose:
 
 - MFA backup codes made by the generator fixed in August 2026 (#240) were the
   same for every user, so anyone could derive them. They are deleted. Codes
   made after the fix are kept. Users whose codes were deleted generate new ones
   by setting up MFA again.
+- Assets created before asset categories existed get the category their type
+  names (`Server` becomes `server`, `SaaS` becomes `application`). A type with
+  no matching category stays uncategorised. Other installs got this when
+  categories shipped.
 - Empty fields that the application already reads as a default are filled with
-  that default, for example a membership's MFA grace start. Nothing a user sees
-  changes.
+  that default, for example a membership's MFA grace start. This changes no
+  screen and no decision.
 
 With several backend replicas (Helm), one replica runs the pass and the others
 wait for its lock. A replica can time out on a long first pass, and then it
