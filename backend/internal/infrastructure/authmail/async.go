@@ -35,6 +35,7 @@ type ResetMailerLike interface {
 	SendPasswordChanged(ctx context.Context, to, fullName, locale string) error
 	SendMFADisabled(ctx context.Context, to, fullName, locale string) error
 	SendMFALocked(ctx context.Context, to, fullName, locale string) error
+	SendMFABackupCodesPurged(ctx context.Context, to, fullName, locale string) error
 }
 
 // NewAsync wraps a mailer so every send returns immediately.
@@ -63,6 +64,12 @@ func (a *Async) SendPasswordChanged(_ context.Context, to, fullName, locale stri
 // SendMFADisabled queues the two-factor deactivation notice.
 func (a *Async) SendMFADisabled(_ context.Context, to, fullName, locale string) error {
 	a.dispatch(func(ctx context.Context) { _ = a.inner.SendMFADisabled(ctx, to, fullName, locale) })
+	return nil
+}
+
+// SendMFABackupCodesPurged queues the backup-code purge notice (#1001).
+func (a *Async) SendMFABackupCodesPurged(_ context.Context, to, fullName, locale string) error {
+	a.dispatch(func(ctx context.Context) { _ = a.inner.SendMFABackupCodesPurged(ctx, to, fullName, locale) })
 	return nil
 }
 

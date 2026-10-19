@@ -45,8 +45,9 @@ services:
 
   backend:
     build:
-      context: ../../backend
-      dockerfile: Dockerfile
+      # Repository root: the image carries the SQL migrations (#1001).
+      context: ../..
+      dockerfile: backend/Dockerfile
     image: openrisk/backend:${OPENRISK_VERSION:-latest}
     depends_on:
       db: { condition: service_healthy }

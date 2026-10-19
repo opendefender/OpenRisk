@@ -18,6 +18,9 @@ on:
       - 'scripts/restore.sh'
       - 'deploy/selfhost/**'
       - 'backend/Dockerfile'
+      - 'backend/Dockerfile.dockerignore'
+      - 'backend/docker-entrypoint.sh'
+      - 'migrations/**'
       - 'frontend/Dockerfile'
       - '.github/workflows/selfhost-install.yml'
 
@@ -54,6 +57,25 @@ jobs:
       - name: Assert API health
         run: |
           curl -fsS http://localhost:8080/api/v1/health
+
+      # A healthy backend says nothing about the SQL layer: without DATABASE_URL
+      # it skips migrations/ and still answers /health (#1001).
+      - name: Assert the SQL migrations ran (#1001)
+        run: |
+          cd deploy/selfhost
+          docker compose logs backend > backend.log 2>&1
+          grep -E 'migrations: applied successfully \(version=[0-9]+ dirty=false\)' backend.log || {
+            grep -i 'migrations' backend.log || true
+            echo "the backend did not apply the SQL migrations"; exit 1; }
+
+      # Every migration in the repository is in the image, and nothing else
+      # (#611): a file left out of the build context would be skipped silently
+      # on every install.
+      - name: Assert the image carries every migration (#611)
+        run: |
+          (cd migrations && ls *.sql) | sort > repo-migrations.txt
+          (cd deploy/selfhost && docker compose exec -T backend ls /app/migrations) | sort > image-migrations.txt
+          diff repo-migrations.txt image-migrations.txt && echo "$(wc -l < repo-migrations.txt) migration files, identical"
 
       # The install is only finished if the operator can actually get in. #328's
       # criterion 1 is exactly this: credentials at the end, not a README telling

@@ -3,4 +3,13 @@
 -- identical across all users and derivable from public source. Purge them so the
 -- compromised universal codes can no longer satisfy an MFA challenge. Affected
 -- users regenerate fresh, unique codes by re-running MFA setup.
-DELETE FROM mfa_backup_codes;
+--
+-- This file used to delete every code. Compose installs ran without the SQL
+-- layer and reach it only now (#1001), when most of their codes are real ones
+-- made after the fix; deleting those would lock out anyone who relies on them.
+-- The exact purge now runs in Go just before this file
+-- (backend/internal/migrations/universal_backup_codes.go): it checks each
+-- enrolment's hash against the eight known codes and deletes those batches
+-- only. What stays here is the part SQL can prove on its own: a code made
+-- before the fix existed (ff6961ba, 2026-08-19) can only be a universal one.
+DELETE FROM mfa_backup_codes WHERE created_at < TIMESTAMPTZ '2026-08-19 00:00:00+00';

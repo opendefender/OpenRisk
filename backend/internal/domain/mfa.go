@@ -93,3 +93,12 @@ type MFAToken struct {
 	UserID    string `json:"user_id"`
 	ExpiresAt int64  `json:"expires_at"` // Unix timestamp
 }
+
+// MFABackupCodePurge is one person whose backup codes the universal-code purge
+// deleted (#1001, backend/internal/migrations/universal_backup_codes.go), and
+// who must be told. The ledger table is mfa_backup_code_purges (0078).
+type MFABackupCodePurge struct {
+	ID       uuid.UUID
+	TenantID uuid.UUID
+	UserID   uuid.UUID
+}

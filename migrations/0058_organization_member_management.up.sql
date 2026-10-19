@@ -5,9 +5,15 @@
 --      timestamps that say when it changed), backfilled from the is_active
 --      boolean that used to be the only signal.
 --   2. invitations is rebuilt around a hashed bearer token. The previous shape
---      stored a UUID token in clear; it was never in AutoMigrate, so no
---      deployment has rows in it, and it is dropped rather than migrated —
+--      stored a UUID token in clear and is dropped rather than migrated —
 --      there is no safe way to convert a plaintext credential into a hashed one.
+--
+--      Only that previous shape is dropped (#1001). AutoMigrate has since built
+--      the hashed table on every boot, and the compose installs ran on
+--      AutoMigrate alone for months, so a database reaching this file for the
+--      first time can hold real pending invitations. Dropping those would kill
+--      links already mailed to people. A table that already has token_hash is
+--      kept, and everything below only adds what is missing.
 
 BEGIN;
 
@@ -39,9 +45,19 @@ CREATE UNIQUE INDEX IF NOT EXISTS uq_org_members_org_user
 
 -- 2. Invitations --------------------------------------------------------------
 
-DROP TABLE IF EXISTS invitations;
+DO $$
+BEGIN
+    IF to_regclass('invitations') IS NOT NULL AND NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+         WHERE table_schema = current_schema()
+           AND table_name = 'invitations'
+           AND column_name = 'token_hash'
+    ) THEN
+        DROP TABLE invitations;
+    END IF;
+END $$;
 
-CREATE TABLE invitations (
+CREATE TABLE IF NOT EXISTS invitations (
     id               UUID PRIMARY KEY,
     organization_id  UUID        NOT NULL REFERENCES organizations (id) ON DELETE CASCADE,
     email            VARCHAR(320) NOT NULL,
@@ -64,16 +80,16 @@ CREATE TABLE invitations (
     updated_at       TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE UNIQUE INDEX uq_invitations_token_hash ON invitations (token_hash);
-CREATE INDEX idx_invitations_org_status       ON invitations (organization_id, status);
-CREATE INDEX idx_invitations_email            ON invitations (organization_id, email);
-CREATE INDEX idx_invitations_expires          ON invitations (expires_at);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_invitations_token_hash ON invitations (token_hash);
+CREATE INDEX IF NOT EXISTS idx_invitations_org_status       ON invitations (organization_id, status);
+CREATE INDEX IF NOT EXISTS idx_invitations_email            ON invitations (organization_id, email);
+CREATE INDEX IF NOT EXISTS idx_invitations_expires          ON invitations (expires_at);
 
 -- At most one PENDING invitation per (organization, email). This is the
 -- database half of the duplicate check: two admins inviting the same person at
 -- the same moment both pass the application-level lookup, and one of them has
 -- to lose here.
-CREATE UNIQUE INDEX uq_invitations_pending_email
+CREATE UNIQUE INDEX IF NOT EXISTS uq_invitations_pending_email
     ON invitations (organization_id, email)
  WHERE status = 'pending';
 

@@ -5,6 +5,27 @@
 -- two extra outbound channels (generic webhook, HTTP SMS gateway).
 
 -- Rule lifecycle + live health -------------------------------------------------
+-- Rules that are already disabled predate the "why" field. Say that plainly
+-- rather than inventing a reason nobody gave. Only when this file adds the
+-- field: on a database where AutoMigrate added it earlier, a disabled rule
+-- with no reason was disabled after the field existed, and the sentence would
+-- be false (#1001).
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+         WHERE table_schema = current_schema()
+           AND table_name = 'automation_rules'
+           AND column_name = 'suspended_reason'
+    ) THEN
+        ALTER TABLE automation_rules ADD COLUMN suspended_reason TEXT;
+
+        UPDATE automation_rules
+           SET suspended_reason = 'disabled before suspension reasons were recorded'
+         WHERE enabled = false;
+    END IF;
+END $$;
+
 ALTER TABLE automation_rules ADD COLUMN IF NOT EXISTS suspended_at      TIMESTAMPTZ;
 ALTER TABLE automation_rules ADD COLUMN IF NOT EXISTS suspended_by      UUID;
 ALTER TABLE automation_rules ADD COLUMN IF NOT EXISTS suspended_reason  TEXT;
@@ -13,12 +34,6 @@ ALTER TABLE automation_rules ADD COLUMN IF NOT EXISTS last_executed_at  TIMESTAM
 ALTER TABLE automation_rules ADD COLUMN IF NOT EXISTS last_error        TEXT;
 ALTER TABLE automation_rules ADD COLUMN IF NOT EXISTS failure_streak    INTEGER NOT NULL DEFAULT 0;
 ALTER TABLE automation_rules ADD COLUMN IF NOT EXISTS template_key      VARCHAR(64);
-
--- Rules that are already disabled predate the "why" field. Say that plainly
--- rather than inventing a reason nobody gave.
-UPDATE automation_rules
-   SET suspended_reason = 'disabled before suspension reasons were recorded'
- WHERE enabled = false AND (suspended_reason IS NULL OR suspended_reason = '');
 
 -- Run history ------------------------------------------------------------------
 ALTER TABLE automation_executions ADD COLUMN IF NOT EXISTS mode          VARCHAR(16);

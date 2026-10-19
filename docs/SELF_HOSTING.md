@@ -211,8 +211,53 @@ docker compose pull || true         # if using prebuilt images
 docker compose up -d --build        # rebuild + restart; migrations run on boot
 ```
 
-Schema migrations (GORM AutoMigrate + SQL migrations) run automatically on
-backend start. Your `.env` and `secrets/` are preserved across upgrades.
+Schema migrations run automatically on backend start: GORM AutoMigrate, then
+the SQL migrations in `migrations/`, which the backend image carries. The log
+shows `migrations: applied successfully (version=N)` once they are in.
+
+Before #1001 the SQL layer never ran on a compose install: it only ran with
+`DATABASE_URL` set, and the compose files do not set it. The backend image now
+sets `MIGRATIONS_DIR`, and the backend builds the connection from `DB_HOST`,
+`DB_USER`, `DB_PASSWORD` and `DB_NAME` itself, so any password works,
+spaces, quotes, `@ : / ? # % $` included. In `.env`, write such a password in
+single quotes (`DB_PASSWORD='p@ss w#rd$1'`). If it contains a single quote,
+use double quotes and escape `"` as `\"` and `$` as `$$`. The
+first boot after this upgrade applies the whole chain once on your existing
+database. Back up first anyway, as above.
+
+That first pass is written to keep your data. It was replayed on databases
+built by earlier releases, and every row was compared before and after. Four
+things change on purpose:
+
+- MFA backup codes made by the generator fixed in August 2026 (#240) were the
+  same for every user, so anyone could derive them. They are deleted. Codes
+  made after the fix are kept. Each person whose codes were deleted gets one
+  e-mail, in their language, once the backend is up: their authenticator app
+  still works, and new codes come from Settings › Security (turn two-factor
+  off, then set it up again). Nobody is mailed twice, even across restarts or
+  replicas.
+- Assets created before asset categories existed get the category their type
+  names (`Server` becomes `server`, `SaaS` becomes `application`). A type with
+  no matching category stays uncategorised. Other installs got this when
+  categories shipped.
+- Residual-risk acceptances recorded before acceptances had an end date get
+  one. The acceptance date was not recorded then, so it counts from when the
+  risk was last marked mitigated (or last changed): 12 months after that, and
+  never less than 30 days from the upgrade, so the owner gets the 30-day reminder before anything expires.
+  Acceptances made since already have their date and are left alone.
+- Empty fields that the application already reads as a default are filled with
+  that default, for example a membership's MFA grace start. This changes no
+  screen and no decision.
+
+With several backend replicas (Helm), one replica runs the pass and the others
+wait for its lock. A replica can time out on a long first pass, and then it
+restarts once. This is expected.
+
+If a migration fails, the backend stops and says so. The data is not touched.
+Fix the cause, then mark the last good version:
+`docker compose run --rm backend migrate force <version>`.
+
+Your `.env` and `secrets/` are preserved across upgrades.
 
 ### Password hashing
 
@@ -265,8 +310,9 @@ stack builds and runs natively on ARM64 — `./install.sh` works unchanged
 on a Graviton VM. To build and publish a multi-arch image:
 
 ```bash
+# The backend builds from the repository root: its image carries migrations/.
 docker buildx build --platform linux/amd64,linux/arm64 \
-  -t openrisk/backend:latest ./backend --push
+  -t openrisk/backend:latest -f backend/Dockerfile . --push
 docker buildx build --platform linux/amd64,linux/arm64 \
   -t openrisk/frontend:latest ./frontend --push
 ```

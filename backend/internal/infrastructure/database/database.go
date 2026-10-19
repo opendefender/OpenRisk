@@ -10,6 +10,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"strings"
 	"time"
 
 	"gorm.io/driver/postgres"
@@ -59,6 +60,19 @@ func gormLoggerTo(w io.Writer) logger.Interface {
 	)
 }
 
+// keywordDSN builds the libpq keyword/value connection string from the DB_*
+// values. Every value is single-quoted, with backslash and quote escaped, the
+// way libpq reads them: unquoted, a password with a space, a quote or a
+// backslash in it was cut or misread, and the backend refused to start (#1001).
+func keywordDSN(host, user, password, dbname, port string) string {
+	return fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=disable TimeZone=UTC",
+		dsnQuote(host), dsnQuote(user), dsnQuote(password), dsnQuote(dbname), dsnQuote(port))
+}
+
+func dsnQuote(v string) string {
+	return "'" + strings.NewReplacer(`\`, `\\`, `'`, `\'`).Replace(v) + "'"
+}
+
 func Connect() {
 	// Build DSN from environment variables with sensible defaults
 	host := os.Getenv("DB_HOST")
@@ -86,10 +100,7 @@ func Connect() {
 	// Try to use DATABASE_URL if provided (takes precedence)
 	databaseURL := os.Getenv("DATABASE_URL")
 	if databaseURL == "" {
-		databaseURL = fmt.Sprintf(
-			"host=%s user=%s password=%s dbname=%s port=%s sslmode=disable TimeZone=UTC",
-			host, user, password, dbname, port,
-		)
+		databaseURL = keywordDSN(host, user, password, dbname, port)
 	}
 
 	var err error
