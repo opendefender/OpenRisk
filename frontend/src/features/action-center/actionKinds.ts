@@ -65,6 +65,8 @@ const KINDS: Record<ActionItemType, KindSpec> = {
     complete: (id) => api.patch(`/mitigations/${id}`, { status: 'DONE' }),
   },
   critical_risk: { filter: 'plans', icon: ShieldAlert },
+  // #811 — re-assessing an expired acceptance is a judgement: no tick.
+  expired_acceptance: { filter: 'plans', icon: ShieldAlert },
   open_incident: {
     filter: 'incident',
     icon: Siren,

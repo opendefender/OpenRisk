@@ -403,7 +403,8 @@
       "unknown": "Action required",
       "vulnerability_sla": "Vulnerability deadline",
       "vendor_followup": "Vendor follow-up",
-      "mitigation_review": "Mitigation to validate"
+      "mitigation_review": "Mitigation to validate",
+      "expired_acceptance": "Risk acceptance expired"
     },
     "summary": {
       "exact": {
@@ -438,7 +439,8 @@
       "expiring_evidence": "Evidence",
       "overdue_remediation": "Remediation",
       "vulnerability_sla": "Vulnerability",
-      "vendor_followup": "Third party"
+      "vendor_followup": "Third party",
+      "expired_acceptance": "Risk"
     },
     "cta": {
       "overdue_mitigation": "Open",
@@ -450,7 +452,8 @@
       "overdue_remediation": "Open",
       "vulnerability_sla": "Open",
       "vendor_followup": "Follow up",
-      "unknown": "Open"
+      "unknown": "Open",
+      "expired_acceptance": "Re-assess"
     },
     "fact": {
       "kev": "KEV",
@@ -464,7 +467,8 @@
       "unanswered": {
         "one": "no answer for {count} day",
         "other": "no answer for {count} days"
-      }
+      },
+      "acceptanceExpired": "acceptance expired, re-assess"
     },
     "done": "Mark as done",
     "doneToast": "Action done: {title}",

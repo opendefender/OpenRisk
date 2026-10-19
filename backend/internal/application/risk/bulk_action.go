@@ -146,6 +146,11 @@ func (uc *BulkActionUseCase) Execute(
 		if input.Status == nil {
 			return nil, domain.NewValidationError("status is required for change_status action")
 		}
+		// #811 — acceptance is a per-risk decision with its own approval and
+		// end date. A bulk status change would accept risks with neither.
+		if domain.RiskStateFromLegacy(*input.Status, "") == domain.StateResidualAccepted {
+			return nil, domain.NewValidationError("residual risk cannot be accepted in bulk: use the lifecycle transition, with a governance approval, on each risk")
+		}
 		// Changes are collected inside the transaction and announced only once
 		// it has committed: a rolled-back batch must not have told anyone.
 		// Keyed by risk: if the transaction ever replays the mutate pass, a risk

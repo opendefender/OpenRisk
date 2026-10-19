@@ -54,6 +54,10 @@ type BoardReport struct {
 	// FrameworksSnapshot is a JSON array of the per-framework advancement at
 	// generation time (name, version, percent, counts) — rendered in the PDF table.
 	FrameworksSnapshot datatypes.JSON `gorm:"type:jsonb" json:"frameworks_snapshot"`
+	// AcceptancesSnapshot lists the residual-risk acceptances ending within
+	// the board horizon at generation time (#811): the board sees which
+	// accepted risks come back to it, and when.
+	AcceptancesSnapshot datatypes.JSON `gorm:"type:jsonb" json:"acceptances_snapshot"`
 
 	// --- Narrative (editable while draft) ---
 	ExecutiveSummary     string         `gorm:"type:text" json:"executive_summary"`

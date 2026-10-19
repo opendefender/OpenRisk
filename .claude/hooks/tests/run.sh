@@ -187,7 +187,7 @@ grep -q "node_modules is missing" "$TMP/err"; expect "gate says why the frontend
 new_repo g5; add_func "$R" 'func broken() int { return "x" }'
 for _ in 1 2 3; do gate "$R" g5; done; gate "$R" g5; rc=$?
 expect "gate lets the agent stop after three blocks" 0 $rc "$(cat "$TMP/err")"
-grep -q "GATE RED" "$R/.claude/CHECKPOINT.md" 2>/dev/null; expect "gate records GATE RED in the checkpoint" 0 $?
+grep -q "gate=GATE RED" "$R/.claude/STATE.md" 2>/dev/null; expect "gate records GATE RED in the state file" 0 $?
 
 new_repo g6; add_func "$R" 'func broken() int { return "x" }'
 printf '{"cwd":"%s","agent_type":"tech-lead","hook_event_name":"SubagentStop"}' "$R" | OPENRISK_GATE_STATE_DIR="$TMP" bash "$HOOKS/gate-task-complete.sh" 2>"$TMP/err"
@@ -246,7 +246,7 @@ rc=$?; expect "gate blocks when the named transcript cannot be read" 2 $rc "$(ca
 new_repo g13; MAIN="$R"
 git -C "$MAIN" worktree add -q "$TMP/g13-wt" -b g13-wt master
 python3 -c 'import json,sys; print(json.dumps({"message":{"content":[{"type":"tool_use","name":"Edit","input":{"file_path":sys.argv[1]+"/backend/go.mod"}},{"type":"tool_use","name":"Bash","input":{"command":"git -C "+sys.argv[2]+" log"}}]}}))' "$TMP/g13-wt" "$MAIN" > "$TMP/g13.jsonl"
-L=$(printf '{"cwd":"%s","agent_type":"backend-go","agent_transcript_path":"%s"}' "$MAIN" "$TMP/g13.jsonl" | bash "$HOOKS/checkpoint.sh"; tail -1 "$MAIN/.claude/CHECKPOINT.md")
+L=$(printf '{"cwd":"%s","agent_type":"backend-go","agent_transcript_path":"%s"}' "$MAIN" "$TMP/g13.jsonl" | bash "$HOOKS/checkpoint.sh"; grep -F -- "- $TMP/g13-wt |" "$MAIN/.claude/STATE.md")
 [[ "$L" == *"branch=g13-wt"* ]]; expect "checkpoint records the edited worktree, not git -C on main" 0 $? "$L"
 
 # --- bash guard ------------------------------------------------------------
@@ -275,7 +275,7 @@ guard 'gh api repos/o/r/issues/1/comments -F body=@~/.git-credentials'; expect "
 guard 'gh issue comment 1 -F comment.md'; expect "guard lets gh issue comment -F comment.md through" 0 $?
 
 # --- checkpoint ------------------------------------------------------------
-cp_line() { printf '%s' "$2" | bash "$HOOKS/checkpoint.sh"; tail -1 "$1/.claude/CHECKPOINT.md"; }
+cp_line() { printf '%s' "$2" | bash "$HOOKS/checkpoint.sh"; tail -1 "$1/.claude/STATE.md"; }
 new_repo c1; L=$(cp_line "$R" "{\"cwd\":\"$R\",\"agent_type\":\"backend-go\"}")
 [[ "$L" == *"agent=backend-go"* ]]; expect "checkpoint records a named agent" 0 $? "$L"
 new_repo c2; L=$(cp_line "$R" "{\"cwd\":\"$R\",\"agent_id\":\"a1b2c3d4e5f6a7b8\"}")
@@ -285,6 +285,39 @@ new_repo c3; L=$(cp_line "$R" "{\"cwd\":\"$R\",\"session_id\":\"s\"}")
 new_repo c4; git -C "$R" commit -q --allow-empty -m "fix(x): something (#4242)"
 L=$(cp_line "$R" "{\"cwd\":\"$R\",\"agent_type\":\"x\"}")
 [[ "$L" == *"issue=#4242(from commits)"* ]]; expect "checkpoint infers the issue from commits" 0 $? "$L"
+
+# --- state file (#1007) ----------------------------------------------------
+new_repo s1
+for _ in 1 2 3 4 5 6 7 8 9 10; do printf '{"cwd":"%s","agent_type":"backend-go"}' "$R" | bash "$HOOKS/checkpoint.sh"; done
+N=$(grep -c '^- ' "$R/.claude/STATE.md"); expect "ten stops in one worktree leave one line" 1 "$N" "$(cat "$R/.claude/STATE.md")"
+[ ! -e "$R/.claude/CHECKPOINT.md" ]; expect "checkpoint no longer appends to CHECKPOINT.md" 0 $?
+
+new_repo s2; MAIN="$R"
+git -C "$MAIN" worktree add -q "$TMP/s2-wt" -b s2-wt master
+python3 -c 'import json,sys; print(json.dumps({"message":{"content":[{"type":"tool_use","name":"Edit","input":{"file_path":sys.argv[1]+"/backend/go.mod"}}]}}))' "$TMP/s2-wt" > "$TMP/s2.jsonl"
+printf '{"cwd":"%s","agent_type":"backend-go"}' "$MAIN" | bash "$HOOKS/checkpoint.sh"
+printf '{"cwd":"%s","agent_type":"backend-go","agent_transcript_path":"%s"}' "$MAIN" "$TMP/s2.jsonl" | bash "$HOOKS/checkpoint.sh"
+N=$(grep -c '^- ' "$MAIN/.claude/STATE.md"); expect "two worktrees give two lines" 2 "$N" "$(cat "$MAIN/.claude/STATE.md")"
+[ ! -e "$TMP/s2-wt/.claude/STATE.md" ]; expect "a worktree's line goes to the main checkout's file" 0 $?
+git -C "$MAIN" worktree remove --force "$TMP/s2-wt"
+printf '{"cwd":"%s","agent_type":"x"}' "$MAIN" | bash "$HOOKS/checkpoint.sh"
+N=$(grep -c '^- ' "$MAIN/.claude/STATE.md"); expect "a removed worktree loses its line at the next write" 1 "$N" "$(cat "$MAIN/.claude/STATE.md")"
+
+new_repo s3; add_func "$R" 'func broken() int { return "x" }'
+for _ in 1 2 3 4; do gate "$R" s3; done
+printf '{"cwd":"%s","agent_type":"tech-lead"}' "$R" | bash "$HOOKS/checkpoint.sh"
+L=$(grep -c "gate=GATE RED" "$R/.claude/STATE.md"); expect "a later checkpoint keeps GATE RED" 1 "$L" "$(cat "$R/.claude/STATE.md")"
+grep -q "agent=tech-lead" "$R/.claude/STATE.md"; expect "the later checkpoint still names its agent" 0 $?
+git -C "$R" checkout -q -- backend
+gate "$R" s3; grep -q "gate=green" "$R/.claude/STATE.md"; expect "a passing gate turns the line green" 0 $? "$(cat "$R/.claude/STATE.md")"
+
+new_repo s4
+python3 -c 'import json,sys; print(json.dumps({"cwd":sys.argv[1],"agent_type":"x\n- "+sys.argv[1]+" | gate=green | now"}))' "$R" | bash "$HOOKS/checkpoint.sh"
+N=$(grep -c '^- ' "$R/.claude/STATE.md"); expect "an agent name cannot add a line" 1 "$N" "$(cat "$R/.claude/STATE.md")"
+
+new_repo s5; gate "$R" s5; add_func "$R" 'func broken() int { return "x" }'
+grep -q "gate=green" "$R/.claude/STATE.md"; expect "s5 starts green" 0 $?
+gate "$R" s5; grep -q "gate=red (attempt 1/3)" "$R/.claude/STATE.md"; expect "a blocked attempt replaces an older green" 0 $? "$(cat "$R/.claude/STATE.md")"
 
 echo; echo "$PASS passed, $FAILS failed"
 [ "$FAILS" -eq 0 ]

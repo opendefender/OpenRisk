@@ -1261,7 +1261,11 @@ func main() {
 			repository.NewGormMitigationSubActionRepository(database.DB),
 		)).
 		WithApprovals(newApprovalChecker(repository.NewGormApprovalRepository(database.DB))).
-		WithNotices(requestNoticeDispatcher)
+		WithNotices(requestNoticeDispatcher).
+		// #811 — an acceptance is dated: the tenant caps its length, and the
+		// approver, date and expiry go into the hash-chained trail.
+		WithAcceptancePolicy(orgRepo).
+		WithJournal(auditChainRepo)
 	riskHandler := handlers.NewRiskHandler(createRiskUseCase, getRiskUseCase, listRisksUseCase, updateRiskUseCase, deleteRiskUseCase, markReviewedUseCase, transitionStateUseCase, redisClientInstance, riskQuantifier).
 		WithFinancialPresenters(financialPresenters).
 		// #581 — bulk actions are transactional and audited. The journal is a
@@ -1282,7 +1286,8 @@ func main() {
 					return -1, err
 				}
 				return max(limit-used, 0), nil
-			}))
+			})).
+		WithAcceptancePolicy(risk.NewAcceptancePolicyUseCase(orgRepo))
 
 	// Financial Risk Quantification (spec §9): tenant-wide CFO/CISO dashboard
 	// (portfolio FAIR-lite P10/P50/P90, ALE, worst-case, residual, remediation
@@ -1363,6 +1368,12 @@ func main() {
 	protected.Post("/risks/:id/transfer-owner", riskUpdate, ownershipTransferHandler.TransferRiskOwner)
 	// ISO 31000 lifecycle transition (Identifier → … → Clôturer). Tenant-scoped, audited.
 	protected.Post("/risks/:id/transition", riskUpdate, riskHandler.TransitionPhase)
+	// #811 — renewing an acceptance is a new governance decision, checked by the
+	// same guard as the transition. The tenant maximum is read by anyone who
+	// can see risks and set by an admin.
+	protected.Post("/risks/:id/acceptance/renew", riskUpdate, riskHandler.RenewAcceptance)
+	protected.Get("/risk-acceptance/policy", middleware.RequirePermission("risks:read"), riskHandler.GetAcceptancePolicy)
+	protected.Put("/risk-acceptance/policy", middleware.RequireRole("admin", "root"), riskHandler.SetAcceptancePolicy)
 	// The stepper's contract: what can this risk become next, and what is in the
 	// way. Read-only, so it rides the read permission.
 	protected.Get("/risks/:id/transitions", middleware.RequirePermission("risks:read"), riskHandler.ListTransitions)
@@ -1625,7 +1636,9 @@ func main() {
 	}
 	generateBoardUC := board.NewGenerateBoardReportUseCase(
 		boardRepo, riskRepo, complianceRepo, orgRepo, boardAdvisor, board.DefaultExposureModel(),
-	).WithActivation(activationRecorder)
+	).WithActivation(activationRecorder).
+		// #811 — the board sees the acceptances that come back to it.
+		WithAcceptances(riskRepo)
 	getBoardUC := board.NewGetBoardReportUseCase(boardRepo)
 	listBoardUC := board.NewListBoardReportsUseCase(boardRepo)
 	updateBoardUC := board.NewUpdateBoardReportUseCase(boardRepo)
@@ -2780,6 +2793,27 @@ func main() {
 			}
 		}, zeroLogger)
 	go evidenceExpiryWorker.Start(context.Background())
+
+	// Residual-risk acceptances (#811): D-30 and D-7 notices to the owner and
+	// the approver, then the system transition back to ASSESSED at the end
+	// date. Same hourly, stamp-before-send rule as the evidence sweep.
+	acceptanceExpiryWorker := workers.NewAcceptanceExpiryWorker(
+		risk.NewSweepAcceptancesUseCase(
+			repository.NewGormRiskAcceptanceRepository(database.DB),
+			auditChainRepo,
+			func(ctx context.Context, tenantID, userID, riskID uuid.UUID, subject, message string) {
+				if err := notificationUseCase.NotifyInApp(userID, tenantID,
+					domain.NotificationTypeRiskReview, subject, message, &riskID, "risk"); err != nil && !errors.Is(err, notificationapp.ErrSuppressed) {
+					zeroLogger.Warn().Err(err).Msg("acceptance expiry: in-app notification failed")
+				}
+				if notificationUseCase.ShouldNotify(userID, tenantID, domain.NotificationTypeRiskReview, domain.NotificationChannelEmail) {
+					if user, uerr := userRepo.GetByID(ctx, userID); uerr == nil && user != nil && user.Email != "" {
+						_ = emailTransport.SendEmail(ctx, user.Email, subject, message)
+					}
+				}
+			}),
+		zeroLogger)
+	go acceptanceExpiryWorker.Start(context.Background())
 
 	scanPipeline := scanpkg.NewPipeline(scanRegistry, scanPreview, scanNotifier, zeroLogger)
 

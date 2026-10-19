@@ -60,7 +60,12 @@ var riskStateTransitions = map[RiskState][]RiskState{
 	StateAssessed:         {StateTreatmentPlanned, StateClosed},
 	StateTreatmentPlanned: {StateInTreatment, StateAssessed, StateClosed},
 	StateInTreatment:      {StateMitigated, StateResidualAccepted, StateTreatmentPlanned},
-	StateResidualAccepted: {StateClosed, StateInTreatment},
+	// → ASSESSED (#811) is where an expired acceptance goes: the context it was
+	// given in may have changed, so the risk is re-assessed. IN_TREATMENT would
+	// demand an active mitigation (GuardActiveMitigation) that an accepted risk
+	// usually does not have. A person may take the same step early to withdraw
+	// an acceptance.
+	StateResidualAccepted: {StateClosed, StateInTreatment, StateAssessed},
 	StateMitigated:        {StateClosed, StateInTreatment},
 	StateClosed:           {StateReopened},
 	// Re-entry after a reopen: back to assessment by default, or straight into

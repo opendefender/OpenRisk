@@ -149,6 +149,12 @@ func (uc *CreateRiskUseCase) Execute(ctx context.Context, orgID uuid.UUID, input
 	// transition is DRAFT → IDENTIFIED; one created with a status is placed at
 	// whatever state that status means.
 	if input.Status != "" {
+		// #811 — a risk cannot be BORN accepted. Accepting residual risk needs
+		// an approved governance request and an end date, which only the
+		// lifecycle transition records.
+		if domain.RiskStateFromLegacy(input.Status, "") == domain.StateResidualAccepted {
+			return nil, domain.NewValidationError("a risk cannot be created as accepted: accept its residual risk through the lifecycle transition, with a governance approval")
+		}
 		risk.SetState(domain.RiskStateFromLegacy(input.Status, ""))
 	} else {
 		risk.SetState(domain.StateDraft)
