@@ -82,8 +82,19 @@ jobs:
             exit 1
           fi
           sed 's/Password: .*/Password: ***REDACTED***/' install2.log
-          grep -q "Unchanged from your existing install" install2.log || {
+          # The wording scripts/install.sh prints on each branch (#650). The
+          # first run made the administrator; the second must say it reused
+          # .env, and must not claim a new account again.
+          grep -q "Change this password on first login" install.log || {
+            echo "the first run did not report a new administrator"; exit 1; }
+          grep -q "This value comes from deploy/selfhost/.env" install2.log || {
             echo "the second run did not report the existing administrator"; exit 1; }
+          if grep -q "Change this password on first login" install2.log; then
+            echo "the second run claims a new administrator"; exit 1
+          fi
+          users=$(cd deploy/selfhost && docker compose exec -T db psql -U openrisk -d openrisk -tAc "SELECT count(*) FROM users")
+          echo "users after two runs: $users"
+          test "$users" = "1" || { echo "the second run created another account"; exit 1; }
 
       - name: Assert entitlements endpoint is served (open-core is wired)
         run: |
