@@ -50,6 +50,7 @@ func TestFinancialSummary_Success(t *testing.T) {
 
 	assert.Equal(t, 2, sum.TotalRisks)
 	assert.Equal(t, 2, sum.QuantifiedRisks) // both have explicit or composed SLE
+	assert.Equal(t, FinancialDataOK, sum.DataStatus)
 	// Portfolio ALE = 10M + 3M = 13M.
 	assert.Equal(t, 13_000_000.0, sum.TotalALE.XAF)
 	// Residual = 2M (control on #1) + 3M (uncontrolled #2) = 5M.
@@ -82,9 +83,27 @@ func TestFinancialSummary_Empty(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 0, sum.TotalRisks)
 	assert.Equal(t, 0.0, sum.TotalALE.XAF)
+	assert.Equal(t, FinancialDataInsufficient, sum.DataStatus)
+	assert.Equal(t, MinQuantifiedRisks, sum.MinQuantifiedRisks)
 	assert.False(t, sum.PortfolioROSIOK) // no remediation budget → undefined
 	assert.Len(t, sum.ByCriticality, 4)  // buckets still present, all zero
 	assert.Empty(t, sum.TopRisks)
+}
+
+// Risks without their own loss figures are valued by the reference model only:
+// the summary must flag that instead of passing the amounts off as measured.
+func TestFinancialSummary_NoQuantifiedRisk_InsufficientData(t *testing.T) {
+	risks := []domain.Risk{
+		{ID: uuid.New(), Title: "Phishing", Criticality: domain.RiskCriticalityHigh},
+		{ID: uuid.New(), Title: "Outage", Criticality: domain.RiskCriticalityMedium},
+	}
+	uc := NewFinancialSummaryUseCase(&mockFinancialLister{risks: risks}, crq.NewQuantifier(600, crq.DefaultReference()))
+	sum, err := uc.Execute(context.Background(), uuid.New())
+	require.NoError(t, err)
+	assert.Equal(t, 2, sum.TotalRisks)
+	assert.Equal(t, 0, sum.QuantifiedRisks)
+	assert.Equal(t, FinancialDataInsufficient, sum.DataStatus)
+	assert.Equal(t, 1, sum.MinQuantifiedRisks)
 }
 
 func TestFinancialSummary_ListerError(t *testing.T) {

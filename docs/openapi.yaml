@@ -4268,6 +4268,13 @@ components:
         xaf_per_usd: { type: number }
         total_risks: { type: integer }
         quantified_risks: { type: integer }
+        data_status:
+          type: string
+          enum: [ok, insufficient_data]
+          description: >-
+            insufficient_data until min_quantified_risks risks carry their own
+            loss figures; the amounts then come from the reference model only.
+        min_quantified_risks: { type: integer }
         total_ale: { $ref: '#/components/schemas/Money' }
         total_ale_worst: { $ref: '#/components/schemas/Money' }
         total_ale_after: { $ref: '#/components/schemas/Money' }
