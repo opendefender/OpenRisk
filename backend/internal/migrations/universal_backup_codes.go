@@ -85,26 +85,9 @@ func purgeUniversalBackupCodes(ctx context.Context, db *sql.DB) error {
 		return nil
 	}
 
-	rows, err := db.QueryContext(ctx, `
-		SELECT DISTINCT ON (user_id, tenant_id, date_trunc('second', created_at))
-		       user_id::text, tenant_id::text, date_trunc('second', created_at), code_hash
-		  FROM mfa_backup_codes
-		 ORDER BY user_id, tenant_id, date_trunc('second', created_at), id`)
+	batches, err := listBackupCodeBatches(ctx, db)
 	if err != nil {
-		return fmt.Errorf("migrations: list backup code batches: %w", err)
-	}
-	var batches []backupCodeBatch
-	for rows.Next() {
-		var b backupCodeBatch
-		if err := rows.Scan(&b.userID, &b.tenantID, &b.second, &b.sampleHash); err != nil {
-			rows.Close()
-			return fmt.Errorf("migrations: read backup code batch: %w", err)
-		}
-		batches = append(batches, b)
-	}
-	rows.Close()
-	if err := rows.Err(); err != nil {
-		return fmt.Errorf("migrations: list backup code batches: %w", err)
+		return err
 	}
 	if len(batches) == 0 {
 		return nil
@@ -174,4 +157,29 @@ func purgeUniversalBackupCodes(ctx context.Context, db *sql.DB) error {
 	}
 	log.Printf("migrations: universal MFA backup codes purged from %d enrolment(s), %d kept", purged, kept)
 	return nil
+}
+
+// listBackupCodeBatches returns one sample hash per enrolment batch.
+func listBackupCodeBatches(ctx context.Context, db *sql.DB) ([]backupCodeBatch, error) {
+	rows, err := db.QueryContext(ctx, `
+		SELECT DISTINCT ON (user_id, tenant_id, date_trunc('second', created_at))
+		       user_id::text, tenant_id::text, date_trunc('second', created_at), code_hash
+		  FROM mfa_backup_codes
+		 ORDER BY user_id, tenant_id, date_trunc('second', created_at), id`)
+	if err != nil {
+		return nil, fmt.Errorf("migrations: list backup code batches: %w", err)
+	}
+	defer rows.Close()
+	var batches []backupCodeBatch
+	for rows.Next() {
+		var b backupCodeBatch
+		if err := rows.Scan(&b.userID, &b.tenantID, &b.second, &b.sampleHash); err != nil {
+			return nil, fmt.Errorf("migrations: read backup code batch: %w", err)
+		}
+		batches = append(batches, b)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("migrations: list backup code batches: %w", err)
+	}
+	return batches, nil
 }
