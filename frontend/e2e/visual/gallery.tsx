@@ -21,6 +21,7 @@
 
 import { StrictMode, useState } from 'react';
 import { createRoot } from 'react-dom/client';
+import { loadScreenCatalogs } from '../../src/i18n/catalog';
 import { AlertTriangle, Bug, Download, FileText, Plus, Search, Trash2 } from 'lucide-react';
 
 import '../../src/index.css';
@@ -1014,8 +1015,13 @@ queueMicrotask(applyRequestedTheme);
    cannot overwrite the theme the HTML stamped. See harnessEnv.ts. */
 applyHarnessEnv();
 
-createRoot(document.getElementById('gallery-root')!).render(
-  <StrictMode>
-    <Gallery />
-  </StrictMode>,
-);
+/* The screens' strings are not in the entry bundle (#858). The app fetches them
+   with each lazy screen (lazyScreen); this page renders screens' components
+   directly, so it fetches them before the first render. */
+void loadScreenCatalogs().finally(() => {
+  createRoot(document.getElementById('gallery-root')!).render(
+    <StrictMode>
+      <Gallery />
+    </StrictMode>,
+  );
+});

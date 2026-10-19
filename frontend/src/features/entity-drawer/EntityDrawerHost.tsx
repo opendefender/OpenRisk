@@ -16,14 +16,16 @@
 // the drawer only ever adds and removes three reserved query parameters and
 // never touches the rest.
 
-import { lazy, Suspense, useEffect, useRef } from 'react';
+import { Suspense, useEffect, useRef } from 'react';
+
+import { lazyScreen } from '../../i18n/lazyScreen';
 import { useAuthStore } from '../../hooks/useAuthStore';
 import { useDrawerController } from './drawerState';
 import type { EntitySection } from './types';
 
 // Code-split: the drawer, its four sections and their queries are dead weight
 // for a session that never opens one.
-const EntityDrawer = lazy(() =>
+const EntityDrawer = lazyScreen(() =>
   import('./EntityDrawer').then((m) => ({ default: m.EntityDrawer })),
 );
 

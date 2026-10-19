@@ -110,12 +110,21 @@ describe('fixture leakage', () => {
     // model:
     //   - src/test/setup.ts — vitest `setupFiles`, referenced by vitest.config.ts
     //   - src/types/react-grid-layout.d.ts — ambient declaration that tsc needs
+    //   - src/i18n/shellNamespaces.ts — read by vite.shell-catalog.ts at build,
+    //     which generates the entry's French catalogue from it (#858)
+    //   - src/i18n/virtual-fr-shell-catalog.d.ts — ambient declaration of that
+    //     generated module, which tsc needs
     //
     // An exact list, not a ceiling: a `<=` lets a new orphan in whenever another
     // one leaves. If this fails because a file appeared, wire it in or delete it;
     // add it here only with a written reason. If it fails because a keep is gone
     // or is now imported, remove it from the list (#303).
-    expect(audit().orphanFiles).toEqual(['src/test/setup.ts', 'src/types/react-grid-layout.d.ts']);
+    expect(audit().orphanFiles).toEqual([
+      'src/i18n/shellNamespaces.ts',
+      'src/i18n/virtual-fr-shell-catalog.d.ts',
+      'src/test/setup.ts',
+      'src/types/react-grid-layout.d.ts',
+    ]);
   });
 
   it('the settings screen no longer keeps preferences in localStorage', () => {

@@ -2,6 +2,8 @@ import { posix } from 'node:path';
 import { defineConfig, type Rollup } from 'vite';
 import react from '@vitejs/plugin-react';
 
+import { shellCatalog } from './vite.shell-catalog';
+
 // Backend origin for the dev proxy. Override with BACKEND_URL when the API runs
 // somewhere other than the default docker compose mapping.
 const backendURL = process.env.BACKEND_URL ?? 'http://localhost:8080';
@@ -71,6 +73,7 @@ function iconsOfEntry(meta: Rollup.ManualChunkMeta): Set<string> {
 export default defineConfig({
   plugins: [
     react(),
+    shellCatalog(),
     {
       name: 'openrisk:reset-entry-icons',
       buildStart() {

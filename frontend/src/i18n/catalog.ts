@@ -23,9 +23,16 @@
  * active language: main.tsx awaits the stored language before the first render,
  * and `setLang` awaits it before switching. French stays eager because it is
  * both the primary market's language and the fallback every lookup ends on.
+ *
+ * Eager means the part the app shell reads (#858): the namespaces listed in
+ * `shellNamespaces.ts`, served by the `virtual:fr-shell-catalog` module the
+ * build generates from `locales/fr.json`. The rest of the file is one more
+ * lazy chunk, which `loadScreenCatalogs()` fetches. Every lazy screen awaits it
+ * together with its own code (`lazyScreen`), so no screen renders before its
+ * words, and the shell never waits for words it does not use.
  */
 
-import frJson from '../locales/fr.json';
+import frShell from 'virtual:fr-shell-catalog';
 import { runtimeMessages } from './messages';
 import { DEFAULT_LOCALE, LOCALE_CODES, type LocaleCode } from './locales';
 import { isPluralForms } from './plural';
@@ -69,7 +76,7 @@ const jsonLoaders: Partial<Record<LocaleCode, () => Promise<Catalog>>> = {
  */
 export const catalogs: Partial<Record<LocaleCode, Catalog>> = {};
 for (const code of LOCALE_CODES) {
-  const catalog = mergeFor(code, code === DEFAULT_LOCALE ? (frJson as Catalog) : undefined);
+  const catalog = mergeFor(code, code === DEFAULT_LOCALE ? (frShell as Catalog) : undefined);
   if (catalog) catalogs[code] = catalog;
 }
 
@@ -127,4 +134,29 @@ export function loadCatalog(code: LocaleCode): Promise<void> {
     .finally(() => inFlight.delete(code));
   inFlight.set(code, load);
   return load;
+}
+
+let screenWords: Promise<void> | undefined;
+
+/**
+ * Fetch the rest of the default language's JSON (#858) and merge it in. The
+ * shell's namespaces are there from module load; every other one arrives here.
+ * Shared by every lazy screen, so it is fetched once, in parallel with the first
+ * screen's code. A failed fetch rejects and is retried on the next call.
+ */
+export function loadScreenCatalogs(): Promise<void> {
+  if (!screenWords) {
+    screenWords = import('../locales/fr.json')
+      .then((m) => {
+        const catalog = mergeFor(DEFAULT_LOCALE, m.default as Catalog);
+        if (catalog) catalogs[DEFAULT_LOCALE] = catalog;
+        version += 1;
+        listeners.forEach((listener) => listener());
+      })
+      .catch((err: unknown) => {
+        screenWords = undefined;
+        throw err;
+      });
+  }
+  return screenWords;
 }
