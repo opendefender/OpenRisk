@@ -59,3 +59,13 @@ logs
 # Other
 TODO*.md
 .make*
+
+# Key material never enters a build context (#1001). backend/Dockerfile now
+# builds from the root, and a builder that ignores Dockerfile.dockerignore
+# falls back to this file.
+**/*.pem
+**/*.key
+backend/keys
+backend/secrets
+deploy/selfhost/secrets
+secrets
