@@ -215,16 +215,35 @@ Schema migrations run automatically on backend start: GORM AutoMigrate, then
 the SQL migrations in `migrations/`, which the backend image carries. The log
 shows `migrations: applied successfully (version=N)` once they are in.
 
-Before #1001 the compose files did not set `DATABASE_URL`, so the SQL layer
-never ran on a compose install. The first boot after this upgrade applies the
-whole chain once on your existing database; that was tested on a database
-built by AutoMigrate alone, with data, and keeps it. Back up first anyway, as
-above.
+Before #1001 the SQL layer never ran on a compose install: it only ran with
+`DATABASE_URL` set, and the compose files do not set it. The backend image now
+sets `MIGRATIONS_DIR`, and the backend builds the connection from `DB_HOST`,
+`DB_USER`, `DB_PASSWORD` and `DB_NAME` itself, so any password works,
+spaces, quotes, `@ : / ? # % $` included. In `.env`, write such a password in
+single quotes (`DB_PASSWORD='p@ss w#rd$1'`). If it contains a single quote,
+use double quotes and escape `"` as `\"` and `$` as `$$`. The
+first boot after this upgrade applies the whole chain once on your existing
+database. Back up first anyway, as above.
 
-`docker-compose.yml` builds `DATABASE_URL` from `DB_USER`, `DB_PASSWORD` and
-`DB_NAME`. The password `install.sh` generates is hex and fits in a URL. If you
-set your own, keep to letters, digits and `- _ . ~`: a password containing
-`@ : / ? # %` or a space breaks the URL and the backend refuses to start.
+That first pass is written to keep your data. It was replayed on databases
+built by earlier releases, and every row was compared before and after. Two
+things change on purpose:
+
+- MFA backup codes made by the generator fixed in August 2026 (#240) were the
+  same for every user, so anyone could derive them. They are deleted. Codes
+  made after the fix are kept. Users whose codes were deleted generate new ones
+  by setting up MFA again.
+- Empty fields that the application already reads as a default are filled with
+  that default, for example a membership's MFA grace start. Nothing a user sees
+  changes.
+
+With several backend replicas (Helm), one replica runs the pass and the others
+wait for its lock. A replica can time out on a long first pass, and then it
+restarts once. This is expected.
+
+If a migration fails, the backend stops and says so. The data is not touched.
+Fix the cause, then mark the last good version:
+`docker compose run --rm backend migrate force <version>`.
 
 Your `.env` and `secrets/` are preserved across upgrades.
 

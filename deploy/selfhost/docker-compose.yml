@@ -58,11 +58,6 @@ services:
       DB_USER: ${DB_USER:-openrisk}
       DB_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env}
       DB_NAME: ${DB_NAME:-openrisk}
-      # The SQL migration layer runs only when DATABASE_URL is set (#1001).
-      # Built from the same values as DB_*; the server also connects with it.
-      # A password with URL-reserved characters (@ : / ? # %) must be
-      # percent-encoded here: see .env.example.
-      DATABASE_URL: postgres://${DB_USER:-openrisk}:${DB_PASSWORD:?set DB_PASSWORD in .env}@db:5432/${DB_NAME:-openrisk}?sslmode=disable&TimeZone=UTC
       REDIS_URL: redis://redis:6379/0
       PORT: 8080
       APP_ENV: production
