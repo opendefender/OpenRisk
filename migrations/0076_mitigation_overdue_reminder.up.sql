@@ -12,12 +12,28 @@
 -- D-7 are closed with it, so a backfilled plan cannot fall through to an
 -- earlier nudge worded as overdue.
 
-ALTER TABLE mitigations ADD COLUMN IF NOT EXISTS reminder_overdue_sent_at timestamptz;
+--
+-- The stamp belongs to the moment the column appears, and only then (#1001).
+-- When it already exists, AutoMigrate or PrepareForAutoMigrate added it and
+-- ran this backfill back then. Running it again, as a compose install's first
+-- pass through the SQL layer would, marks every plan that has gone late since
+-- as already reminded, and those reminders are never sent.
 
-UPDATE mitigations
-   SET reminder_overdue_sent_at = NOW(),
-       reminder_d1_sent_at = COALESCE(reminder_d1_sent_at, NOW()),
-       reminder_d7_sent_at = COALESCE(reminder_d7_sent_at, NOW())
- WHERE reminder_overdue_sent_at IS NULL
-   AND due_date IS NOT NULL
-   AND due_date < date_trunc('day', NOW());
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+         WHERE table_schema = current_schema()
+           AND table_name = 'mitigations'
+           AND column_name = 'reminder_overdue_sent_at'
+    ) THEN
+        ALTER TABLE mitigations ADD COLUMN reminder_overdue_sent_at timestamptz;
+
+        UPDATE mitigations
+           SET reminder_overdue_sent_at = NOW(),
+               reminder_d1_sent_at = COALESCE(reminder_d1_sent_at, NOW()),
+               reminder_d7_sent_at = COALESCE(reminder_d7_sent_at, NOW())
+         WHERE due_date IS NOT NULL
+           AND due_date < date_trunc('day', NOW());
+    END IF;
+END $$;

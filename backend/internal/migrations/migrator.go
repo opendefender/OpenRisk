@@ -6,9 +6,13 @@
 package migrations
 
 import (
+	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"log"
+	"net"
+	"net/url"
 	"os"
 	"strconv"
 
@@ -17,13 +21,46 @@ import (
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 )
 
-// newMigrate builds a migrate handle from DATABASE_URL and MIGRATIONS_DIR
+// databaseURL returns the URL the SQL layer connects with. DATABASE_URL wins.
+// Without it, a process that says where its migrations are (MIGRATIONS_DIR,
+// which both images set) builds one from the DB_* variables, with the same
+// defaults as database.Connect. That is how compose installs run the SQL
+// layer (#1001): their password is percent-encoded here instead of having to
+// survive URL syntax in a compose file. A dev run with neither still skips the
+// layer.
+func databaseURL() string {
+	if u := os.Getenv("DATABASE_URL"); u != "" {
+		return u
+	}
+	if os.Getenv("MIGRATIONS_DIR") == "" {
+		return ""
+	}
+	u := url.URL{
+		Scheme: "postgres",
+		User:   url.UserPassword(envOr("DB_USER", "openrisk"), os.Getenv("DB_PASSWORD")),
+		Host:   net.JoinHostPort(envOr("DB_HOST", "localhost"), envOr("DB_PORT", "5434")),
+		Path:   "/" + envOr("DB_NAME", "openrisk"),
+		// database.Connect hard-codes sslmode=disable for the DB_* DSN; the
+		// SQL layer talks to the same server the same way.
+		RawQuery: "sslmode=disable",
+	}
+	return u.String()
+}
+
+func envOr(key, fallback string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	return fallback
+}
+
+// newMigrate builds a migrate handle from databaseURL and MIGRATIONS_DIR
 // (default "migrations", relative to the process working directory). The caller
 // owns the returned handle and must Close it.
-func newMigrate() (*migrate.Migrate, error) {
-	dbURL := os.Getenv("DATABASE_URL")
+func newMigrate() (*migrate.Migrate, string, error) {
+	dbURL := databaseURL()
 	if dbURL == "" {
-		return nil, errNoDatabaseURL
+		return nil, "", errNoDatabaseURL
 	}
 	dir := os.Getenv("MIGRATIONS_DIR")
 	if dir == "" {
@@ -32,9 +69,39 @@ func newMigrate() (*migrate.Migrate, error) {
 	source := "file://" + dir
 	m, err := migrate.New(source, dbURL)
 	if err != nil {
-		return nil, fmt.Errorf("migrations: initialize from %q: %w", source, err)
+		return nil, "", fmt.Errorf("migrations: initialize from %q: %w", source, err)
 	}
-	return m, nil
+	return m, dbURL, nil
+}
+
+// up applies every pending migration. When the chain still has to cross
+// purgeBeforeVersion, it stops just below it and runs the exact backup-code
+// purge first, so 0056 never meets a real code it would have deleted.
+func up(m *migrate.Migrate, dbURL string) error {
+	v, _, err := m.Version()
+	switch {
+	case errors.Is(err, migrate.ErrNilVersion):
+		v = 0
+	case err != nil:
+		return err
+	}
+	if v >= purgeBeforeVersion {
+		return m.Up()
+	}
+	if v < purgeBeforeVersion-1 {
+		if err := m.Migrate(purgeBeforeVersion - 1); err != nil && !errors.Is(err, migrate.ErrNoChange) {
+			return err
+		}
+	}
+	db, err := sql.Open("postgres", dbURL)
+	if err != nil {
+		return fmt.Errorf("migrations: open database for the backup-code purge: %w", err)
+	}
+	defer db.Close()
+	if err := purgeUniversalBackupCodes(context.Background(), db); err != nil {
+		return err
+	}
+	return m.Up()
 }
 
 // errNoDatabaseURL is a sentinel so callers can distinguish "nothing to do"
@@ -54,6 +121,7 @@ Recovery:
   2. Mark the last KNOWN-GOOD version as the current one:
         make migrate-force VERSION=<good_version>
      (or: cd backend && DATABASE_URL=... go run ./cmd/server migrate force <good_version>)
+     (compose: docker compose run --rm backend migrate force <good_version>)
   3. Re-run the migrations / re-boot:
         make migrate
 
@@ -70,9 +138,9 @@ Boot aborts here on purpose rather than serving on a half-applied schema. See do
 // A DIRTY database is reported with an actionable recovery message
 // (dirtyStateError) instead of the opaque library string.
 func RunMigrations() error {
-	m, err := newMigrate()
+	m, dbURL, err := newMigrate()
 	if errors.Is(err, errNoDatabaseURL) {
-		log.Println("migrations: DATABASE_URL not set — skipping SQL migration layer")
+		log.Println("migrations: neither DATABASE_URL nor MIGRATIONS_DIR set — skipping SQL migration layer")
 		return nil
 	}
 	if err != nil {
@@ -88,7 +156,7 @@ func RunMigrations() error {
 		return fmt.Errorf("migrations: read current version: %w", verr)
 	}
 
-	if err := m.Up(); err != nil {
+	if err := up(m, dbURL); err != nil {
 		if errors.Is(err, migrate.ErrNoChange) {
 			log.Println("migrations: already up to date")
 			return nil
@@ -124,7 +192,7 @@ func RunCLI(args []string) error {
 	if len(args) == 0 {
 		return errors.New("migrate: expected a subcommand: up | down | force <version> | version")
 	}
-	m, err := newMigrate()
+	m, dbURL, err := newMigrate()
 	if errors.Is(err, errNoDatabaseURL) {
 		return errors.New("migrate: DATABASE_URL not set")
 	}
@@ -135,7 +203,7 @@ func RunCLI(args []string) error {
 
 	switch args[0] {
 	case "up":
-		if err := m.Up(); err != nil && !errors.Is(err, migrate.ErrNoChange) {
+		if err := up(m, dbURL); err != nil && !errors.Is(err, migrate.ErrNoChange) {
 			return fmt.Errorf("migrate up: %w", err)
 		}
 		printVersion(m)
