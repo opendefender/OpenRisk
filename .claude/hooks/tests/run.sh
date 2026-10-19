@@ -286,6 +286,202 @@ new_repo c4; git -C "$R" commit -q --allow-empty -m "fix(x): something (#4242)"
 L=$(cp_line "$R" "{\"cwd\":\"$R\",\"agent_type\":\"x\"}")
 [[ "$L" == *"issue=#4242(from commits)"* ]]; expect "checkpoint infers the issue from commits" 0 $? "$L"
 
+# --- reviewer routing ------------------------------------------------------
+# Each case commits fixture files on a branch and compares the reviewer list.
+expect_out() { # expect_out <name> <want> <got>
+  if [ "$2" = "$3" ]; then PASS=$((PASS + 1)); echo "ok    $1"
+  else FAILS=$((FAILS + 1)); echo "FAIL  $1"; echo "      want: $2"; echo "      got:  $3"; fi
+}
+route_repo() { # a repo on master with one file, checked out on feature/1-x
+  R="$TMP/route-$1"; mkdir -p "$R"
+  git -C "$R" init -q -b master
+  git -C "$R" config user.email t@t; git -C "$R" config user.name t
+  echo base > "$R/base.txt"; git -C "$R" add -A; git -C "$R" commit -qm base
+  git -C "$R" checkout -qb feature/1-x
+}
+put() { # put <path> <content>, relative to $R
+  mkdir -p "$(dirname "$R/$1")"; printf '%s\n' "$2" > "$R/$1"
+}
+route() { # route [labels] -> reviewers on one line
+  git -C "$R" add -A; git -C "$R" commit -qm change --allow-empty
+  (cd "$R" && bash "$HOOKS/route-reviewers.sh" master --labels "${1:-}") 2>"$TMP/err" | tr '\n' ' ' | sed 's/ $//'
+}
+
+route_repo r1; put docs/guide.md '# Guide'; put docs/img/flow.svg '<svg/>'
+expect_out "route: a docs-only diff yields product-verifier alone" "product-verifier" "$(route)"
+
+route_repo r2; put README.md 'x'; put ROADMAP.md 'x'; put CHANGELOG.md 'x'
+expect_out "route: README, ROADMAP and CHANGELOG go to product-verifier" "product-verifier" "$(route)"
+
+route_repo r3; put release-notes/v1.4.0.md 'x'
+expect_out "route: release notes go to product-verifier" "product-verifier" "$(route)"
+
+route_repo r4; put backend/internal/application/risk/x.go 'package risk'
+expect_out "route: a backend diff includes devsecops" "code-reviewer devsecops" "$(route)"
+
+route_repo r5; put backend/go.mod 'module x'; put docs/x.md 'x'
+expect_out "route: backend plus docs, sorted and deduplicated" "code-reviewer devsecops product-verifier" "$(route)"
+
+for p in deploy/selfhost/docker-compose.yml helm/openrisk/values.yaml deployment/docker/Dockerfile.render \
+         migrations/0001_x.up.sql database/0012_x.sql .github/workflows/ci.yml frontend/Dockerfile \
+         docker-compose.yaml .claude/hooks/new-hook.sh .claude/settings.json; do
+  route_repo "r6-${p//\//_}"; put "$p" 'x'
+  expect_out "route: $p goes to devsecops" "code-reviewer devsecops" "$(route)"
+done
+
+for p in backend/pkg/compliance/catalog_cobac_2016.go backend/pkg/compliance/crosswalks.go \
+         backend/internal/application/compliance/import_catalog.go \
+         backend/internal/application/complianceaudit/audit_usecases.go \
+         backend/internal/application/evidence/usecases.go backend/internal/application/report/builders.go \
+         backend/internal/application/reportjob/compliance_generator.go backend/pkg/report/compliance_pdf.go \
+         backend/internal/domain/control_crosswalk.go backend/internal/domain/evidence.go \
+         backend/internal/handler/export_handler.go \
+         backend/internal/infrastructure/repository/gorm_control_crosswalk_repository.go \
+         backend/internal/infrastructure/repository/gorm_evidence_repository.go \
+         backend/internal/domain/compliance_repository.go \
+         backend/internal/infrastructure/workers/evidence_expiry_worker.go \
+         backend/internal/application/entity/resolver_control.go; do
+  route_repo "r7-${p//\//_}"; put "$p" 'package x'
+  expect_out "route: $p goes to compliance-officer" "code-reviewer compliance-officer devsecops" "$(route)"
+done
+
+route_repo r8; put backend/pkg/report/board_pdf.go 'package report'
+expect_out "route: a board report is not compliance content" "code-reviewer devsecops" "$(route)"
+
+route_repo r9; put frontend/src/lib/math.ts 'export const n = 1 + 2'
+expect_out "route: plain frontend code gets code-reviewer alone" "code-reviewer" "$(route)"
+
+route_repo r10; put frontend/src/styles/tokens.css ':root { --gap: 4px; }'
+expect_out "route: design tokens are not auth tokens" "code-reviewer" "$(route)"
+
+for p in frontend/src/features/auth/x.ts frontend/src/lib/session.ts frontend/src/features/settings/ApiTokensPanel.tsx \
+         frontend/src/features/evidence/EvidenceUpload.tsx frontend/src/hooks/usePermissions.ts \
+         frontend/src/features/rbac/useRbac.ts frontend/src/utils/rbacHelpers.ts; do
+  route_repo "r11-${p//\//_}"; put "$p" 'export const n = 1'
+  expect_out "route: $p goes to devsecops" "code-reviewer devsecops" "$(route)"
+done
+
+route_repo r12; put frontend/src/services/fileService.ts 'export const f = (b: Blob) => { const d = new FormData(); d.append("f", b); return d }'
+expect_out "route: frontend upload code goes to devsecops" "code-reviewer devsecops" "$(route)"
+
+route_repo r13; put frontend/src/lib/store.ts 'export const k = () => localStorage.getItem("k")'
+expect_out "route: frontend storage code goes to devsecops" "code-reviewer devsecops" "$(route)"
+
+route_repo r13b; put frontend/src/features/risks/gate.ts 'export const can = (u: U) => hasRole(u, "admin")'
+expect_out "route: a role check in frontend code goes to devsecops" "code-reviewer devsecops" "$(route)"
+
+route_repo r13c; put frontend/src/lib/processor.ts 'export const n = 1'
+expect_out "route: 'sso' inside a word is not SSO" "code-reviewer" "$(route)"
+
+route_repo r14; put frontend/src/locales/en.json '{ "risks": { "save": "Save" } }'
+expect_out "route: a locale change goes to i18n-steward" "code-reviewer i18n-steward" "$(route)"
+
+route_repo r15; put frontend/src/locales/fr.json '{ "risks": { "description": "Suit chaque risque" } }'
+expect_out "route: a capability locale key also goes to product-verifier" "code-reviewer i18n-steward product-verifier" "$(route)"
+
+route_repo r16; put frontend/src/features/risks/A.tsx 'export const A = () => <p>Nothing to review yet</p>'
+expect_out "route: JSX text goes to i18n-steward" "code-reviewer i18n-steward" "$(route)"
+
+route_repo r17; put frontend/src/features/risks/B.tsx "export const B = () => <p>{t('risks.empty')}</p>"
+expect_out "route: a t() call goes to i18n-steward" "code-reviewer i18n-steward" "$(route)"
+
+route_repo r18; put frontend/src/features/risks/C.tsx 'export const C = () => <input placeholder="Search risks" />'
+expect_out "route: a text attribute goes to i18n-steward" "code-reviewer i18n-steward" "$(route)"
+
+route_repo r19; put frontend/src/features/risks/D.tsx 'export const D = () => (
+  <p>
+    Nothing matches these filters
+  </p>
+)'
+expect_out "route: multi-line JSX text goes to i18n-steward" "code-reviewer i18n-steward" "$(route)"
+
+route_repo r20; put frontend/src/features/risks/riskStrings.ts 'export const s = { a: 1 }'
+expect_out "route: a strings module goes to i18n-steward" "code-reviewer i18n-steward" "$(route)"
+
+route_repo r20b; put frontend/src/features/risks/cols.ts "export const cols = [{ header: 'Owner' }]"
+expect_out "route: a text property in a .ts file goes to i18n-steward" "code-reviewer i18n-steward" "$(route)"
+route_repo r20c; put frontend/src/features/risks/F.tsx "export const F = () => <Button label={'Save changes'} />"
+expect_out "route: a braced text attribute goes to i18n-steward" "code-reviewer i18n-steward" "$(route)"
+route_repo r20d; put frontend/src/features/risks/G.tsx 'export const G = () => <p>{"No risks yet"}</p>'
+expect_out "route: a literal in JSX braces goes to i18n-steward" "code-reviewer i18n-steward" "$(route)"
+route_repo r20e; put frontend/src/features/risks/H.tsx 'export const H = () => <Trans i18nKey="risks.empty" />'
+expect_out "route: a Trans i18nKey goes to i18n-steward" "code-reviewer i18n-steward" "$(route)"
+route_repo r20f; put backend/pkg/notify/templates/welcome.html '<p>Welcome</p>'
+expect_out "route: a backend e-mail template goes to i18n-steward" "code-reviewer devsecops i18n-steward" "$(route)"
+
+route_repo r21; put frontend/src/features/risks/__tests__/E.test.tsx 'it("shows Nothing here", () => <p>Nothing here</p>)'
+expect_out "route: text in a frontend test is not visible text" "code-reviewer" "$(route)"
+
+route_repo r22; put docs/x.md 'x'
+expect_out "route: label area:design adds art-director" "art-director product-verifier" "$(route 'type:feature,area:design')"
+
+route_repo r23; put docs/x.md 'x'
+expect_out "route: label type:security adds devsecops" "devsecops product-verifier" "$(route 'type:security,area:docs')"
+
+route_repo r24; git -C "$R" remote add origin https://github.com/opendefender/opendefender-website.git
+put content/i18n/en.ts 'export default { hero: { tagline: "Risk, on one screen" } }'
+expect_out "route: the website goes to website-dev and product-verifier" "code-reviewer i18n-steward product-verifier website-dev" "$(route)"
+
+for p in .claude/agents/scout.md .claude/agent-memory/devsecops/MEMORY.md .claude/skills/work/SKILL.md CLAUDE.md; do
+  route_repo "r25-${p//\//_}"; put "$p" 'x'
+  expect_out "route: $p (agent instructions) goes to devsecops alone" "devsecops" "$(route)"
+done
+
+for p in agent/update.go security/vulnerability-exceptions.yaml scripts/restore.sh Makefile install.sh \
+         package.json package-lock.json frontend/package.json frontend/scripts/check.mjs frontend/nginx.conf \
+         frontend/index.html frontend/vite.config.ts .mcp.json .gitattributes .npmrc api.Dockerfile Containerfile; do
+  route_repo "r25b-${p//\//_}"; put "$p" 'x'
+  expect_out "route: $p (run by CI, release or install) goes to devsecops" "code-reviewer devsecops" "$(route)"
+done
+
+route_repo r26; put backend/old.go 'package x'; git -C "$R" add -A; git -C "$R" commit -qm old; git -C "$R" branch -qf master HEAD
+mkdir -p "$R/tools"; git -C "$R" mv backend/old.go tools/old.go
+expect_out "route: moving a file out of backend still reaches devsecops" "code-reviewer devsecops" "$(route)"
+
+route_repo r27; put backend/a.go 'package a'; put docs/a.md 'a'; put frontend/src/locales/en.json '{"a":"b"}'
+A=$(route); B=$(cd "$R" && bash "$HOOKS/route-reviewers.sh" master --labels "" | tr '\n' ' ' | sed 's/ $//')
+expect_out "route: two runs on the same diff print the same text" "$A" "$B"
+
+route_repo r28; put "frontend/src/\$(touch $TMP/ROUTE_PWNED).tsx" "export const x = \`\$(touch $TMP/ROUTE_PWNED)\`"
+git -C "$R" add -A; git -C "$R" commit -qm change; touch "$R/untracked"
+before=$(git -C "$R" status --porcelain; git -C "$R" rev-parse HEAD)
+(cd "$R" && bash "$HOOKS/route-reviewers.sh" master --labels "") >/dev/null 2>&1
+[ ! -e "$TMP/ROUTE_PWNED" ] && [ "$(git -C "$R" status --porcelain; git -C "$R" rev-parse HEAD)" = "$before" ]
+expect "route: never runs anything from the diff and writes nothing" 0 $?
+
+(cd "$R" && bash "$HOOKS/route-reviewers.sh" "--output=$TMP/route-out" --labels "") 2>/dev/null
+expect "route: refuses an option as base ref" 2 $?
+[ ! -e "$TMP/route-out" ]; expect "route: an option as base ref writes no file" 0 $?
+(cd "$R" && bash "$HOOKS/route-reviewers.sh" no-such-ref --labels "") 2>/dev/null
+expect "route: refuses an unknown base ref" 2 $?
+
+route_repo r28b; { echo 'export const k = () => localStorage.getItem("k")'; for i in $(seq 1 6000); do echo "export const v$i = $i"; done; } > "$R/frontend-big.tmp"
+mkdir -p "$R/frontend/src/lib"; mv "$R/frontend-big.tmp" "$R/frontend/src/lib/store.ts"
+expect_out "route: a 6000-line diff keeps its content rules" "code-reviewer devsecops" "$(route)"
+
+route_repo r28c; put frontend/src/lib/store.ts 'export const k = () => localStorage.getItem("k")'
+git -C "$R" add -A; git -C "$R" commit -qm change
+got=$(cd "$R/frontend" && bash "$HOOKS/route-reviewers.sh" master --labels "" | tr '\n' ' ' | sed 's/ $//')
+expect_out "route: same answer when run from a subdirectory" "code-reviewer devsecops" "$got"
+
+route_repo r28d; git -C "$R" checkout -q --orphan orphan/1-x; git -C "$R" rm -rqf .; put backend/a.go 'package a'
+git -C "$R" add -A; git -C "$R" commit -qm orphan
+(cd "$R" && bash "$HOOKS/route-reviewers.sh" master --labels "") >/dev/null 2>&1
+expect "route: an unrelated history exits 2, not an empty list" 2 $?
+
+route_repo r28e; put backend/a.go 'package a'; git -C "$R" add -A; git -C "$R" commit -qm a
+git clone -q --depth 1 --branch feature/1-x "file://$R" "$TMP/route-shallow" 2>/dev/null
+git -C "$TMP/route-shallow" fetch -q --depth 1 origin master:master 2>/dev/null
+(cd "$TMP/route-shallow" && bash "$HOOKS/route-reviewers.sh" master --labels "") >/dev/null 2>&1
+expect "route: a shallow clone with no merge base exits 2" 2 $?
+
+route_repo r29; git -C "$R" checkout -qb no-issue-number
+(cd "$R" && bash "$HOOKS/route-reviewers.sh" master) 2>/dev/null
+expect "route: exits 3 rather than guess when labels are unknown" 3 $?
+
+guard "$(cat "$HOOKS/route-reviewers.sh")"; expect "route: the script body passes guard-bash" 0 $?
+guard 'bash .claude/hooks/route-reviewers.sh origin/master'; expect "route: the invocation passes guard-bash" 0 $?
+
 # --- state file (#1007) ----------------------------------------------------
 new_repo s1
 for _ in 1 2 3 4 5 6 7 8 9 10; do printf '{"cwd":"%s","agent_type":"backend-go"}' "$R" | bash "$HOOKS/checkpoint.sh"; done

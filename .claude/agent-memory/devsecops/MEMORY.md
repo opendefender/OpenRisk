@@ -6,3 +6,4 @@
 - [Router extraction posture](router-extraction-posture.md) — ADR 0005/#991: Mounter evidence-only PASS 2026-10-15; MEDIUM caller-asserted access; child-PR conditions
 - [Notification e-mail posture](notification-email-posture.md) — #757 2026-10-15: dispatcher tenant gate, Subject CRLF not injectable, LogService logs addresses
 - [Transcript tooling posture](transcript-tooling-posture.md) — #1003 token_usage.py 2026-10-15: printed channels, meta.json task text, PASS after LOW fixes
+- [Reviewer routing posture](reviewer-routing-posture.md) — #1005 2026-10-18 r1 BLOCK -> r2 PASS; runner must pass --labels (#1008)

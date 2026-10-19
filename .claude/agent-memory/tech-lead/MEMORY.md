@@ -11,3 +11,4 @@
 - [Overlay Escape stacks](defect-pattern-overlay-stacks.md) — two Escape stacks (layerStack vs escStack); popups rely on event phase; Tab trap suspended
 - [Transcript token metrics](defect-pattern-transcript-metrics.md) — #1003: subagent usage is streamed (take max per id); gh api -F is an implicit POST; /pulls/N/reviews
 - [Agent tool-grant traps](defect-pattern-agent-tool-grants.md) — #1004: Bash(pattern) in tools undocumented; memory adds Write/Edit; reviewer cwd; public memory
+- [Routing/gate script traps](defect-pattern-routing-scripts.md) — #1005: pipefail+grep -q SIGPIPE on big diffs, cwd-relative pathspecs, no-merge-base = empty
