@@ -1261,6 +1261,7 @@ func main() {
 			repository.NewGormMitigationSubActionRepository(database.DB),
 		)).
 		WithApprovals(newApprovalChecker(repository.NewGormApprovalRepository(database.DB))).
+		WithNotices(requestNoticeDispatcher).
 		// #811 — an acceptance is dated: the tenant caps its length, and the
 		// approver, date and expiry go into the hash-chained trail.
 		WithAcceptancePolicy(orgRepo).

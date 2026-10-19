@@ -151,7 +151,13 @@ func (uc *BulkActionUseCase) Execute(
 		if domain.RiskStateFromLegacy(*input.Status, "") == domain.StateResidualAccepted {
 			return nil, domain.NewValidationError("residual risk cannot be accepted in bulk: use the lifecycle transition, with a governance approval, on each risk")
 		}
-		return uc.apply(ctx, tenantID, ids, performedBy, input,
+		// Changes are collected inside the transaction and announced only once
+		// it has committed: a rolled-back batch must not have told anyone.
+		// Keyed by risk: if the transaction ever replays the mutate pass, a risk
+		// is still announced once.
+		var order []uuid.UUID
+		changes := map[uuid.UUID]riskStateChange{}
+		result, err := uc.apply(ctx, tenantID, ids, performedBy, input,
 			fmt.Sprintf("bulk status change to %q", *input.Status),
 			func(r *domain.Risk) error {
 				from := r.State()
