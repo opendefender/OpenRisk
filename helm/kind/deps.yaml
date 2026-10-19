@@ -1,0 +1,52 @@
+# Throwaway Postgres and Redis for the kind check (#1022). Not for production:
+# no persistence, no auth on Redis. The password has URL syntax in it on
+# purpose: the chart must boot whatever the operator picked (#1001).
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: deps
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: postgres
+  namespace: deps
+  labels: {app: postgres}
+spec:
+  containers:
+    - name: postgres
+      image: postgres:16-alpine
+      env:
+        - {name: POSTGRES_USER, value: openrisk}
+        - {name: POSTGRES_DB, value: openrisk}
+        - {name: POSTGRES_PASSWORD, value: 'kind p@ss:w/rd?#%x'}
+      ports: [{containerPort: 5432}]
+      readinessProbe:
+        exec: {command: [pg_isready, -U, openrisk]}
+        periodSeconds: 2
+---
+apiVersion: v1
+kind: Service
+metadata: {name: postgres, namespace: deps}
+spec:
+  selector: {app: postgres}
+  ports: [{port: 5432}]
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: redis
+  namespace: deps
+  labels: {app: redis}
+spec:
+  containers:
+    - name: redis
+      image: redis:7-alpine
+      ports: [{containerPort: 6379}]
+---
+apiVersion: v1
+kind: Service
+metadata: {name: redis, namespace: deps}
+spec:
+  selector: {app: redis}
+  ports: [{port: 6379}]

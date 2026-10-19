@@ -44,6 +44,10 @@ ENV MIGRATIONS_DIR=/app/migrations
 # Create non-root user
 RUN addgroup -g 1000 openrisk && \
     adduser -D -u 1000 -G openrisk openrisk
+# Uploaded evidence and exports (STORAGE_LOCAL_PATH defaults to ./uploads).
+# The process runs as openrisk, which cannot create it under a root-owned
+# /app; the Helm chart mounts a volume here (#1022).
+RUN mkdir -p /app/uploads && chown openrisk:openrisk /app/uploads
 USER openrisk
 
 # Health check

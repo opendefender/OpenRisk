@@ -79,39 +79,40 @@ helm repo add opendefender https://charts.opendefender.io
 helm repo update
 ```
 
-### 2. Create Namespace
+### 2. Namespace
 
-```bash
-# Create dedicated namespace
-kubectl create namespace openrisk
-
-# Label namespace for network policies
-kubectl label namespace openrisk name=openrisk
-```
+The chart creates the `global.namespace` namespace (default `openrisk`) with
+the `name=openrisk` label its network policy selects. Do not create it
+beforehand: Helm refuses to install over a namespace it does not own.
 
 ### 3. Prepare Secrets
 
-```bash
-# Option A: Create secrets from command line
-kubectl create secret generic openrisk-secrets \
-  --from-literal=database-url='postgresql://openrisk:password@postgres:5432/openrisk' \
-  --from-literal=redis-url='redis://:password@redis:6379/0' \
-  --from-literal=oauth2-client-id='your-client-id' \
-  --from-literal=oauth2-client-secret='your-client-secret' \
-  -n openrisk
+The chart does not deploy PostgreSQL or Redis: point it at yours. It creates
+two Secrets itself, `openrisk-secrets` and `openrisk-rsa`, from the values you
+pass, so do not create them by hand (the install would fail on a conflict).
 
-# Option B: Create sealed secrets (production recommended)
-kubectl apply -f sealed-secrets.yaml
+```bash
+# RS256 signing pair, shared by every backend replica (#1022). Keep these files:
+# a new pair signs everyone out.
+openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out private.pem
+openssl rsa -in private.pem -pubout -out public.pem
+
+# The database URL. Percent-encode the password: any character works then,
+# '@ : / ? # %' and spaces included (#1001).
+DB_PASSWORD='your password'
+ENCODED=$(python3 -c 'import sys,urllib.parse;print(urllib.parse.quote(sys.argv[1],safe=""))' "$DB_PASSWORD")
+DATABASE_URL="postgres://openrisk:${ENCODED}@postgres.example.internal:5432/openrisk?sslmode=require"
 ```
+
+To manage the RSA pair outside Helm, create a Secret with `private.pem` and
+`public.pem` and set `secrets.rsa.existingSecret` to its name.
 
 ### 4. Create Custom Values File
 
-```bash
-# Create values-prod.yaml
-cat > values-prod.yaml <<EOF
+```yaml
+# values-prod.yaml
 global:
   namespace: openrisk
-  environment: production
   domain: openrisk.example.com
 
 backend:
@@ -119,67 +120,44 @@ backend:
   image:
     repository: ghcr.io/alex-dembele/openrisk-backend
     tag: v1.0.0
-  resources:
-    requests:
-      cpu: 200m
-      memory: 512Mi
-    limits:
-      cpu: 1000m
-      memory: 1Gi
+  # Uploaded evidence and exports. The backend stores files on disk, so every
+  # replica must mount the same volume: a ReadWriteMany class (NFS, EFS,
+  # CephFS...). With a ReadWriteOnce class, set replicaCount: 1 and
+  # autoscaling.enabled: false; the chart refuses anything else.
+  uploads:
+    storageClass: your-rwx-class
+    accessMode: ReadWriteMany
+    size: 20Gi
 
 frontend:
-  replicaCount: 3
+  replicaCount: 2
   image:
     repository: ghcr.io/alex-dembele/openrisk-frontend
     tag: v1.0.0
-  resources:
-    requests:
-      cpu: 100m
-      memory: 256Mi
-    limits:
-      cpu: 500m
-      memory: 512Mi
 
-postgresql:
-  auth:
-    password: "$(openssl rand -base64 32)"
-    username: openrisk
-    database: openrisk
-  primary:
-    persistence:
-      size: 50Gi
-
-redis:
-  auth:
-    password: "$(openssl rand -base64 32)"
-
-certManager:
-  enabled: true
-  issuer:
-    email: admin@openrisk.example.com
-EOF
+secrets:
+  inline:
+    redisUrl: redis://redis.example.internal:6379/0
 ```
 
 ### 5. Install Helm Chart
 
 ```bash
-# Dry-run to verify manifests
 helm install openrisk ./helm/openrisk \
-  -n openrisk \
   -f values-prod.yaml \
-  --dry-run \
-  --debug
+  --set-string secrets.inline.databaseUrl="$DATABASE_URL" \
+  --set-file secrets.inline.rsaPrivateKey=private.pem \
+  --set-file secrets.inline.rsaPublicKey=public.pem
 
-# Actual installation
-helm install openrisk ./helm/openrisk \
-  -n openrisk \
-  -f values-prod.yaml
-
-# Monitor installation
-kubectl get pods -n openrisk -w
-kubectl get svc -n openrisk
-kubectl get ingress -n openrisk
+# The backend runs the SQL migrations at boot; its log says so:
+kubectl -n openrisk logs deploy/backend | grep 'migrations: applied successfully'
+kubectl -n openrisk rollout status deploy/backend
+kubectl -n openrisk rollout status deploy/frontend
 ```
+
+The `helm-kind` workflow installs the chart this way on every pull request
+that touches it, and checks that both deployments become Ready and stay up
+(`helm/kind/` holds its values).
 
 ### 6. Install Nginx Ingress Controller (if not already installed)
 

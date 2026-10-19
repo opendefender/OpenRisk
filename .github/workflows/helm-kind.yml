@@ -1,0 +1,102 @@
+# Installs the Helm chart on a throwaway kind cluster and waits for the pods
+# to be Ready (#1022). Until this existed, nothing ran the chart: it could not
+# be installed on a current cluster, and once installed its backend never
+# became Ready.
+#
+# kind and helm come preinstalled on GitHub's ubuntu-24.04 image, so this adds
+# no action and no download.
+name: helm-kind
+
+on:
+  workflow_dispatch: {}
+  pull_request:
+    paths:
+      - 'helm/**'
+      - 'Dockerfile'
+      - '.dockerignore'
+      - 'frontend/Dockerfile'
+      - 'frontend/nginx.conf'
+      - 'migrations/**'
+      - 'backend/cmd/server/**'
+      - 'backend/internal/migrations/**'
+      - '.github/workflows/helm-kind.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  install:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - name: Tools
+        run: |
+          kind version
+          helm version --short
+          kubectl version --client
+
+      - name: Build the images the chart runs
+        run: |
+          docker build -t openrisk/helm-image:kind -f Dockerfile .
+          docker build -t openrisk/frontend:kind frontend
+
+      - name: Create the cluster and load the images
+        run: |
+          kind create cluster --name openrisk --wait 180s
+          kind load docker-image openrisk/helm-image:kind openrisk/frontend:kind --name openrisk
+
+      - name: Throwaway Postgres and Redis
+        run: |
+          kubectl apply -f helm/kind/deps.yaml
+          kubectl -n deps wait --for=condition=Ready pod/postgres pod/redis --timeout=180s
+
+      - name: Install the chart
+        run: |
+          openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out private.pem 2>/dev/null
+          openssl rsa -in private.pem -pubout -out public.pem 2>/dev/null
+          helm lint helm/openrisk -f helm/kind/values.yaml \
+            --set-file secrets.inline.rsaPrivateKey=private.pem \
+            --set-file secrets.inline.rsaPublicKey=public.pem
+          helm install openrisk helm/openrisk -f helm/kind/values.yaml \
+            --set-file secrets.inline.rsaPrivateKey=private.pem \
+            --set-file secrets.inline.rsaPublicKey=public.pem \
+            --set backend.env.INITIAL_ADMIN_PASSWORD="Kind-$(openssl rand -hex 12)" \
+            --set backend.env.MFA_ENCRYPTION_KEY="$(openssl rand -hex 32)"
+
+      - name: Backend and frontend become Ready
+        run: |
+          kubectl -n openrisk rollout status deploy/backend --timeout=300s
+          kubectl -n openrisk rollout status deploy/frontend --timeout=180s
+
+      - name: The SQL migrations ran at boot
+        run: |
+          kubectl -n openrisk logs deploy/backend | grep -E 'migrations: applied successfully \(version=[0-9]+ dirty=false\)'
+
+      - name: The API answers through the frontend's proxy
+        run: |
+          kubectl -n openrisk port-forward svc/frontend 18080:80 >/dev/null 2>&1 &
+          for i in $(seq 1 30); do curl -fsS http://localhost:18080/api/v1/health && break; sleep 2; done
+          curl -fsS http://localhost:18080/ | grep -q '<div id="root"'
+
+      - name: helm upgrade on the same values succeeds
+        run: |
+          helm upgrade openrisk helm/openrisk -f helm/kind/values.yaml --reuse-values
+          kubectl -n openrisk rollout status deploy/backend --timeout=300s
+
+      - name: Pods stay up with no restart
+        run: |
+          sleep 120
+          kubectl -n openrisk get pods
+          restarts=$(kubectl -n openrisk get pods -o jsonpath='{range .items[*]}{.status.containerStatuses[*].restartCount}{"\n"}{end}' | awk '{s+=$1} END {print s+0}')
+          echo "restarts: $restarts"
+          test "$restarts" = "0"
+
+      - name: Logs on failure
+        if: failure()
+        run: |
+          kubectl get pods -A
+          kubectl -n openrisk describe pods | tail -80
+          kubectl -n openrisk logs deploy/backend --tail=100 || true
+          kubectl -n openrisk logs deploy/frontend --tail=50 || true

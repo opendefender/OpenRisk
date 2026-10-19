@@ -7,10 +7,11 @@ metadata:
     app: openrisk-frontend
 data:
   nginx.conf: |
-    user nginx;
+    # Runs as the pod's non-root user (#1022): no `user` directive, and the pid
+    # and temp files go to /tmp, the only writable path (an emptyDir).
     worker_processes auto;
-    error_log /var/log/nginx/error.log warn;
-    pid /var/run/nginx.pid;
+    error_log /dev/stderr warn;
+    pid /tmp/nginx.pid;
     
     events {
       worker_connections 1024;
@@ -24,7 +25,13 @@ data:
                       '$status $body_bytes_sent "$http_referer" '
                       '"$http_user_agent" "$http_x_forwarded_for"';
       
-      access_log /var/log/nginx/access.log main;
+      access_log /dev/stdout main;
+
+      client_body_temp_path /tmp/client_body;
+      proxy_temp_path       /tmp/proxy;
+      fastcgi_temp_path     /tmp/fastcgi;
+      uwsgi_temp_path       /tmp/uwsgi;
+      scgi_temp_path        /tmp/scgi;
       
       sendfile on;
       tcp_nopush on;
@@ -58,7 +65,8 @@ data:
         listen 3000;
         server_name _;
         
-        root /app/dist;
+        # Where frontend/Dockerfile puts the build.
+        root /usr/share/nginx/html;
         index index.html;
         
         # Cache static assets

@@ -4,7 +4,9 @@ metadata:
   name: backend-pdb
   namespace: {{ .Values.global.namespace }}
 spec:
-  minAvailable: 2
+  # One pod at a time, whatever the replica count: minAvailable 2 blocked
+  # every node drain on a single-replica install (#1022).
+  maxUnavailable: 1
   selector:
     matchLabels:
       app: openrisk-backend
@@ -15,7 +17,7 @@ metadata:
   name: frontend-pdb
   namespace: {{ .Values.global.namespace }}
 spec:
-  minAvailable: 1
+  maxUnavailable: 1
   selector:
     matchLabels:
       app: openrisk-frontend

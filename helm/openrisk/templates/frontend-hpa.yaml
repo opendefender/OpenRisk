@@ -1,3 +1,4 @@
+{{- if .Values.frontend.autoscaling.enabled }}
 apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
@@ -30,3 +31,4 @@ spec:
       - type: Percent
         value: 50
         periodSeconds: 60
+{{- end }}

@@ -7,7 +7,9 @@ metadata:
     app: openrisk-frontend
     version: {{ .Chart.AppVersion }}
 spec:
+  {{- if not .Values.frontend.autoscaling.enabled }}
   replicas: {{ .Values.frontend.replicaCount }}
+  {{- end }}
   strategy:
     type: RollingUpdate
     rollingUpdate:
@@ -30,6 +32,8 @@ spec:
       - name: frontend
         image: "{{ .Values.frontend.image.repository }}:{{ .Values.frontend.image.tag }}"
         imagePullPolicy: {{ .Values.frontend.image.pullPolicy }}
+        securityContext:
+          {{- toYaml .Values.containerSecurityContext | nindent 10 }}
         
         ports:
         - name: http
@@ -46,14 +50,21 @@ spec:
           {{- toYaml .Values.frontend.readinessProbe | nindent 12 }}
         
         volumeMounts:
+        # Only nginx.conf: mounting the whole of /etc/nginx hid the image's
+        # mime.types, which the config includes, and nginx would not start.
         - name: nginx-config
-          mountPath: /etc/nginx
+          mountPath: /etc/nginx/nginx.conf
+          subPath: nginx.conf
           readOnly: true
+        - name: tmp
+          mountPath: /tmp
       
       volumes:
       - name: nginx-config
         configMap:
           name: frontend-config
+      - name: tmp
+        emptyDir: {}
       
       affinity:
         podAntiAffinity:
