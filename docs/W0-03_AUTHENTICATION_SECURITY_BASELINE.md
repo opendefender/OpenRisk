@@ -49,11 +49,14 @@ leak was found in the reachable surface.
 
 > **Correction (2026-10-20, #944):** an MFA bypass did exist and this audit missed
 > it. The `MFA_REQUIRED` token returned after the password alone, and the
-> `MFA_ENROLLMENT` token, were accepted by `Protected` on every route, which made
-> it possible to mint a PAT, switch organization or turn MFA off without the
-> second factor. Fixed by #944: `Protected` now accepts a full access token only,
-> and `internal/handler/typed_token_route_ratchet_test.go` pins it on every route
-> behind the gate.
+> `MFA_ENROLLMENT` token, were accepted by `Protected` on every route behind it.
+> Minting a PAT and turning MFA off without the second factor were reproduced
+> live; `POST /auth/switch-org`, behind the same gate, was reachable the same way.
+> Fixed by #944: `Protected` now accepts a full access token only.
+> `internal/handler/typed_token_route_ratchet_test.go` checks this on every
+> `protected.*` and `api.*` route registered after the gate in `main.go`. Routes
+> on the protected sub-groups (incidents, notifications, score engine, rbac) sit
+> behind the same gate on the `/api/v1` prefix, but the test does not list them.
 
 ## Current Authentication Architecture
 
