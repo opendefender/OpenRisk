@@ -3,8 +3,8 @@
 //
 // The member is the seeded analyst (dev/fixtures/e2e-dataset.json): POST /users
 // creates it as a member of the admin's organization, carrying its business
-// role on the membership (#590). analystUsable is false only when that seed
-// step failed, and the global-setup log then names the cause.
+// role on the membership (#590). If that seed step failed, the journey FAILS
+// with the seed's recorded reason; it is never skipped.
 //
 // How a role change reaches the member, which is what the second half asserts:
 //   - The business role lives on the membership. The SPA reads it from the
@@ -77,6 +77,9 @@ const ANALYST = dataset.personas.analyst;
 const TARGET_ROLE: Record<string, string> = {
   chromium: 'risk_manager',
   'Mobile Chrome': 'auditor',
+  // Nightly cross-browser projects (playwright.config.ts, E2E_CROSS_BROWSER).
+  firefox: 'compliance_officer',
+  webkit: 'risk_owner',
 };
 
 /** Where a fresh sign-in lands, per business role (frontend/src/shared/navModel.ts
@@ -85,6 +88,8 @@ const LANDING: Record<string, RegExp> = {
   security_analyst: /\/vulnerabilities(\?|$)/,
   risk_manager: /\/risks(\?|$)/,
   auditor: /\/compliance(\?|$)/,
+  compliance_officer: /\/compliance(\?|$)/,
+  risk_owner: /\/risks(\?|$)/,
 };
 
 /** Dashboard view per business role (frontend/src/features/dashboard/dashboardVariant.ts). */
@@ -92,6 +97,8 @@ const VARIANT: Record<string, 'rssi' | 'rm' | 'audit'> = {
   security_analyst: 'rssi',
   risk_manager: 'rm',
   auditor: 'audit',
+  compliance_officer: 'audit',
+  risk_owner: 'rm',
 };
 
 /** The heading of the dashboard's priority panel, which names the view, in
@@ -122,45 +129,91 @@ interface Member {
 /**
  * Serialises the journey across workers. The two projects act on one
  * membership; run in parallel, one project's BEFORE would read the other's
- * change. An exclusive-create lock file names its holder's pid, so a lock left
- * by a crashed worker is recognised and broken instead of stalling the run.
+ * change.
+ *
+ * The lock is a directory: mkdirSync is atomic, so exactly one worker creates
+ * it. The holder then writes its pid inside. A lock whose holder is gone (a
+ * crashed worker) is broken, carefully:
+ *   - no pid yet is read as ALIVE while the directory is young: the holder is
+ *     between mkdir and write, not dead;
+ *   - the breaker renames the directory to a name of its own (atomic, so only
+ *     one breaker wins) and deletes it only if it still names the dead pid it
+ *     judged. If it names someone else, that is a live lock taken in the
+ *     meantime, and it is put back.
  */
+const LOCK_DIR = path.join(AUTH_DIR, 'rbac-analyst.lock');
+const LOCK_PID = (dir: string) => path.join(dir, 'pid');
+const NO_PID_GRACE_MS = 10_000;
+
+function lockHolder(dir: string): number | null {
+  try {
+    const n = Number(fs.readFileSync(LOCK_PID(dir), 'utf8').trim());
+    return Number.isInteger(n) && n > 0 ? n : null;
+  } catch {
+    return null;
+  }
+}
+
+function pidAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (e) {
+    // EPERM: the process exists but is not ours, which is still alive.
+    return (e as NodeJS.ErrnoException).code === 'EPERM';
+  }
+}
+
+/** Removes the lock iff it is still held by `deadPid`. */
+function breakStaleLock(deadPid: number | null) {
+  const aside = `${LOCK_DIR}.stale-${process.pid}-${Date.now()}`;
+  try {
+    fs.renameSync(LOCK_DIR, aside);
+  } catch {
+    return; // someone else broke or released it first
+  }
+  if (lockHolder(aside) === deadPid) {
+    fs.rmSync(aside, { recursive: true, force: true });
+    return;
+  }
+  // A live holder re-acquired between our read and our rename: give it back.
+  fs.renameSync(aside, LOCK_DIR);
+}
+
 async function withAnalystLock<T>(fn: () => Promise<T>): Promise<T> {
-  const lock = path.join(AUTH_DIR, 'rbac-analyst.lock');
   const deadline = Date.now() + 150_000;
   for (;;) {
     try {
-      fs.writeFileSync(lock, String(process.pid), { flag: 'wx' });
+      fs.mkdirSync(LOCK_DIR);
+      fs.writeFileSync(LOCK_PID(LOCK_DIR), String(process.pid));
       break;
     } catch (e) {
       if ((e as NodeJS.ErrnoException).code !== 'EEXIST') throw e;
-      let holder = 0;
-      try {
-        holder = Number(fs.readFileSync(lock, 'utf8').trim() || '0');
-      } catch {
-        continue; // released between the two calls
-      }
-      let alive = false;
-      try {
-        if (holder > 0) {
-          process.kill(holder, 0);
-          alive = true;
-        }
-      } catch {
-        alive = false;
-      }
-      if (!alive) {
-        fs.rmSync(lock, { force: true });
-        continue;
-      }
-      if (Date.now() > deadline) throw new Error(`rbac lock still held by pid ${holder}`);
-      await new Promise((r) => setTimeout(r, 250));
     }
+    const holder = lockHolder(LOCK_DIR);
+    let stale: boolean;
+    if (holder === null) {
+      let age = 0;
+      try {
+        age = Date.now() - fs.statSync(LOCK_DIR).mtimeMs;
+      } catch {
+        continue; // released meanwhile
+      }
+      stale = age > NO_PID_GRACE_MS;
+    } else {
+      stale = !pidAlive(holder);
+    }
+    if (stale) {
+      breakStaleLock(holder);
+      continue;
+    }
+    if (Date.now() > deadline) throw new Error(`rbac lock still held by pid ${holder ?? '?'}`);
+    await new Promise((r) => setTimeout(r, 250));
   }
   try {
     return await fn();
   } finally {
-    fs.rmSync(lock, { force: true });
+    if (lockHolder(LOCK_DIR) === process.pid) fs.rmSync(LOCK_DIR, { recursive: true, force: true });
   }
 }
 
@@ -267,23 +320,31 @@ async function expectDashboardView(page: Page, variant: string) {
 test.describe('rbac — role change propagation', () => {
   test.use({ storageState: authFileFor('admin') });
 
-  test.fixme(
-    !analystUsable,
-    'analyst persona was not provisioned: the seed (POST /users) failed, see the [seed] personas line',
-  );
-
   test('UX-24: admin changes a member business role; member sees it', async ({
     page,
     browser,
   }, testInfo) => {
+    // A hard failure, not a skip: if the seed could not provision the member
+    // (POST /users broken), this journey is exactly what must go red.
+    expect(
+      analystUsable,
+      `analyst persona not provisioned by the seed: ${seed.personas?.analyst?.reason ?? 'no seed record'}`,
+    ).toBe(true);
     test.setTimeout(240_000); // includes up to 150 s waiting for the other project
     const original = ANALYST.business_role;
-    const target = TARGET_ROLE[testInfo.project.name] ?? 'risk_manager';
+    const target = TARGET_ROLE[testInfo.project.name];
+    if (!target) {
+      throw new Error(
+        `no target role mapped for project "${testInfo.project.name}": add it to TARGET_ROLE, ` +
+          'distinct from every other project\'s, so parallel projects never share one',
+      );
+    }
     expect(target).not.toBe(original);
 
     await withAnalystLock(async () => {
       let member: BrowserContext | undefined;
       let memberId: string | undefined;
+      let bodyError: unknown;
       try {
         // ---- Setup: the analyst starts from its seeded role. ---------------
         await page.goto('/settings/members', { waitUntil: 'domcontentloaded' });
@@ -357,17 +418,32 @@ test.describe('rbac — role change propagation', () => {
         await expect(
           memberPage.getByRole('heading', { level: 2, name: priorityHeading(VARIANT[original]) }),
         ).toHaveCount(0);
-      } finally {
-        await member?.close();
-        // Cleanup through the API: the seeded role back, so a rerun and every
-        // other spec start from the fixture.
-        // Only when it moved: the server refuses a no-op change, and a refusal
-        // here would hide the assertion that actually failed.
+      } catch (e) {
+        bodyError = e;
+      }
+
+      // Cleanup through the API: the seeded role back, so a rerun and every
+      // other spec start from the fixture. Only when it moved: the server
+      // refuses a no-op change. A cleanup failure never replaces the assertion
+      // that failed in the journey; it is reported on its own only when the
+      // journey itself passed.
+      await member?.close().catch(() => undefined);
+      let restoreError: unknown;
+      try {
         if (memberId && (await findAnalyst(page)).business_role !== original) {
           await setAnalystRole(page, memberId, original);
           expect((await findAnalyst(page)).business_role).toBe(original);
         }
+      } catch (e) {
+        restoreError = e;
       }
+      if (bodyError !== undefined) {
+        if (restoreError !== undefined) {
+          testInfo.annotations.push({ type: 'cleanup failed', description: String(restoreError) });
+        }
+        throw bodyError;
+      }
+      if (restoreError !== undefined) throw restoreError;
     });
   });
 });
