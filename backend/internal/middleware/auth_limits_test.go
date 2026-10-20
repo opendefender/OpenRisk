@@ -8,7 +8,9 @@ package middleware
 import (
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -17,7 +19,11 @@ import (
 // shared store — the production shape, where every limiter talks to the same
 // Redis.
 func authLimitedApp() *fiber.App {
-	l := NewAuthLimiters(NewRateLimitStore())
+	return authLimitedAppWith(AuthLimitConfig{})
+}
+
+func authLimitedAppWith(cfg AuthLimitConfig) *fiber.App {
+	l := NewAuthLimiters(NewRateLimitStore(), cfg)
 	ok := func(c *fiber.Ctx) error { return c.SendStatus(fiber.StatusOK) }
 	app := fiber.New()
 	app.Post("/auth/login", l.Login, ok)
@@ -26,6 +32,7 @@ func authLimitedApp() *fiber.App {
 	app.Post("/auth/password/reset", l.Reset, ok)
 	app.Post("/auth/password/check", l.Check, ok)
 	app.Post("/auth/password/change", l.Reauth, ok)
+	app.Post("/auth/mfa/challenge", l.MFAChallenge, ok)
 	return app
 }
 
@@ -93,5 +100,125 @@ func TestPrefixedBackend_KeepsCountersApart(t *testing.T) {
 	}
 	if !b.IsAllowed("1.2.3.4", 1, 60e9) {
 		t.Fatal("b must not see a's count")
+	}
+}
+
+// #588: the production budgets are a contract. The end-to-end switch turns the
+// limiters off; it never changes these numbers.
+func TestAuthRateLimit_ProductionBudgetsUnchanged(t *testing.T) {
+	cases := []struct {
+		name   string
+		limit  int
+		window time.Duration
+		want   int
+		wantW  time.Duration
+	}{
+		{"login", AuthLoginLimit, AuthLoginWindow, 15, 5 * time.Minute},
+		{"register", AuthRegisterLimit, AuthRegisterWindow, 10, 15 * time.Minute},
+		{"reset", AuthResetLimit, AuthResetWindow, 15, 5 * time.Minute},
+		{"check", AuthCheckLimit, AuthCheckWindow, 120, 5 * time.Minute},
+		{"reauth", AuthReauthLimit, AuthReauthWindow, 15, 5 * time.Minute},
+		{"mfa challenge", AuthMFAChallengeLimit, AuthMFAChallengeWindow, 20, 5 * time.Minute},
+	}
+	for _, c := range cases {
+		if c.limit != c.want || c.window != c.wantW {
+			t.Errorf("%s: %d per %s, want %d per %s", c.name, c.limit, c.window, c.want, c.wantW)
+		}
+	}
+}
+
+// keyRecorder records the keys a limiter asks for and allows everything.
+type keyRecorder struct{ keys []string }
+
+func (k *keyRecorder) IsAllowed(key string, _ int, _ time.Duration) bool {
+	k.keys = append(k.keys, key)
+	return true
+}
+
+// The key prefixes are part of the production contract too: renaming one resets
+// the live Redis counters on deploy.
+func TestAuthRateLimit_KeyPrefixesUnchanged(t *testing.T) {
+	rec := &keyRecorder{}
+	l := NewAuthLimiters(rec, AuthLimitConfig{})
+	ok := func(c *fiber.Ctx) error { return c.SendStatus(fiber.StatusOK) }
+	app := fiber.New()
+	app.Post("/login", l.Login, ok)
+	app.Post("/register", l.Register, ok)
+	app.Post("/reset", l.Reset, ok)
+	app.Post("/check", l.Check, ok)
+	app.Post("/reauth", l.Reauth, ok)
+	app.Post("/mfa", l.MFAChallenge, ok)
+
+	want := map[string]string{
+		"/login":    "auth-login:",
+		"/register": "auth-register:",
+		"/reset":    "auth-reset:",
+		"/check":    "auth-check:",
+		"/reauth":   "auth-reauth:",
+		"/mfa":      "mfa-challenge-ip:",
+	}
+	for path, prefix := range want {
+		rec.keys = nil
+		post(t, app, path)
+		if len(rec.keys) != 1 || !strings.HasPrefix(rec.keys[0], prefix) {
+			t.Errorf("%s: keys %v, want one key with prefix %q", path, rec.keys, prefix)
+		}
+	}
+}
+
+func TestAuthRateLimit_MFAChallengeHasItsOwnBudget(t *testing.T) {
+	app := authLimitedApp()
+
+	for i := 1; i <= AuthMFAChallengeLimit; i++ {
+		if got := post(t, app, "/auth/mfa/challenge"); got != fiber.StatusOK {
+			t.Fatalf("challenge %d: got %d", i, got)
+		}
+	}
+	if got := post(t, app, "/auth/mfa/challenge"); got != fiber.StatusTooManyRequests {
+		t.Fatalf("challenge %d: got %d, want 429", AuthMFAChallengeLimit+1, got)
+	}
+	if got := post(t, app, "/auth/login"); got != fiber.StatusOK {
+		t.Errorf("login after the challenge budget ran out: got %d, want 200", got)
+	}
+}
+
+func TestAuthRateLimit_DisabledIsPassthrough(t *testing.T) {
+	app := authLimitedAppWith(AuthLimitConfig{Disabled: true})
+
+	for _, path := range []string{"/auth/login", "/auth/register", "/auth/password/forgot", "/auth/password/reset", "/auth/password/check", "/auth/password/change", "/auth/mfa/challenge"} {
+		for i := 1; i <= AuthCheckLimit+1; i++ {
+			if got := post(t, app, path); got != fiber.StatusOK {
+				t.Fatalf("%s request %d while disabled: got %d, want 200", path, i, got)
+			}
+		}
+	}
+}
+
+func TestLoadAuthLimitConfig(t *testing.T) {
+	cases := []struct {
+		name     string
+		appEnv   string
+		disabled string
+		want     bool
+	}{
+		{"default in test", "test", "", false},
+		{"switched off in test", "test", "true", true},
+		{"switched off in development", "development", "1", true},
+		{"explicit false", "test", "false", false},
+		{"garbage keeps the limiters", "test", "please", false},
+		// The switch must never reach production, including an install that
+		// forgot APP_ENV, which IsProductionEnv treats as production.
+		{"ignored in production", "production", "true", false},
+		{"ignored when APP_ENV is unset", "", "true", false},
+		{"ignored for an unknown APP_ENV", "staging", "true", false},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			t.Setenv("APP_ENV", c.appEnv)
+			t.Setenv("RATE_LIMIT_AUTH_DISABLED", c.disabled)
+			if got := LoadAuthLimitConfig().Disabled; got != c.want {
+				t.Errorf("Disabled = %v, want %v", got, c.want)
+			}
+		})
 	}
 }

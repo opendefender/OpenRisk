@@ -851,7 +851,13 @@ func main() {
 	// per-instance in-memory limiter if Redis is unreachable. Guessing against
 	// one account is bounded per address in the login use case, not here.
 	authLimiterStore := middleware.NewRedisRateLimitStore(redisClientInstance)
-	authLimits := middleware.NewAuthLimiters(authLimiterStore)
+	// RATE_LIMIT_AUTH_DISABLED switches these off for the end-to-end suite only;
+	// it is ignored in production (#588).
+	authLimitConfig := middleware.LoadAuthLimitConfig()
+	if authLimitConfig.Disabled {
+		log.Println("WARNING: RATE_LIMIT_AUTH_DISABLED is set — the per-IP auth limiters are off (non-production only)")
+	}
+	authLimits := middleware.NewAuthLimiters(authLimiterStore, authLimitConfig)
 
 	// Clean Architecture Auth Routes
 	api.Post("/auth/login", authLimits.Login, cleanAuthHandler.Login)
@@ -894,15 +900,7 @@ func main() {
 	// #689 — the per-IP limit runs first, in its own bucket: a flood is refused
 	// before any token is parsed, and it never spends the login budget. The
 	// per-token and per-account limits live in the use case.
-	mfaChallengeRateLimit := middleware.RateLimit(middleware.RateLimitConfig{
-		MaxRequests: 20,
-		WindowSize:  5 * time.Minute,
-		Store: handlers.PrefixedRateLimitBackend{
-			Prefix: "mfa-challenge-ip:",
-			Inner:  authLimiterStore,
-		},
-	})
-	api.Post("/auth/mfa/challenge", mfaChallengeRateLimit, middleware.MFATokenMiddleware(rsaKeys, jtiBlacklistChecker), mfaHandler.Challenge)
+	api.Post("/auth/mfa/challenge", authLimits.MFAChallenge, middleware.MFATokenMiddleware(rsaKeys, jtiBlacklistChecker), mfaHandler.Challenge)
 
 	// Scanner AGENT endpoints (register/stream/push) are mounted on `app` HERE —
 	// deliberately BEFORE the /api/v1 user-token middleware below — so they are

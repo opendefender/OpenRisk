@@ -68,6 +68,15 @@ jobs:
       # repository root, so without this the backend exits with
       # `failed to open source, "file://migrations"` (#297).
       MIGRATIONS_DIR: ../migrations
+      # The suite drives the product from one address and spends the per-IP
+      # budgets within minutes; the 429s then fail tests unrelated to rate
+      # limiting (#588). The first two are ordinary quota settings (0 disables);
+      # the third is the end-to-end switch for the auth limiters, which the
+      # backend ignores outside APP_ENV=test/development. Production defaults
+      # are unchanged.
+      RATE_LIMIT_IP_PER_MINUTE: '0'
+      RATE_LIMIT_TENANT_PER_MINUTE: '0'
+      RATE_LIMIT_AUTH_DISABLED: 'true'
       # E2E harness
       E2E_NO_WEBSERVER: '1'
       E2E_BASE_URL: http://localhost:5173
@@ -219,6 +228,10 @@ jobs:
       # repository root, so without this the backend exits with
       # `failed to open source, "file://migrations"` (#297).
       MIGRATIONS_DIR: ../migrations
+      # Same budgets switched off as the PR job, same reason (#588).
+      RATE_LIMIT_IP_PER_MINUTE: '0'
+      RATE_LIMIT_TENANT_PER_MINUTE: '0'
+      RATE_LIMIT_AUTH_DISABLED: 'true'
       E2E_NO_WEBSERVER: '1'
       E2E_CROSS_BROWSER: '1'
       E2E_BASE_URL: http://localhost:5173

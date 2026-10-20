@@ -159,10 +159,11 @@ openssl rsa -in /tmp/or-e2e-keys/private.pem -pubout -out /tmp/or-e2e-keys/publi
 # Backend (:8080), from backend/
 export DATABASE_URL="postgres://openrisk:openrisk@localhost:55432/openrisk_e2e?sslmode=disable" \
   DB_HOST=localhost DB_PORT=55432 DB_USER=openrisk DB_PASSWORD=openrisk DB_NAME=openrisk_e2e \
-  REDIS_HOST=localhost REDIS_PORT=56379 APP_ENV=test PORT=8080 \
+  REDIS_HOST=localhost REDIS_PORT=56379 REDIS_URL=redis://localhost:56379 APP_ENV=test PORT=8080 \
   CORS_ORIGINS=http://localhost:5173 \
   INITIAL_ADMIN_PASSWORD="$OR_E2E_ADMIN_PASSWORD" MIGRATIONS_DIR=../migrations \
-  RSA_PRIVATE_KEY_PATH=/tmp/or-e2e-keys/private.pem RSA_PUBLIC_KEY_PATH=/tmp/or-e2e-keys/public.pem
+  RSA_PRIVATE_KEY_PATH=/tmp/or-e2e-keys/private.pem RSA_PUBLIC_KEY_PATH=/tmp/or-e2e-keys/public.pem \
+  RATE_LIMIT_IP_PER_MINUTE=0 RATE_LIMIT_TENANT_PER_MINUTE=0 RATE_LIMIT_AUTH_DISABLED=true
 go build -o /tmp/or-e2e-openrisk ./cmd/server && /tmp/or-e2e-openrisk &
 
 # Frontend (:5173), from the repository root
@@ -178,9 +179,21 @@ npx playwright test $(grep -Ev '^[[:space:]]*(#|$)' tests/e2e/pr-gate.txt) \
   --project=chromium --project="Mobile Chrome" --workers=1
 ```
 
-Several runs in a row exhaust the sign-in budget above. Wait five minutes, or reset the
-limiter with `docker exec or-e2e-redis redis-cli FLUSHALL`. Only do that on this
-throwaway Redis.
+The last line of the backend environment switches the per-IP limiters off, as the CI job
+does (#588). The suite sends every request from one address, so with the production
+budgets it is refused with `429 Rate limit exceeded` partway through, on tests that have
+nothing to do with rate limiting:
+
+| Variable | Effect | Production |
+|---|---|---|
+| `RATE_LIMIT_IP_PER_MINUTE=0` | turns off the per-IP API quota (default 300/min) | an ordinary setting; leave it unset |
+| `RATE_LIMIT_TENANT_PER_MINUTE=0` | turns off the per-tenant API quota (default 1200/min) | an ordinary setting; leave it unset |
+| `RATE_LIMIT_AUTH_DISABLED=true` | turns off the per-IP limiters on sign-in, sign-up, password reset and check, re-authentication and the MFA challenge | ignored: honoured only when `APP_ENV` is `test`, `testing`, `development`, `dev` or `local` |
+
+The auth budgets themselves (`backend/internal/middleware/auth_limits.go`) cannot be
+changed from the environment. The per-account sign-in lockout in the login use case is
+not affected by any of these. The backend logs a warning at start-up when
+`RATE_LIMIT_AUTH_DISABLED` is honoured.
 
 ## GitHub Actions Workflow
 

@@ -6,6 +6,8 @@
 package middleware
 
 import (
+	"os"
+	"strconv"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -48,7 +50,33 @@ const (
 	// Re-authentication inside a session: changing the password, disabling MFA.
 	AuthReauthLimit  = 15
 	AuthReauthWindow = 5 * time.Minute
+	// The second login leg, reached with the MFA_REQUIRED token (#689).
+	AuthMFAChallengeLimit  = 20
+	AuthMFAChallengeWindow = 5 * time.Minute
 )
+
+// AuthLimitConfig holds what the environment may change about the auth limiters.
+type AuthLimitConfig struct {
+	// Disabled turns every per-IP auth limiter into a pass-through.
+	Disabled bool
+}
+
+// LoadAuthLimitConfig resolves the auth limiter settings from the environment.
+//
+//	RATE_LIMIT_AUTH_DISABLED  true switches the per-IP auth limiters off
+//
+// It exists for the end-to-end suite, which drives the product from one address
+// and spends these budgets in its first minutes (#588). The budgets themselves
+// are not configurable. The switch is ignored in production, which is anything
+// IsProductionEnv does not call a development or test environment: an install
+// that forgets APP_ENV keeps its limiters whatever else it sets.
+func LoadAuthLimitConfig() AuthLimitConfig {
+	if IsProductionEnv() {
+		return AuthLimitConfig{}
+	}
+	disabled, err := strconv.ParseBool(os.Getenv("RATE_LIMIT_AUTH_DISABLED"))
+	return AuthLimitConfig{Disabled: err == nil && disabled}
+}
 
 // AuthLimiters are the per-purpose limiters for the auth routes.
 type AuthLimiters struct {
@@ -57,12 +85,18 @@ type AuthLimiters struct {
 	Reset    fiber.Handler
 	Check    fiber.Handler
 	Reauth   fiber.Handler
+	// MFAChallenge is keyed as it was when main.go built it (#689), so a
+	// rolling deploy keeps the counters already in Redis.
+	MFAChallenge fiber.Handler
 }
 
 // NewAuthLimiters builds every auth limiter over one store, each under its own
 // key prefix. Pass the shared Redis store so the budgets hold across instances.
-func NewAuthLimiters(store RateLimitBackend) AuthLimiters {
+func NewAuthLimiters(store RateLimitBackend, cfg AuthLimitConfig) AuthLimiters {
 	limit := func(prefix string, max int, window time.Duration) fiber.Handler {
+		if cfg.Disabled {
+			return func(c *fiber.Ctx) error { return c.Next() }
+		}
 		return RateLimit(RateLimitConfig{
 			MaxRequests: max,
 			WindowSize:  window,
@@ -75,5 +109,7 @@ func NewAuthLimiters(store RateLimitBackend) AuthLimiters {
 		Reset:    limit("auth-reset:", AuthResetLimit, AuthResetWindow),
 		Check:    limit("auth-check:", AuthCheckLimit, AuthCheckWindow),
 		Reauth:   limit("auth-reauth:", AuthReauthLimit, AuthReauthWindow),
+
+		MFAChallenge: limit("mfa-challenge-ip:", AuthMFAChallengeLimit, AuthMFAChallengeWindow),
 	}
 }
