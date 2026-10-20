@@ -1,3 +1,7 @@
+{{- $u := .Values.backend.uploads }}
+{{- if and (eq $u.accessMode "ReadWriteOnce") (or .Values.backend.autoscaling.enabled (gt (int .Values.backend.replicaCount) 1)) }}
+{{- fail "backend.uploads.accessMode is ReadWriteOnce: run one backend replica with autoscaling off, or use a ReadWriteMany class. Each replica would otherwise keep its own uploaded files and lose them on restart (#1022)." }}
+{{- end }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -7,7 +11,9 @@ metadata:
     app: openrisk-backend
     version: {{ .Chart.AppVersion }}
 spec:
+  {{- if not .Values.backend.autoscaling.enabled }}
   replicas: {{ .Values.backend.replicaCount }}
+  {{- end }}
   strategy:
     type: RollingUpdate
     rollingUpdate:
@@ -34,6 +40,8 @@ spec:
       - name: backend
         image: "{{ .Values.backend.image.repository }}:{{ .Values.backend.image.tag }}"
         imagePullPolicy: {{ .Values.backend.image.pullPolicy }}
+        securityContext:
+          {{- toYaml .Values.containerSecurityContext | nindent 10 }}
         
         ports:
         - name: http
@@ -55,6 +63,13 @@ spec:
             secretKeyRef:
               name: openrisk-secrets
               key: redis-url
+        # The same RS256 pair on every replica (#1022).
+        - name: RSA_PRIVATE_KEY_PATH
+          value: /app/secrets/private.pem
+        - name: RSA_PUBLIC_KEY_PATH
+          value: /app/secrets/public.pem
+        - name: STORAGE_LOCAL_PATH
+          value: /app/uploads
         
         resources:
           {{- toYaml .Values.backend.resources | nindent 12 }}
@@ -69,11 +84,23 @@ spec:
         - name: config
           mountPath: /etc/openrisk
           readOnly: true
+        - name: rsa-keys
+          mountPath: /app/secrets
+          readOnly: true
+        - name: uploads
+          mountPath: /app/uploads
       
       volumes:
       - name: config
         configMap:
           name: backend-config
+      - name: rsa-keys
+        secret:
+          secretName: {{ .Values.secrets.rsa.existingSecret | default "openrisk-rsa" }}
+          defaultMode: 0440
+      - name: uploads
+        persistentVolumeClaim:
+          claimName: {{ $u.existingClaim | default "backend-uploads" }}
       
       affinity:
         podAntiAffinity:

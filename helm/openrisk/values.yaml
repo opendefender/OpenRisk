@@ -32,6 +32,18 @@ backend:
     type: ClusterIP
     port: 8080
     targetPort: 8080
+
+  # Uploaded files (compliance evidence, generated exports). The backend only
+  # has a local-disk storage driver, so every replica must see the same
+  # volume, and it must outlive the pods (#1022). Default: a ReadWriteMany
+  # claim. With a ReadWriteOnce class, run a single replica with autoscaling
+  # off; the chart refuses more, because each pod would then keep its own
+  # files and lose them on restart.
+  uploads:
+    existingClaim: ""
+    storageClass: ""
+    accessMode: ReadWriteMany
+    size: 20Gi
   
   autoscaling:
     enabled: true
@@ -54,7 +66,7 @@ backend:
   
   livenessProbe:
     httpGet:
-      path: /health
+      path: /api/v1/health
       port: 8080
     initialDelaySeconds: 30
     periodSeconds: 10
@@ -63,7 +75,7 @@ backend:
   
   readinessProbe:
     httpGet:
-      path: /health
+      path: /api/v1/health
       port: 8080
     initialDelaySeconds: 10
     periodSeconds: 5
@@ -269,11 +281,17 @@ backup:
   storageClass: standard
   size: 10Gi
 
-# Security context
+# Pod security context. `capabilities` is not a pod-level field: the API
+# server refused the whole Deployment while it was here (#1022). It lives in
+# containerSecurityContext below.
 securityContext:
   runAsNonRoot: true
   runAsUser: 1000
   fsGroup: 1000
+
+# Applied to every container.
+containerSecurityContext:
+  allowPrivilegeEscalation: false
   capabilities:
     drop:
       - ALL
@@ -290,8 +308,17 @@ secrets:
     enabled: false
     backend: aws-secrets-manager  # or vault, aws-secrets-manager
   
+  # RS256 signing keys for access tokens (#1022). Every replica must sign and
+  # verify with the same pair, so the chart never generates one per pod.
+  # Either name an existing Secret holding `private.pem` and `public.pem`, or
+  # pass the PEMs inline (--set-file secrets.inline.rsaPrivateKey=private.pem).
+  rsa:
+    existingSecret: ""
+
   # Inline secrets (NOT recommended for production)
   inline:
     databaseUrl: ""
+    rsaPrivateKey: ""
+    rsaPublicKey: ""
     oauth2ClientId: ""
     oauth2ClientSecret: ""

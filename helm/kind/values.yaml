@@ -1,0 +1,24 @@
+# Values for the kind check (#1022): images built in the job and loaded into
+# the cluster, one replica, and the local-path storage class kind ships, which
+# is ReadWriteOnce only. The RSA pair and the admin password are passed with
+# --set-file / --set by the job.
+backend:
+  replicaCount: 1
+  autoscaling: {enabled: false}
+  image: {repository: openrisk/helm-image, tag: kind, pullPolicy: Never}
+  uploads:
+    accessMode: ReadWriteOnce
+    size: 1Gi
+  env:
+    PASSWORD_HIBP_DISABLED: "true"
+    CTI_SYNC_ENABLED: "false"
+    EMAIL_TRANSPORT: "log"
+frontend:
+  replicaCount: 1
+  autoscaling: {enabled: false}
+  image: {repository: openrisk/frontend, tag: kind, pullPolicy: Never}
+secrets:
+  inline:
+    # 'kind p@ss:w/rd?#%x', percent-encoded.
+    databaseUrl: "postgres://openrisk:kind%20p%40ss%3Aw%2Frd%3F%23%25x@postgres.deps.svc:5432/openrisk?sslmode=disable"
+    redisUrl: "redis://redis.deps.svc:6379/0"

@@ -1,0 +1,22 @@
+{{- if not .Values.backend.uploads.existingClaim }}
+# Uploaded evidence and exports (#1022). Kept by Helm on uninstall, so removing
+# the release never deletes customer files.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: backend-uploads
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    app: openrisk-backend
+  annotations:
+    helm.sh/resource-policy: keep
+spec:
+  accessModes:
+    - {{ .Values.backend.uploads.accessMode }}
+  {{- with .Values.backend.uploads.storageClass }}
+  storageClassName: {{ . }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.backend.uploads.size }}
+{{- end }}
