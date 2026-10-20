@@ -200,6 +200,8 @@ func CreateUser(c *fiber.Ctx) error {
 	var taken int64
 	if err := database.DB.WithContext(c.UserContext()).Model(&domain.User{}).
 		Where("LOWER(email) = ?", input.Email).Count(&taken).Error; err != nil {
+		log.Error().Err(err).Str("tenant_id", tenantID.String()).Str("stage", "create_user.email_check").
+			Msg("could not check the email address")
 		return writeAppError(c, internalError("could not check the email address"))
 	}
 	if taken > 0 {
@@ -207,6 +209,8 @@ func CreateUser(c *fiber.Ctx) error {
 	}
 	if err := database.DB.WithContext(c.UserContext()).Model(&domain.User{}).
 		Where("username = ?", input.Username).Count(&taken).Error; err != nil {
+		log.Error().Err(err).Str("tenant_id", tenantID.String()).Str("stage", "create_user.username_check").
+			Msg("could not check the username")
 		return writeAppError(c, internalError("could not check the username"))
 	}
 	if taken > 0 {
