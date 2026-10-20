@@ -1248,6 +1248,7 @@
       "appetite": "Risk appetite",
       "appetiteSub": "M {currency}, set by the board",
       "appetiteUnset": "to set in quantification",
+      "unquantified": "no quantified risk yet",
       "unavailable": "—"
     },
     "trend": {
@@ -1356,6 +1357,11 @@
     "currencyLabel": "Display currency",
     "loadError": "Could not load the financial posture.",
     "emptyRegister": "No risk to quantify. Add risks and fill in their losses (SLE, ARO, downtime cost) to see your exposure in money.",
+    "unquantified": {
+      "one": "Insufficient data: no risk in your register has its own loss figures yet, so any amount here would come from the reference model alone. Quantify at least {count} risk (single loss and yearly frequency) to see your exposure in money.",
+      "other": "Insufficient data: no risk in your register has its own loss figures yet, so any amount here would come from the reference model alone. Quantify at least {count} risks (single loss and yearly frequency) to see your exposure in money."
+    },
+    "unquantifiedCta": "Open the risk register",
     "kpi": {
       "inherent": "Inherent ALE",
       "inherentSub": {

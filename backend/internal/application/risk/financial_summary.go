@@ -92,6 +92,12 @@ type FinancialSummary struct {
 	Iterations      int       `json:"iterations"`
 	TotalRisks      int       `json:"total_risks"`
 	QuantifiedRisks int       `json:"quantified_risks"` // from SQL aggregate, not a client filter
+	// DataStatus is "insufficient_data" until MinQuantifiedRisks risks carry
+	// their own loss figures. Until then every amount below comes from the
+	// per-criticality reference model alone and must not be shown as a
+	// measurement of the tenant's exposure (#756).
+	DataStatus         string `json:"data_status"`
+	MinQuantifiedRisks int    `json:"min_quantified_risks"`
 	// PortfolioLoss is the FAIR-lite P10/P50/P90 band of TOTAL annual exposure —
 	// the headline figure. A single number is a false certainty (spec §2).
 	PortfolioLoss      crq.DistributionAmounts `json:"portfolio_loss"`
@@ -156,6 +162,15 @@ func (uc *FinancialSummaryUseCase) WithClock(now func() time.Time) *FinancialSum
 
 // topRiskLimit caps the "biggest exposures" table.
 const topRiskLimit = 10
+
+// Financial summary data status (#756).
+const (
+	FinancialDataOK           = "ok"
+	FinancialDataInsufficient = "insufficient_data"
+	// MinQuantifiedRisks is the fewest risks with their own SLE before the
+	// portfolio figures describe the tenant rather than the reference model.
+	MinQuantifiedRisks = 1
+)
 
 // Execute computes the financial summary for a tenant.
 func (uc *FinancialSummaryUseCase) Execute(ctx context.Context, tenantID uuid.UUID) (*FinancialSummary, error) {
@@ -251,6 +266,12 @@ func (uc *FinancialSummaryUseCase) Execute(ctx context.Context, tenantID uuid.UU
 		if total, quantified, cErr := uc.coverage.CountFinancialCoverage(ctx, tenantID); cErr == nil {
 			sum.TotalRisks, sum.QuantifiedRisks = total, quantified
 		}
+	}
+
+	sum.MinQuantifiedRisks = MinQuantifiedRisks
+	sum.DataStatus = FinancialDataOK
+	if sum.QuantifiedRisks < MinQuantifiedRisks {
+		sum.DataStatus = FinancialDataInsufficient
 	}
 
 	// Headline: one shared portfolio Monte Carlo → P10/P50/P90 of total exposure.

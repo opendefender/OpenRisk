@@ -15,6 +15,8 @@ import { bannerIncident } from '../console/incidentPick';
 import { daysUntil } from '../../action-center/dueDate';
 import type { Incident } from '../../incidents/incidentService';
 
+const finance = vi.hoisted(() => ({ status: 'ok' }));
+
 const STATS = {
   total_risks: 14,
   live_risks: 13,
@@ -60,6 +62,7 @@ vi.mock('../../../lib/api', () => {
           total_ale: { xaf: 117_200_000 },
           total_risk_reduction: { xaf: 68_700_000 },
           total_remediation: { xaf: 62_200_000 },
+          data_status: finance.status,
         },
       });
     return Promise.resolve({ data: {} });
@@ -94,7 +97,10 @@ function renderCounters(variant: 'rssi' | 'rm' | 'audit' | 'exec') {
 const value = (key: string) =>
   within(screen.getByTestId(`dash-counter-${key}`)).getByText(/./, { selector: '.mono' });
 
-beforeEach(() => useUIStore.setState({ lang: 'fr' }));
+beforeEach(() => {
+  useUIStore.setState({ lang: 'fr' });
+  finance.status = 'ok';
+});
 
 describe('variantFor', () => {
   it('maps business roles onto the four views, RSSI by default', () => {
@@ -146,6 +152,19 @@ describe('CounterList', () => {
     expect(value('plan-cost')).toHaveTextContent('62,2');
     expect(screen.getByTestId('dash-counter-ale')).toHaveTextContent('M FCFA');
     expect(value('appetite')).toHaveTextContent('—');
+  });
+
+  it('executive: no exposure figure while no risk is quantified (#756)', async () => {
+    finance.status = 'insufficient_data';
+    renderCounters('exec');
+    await waitFor(() =>
+      expect(screen.getByTestId('dash-counter-ale')).toHaveTextContent('aucun risque chiffré'),
+    );
+    expect(value('ale')).toHaveTextContent('—');
+    expect(value('reduction')).toHaveTextContent('—');
+    expect(screen.getByTestId('dash-counter-reduction')).toHaveTextContent('aucun risque chiffré');
+    // The plan cost is entered by hand, not modelled: it stays.
+    expect(value('plan-cost')).toHaveTextContent('62,2');
   });
 });
 

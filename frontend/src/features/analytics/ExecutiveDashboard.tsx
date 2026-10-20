@@ -144,7 +144,10 @@ function KpiStrip() {
     : undefined;
   const locked = !fin.loading && !fin.enabled;
   const f = !locked ? finance.data : undefined;
-  const ale = f ? toDisplay(f.total_ale.xaf, f.fx_rate_xaf) : undefined;
+  // With no quantified risk the exposure would be the reference model's alone:
+  // no figure, and the line under it says why (#756).
+  const thin = f?.data_status === 'insufficient_data';
+  const ale = f && !thin ? toDisplay(f.total_ale.xaf, f.fx_rate_xaf) : undefined;
   const baseAle = f && base?.ale_xaf != null ? toDisplay(base.ale_xaf, f.fx_rate_xaf) : undefined;
 
   const fmt1 = (n: number) => formatNumber(locale, Math.abs(n), { maximumFractionDigits: 1 });
@@ -188,7 +191,9 @@ function KpiStrip() {
       color: 'var(--fg-primary)',
       delta: locked
         ? { text: t('executive.kpi.locked', { plan: 'Business' }), color: 'var(--fg-muted)' }
-        : delta(ale, baseAle, true, (d) => `${millions(Math.abs(d), locale)} M`),
+        : thin
+          ? { text: t('dashboard.counters.unquantified'), color: 'var(--fg-muted)' }
+          : delta(ale, baseAle, true, (d) => `${millions(Math.abs(d), locale)} M`),
       loading: !locked && (finance.isLoading || fin.loading),
     },
     {
@@ -265,6 +270,8 @@ function TopExposures({ className = '' }: { className?: string }) {
         <BlockSkeleton lines={5} height={22} />
       ) : finance.isError || !f ? (
         <BlockError onRetry={() => void finance.refetch()} />
+      ) : f.data_status === 'insufficient_data' ? (
+        <BlockEmpty>{t('dashboard.exposure.empty')}</BlockEmpty>
       ) : top.length === 0 ? (
         <BlockEmpty>{t('executive.top.empty')}</BlockEmpty>
       ) : (

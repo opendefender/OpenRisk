@@ -32,6 +32,8 @@ function summary(over: Partial<FinancialSummary> = {}): FinancialSummary {
     iterations: 10000,
     total_risks: 9,
     quantified_risks: 9,
+    data_status: 'ok',
+    min_quantified_risks: 1,
     portfolio_loss: {
       p10: amount(60 * M),
       p50: amount(100 * M),
@@ -264,6 +266,19 @@ describe('#904 — financial page', () => {
     current = summary({ total_risks: 0, loss_exceedance: null, top_risks: [], treatments: [] });
     renderPage();
     expect(await screen.findByText(/Aucun risque à quantifier/)).toBeInTheDocument();
+  });
+
+  it('withholds the amounts while no risk is quantified (#756)', async () => {
+    current = summary({ quantified_risks: 0, data_status: 'insufficient_data' });
+    renderPage();
+    const block = await screen.findByTestId('fin-unquantified');
+    expect(block).toHaveTextContent('Données insuffisantes');
+    expect(block).toHaveTextContent('Quantifiez au moins 1 risque');
+    expect(
+      within(block).getByRole('link', { name: 'Ouvrir le registre des risques' }),
+    ).toHaveAttribute('href', '/risks');
+    expect(screen.queryByTestId('fin-kpi-inherent-value')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('fin-lec')).not.toBeInTheDocument();
   });
 
   it('a failed load offers a retry', async () => {

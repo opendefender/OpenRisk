@@ -143,6 +143,12 @@ export interface FinancialSummary {
   iterations: number;
   total_risks: number;
   quantified_risks: number;
+  /**
+   * `insufficient_data` until `min_quantified_risks` risks carry their own loss
+   * figures: the amounts then come from the reference model alone (#756).
+   */
+  data_status: 'ok' | 'insufficient_data';
+  min_quantified_risks: number;
   /** Headline P10/P50/P90 band of total annual exposure (never one number). */
   portfolio_loss: DistributionAmounts;
   total_ale: Money;

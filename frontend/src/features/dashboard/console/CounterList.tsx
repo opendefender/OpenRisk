@@ -216,20 +216,27 @@ function useCounters(variant: DashboardVariant): Counter[] {
       const cur = currencyLabel(f?.currency);
       const m = (xaf: number | undefined) =>
         xaf === undefined || !f ? '—' : millions(toDisplay(xaf, f.fx_rate_xaf), locale);
+      // With no quantified risk the exposure would be the reference model's
+      // alone: no figure, and the sub-line says why (#756).
+      const thin = f?.data_status === 'insufficient_data';
       return [
         {
           key: 'ale',
           label: t('dashboard.counters.ale'),
-          sub: t('dashboard.counters.aleSub', { currency: cur }),
-          value: m(f?.total_ale.xaf),
+          sub: thin
+            ? t('dashboard.counters.unquantified')
+            : t('dashboard.counters.aleSub', { currency: cur }),
+          value: thin ? '—' : m(f?.total_ale.xaf),
           to: '/analytics/financial',
           loading: finance.isLoading,
         },
         {
           key: 'reduction',
           label: t('dashboard.counters.reduction'),
-          sub: t('dashboard.counters.reductionSub', { currency: cur }),
-          value: m(f?.total_risk_reduction.xaf),
+          sub: thin
+            ? t('dashboard.counters.unquantified')
+            : t('dashboard.counters.reductionSub', { currency: cur }),
+          value: thin ? '—' : m(f?.total_risk_reduction.xaf),
           color: 'var(--success-text)',
           to: '/analytics/financial',
           loading: finance.isLoading,

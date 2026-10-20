@@ -136,7 +136,7 @@ func (s *AnalyticsService) GetRiskMetrics(ctx context.Context, tenantID uuid.UUI
 type RiskTrendPoint struct {
 	Date      time.Time `json:"date"`
 	Count     int64     `json:"count"`
-	AvgScore  float64   `json:"avg_score"`
+	AvgScore  *float64  `json:"avg_score"` // nil on a day with no risk: there is nothing to average
 	NewRisks  int64     `json:"new_risks"`
 	Mitigated int64     `json:"mitigated"`
 }
@@ -161,16 +161,18 @@ func (s *AnalyticsService) GetRiskTrends(ctx context.Context, tenantID uuid.UUID
 			Where("created_at <= ?", endOfDay).
 			Count(&point.Count)
 
-		// Average score
-		type scoreResult struct {
-			Avg float64
+		// Average score, only when the register held a risk that day (#756)
+		if point.Count > 0 {
+			type scoreResult struct {
+				Avg float64
+			}
+			var scoreRes scoreResult
+			s.scoped(ctx, tenantID).Model(&domain.Risk{}).
+				Where("created_at <= ?", endOfDay).
+				Select("AVG(score) as avg").
+				Scan(&scoreRes)
+			point.AvgScore = &scoreRes.Avg
 		}
-		var scoreRes scoreResult
-		s.scoped(ctx, tenantID).Model(&domain.Risk{}).
-			Where("created_at <= ?", endOfDay).
-			Select("AVG(score) as avg").
-			Scan(&scoreRes)
-		point.AvgScore = scoreRes.Avg
 
 		// New risks created on this day
 		s.scoped(ctx, tenantID).Model(&domain.Risk{}).

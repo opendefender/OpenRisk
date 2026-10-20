@@ -62,8 +62,16 @@ func (h *EnhancedDashboardHandler) GetRiskTrends(c *fiber.Ctx) error {
 		})
 	}
 
+	// Below MinTrendPoints the series is withheld rather than drawn as zeros (#756).
+	status := service.DashboardTrendStatus(trends)
+	if status != service.TrendStatusOK {
+		trends = []service.RiskTrendDataPoint{}
+	}
+
 	return c.Status(http.StatusOK).JSON(fiber.Map{
-		"trends": trends,
+		"status":     status,
+		"min_points": service.MinTrendPoints,
+		"trends":     trends,
 	})
 }
 
