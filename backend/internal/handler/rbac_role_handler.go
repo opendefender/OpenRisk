@@ -6,7 +6,9 @@
 package handler
 
 import (
+	"errors"
 	"strconv"
+	"strings"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
@@ -32,6 +34,32 @@ func NewRBACRoleHandler(
 		permissionService: permissionService,
 		userService:       userService,
 	}
+}
+
+// roleErrorStatus maps a role service error to its HTTP status. A role of
+// another tenant is ErrNotFound, so it answers 404 like a missing role.
+func roleErrorStatus(err error) int {
+	switch {
+	case errors.Is(err, domain.ErrNotFound):
+		return fiber.StatusNotFound
+	case errors.Is(err, domain.ErrForbidden):
+		return fiber.StatusForbidden
+	case errors.Is(err, domain.ErrConflict):
+		return fiber.StatusConflict
+	default:
+		return fiber.StatusBadRequest
+	}
+}
+
+// roleErrorMessage returns the text of a typed role error, and a generic
+// message for anything else, so database errors never reach the client.
+func roleErrorMessage(err error) string {
+	for _, typed := range []error{domain.ErrNotFound, domain.ErrForbidden, domain.ErrConflict, domain.ErrValidation} {
+		if errors.Is(err, typed) {
+			return err.Error()
+		}
+	}
+	return "request failed"
 }
 
 // ListRolesResponse contains paginated role list
@@ -91,6 +119,13 @@ type GetRoleResponse struct {
 
 // GetRole retrieves a specific role with its permissions
 func (h *RBACRoleHandler) GetRole(c *fiber.Ctx) error {
+	tenantID := safeGetUUID(c, "tenantID")
+	if tenantID == uuid.Nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"error": "no tenant in session",
+		})
+	}
+
 	roleIDStr := c.Params("role_id")
 	roleID, err := uuid.Parse(roleIDStr)
 	if err != nil {
@@ -102,7 +137,7 @@ func (h *RBACRoleHandler) GetRole(c *fiber.Ctx) error {
 	ctx := c.Context()
 
 	// Get role
-	role, err := h.roleService.GetRole(ctx, roleID)
+	role, err := h.roleService.GetRole(ctx, tenantID, roleID)
 	if err != nil {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
 			"error": "role not found",
@@ -110,7 +145,7 @@ func (h *RBACRoleHandler) GetRole(c *fiber.Ctx) error {
 	}
 
 	// Get permissions
-	permissions, err := h.roleService.GetRolePermissions(ctx, roleID)
+	permissions, err := h.roleService.GetRolePermissions(ctx, tenantID, roleID)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "failed to retrieve permissions",
@@ -190,15 +225,21 @@ func (h *RBACRoleHandler) CreateRole(c *fiber.Ctx) error {
 }
 
 // UpdateRoleRequest defines request body for updating a role
+// Pointers, so a PATCH changes only the fields it sends.
 type UpdateRoleRequest struct {
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	IsActive    bool   `json:"is_active"`
+	Name        *string `json:"name"`
+	Description *string `json:"description"`
+	IsActive    *bool   `json:"is_active"`
 }
 
 // UpdateRole updates an existing role
 func (h *RBACRoleHandler) UpdateRole(c *fiber.Ctx) error {
 	tenantID := safeGetUUID(c, "tenantID")
+	if tenantID == uuid.Nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"error": "no tenant in session",
+		})
+	}
 	requestorID := safeGetUUID(c, "userID")
 
 	roleIDStr := c.Params("role_id")
@@ -233,7 +274,7 @@ func (h *RBACRoleHandler) UpdateRole(c *fiber.Ctx) error {
 	}
 
 	// Get existing role
-	role, err := h.roleService.GetRole(ctx, roleID)
+	role, err := h.roleService.GetRole(ctx, tenantID, roleID)
 	if err != nil {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
 			"error": "role not found",
@@ -241,14 +282,25 @@ func (h *RBACRoleHandler) UpdateRole(c *fiber.Ctx) error {
 	}
 
 	// Update fields
-	role.Name = req.Name
-	role.Description = req.Description
-	role.IsActive = req.IsActive
+	if req.Name != nil {
+		if strings.TrimSpace(*req.Name) == "" {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "role name is required",
+			})
+		}
+		role.Name = *req.Name
+	}
+	if req.Description != nil {
+		role.Description = *req.Description
+	}
+	if req.IsActive != nil {
+		role.IsActive = *req.IsActive
+	}
 
 	// Update role
-	if err := h.roleService.UpdateRole(ctx, role); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": err.Error(),
+	if err := h.roleService.UpdateRole(ctx, tenantID, role); err != nil {
+		return c.Status(roleErrorStatus(err)).JSON(fiber.Map{
+			"error": roleErrorMessage(err),
 		})
 	}
 
@@ -258,6 +310,11 @@ func (h *RBACRoleHandler) UpdateRole(c *fiber.Ctx) error {
 // DeleteRole deletes a custom role
 func (h *RBACRoleHandler) DeleteRole(c *fiber.Ctx) error {
 	tenantID := safeGetUUID(c, "tenantID")
+	if tenantID == uuid.Nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"error": "no tenant in session",
+		})
+	}
 	requestorID := safeGetUUID(c, "userID")
 
 	roleIDStr := c.Params("role_id")
@@ -285,9 +342,9 @@ func (h *RBACRoleHandler) DeleteRole(c *fiber.Ctx) error {
 	}
 
 	// Delete role
-	if err := h.roleService.DeleteRole(ctx, roleID); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": err.Error(),
+	if err := h.roleService.DeleteRole(ctx, tenantID, roleID); err != nil {
+		return c.Status(roleErrorStatus(err)).JSON(fiber.Map{
+			"error": roleErrorMessage(err),
 		})
 	}
 
@@ -304,6 +361,13 @@ type GetRolePermissionsResponse struct {
 
 // GetRolePermissions retrieves all permissions for a role
 func (h *RBACRoleHandler) GetRolePermissions(c *fiber.Ctx) error {
+	tenantID := safeGetUUID(c, "tenantID")
+	if tenantID == uuid.Nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"error": "no tenant in session",
+		})
+	}
+
 	roleIDStr := c.Params("role_id")
 	roleID, err := uuid.Parse(roleIDStr)
 	if err != nil {
@@ -314,8 +378,13 @@ func (h *RBACRoleHandler) GetRolePermissions(c *fiber.Ctx) error {
 
 	ctx := c.Context()
 
-	permissions, err := h.roleService.GetRolePermissions(ctx, roleID)
+	permissions, err := h.roleService.GetRolePermissions(ctx, tenantID, roleID)
 	if err != nil {
+		if errors.Is(err, domain.ErrNotFound) {
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+				"error": "role not found",
+			})
+		}
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "failed to retrieve permissions",
 		})
@@ -335,6 +404,11 @@ type AssignPermissionRequest struct {
 // AssignPermissionToRole assigns a permission to a role
 func (h *RBACRoleHandler) AssignPermissionToRole(c *fiber.Ctx) error {
 	tenantID := safeGetUUID(c, "tenantID")
+	if tenantID == uuid.Nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"error": "no tenant in session",
+		})
+	}
 	requestorID := safeGetUUID(c, "userID")
 
 	roleIDStr := c.Params("role_id")
@@ -376,9 +450,9 @@ func (h *RBACRoleHandler) AssignPermissionToRole(c *fiber.Ctx) error {
 	}
 
 	// Assign permission
-	if err := h.roleService.AssignPermissionToRole(ctx, roleID, permissionID); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": err.Error(),
+	if err := h.roleService.AssignPermissionToRole(ctx, tenantID, roleID, permissionID); err != nil {
+		return c.Status(roleErrorStatus(err)).JSON(fiber.Map{
+			"error": roleErrorMessage(err),
 		})
 	}
 
@@ -395,6 +469,11 @@ type RemovePermissionRequest struct {
 // RemovePermissionFromRole removes a permission from a role
 func (h *RBACRoleHandler) RemovePermissionFromRole(c *fiber.Ctx) error {
 	tenantID := safeGetUUID(c, "tenantID")
+	if tenantID == uuid.Nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"error": "no tenant in session",
+		})
+	}
 	requestorID := safeGetUUID(c, "userID")
 
 	roleIDStr := c.Params("role_id")
@@ -436,9 +515,9 @@ func (h *RBACRoleHandler) RemovePermissionFromRole(c *fiber.Ctx) error {
 	}
 
 	// Remove permission
-	if err := h.roleService.RemovePermissionFromRole(ctx, roleID, permissionID); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": err.Error(),
+	if err := h.roleService.RemovePermissionFromRole(ctx, tenantID, roleID, permissionID); err != nil {
+		return c.Status(roleErrorStatus(err)).JSON(fiber.Map{
+			"error": roleErrorMessage(err),
 		})
 	}
 

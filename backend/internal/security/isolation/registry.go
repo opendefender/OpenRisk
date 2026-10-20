@@ -255,6 +255,15 @@ var decisions = []Decision{
 			"pre-authentication rows that carry no organisation: tenant_id is NULL, `tenant_id = ?` never " +
 			"matches NULL, so they are invisible to every tenant rather than visible to all. Validated by " +
 			"sabotage — the predicate was removed from each query and every one of these failed"},
+	{"/api/v1/rbac/roles/{id}", Covered,
+		"handler/rbac_role_isolation_test TestRBACRoleRoutes_NotFound drives GET, PATCH and DELETE as an " +
+			"administrator of one tenant against a custom role of another and asserts 404 and an unchanged row; " +
+			"TestRBACRoleRoutes_Unauthorized asserts 403 on the predefined roles every tenant shares and 401 " +
+			"for a session with no tenant (GHSA-6m8w-33j5-ff68)"},
+	{"/api/v1/rbac/roles/{id}/permissions", Covered,
+		"handler/rbac_role_isolation_test TestRBACRoleRoutes_NotFound asserts 404 on read, assign and remove " +
+			"for another tenant's role and an unchanged role_permissions count; TestRBACRoleRoutes_Unauthorized " +
+			"asserts 403 on the shared predefined roles (GHSA-6m8w-33j5-ff68)"},
 	{"/api/v1/rbac/*", Pending,
 		"admin-only tenant/user/role admin paths; GetTenantUsers gates on level, not pinned"},
 	{"/api/v1/bulk-operations/{id}", Pending,
