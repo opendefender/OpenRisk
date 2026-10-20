@@ -47,6 +47,14 @@ boundary** — the highest-value cluster — and removes one façade:
 P3 (`/auth/me` façade — fixed). No cross-tenant escape, MFA bypass, or credential
 leak was found in the reachable surface.
 
+> **Correction (2026-10-20, #944):** an MFA bypass did exist and this audit missed
+> it. The `MFA_REQUIRED` token returned after the password alone, and the
+> `MFA_ENROLLMENT` token, were accepted by `Protected` on every route, which made
+> it possible to mint a PAT, switch organization or turn MFA off without the
+> second factor. Fixed by #944: `Protected` now accepts a full access token only,
+> and `internal/handler/typed_token_route_ratchet_test.go` pins it on every route
+> behind the gate.
+
 ## Current Authentication Architecture
 
 Two layers coexist; only the **modern** one is wired into `cmd/server/main.go`:
