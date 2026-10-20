@@ -306,3 +306,38 @@ func TestOptionalAuth_TypedTokenIsAnonymous(t *testing.T) {
 		assert.Nil(t, body["user_id"], "type %q must not stamp an identity", typ)
 	}
 }
+
+// Criterion 2 on the real mount order: enrolment is registered on the /api/v1
+// group BEFORE `api.Use(Protected)`, as main.go does it. MFA_ENROLLMENT and a
+// full access token reach setup and verify; MFA_REQUIRED does not; and the gate
+// mounted afterwards neither runs ahead of them nor opens anything else.
+func TestMFAEnrollmentRoutes_MountedBeforeProtected(t *testing.T) {
+	f := newTokenFixture(t)
+	app := fiber.New()
+	api := app.Group("/api/v1")
+	guard := MFAEnrollmentMiddleware(f.keys, f.blacklist)
+	reached := func(c *fiber.Ctx) error { return c.JSON(fiber.Map{"reached": true}) }
+	api.Post("/auth/mfa/setup", guard, reached)
+	api.Post("/auth/mfa/verify", guard, reached)
+	api.Use(Protected(f.keys, f.blacklist))
+	api.Post("/auth/pat", reached)
+
+	enrol, _ := f.mint(t, authpkg.TokenTypeMFAEnrollment)
+	access, _ := f.mint(t, authpkg.TokenTypeAccess)
+	challenge, _ := f.mint(t, authpkg.TokenTypeMFARequired)
+
+	for _, path := range []string{"/api/v1/auth/mfa/setup", "/api/v1/auth/mfa/verify"} {
+		for typ, tok := range map[string]string{authpkg.TokenTypeMFAEnrollment: enrol, "access": access} {
+			status, body := send(t, app, http.MethodPost, path, credential{bearer: tok})
+			assert.Equal(t, http.StatusOK, status, "%s with %s: %v", path, typ, body)
+			assert.Equal(t, true, body["reached"], "%s with %s", path, typ)
+		}
+		status, body := send(t, app, http.MethodPost, path, credential{bearer: challenge})
+		assert.Equal(t, http.StatusUnauthorized, status, "%s with MFA_REQUIRED", path)
+		assert.Nil(t, body["reached"], "%s with MFA_REQUIRED", path)
+	}
+
+	status, body := send(t, app, http.MethodPost, "/api/v1/auth/pat", credential{bearer: enrol})
+	assert.Equal(t, http.StatusUnauthorized, status)
+	assert.Equal(t, "TOKEN_INVALID", body["code"])
+}

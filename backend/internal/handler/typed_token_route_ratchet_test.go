@@ -31,7 +31,7 @@ import (
 
 // ---------------------------------------------------------------------------
 // #944 — a typed token (MFA_REQUIRED, MFA_ENROLLMENT) opens exactly three
-// routes and nothing else.
+// routes, plus logout, which accepts one only to revoke it.
 //
 // MFA_REQUIRED is earned by the password alone; MFA_ENROLLMENT by the password
 // of an account that must still enrol. Both are signed with the session key.
@@ -48,6 +48,12 @@ import (
 //     typed tokens and still serves a full access token. The route list is
 //     parsed from main.go, so a route added tomorrow is covered without anyone
 //     editing this file.
+//
+// Parser limits, so nobody trusts it further than it reaches: it reads main.go
+// only, and only `<recv>.Get|Post|Put|Patch|Delete|All("literal", …)` calls.
+// Rule 2 sees routes on `protected` and on `api`; routes on the protected
+// sub-groups (incidents, notifications, score engine, rbac) are not listed,
+// though at runtime they sit behind the same prefix-mounted gate.
 // ---------------------------------------------------------------------------
 
 // typedTokenRoutes is the closed set of routes allowed to accept a typed token.
@@ -58,9 +64,23 @@ var typedTokenRoutes = []string{
 	"POST /auth/mfa/verify",
 }
 
-// typedTokenAcceptors are the names under which main.go can reach a middleware
-// that validates a token without refusing the typed ones.
-var typedTokenAcceptors = regexp.MustCompile(`MFATokenMiddleware|MFAEnrollmentMiddleware|mfaEnrollmentGuard|authpkg\.ValidateToken\(`)
+// typedTokenAcceptorFuncs are the functions that validate a token without
+// refusing the typed ones (middleware.* and authpkg.ValidateToken).
+const typedTokenAcceptorFuncs = `MFATokenMiddleware|MFAEnrollmentMiddleware|ValidateToken`
+
+// typedTokenAcceptors matches a registration that reaches a typed-token
+// acceptor, by call or through any variable main.go binds one to — the way
+// mfaEnrollmentGuard is bound today. Matching the literal names alone would let
+// `guard := middleware.MFATokenMiddleware(…)` open a fourth route unseen.
+func typedTokenAcceptors(t *testing.T, src string) *regexp.Regexp {
+	t.Helper()
+	names := []string{`\b(?:middleware|authpkg)\.(?:` + typedTokenAcceptorFuncs + `)\(`}
+	bind := regexp.MustCompile(`(\w+)\s*:?=\s*(?:middleware|authpkg)\.(?:` + typedTokenAcceptorFuncs + `)\(`)
+	for _, m := range bind.FindAllStringSubmatch(src, -1) {
+		names = append(names, `\b`+regexp.QuoteMeta(m[1])+`\b`)
+	}
+	return regexp.MustCompile(strings.Join(names, "|"))
+}
 
 type registration struct {
 	method string
@@ -116,9 +136,10 @@ func TestTypedTokenRoutes_OnlyTheMFAStepsAcceptATypedToken(t *testing.T) {
 	src := readMainGo(t)
 	gate := protectedGateOffset(t, src)
 
+	acceptors := typedTokenAcceptors(t, src)
 	var accepting []string
 	for _, r := range parseRegistrations(t, src) {
-		if !typedTokenAcceptors.MatchString(r.body) {
+		if !acceptors.MatchString(r.body) {
 			continue
 		}
 		key := r.method + " " + r.path
@@ -132,6 +153,59 @@ func TestTypedTokenRoutes_OnlyTheMFAStepsAcceptATypedToken(t *testing.T) {
 	sort.Strings(want)
 	assert.Equal(t, want, accepting,
 		"the set of routes that accept an MFA_REQUIRED or MFA_ENROLLMENT token changed. A typed token is earned without the second factor: a new entry is a review decision, not a refactor")
+}
+
+// The alias detection is the part a refactor would quietly break, so it is
+// pinned on a synthetic composition root.
+func TestTypedTokenRoutes_AcceptorAliasIsCaught(t *testing.T) {
+	src := `challengeGuard := middleware.MFATokenMiddleware(rsaKeys, bl)
+	api.Post("/auth/pat/bootstrap", challengeGuard, h.Bootstrap)
+	api.Post("/auth/mfa/challenge", middleware.MFATokenMiddleware(rsaKeys, bl), h.Challenge)
+	api.Get("/plain", h.Plain)`
+	acceptors := typedTokenAcceptors(t, src)
+	var hit []string
+	for _, r := range parseRegistrations(t, src) {
+		if acceptors.MatchString(r.body) {
+			hit = append(hit, r.method+" "+r.path)
+		}
+	}
+	assert.Equal(t, []string{"POST /auth/pat/bootstrap", "POST /auth/mfa/challenge"}, hit)
+}
+
+// typeAgnosticCallers are the only files allowed to validate a token without
+// refusing the typed ones. Rule 1 reads main.go; a handler mounted elsewhere
+// (the SSE stream validates its own ?token=) could call ValidateToken in its
+// own file and slip past it. This list may only shrink.
+var typeAgnosticCallers = []string{
+	"internal/handler/auth/handler.go",      // logout: revokes whatever it is shown
+	"internal/middleware/auth.go",           // MFATokenMiddleware: asserts MFA_REQUIRED
+	"internal/middleware/mfa_enrollment.go", // asserts access or MFA_ENROLLMENT
+}
+
+func TestTypedTokenRoutes_ValidateTokenHasNoNewCaller(t *testing.T) {
+	root := filepath.Join("..", "..")
+	var callers []string
+	err := filepath.WalkDir(root, func(path string, d os.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() || !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
+			return nil
+		}
+		raw, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		if strings.Contains(string(raw), "authpkg.ValidateToken(") {
+			rel, _ := filepath.Rel(root, path)
+			callers = append(callers, filepath.ToSlash(rel))
+		}
+		return nil
+	})
+	require.NoError(t, err)
+	sort.Strings(callers)
+	assert.Equal(t, typeAgnosticCallers, callers,
+		"authpkg.ValidateToken skips the token-type check. Anything that grants a session must use ValidateAccessToken; a new caller here is a review decision")
 }
 
 // gatedRoutes lists every route that runs behind the Protected gate: the
