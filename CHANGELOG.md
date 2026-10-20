@@ -8,7 +8,69 @@ Git tags use the `vMAJOR.MINOR.PATCH[-rc.N]` convention; see [docs/VERSIONING.md
 
 ## [Unreleased]
 
+### Planned
+- Board Report mensuel (IA, human-in-the-loop, FCFA) — the second half of M4
+- Mobile app (React Native)
+
+## [1.1.0-rc.7] - 2026-10-20
+
+> **Security release: fixes GHSA-6m8w-33j5-ff68, a cross-organisation role change.**
+>
+> A large release candidate: a run of authentication and session hardening, the
+> October 2026 console redesign, e-mail work notices, dated risk acceptances and
+> vulnerabilities found from the agent's package inventory. Several changes alter
+> how an existing install boots or signs people in, so read the operator actions
+> before upgrading.
+>
+> **Operator actions**
+> - Docker Compose refuses to start until `DB_PASSWORD` (and the other passwords the
+>   compose files used to default) is set. `.env.example` no longer ships one (#485).
+> - With `INITIAL_ADMIN_PASSWORD` unset, the first boot now writes a generated admin
+>   password to `INITIAL_ADMIN_PASSWORD_FILE` (default `secrets/initial_admin_password`)
+>   and stops if it cannot. An instance still accepting the old published default
+>   password logs a `SECURITY WARNING` at every boot: change that password (#485).
+> - `JWT_SECRET` and the chart's `secrets.inline.jwtSecret` are no longer read; you
+>   can drop them. The RSA key pair is what the backend needs (#789).
+> - Accounts whose password is still stored in the first-release SHA-256 format can
+>   no longer sign in and must use "Forgot password?". The
+>   `openrisk_password_hash_accounts` metric counts them. Argon2id cost is set with
+>   `ARGON2ID_MEMORY_KIB`, `ARGON2ID_TIME`, `ARGON2ID_PARALLELISM` and
+>   `ARGON2ID_MAX_CONCURRENT`; the server refuses to start on a value below its floor.
+>   The Helm chart raises the API limits to `1000m / 1Gi` (#484).
+> - SAML sign-in is turned off (#866).
+> - Every install now runs the SQL migrations at boot, Docker Compose included (#1001).
+>   Members who still held the universal pre-#240 MFA backup codes lose them and are
+>   told by e-mail. Rolling back to an earlier image needs the `migrate force` step in
+>   `docs/runbooks/migrations.md` (#349).
+> - A stored GCP scanner credential that is not a service-account key now fails on the
+>   next scan (#957).
+> - Building from source needs Go 1.26 (#979).
+> - Agents need osquery and a rebuilt binary to report their package inventory. Package
+>   versions are then looked up at OSV and NVD, on by default for each organization;
+>   it can be switched off in Settings (#910).
+
 ### Security
+- **An organisation's administrator could change another organisation's roles
+  (GHSA-6m8w-33j5-ff68).** The `/api/v1/rbac/roles/:role_id` routes checked that
+  the caller administers their own organisation, then read and changed the role
+  by its ID alone. Anyone holding the UUID of another organisation's custom role
+  could read it, rename or deactivate it, and add or remove its permissions. The
+  same routes also let any organisation change the predefined roles (Admin,
+  Manager, Analyst, Viewer) that every organisation shares. Every role-specific
+  read and write is now bound to the caller's organisation:
+  - another organisation's role answers 404, the same as a missing role;
+  - changing a predefined role answers 403;
+  - a session with no organisation answers 401.
+
+  Along the way:
+  - `GET` and `PATCH` on a single role work again; they answered 404.
+  - `PATCH` writes only the fields it is sent, so `is_active` can be set back to
+    false.
+  - A role that users still hold cannot be deactivated (409).
+
+  **Operator action:** permissions added to a predefined role through this hole
+  before the upgrade are not removed by it. Compare `role_permissions` for the
+  four predefined roles against the seeded baseline. Reported by Sithum Shihara.
 - **A revoked token family can no longer leave one token behind (#775).** When
   two requests refreshed the same single-use token at once, the loser detected
   the reuse and deleted the family, but the winner's brand-new token was written
@@ -26,13 +88,185 @@ Git tags use the `vMAJOR.MINOR.PATCH[-rc.N]` convention; see [docs/VERSIONING.md
   live refresh token and the lineage cannot fork. Past that window, when the
   device fingerprints disagree, or once the chain has moved past that step,
   reuse detection is unchanged and still revokes the whole family.
+- **Revocations hold on PostgreSQL too (#725).** A refresh could store its successor
+  while a revocation's `DELETE` was still running and keep it. Revoking a family, all
+  of a user's sessions, or a member's sessions in one organization now repeats the
+  delete until a pass finds nothing. The refresh path is unchanged.
+- **No more default credentials (#485).** The first boot no longer seeds a published
+  default admin password, a Helm install included; the compose files no longer carry
+  default database, Redis or Grafana passwords; and the guides stop showing them. See
+  the operator actions above.
+- **A disclosure policy (#485).** `SECURITY.md` is rewritten: GitHub private reporting
+  and `security@opendefender.io`, response targets, coordinated disclosure, safe
+  harbour, supported versions, and what is and is not in place today.
+- **The second factor can no longer be guessed (#689).** An MFA challenge token allows
+  five attempts and is then revoked; ten failures in fifteen minutes lock the account
+  for fifteen minutes (`429 MFA_LOCKED`) and the owner gets one e-mail; the route has
+  its own per-address limit. Logout now also revokes the access token, not only the
+  refresh token.
+- **A TOTP code is accepted only once (#849)**, wherever a code is checked: sign-in,
+  enrolment, turning MFA off and the step-up gate. A replayed code gets the same answer
+  as a wrong one. The code that finishes enrolment cannot be reused to sign in.
+- **Turning MFA off requires the password (#754).** Accounts that sign in through an
+  identity provider confirm with a current TOTP code instead. Attempts are limited to
+  five per fifteen minutes, roles that must keep MFA are refused, and every attempt is
+  audited. The owner is told by e-mail and in the app.
+- **Sign-in throttling that stops locking out the wrong people (#688).** Sign-in,
+  sign-up, password reset, the password-strength meter and re-authentication each have
+  their own limit, so typing on the sign-up screen no longer blocks signing in. A 429
+  says how long to wait. Ten failed sign-ins on one address lock it for fifteen minutes,
+  ended early by a password reset. Unknown and disabled addresses cost the same work as
+  a wrong password, and the e-mail lookup ignores case.
+- **OAuth sign-in is bound to the browser that started it (#295).** The state now
+  travels in an HttpOnly `or_oauth_state` cookie, so an attacker's callback link can no
+  longer sign a victim in to the attacker's account.
+- **SSO sign-in no longer prints tokens on a page (#803).** A successful Google, GitHub
+  or Entra sign-in used to end on a page of raw JSON holding both tokens. It now sets
+  the session in HttpOnly cookies, as password sign-in does, and lands in the app. The
+  return-address check now refuses control characters and backslashes anywhere.
+- **SAML sign-in is turned off until assertions are verified (#866).** The login and
+  ACS endpoints redirect to `/login?error=provider_not_configured&provider=saml2` and
+  create no user and no session. The code that accepted unsigned assertions is removed.
+  SAML had never been proven end to end.
+- **An organization can no longer lock someone out of another one (#807).** The
+  unused `PATCH /users/:id/status`, `PATCH /users/:id/role` and `DELETE /users/:id`
+  routes are removed. If a person's default organization withdraws their access, sign-in
+  now falls back to another organization where they are still an active member.
+- **Withdrawing access ends sessions only in the organization that acted (#831).**
+  Changing a member's role or deactivating them used to sign the person out of every
+  organization they belong to.
+- **`/teams` is authorized from the session's organization role (#830)**, not the
+  global account role. Adding a member requires an active membership in the caller's
+  organization, and deleting a team is one transaction.
+- **The audit log records the real client address (#877).** It used to store the raw
+  `X-Forwarded-For` header, which any client could set; it now trusts that header only
+  from a configured proxy.
+- Organization exports are written with mode `0600` (#957).
+- Dependency upgrades: `google.golang.org/grpc` 1.83.2 and `golang.org/x/crypto`
+  0.55.0 (#804); axios 1.20.0, Go 1.26.9 and `golang.org/x/net` 0.60.0 (#979). The
+  published images move to alpine 3.24, and the self-host frontend to nginx 1.30
+  (#487).
 
-### Planned
-- Board Report mensuel (IA, human-in-the-loop, FCFA) — the second half of M4
-- Multi-tenant support
-- Mobile app (React Native)
-- Slack/Teams notifications
-- Jira integration
+### Added
+- **The October 2026 console redesign (#899).** Ten screens move onto the new layout:
+  - the shell: sidebar with badges for action items, open KEV flaws, open incidents
+    and pending invitations, a new header, notifications panel and command palette
+    (#900);
+  - the dashboard, one layout for every member, with a twelve-month score history
+    (`GET /score/history`, daily snapshots) and the business role choosing the
+    counters and priorities (#901);
+  - the Action Center, grouped by deadline, with a tick that finishes the work after
+    a 5-second undo, and new categories for vulnerability deadlines, vendor follow-ups
+    and plans in review. Every finding now gets a remediation deadline by severity,
+    at most 14 days for a KEV flaw. Organization admins and owners see every category
+    (#902);
+  - the executive view, a one-page committee summary where a pending approval can be
+    deferred to the next committee (#903);
+  - financial quantification, with the loss-exceedance curve, mitigation payback, a
+    3-year ROSI and a risk appetite admins can set (#904);
+  - the Activity journal, one sentence per entry, filtered by domain (#905);
+  - the asset inventory, with open vulnerabilities and KEV per asset and a
+    "Lancer une découverte" button that starts a real scan (#906), and an exposure
+    analysis in the asset drawer (#937);
+  - the topology, with paths from internet-exposed assets to critical ones and a list
+    view for keyboard and screen-reader users (#907);
+  - the vendor register, as a list beside a vendor profile (#908);
+  - the vulnerability queue, with a real MTTR on criticals and SLA breaches (#909);
+  - Threat Intel, listing only the NVD, KEV and ATT&CK entries that touch the
+    organization's own assets, with an explained relevance score that never feeds the
+    Score Engine, and a per-organization "Non pertinent" (#911).
+- **Vulnerabilities from the agent's package inventory (#910).** The agent reports
+  the packages installed on its host; the backend checks them against OSV and NVD,
+  files the findings on the matching asset and closes a finding when a later
+  inventory shows a fixed version. "Lancer un scan" on the queue triggers it, and the
+  asset drawer lists the installed software. An agent can report only its own host.
+- **Work notices by e-mail (#757).** Assignments, D-7 and D-1 deadline reminders, a
+  single overdue reminder, plan validation and every change to a risk's state now
+  reach people by e-mail as well as in the bell, in their language and within their
+  notification preferences. `/health` reports whether e-mail is `smtp`, `log` or
+  `disabled`.
+- **Residual-risk acceptances expire (#811).** Accepting a risk records an end date
+  (12 months by default, capped by an organization maximum), an approver and the
+  approval behind it. The owner and approver are reminded at D-30 and D-7; at the end
+  date the risk goes back to `assessed` and appears in the Action Center. Renewal needs
+  a new approval. A risk can no longer be made accepted through creation, CSV import,
+  bulk status change or `PATCH`. There is no screen yet to pick the end date, renew or
+  set the policy; the API supports it.
+- **Score working and a trail that verifies on PostgreSQL (#486).** A risk's Score tab
+  shows how its score was produced, who set each term and when, and whether each
+  journal entry is intact. The tamper-evident trail now verifies on PostgreSQL for new
+  entries, and records who acted (user, service token or job). Entries sealed on
+  PostgreSQL before this release still fail verification.
+- **CSV import of risks and assets (#755, #861).** `POST /risks/import` was never
+  mounted and reported success on zero rows. Both imports now validate every row,
+  report each error with its line and column, and write all or nothing. A risk file can
+  link assets by name; files on the old 1–5 scale are refused with a conversion message.
+- **Ownership transfer (#302).** `POST /risks/:id/transfer-owner`, and the same for
+  mitigations and incidents, audit the previous and new owner and notify the new one.
+  No screen calls them yet.
+- **Release verification (#487).** The release workflow is set to attach CycloneDX
+  SBOMs and a `SHA256SUMS` file, push a versioned image and publish nothing while the
+  dependency gate fails. `SECURITY.md` explains how to verify a release.
+
+### Changed
+- **One security score (#287).** Every surface reads the same score. An organization
+  with no risk and no applicable control shows "non mesuré" instead of 0/100, and a
+  failed request shows "indisponible". A factor with no data behind it no longer counts
+  as perfect, so organizations with risks but no vulnerability data see their score rise
+  a little (score model 2.2).
+- **Motion across the console (#751).** Reduced motion now also stops script-driven
+  animation; menus, dialogs and drawers share the motion tokens; modals and drawers
+  animate on close; the bell shows the real unread count; the notification panel closes
+  on Escape and returns focus; toasts use the theme and stay until dismissed when they
+  carry an action; MFA enrolment submits when the last digit is typed.
+- **One keyboard-accessible select (#935)**, used for member roles, the scan schedule,
+  the display currency and the simulator, with type-ahead and accent-insensitive search.
+- **A lighter first load (#966, #858).** The initial bundle drops from 223.6 KB to
+  161.5 KB gzipped: rarely used icons, panels and screens load on first use, and the
+  French strings arrive with the screen that uses them. English readers download the
+  English catalogue after the entry.
+- The case-insensitive account lookup is indexed (#876).
+- The README lists only what ships today; unshipped modules move to a labelled roadmap,
+  and vendor risk management, which does ship, is listed (#483).
+
+### Fixed
+- **Risk scores include asset criticality from the first save (#792).** Creating or
+  updating a risk stored `Probability × Impact` and left asset criticality to a
+  background worker. Both now score through the Score Engine with the linked assets, in
+  one transaction. A risk with no asset uses a neutral 1.0 everywhere.
+- **API tokens from Settings work (#782).** They were kept in memory, lost on restart
+  and never checked. Tokens are now stored, authenticate requests, act only in the
+  organization they were created in, and are copied correctly.
+- **An unfinished MFA enrolment can start over (#889, #714).** A member whose role
+  requires MFA and who once left enrolment unfinished could never sign in again.
+  Enrolment is now one transaction, and an unexpected error answers with a generic
+  message instead of database text.
+- **The sign-in screen explains MFA refusals (#872).** After too many codes it returns
+  to the password form or says how long to wait, instead of "incorrect code" or a
+  silent reload.
+- An SSO account's Settings shows that its password lives at the identity provider,
+  instead of a form that could only fail (#850).
+- An account created with `POST /users` can sign in (#870).
+- Owners and admins can edit the risk weights again (#867).
+- Reloading or opening a link to `/assets` no longer answers 403 behind nginx (#758).
+- Migration 0060's `mfa_policies` constraints were never applied on a booted server;
+  they are now added, and a runbook covers the upgrade and rollback (#349).
+- Approval deferrals are saved (#903); incidents in progress appear in the Action
+  Center (#902); the Activity filter by type is applied by the database (#905);
+  Cmd/Ctrl+K opens the palette the first time (#900).
+- The accent swatches in Settings show the colour the accent will actually be (#627).
+
+### Removed
+- The unreachable HS256 authentication stack and `JWT_SECRET` (#789, #293).
+- The legacy in-memory API token service (#782).
+- The `cyber_score` field of `/analytics/executive` and its second score formula (#287).
+- The five persona dashboards and the dashboard's period control (#901); the P10/P50/P90
+  band, 5-year projection and by-criticality card of the financial page, which the
+  loss-exceedance curve supersedes (#904).
+
+### Internal
+- Agent tooling, CI repairs and retired checks, test hardening, decision records and
+  ADR 0005; regressions introduced and fixed between rc.6 and rc.7 are not listed.
 
 ## [1.1.0-rc.6] - 2026-09-23
 
@@ -488,7 +722,8 @@ this is a release candidate, not a GA.
 
 ---
 
-[Unreleased]: https://github.com/opendefender/OpenRisk/compare/v1.1.0-rc.6...HEAD
+[Unreleased]: https://github.com/opendefender/OpenRisk/compare/v1.1.0-rc.7...HEAD
+[1.1.0-rc.7]: https://github.com/opendefender/OpenRisk/compare/v1.1.0-rc.6...v1.1.0-rc.7
 [1.1.0-rc.6]: https://github.com/opendefender/OpenRisk/compare/v1.1.0-rc.5...v1.1.0-rc.6
 [1.1.0-rc.5]: https://github.com/opendefender/OpenRisk/compare/v1.1.0-rc.4...v1.1.0-rc.5
 [1.1.0-rc.4]: https://github.com/opendefender/OpenRisk/compare/v1.1.0-rc.3...v1.1.0-rc.4
