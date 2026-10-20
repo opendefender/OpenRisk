@@ -7,6 +7,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/google/uuid"
@@ -45,22 +46,40 @@ func (rs *RoleService) CreateRole(ctx context.Context, role *domain.RoleEnhanced
 	return rs.db.WithContext(ctx).Create(role).Error
 }
 
-// GetRole retrieves a role by ID
-func (rs *RoleService) GetRole(ctx context.Context, roleID uuid.UUID) (*domain.RoleEnhanced, error) {
+// GetRole retrieves a role visible to tenantID: one of the tenant's own roles,
+// or a predefined role shared by every tenant. A role owned by another tenant
+// answers ErrNotFound, exactly like a role that does not exist, so the caller
+// learns nothing about other tenants (GHSA-6m8w-33j5-ff68).
+func (rs *RoleService) GetRole(ctx context.Context, tenantID, roleID uuid.UUID) (*domain.RoleEnhanced, error) {
 	var role domain.RoleEnhanced
+	// No Preload("Permissions"): RoleEnhanced has no such association (see
+	// ListRoles), and preloading it errored every call.
 	err := rs.db.WithContext(ctx).
-		Preload("Permissions").
-		Where("id = ? AND deleted_at IS NULL", roleID).
+		Where("id = ? AND (tenant_id = ? OR is_predefined = true) AND deleted_at IS NULL", roleID, tenantID).
 		First(&role).Error
 
 	if err != nil {
-		if err == gorm.ErrRecordNotFound {
-			return nil, fmt.Errorf("role not found")
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, fmt.Errorf("%w: role not found", domain.ErrNotFound)
 		}
 		return nil, err
 	}
 
 	return &role, nil
+}
+
+// getOwnedRole retrieves a role tenantID may change: a custom role of that
+// tenant. Predefined roles are shared by every tenant, so changing one from a
+// tenant would change it for all of them; that answers ErrForbidden.
+func (rs *RoleService) getOwnedRole(ctx context.Context, tenantID, roleID uuid.UUID) (*domain.RoleEnhanced, error) {
+	role, err := rs.GetRole(ctx, tenantID, roleID)
+	if err != nil {
+		return nil, err
+	}
+	if role.IsPredefined {
+		return nil, fmt.Errorf("%w: predefined roles cannot be changed", domain.ErrForbidden)
+	}
+	return role, nil
 }
 
 // GetRoleByName retrieves a role by name within a tenant
@@ -95,40 +114,58 @@ func (rs *RoleService) GetRolesByTenant(ctx context.Context, tenantID uuid.UUID)
 	return roles, err
 }
 
-// UpdateRole updates an existing role
-func (rs *RoleService) UpdateRole(ctx context.Context, role *domain.RoleEnhanced) error {
+// UpdateRole updates the name, description and active flag of one of
+// tenantID's custom roles.
+func (rs *RoleService) UpdateRole(ctx context.Context, tenantID uuid.UUID, role *domain.RoleEnhanced) error {
 	if role.ID == uuid.Nil {
-		return fmt.Errorf("role ID is required")
+		return fmt.Errorf("%w: role ID is required", domain.ErrValidation)
 	}
 
-	// Cannot update predefined roles' hierarchy
-	var existing domain.RoleEnhanced
-	if err := rs.db.WithContext(ctx).First(&existing, "id = ?", role.ID).Error; err != nil {
+	existing, err := rs.getOwnedRole(ctx, tenantID, role.ID)
+	if err != nil {
 		return err
 	}
 
-	if existing.IsPredefined && existing.Level != role.Level {
-		return fmt.Errorf("cannot change level of predefined role")
+	// Deactivating a role does not take its rights away from the people who
+	// hold it, so it is refused while anyone does, as DeleteRole refuses.
+	if existing.IsActive && !role.IsActive {
+		if err := rs.ensureRoleUnassigned(ctx, role.ID); err != nil {
+			return err
+		}
+	}
+
+	// A map, not the struct: Updates(struct) skips zero values, so is_active
+	// could never be set back to false.
+	return rs.db.WithContext(ctx).
+		Model(&domain.RoleEnhanced{}).
+		Where("id = ? AND tenant_id = ?", role.ID, tenantID).
+		Updates(map[string]interface{}{
+			"name":        role.Name,
+			"description": role.Description,
+			"is_active":   role.IsActive,
+		}).Error
+}
+
+// DeleteRole deactivates one of tenantID's custom roles.
+func (rs *RoleService) DeleteRole(ctx context.Context, tenantID, roleID uuid.UUID) error {
+	if _, err := rs.getOwnedRole(ctx, tenantID, roleID); err != nil {
+		return err
+	}
+
+	if err := rs.ensureRoleUnassigned(ctx, roleID); err != nil {
+		return err
 	}
 
 	return rs.db.WithContext(ctx).
-		Model(role).
-		Updates(role).Error
+		Model(&domain.RoleEnhanced{}).
+		Where("id = ? AND tenant_id = ?", roleID, tenantID).
+		Update("is_active", false).Error
 }
 
-// DeleteRole soft-deletes a role
-func (rs *RoleService) DeleteRole(ctx context.Context, roleID uuid.UUID) error {
-	// Check if role is predefined
-	var role domain.RoleEnhanced
-	if err := rs.db.WithContext(ctx).First(&role, "id = ?", roleID).Error; err != nil {
-		return err
-	}
-
-	if role.IsPredefined {
-		return fmt.Errorf("cannot delete predefined role")
-	}
-
-	// Check if any users have this role
+// ensureRoleUnassigned answers ErrConflict while any user holds the role. By
+// role_id alone, on purpose: only zero versus non-zero is used, and a stray
+// row anywhere must still block.
+func (rs *RoleService) ensureRoleUnassigned(ctx context.Context, roleID uuid.UUID) error {
 	var count int64
 	if err := rs.db.WithContext(ctx).
 		Model(&domain.UserTenant{}).
@@ -136,19 +173,18 @@ func (rs *RoleService) DeleteRole(ctx context.Context, roleID uuid.UUID) error {
 		Count(&count).Error; err != nil {
 		return err
 	}
-
 	if count > 0 {
-		return fmt.Errorf("cannot delete role with %d active users", count)
+		return fmt.Errorf("%w: role is held by %d users", domain.ErrConflict, count)
 	}
-
-	return rs.db.WithContext(ctx).
-		Model(&domain.RoleEnhanced{}).
-		Where("id = ?", roleID).
-		Update("is_active", false).Error
+	return nil
 }
 
-// GetRolePermissions retrieves all permissions for a role
-func (rs *RoleService) GetRolePermissions(ctx context.Context, roleID uuid.UUID) ([]domain.PermissionDB, error) {
+// GetRolePermissions retrieves all permissions of a role visible to tenantID.
+func (rs *RoleService) GetRolePermissions(ctx context.Context, tenantID, roleID uuid.UUID) ([]domain.PermissionDB, error) {
+	if _, err := rs.GetRole(ctx, tenantID, roleID); err != nil {
+		return nil, err
+	}
+
 	var permissions []domain.PermissionDB
 	err := rs.db.WithContext(ctx).
 		Joins("JOIN role_permissions ON permissions.id = role_permissions.permission_id").
@@ -159,8 +195,17 @@ func (rs *RoleService) GetRolePermissions(ctx context.Context, roleID uuid.UUID)
 	return permissions, err
 }
 
-// AssignPermissionToRole assigns a permission to a role
-func (rs *RoleService) AssignPermissionToRole(ctx context.Context, roleID, permissionID uuid.UUID) error {
+// AssignPermissionToRole assigns a permission to one of tenantID's custom roles.
+func (rs *RoleService) AssignPermissionToRole(ctx context.Context, tenantID, roleID, permissionID uuid.UUID) error {
+	if _, err := rs.getOwnedRole(ctx, tenantID, roleID); err != nil {
+		return err
+	}
+	return rs.assignPermission(ctx, roleID, permissionID)
+}
+
+// assignPermission links a permission to a role with no ownership check. Only
+// the predefined-role seed calls it directly.
+func (rs *RoleService) assignPermission(ctx context.Context, roleID, permissionID uuid.UUID) error {
 	// Check if already assigned
 	var count int64
 	if err := rs.db.WithContext(ctx).
@@ -182,8 +227,11 @@ func (rs *RoleService) AssignPermissionToRole(ctx context.Context, roleID, permi
 	return rs.db.WithContext(ctx).Create(rolePermission).Error
 }
 
-// RemovePermissionFromRole removes a permission from a role
-func (rs *RoleService) RemovePermissionFromRole(ctx context.Context, roleID, permissionID uuid.UUID) error {
+// RemovePermissionFromRole removes a permission from one of tenantID's custom roles.
+func (rs *RoleService) RemovePermissionFromRole(ctx context.Context, tenantID, roleID, permissionID uuid.UUID) error {
+	if _, err := rs.getOwnedRole(ctx, tenantID, roleID); err != nil {
+		return err
+	}
 	return rs.db.WithContext(ctx).
 		Where("role_id = ? AND permission_id = ?", roleID, permissionID).
 		Delete(&domain.RolePermission{}).Error
@@ -277,7 +325,7 @@ func (rs *RoleService) assignPermissionsToRole(ctx context.Context, roleID uuid.
 		}
 
 		if shouldAssign {
-			if err := rs.AssignPermissionToRole(ctx, roleID, perm.ID); err != nil {
+			if err := rs.assignPermission(ctx, roleID, perm.ID); err != nil {
 				return err
 			}
 		}
@@ -286,15 +334,9 @@ func (rs *RoleService) assignPermissionsToRole(ctx context.Context, roleID uuid.
 	return nil
 }
 
-// GetRoleHierarchy returns the role with all related data
-func (rs *RoleService) GetRoleHierarchy(ctx context.Context, roleID uuid.UUID) (*domain.RoleEnhanced, error) {
-	role, err := rs.GetRole(ctx, roleID)
-	if err != nil {
-		return nil, err
-	}
-
-	// Permissions are already preloaded
-	return role, nil
+// GetRoleHierarchy returns a role visible to tenantID
+func (rs *RoleService) GetRoleHierarchy(ctx context.Context, tenantID, roleID uuid.UUID) (*domain.RoleEnhanced, error) {
+	return rs.GetRole(ctx, tenantID, roleID)
 }
 
 // ListRoles retrieves all roles for a tenant with pagination
@@ -324,12 +366,12 @@ func (rs *RoleService) ListRoles(ctx context.Context, tenantID uuid.UUID, limit 
 	return roles, total, err
 }
 
-// IsUserInRole checks if a user has a specific role
-func (rs *RoleService) IsUserInRole(ctx context.Context, userID uuid.UUID, roleID uuid.UUID) (bool, error) {
+// IsUserInRole checks if a user holds a specific role in tenantID
+func (rs *RoleService) IsUserInRole(ctx context.Context, tenantID, userID, roleID uuid.UUID) (bool, error) {
 	var count int64
 	err := rs.db.WithContext(ctx).
 		Model(&domain.UserTenant{}).
-		Where("user_id = ? AND role_id = ?", userID, roleID).
+		Where("tenant_id = ? AND user_id = ? AND role_id = ?", tenantID, userID, roleID).
 		Count(&count).Error
 
 	return count > 0, err
