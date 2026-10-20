@@ -575,7 +575,10 @@ func (h *Handler) presentedAccessToken(c *fiber.Ctx) *authpkg.Claims {
 	if token == "" {
 		return nil
 	}
-	claims, err := authpkg.ValidateAccessToken(h.accessTokenKeys, token, nil)
+	// Any type, deliberately: logout only revokes, and abandoning a login at the
+	// code or enrolment step should kill that MFA token too. ValidateAccessToken
+	// refuses typed tokens (#944), which would silently skip the revocation.
+	claims, err := authpkg.ValidateToken(h.accessTokenKeys, token, nil)
 	if err != nil || claims.JTI == "" {
 		return nil
 	}

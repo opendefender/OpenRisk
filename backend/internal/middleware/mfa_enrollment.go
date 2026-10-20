@@ -6,8 +6,6 @@
 package middleware
 
 import (
-	"strings"
-
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 
@@ -25,6 +23,11 @@ import (
 //     proved their password but cannot yet hold a session because nothing is
 //     enrolled.
 //
+// The routes it guards are registered BEFORE Protected in main.go (#944):
+// Protected accepts a full access token only, so mounting them behind it would
+// lock the mandated-enrolment path out. This middleware therefore carries the
+// CSRF check for cookie callers itself.
+//
 // It deliberately does NOT accept MFA_REQUIRED. That token is issued to accounts
 // which already HAVE a verified authenticator, and letting it reach enrolment
 // would allow someone with a stolen password to register their own authenticator
@@ -33,30 +36,33 @@ import (
 // safe rather than merely tidy.
 func MFAEnrollmentMiddleware(rsaKeys *authpkg.RSAKeys, redisBlacklistChecker func(jti string) (bool, error)) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		authHeader := c.Get("Authorization")
-		if authHeader == "" {
-			// Fall back to the session cookie so a signed-in user enrolling from
-			// Settings works the same as any other authenticated call.
-			if cookie := c.Cookies(AccessTokenCookie); cookie != "" {
-				authHeader = "Bearer " + cookie
+		// Header first, then the session cookie, exactly as Protected reads them,
+		// so a signed-in user enrolling from Settings works like any other call.
+		tokenString, fromCookie, extractErr := extractAccessToken(c)
+		if extractErr != nil {
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+				"code":    "UNAUTHORIZED",
+				"message": extractErr.Error(),
+			})
+		}
+
+		// These routes are mounted BEFORE Protected (#944), so Protected's CSRF
+		// check no longer runs ahead of them. A cookie-borne session is attached
+		// by the browser on its own; without the double-submit check any page
+		// could start an enrolment in the victim's name.
+		if fromCookie {
+			if err := verifyCSRF(c); err != nil {
+				return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+					"code":    "CSRF_FAILED",
+					"message": err.Error(),
+				})
 			}
-		}
-		if authHeader == "" {
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"code":    "UNAUTHORIZED",
-				"message": "Missing authorization",
-			})
+			c.Locals("auth_via_cookie", true)
 		}
 
-		parts := strings.SplitN(authHeader, " ", 2)
-		if len(parts) != 2 || parts[0] != "Bearer" {
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"code":    "UNAUTHORIZED",
-				"message": "Invalid authorization header format",
-			})
-		}
-
-		claims, err := authpkg.ValidateAccessToken(rsaKeys, parts[1], redisBlacklistChecker)
+		// Type-agnostic validation: MFA_ENROLLMENT is precisely the token
+		// ValidateAccessToken refuses (#944). The allowed types are asserted below.
+		claims, err := authpkg.ValidateToken(rsaKeys, tokenString, redisBlacklistChecker)
 		if err != nil {
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 				"code":    "TOKEN_INVALID",

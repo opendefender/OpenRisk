@@ -981,45 +981,26 @@ func main() {
 	var vulnWebhookHandler *handlers.VulnWebhookHandler
 	app.Post("/api/v1/vulnerabilities/webhook/:source", func(c *fiber.Ctx) error { return vulnWebhookHandler.Ingest(c) })
 
-	// --- Routes Protégées (Nécessitent JWT) ---
-	// Le middleware injecte user_id et role dans le contexte
-	// L5 — PAT authentication runs BEFORE the JWT gate: it authenticates PAT-shaped
-	// bearers and is a no-op for JWTs (which the RS256 middleware then handles). The
-	// JWT middleware skips when a PAT already authenticated the request.
-	api.Use(middleware.PATMiddleware(patService, resolveSessionForOrg))
-	protected := api.Use(middleware.Protected(rsaKeys, jtiBlacklistChecker))
-
-	// Response-cache invalidation (#337). Mounted here, right after the gate that
-	// resolves the tenant, so every authenticated write drops that tenant's
-	// cached responses. One place rather than a hook in each handler: the next
-	// handler somebody adds cannot forget it. No-op without Redis.
-	protected.Use(handlers.InvalidateCacheOnMutation(cacheableHandlers.Decoration()))
-
+	// The post-authentication chain every signed-in call goes through. Built once
+	// here because two mount points use it: the Protected group below, and the
+	// MFA enrolment pair, which is registered before that group (#944).
+	//
+	// Response-cache invalidation (#337): every authenticated write drops that
+	// tenant's cached responses. One place rather than a hook in each handler:
+	// the next handler somebody adds cannot forget it. No-op without Redis.
+	invalidateCacheOnMutation := handlers.InvalidateCacheOnMutation(cacheableHandlers.Decoration())
 	// Per-tenant quota (audit finding F-03), mounted immediately after the auth
 	// gate because that is what populates the tenant local. Without this a single
 	// tenant — runaway integration or compromised token — can exhaust shared DB
 	// and Redis capacity and degrade every other customer, while staying under
 	// the per-IP limit by spreading traffic across hosts.
-	protected.Use(middleware.TenantRateLimit(quotaStore, apiQuota))
-
-	// OR26-03 — MFA policy, enforced at request time rather than only at the
-	// door. Enforcing at login alone would let a privileged account that signed
-	// in on day one keep working past its deadline simply by never signing out,
-	// which would make the window bound how long you may wait to log in rather
-	// than how long you may go without a second factor.
-	//
-	// Mounted here so it sees the identity the auth gate has just published, and
-	// before every business route. The enrolment endpoints and logout stay
-	// reachable (see mfaGuardExemptSuffixes) — a requirement you cannot satisfy
-	// is a lockout, not a control.
-	protected.Use(middleware.MFAPolicyGuard(mfaStatusResolver))
-
+	tenantRateLimit := middleware.TenantRateLimit(quotaStore, apiQuota)
 	// Governance audit trail (spec §15): stamp the acting identity + request
 	// metadata onto the request context for every authenticated route, so any
 	// repository that threads c.UserContext() into GORM lets the audittrail
 	// plugin attribute the mutation to the real user (the "Qui"). Additive and
 	// value-only — it never alters request handling.
-	protected.Use(func(c *fiber.Ctx) error {
+	stampAuditActor := func(c *fiber.Ctx) error {
 		if mw := middleware.GetContext(c); mw != nil {
 			var actorID *uuid.UUID
 			if mw.UserID != uuid.Nil {
@@ -1035,8 +1016,7 @@ func main() {
 			}))
 		}
 		return c.Next()
-	})
-
+	}
 	// Exhaustive mutation journaling. Mounted right after the actor stamp so it
 	// sees the identity, and BEFORE every business route so no route can escape
 	// it: each successful POST/PUT/PATCH/DELETE produces exactly one chained
@@ -1049,7 +1029,63 @@ func main() {
 	// somebody eventually forgets is the one that mattered. What is published
 	// is still decided by an explicit map onto the catalog, so an unmapped
 	// mutation stays silent and no UI-shaped event can ever be emitted.
-	protected.Use(middleware.AuditMutations(auditChainRepo, apprealtime.NewMutationBridge(realtimePublisher)))
+	auditMutations := middleware.AuditMutations(auditChainRepo, apprealtime.NewMutationBridge(realtimePublisher))
+
+	// --- MFA enrollment (L4) ---
+	// Registered on `api` BEFORE the Protected gate, like /auth/mfa/challenge,
+	// because enrolment must be reachable in two states: by a signed-in user
+	// turning MFA on from Settings (full access token), and by an admin whose
+	// role MANDATES MFA and who therefore holds no session yet (MFA_ENROLLMENT
+	// token). Protected accepts a full access token only (#944), so behind it the
+	// mandated path would be locked out. MFAEnrollmentMiddleware accepts exactly
+	// those two types, refuses MFA_REQUIRED — see
+	// internal/middleware/mfa_enrollment.go for why that exclusion is what stops a
+	// stolen password overwriting a victim's authenticator — and carries the CSRF
+	// check for cookie callers that Protected used to apply.
+	//
+	// Being registered before the gate, these two routes do NOT inherit the
+	// protected.Use chain, so it is spelled out: cache invalidation, tenant
+	// quota, actor stamp and mutation journaling, in the same order. The MFA
+	// policy guard is left out because it exempts both paths anyway
+	// (mfaGuardExemptSuffixes).
+	//
+	// Disabling MFA stays under `protected`: it needs a real session and the
+	// account password.
+	mfaEnrollmentGuard := middleware.MFAEnrollmentMiddleware(rsaKeys, jtiBlacklistChecker)
+	api.Post("/auth/mfa/setup", mfaEnrollmentGuard, invalidateCacheOnMutation, tenantRateLimit, stampAuditActor, auditMutations, mfaHandler.Setup)
+	api.Post("/auth/mfa/verify", mfaEnrollmentGuard, invalidateCacheOnMutation, tenantRateLimit, stampAuditActor, auditMutations, mfaHandler.Verify)
+
+	// --- Routes Protégées (Nécessitent JWT) ---
+	// Le middleware injecte user_id et role dans le contexte
+	// L5 — PAT authentication runs BEFORE the JWT gate: it authenticates PAT-shaped
+	// bearers and is a no-op for JWTs (which the RS256 middleware then handles). The
+	// JWT middleware skips when a PAT already authenticated the request.
+	//
+	// #944 — `api.Use` mounts on the /api/v1 PREFIX: every route registered on
+	// `api` after this line, whatever group it is declared on, runs behind
+	// Protected, which refuses MFA_REQUIRED and MFA_ENROLLMENT tokens. A route
+	// that must accept one is registered above. The ratchet in
+	// internal/handler/typed_token_route_ratchet_test.go holds both rules.
+	api.Use(middleware.PATMiddleware(patService, resolveSessionForOrg))
+	protected := api.Use(middleware.Protected(rsaKeys, jtiBlacklistChecker))
+
+	protected.Use(invalidateCacheOnMutation)
+	protected.Use(tenantRateLimit)
+
+	// OR26-03 — MFA policy, enforced at request time rather than only at the
+	// door. Enforcing at login alone would let a privileged account that signed
+	// in on day one keep working past its deadline simply by never signing out,
+	// which would make the window bound how long you may wait to log in rather
+	// than how long you may go without a second factor.
+	//
+	// Mounted here so it sees the identity the auth gate has just published, and
+	// before every business route. The enrolment endpoints and logout stay
+	// reachable (see mfaGuardExemptSuffixes) — a requirement you cannot satisfy
+	// is a lockout, not a control.
+	protected.Use(middleware.MFAPolicyGuard(mfaStatusResolver))
+
+	protected.Use(stampAuditActor)
+	protected.Use(auditMutations)
 
 	// =========================================================================
 	// Open-core: entitlements + billing. This is where the plan model becomes
@@ -1115,21 +1151,10 @@ func main() {
 	capRisks := middleware.RequireCapacity(entitlementService, ent.LimitRisks)
 	capAssets := middleware.RequireCapacity(entitlementService, ent.LimitAssets)
 
-	// --- MFA enrollment (L4) ---
-	// Registered on `api` with MFAEnrollmentMiddleware rather than under
-	// `protected`, because enrolment must be reachable in two states: by a
-	// signed-in user turning MFA on from Settings (full access token), and by an
-	// admin whose role MANDATES MFA and who therefore holds no session yet
-	// (MFA_ENROLLMENT token). The middleware accepts exactly those two types and
-	// refuses MFA_REQUIRED — see internal/middleware/mfa_enrollment.go for why
-	// that exclusion is what stops a stolen password overwriting a victim's
-	// authenticator.
-	//
-	// Disabling MFA stays under `protected`: it needs a real session and the
-	// account password.
-	mfaEnrollmentGuard := middleware.MFAEnrollmentMiddleware(rsaKeys, jtiBlacklistChecker)
-	api.Post("/auth/mfa/setup", mfaEnrollmentGuard, mfaHandler.Setup)
-	api.Post("/auth/mfa/verify", mfaEnrollmentGuard, mfaHandler.Verify)
+	// --- MFA disable (L4) ---
+	// Enrolment (setup/verify) is mounted before the Protected gate, see above.
+	// Disabling stays under `protected`: it needs a real session — never an
+	// MFA_REQUIRED or MFA_ENROLLMENT token (#944) — and the account password.
 	// Throttled like /auth/password/change: the body carries a password guess.
 	protected.Post("/auth/mfa/disable", authLimits.Reauth, mfaHandler.Disable)
 

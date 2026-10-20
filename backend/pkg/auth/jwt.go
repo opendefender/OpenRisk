@@ -25,9 +25,9 @@ type Claims struct {
 	Permissions  []string             `json:"permissions"`   // RBAC permissions
 	FeatureFlags []string             `json:"feature_flags"` // Feature toggles
 	JTI          string               `json:"jti"`           // JWT ID (for Redis blacklist)
-	// Type distinguishes access/refresh/MFA_REQUIRED tokens. Not yet populated by
-	// any issuer (GenerateAccessToken et al.) - reserved for the Phase 2 token
-	// semantics work that MFATokenMiddleware depends on.
+	// Type distinguishes a full access token (TokenTypeAccess, empty) from the
+	// short-lived MFA_REQUIRED / MFA_ENROLLMENT tokens minted by
+	// GenerateTypedToken. ValidateAccessToken refuses any non-access type (#944).
 	Type string `json:"type,omitempty"`
 }
 
@@ -52,7 +52,7 @@ func (c *Claims) HasPermission(required string) bool {
 // TokenTypeAccess is the default (empty) type carried by a full access token.
 // TokenTypeMFARequired marks the short-lived token issued between a successful
 // password check and MFA challenge completion — it grants no permissions and is
-// only accepted by MFATokenMiddleware.
+// only accepted by MFATokenMiddleware (never by ValidateAccessToken, #944).
 // TokenTypeMFAEnrollment marks the short-lived token issued when a role that
 // REQUIRES MFA signs in without having enrolled yet.
 //
@@ -136,12 +136,43 @@ func GenerateRefreshToken() (string, error) {
 	return token, nil
 }
 
-// ValidateAccessToken parse et valide un JWT RS256.
-// Vérifie : signature RS256, expiration, JTI non blacklisté (via Redis).
+// ValidateAccessToken parse et valide un JWT RS256 d'ACCÈS complet.
+// Vérifie : signature RS256, expiration, JTI non blacklisté (via Redis), et que
+// le token est bien un token d'accès (Type == TokenTypeAccess).
 // Retourne (*Claims, error) avec erreurs typées :
 //
 //	ErrTokenExpired / ErrTokenInvalid / ErrTokenRevoked
+//
+// #944 — the type check is the point. MFA_REQUIRED (issued after the password
+// alone) and MFA_ENROLLMENT tokens are signed with the same key and pass every
+// other check; without this, any caller that treats the result as a session —
+// the Protected gate first of all — hands a second-factor-less login the whole
+// API, including minting a PAT and turning MFA off. A typed token is refused
+// with ErrTokenInvalid. The two middlewares that legitimately accept a typed
+// token use ValidateToken and check Type themselves.
 func ValidateAccessToken(
+	rsaKeys *RSAKeys,
+	tokenString string,
+	jtiBlacklistChecker func(jti string) (bool, error),
+) (*Claims, error) {
+	claims, err := ValidateToken(rsaKeys, tokenString, jtiBlacklistChecker)
+	if err != nil {
+		return nil, err
+	}
+	if claims.Type != TokenTypeAccess {
+		return nil, ErrTokenInvalid
+	}
+	return claims, nil
+}
+
+// ValidateToken validates any OpenRisk RS256 token — signature, expiry, JTI
+// blacklist — WITHOUT asserting its type. The caller MUST check claims.Type.
+//
+// Only for the endpoints that exist to accept a typed token
+// (MFATokenMiddleware, MFAEnrollmentMiddleware) and for logout, which revokes
+// whatever valid token it is shown. Anything that grants a session uses
+// ValidateAccessToken.
+func ValidateToken(
 	rsaKeys *RSAKeys,
 	tokenString string,
 	jtiBlacklistChecker func(jti string) (bool, error),

@@ -79,6 +79,19 @@ func AuthMiddlewareRS256(rsaKeys *authpkg.RSAKeys, redisBlacklistChecker func(jt
 			}
 		}
 
+		// #944 — only a full access token opens a session. MFA_REQUIRED (earned by
+		// the password alone) and MFA_ENROLLMENT are validly signed and would
+		// otherwise pass, handing a login without its second factor every route
+		// behind this gate — PAT minting and MFA disable included.
+		// ValidateAccessToken already refuses them; this repeats the check where
+		// the session is granted so the property does not rest on a helper's name.
+		if claims.Type != authpkg.TokenTypeAccess {
+			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+				"code":    "TOKEN_INVALID",
+				"message": "Invalid token",
+			})
+		}
+
 		// Validate required tenant_id
 		if claims.TenantID == uuid.Nil {
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
@@ -306,8 +319,10 @@ func MFATokenMiddleware(rsaKeys *authpkg.RSAKeys, redisBlacklistChecker func(jti
 
 		tokenString := parts[1]
 
-		// Validate JWT with RS256 signature and JTI blacklist check
-		claims, err := authpkg.ValidateAccessToken(rsaKeys, tokenString, redisBlacklistChecker)
+		// Validate JWT with RS256 signature and JTI blacklist check. Type-agnostic
+		// on purpose: this endpoint exists for the MFA_REQUIRED token, which
+		// ValidateAccessToken refuses (#944). The type is asserted just below.
+		claims, err := authpkg.ValidateToken(rsaKeys, tokenString, redisBlacklistChecker)
 		if err != nil {
 			switch err {
 			case authpkg.ErrTokenExpired:
@@ -331,7 +346,7 @@ func MFATokenMiddleware(rsaKeys *authpkg.RSAKeys, redisBlacklistChecker func(jti
 		}
 
 		// Check if this is an MFA_REQUIRED token
-		if claims.Type != "MFA_REQUIRED" {
+		if claims.Type != authpkg.TokenTypeMFARequired {
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 				"code":    "UNAUTHORIZED",
 				"message": "Invalid token type for MFA challenge",
@@ -452,6 +467,8 @@ func OptionalAuth(rsaKeys *authpkg.RSAKeys, redisBlacklistChecker func(jti strin
 		if extractErr != nil || tokenString == "" {
 			return c.Next()
 		}
+		// ValidateAccessToken refuses MFA_REQUIRED / MFA_ENROLLMENT (#944): a
+		// half-finished login is no identity, and the request goes on anonymously.
 		claims, err := authpkg.ValidateAccessToken(rsaKeys, tokenString, redisBlacklistChecker)
 		if err != nil || claims == nil || claims.Sub == uuid.Nil {
 			return c.Next()
