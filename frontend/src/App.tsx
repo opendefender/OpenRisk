@@ -3,7 +3,9 @@
 // This program is free software: you can redistribute it and/or modify it under
 // the terms of the GNU Affero General Public License v3.0 (see LICENSE).
 
-import { useEffect, useState, lazy, Suspense, type ReactNode } from 'react';
+import { useEffect, useState, Suspense, type ReactNode } from 'react';
+
+import { lazyScreen } from './i18n/lazyScreen';
 import {
   BrowserRouter,
   Routes,
@@ -33,26 +35,26 @@ import { Sidebar } from './components/layout/Sidebar';
 import { AppHeader } from './components/layout/AppHeader';
 // Command palette pulls @floating-ui + the search stack; it is only needed once
 // the user opens it (⌘K / "/"), so it loads on first open, not at app start.
-const CommandPalette = lazy(() =>
+const CommandPalette = lazyScreen(() =>
   import('./components/layout/CommandPalette').then((m) => ({ default: m.CommandPalette })),
 );
 /* Shell pieces the first frame never shows (#966): the `?` overlay opens on a
    key press, the tour waits 900 ms before its first coach mark, and the
    refusal, 404 and maintenance screens are destinations, not the shell. Each
    was in the preloaded entry chunk. */
-const ShortcutsOverlay = lazy(() =>
+const ShortcutsOverlay = lazyScreen(() =>
   import('./shared/ShortcutsOverlay').then((m) => ({ default: m.ShortcutsOverlay })),
 );
-const ProductTour = lazy(() =>
+const ProductTour = lazyScreen(() =>
   import('./features/onboarding/ProductTour').then((m) => ({ default: m.ProductTour })),
 );
-const AccessDenied = lazy(() =>
+const AccessDenied = lazyScreen(() =>
   import('./shared/AccessDenied').then((m) => ({ default: m.AccessDenied })),
 );
-const NotFound = lazy(() =>
+const NotFound = lazyScreen(() =>
   import('./shared/system/NotFound').then((m) => ({ default: m.NotFound })),
 );
-const Maintenance = lazy(() =>
+const Maintenance = lazyScreen(() =>
   import('./shared/system/Maintenance').then((m) => ({ default: m.Maintenance })),
 );
 import { QuietBoundary } from './shared/system/QuietBoundary';
@@ -68,241 +70,243 @@ import { useRealtimeQuerySync } from './features/realtime/useRealtime';
 //     split too: they pull the form stack (react-hook-form + zod) and the auth
 //     screens, none of which a logged-in user needs on the dashboard's first
 //     paint. Each loads behind a Suspense boundary on demand. ---
-const CreateRiskModal = lazy(() =>
+const CreateRiskModal = lazyScreen(() =>
   import('./features/risks/CreateRiskModal').then((m) => ({ default: m.CreateRiskModal })),
 );
-const AuthScreen = lazy(() =>
+const AuthScreen = lazyScreen(() =>
   import('./features/auth/AuthScreen').then((m) => ({ default: m.AuthScreen })),
 );
-const StatusPage = lazy(() =>
+const StatusPage = lazyScreen(() =>
   import('./features/status/StatusPage').then((m) => ({ default: m.StatusPage })),
 );
-const AcceptInvitationPage = lazy(() =>
+const AcceptInvitationPage = lazyScreen(() =>
   import('./features/organization/AcceptInvitationPage').then((m) => ({
     default: m.AcceptInvitationPage,
   })),
 );
-const VendorQuestionnairePage = lazy(() =>
+const VendorQuestionnairePage = lazyScreen(() =>
   import('./features/tprm/VendorQuestionnairePage').then((m) => ({
     default: m.VendorQuestionnairePage,
   })),
 );
-const ForgotPasswordScreen = lazy(() =>
+const ForgotPasswordScreen = lazyScreen(() =>
   import('./features/auth/ForgotPasswordScreen').then((m) => ({ default: m.ForgotPasswordScreen })),
 );
-const SSOCompleteScreen = lazy(() =>
+const SSOCompleteScreen = lazyScreen(() =>
   import('./features/auth/SSOCompleteScreen').then((m) => ({ default: m.SSOCompleteScreen })),
 );
-const ResetPasswordScreen = lazy(() =>
+const ResetPasswordScreen = lazyScreen(() =>
   import('./features/auth/ResetPasswordScreen').then((m) => ({ default: m.ResetPasswordScreen })),
 );
 
 // --- Feature pages are route-split with React.lazy so the initial bundle only
 //     carries the shell + auth; each screen's chunk loads on navigation. This
 //     cut the single ~1.5 MB bundle into per-route chunks. ---
-const SettingsScreen = lazy(() =>
+const SettingsScreen = lazyScreen(() =>
   import('./features/settings/SettingsScreen').then((m) => ({ default: m.SettingsScreen })),
 );
-const DashboardPage = lazy(() =>
+const DashboardPage = lazyScreen(() =>
   import('./features/dashboard/DashboardPage').then((m) => ({ default: m.DashboardPage })),
 );
-const ActionCenterPage = lazy(() =>
+const ActionCenterPage = lazyScreen(() =>
   import('./features/action-center/ActionCenterPage').then((m) => ({
     default: m.ActionCenterPage,
   })),
 );
-const ImportRisksPage = lazy(() =>
+const ImportRisksPage = lazyScreen(() =>
   import('./features/risks/ImportRisksPage').then((m) => ({ default: m.ImportRisksPage })),
 );
-const RiskRegisterPage = lazy(() =>
+const RiskRegisterPage = lazyScreen(() =>
   import('./features/risks/RiskRegisterPage').then((m) => ({ default: m.RiskRegisterPage })),
 );
-const UnmappedRisksPage = lazy(() =>
+const UnmappedRisksPage = lazyScreen(() =>
   import('./features/risks/UnmappedRisksPage').then((m) => ({ default: m.UnmappedRisksPage })),
 );
-const RiskWeightsSettings = lazy(() =>
+const RiskWeightsSettings = lazyScreen(() =>
   import('./features/risks/RiskWeightsSettings').then((m) => ({ default: m.RiskWeightsSettings })),
 );
-const VulnerabilitiesPage = lazy(() =>
+const VulnerabilitiesPage = lazyScreen(() =>
   import('./features/vulnerabilities/VulnerabilitiesPage').then((m) => ({
     default: m.VulnerabilitiesPage,
   })),
 );
-const MitigationsBoard = lazy(() =>
+const MitigationsBoard = lazyScreen(() =>
   import('./features/mitigations/MitigationsBoard').then((m) => ({ default: m.MitigationsBoard })),
 );
-const ComplianceScreen = lazy(() =>
+const ComplianceScreen = lazyScreen(() =>
   import('./features/compliance/ComplianceScreen').then((m) => ({ default: m.ComplianceScreen })),
 );
-const FrameworkDetail = lazy(() =>
+const FrameworkDetail = lazyScreen(() =>
   import('./features/compliance/FrameworkDetail').then((m) => ({ default: m.FrameworkDetail })),
 );
-const EvidenceLibraryPage = lazy(() =>
+const EvidenceLibraryPage = lazyScreen(() =>
   import('./features/evidence/EvidenceLibraryPage').then((m) => ({
     default: m.EvidenceLibraryPage,
   })),
 );
-const MissingEvidencePage = lazy(() =>
+const MissingEvidencePage = lazyScreen(() =>
   import('./features/evidence/MissingEvidencePage').then((m) => ({
     default: m.MissingEvidencePage,
   })),
 );
-const ReportsLibraryPage = lazy(() =>
+const ReportsLibraryPage = lazyScreen(() =>
   import('./features/reports/ReportsLibraryPage').then((m) => ({ default: m.ReportsLibraryPage })),
 );
-const GapAnalysisPage = lazy(() =>
+const GapAnalysisPage = lazyScreen(() =>
   import('./features/compliance/GapAnalysisPage').then((m) => ({ default: m.GapAnalysisPage })),
 );
-const AuditsPage = lazy(() =>
+const AuditsPage = lazyScreen(() =>
   import('./features/compliance/AuditsPage').then((m) => ({ default: m.AuditsPage })),
 );
-const RemediationPage = lazy(() =>
+const RemediationPage = lazyScreen(() =>
   import('./features/compliance/RemediationPage').then((m) => ({ default: m.RemediationPage })),
 );
-const InventoryPage = lazy(() =>
+const InventoryPage = lazyScreen(() =>
   import('./features/assets/InventoryPage').then((m) => ({ default: m.InventoryPage })),
 );
-const ImportAssetsPage = lazy(() =>
+const ImportAssetsPage = lazyScreen(() =>
   import('./features/assets/ImportAssetsPage').then((m) => ({ default: m.ImportAssetsPage })),
 );
-const QuestionnaireTemplatesPage = lazy(() =>
+const QuestionnaireTemplatesPage = lazyScreen(() =>
   import('./features/tprm/QuestionnaireTemplatesPage').then((m) => ({
     default: m.QuestionnaireTemplatesPage,
   })),
 );
-const QuestionnaireTemplateEditorPage = lazy(() =>
+const QuestionnaireTemplateEditorPage = lazyScreen(() =>
   import('./features/tprm/QuestionnaireTemplateEditorPage').then((m) => ({
     default: m.QuestionnaireTemplateEditorPage,
   })),
 );
-const VendorsPage = lazy(() =>
+const VendorsPage = lazyScreen(() =>
   import('./features/tprm/VendorsPage').then((m) => ({ default: m.VendorsPage })),
 );
-const VendorDetailPage = lazy(() =>
+const VendorDetailPage = lazyScreen(() =>
   import('./features/tprm/VendorDetailPage').then((m) => ({ default: m.VendorDetailPage })),
 );
-const VendorAssessmentPage = lazy(() =>
+const VendorAssessmentPage = lazyScreen(() =>
   import('./features/tprm/VendorAssessmentPage').then((m) => ({
     default: m.VendorAssessmentPage,
   })),
 );
-const AssetSchemaSettings = lazy(() => import('./features/attackSurface/AssetSchemaSettings'));
-const TopologyView = lazy(() => import('./features/attackSurface/TopologyView'));
-const UnassignedVulnerabilitiesPage = lazy(
+const AssetSchemaSettings = lazyScreen(
+  () => import('./features/attackSurface/AssetSchemaSettings'),
+);
+const TopologyView = lazyScreen(() => import('./features/attackSurface/TopologyView'));
+const UnassignedVulnerabilitiesPage = lazyScreen(
   () => import('./features/vulnerabilities/UnassignedVulnerabilitiesPage'),
 );
-const RiskRulePage = lazy(() => import('./features/attackSurface/RiskRulePage'));
-const FinancialDashboard = lazy(() =>
+const RiskRulePage = lazyScreen(() => import('./features/attackSurface/RiskRulePage'));
+const FinancialDashboard = lazyScreen(() =>
   import('./features/financial/FinancialDashboard').then((m) => ({
     default: m.FinancialDashboard,
   })),
 );
-const ActivityPage = lazy(() =>
+const ActivityPage = lazyScreen(() =>
   import('./features/activity/ActivityPage').then((m) => ({
     default: m.ActivityPage,
   })),
 );
-const AutomationPage = lazy(() =>
+const AutomationPage = lazyScreen(() =>
   import('./features/automation/AutomationPage').then((m) => ({ default: m.AutomationPage })),
 );
-const GovernancePage = lazy(() =>
+const GovernancePage = lazyScreen(() =>
   import('./features/governance/GovernancePage').then((m) => ({ default: m.GovernancePage })),
 );
-const LeaderboardPage = lazy(() =>
+const LeaderboardPage = lazyScreen(() =>
   import('./features/gamification/LeaderboardPage').then((m) => ({ default: m.LeaderboardPage })),
 );
-const WarRoom = lazy(() =>
+const WarRoom = lazyScreen(() =>
   import('./features/incidents/WarRoom').then((m) => ({ default: m.WarRoom })),
 );
-const IncidentsScreen = lazy(() =>
+const IncidentsScreen = lazyScreen(() =>
   import('./features/incidents/IncidentsScreen').then((m) => ({ default: m.IncidentsScreen })),
 );
-const IncidentSourcesPage = lazy(() =>
+const IncidentSourcesPage = lazyScreen(() =>
   import('./features/incidents/IncidentSourcesPage').then((m) => ({
     default: m.IncidentSourcesPage,
   })),
 );
-const ThreatIntel = lazy(() =>
+const ThreatIntel = lazyScreen(() =>
   import('./features/cti/ThreatIntel').then((m) => ({ default: m.ThreatIntel })),
 );
-const ThreatsPage = lazy(() =>
+const ThreatsPage = lazyScreen(() =>
   import('./features/cti/ThreatsPage').then((m) => ({ default: m.ThreatsPage })),
 );
-const InfrastructurePage = lazy(() =>
+const InfrastructurePage = lazyScreen(() =>
   import('./features/infrastructure/InfrastructurePage').then((m) => ({
     default: m.InfrastructurePage,
   })),
 );
-const ScanPreviewPage = lazy(() =>
+const ScanPreviewPage = lazyScreen(() =>
   import('./features/infrastructure/ScanPreviewPage').then((m) => ({ default: m.ScanPreviewPage })),
 );
-const SimulationsPage = lazy(() =>
+const SimulationsPage = lazyScreen(() =>
   import('./features/simulations/SimulationsPage').then((m) => ({ default: m.SimulationsPage })),
 );
-const ReportsScreen = lazy(() =>
+const ReportsScreen = lazyScreen(() =>
   import('./features/reports/ReportsScreen').then((m) => ({ default: m.ReportsScreen })),
 );
-const AiAdvisor = lazy(() =>
+const AiAdvisor = lazyScreen(() =>
   import('./features/ai/AiAdvisor').then((m) => ({ default: m.AiAdvisor })),
 );
-const EmergingRisksPage = lazy(() =>
+const EmergingRisksPage = lazyScreen(() =>
   import('./features/ai/EmergingRisksPage').then((m) => ({ default: m.EmergingRisksPage })),
 );
-const BoardReportPage = lazy(() =>
+const BoardReportPage = lazyScreen(() =>
   import('./features/reports/BoardReportPage').then((m) => ({ default: m.BoardReportPage })),
 );
-const AuditDetailPage = lazy(() =>
+const AuditDetailPage = lazyScreen(() =>
   import('./features/compliance/AuditDetailPage').then((m) => ({ default: m.AuditDetailPage })),
 );
-const RemediationDetailPage = lazy(() =>
+const RemediationDetailPage = lazyScreen(() =>
   import('./features/compliance/RemediationDetailPage').then((m) => ({
     default: m.RemediationDetailPage,
   })),
 );
-const MitigationDetailPage = lazy(() =>
+const MitigationDetailPage = lazyScreen(() =>
   import('./features/mitigations/MitigationDetailPage').then((m) => ({
     default: m.MitigationDetailPage,
   })),
 );
-const ReportJobPage = lazy(() =>
+const ReportJobPage = lazyScreen(() =>
   import('./features/reports/ReportJobPage').then((m) => ({ default: m.ReportJobPage })),
 );
-const ScorePage = lazy(() =>
+const ScorePage = lazyScreen(() =>
   import('./features/score/ScorePage').then((m) => ({ default: m.ScorePage })),
 );
 
 // --- Signup wizard (spec §4). Route-split like every other feature: it is shown
 //     once per user, so it has no business sitting in the shell bundle. ---
-const OnboardingWizard = lazy(() =>
+const OnboardingWizard = lazyScreen(() =>
   import('./features/onboarding/wizard/OnboardingWizard').then((m) => ({
     default: m.OnboardingWizard,
   })),
 );
-const OrganizationStep = lazy(() =>
+const OrganizationStep = lazyScreen(() =>
   import('./features/onboarding/wizard/steps').then((m) => ({ default: m.OrganizationStep })),
 );
 
-const GoalStep = lazy(() =>
+const GoalStep = lazyScreen(() =>
   import('./features/onboarding/wizard/steps').then((m) => ({ default: m.GoalStep })),
 );
-const FrameworkStep = lazy(() =>
+const FrameworkStep = lazyScreen(() =>
   import('./features/onboarding/wizard/steps').then((m) => ({ default: m.FrameworkStep })),
 );
 // #438 steps 4 and 5 — the two screens that return something computed. They
 // replace the retired `profile` and `team` routes: the profile question merged
 // into the organization step, and team invitations moved to the Posture Reveal.
-const ScoreStep = lazy(() =>
+const ScoreStep = lazyScreen(() =>
   import('./features/onboarding/wizard/valueSteps').then((m) => ({ default: m.ScoreStep })),
 );
-const CoverStep = lazy(() =>
+const CoverStep = lazyScreen(() =>
   import('./features/onboarding/wizard/valueSteps').then((m) => ({ default: m.CoverStep })),
 );
 // #438 — the tunnel's terminal screen and the recognition screen for tenants
 // that were already configured. Lazy like every other route-level page.
-const PosturePage = lazy(() =>
+const PosturePage = lazyScreen(() =>
   import('./features/onboarding/PosturePage').then((m) => ({ default: m.PosturePage })),
 );
-const RecognitionPage = lazy(() =>
+const RecognitionPage = lazyScreen(() =>
   import('./features/onboarding/RecognitionPage').then((m) => ({ default: m.RecognitionPage })),
 );
 

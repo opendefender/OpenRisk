@@ -17,6 +17,7 @@ import { registerQueryClient } from './lib/sessionScope';
 import { onMFARequired } from './lib/api';
 import { MFA_STATUS_KEY } from './features/auth/useMfa';
 import { loadCatalog } from './i18n/catalog';
+import { lazyScreen } from './i18n/lazyScreen';
 import { useUIStore } from './store/uiStore';
 import { ListboxI18nProvider } from './shared/ListboxI18n';
 
@@ -69,7 +70,7 @@ installGlobalErrorReporting();
  * raw source) does not belong in the entry chunk. #443 PR 2 needed the room; the
  * reason it is correct is older than that.
  */
-const ThemedToaster = React.lazy(() => import('./shared/system/ThemedToaster'));
+const ThemedToaster = lazyScreen(() => import('./shared/system/ThemedToaster'));
 
 function render() {
   ReactDOM.createRoot(document.getElementById('root')!).render(

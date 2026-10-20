@@ -16,7 +16,9 @@
 // which claimed "Realtime" on every tenant regardless of anything, is now a real
 // connection indicator driven by lib/connection.
 
-import { lazy, Suspense, useSyncExternalStore, useState, useEffect } from 'react';
+import { Suspense, useSyncExternalStore, useState, useEffect } from 'react';
+
+import { lazyScreen } from '../../i18n/lazyScreen';
 import { Search, Bell, Sun, Moon, Menu, Rows2, Rows3, Rows4, CircleHelp } from 'lucide-react';
 import { cn, useExitTimer } from '../../shared/ds';
 import { useUIStore } from '../../store/uiStore';
@@ -39,7 +41,7 @@ import { QuietBoundary } from '../../shared/system/QuietBoundary';
 // (#966). Hovering or focusing the bell starts the fetch, so by the time the
 // click lands the module is usually already there.
 const loadNotifPanel = () => import('./NotifPanel');
-const NotifPanel = lazy(() => loadNotifPanel().then((m) => ({ default: m.NotifPanel })));
+const NotifPanel = lazyScreen(() => loadNotifPanel().then((m) => ({ default: m.NotifPanel })));
 // A prefetch is a hint: if it fails, the click retries and QuietBoundary
 // reports that failure, so this one is not left as an unhandled rejection.
 const prefetchNotifPanel = () => {

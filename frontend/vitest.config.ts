@@ -1,9 +1,11 @@
 import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
+
+import { shellCatalog } from './vite.shell-catalog';
 import path from 'path';
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), shellCatalog()],
   test: {
     environment: 'jsdom',
     globals: true,
