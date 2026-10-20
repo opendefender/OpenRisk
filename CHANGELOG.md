@@ -268,6 +268,26 @@ Git tags use the `vMAJOR.MINOR.PATCH[-rc.N]` convention; see [docs/VERSIONING.md
 - Agent tooling, CI repairs and retired checks, test hardening, decision records and
   ADR 0005; regressions introduced and fixed between rc.6 and rc.7 are not listed.
 
+### Added after the notes were drafted
+These two PRs merged just before the tag, and are part of 1.1.0-rc.7.
+
+- **The Helm chart can now run a backend and a frontend on a current cluster (#1022).**
+  Four defects stopped the chart from running a backend, each hiding the next:
+  - capabilities were declared at pod level, so the API server refused the Deployments;
+  - no RSA keys were mounted;
+  - the uploads directory was not writable;
+  - the probes targeted the wrong path.
+
+  The frontend no longer hides nginx's `mime.types`, and it runs as uid 1000. HPAs render only when autoscaling is on. PDBs no longer block a node drain on a single replica. A kind-based workflow installs, upgrades and checks the chart.
+
+  **Operator actions:**
+  - Provide the RSA key pair, with `--set-file secrets.inline.rsaPrivateKey=…` or `secrets.rsa.existingSecret`.
+  - Uploads now live on a `backend-uploads` PVC, which defaults to `ReadWriteMany`. The chart refuses `ReadWriteOnce` with more than one replica or with autoscaling.
+- **Trends and financial figures no longer show zeros or reference amounts as if they were data (#756).**
+  - **Trends:** a day with no risk is a gap, not a score of 0. Below two dated points, a trend answers `insufficient_data`.
+  - **Financial pages:** when no risk has its own loss figures, the financial page, the executive dashboard and the executive counters say so. They no longer show the reference model's amounts as the organisation's exposure.
+  - No amount, formula or score changed.
+
 ## [1.1.0-rc.6] - 2026-09-23
 
 > A security release. Both fixes below change how an existing scan config
