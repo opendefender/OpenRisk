@@ -10,6 +10,19 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 
+// The session renewal is the axios client's (#701): the stream must go through
+// the same single-flight refresh and the same sign-out, so both are observed
+// here rather than reimplemented. The 401 classification stays the real one.
+const session = vi.hoisted(() => ({
+  refreshSession: vi.fn<() => Promise<boolean>>(),
+  endSession: vi.fn<() => void>(),
+}));
+vi.mock('../api', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../api')>()),
+  refreshSession: session.refreshSession,
+  endSession: session.endSession,
+}));
+
 import {
   createRealtimeClientForTests,
   type RealtimeClient,
@@ -447,5 +460,146 @@ describe('realtime client — a refused stream', () => {
     expect(FakeEventSource.instances.length).toBe(opened + 1);
     FakeEventSource.last().emit('stream.hello', { tenant_id: 'tenant-b' });
     expect(client.getStatus().state).toBe('CONNECTED');
+  });
+});
+
+// #701 — EventSource cannot see a 401, so an idle page whose access cookie
+// expired lost its live updates until the user clicked something. The stream
+// now renews the session the way axios does, once, and signs out like axios
+// when the session is really over.
+describe('realtime client — an expired session', () => {
+  let client: RealtimeClient;
+  const fetchMock = vi.fn();
+
+  beforeEach(() => {
+    FakeEventSource.instances = [];
+    vi.stubGlobal('EventSource', FakeEventSource as unknown as typeof EventSource);
+    vi.stubGlobal('fetch', fetchMock);
+    fetchMock.mockReset();
+    session.refreshSession.mockReset();
+    session.endSession.mockReset();
+    vi.useFakeTimers();
+    vi.spyOn(Math, 'random').mockReturnValue(0);
+    client = createRealtimeClientForTests();
+  });
+
+  afterEach(() => {
+    client.stop();
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+    vi.restoreAllMocks();
+  });
+
+  const answer = (status: number, body: unknown = {}) =>
+    Promise.resolve(new Response(JSON.stringify(body), { status }));
+  // What the auth middleware answers once the browser stops sending the
+  // expired access cookie.
+  const expired = () =>
+    answer(401, { code: 'UNAUTHORIZED', error: 'Missing authorization header' });
+
+  it('TestRealtimeRenew_Success — renews the session once and is live again', async () => {
+    fetchMock.mockImplementation(expired);
+    session.refreshSession.mockResolvedValue(true);
+    connect(client);
+    const opened = FakeEventSource.instances.length;
+    FakeEventSource.last().fail();
+
+    // The stream reconnects as soon as the refresh lands, without waiting for
+    // the backoff.
+    await vi.waitFor(() => expect(FakeEventSource.instances.length).toBe(opened + 1));
+    expect(session.refreshSession).toHaveBeenCalledTimes(1);
+    FakeEventSource.last().emit('stream.hello', { tenant_id: 'tenant-a' });
+    expect(client.getStatus().state).toBe('CONNECTED');
+    expect(session.endSession).not.toHaveBeenCalled();
+
+    // The backoff scheduled by the failure was cancelled, not left to open a
+    // third connection on top of the live one.
+    vi.advanceTimersByTime(60_000);
+    expect(FakeEventSource.instances.length).toBe(opened + 1);
+  });
+
+  it('never refreshes once per reconnect attempt while the refresh is in flight', async () => {
+    fetchMock.mockImplementation(expired);
+    let settle: (ok: boolean) => void = () => undefined;
+    session.refreshSession.mockReturnValue(new Promise<boolean>((r) => (settle = r)));
+    connect(client);
+    const opened = FakeEventSource.instances.length;
+    FakeEventSource.last().fail();
+    await vi.waitFor(() => expect(session.refreshSession).toHaveBeenCalled());
+
+    vi.advanceTimersByTime(120_000);
+    expect(FakeEventSource.instances.length).toBe(opened);
+    expect(session.refreshSession).toHaveBeenCalledTimes(1);
+
+    settle(true);
+    await vi.waitFor(() => expect(FakeEventSource.instances.length).toBe(opened + 1));
+  });
+
+  it('renews again on a later expiry, once the stream was live in between', async () => {
+    fetchMock.mockImplementation(expired);
+    session.refreshSession.mockResolvedValue(true);
+    connect(client);
+
+    for (let i = 1; i <= 2; i++) {
+      const opened = FakeEventSource.instances.length;
+      FakeEventSource.last().fail();
+      await vi.waitFor(() => expect(FakeEventSource.instances.length).toBe(opened + 1));
+      FakeEventSource.last().emit('stream.hello', { tenant_id: 'tenant-a' });
+      expect(session.refreshSession).toHaveBeenCalledTimes(i);
+    }
+    expect(session.endSession).not.toHaveBeenCalled();
+  });
+
+  it('TestRealtimeRenew_Unauthorized — signs out and stops when the refresh fails', async () => {
+    fetchMock.mockImplementation(expired);
+    session.refreshSession.mockResolvedValue(false);
+    connect(client);
+    const opened = FakeEventSource.instances.length;
+    FakeEventSource.last().fail();
+
+    await vi.waitFor(() => expect(session.endSession).toHaveBeenCalledTimes(1));
+    expect(client.getStatus().state).toBe('DISCONNECTED');
+    vi.advanceTimersByTime(120_000);
+    expect(FakeEventSource.instances.length).toBe(opened);
+  });
+
+  it('signs out, without a second refresh, when the stream is still refused after one', async () => {
+    fetchMock.mockImplementation(expired);
+    session.refreshSession.mockResolvedValue(true);
+    connect(client);
+    const opened = FakeEventSource.instances.length;
+    FakeEventSource.last().fail();
+    await vi.waitFor(() => expect(FakeEventSource.instances.length).toBe(opened + 1));
+
+    // The renewed connection is refused too, before any hello.
+    FakeEventSource.last().fail();
+    await vi.waitFor(() => expect(session.endSession).toHaveBeenCalledTimes(1));
+    expect(session.refreshSession).toHaveBeenCalledTimes(1);
+    vi.advanceTimersByTime(120_000);
+    expect(FakeEventSource.instances.length).toBe(opened + 1);
+  });
+
+  it('TestRealtimeRenew_NotFound — signs out on a revoked session without trying to refresh it', async () => {
+    fetchMock.mockImplementation(() => answer(401, { code: 'TOKEN_REVOKED' }));
+    connect(client);
+    FakeEventSource.last().fail();
+
+    await vi.waitFor(() => expect(session.endSession).toHaveBeenCalledTimes(1));
+    expect(session.refreshSession).not.toHaveBeenCalled();
+  });
+
+  it('keeps the backoff, and leaves the session alone, on a failure that is not about auth', async () => {
+    fetchMock.mockImplementation(() => answer(503));
+    connect(client);
+    const opened = FakeEventSource.instances.length;
+    FakeEventSource.last().fail();
+    await vi.waitFor(() => expect(fetchMock).toHaveBeenCalled());
+    await Promise.resolve();
+
+    expect(client.getStatus().state).toBe('RECONNECTING');
+    vi.advanceTimersByTime(600);
+    expect(FakeEventSource.instances.length).toBe(opened + 1);
+    expect(session.refreshSession).not.toHaveBeenCalled();
+    expect(session.endSession).not.toHaveBeenCalled();
   });
 });

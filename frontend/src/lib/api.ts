@@ -87,6 +87,28 @@ const TOKEN_ERROR_CODES = new Set([
 // A revoked or invalid token is not recoverable and still goes to /login.
 const REFRESHABLE_CODES = new Set(['TOKEN_EXPIRED', 'UNAUTHORIZED']);
 
+/**
+ * Whether a 401 carrying this `code` can be recovered by a refresh. Shared with
+ * the realtime client (#701), which reads the same 401s from its probe.
+ */
+export function isRefreshableCode(code: unknown): boolean {
+  return typeof code === 'string' && REFRESHABLE_CODES.has(code);
+}
+
+/** Whether a 401 carrying this `code` means the session itself is over. */
+export function isSessionErrorCode(code: unknown): boolean {
+  return typeof code === 'string' && TOKEN_ERROR_CODES.has(code);
+}
+
+/**
+ * The one sign-out path for a session that cannot be recovered. The realtime
+ * client follows it too (#701), so a dead session ends the same way whichever
+ * transport noticed first.
+ */
+export function endSession(): void {
+  window.location.href = '/login';
+}
+
 // A single in-flight refresh shared by every request that 401s at once, so a
 // dashboard full of widgets that all expire together triggers ONE /auth/refresh,
 // not one per widget. Cleared when it settles so a later expiry can refresh
@@ -164,7 +186,7 @@ api.interceptors.response.use(
     // Retry at most once per request, and never for the refresh call itself.
     if (
       status === 401 &&
-      REFRESHABLE_CODES.has(code) &&
+      isRefreshableCode(code) &&
       original &&
       !original._retried &&
       !String(original.url ?? '').includes('/auth/refresh')
@@ -175,15 +197,15 @@ api.interceptors.response.use(
         return api(original); // replays with the refreshed token + cookies
       }
       // Refresh genuinely failed: the session is over, send them to login.
-      window.location.href = '/login';
+      endSession();
       return Promise.reject(error);
     }
 
     // A revoked or invalid token is not refreshable, and a request that is
     // still refused after its one refresh-and-replay is not either: go to
     // /login once, never loop.
-    if (status === 401 && TOKEN_ERROR_CODES.has(code)) {
-      window.location.href = '/login'; // Redirection forcée
+    if (status === 401 && isSessionErrorCode(code)) {
+      endSession();
     }
 
     // OR26-03 — the session is valid but the account's MFA grace period is over,

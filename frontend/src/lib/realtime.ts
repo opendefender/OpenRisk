@@ -26,6 +26,7 @@
 // change was. Treating the stream as the state is how two clients end up
 // disagreeing about the same record with no way to tell which is right.
 
+import { endSession, isRefreshableCode, isSessionErrorCode, refreshSession } from './api';
 import { getAccessToken } from './session';
 
 /**
@@ -131,6 +132,12 @@ class RealtimeClient {
   private started = false;
   /** Identifies the latest refusal probe, so a stale answer is ignored. */
   private probeSeq = 0;
+  /**
+   * Set once this client has renewed the session for a refused stream, and
+   * cleared by the next hello. A stream still refused right after its renewal
+   * cannot be saved by another one: that is the session ending, not expiring.
+   */
+  private renewedSinceHello = false;
 
   // -- public API ---------------------------------------------------------
 
@@ -154,6 +161,7 @@ class RealtimeClient {
   /** Closes the stream and forgets everything about it. */
   stop(): void {
     this.started = false;
+    this.renewedSinceHello = false;
     this.clearTimers();
     this.closeSource();
     this.setStatus({ state: 'DISCONNECTED', attempts: 0 });
@@ -280,6 +288,7 @@ class RealtimeClient {
     }
     if (hello.tenant_id) this.tenantId = hello.tenant_id;
 
+    this.renewedSinceHello = false;
     this.setStatus({ state: 'CONNECTED', attempts: 0, error: undefined });
   }
 
@@ -372,11 +381,18 @@ class RealtimeClient {
    * the scheduled reconnect is cancelled and the state becomes FORBIDDEN until
    * the session or the tenant changes (switchTenant) or the page reloads. Any
    * other answer, or no answer, leaves the backoff exactly as it was.
+   *
+   * A 401 is first read the way the axios interceptor reads it (#701). An
+   * access cookie that merely expired is renewed through the same shared
+   * refresh, and the stream reconnects at once; a session that cannot be
+   * renewed takes the same sign-out path. Without this, an idle page lost its
+   * live updates 15 minutes after the last click, refresh cookie still valid.
    */
   private async checkRefusal(): Promise<void> {
     const probe = ++this.probeSeq;
     const ctrl = new AbortController();
     let status = 0;
+    let code: unknown;
     let reason: string | undefined;
     try {
       const res = await fetch(this.streamUrl(false), {
@@ -387,7 +403,8 @@ class RealtimeClient {
       status = res.status;
       if (status === 401 || status === 403) {
         try {
-          const body = (await res.json()) as { error?: string; message?: string };
+          const body = (await res.json()) as { code?: unknown; error?: string; message?: string };
+          code = body.code;
           reason = body.message ?? body.error;
         } catch {
           reason = undefined;
@@ -405,8 +422,46 @@ class RealtimeClient {
     if (probe !== this.probeSeq || !this.started || this.status.state !== 'RECONNECTING') return;
     if (status !== 401 && status !== 403) return;
 
+    if (status === 401 && isRefreshableCode(code) && !this.renewedSinceHello) {
+      await this.renewSession();
+      return;
+    }
+    if (status === 401 && (isRefreshableCode(code) || isSessionErrorCode(code))) {
+      // Revoked, invalid, or still refused right after a renewal.
+      this.sessionEnded();
+      return;
+    }
+
     this.clearTimers();
     this.setStatus({ state: 'FORBIDDEN', error: reason ?? `HTTP ${status}` });
+  }
+
+  /**
+   * Renews the session for a stream refused with an expired credential, then
+   * reconnects. The backoff and the watchdog are cancelled first: the next
+   * attempt waits for the refresh instead of racing it, so a stream needs one
+   * /auth/refresh, not one per reconnect. refreshSession is the single flight
+   * axios uses, so a stream and a burst of API calls expiring together still
+   * refresh once.
+   */
+  private async renewSession(): Promise<void> {
+    this.renewedSinceHello = true;
+    this.clearTimers();
+    const ok = await refreshSession();
+    if (!this.started) return;
+    if (!ok) {
+      this.sessionEnded();
+      return;
+    }
+    this.connect();
+  }
+
+  /** The session cannot come back: stop for good and sign out like axios. */
+  private sessionEnded(): void {
+    this.clearTimers();
+    this.closeSource();
+    this.setStatus({ state: 'DISCONNECTED', error: undefined });
+    endSession();
   }
 
   private scheduleReconnect(attempts: number): void {
