@@ -59,6 +59,8 @@ pause that address for a bounded time; unknown and real addresses cost the same;
    "invalid_credentials email_sha256=<hex>"`; a refused-by-lock attempt carries
    `"login_locked email_sha256=<hex>"`. The hash is `domain.HashEmailForReset`
    (unsalted SHA-256, the function reset already uses). No migration.
+   *Since #879 (D-065):* HMAC-SHA256 under `AUDIT_HASH_KEY`, and the label is
+   `email_hmac=<hex>`.
 5. **Constant work:** the login use case hashes a fixed dummy password once at
    construction with the live hasher (current Argon2id params) and verifies the
    submitted password against it for unknown addresses. A disabled account is

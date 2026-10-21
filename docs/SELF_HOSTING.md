@@ -259,6 +259,24 @@ Fix the cause, then mark the last good version:
 
 Your `.env` and `secrets/` are preserved across upgrades.
 
+### Audit hash key (`AUDIT_HASH_KEY`)
+
+Since #879 the backend refuses to boot in production without `AUDIT_HASH_KEY`.
+It keys the hash of e-mail addresses in the sign-in audit trail and in the
+per-address limits (decision D-065). The log names the variable when it is
+missing. New installs get one from `install.sh`. On an install that predates
+it, add it once **before** `docker compose up`:
+
+```bash
+cd deploy/selfhost
+grep -qE '^AUDIT_HASH_KEY=.+' .env || echo "AUDIT_HASH_KEY=$(openssl rand -base64 32)" >> .env
+```
+
+Re-running `./scripts/install.sh` does the same. Keep the key: if you change
+it, audit entries from before the change can no longer be matched with those
+after it, and per-address counters in progress start again (at most one hour,
+one day for the sign-up alert). Every replica must have the same key.
+
 ### Password hashing
 
 Passwords are stored with Argon2id. The defaults are 64 MiB of memory,
@@ -322,7 +340,8 @@ docker buildx build --platform linux/amd64,linux/arm64 \
 A maintained chart lives in [`helm/openrisk`](../helm/openrisk) with
 `values-dev.yaml` / `values-staging.yaml` / `values-prod.yaml`. It schedules on
 ARM64 nodes when you provide ARM64 images (above). Provide the same secrets
-(`RSA_*`, `MFA_ENCRYPTION_KEY`, `SCANNER_CREDENTIAL_KEY`, `AUDIT_EXPORT_KEY`) and
+(`RSA_*`, `MFA_ENCRYPTION_KEY`, `SCANNER_CREDENTIAL_KEY`, `AUDIT_EXPORT_KEY`,
+`AUDIT_HASH_KEY`) and
 optional payment/telemetry env via the chart's `values` / a `Secret`.
 
 ## Integrations on a private network

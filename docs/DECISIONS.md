@@ -18,7 +18,7 @@ Nothing open.
 - `POST /auth/register` answers `409` with `EMAIL_ALREADY_REGISTERED`, compared on the normalised address. A username collision stays `USERNAME_TAKEN` (#687).
 - Per address, on top of the per-IP limit: 5 duplicate attempts per hour, then refusals for one hour with `429`, `Retry-After` and `REGISTER_RATE_LIMITED` (`backend/internal/application/auth/register_duplicates.go`).
 - The owner is emailed at most once per address per 24 h, in FR or EN, with links to sign in and to reset. The email has no attempted password and no requester data. A mail failure never changes the answer.
-- Every duplicate attempt is in `auth_audit_logs` (`action=register`, `success=false`, IP, user agent, `email_sha256=` in the reason, never the address in clear).
+- Every duplicate attempt is in `auth_audit_logs` (`action=register`, `success=false`, IP, user agent, the address hashed in the reason — `email_hmac=` since #879 — never in clear).
 **Reversible** — Yes. Going to the uniform answer means a confirmation-email step at sign-up and a decision on instances without SMTP.
 
 ### D-072 — Backend coverage gate: a 44% ratchet instead of a 50% line nobody met · decided 2026-10-15
@@ -208,6 +208,7 @@ meantime: the lock is bounded and the reset works.
 **Rationale (owner)** — Matches the recommendation: the trail keeps the "one address hammered from many IPs" signal and becomes useless for re-identification without the key.
 **Consequence** — #879 criterion 2: audit entries and the Redis lock keys use the keyed hash; the reset limiter may follow (only in-flight one-hour counters reset). Boot in production refuses a missing key with a message naming the variable; self-hosting docs list it. Rotating the key breaks correlation between periods of the trail, which the docs say.
 **Unblocked** — #879 criterion 2.
+**Applied** — #879 (2026-10-21): `domain.HashEmailForReset` is HMAC-SHA256 under `AUDIT_HASH_KEY`, so the audit trail (label `email_hmac=`), the Redis keys of the sign-in and sign-up limits, and the reset limiter all use it. Production boot refuses a missing key, or one under 32 characters (`backend/cmd/server/audit_hash_key_wiring.go`). The installer fills it on new and existing `.env` files; `docs/SELF_HOSTING.md` gives the upgrade step and says what rotation breaks. Entries written before the switch keep their plain SHA-256: they cannot be re-keyed without the addresses, and deleting audit data was not decided.
 
 **Raised by** — #688 (PR #874), tracked in #879. Every failed sign-in is audited with
 `email_sha256=<hex>`. Changing that hash means a server key, so a crypto design choice.
