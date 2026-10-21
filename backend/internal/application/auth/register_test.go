@@ -12,7 +12,9 @@ import (
 	"context"
 	"errors"
 	"strings"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -397,3 +399,66 @@ func TestRegister_UsernameTakenNeitherCountsNorAlerts(t *testing.T) {
 	assert.NotErrorIs(t, err, ErrEmailAlreadyRegistered)
 	assert.Empty(t, mailer.sent)
 }
+
+func TestRegister_DuplicateAlertConcurrentMailsOnce(t *testing.T) {
+	uc, _, _, _ := newDuplicateHarness(t)
+	mailer := &lockedDuplicateMailer{}
+	uc.duplicates.mailer = mailer
+
+	var wg sync.WaitGroup
+	for i := 0; i < 8; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			_, _ = uc.Execute(context.Background(), validInput())
+		}()
+	}
+	wg.Wait()
+
+	assert.Equal(t, 1, mailer.count())
+}
+
+func TestRegister_DuplicateStoreErrorStillConflicts(t *testing.T) {
+	uc, _, mailer, _ := newDuplicateHarness(t)
+	uc.duplicates.store = failingAttemptStore{}
+
+	_, err := uc.Execute(context.Background(), validInput())
+
+	// A broken store is a bug, not a reason to refuse sign-ups or to mail the
+	// owner on every attempt.
+	require.ErrorIs(t, err, ErrEmailAlreadyRegistered)
+	assert.Empty(t, mailer.sent)
+}
+
+type lockedDuplicateMailer struct {
+	mu sync.Mutex
+	n  int
+}
+
+func (m *lockedDuplicateMailer) SendDuplicateSignup(context.Context, string, string, string, string, string) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.n++
+	return nil
+}
+
+func (m *lockedDuplicateMailer) count() int {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.n
+}
+
+type failingAttemptStore struct{}
+
+var errStoreDown = errors.New("store down")
+
+func (failingAttemptStore) Increment(context.Context, string, time.Duration) (int64, error) {
+	return 0, errStoreDown
+}
+func (failingAttemptStore) Lock(context.Context, string, time.Duration) (bool, error) {
+	return false, errStoreDown
+}
+func (failingAttemptStore) LockedFor(context.Context, string) (time.Duration, error) {
+	return 0, errStoreDown
+}
+func (failingAttemptStore) Delete(context.Context, string) error { return errStoreDown }
