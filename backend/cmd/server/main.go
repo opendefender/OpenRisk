@@ -1217,15 +1217,22 @@ func main() {
 	// assignment never waits on a slow relay; the deadline sweep sends inline.
 	noticeInApp := notificationapp.NewUseCase(repository.NewNotificationRepository(database.DB))
 	noticeMailer := authmail.NewNoticeMailer(emailTransport, appBaseURL)
+	// Both share one throttle in Postgres (#997): at most one e-mail per
+	// recipient, notice type and resource per window, across replicas. The
+	// deadline reminders keep their own ledger and skip it.
+	noticeThrottle := repository.NewGormNoticeEmailThrottle(database.DB)
+	noticeWindow := noticeThrottleWindow()
 	noticeDispatcher := notificationapp.NewDispatcher(noticeInApp, noticeDirectory{members: ownershipMembers}).
 		WithEmail(noticeMailer, email.Delivers(emailTransport)).
-		WithLinks(noticeLink)
+		WithLinks(noticeLink).
+		WithThrottle(noticeThrottle, noticeWindow)
 	requestNoticeDispatcher := notificationapp.NewDispatcher(noticeInApp, noticeDirectory{members: ownershipMembers}).
 		WithEmail(noticeMailer, email.Delivers(emailTransport)).
 		WithLinks(noticeLink).
+		WithThrottle(noticeThrottle, noticeWindow).
 		InBackground(func(err error) {
 			zeroLogger.Warn().Err(err).Msg("notice: e-mail not delivered")
-		})
+		}, noticeMaxInFlight())
 	if !noticeDispatcher.EmailEnabled() {
 		log.Println("Notifications: e-mail disabled (no SMTP transport) — in-app only")
 	}
@@ -3450,6 +3457,14 @@ func main() {
 		log.Fatal("Forced shutdown:", err)
 	}
 
+	// Notice e-mails still sending in the background get a few seconds to
+	// finish; past that they are cancelled rather than cut by the exit (#997).
+	drainCtx, cancelDrain := context.WithTimeout(context.Background(), 10*time.Second)
+	if err := requestNoticeDispatcher.Drain(drainCtx); err != nil {
+		log.Println("Notifications: e-mails still sending at shutdown were cancelled")
+	}
+	cancelDrain()
+
 	log.Println("Server exited properly")
 }
 
@@ -3477,6 +3492,31 @@ func buildEmailTransport() email.Service {
 	}
 	log.Printf("Email: SMTP transport %s:%d", host, port)
 	return email.FromEnv(host, port, os.Getenv("SMTP_USERNAME"), os.Getenv("SMTP_PASSWORD"), from)
+}
+
+// noticeThrottleWindow reads NOTICE_EMAIL_THROTTLE_WINDOW, a Go duration
+// ("1h", "30m"). One hour by default; "0" turns the throttle off.
+func noticeThrottleWindow() time.Duration {
+	raw := strings.TrimSpace(os.Getenv("NOTICE_EMAIL_THROTTLE_WINDOW"))
+	if raw == "" {
+		return time.Hour
+	}
+	d, err := time.ParseDuration(raw)
+	if err != nil || d < 0 {
+		log.Printf("Notifications: NOTICE_EMAIL_THROTTLE_WINDOW=%q is not a duration — using 1h", raw)
+		return time.Hour
+	}
+	return d
+}
+
+// noticeMaxInFlight reads NOTICE_EMAIL_MAX_IN_FLIGHT, the number of notice
+// e-mails sent at once from request paths. 0 or unset keeps the default.
+func noticeMaxInFlight() int {
+	n, err := strconv.Atoi(strings.TrimSpace(os.Getenv("NOTICE_EMAIL_MAX_IN_FLIGHT")))
+	if err != nil || n < 0 {
+		return 0
+	}
+	return n
 }
 
 // memberDirectory adapts the tenant-scoped membership repository to the narrow

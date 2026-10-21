@@ -217,5 +217,8 @@ func schemaModels() []interface{} {
 		&domain.VendorAssessment{},
 		&domain.VendorAssessmentItem{},
 		&domain.VendorAssessmentToken{},
+		// Notice e-mail throttle (#997, migration 0081): one claim row per
+		// recipient, notice type and resource, shared by every replica.
+		&domain.NoticeEmailClaim{},
 	}
 }

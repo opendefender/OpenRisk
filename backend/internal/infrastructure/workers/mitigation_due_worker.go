@@ -45,10 +45,21 @@ type MitigationDueWorker struct {
 	notify   NotifyDueFunc
 	logger   zerolog.Logger
 	interval time.Duration
+	// budget bounds one sweep, every e-mail it sends included: a blackholed
+	// relay must not stretch a sweep into the next tick (#997).
+	budget time.Duration
 }
 
 func NewMitigationDueWorker(store MitigationDueStore, notify NotifyDueFunc, logger zerolog.Logger) *MitigationDueWorker {
-	return &MitigationDueWorker{store: store, notify: notify, logger: logger, interval: time.Hour}
+	return &MitigationDueWorker{store: store, notify: notify, logger: logger, interval: time.Hour, budget: 10 * time.Minute}
+}
+
+// WithBudget overrides the time one sweep may take (tests).
+func (w *MitigationDueWorker) WithBudget(d time.Duration) *MitigationDueWorker {
+	if d > 0 {
+		w.budget = d
+	}
+	return w
 }
 
 // WithInterval overrides the sweep cadence (tests).
@@ -77,7 +88,12 @@ func (w *MitigationDueWorker) Start(ctx context.Context) {
 
 // Sweep sends every reminder that is due right now. Exported so the boot path
 // and tests can drive one pass without a ticker.
+//
+// It stops when its budget is spent. Plans it did not reach are left
+// unstamped, so the next tick sends their reminder.
 func (w *MitigationDueWorker) Sweep(ctx context.Context) {
+	ctx, cancel := context.WithTimeout(ctx, w.budget)
+	defer cancel()
 	now := time.Now()
 	rows, err := w.store.ListDueForReminder(ctx, now)
 	if err != nil {
@@ -86,6 +102,13 @@ func (w *MitigationDueWorker) Sweep(ctx context.Context) {
 	}
 
 	for i := range rows {
+		// Before the stamp: a plan stamped and then not notified would lose its
+		// reminder for good.
+		if ctx.Err() != nil {
+			w.logger.Warn().Int("left_for_next_tick", len(rows)-i).
+				Msg("mitigation due: sweep budget spent — the remaining plans wait for the next tick")
+			return
+		}
 		m := rows[i]
 		offset, due := m.DueReminderDue(now)
 		if !due {
@@ -119,6 +142,8 @@ func (w *MitigationDueWorker) Sweep(ctx context.Context) {
 				Compose: func(locale string) domain.NoticeMessage {
 					return dueReminderCopy(&plan, offset, now, locale)
 				},
+				// The stamps above already send each reminder once.
+				Deduplicated: true,
 			})
 		}
 		w.logger.Info().

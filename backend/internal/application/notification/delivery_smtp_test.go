@@ -262,3 +262,70 @@ func TestNoticeDelivery_TitleCannotInjectHeaders(t *testing.T) {
 	require.NotContains(t, headers, "\nBcc:")
 	require.Contains(t, headers, "Subject: =?UTF-8?q?Due:_x=0D=0ABcc:")
 }
+
+// windowThrottle is the claim row's rule in memory: one e-mail per key per
+// window.
+type windowThrottle struct {
+	mu   sync.Mutex
+	rows map[domain.NoticeEmailClaim]time.Time
+}
+
+func (w *windowThrottle) Claim(_ context.Context, key domain.NoticeEmailClaim, window time.Duration) (*domain.NoticeEmailClaim, error) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if w.rows == nil {
+		w.rows = map[domain.NoticeEmailClaim]time.Time{}
+	}
+	if at, ok := w.rows[key]; ok && time.Since(at) < window {
+		return nil, nil
+	}
+	w.rows[key] = time.Now()
+	claim := key
+	claim.SentAt = w.rows[key]
+	return &claim, nil
+}
+
+func (w *windowThrottle) Release(context.Context, domain.NoticeEmailClaim) error { return nil }
+
+// #997 criterion 3 — with a throttle window of several days, D-7, D-1 and
+// "deadline passed" for the same plan still all reach the SMTP server.
+func TestNoticeDelivery_ThrottleKeepsEveryDeadlineReminder(t *testing.T) {
+	r := newRig(t)
+	r.dispatcher.WithThrottle(&windowThrottle{}, 30*24*time.Hour)
+	planID := uuid.New()
+	plan := func(days int, d7, d1 *time.Time) *memDueStore {
+		due := time.Now().AddDate(0, 0, days)
+		return &memDueStore{plans: []domain.Mitigation{{
+			ID: planID, TenantID: r.tenantA, Title: "Rotate keys",
+			Status: domain.MitigationInProgress, DueDate: &due,
+			ReminderD7SentAt: d7, ReminderD1SentAt: d1,
+			Ownership: domain.Ownership{AssigneeID: &r.alice},
+		}}}
+	}
+	sent := time.Now()
+	for _, store := range []*memDueStore{plan(5, nil, nil), plan(1, &sent, nil), plan(-1, &sent, &sent)} {
+		w := workers.NewMitigationDueWorker(store, func(ctx context.Context, n domain.Notice) {
+			require.NoError(t, r.dispatcher.Deliver(ctx, n))
+		}, zerolog.Nop())
+		w.Sweep(context.Background())
+	}
+
+	msgs := r.smtp.Messages()
+	require.Len(t, msgs, 3, "D-7, D-1 and passed all go out")
+	require.Contains(t, msgs[0].Data, "=?UTF-8?q?=C3=89ch=C3=A9ance_dans_5_jours")
+	require.Contains(t, msgs[1].Data, "=?UTF-8?q?=C3=89ch=C3=A9ance_demain")
+	require.Contains(t, msgs[2].Data, "Subject: Mitigation en retard : Rotate keys")
+
+	// An event-driven notice on the same plan is throttled as usual.
+	svc := ownership.NewService().WithDeliverer(r.dispatcher)
+	subject := domain.OwnershipSubject{ResourceType: "mitigation", ResourceID: planID, Title: "Rotate keys"}
+	for range 2 {
+		alice := r.alice
+		var block domain.Ownership
+		changes, err := svc.Apply(context.Background(), r.tenantA, &block,
+			domain.OwnershipPatch{Assignee: domain.NullableUUID{Present: true, Value: &alice}}, uuid.New())
+		require.NoError(t, err)
+		svc.Notify(context.Background(), r.tenantA, changes, subject)
+	}
+	require.Len(t, r.smtp.Messages(), 4, "the second assignment e-mail inside the window is held back")
+}

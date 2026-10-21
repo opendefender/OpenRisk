@@ -178,7 +178,7 @@ func TestDispatcherDeliver_InBackgroundReportsRedactedFailure(t *testing.T) {
 	f.mailer.err = errors.New("550 <Alice@Example.com> unknown")
 	f.mailer.done = make(chan struct{})
 	reported := make(chan error, 1)
-	f.dispatcher.InBackground(func(err error) { reported <- err })
+	f.dispatcher.InBackground(func(err error) { reported <- err }, 0)
 
 	require.NoError(t, f.dispatcher.Deliver(context.Background(), testNotice(f.tenantID, f.userID)),
 		"the caller does not wait on the relay")
