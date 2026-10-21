@@ -143,6 +143,18 @@ func main() {
 	// Initialisation de la Timezone (Important pour les logs/dates)
 	time.Local = time.UTC
 
+	// D-065 (#879): addresses in the auth audit trail and the per-address limits
+	// are hashed under a server key. Set before anything can hash one; a
+	// production server without the key refuses to boot.
+	auditKey, auditKeyWarning, err := auditHashKey(os.Getenv, middleware.IsProductionEnv())
+	if err != nil {
+		log.Fatalf("%v", err)
+	}
+	if auditKeyWarning != "" {
+		log.Println(auditKeyWarning)
+	}
+	domain.SetAddressHashKey(auditKey)
+
 	// Connexion Base de Données
 	database.Connect()
 
@@ -657,6 +669,23 @@ func main() {
 	// --- Sessions -------------------------------------------------------------
 	sessionRepo := repository.NewGormSessionRepository(database.DB)
 	passwordResetRepo := repository.NewGormPasswordResetRepository(database.DB)
+	// D-074 (#879): a reset request is only read inside the hourly cap's window
+	// and its link's life. Past both, the row holds nothing but the hash of an
+	// address someone typed, so it is deleted. Hourly, from every replica: the
+	// delete is idempotent.
+	go func() {
+		ticker := time.NewTicker(time.Hour)
+		defer ticker.Stop()
+		for {
+			cutoff := time.Now().Add(-domain.PasswordResetWindow)
+			if n, err := passwordResetRepo.DeleteExpiredBefore(context.Background(), cutoff); err != nil {
+				log.Printf("password reset purge error: %v", err)
+			} else if n > 0 {
+				log.Printf("password reset purge: deleted %d expired request(s)", n)
+			}
+			<-ticker.C
+		}
+	}()
 	oauthLinkRepo := repository.NewGormOAuthLinkRepository(database.DB)
 
 	// Initialize use cases. Login enforces MFA when the user has a verified secret,

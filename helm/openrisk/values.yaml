@@ -322,3 +322,6 @@ secrets:
     rsaPublicKey: ""
     oauth2ClientId: ""
     oauth2ClientSecret: ""
+    # Required (D-065): keys the hash of addresses in the auth audit trail.
+    # At least 32 characters, the same across upgrades.
+    auditHashKey: ""

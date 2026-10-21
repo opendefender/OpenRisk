@@ -93,6 +93,15 @@ else
   log ".env already present — keeping your configuration."
 fi
 
+# The audit hash key (D-065, #879) arrived after the first installs, and the
+# backend refuses to boot without it. Fill it on an existing .env too, once:
+# changing it later breaks the link between older and newer audit entries.
+# Any existing line counts, however it is written (`export`, leading spaces):
+# adding a second one could silently replace the key in use.
+if ! grep -qE '^[[:space:]]*(export[[:space:]]+)?AUDIT_HASH_KEY=[^[:space:]]' .env; then
+  set_kv AUDIT_HASH_KEY "$(rand_b64_32)"
+fi
+
 # The first administrator.
 #
 # APP_ENV is `production` in the self-hosted compose, and in production the

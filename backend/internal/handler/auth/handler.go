@@ -205,7 +205,7 @@ func (h *Handler) Login(c *fiber.Ctx) error {
 		// Every failure names the address it was against, hashed (#688): enough
 		// to see one address being hammered from many sources, without writing
 		// addresses that may not belong to any account into the audit trail.
-		addr := " email_sha256=" + domain.HashEmailForReset(req.Email)
+		addr := " email_hmac=" + domain.HashEmailForReset(req.Email)
 
 		var locked *auth.LoginLockedError
 		if errors.As(err, &locked) {
@@ -371,7 +371,7 @@ func (h *Handler) Register(c *fiber.Ctx) error {
 		// #686: every sign-up refused for a registered address is audited, with
 		// the address hashed — enough to see one address being probed from many
 		// sources, without writing it in clear.
-		addr := " email_sha256=" + domain.HashEmailForReset(req.Email)
+		addr := " email_hmac=" + domain.HashEmailForReset(req.Email)
 
 		var limited *auth.RegisterRateLimitedError
 		if errors.As(err, &limited) {

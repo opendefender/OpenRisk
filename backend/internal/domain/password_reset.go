@@ -6,9 +6,11 @@
 package domain
 
 import (
+	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/google/uuid"
@@ -43,7 +45,8 @@ const (
 type PasswordResetToken struct {
 	ID uuid.UUID `gorm:"type:uuid;default:gen_random_uuid();primaryKey" json:"id"`
 
-	// EmailHash is SHA-256 of the normalised address. Always set.
+	// EmailHash is the keyed hash of the normalised address (HashEmailForReset).
+	// Always set.
 	//
 	// Hashed rather than plain so this table is not a harvestable list of which
 	// addresses have accounts — and, for unknown addresses, not a log of what
@@ -94,10 +97,41 @@ func NormaliseEmail(email string) string {
 	return strings.ToLower(strings.TrimSpace(email))
 }
 
-// HashEmailForReset returns the rate-limit key for an address.
+// HashEmailForReset returns the keyed hash of an address: HMAC-SHA256 of the
+// normalised address under the server's AUDIT_HASH_KEY (D-065, #879).
+//
+// It keys the password-reset limiter, the sign-in and sign-up limits in Redis,
+// and the address written into the auth audit trail. It used to be a plain
+// SHA-256, which anyone holding the trail and a list of candidate addresses
+// could reverse by hashing each one. Under a key they do not hold, the trail
+// keeps the "one address hammered from many sources" signal and says nothing
+// about which address it was.
 func HashEmailForReset(email string) string {
-	sum := sha256.Sum256([]byte(NormaliseEmail(email)))
-	return hex.EncodeToString(sum[:])
+	mac := hmac.New(sha256.New, addressHashKey())
+	mac.Write([]byte(NormaliseEmail(email)))
+	return hex.EncodeToString(mac.Sum(nil))
+}
+
+// devAddressHashKey is used until SetAddressHashKey is called: by tests, and
+// by a development server started without AUDIT_HASH_KEY. Production refuses
+// to boot without a real key (cmd/server), so this never keys a real trail.
+var devAddressHashKey = []byte("openrisk-dev-audit-hash-key-not-a-secret")
+
+var configuredAddressHashKey atomic.Pointer[[]byte]
+
+// SetAddressHashKey installs the server key. main.go calls it once at boot,
+// before serving; every replica must be given the same key, or each one keys
+// the limits and the trail differently.
+func SetAddressHashKey(key []byte) {
+	k := append([]byte(nil), key...)
+	configuredAddressHashKey.Store(&k)
+}
+
+func addressHashKey() []byte {
+	if k := configuredAddressHashKey.Load(); k != nil && len(*k) > 0 {
+		return *k
+	}
+	return devAddressHashKey
 }
 
 // HashResetToken returns the stored form of a reset secret.

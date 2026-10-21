@@ -114,7 +114,7 @@ func TestRegisterDuplicate_ConflictThen429AndEveryAttemptIsAudited(t *testing.T)
 	require.NoError(t, f.db.Where("action = ?", string(coreauth.AuditActionRegister)).
 		Order("created_at").Find(&rows).Error)
 	require.Len(t, rows, appauth.RegisterMaxDuplicatesPerAddress+1)
-	hashed := "email_sha256=" + domain.HashEmailForReset(f.user.Email)
+	hashed := "email_hmac=" + domain.HashEmailForReset(f.user.Email)
 	for _, r := range rows {
 		assert.False(t, r.Success)
 		assert.Equal(t, "probe/1.0", r.UserAgent)
