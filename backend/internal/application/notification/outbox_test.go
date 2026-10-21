@@ -348,9 +348,81 @@ func TestOutboxBackoff(t *testing.T) {
 }
 
 func TestDigestMessage_English(t *testing.T) {
-	msg := DigestMessage([]domain.NoticeEmailEvent{event("Assigned"), event("Status changed")}, "", "risk", "en")
+	msg := DigestMessage([]domain.NoticeEmailEvent{event("Assigned"), event("Status changed")}, "", "risk", "en", nil)
 	require.Equal(t, "2 changes to “a risk”", msg.Subject)
 	require.Equal(t, "Latest: Status changed.", msg.Lines[len(msg.Lines)-1])
+}
+
+type stateReader struct {
+	state *domain.NoticeResourceState
+	err   error
+	asked []uuid.UUID // tenants asked
+}
+
+func (r *stateReader) NoticeResourceState(_ context.Context, tenantID uuid.UUID, _ string, _ uuid.UUID) (*domain.NoticeResourceState, error) {
+	r.asked = append(r.asked, tenantID)
+	return r.state, r.err
+}
+
+// The digest ends on the item as it stands when it is sent, not on the last
+// change it lists.
+func TestOutboxSender_DigestEndsOnCurrentState(t *testing.T) {
+	f := newSenderFixture()
+	progress := 40
+	due := time.Date(2026, 11, 12, 0, 0, 0, 0, time.UTC)
+	reader := &stateReader{state: &domain.NoticeResourceState{
+		Exists: true, Title: "Patch VPN (renommé)", MitigationStatus: domain.MitigationInProgress,
+		Progress: &progress, DueDate: &due, Owner: "Alice", Assignee: "Bob",
+	}}
+	f.sender.WithCurrentState(reader)
+	row := f.row(event("Affecté"), event("Désaffecté"), event("Réaffecté"))
+
+	require.NoError(t, f.sender.Send(context.Background(), row))
+	msg := f.mailer.sent[0].msg
+	require.Equal(t, "3 changements sur « Patch VPN (renommé) »", msg.Subject, "the current title")
+	require.Equal(t, []string{
+		"3 changements ont eu lieu sur « Patch VPN (renommé) » depuis le dernier e-mail à ce sujet :",
+		"1. Affecté", "2. Désaffecté", "3. Réaffecté",
+		"État actuel :",
+		"Statut : En cours",
+		"Avancement : 40 %",
+		"Échéance : 12/11/2026",
+		"Responsable : Alice",
+		"Exécutant : Bob",
+	}, msg.Lines)
+	require.Equal(t, []uuid.UUID{f.tenantID}, reader.asked, "read in the row's own tenant")
+}
+
+func TestOutboxSender_DigestSaysWhenTheItemIsGone(t *testing.T) {
+	f := newSenderFixture()
+	f.sender.WithCurrentState(&stateReader{state: &domain.NoticeResourceState{Exists: false}})
+	row := f.row(event("Affecté"), event("Désaffecté"))
+	row.Locale = "en"
+
+	require.NoError(t, f.sender.Send(context.Background(), row))
+	lines := f.mailer.sent[0].msg.Lines
+	require.Equal(t, "This item has since been deleted.", lines[len(lines)-1])
+}
+
+// The state cannot be read: the digest still goes out, ending on the latest
+// change. A single e-mail does not read the state at all.
+func TestOutboxSender_StateErrorStillSends(t *testing.T) {
+	f := newSenderFixture()
+	reader := &stateReader{err: errors.New("db down")}
+	f.sender.WithCurrentState(reader)
+
+	require.NoError(t, f.sender.Send(context.Background(), f.row(event("Affecté"), event("Désaffecté"))))
+	lines := f.mailer.sent[0].msg.Lines
+	require.Equal(t, "Le plus récent : Désaffecté.", lines[len(lines)-1])
+
+	require.NoError(t, f.sender.Send(context.Background(), f.row(event("Affecté"))))
+	require.Len(t, reader.asked, 1, "no state read for a single notice")
+}
+
+func TestDigestMessage_RiskStateAndNobodyAssigned(t *testing.T) {
+	msg := DigestMessage([]domain.NoticeEmailEvent{event("a"), event("b")}, "R", "risk", "en",
+		&domain.NoticeResourceState{Exists: true, Title: "R", RiskState: domain.StateInTreatment})
+	require.Equal(t, []string{"Current state:", "Stage: " + domain.StateInTreatment.Label("en"), "Assignee: nobody"}, msg.Lines[3:])
 }
 
 // --- Policy use cases ------------------------------------------------------

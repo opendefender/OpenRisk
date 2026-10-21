@@ -1224,7 +1224,8 @@ func main() {
 	noticeOutbox := repository.NewGormNoticeEmailOutbox(database.DB)
 	noticePolicies := repository.NewGormNoticeEmailPolicyRepository(database.DB)
 	noticeEmailWorker := workers.NewNoticeEmailWorker(
-		notificationapp.NewOutboxSender(noticeOutbox, noticeDirectory{members: ownershipMembers}, noticeInApp, noticeMailer, noticeLink),
+		notificationapp.NewOutboxSender(noticeOutbox, noticeDirectory{members: ownershipMembers}, noticeInApp, noticeMailer, noticeLink).
+			WithCurrentState(repository.NewGormNoticeResourceState(database.DB)),
 		noticeOutbox, noticeMaxInFlight(), zeroLogger)
 	reportNoticeEmail := func(err error) {
 		zeroLogger.Warn().Err(err).Msg("notice: e-mail not queued")

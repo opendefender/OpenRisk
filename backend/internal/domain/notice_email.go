@@ -164,3 +164,39 @@ type NoticeEmailOutbox struct {
 }
 
 func (NoticeEmailOutbox) TableName() string { return "notice_email_outbox" }
+
+// NoticeResourceState is an item as it stands when a digest is sent, so the
+// digest ends on the current state rather than on the last change it lists
+// (#997). People are named only while they are active members of the tenant.
+type NoticeResourceState struct {
+	// Exists is false when the item was deleted since the notices.
+	Exists bool
+	Title  string
+	// One of these is set, by kind of item.
+	RiskState        RiskState
+	MitigationStatus MitigationStatus
+	Progress         *int
+	DueDate          *time.Time
+	Owner            string
+	Assignee         string
+	Reviewer         string
+}
+
+// Label is the plan status as the plans board words it.
+func (s MitigationStatus) Label(locale string) string {
+	labels := map[MitigationStatus][2]string{
+		MitigationPlanned:    {"Planifiée", "Planned"},
+		MitigationInProgress: {"En cours", "In progress"},
+		MitigationReview:     {"En validation", "In review"},
+		MitigationDone:       {"Terminée", "Done"},
+		MitigationCancelled:  {"Annulée", "Cancelled"},
+	}
+	pair, ok := labels[s]
+	if !ok {
+		return string(s)
+	}
+	if locale == "en" {
+		return pair[1]
+	}
+	return pair[0]
+}

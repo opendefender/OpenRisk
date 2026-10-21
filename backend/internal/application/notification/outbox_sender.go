@@ -12,6 +12,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
+
 	"github.com/opendefender/openrisk/internal/domain"
 )
 
@@ -33,6 +35,12 @@ const (
 	OutboxLease = 2 * time.Minute
 )
 
+// ResourceStateReader reads an item as it stands, tenant-scoped
+// (repository.GormNoticeResourceState). nil, nil for a kind it does not know.
+type ResourceStateReader interface {
+	NoticeResourceState(ctx context.Context, tenantID uuid.UUID, resourceType string, resourceID uuid.UUID) (*domain.NoticeResourceState, error)
+}
+
 // ErrOutboxFailed reports a row marked failed after its last attempt. The
 // message carries the row's ids and the redacted reason, never an address.
 var ErrOutboxFailed = errors.New("notice e-mail failed after its last attempt")
@@ -46,8 +54,16 @@ type OutboxSender struct {
 	prefs     *UseCase
 	mailer    NoticeMailer
 	link      LinkFunc
+	state     ResourceStateReader
 	timeout   time.Duration
 	now       func() time.Time
+}
+
+// WithCurrentState makes each digest end on the item as it stands when the
+// digest is sent, read by reader.
+func (s *OutboxSender) WithCurrentState(reader ResourceStateReader) *OutboxSender {
+	s.state = reader
+	return s
 }
 
 func NewOutboxSender(store OutboxStore, directory RecipientDirectory, prefs *UseCase, mailer NoticeMailer, link LinkFunc) *OutboxSender {
@@ -94,7 +110,15 @@ func (s *OutboxSender) Send(ctx context.Context, row domain.NoticeEmailOutbox) e
 		return s.store.Close(keep, row, domain.NoticeEmailSkipped, "recipient turned this e-mail off")
 	}
 
-	msg := DigestMessage(events, row.ResourceTitle, row.ResourceType, row.Locale)
+	// A digest ends on the item as it stands now. If it cannot be read, the
+	// digest still goes out, ending on the latest change.
+	var current *domain.NoticeResourceState
+	if len(events) > 1 && s.state != nil && row.ResourceID != nil {
+		if st, err := s.state.NoticeResourceState(ctx, row.TenantID, row.ResourceType, *row.ResourceID); err == nil {
+			current = st
+		}
+	}
+	msg := DigestMessage(events, row.ResourceTitle, row.ResourceType, row.Locale, current)
 	link := ""
 	if s.link != nil {
 		link = s.link(row.ResourceType, row.ResourceID)
@@ -140,42 +164,87 @@ func OutboxBackoff(attempts int) time.Duration {
 	return d
 }
 
-// DigestMessage words the e-mail for a row. One event is sent as written. Several
-// become a digest that lists every change in order and names the latest, so
-// the reader is not left with an earlier state.
-func DigestMessage(events []domain.NoticeEmailEvent, title, resourceType, locale string) domain.NoticeMessage {
+// DigestMessage words the e-mail for a row. One event is sent as written.
+// Several become a digest that lists every change in order and ends on the
+// item's current state when it is known, else on the latest change.
+func DigestMessage(events []domain.NoticeEmailEvent, title, resourceType, locale string, current *domain.NoticeResourceState) domain.NoticeMessage {
 	if len(events) == 1 {
 		return domain.NoticeMessage{Subject: events[0].Subject, Lines: events[0].Lines}
 	}
-	last := events[len(events)-1]
-	latest := strings.Join(last.Lines, " ")
-	if latest == "" {
-		latest = last.Subject
-	}
 	en := locale == "en"
+	tr := func(fr, eng string) string {
+		if en {
+			return eng
+		}
+		return fr
+	}
 	name := strings.TrimSpace(title)
+	if current != nil && current.Exists && current.Title != "" {
+		name = current.Title
+	}
 	if name == "" {
 		name = itemLabel(resourceType, en)
 	}
 
-	var subject string
-	lines := make([]string, 0, len(events)+3)
-	if en {
-		subject = fmt.Sprintf("%d changes to “%s”", len(events), name)
-		lines = append(lines, fmt.Sprintf("%d changes were made to “%s” since the last e-mail about it:", len(events), name))
-	} else {
-		subject = fmt.Sprintf("%d changements sur « %s »", len(events), name)
-		lines = append(lines, fmt.Sprintf("%d changements ont eu lieu sur « %s » depuis le dernier e-mail à ce sujet :", len(events), name))
-	}
+	subject := fmt.Sprintf(tr("%d changements sur « %s »", "%d changes to “%s”"), len(events), name)
+	lines := make([]string, 0, len(events)+8)
+	lines = append(lines, fmt.Sprintf(tr(
+		"%d changements ont eu lieu sur « %s » depuis le dernier e-mail à ce sujet :",
+		"%d changes were made to “%s” since the last e-mail about it:"), len(events), name))
 	for i, ev := range events {
 		lines = append(lines, fmt.Sprintf("%d. %s", i+1, ev.Subject))
 	}
-	if en {
-		lines = append(lines, "Latest: "+latest)
-	} else {
-		lines = append(lines, "Le plus récent : "+latest)
+
+	switch {
+	case current != nil && !current.Exists:
+		lines = append(lines, tr("Cet élément a été supprimé depuis.", "This item has since been deleted."))
+	case current != nil:
+		lines = append(lines, tr("État actuel :", "Current state:"))
+		lines = append(lines, currentStateLines(current, locale, tr)...)
+	default:
+		last := events[len(events)-1]
+		latest := strings.Join(last.Lines, " ")
+		if latest == "" {
+			latest = last.Subject
+		}
+		lines = append(lines, tr("Le plus récent : ", "Latest: ")+latest)
 	}
 	return domain.NoticeMessage{Subject: subject, Lines: lines}
+}
+
+func currentStateLines(st *domain.NoticeResourceState, locale string, tr func(string, string) string) []string {
+	var out []string
+	switch {
+	case st.MitigationStatus != "":
+		out = append(out, tr("Statut : ", "Status: ")+st.MitigationStatus.Label(locale))
+	case st.RiskState != "":
+		out = append(out, tr("Étape : ", "Stage: ")+st.RiskState.Label(locale))
+	}
+	if st.Progress != nil {
+		out = append(out, fmt.Sprintf(tr("Avancement : %d %%", "Progress: %d%%"), *st.Progress))
+	}
+	if st.DueDate != nil {
+		layout := "02/01/2006"
+		if locale == "en" {
+			layout = "2006-01-02"
+		}
+		out = append(out, tr("Échéance : ", "Due: ")+st.DueDate.Format(layout))
+	}
+	nobody := tr("personne", "nobody")
+	or := func(v string) string {
+		if v == "" {
+			return nobody
+		}
+		return v
+	}
+	if st.Owner != "" {
+		out = append(out, tr("Responsable : ", "Owner: ")+st.Owner)
+	}
+	out = append(out, tr("Exécutant : ", "Assignee: ")+or(st.Assignee))
+	if st.Reviewer != "" {
+		out = append(out, tr("Validateur : ", "Reviewer: ")+st.Reviewer)
+	}
+	return out
 }
 
 func itemLabel(resourceType string, en bool) string {
