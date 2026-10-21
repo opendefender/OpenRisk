@@ -109,11 +109,18 @@ export function endSession(): void {
   window.location.href = '/login';
 }
 
+/**
+ * How a refresh ended. `refused` means the server answered and would not renew
+ * the session; `unreachable` means no answer came back, which says nothing
+ * about the session (#701).
+ */
+export type RefreshOutcome = 'renewed' | 'refused' | 'unreachable';
+
 // A single in-flight refresh shared by every request that 401s at once, so a
 // dashboard full of widgets that all expire together triggers ONE /auth/refresh,
 // not one per widget. Cleared when it settles so a later expiry can refresh
-// again. Returns whether a usable session was re-established.
-let refreshInFlight: Promise<boolean> | null = null;
+// again.
+let refreshInFlight: Promise<RefreshOutcome> | null = null;
 
 /**
  * Rotates the session from the refresh cookie and records the new access
@@ -122,6 +129,15 @@ let refreshInFlight: Promise<boolean> | null = null;
  * with one cookie read as token reuse and revoke the session.
  */
 export function refreshSession(): Promise<boolean> {
+  return refreshSessionOutcome().then((outcome) => outcome === 'renewed');
+}
+
+/**
+ * The same single flight as refreshSession, telling a refusal apart from a
+ * refresh that never reached the server. The realtime client renews in the
+ * background, so it must not sign a user out over a network blip (#701).
+ */
+export function refreshSessionOutcome(): Promise<RefreshOutcome> {
   if (!refreshInFlight) {
     // Bare axios (not `api`) so the refresh call never recurses through this
     // interceptor. Cookie-based: the HttpOnly refresh cookie authenticates it;
@@ -133,12 +149,14 @@ export function refreshSession(): Promise<boolean> {
         {},
         { withCredentials: true, headers: csrf ? { [CSRF_HEADER]: csrf } : {} },
       )
-      .then((res) => {
+      .then((res): RefreshOutcome => {
         const token = res.data?.token_pair?.access_token as string | undefined;
         if (token) setAccessToken(token);
-        return res.status === 200;
+        return res.status === 200 ? 'renewed' : 'refused';
       })
-      .catch(() => false);
+      .catch((err: unknown): RefreshOutcome =>
+        axios.isAxiosError(err) && !err.response ? 'unreachable' : 'refused',
+      );
     // Null it out once settled — regardless of outcome — so the NEXT expiry
     // starts a fresh refresh instead of reusing this resolved promise.
     void refreshInFlight.finally(() => {

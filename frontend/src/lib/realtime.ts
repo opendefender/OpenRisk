@@ -26,7 +26,13 @@
 // change was. Treating the stream as the state is how two clients end up
 // disagreeing about the same record with no way to tell which is right.
 
-import { endSession, isRefreshableCode, isSessionErrorCode, refreshSession } from './api';
+import {
+  endSession,
+  isRefreshableCode,
+  isSessionErrorCode,
+  refreshSessionOutcome,
+  type RefreshOutcome,
+} from './api';
 import { getAccessToken } from './session';
 
 /**
@@ -108,6 +114,15 @@ const DEDUP_WINDOW = 2_000;
 
 const API_BASE = import.meta.env.VITE_API_URL ?? '/api/v1';
 
+/**
+ * At most one session renewal per window (#701). An access token lives 15
+ * minutes, so a genuine expiry never comes back this fast. A stream refused
+ * again within the window was refused a credential minted moments ago, which
+ * is a session ending rather than expiring, and the bound also stops a server
+ * that keeps dropping the stream from driving a refresh per reconnect.
+ */
+const RENEWAL_WINDOW_MS = 60_000;
+
 class RealtimeClient {
   private source: EventSource | null = null;
   private status: RealtimeStatus = {
@@ -132,12 +147,12 @@ class RealtimeClient {
   private started = false;
   /** Identifies the latest refusal probe, so a stale answer is ignored. */
   private probeSeq = 0;
-  /**
-   * Set once this client has renewed the session for a refused stream, and
-   * cleared by the next hello. A stream still refused right after its renewal
-   * cannot be saved by another one: that is the session ending, not expiring.
-   */
-  private renewedSinceHello = false;
+  /** When this client last renewed the session for a refused stream (ms epoch). */
+  private lastRenewalAt = 0;
+  /** A renewal is in flight; reconnects wait for it rather than race it. */
+  private renewing = false;
+  /** Bumped by stop(), so a renewal that outlives its session is ignored. */
+  private epoch = 0;
 
   // -- public API ---------------------------------------------------------
 
@@ -161,7 +176,7 @@ class RealtimeClient {
   /** Closes the stream and forgets everything about it. */
   stop(): void {
     this.started = false;
-    this.renewedSinceHello = false;
+    this.epoch++;
     this.clearTimers();
     this.closeSource();
     this.setStatus({ state: 'DISCONNECTED', attempts: 0 });
@@ -189,7 +204,8 @@ class RealtimeClient {
     this.emitResync('tenant_changed');
     if (this.started) {
       this.setStatus({ state: 'RESYNCING', attempts: 0 });
-      this.connect();
+      // A renewal in flight reconnects when it lands, with the new credential.
+      if (!this.renewing) this.connect();
     }
   }
 
@@ -288,7 +304,6 @@ class RealtimeClient {
     }
     if (hello.tenant_id) this.tenantId = hello.tenant_id;
 
-    this.renewedSinceHello = false;
     this.setStatus({ state: 'CONNECTED', attempts: 0, error: undefined });
   }
 
@@ -420,14 +435,19 @@ class RealtimeClient {
 
     // Stale: a newer failure, a stop, or a connection that came back meanwhile.
     if (probe !== this.probeSeq || !this.started || this.status.state !== 'RECONNECTING') return;
+    if (this.renewing) return;
     if (status !== 401 && status !== 403) return;
 
-    if (status === 401 && isRefreshableCode(code) && !this.renewedSinceHello) {
+    if (
+      status === 401 &&
+      isRefreshableCode(code) &&
+      Date.now() - this.lastRenewalAt >= RENEWAL_WINDOW_MS
+    ) {
       await this.renewSession();
       return;
     }
     if (status === 401 && (isRefreshableCode(code) || isSessionErrorCode(code))) {
-      // Revoked, invalid, or still refused right after a renewal.
+      // Revoked, invalid, or refused again right after a renewal.
       this.sessionEnded();
       return;
     }
@@ -440,17 +460,31 @@ class RealtimeClient {
    * Renews the session for a stream refused with an expired credential, then
    * reconnects. The backoff and the watchdog are cancelled first: the next
    * attempt waits for the refresh instead of racing it, so a stream needs one
-   * /auth/refresh, not one per reconnect. refreshSession is the single flight
-   * axios uses, so a stream and a burst of API calls expiring together still
-   * refresh once.
+   * /auth/refresh, not one per reconnect. It is the single flight axios
+   * uses, so a stream and a burst of API calls expiring together still
+   * refresh once. A refresh that never reached the server says nothing about
+   * the session: the stream goes back to its backoff instead of signing out.
    */
   private async renewSession(): Promise<void> {
-    this.renewedSinceHello = true;
+    const epoch = this.epoch;
+    this.renewing = true;
+    this.lastRenewalAt = Date.now();
     this.clearTimers();
-    const ok = await refreshSession();
-    if (!this.started) return;
-    if (!ok) {
+    let outcome: RefreshOutcome;
+    try {
+      outcome = await refreshSessionOutcome();
+    } finally {
+      this.renewing = false;
+    }
+    if (epoch !== this.epoch || !this.started) return;
+
+    if (outcome === 'refused') {
       this.sessionEnded();
+      return;
+    }
+    if (outcome === 'unreachable') {
+      this.lastRenewalAt = 0;
+      this.scheduleReconnect(Math.max(this.status.attempts, 1));
       return;
     }
     this.connect();
@@ -476,7 +510,8 @@ class RealtimeClient {
   }
 
   private handleOnline = (): void => {
-    if (!this.started) return;
+    // A renewal in flight reconnects when it lands, with the new credential.
+    if (!this.started || this.renewing) return;
     // The network came back; there is nothing to wait for.
     this.clearReconnect();
     this.setStatus({ state: 'RECONNECTING' });
