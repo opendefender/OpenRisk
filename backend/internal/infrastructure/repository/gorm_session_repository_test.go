@@ -192,3 +192,42 @@ func TestHasSeenDevice(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, seen)
 }
+
+func TestHasLiveSession(t *testing.T) {
+	repo := setupSessionRepo(t)
+	ctx := context.Background()
+	me, stranger := uuid.New(), uuid.New()
+	future, past := time.Now().Add(time.Hour), time.Now().Add(-time.Hour)
+
+	family := func(user uuid.UUID, expires time.Time, rotated bool) uuid.UUID {
+		id, fam := uuid.New(), uuid.New()
+		var rotatedAt any
+		if rotated {
+			rotatedAt = time.Now()
+		}
+		require.NoError(t, repo.db.Exec(
+			`INSERT INTO refresh_tokens (id, user_id, tenant_id, family_id, token_hash, expires_at, rotated_at, created_at, updated_at)
+			 VALUES (?,?,?,?,?,?,?,?,?)`,
+			id.String(), user.String(), uuid.New().String(), fam.String(), "h-"+id.String(), expires, rotatedAt, time.Now(), time.Now(),
+		).Error)
+		return fam
+	}
+
+	cases := map[string]struct {
+		family uuid.UUID
+		want   bool
+	}{
+		"live":               {family(me, future, false), true},
+		"only a spent token": {family(me, future, true), false},
+		"expired":            {family(me, past, false), false},
+		"someone else's":     {family(stranger, future, false), false},
+		"never existed":      {uuid.New(), false},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got, err := repo.HasLiveSession(ctx, me, tc.family)
+			require.NoError(t, err)
+			assert.Equal(t, tc.want, got)
+		})
+	}
+}

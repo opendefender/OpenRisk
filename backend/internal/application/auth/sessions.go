@@ -37,6 +37,9 @@ type SessionRepository interface {
 	// RevokeAllExceptFamily signs out every device but the session named by
 	// an access token's sid claim. Both revocations return live sessions only.
 	RevokeAllExceptFamily(ctx context.Context, userID, keepFamily uuid.UUID) (int64, error)
+	// HasLiveSession reports whether the user still holds a live session in
+	// that family.
+	HasLiveSession(ctx context.Context, userID, family uuid.UUID) (bool, error)
 	// HasSeenDevice reports whether this user has signed in from a fingerprint
 	// before — the signal behind the new-device alert.
 	HasSeenDevice(ctx context.Context, userID uuid.UUID, fingerprint string) (bool, error)
@@ -189,6 +192,16 @@ func (uc *RevokeOtherSessionsUseCase) Execute(ctx context.Context, in RevokeOthe
 
 	out := &RevokeOtherSessionsOutput{}
 	if in.CurrentSession != uuid.Nil {
+		// A revoked session's access token stays valid until it expires. Its
+		// sid then names nothing, and keeping "nothing" would sign out every
+		// device, the owner who revoked it included (#1059).
+		live, err := uc.sessions.HasLiveSession(ctx, in.UserID, in.CurrentSession)
+		if err != nil {
+			return nil, fmt.Errorf("failed to check the current session: %w", err)
+		}
+		if !live {
+			return nil, domain.NewUnauthorizedError("this session has been signed out")
+		}
 		n, err := uc.sessions.RevokeAllExceptFamily(ctx, in.UserID, in.CurrentSession)
 		if err != nil {
 			return nil, fmt.Errorf("failed to revoke sessions: %w", err)
