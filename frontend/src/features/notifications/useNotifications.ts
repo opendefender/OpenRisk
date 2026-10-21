@@ -4,7 +4,11 @@
 // React Query bindings for the notification bell.
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { notificationService, type NotificationPreferencePatch } from './notificationService';
+import {
+  notificationService,
+  type NoticeEmailPolicy,
+  type NotificationPreferencePatch,
+} from './notificationService';
 
 const NOTIF_KEY = ['notifications'];
 const UNREAD_KEY = ['notifications', 'unread-count'];
@@ -91,5 +95,46 @@ export function useUpdateNotificationPreferences() {
     // refetching: what renders afterwards is what the server holds, not what
     // the client hoped it would hold.
     onSuccess: (saved) => qc.setQueryData(NOTIF_PREFS_KEY, saved),
+  });
+}
+
+/* -------------------------------------------------------------------------- */
+/* Organization e-mail policy (#997)                                          */
+/* -------------------------------------------------------------------------- */
+
+export const NOTICE_EMAIL_POLICY_KEY = ['notifications', 'email-policy'];
+
+export function useNoticeEmailPolicy() {
+  return useQuery({
+    queryKey: NOTICE_EMAIL_POLICY_KEY,
+    queryFn: () => notificationService.getEmailPolicy(),
+    staleTime: 60_000,
+  });
+}
+
+/**
+ * Optimistic: the chosen window shows at once, and the previous one comes back
+ * if the server refuses. The server's answer then replaces the guess.
+ */
+export function useSaveNoticeEmailPolicy() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (windowMinutes: number) => notificationService.updateEmailPolicy(windowMinutes),
+    onMutate: async (windowMinutes) => {
+      await qc.cancelQueries({ queryKey: NOTICE_EMAIL_POLICY_KEY });
+      const previous = qc.getQueryData<NoticeEmailPolicy>(NOTICE_EMAIL_POLICY_KEY);
+      if (previous) {
+        qc.setQueryData<NoticeEmailPolicy>(NOTICE_EMAIL_POLICY_KEY, {
+          ...previous,
+          window_minutes: windowMinutes,
+          configured: true,
+        });
+      }
+      return { previous };
+    },
+    onError: (_err, _windowMinutes, ctx) => {
+      if (ctx?.previous) qc.setQueryData(NOTICE_EMAIL_POLICY_KEY, ctx.previous);
+    },
+    onSuccess: (saved) => qc.setQueryData(NOTICE_EMAIL_POLICY_KEY, saved),
   });
 }
