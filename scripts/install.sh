@@ -96,6 +96,14 @@ fi
 # The audit hash key (D-065, #879) arrived after the first installs, and the
 # backend refuses to boot without it. Fill it on an existing .env too, once:
 # changing it later breaks the link between older and newer audit entries.
+# MFA_ENCRYPTION_KEY has always been generated here, but a hand-made .env may
+# lack it, and production now refuses to boot without it (#1062). Filled only
+# when absent: secrets encrypted without a key are moved onto it at boot, and
+# an existing key must never change.
+if ! grep -qE '^[[:space:]]*(export[[:space:]]+)?MFA_ENCRYPTION_KEY=[^[:space:]]' .env; then
+  set_kv MFA_ENCRYPTION_KEY "$(rand_hex 32)"
+fi
+
 # Any existing line counts, however it is written (`export`, leading spaces):
 # adding a second one could silently replace the key in use.
 if ! grep -qE '^[[:space:]]*(export[[:space:]]+)?AUDIT_HASH_KEY=[^[:space:]]' .env; then

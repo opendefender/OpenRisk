@@ -56,13 +56,11 @@ spec:
           value: {{ $value | quote }}
         {{- end }}
         {{- end }}
-        {{- if include "openrisk.mfaEncryptionKey" . }}
         - name: MFA_ENCRYPTION_KEY
           valueFrom:
             secretKeyRef:
               name: openrisk-secrets
               key: mfa-encryption-key
-        {{- end }}
         - name: DATABASE_URL
           valueFrom:
             secretKeyRef:

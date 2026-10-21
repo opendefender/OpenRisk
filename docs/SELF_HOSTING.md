@@ -272,7 +272,10 @@ cd deploy/selfhost
 grep -qE '^AUDIT_HASH_KEY=.+' .env || echo "AUDIT_HASH_KEY=$(openssl rand -base64 32)" >> .env
 ```
 
-Re-running `./scripts/install.sh` does the same. Keep the key: if you change
+Re-running `./scripts/install.sh` does the same. The same goes for `MFA_ENCRYPTION_KEY`
+(#1062), which the installer has always generated: an `.env` written by hand
+without it gets one, and two-factor secrets encrypted before it existed are
+re-encrypted with it at boot. Keep the key: if you change
 it, audit entries from before the change can no longer be matched with those
 after it, and per-address counters in progress start again (at most one hour,
 one day for the sign-up alert). Every replica must have the same key.
@@ -283,7 +286,12 @@ With Helm, pass it as `--set secrets.inline.auditHashKey=...` (or in your
 values file).
 
 The MFA key goes the same way: `secrets.inline.mfaEncryptionKey`, stored in the
-`openrisk-secrets` Secret rather than in clear in the Deployment (#1057). A
+`openrisk-secrets` Secret rather than in clear in the Deployment (#1057). It is
+required (#1062): the render fails without it, and the backend refuses to boot
+in production without it or with the public development value. If you never
+set one, set any new random secret: at boot, two-factor secrets that were
+encrypted with the development key are re-encrypted with yours, and nobody has
+to enrol again. A
 values file that still sets `backend.env.MFA_ENCRYPTION_KEY` keeps working, and
 its value moves into the Secret on the next upgrade. Move it to the new place
 with **the same value**: once anyone has enrolled two-factor, a different key
