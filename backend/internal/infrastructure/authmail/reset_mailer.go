@@ -107,6 +107,18 @@ func (m *Mailer) SendMFALocked(ctx context.Context, to, fullName, locale string)
 	return m.sender.SendEmail(ctx, to, c.subject, m.render(c))
 }
 
+// SendDuplicateSignup tells the owner of an address that someone tried to
+// create an account with it (#686). It names nothing about the requester and
+// no attempted password: the owner learns that it happened and where to go if
+// it was them.
+func (m *Mailer) SendDuplicateSignup(ctx context.Context, to, fullName, signInURL, resetURL, locale string) error {
+	if m == nil || m.sender == nil {
+		return nil
+	}
+	c := duplicateSignupCopy(locale, displayName(fullName, locale), signInURL, resetURL)
+	return m.sender.SendEmail(ctx, to, c.subject, m.render(c))
+}
+
 // SendNewSignInAlert warns about a sign-in from an unrecognised device.
 func (m *Mailer) SendNewSignInAlert(ctx context.Context, to, fullName, ip, userAgent string, when time.Time, locale string) error {
 	if m == nil || m.sender == nil {
@@ -127,6 +139,9 @@ type copyBlock struct {
 	paragraphs []string
 	ctaLabel   string
 	ctaURL     string
+	// secondary is an optional second link, shown as a plain link under the
+	// button: a label and a URL.
+	secondary [2]string
 	// facts is an optional label/value list (used by the sign-in alert).
 	facts [][2]string
 	// footnote closes the message; typically the "if this wasn't you" line.
@@ -281,6 +296,37 @@ func mfaLockedCopy(locale, name string) copyBlock {
 	}
 }
 
+func duplicateSignupCopy(locale, name, signInURL, resetURL string) copyBlock {
+	if locale == "en" {
+		return copyBlock{
+			subject: "Someone tried to create an OpenRisk account with your address",
+			heading: "An account already exists for your address",
+			paragraphs: []string{
+				fmt.Sprintf("Hello %s,", name),
+				"Someone just tried to create a new OpenRisk account with your email address. Your account already uses it, so no account was created and nothing in yours changed.",
+				"If it was you, sign in with your existing account. If you no longer know your password, reset it.",
+			},
+			ctaLabel:  "Sign in",
+			ctaURL:    signInURL,
+			secondary: [2]string{"Reset my password", resetURL},
+			footnote:  "If it wasn't you, you have nothing to do: your account was not opened. You will not get this message again for this address in the next 24 hours.",
+		}
+	}
+	return copyBlock{
+		subject: "Quelqu'un a tenté de créer un compte OpenRisk avec votre adresse",
+		heading: "Un compte existe déjà pour votre adresse",
+		paragraphs: []string{
+			fmt.Sprintf("Bonjour %s,", name),
+			"Quelqu'un vient d'essayer de créer un nouveau compte OpenRisk avec votre adresse e-mail. Votre compte l'utilise déjà : aucun compte n'a été créé et rien n'a changé dans le vôtre.",
+			"Si c'était vous, connectez-vous avec votre compte existant. Si vous ne connaissez plus votre mot de passe, réinitialisez-le.",
+		},
+		ctaLabel:  "Se connecter",
+		ctaURL:    signInURL,
+		secondary: [2]string{"Réinitialiser mon mot de passe", resetURL},
+		footnote:  "Si ce n'était pas vous, vous n'avez rien à faire : votre compte n'a pas été ouvert. Vous ne recevrez plus ce message pour cette adresse pendant 24 heures.",
+	}
+}
+
 func newSignInCopy(locale, name, ip, userAgent string, when time.Time) copyBlock {
 	stamp := when.UTC().Format("2006-01-02 15:04 UTC")
 	if locale == "en" {
@@ -347,6 +393,12 @@ func (m *Mailer) render(c copyBlock) string {
 		safeURL := html.EscapeString(c.ctaURL)
 		b.WriteString(`<p style="margin:24px 0"><a href="` + safeURL + `" style="display:inline-block;background:#2f6df6;color:#fff;text-decoration:none;padding:12px 22px;border-radius:10px;font-weight:600;font-size:15px">` + html.EscapeString(c.ctaLabel) + `</a></p>`)
 		// Clients that strip buttons still need the link reachable.
+		b.WriteString(`<p style="margin:0 0 14px;font-size:12.5px;color:#61656e;word-break:break-all">` + safeURL + `</p>`)
+	}
+
+	if c.secondary[1] != "" {
+		safeURL := html.EscapeString(c.secondary[1])
+		b.WriteString(`<p style="margin:0 0 14px;font-size:14px"><a href="` + safeURL + `" style="color:#2f6df6;font-weight:600">` + html.EscapeString(c.secondary[0]) + `</a></p>`)
 		b.WriteString(`<p style="margin:0 0 14px;font-size:12.5px;color:#61656e;word-break:break-all">` + safeURL + `</p>`)
 	}
 

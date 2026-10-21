@@ -9,6 +9,18 @@ Nothing open.
 
 ## Resolved
 
+### D-073 — Sign-up with an address that already has an account: say so, protect the account · decided 2026-09-15
+**Decided (owner)** — Tell the person plainly that an account already exists, offer sign-in and password reset with the address prefilled, and protect the account.
+**Rejected** — The same "check your inbox" answer for every address, plus an email to confirm every new account. It removes the instant sign-in at registration, and it makes sign-up impossible on an instance without SMTP.
+**Cost, stated** — Whether an address is registered can still be found out. The per-address limit stops one address being probed again and again, and the owner is told when it happens. Testing many addresses once each is bounded only by the per-IP limit (10 per 15 min). A taken `username` is checked before the address, so it answers the same whatever the address and cannot be used to test one (fixed after the #686 security review).
+**Known limit** — If Redis is down, each replica counts and claims the alert on its own: up to N×5 attempts an hour and N alerts a day on N replicas. The #688 sign-in lock behaves the same way.
+**Applied** — #686:
+- `POST /auth/register` answers `409` with `EMAIL_ALREADY_REGISTERED`, compared on the normalised address. A username collision stays `USERNAME_TAKEN` (#687).
+- Per address, on top of the per-IP limit: 5 duplicate attempts per hour, then refusals for one hour with `429`, `Retry-After` and `REGISTER_RATE_LIMITED` (`backend/internal/application/auth/register_duplicates.go`).
+- The owner is emailed at most once per address per 24 h, in FR or EN, with links to sign in and to reset. The email has no attempted password and no requester data. A mail failure never changes the answer.
+- Every duplicate attempt is in `auth_audit_logs` (`action=register`, `success=false`, IP, user agent, `email_sha256=` in the reason, never the address in clear).
+**Reversible** — Yes. Going to the uniform answer means a confirmation-email step at sign-up and a decision on instances without SMTP.
+
 ### D-072 — Backend coverage gate: a 44% ratchet instead of a 50% line nobody met · decided 2026-10-15
 **Decided** — Option B. The backend coverage gate is a floor at 44.0%, compared to one decimal. It is raised by hand whenever coverage goes up, and never lowered without a decision here.
 **Rationale (owner)** — Matches the recommendation. A gate that fails on every run protects nothing: a drop from 44% to 30% would have looked the same as today. The floor catches every drop from now on, and 50% stays as a goal to reach rather than a failure nobody reads.
