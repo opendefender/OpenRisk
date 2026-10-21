@@ -1,17 +1,15 @@
 {
-  "total": 96,
+  "total": 80,
   "rules": {
-    "@typescript-eslint/no-unused-vars": 27,
-    "@typescript-eslint/no-explicit-any": 21,
-    "react-hooks/preserve-manual-memoization": 12,
+    "@typescript-eslint/no-unused-vars": 23,
+    "@typescript-eslint/no-explicit-any": 15,
     "react-hooks/set-state-in-effect": 12,
+    "react-hooks/preserve-manual-memoization": 8,
     "react-refresh/only-export-components": 8,
     "react-hooks/static-components": 6,
     "react-hooks/purity": 3,
     "prefer-const": 2,
-    "@typescript-eslint/ban-ts-comment": 1,
     "@typescript-eslint/no-unused-expressions": 1,
-    "no-empty": 1,
     "react-hooks/refs": 1,
     "react-hooks/rules-of-hooks": 1
   }

@@ -157,10 +157,6 @@ interface RiskStore {
   importRisks: (file: File) => Promise<void>;
   exportRisks: (params?: Record<string, any>) => Promise<Blob>;
 
-  // realtime
-  startSSE: (url?: string) => void;
-  stopSSE: () => void;
-
   fetchRisks: (params?: RiskFetchParams & { page?: number; limit?: number }) => Promise<void>;
   createRisk: (payload: any) => Promise<void>;
   updateRisk: (id: string, payload: any) => Promise<void>;
@@ -378,68 +374,10 @@ export const useRiskStore = create<RiskStore>((set, get) => ({
       throw err;
     }
   },
-
-  // SSE realtime support
-  startSSE: (url = '/api/v1/risks/events') => {
-    // avoid multiple event sources
-    // store eventSource on closure
-    // @ts-ignore - keep internal ref
-    if ((get() as any)._es) return;
-    try {
-      const es = new EventSource(url);
-      (set as any)((state: unknown) => state); // noop to satisfy linter
-      // save reference
-      (get() as any)._es = es;
-      es.onmessage = (evt) => {
-        try {
-          const payload = JSON.parse(evt.data);
-          const type = payload.type || payload.event || '';
-          const data = payload.data || payload;
-          if (type === 'risk.created') {
-            set((state) => ({ risks: [data, ...state.risks], total: state.total + 1 }));
-          } else if (type === 'risk.updated' || type === 'risk.score_updated') {
-            set((state) => ({
-              risks: state.risks.map((r) => (r.id === data.id ? { ...r, ...data } : r)),
-            }));
-          } else if (type === 'risk.deleted') {
-            set((state) => ({
-              risks: state.risks.filter((r) => r.id !== data.id),
-              total: Math.max(0, state.total - 1),
-            }));
-          }
-        } catch (e) {
-          // ignore parse errors
-        }
-      };
-      es.onerror = () => {
-        // close on error to avoid retry storms
-        try {
-          es.close();
-        } catch {}
-        (get() as any)._es = null;
-      };
-    } catch (err) {
-      console.error('startSSE failed', err);
-    }
-  },
-
-  stopSSE: () => {
-    try {
-      const ref = (get() as any)._es as EventSource | undefined | null;
-      if (ref) {
-        ref.close();
-        (get() as any)._es = null;
-      }
-    } catch (err) {
-      console.error('stopSSE failed', err);
-    }
-  },
 }));
 
 // The register holds one tenant's risks. Signing out — or in as somebody else —
-// must not leave them on screen for the next person (W0-05 / D9). The SSE stream
-// is torn down first: a live connection opened under the previous session would
-// otherwise keep pushing into the cleared store.
-registerTenantStore(useRiskStore, { ...RISK_STORE_INITIAL }, () =>
-  useRiskStore.getState().stopSSE(),
-);
+// must not leave them on screen for the next person (W0-05 / D9). Live updates
+// come from the shared realtime client (lib/realtime.ts), which the session
+// scope tears down on its own.
+registerTenantStore(useRiskStore, { ...RISK_STORE_INITIAL });
