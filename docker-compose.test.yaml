@@ -66,6 +66,8 @@ services:
       REDIS_URL: redis://test_redis:6379/0
       ENVIRONMENT: test
       API_PORT: 8081
+      # No APP_ENV here, so the backend runs as production and needs a key (D-065).
+      AUDIT_HASH_KEY: test-audit-hash-key-not-for-production-use
     ports:
       - "8081:8081"
     depends_on:
