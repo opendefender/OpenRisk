@@ -32,7 +32,7 @@ import (
 )
 
 // ---------------------------------------------------------------------------
-// #727 — "sign out other devices" through the real HTTP stack: the auth
+// #727 — the session list and "sign out other devices" through the real HTTP stack: the auth
 // middleware, the session handler, the GORM session projection, the token
 // manager and the refresh handler, mounted as main.go mounts them.
 //
@@ -45,6 +45,7 @@ type sessionStack struct {
 	app    *fiber.App
 	db     *gorm.DB
 	tokens *coreauth.TokenManager
+	keys   *authpkg.RSAKeys
 	userID uuid.UUID
 	orgID  uuid.UUID
 }
@@ -71,7 +72,7 @@ func newSessionStack(t *testing.T) *sessionStack {
 	require.NoError(t, err)
 	keys := &authpkg.RSAKeys{PrivateKey: priv, PublicKey: &priv.PublicKey}
 
-	s := &sessionStack{db: db, userID: uuid.New(), orgID: uuid.New()}
+	s := &sessionStack{db: db, keys: keys, userID: uuid.New(), orgID: uuid.New()}
 	s.tokens = coreauth.NewTokenManager(db, keys)
 	// What main.go's org resolver derives from an active membership, reduced to
 	// the one account these tests use.
@@ -166,15 +167,106 @@ func browserCookies(pair *coreauth.TokenPair) map[string]string {
 
 var browserHeaders = map[string]string{middleware.CSRFHeader: "csrf-727"}
 
-// Criterion 1: the other device is signed out, the caller is not.
+// legacyAccessToken is an access token minted before the sid claim existed,
+// still valid for up to AccessTokenTTL after the deploy that adds it.
+func (s *sessionStack) legacyAccessToken(t *testing.T) *coreauth.TokenPair {
+	t.Helper()
+	token, _, err := authpkg.GenerateAccessToken(s.keys, s.userID, s.orgID,
+		map[uuid.UUID]string{s.orgID: "user"}, nil, nil, coreauth.AccessTokenTTL)
+	require.NoError(t, err)
+	return &coreauth.TokenPair{AccessToken: token}
+}
+
+// rotate refreshes a device the way the browser does and returns its new pair,
+// leaving a spent row behind for reuse detection.
+func (s *sessionStack) rotate(t *testing.T, pair *coreauth.TokenPair) *coreauth.TokenPair {
+	t.Helper()
+	res := s.refresh(t, pair.RefreshToken)
+	require.Equal(t, http.StatusOK, res.status, res.body)
+	access, refresh := res.cookies[middleware.AccessTokenCookie], res.cookies[middleware.RefreshTokenCookie]
+	require.NotNil(t, access)
+	require.NotNil(t, refresh)
+	return &coreauth.TokenPair{AccessToken: access.Value, RefreshToken: refresh.Value}
+}
+
+// listSessions is GET /auth/sessions as the browser sends it: access cookie
+// only, never the refresh cookie.
+func (s *sessionStack) listSessions(t *testing.T, pair *coreauth.TokenPair) []map[string]any {
+	t.Helper()
+	res := s.send(t, http.MethodGet, "/api/v1/auth/sessions",
+		map[string]string{middleware.AccessTokenCookie: pair.AccessToken}, nil)
+	require.Equal(t, http.StatusOK, res.status, res.body)
+	raw, ok := res.body["sessions"].([]any)
+	require.True(t, ok, "sessions: %v", res.body)
+	out := make([]map[string]any, 0, len(raw))
+	for _, r := range raw {
+		out = append(out, r.(map[string]any))
+	}
+	return out
+}
+
+func currentDevices(sessions []map[string]any) []string {
+	var devices []string
+	for _, row := range sessions {
+		if row["current"] == true {
+			devices = append(devices, row["user_agent"].(string))
+		}
+	}
+	return devices
+}
+
+// Criterion 1: the other device is signed out, the caller is not, and keeps
+// the very session it had.
 func TestRevokeOtherSessionsE2E_BrowserCallerStaysSignedIn(t *testing.T) {
 	s := newSessionStack(t)
-	laptop := s.signIn(t, "laptop")
+	laptop := s.rotate(t, s.signIn(t, "laptop"))
 	phone := s.signIn(t, "phone")
 
 	// The browser sends the access cookie here; the refresh cookie's Path keeps
-	// it off this route.
+	// it off this route. The access token's sid names the laptop's session.
 	res := s.send(t, http.MethodDelete, "/api/v1/auth/sessions/others", browserCookies(laptop), browserHeaders)
+	require.Equal(t, http.StatusOK, res.status, res.body)
+	assert.Equal(t, false, res.body["reauthenticate"])
+	assert.EqualValues(t, 1, res.body["revoked"], "the phone, and nothing else")
+	assert.Nil(t, res.body["token_pair"], "the caller keeps its session; nothing is re-issued")
+	assert.Nil(t, res.cookies[middleware.RefreshTokenCookie])
+	assert.Equal(t, int64(1), s.liveSessions(t), "exactly one session survives: the caller's")
+
+	assert.Equal(t, http.StatusUnauthorized, s.refresh(t, phone.RefreshToken).status,
+		"the other device can no longer refresh")
+
+	// The refresh cookie the browser already holds still works, and keeps
+	// working as the lineage rotates on.
+	next := s.rotate(t, laptop)
+	s.rotate(t, next)
+}
+
+// Criterion 2: the list marks exactly one row, the caller's, for a browser that
+// sends no refresh token, and keeps marking it across rotations.
+func TestListSessionsE2E_MarksTheCallersDevice(t *testing.T) {
+	s := newSessionStack(t)
+	laptopAtSignIn := s.signIn(t, "laptop")
+	laptop := s.rotate(t, s.rotate(t, laptopAtSignIn))
+	phone := s.rotate(t, s.signIn(t, "phone"))
+
+	sessions := s.listSessions(t, laptop)
+	assert.Len(t, sessions, 2, "one row per device: spent tokens are not sessions")
+	assert.Equal(t, []string{"laptop"}, currentDevices(sessions))
+
+	assert.Equal(t, []string{"phone"}, currentDevices(s.listSessions(t, phone)))
+
+	// An access token from before the rotations names the same session.
+	assert.Equal(t, []string{"laptop"}, currentDevices(s.listSessions(t, laptopAtSignIn)))
+}
+
+// An access token minted before sid existed cannot name its session. The
+// caller's device is given a new one instead, as before ADR 0006.
+func TestRevokeOtherSessionsE2E_LegacyTokenIsReissued(t *testing.T) {
+	s := newSessionStack(t)
+	s.signIn(t, "laptop")
+	phone := s.signIn(t, "phone")
+
+	res := s.send(t, http.MethodDelete, "/api/v1/auth/sessions/others", browserCookies(s.legacyAccessToken(t)), browserHeaders)
 	require.Equal(t, http.StatusOK, res.status, res.body)
 	assert.Equal(t, false, res.body["reauthenticate"])
 	assert.EqualValues(t, 2, res.body["revoked"], "the phone, and the laptop's session it replaced")
@@ -184,28 +276,20 @@ func TestRevokeOtherSessionsE2E_BrowserCallerStaysSignedIn(t *testing.T) {
 	require.NotNil(t, issued, "the caller's device must be handed its new refresh cookie")
 	assert.Equal(t, "/api/v1/auth/refresh", issued.Path,
 		"same Path as at sign-in, so it replaces the cookie the browser holds")
-	assert.Equal(t, int64(1), s.liveSessions(t), "exactly one session survives: the caller's")
+	assert.Equal(t, int64(1), s.liveSessions(t))
 
-	assert.Equal(t, http.StatusUnauthorized, s.refresh(t, phone.RefreshToken).status,
-		"the other device can no longer refresh")
-
-	next := s.refresh(t, issued.Value)
-	require.Equal(t, http.StatusOK, next.status, "the caller can still refresh: %v", next.body)
-
-	// And keeps doing so: the lineage rotates on as any other session would.
-	rotated := next.cookies[middleware.RefreshTokenCookie]
-	require.NotNil(t, rotated)
-	assert.Equal(t, http.StatusOK, s.refresh(t, rotated.Value).status)
+	assert.Equal(t, http.StatusUnauthorized, s.refresh(t, phone.RefreshToken).status)
+	s.rotate(t, &coreauth.TokenPair{RefreshToken: issued.Value})
 }
 
-// An API client that names its session in X-Refresh-Token keeps that very
-// session; nothing is re-issued and no cookie is set.
+// An API client on a legacy token that names its session in X-Refresh-Token
+// keeps that very session; nothing is re-issued and no cookie is set.
 func TestRevokeOtherSessionsE2E_PresentedSessionIsKept(t *testing.T) {
 	s := newSessionStack(t)
 	client := s.signIn(t, "ci-runner")
 	other := s.signIn(t, "phone")
 
-	res := s.send(t, http.MethodDelete, "/api/v1/auth/sessions/others", browserCookies(client),
+	res := s.send(t, http.MethodDelete, "/api/v1/auth/sessions/others", browserCookies(s.legacyAccessToken(t)),
 		map[string]string{middleware.CSRFHeader: "csrf-727", "X-Refresh-Token": client.RefreshToken})
 	require.Equal(t, http.StatusOK, res.status, res.body)
 	assert.EqualValues(t, 1, res.body["revoked"])

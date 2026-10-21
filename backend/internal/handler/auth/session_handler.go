@@ -58,7 +58,7 @@ func (h *SessionHandler) ListSessions(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "authentication required"})
 	}
 
-	records, err := h.list.Execute(c.UserContext(), mwCtx.UserID, currentSessionHash(c))
+	records, err := h.list.Execute(c.UserContext(), mwCtx.UserID, mwCtx.SessionID, currentSessionHash(c))
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to list sessions"})
 	}
@@ -112,9 +112,10 @@ func (h *SessionHandler) RevokeOtherSessions(c *fiber.Ctx) error {
 	}
 
 	out, err := h.revokeOther.Execute(c.UserContext(), appauth.RevokeOtherSessionsInput{
-		UserID:      mwCtx.UserID,
-		TenantID:    mwCtx.OrganizationID,
-		CurrentHash: currentSessionHash(c),
+		UserID:         mwCtx.UserID,
+		TenantID:       mwCtx.OrganizationID,
+		CurrentSession: mwCtx.SessionID,
+		CurrentHash:    currentSessionHash(c),
 		Device: coreauth.DeviceContext{
 			Fingerprint: c.Get("X-Device-Fingerprint"),
 			IP:          c.IP(),

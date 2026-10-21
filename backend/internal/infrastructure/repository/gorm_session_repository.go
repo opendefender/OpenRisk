@@ -24,6 +24,7 @@ import (
 type sessionRow struct {
 	ID                uuid.UUID
 	UserID            uuid.UUID
+	FamilyID          uuid.UUID
 	TokenHash         string
 	DeviceFingerprint string
 	IPAddress         string
@@ -57,7 +58,10 @@ func NewGormSessionRepository(db *gorm.DB) *GormSessionRepository {
 func (r *GormSessionRepository) ListByUser(ctx context.Context, userID uuid.UUID) ([]domain.SessionRecord, error) {
 	var tokens []sessionRow
 	err := r.db.WithContext(ctx).
-		Where("user_id = ? AND expires_at > ?", userID, time.Now()).
+		// A rotated token is spent: it stays in the table for reuse detection
+		// only, and its successor is the live session. Listing it would show one
+		// device once per refresh.
+		Where("user_id = ? AND expires_at > ? AND rotated_at IS NULL", userID, time.Now()).
 		Order("COALESCE(last_used_at, created_at) DESC").
 		Find(&tokens).Error
 	if err != nil {
@@ -69,6 +73,7 @@ func (r *GormSessionRepository) ListByUser(ctx context.Context, userID uuid.UUID
 		records = append(records, domain.SessionRecord{
 			ID:         t.ID,
 			TokenHash:  t.TokenHash,
+			FamilyID:   t.FamilyID,
 			Device:     domain.DescribeDevice(t.UserAgent),
 			UserAgent:  t.UserAgent,
 			IPAddress:  t.IPAddress,
@@ -101,25 +106,51 @@ func (r *GormSessionRepository) Revoke(ctx context.Context, userID, sessionID uu
 // that another device's rotation stores while it runs, and that device would
 // stay signed in.
 func (r *GormSessionRepository) RevokeAllExcept(ctx context.Context, userID uuid.UUID, keepHash string) (int64, error) {
-	var total int64
-	for i := 0; i < maxRevocationSweeps; i++ {
+	if keepHash == "" {
 		// Account-wide on purpose, no tenant_id: signing out other devices ends the
 		// user's sessions in every org, as RevokeAllUserTokens does (D-047).
-		q := r.db.WithContext(ctx).Where("user_id = ?", userID)
-		if keepHash != "" {
-			// Chained onto the user-scoped query above.
-			q = q.Where("token_hash <> ?", keepHash)
+		return r.sweep(ctx, "user_id = ?", userID)
+	}
+	// Account-wide on purpose, no tenant_id: as above.
+	return r.sweep(ctx, "user_id = ? AND token_hash <> ?", userID, keepHash)
+}
+
+// RevokeAllExceptFamily signs out every device but the session the caller's
+// access token names. Keeping the whole family, rather than one row, keeps the
+// caller's rotated tokens too, so a replay inside the grace window still gets
+// the successor instead of tripping reuse detection.
+func (r *GormSessionRepository) RevokeAllExceptFamily(ctx context.Context, userID, keepFamily uuid.UUID) (int64, error) {
+	// Account-wide on purpose, no tenant_id: see RevokeAllExcept.
+	return r.sweep(ctx, "user_id = ? AND family_id <> ?", userID, keepFamily)
+}
+
+// sweep deletes the refresh tokens matching the condition until a pass removes
+// nothing, like the token manager's revocations (sweepRefreshTokens, #725): on
+// Postgres a single DELETE misses a successor that another device's rotation
+// stores while it runs, and that device would stay signed in.
+//
+// It returns the number of live sessions removed. Spent (rotated) rows go too,
+// but they are not devices, and counting them would tell the user more
+// devices were signed out than they ever saw in the list.
+func (r *GormSessionRepository) sweep(ctx context.Context, cond string, args ...interface{}) (int64, error) {
+	var live int64
+	for i := 0; i < maxRevocationSweeps; i++ {
+		// cond carries the user_id scope; see the callers.
+		active := r.db.WithContext(ctx).Where(cond, args...).Where("rotated_at IS NULL").Delete(&sessionRow{})
+		if active.Error != nil {
+			return live, active.Error
 		}
-		res := q.Delete(&sessionRow{})
-		if res.Error != nil {
-			return total, res.Error
+		// cond carries the user_id scope; see the callers.
+		spent := r.db.WithContext(ctx).Where(cond, args...).Where("rotated_at IS NOT NULL").Delete(&sessionRow{})
+		if spent.Error != nil {
+			return live, spent.Error
 		}
-		total += res.RowsAffected
-		if res.RowsAffected == 0 {
+		live += active.RowsAffected
+		if active.RowsAffected+spent.RowsAffected == 0 {
 			break
 		}
 	}
-	return total, nil
+	return live, nil
 }
 
 // maxRevocationSweeps mirrors the bound in internal/auth, which this package

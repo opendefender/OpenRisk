@@ -34,6 +34,9 @@ type SessionRepository interface {
 	Revoke(ctx context.Context, userID, sessionID uuid.UUID) (bool, error)
 	// RevokeAllExcept signs out every device but the one in hand.
 	RevokeAllExcept(ctx context.Context, userID uuid.UUID, keepHash string) (int64, error)
+	// RevokeAllExceptFamily signs out every device but the session named by
+	// an access token's sid claim. Both revocations return live sessions only.
+	RevokeAllExceptFamily(ctx context.Context, userID, keepFamily uuid.UUID) (int64, error)
 	// HasSeenDevice reports whether this user has signed in from a fingerprint
 	// before — the signal behind the new-device alert.
 	HasSeenDevice(ctx context.Context, userID uuid.UUID, fingerprint string) (bool, error)
@@ -58,10 +61,14 @@ func NewListSessionsUseCase(sessions SessionRepository) *ListSessionsUseCase {
 
 // Execute lists live sessions for a user, marking which one is the caller's.
 //
-// currentHash is the SHA-256 of the refresh token the caller presented. Marking
-// the current session matters for more than decoration: it is what lets the UI
-// warn before someone signs out the device they are holding.
-func (uc *ListSessionsUseCase) Execute(ctx context.Context, userID uuid.UUID, currentHash string) ([]domain.SessionRecord, error) {
+// currentSession is the sid claim of the caller's access token, the family its
+// session belongs to. The browser never sends the refresh cookie here (its Path
+// is /api/v1/auth/refresh), so that claim is how a browser's own row is found
+// (ADR 0006, #727). currentHash is the SHA-256 of a refresh token an API client
+// presented, the fallback for an access token minted before sid existed.
+// Marking the current session matters for more than decoration: it is what
+// lets the UI warn before someone signs out the device they are holding.
+func (uc *ListSessionsUseCase) Execute(ctx context.Context, userID, currentSession uuid.UUID, currentHash string) ([]domain.SessionRecord, error) {
 	if userID == uuid.Nil {
 		return nil, domain.NewValidationError("user is required")
 	}
@@ -70,7 +77,8 @@ func (uc *ListSessionsUseCase) Execute(ctx context.Context, userID uuid.UUID, cu
 		return nil, fmt.Errorf("failed to list sessions: %w", err)
 	}
 	for i := range records {
-		records[i].Current = currentHash != "" && records[i].TokenHash == currentHash
+		records[i].Current = (currentSession != uuid.Nil && records[i].FamilyID == currentSession) ||
+			(currentHash != "" && records[i].TokenHash == currentHash)
 		// The hash is a credential-equivalent lookup key; it must not travel to
 		// the client. Current already carries everything the UI needs from it.
 		records[i].TokenHash = ""
@@ -140,13 +148,15 @@ func (uc *RevokeOtherSessionsUseCase) WithReissue(issuer SessionIssuer) *RevokeO
 }
 
 // RevokeOtherSessionsInput is the request. Everything comes from the session,
-// never from the body. CurrentHash is the SHA-256 of the refresh token the
-// caller presented, empty when it presented none.
+// never from the body. CurrentSession is the sid claim of the caller's access
+// token, uuid.Nil when it carries none. CurrentHash is the SHA-256 of the
+// refresh token the caller presented, empty when it presented none.
 type RevokeOtherSessionsInput struct {
-	UserID      uuid.UUID
-	TenantID    uuid.UUID
-	CurrentHash string
-	Device      auth.DeviceContext
+	UserID         uuid.UUID
+	TenantID       uuid.UUID
+	CurrentSession uuid.UUID
+	CurrentHash    string
+	Device         auth.DeviceContext
 }
 
 // RevokeOtherSessionsOutput reports the result. TokenPair is set when the
@@ -160,12 +170,14 @@ type RevokeOtherSessionsOutput struct {
 
 // Execute revokes every session but the caller's.
 //
-// The browser never sends the refresh cookie here: it is scoped to
-// /api/v1/auth/refresh, so CurrentHash is empty for the SPA. An empty keep-hash
-// would revoke the caller's session too, which is how this button used to sign
-// its own user out (#727). Without the hash, the caller's device gets a new
-// session first and every other one, its old session included, is revoked
-// after. Revoked then counts that old session as well.
+// The caller's session is found, in order, by the sid claim of its access
+// token, by the refresh token an API client presented, and failing both by
+// re-issuing. The browser never sends the refresh cookie here: it is scoped to
+// /api/v1/auth/refresh. An empty keep-hash would revoke the caller's session
+// too, which is how this button used to sign its own user out (#727). So an
+// access token minted before sid existed gets a new session for its device
+// first, and every other one, its old session included, is revoked after.
+// Revoked then counts that old session as well.
 //
 // When no session can be minted, everything is revoked anyway: this is the
 // button people press when someone else is in their account, and leaving that
@@ -176,6 +188,15 @@ func (uc *RevokeOtherSessionsUseCase) Execute(ctx context.Context, in RevokeOthe
 	}
 
 	out := &RevokeOtherSessionsOutput{}
+	if in.CurrentSession != uuid.Nil {
+		n, err := uc.sessions.RevokeAllExceptFamily(ctx, in.UserID, in.CurrentSession)
+		if err != nil {
+			return nil, fmt.Errorf("failed to revoke sessions: %w", err)
+		}
+		out.Revoked = n
+		return out, nil
+	}
+
 	keep := in.CurrentHash
 	if keep == "" && uc.issuer != nil && in.TenantID != uuid.Nil {
 		if pair, err := uc.issuer.IssueSessionForOrg(ctx, in.UserID, in.TenantID, in.Device); err == nil {
