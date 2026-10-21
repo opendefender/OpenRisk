@@ -9,17 +9,46 @@ Nothing open.
 
 ## Resolved
 
-### D-073 — Sign-up with an address that already has an account: say so, protect the account · decided 2026-09-15
-**Decided (owner)** — Tell the person plainly that an account already exists, offer sign-in and password reset with the address prefilled, and protect the account.
-**Rejected** — The same "check your inbox" answer for every address, plus an email to confirm every new account. It removes the instant sign-in at registration, and it makes sign-up impossible on an instance without SMTP.
-**Cost, stated** — Whether an address is registered can still be found out. The per-address limit stops one address being probed again and again, and the owner is told when it happens. Testing many addresses once each is bounded only by the per-IP limit (10 per 15 min). A taken `username` is checked before the address, so it answers the same whatever the address and cannot be used to test one (fixed after the #686 security review).
-**Known limit** — If Redis is down, each replica counts and claims the alert on its own: up to N×5 attempts an hour and N alerts a day on N replicas. The #688 sign-in lock behaves the same way.
-**Applied** — #686:
-- `POST /auth/register` answers `409` with `EMAIL_ALREADY_REGISTERED`, compared on the normalised address. A username collision stays `USERNAME_TAKEN` (#687).
-- Per address, on top of the per-IP limit: 5 duplicate attempts per hour, then refusals for one hour with `429`, `Retry-After` and `REGISTER_RATE_LIMITED` (`backend/internal/application/auth/register_duplicates.go`).
-- The owner is emailed at most once per address per 24 h, in FR or EN, with links to sign in and to reset. The email has no attempted password and no requester data. A mail failure never changes the answer.
-- Every duplicate attempt is in `auth_audit_logs` (`action=register`, `success=false`, IP, user agent, `email_sha256=` in the reason, never the address in clear).
-**Reversible** — Yes. Going to the uniform answer means a confirmation-email step at sign-up and a decision on instances without SMTP.
+### D-073 — Settings → Sessions marks "this device" through a sid claim · decided 2026-10-21
+**Decided (owner)** — Fix criterion 2 of #727 in the same PR. The owner asked for the result and
+did not name an option; B, the recommendation, was implemented. It is written up as
+`docs/adr/0006-access-token-names-its-session.md`. Going to C instead would mean reverting that ADR.
+
+**Consequence** — Access tokens minted with a session carry `sid` (the refresh family id).
+`GET /auth/sessions` marks the caller's row from it, and "sign out other devices" keeps that
+family rather than re-issuing. The re-issue path stays for tokens minted before the change.
+Verified on a live Postgres boot on 2026-10-21 (see PR #1055).
+
+**Raised by** — #727, criterion 2. Escalated because both ways to fix it change auth design:
+the access token contract, or the scope of the refresh cookie.
+
+**Context** — The session list marks the caller's own row by hashing the refresh token the
+request carries. The browser never sends it to `GET /auth/sessions`: the `or_refresh` cookie
+has `Path=/api/v1/auth/refresh` (`backend/internal/middleware/session_cookie.go`), and the SPA
+cannot read an HttpOnly cookie to send it as `X-Refresh-Token`. So no row is ever marked
+current, and the SPA cannot warn before someone revokes the device they are holding.
+Criterion 1 of #727 (the caller was signed out by "sign out other devices") is fixed without
+this, by re-issuing the caller's session the way the password change does (D-047). Only the
+marking is left.
+
+**Options**
+- **A — leave it unmarked.** No change. The list shows every device as "another device",
+  the caller's included. Revoking that row signs the caller out at the next refresh.
+- **B — a session id in the access token.** Add a `sid` claim carrying the refresh family id
+  (`refresh_tokens.family_id`, stable across rotations). Any route can then name the caller's
+  session. Changes the token contract, so it needs an ADR. Tokens issued before the change
+  carry no `sid` until their next refresh (15 minutes at most).
+- **C — widen the refresh cookie to `/api/v1/auth`.** The cookie then reaches `/auth/sessions`
+  and `/auth/logout` too, which would also let logout revoke the refresh session for cookie
+  clients. Exposes the refresh token on every auth route, which is what the narrow path was
+  chosen to avoid, and browsers holding the old cookie would carry two `or_refresh` cookies
+  until the old one expires or is cleared.
+
+**Recommendation** — B. It answers the question at its source and keeps the refresh token
+where it is. C is less code but undoes a deliberate hardening.
+
+**Cost of delay** — Low. Cosmetic until someone revokes their own row, and that only costs
+them a sign-in.
 
 ### D-072 — Backend coverage gate: a 44% ratchet instead of a 50% line nobody met · decided 2026-10-15
 **Decided** — Option B. The backend coverage gate is a floor at 44.0%, compared to one decimal. It is raised by hand whenever coverage goes up, and never lowered without a decision here.

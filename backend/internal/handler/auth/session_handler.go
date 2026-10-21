@@ -58,7 +58,7 @@ func (h *SessionHandler) ListSessions(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "authentication required"})
 	}
 
-	records, err := h.list.Execute(c.UserContext(), mwCtx.UserID, currentSessionHash(c))
+	records, err := h.list.Execute(c.UserContext(), mwCtx.UserID, mwCtx.SessionID, currentSessionHash(c))
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to list sessions"})
 	}
@@ -104,13 +104,47 @@ func (h *SessionHandler) RevokeOtherSessions(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "authentication required"})
 	}
 
-	revoked, err := h.revokeOther.Execute(c.UserContext(), mwCtx.UserID, currentSessionHash(c))
+	// A personal access token carries no refresh token, so the use case would
+	// mint a session for it: a scoped, revocable token turned into a full
+	// browser session. Refused, as token creation refuses PATs.
+	if c.Locals("is_pat") == true {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "personal access tokens cannot manage sessions"})
+	}
+
+	out, err := h.revokeOther.Execute(c.UserContext(), appauth.RevokeOtherSessionsInput{
+		UserID:         mwCtx.UserID,
+		TenantID:       mwCtx.OrganizationID,
+		CurrentSession: mwCtx.SessionID,
+		CurrentHash:    currentSessionHash(c),
+		Device: coreauth.DeviceContext{
+			Fingerprint: c.Get("X-Device-Fingerprint"),
+			IP:          c.IP(),
+			UserAgent:   c.Get("User-Agent"),
+		},
+	})
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to revoke sessions"})
 	}
 
 	h.logAudit(c, &mwCtx.UserID, coreauth.AuditActionSessionRevokeAll, true)
-	return c.JSON(fiber.Map{"revoked": revoked})
+	body := fiber.Map{"revoked": out.Revoked, "reauthenticate": out.Reauthenticate}
+	switch {
+	case out.TokenPair != nil:
+		// The caller's device was given a new session: hand it over the same
+		// way sign-in does, so the refresh cookie the browser holds is the live one.
+		csrfToken, err := middleware.IssueSessionCookies(c, out.TokenPair.AccessToken, out.TokenPair.RefreshToken,
+			coreauth.AccessTokenTTL, coreauth.RefreshTokenTTL)
+		if err != nil {
+			middleware.ClearSessionCookies(c)
+			body["reauthenticate"] = true
+			break
+		}
+		body["token_pair"] = out.TokenPair
+		body["csrf_token"] = csrfToken
+	case out.Reauthenticate:
+		middleware.ClearSessionCookies(c)
+	}
+	return c.JSON(body)
 }
 
 func (h *SessionHandler) logAudit(c *fiber.Ctx, userID *uuid.UUID, action coreauth.AuditAction, success bool) {

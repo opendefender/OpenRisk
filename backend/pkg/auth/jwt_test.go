@@ -157,3 +157,34 @@ func TestValidateToken_ReturnsTheTypeForTheCallerToCheck(t *testing.T) {
 		}
 	}
 }
+
+// A session-bound access token carries its session in sid and still validates
+// as a plain access token; an unbound one carries none (ADR 0006).
+func TestGenerateSessionAccessToken_CarriesSID(t *testing.T) {
+	keys := testKeys(t)
+	uid, tid, session := uuid.New(), uuid.New(), uuid.New()
+
+	tok, _, err := GenerateSessionAccessToken(keys, uid, tid, nil, nil, nil, 15*time.Minute, session)
+	if err != nil {
+		t.Fatalf("generate: %v", err)
+	}
+	claims, err := ValidateAccessToken(keys, tok, nil)
+	if err != nil {
+		t.Fatalf("validate: %v", err)
+	}
+	if claims.SID != session.String() || claims.Type != TokenTypeAccess {
+		t.Fatalf("want sid %s on an access token, got sid=%q type=%q", session, claims.SID, claims.Type)
+	}
+
+	plain, _, err := GenerateAccessToken(keys, uid, tid, nil, nil, nil, 15*time.Minute)
+	if err != nil {
+		t.Fatalf("generate: %v", err)
+	}
+	claims, err = ValidateAccessToken(keys, plain, nil)
+	if err != nil {
+		t.Fatalf("validate: %v", err)
+	}
+	if claims.SID != "" {
+		t.Fatalf("an unbound token must carry no sid, got %q", claims.SID)
+	}
+}
