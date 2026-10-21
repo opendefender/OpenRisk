@@ -7,6 +7,7 @@ package repository
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"time"
 
@@ -145,8 +146,9 @@ func (r *GormNoticeEmailOutbox) Enqueue(ctx context.Context, row domain.NoticeEm
 
 // ClaimDue takes up to limit rows that are due, plus rows whose lease expired
 // (a replica died mid-send), and leases them for lease. SKIP LOCKED lets
-// replicas split the work. Each grouped row claimed restamps its throttle, so a
-// notice arriving while it is sent waits for the next window.
+// replicas split the work, and rows are taken in turn across tenants (see
+// below). Each grouped row claimed restamps its throttle, so a notice arriving
+// while it is sent waits for the next window.
 //
 // A row whose lease expired after maxAttempts claims never came back from its
 // send: it crashed the process each time. It is marked failed, kept and logged
@@ -160,20 +162,39 @@ func (r *GormNoticeEmailOutbox) ClaimDue(ctx context.Context, limit int, lease t
 		domain.NoticeEmailFailed, domain.NoticeEmailSending, maxAttempts).Error; err != nil {
 		return nil, err
 	}
+	// Fair between organizations: due rows are ranked within their tenant by
+	// due_at, and taken rank by rank, so every tenant's oldest e-mail goes
+	// before any tenant's second. One tenant's burst (a bulk reassignment)
+	// waits its turn instead of delaying everyone else's mail.
+	//
+	// The due condition is repeated on the locked row: FOR UPDATE re-checks it
+	// against the row's latest version, so a row another replica claimed
+	// between the ranking and the lock is skipped, never claimed twice.
 	var rows []domain.NoticeEmailOutbox
 	err := r.db.WithContext(ctx).Raw(`
+		WITH ranked AS (
+		     SELECT id, due_at, row_number() OVER (PARTITION BY tenant_id ORDER BY due_at, id) AS turn
+		       FROM notice_email_outbox
+		      WHERE (status = @pending AND due_at <= now())
+		         OR (status = @sending AND locked_until < now())
+		), picked AS (
+		     SELECT o.id
+		       FROM notice_email_outbox o
+		       JOIN ranked r ON r.id = o.id
+		      WHERE (o.status = @pending AND o.due_at <= now())
+		         OR (o.status = @sending AND o.locked_until < now())
+		      ORDER BY r.turn, r.due_at, r.id
+		      LIMIT @limit
+		        FOR UPDATE OF o SKIP LOCKED
+		)
 		UPDATE notice_email_outbox
-		   SET status = ?, locked_until = now() + make_interval(secs => ?), attempts = attempts + 1
-		 WHERE id IN (
-		       SELECT id FROM notice_email_outbox
-		        WHERE (status = ? AND due_at <= now())
-		           OR (status = ? AND locked_until < now())
-		        ORDER BY due_at
-		        LIMIT ?
-		          FOR UPDATE SKIP LOCKED)
+		   SET status = @sending, locked_until = now() + make_interval(secs => @lease), attempts = attempts + 1
+		 WHERE id IN (SELECT id FROM picked)
 		RETURNING *`,
-		domain.NoticeEmailSending, lease.Seconds(),
-		domain.NoticeEmailPending, domain.NoticeEmailSending, limit,
+		sql.Named("pending", domain.NoticeEmailPending),
+		sql.Named("sending", domain.NoticeEmailSending),
+		sql.Named("limit", limit),
+		sql.Named("lease", lease.Seconds()),
 	).Scan(&rows).Error
 	if err != nil {
 		return nil, err

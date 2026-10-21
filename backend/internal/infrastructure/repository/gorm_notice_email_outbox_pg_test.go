@@ -467,3 +467,58 @@ func TestGormNoticeEmailOutbox_CrashLoopingRowEndsFailed(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, rows, 1)
 }
+
+// A burst in one organization does not hold back the others: each claim
+// takes every tenant's oldest due e-mail before any tenant's next one.
+func TestGormNoticeEmailOutbox_ClaimIsFairAcrossTenants(t *testing.T) {
+	db, _ := outboxSchema(t, false)
+	box := NewGormNoticeEmailOutbox(db)
+	ctx := context.Background()
+	busy, quietA, quietB := uuid.New(), uuid.New(), uuid.New()
+	enqueue := func(tenant uuid.UUID, n int) {
+		for range n {
+			k := newOutboxKey()
+			k.tenant = tenant
+			r := k.row("x")
+			r.Grouped = false
+			_, _, err := box.Enqueue(ctx, r, time.Hour)
+			require.NoError(t, err)
+		}
+	}
+	enqueue(busy, 40) // the busy tenant queued first: its rows are the oldest
+	enqueue(quietA, 2)
+	enqueue(quietB, 1)
+
+	count := func(rows []domain.NoticeEmailOutbox) map[uuid.UUID]int {
+		out := map[uuid.UUID]int{}
+		for _, r := range rows {
+			out[r.TenantID]++
+		}
+		return out
+	}
+
+	first, err := box.ClaimDue(ctx, 4, time.Minute, 12)
+	require.NoError(t, err)
+	got := count(first)
+	require.Equal(t, 1, got[quietA], "the quiet tenants are served in the first batch")
+	require.Equal(t, 1, got[quietB])
+	require.Equal(t, 2, got[busy])
+
+	second, err := box.ClaimDue(ctx, 4, time.Minute, 12)
+	require.NoError(t, err)
+	got = count(second)
+	require.Equal(t, 1, got[quietA], "quietA's second e-mail comes in the next batch, not after 40 others")
+	require.Equal(t, 3, got[busy])
+
+	// Everything still goes out.
+	total := len(first) + len(second)
+	for {
+		rows, err := box.ClaimDue(ctx, 8, time.Minute, 12)
+		require.NoError(t, err)
+		if len(rows) == 0 {
+			break
+		}
+		total += len(rows)
+	}
+	require.Equal(t, 43, total)
+}
