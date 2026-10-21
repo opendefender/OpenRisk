@@ -184,7 +184,7 @@ func TestLogin_AdminPastTheGracePeriodGetsNoSession(t *testing.T) {
 	// The token must be an ENROLMENT token, not a challenge token: only the
 	// enrolment endpoints accept it, and it is minted solely for accounts with no
 	// verified secret, so it cannot overwrite an existing authenticator.
-	claims, err := authpkg.ValidateAccessToken(keys, out.MFAToken, nil)
+	claims, err := authpkg.ValidateToken(keys, out.MFAToken, nil)
 	require.NoError(t, err)
 	assert.Equal(t, authpkg.TokenTypeMFAEnrollment, claims.Type)
 	assert.Equal(t, users.user.ID, claims.Sub)
@@ -351,7 +351,7 @@ func TestLogin_AdminWithMFAGetsAChallengeNotAnEnrolment(t *testing.T) {
 	assert.False(t, out.MFAEnrollmentRequired, "an enrolled admin must never get an enrolment token")
 	assert.Nil(t, out.TokenPair)
 
-	claims, err := authpkg.ValidateAccessToken(keys, out.MFAToken, nil)
+	claims, err := authpkg.ValidateToken(keys, out.MFAToken, nil)
 	require.NoError(t, err)
 	assert.Equal(t, authpkg.TokenTypeMFARequired, claims.Type,
 		"an enrolled account must get MFA_REQUIRED, never MFA_ENROLLMENT")

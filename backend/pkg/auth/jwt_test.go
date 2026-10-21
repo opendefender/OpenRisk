@@ -8,6 +8,7 @@ package auth
 import (
 	"crypto/rand"
 	"crypto/rsa"
+	"errors"
 	"testing"
 	"time"
 
@@ -56,9 +57,8 @@ func TestGenerateAndValidateAccessToken(t *testing.T) {
 	}
 }
 
-// The MFA-challenge token must validate but carry Type == MFA_REQUIRED and no
-// permissions — this is what MFATokenMiddleware keys off to reject it on normal
-// protected routes.
+// The MFA-challenge token must validate as a token but carry Type ==
+// MFA_REQUIRED and no permissions — this is what MFATokenMiddleware keys off.
 func TestGenerateTypedToken_MFARequired(t *testing.T) {
 	keys := testKeys(t)
 	uid, tid := uuid.New(), uuid.New()
@@ -67,7 +67,7 @@ func TestGenerateTypedToken_MFARequired(t *testing.T) {
 	if err != nil {
 		t.Fatalf("generate: %v", err)
 	}
-	claims, err := ValidateAccessToken(keys, tok, nil)
+	claims, err := ValidateToken(keys, tok, nil)
 	if err != nil {
 		t.Fatalf("validate: %v", err)
 	}
@@ -102,5 +102,58 @@ func TestValidateAccessToken_Expired(t *testing.T) {
 	}
 	if _, err := ValidateAccessToken(keys, tok, nil); err != ErrTokenExpired {
 		t.Fatalf("expected ErrTokenExpired, got %v", err)
+	}
+}
+
+// #944 — ValidateAccessToken answers "is this a full access token?". A typed
+// token (MFA_REQUIRED from a password-only login, MFA_ENROLLMENT for a mandated
+// enrolment) is validly signed but is NOT an access token, and every caller
+// that treats the result as a session must see it refused.
+func TestValidateAccessToken_RejectsTypedTokens(t *testing.T) {
+	keys := testKeys(t)
+	for _, typ := range []string{TokenTypeMFARequired, TokenTypeMFAEnrollment, "refresh", "anything-else"} {
+		t.Run(typ, func(t *testing.T) {
+			tok, _, err := GenerateTypedToken(keys, uuid.New(), uuid.New(), nil, nil, nil, 5*time.Minute, typ)
+			if err != nil {
+				t.Fatalf("generate: %v", err)
+			}
+			if claims, err := ValidateAccessToken(keys, tok, nil); err != ErrTokenInvalid || claims != nil {
+				t.Fatalf("typed token %q: got (%v, %v), want (nil, ErrTokenInvalid)", typ, claims, err)
+			}
+		})
+	}
+}
+
+// The type check must not bypass the blacklist, and a blacklist outage (which
+// fails open for availability) must not turn a typed token into an access one.
+func TestValidateAccessToken_TypedTokenRefusedEvenWhenBlacklistFailsOpen(t *testing.T) {
+	keys := testKeys(t)
+	tok, _, err := GenerateTypedToken(keys, uuid.New(), uuid.New(), nil, nil, nil, 5*time.Minute, TokenTypeMFARequired)
+	if err != nil {
+		t.Fatalf("generate: %v", err)
+	}
+	broken := func(string) (bool, error) { return false, errors.New("redis down") }
+	if _, err := ValidateAccessToken(keys, tok, broken); err != ErrTokenInvalid {
+		t.Fatalf("got %v, want ErrTokenInvalid", err)
+	}
+}
+
+// ValidateToken is the type-agnostic primitive the MFA middlewares build on: it
+// checks signature, expiry and blacklist, and leaves Type to the caller.
+func TestValidateToken_ReturnsTheTypeForTheCallerToCheck(t *testing.T) {
+	keys := testKeys(t)
+	for _, typ := range []string{TokenTypeAccess, TokenTypeMFARequired, TokenTypeMFAEnrollment} {
+		tok, jti, err := GenerateTypedToken(keys, uuid.New(), uuid.New(), nil, nil, nil, 5*time.Minute, typ)
+		if err != nil {
+			t.Fatalf("generate: %v", err)
+		}
+		claims, err := ValidateToken(keys, tok, nil)
+		if err != nil || claims.Type != typ {
+			t.Fatalf("type %q: got (%v, %v)", typ, claims, err)
+		}
+		revoked := func(j string) (bool, error) { return j == jti, nil }
+		if _, err := ValidateToken(keys, tok, revoked); err != ErrTokenRevoked {
+			t.Fatalf("type %q revoked: got %v, want ErrTokenRevoked", typ, err)
+		}
 	}
 }
