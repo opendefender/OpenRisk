@@ -7,7 +7,6 @@ package domain
 
 import (
 	"strings"
-	"time"
 
 	"github.com/google/uuid"
 )
@@ -50,28 +49,16 @@ type Notice struct {
 	Type         NotificationType
 	ResourceID   *uuid.UUID
 	ResourceType string
-	Compose      func(locale string) NoticeMessage
+	// ResourceTitle names the item in a digest e-mail ("3 changes to «Patch
+	// VPN»"). Optional: the digest falls back to the kind of item.
+	ResourceTitle string
+	Compose       func(locale string) NoticeMessage
 	// Deduplicated is set by a producer that already keeps its own ledger of
 	// what it sent (the deadline sweep stamps each D-7 / D-1 / "passed"
-	// reminder). Such a notice skips the per-recipient e-mail throttle, which
-	// would otherwise swallow the second reminder about the same plan (#997).
+	// reminder). Such a notice is e-mailed on its own and never folded into a
+	// digest, which would hold the D-1 reminder back behind the D-7 (#997).
 	Deduplicated bool
 }
-
-// NoticeEmailClaim is one slot of the notice e-mail throttle (#997): the last
-// time a notice e-mail went out for this recipient, notice type and resource.
-// The table is notice_email_throttle (migration 0081). Every query keys on
-// tenant_id, which is part of the primary key.
-type NoticeEmailClaim struct {
-	TenantID     uuid.UUID        `gorm:"type:uuid;primaryKey"`
-	UserID       uuid.UUID        `gorm:"type:uuid;primaryKey"`
-	Type         NotificationType `gorm:"type:text;primaryKey"`
-	ResourceType string           `gorm:"type:text;primaryKey"`
-	ResourceID   uuid.UUID        `gorm:"type:uuid;primaryKey"`
-	SentAt       time.Time        `gorm:"type:timestamptz;not null"`
-}
-
-func (NoticeEmailClaim) TableName() string { return "notice_email_throttle" }
 
 // NoticeLocale reduces a stored locale ("en-GB", "fr", "") to the two languages
 // every notice is written in. French is the default: it is the product's first

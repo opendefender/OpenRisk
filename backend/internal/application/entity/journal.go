@@ -92,6 +92,7 @@ var journalClasses = map[string]journalClass{
 	"organization_member":       {domain: DomainGovernance, perm: AuditPermission, link: listLink("/settings/members")},
 	"invitation":                {domain: DomainGovernance, perm: AuditPermission, link: listLink("/settings/members")},
 	"mfa_policy":                {domain: DomainGovernance, perm: AuditPermission, link: listLink("/settings")},
+	"notice_email_policy":       {domain: DomainGovernance, perm: AuditPermission, link: listLink("/settings")},
 }
 
 // journalTypesFor returns the audit entity types of one domain, for the query.

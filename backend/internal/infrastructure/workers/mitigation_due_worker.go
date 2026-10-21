@@ -142,15 +142,17 @@ func (w *MitigationDueWorker) Sweep(ctx context.Context) {
 			id := m.ID
 			plan := m
 			w.notify(ctx, domain.Notice{
-				TenantID:     m.TenantID,
-				UserID:       recipient,
-				Type:         domain.NotificationTypeMitigationDeadline,
-				ResourceID:   &id,
-				ResourceType: "mitigation",
+				TenantID:      m.TenantID,
+				UserID:        recipient,
+				Type:          domain.NotificationTypeMitigationDeadline,
+				ResourceID:    &id,
+				ResourceType:  "mitigation",
+				ResourceTitle: m.Title,
 				Compose: func(locale string) domain.NoticeMessage {
 					return dueReminderCopy(&plan, offset, now, locale)
 				},
-				// The stamps above already send each reminder once.
+				// The stamps above already send each reminder once; it goes out
+				// on its own, never held in a digest.
 				Deduplicated: true,
 			})
 		}

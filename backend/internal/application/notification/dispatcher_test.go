@@ -9,7 +9,6 @@ import (
 	"context"
 	"errors"
 	"testing"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/opendefender/openrisk/internal/domain"
@@ -171,22 +170,4 @@ func TestDispatcherDeliver_EmailErrorIsRedacted(t *testing.T) {
 	require.NotContains(t, err.Error(), "alice@example.com")
 	require.Contains(t, err.Error(), "[recipient]")
 	require.Len(t, f.created, 1, "a failed e-mail does not undo the bell")
-}
-
-func TestDispatcherDeliver_InBackgroundReportsRedactedFailure(t *testing.T) {
-	f := newDispatcherFixture("fr")
-	f.mailer.err = errors.New("550 <Alice@Example.com> unknown")
-	f.mailer.done = make(chan struct{})
-	reported := make(chan error, 1)
-	f.dispatcher.InBackground(func(err error) { reported <- err }, 0)
-
-	require.NoError(t, f.dispatcher.Deliver(context.Background(), testNotice(f.tenantID, f.userID)),
-		"the caller does not wait on the relay")
-	select {
-	case err := <-reported:
-		require.ErrorIs(t, err, ErrEmailFailed)
-		require.NotContains(t, err.Error(), "Alice@Example.com")
-	case <-time.After(2 * time.Second):
-		t.Fatal("background failure was never reported")
-	}
 }

@@ -1217,22 +1217,31 @@ func main() {
 	// assignment never waits on a slow relay; the deadline sweep sends inline.
 	noticeInApp := notificationapp.NewUseCase(repository.NewNotificationRepository(database.DB))
 	noticeMailer := authmail.NewNoticeMailer(emailTransport, appBaseURL)
-	// Both share one throttle in Postgres (#997): at most one e-mail per
-	// recipient, notice type and resource per window, across replicas. The
-	// deadline reminders keep their own ledger and skip it.
-	noticeThrottle := repository.NewGormNoticeEmailThrottle(database.DB)
-	noticeWindow := noticeThrottleWindow()
+	// Both queue their e-mails in the outbox (#997): the request writes a row,
+	// the notice e-mail worker sends it. The first e-mail about an item goes
+	// out at once; what follows within the organization's window becomes one
+	// digest. Nothing is sent from the request and nothing is dropped.
+	noticeOutbox := repository.NewGormNoticeEmailOutbox(database.DB)
+	noticePolicies := repository.NewGormNoticeEmailPolicyRepository(database.DB)
+	noticeEmailWorker := workers.NewNoticeEmailWorker(
+		notificationapp.NewOutboxSender(noticeOutbox, noticeDirectory{members: ownershipMembers}, noticeInApp, noticeMailer, noticeLink),
+		noticeOutbox, noticeMaxInFlight(), zeroLogger)
+	reportNoticeEmail := func(err error) {
+		zeroLogger.Warn().Err(err).Msg("notice: e-mail not queued")
+	}
 	noticeDispatcher := notificationapp.NewDispatcher(noticeInApp, noticeDirectory{members: ownershipMembers}).
 		WithEmail(noticeMailer, email.Delivers(emailTransport)).
 		WithLinks(noticeLink).
-		WithThrottle(noticeThrottle, noticeWindow)
-	requestNoticeDispatcher := notificationapp.NewDispatcher(noticeInApp, noticeDirectory{members: ownershipMembers}).
-		WithEmail(noticeMailer, email.Delivers(emailTransport)).
-		WithLinks(noticeLink).
-		WithThrottle(noticeThrottle, noticeWindow).
-		InBackground(func(err error) {
-			zeroLogger.Warn().Err(err).Msg("notice: e-mail not delivered")
-		}, noticeMaxInFlight())
+		WithOutbox(noticeOutbox, noticePolicies, noticeEmailWorker.Wake).
+		ReportingTo(reportNoticeEmail)
+	requestNoticeDispatcher := noticeDispatcher
+	noticeWorkerCtx, stopNoticeWorker := context.WithCancel(context.Background())
+	if email.Delivers(emailTransport) {
+		go noticeEmailWorker.Start(noticeWorkerCtx)
+	}
+	noticeEmailPolicyHandler := handlers.NewNoticeEmailPolicyHandler(
+		notificationapp.NewGetNoticeEmailPolicyUseCase(noticePolicies),
+		notificationapp.NewUpdateNoticeEmailPolicyUseCase(noticePolicies))
 	if !noticeDispatcher.EmailEnabled() {
 		log.Println("Notifications: e-mail disabled (no SMTP transport) — in-app only")
 	}
@@ -2392,6 +2401,10 @@ func main() {
 	notificationsGroup.Patch("/:notificationId/read", notificationHandler.MarkAsRead)
 	notificationsGroup.Delete("/:notificationId", notificationHandler.DeleteNotification)
 	notificationsGroup.Get("/preferences", notificationHandler.GetNotificationPreferences)
+	// The organization's notice e-mail grouping window (#997): every member
+	// reads it, admins set it. Audited through domain.NoticeEmailPolicy.
+	notificationsGroup.Get("/email-policy", noticeEmailPolicyHandler.Get)
+	notificationsGroup.Put("/email-policy", middleware.RequireRole("admin", "root"), noticeEmailPolicyHandler.Update)
 	notificationsGroup.Patch("/preferences", notificationHandler.UpdateNotificationPreferences)
 	notificationsGroup.Post("/test", notificationHandler.TestNotification)
 
@@ -3457,13 +3470,17 @@ func main() {
 		log.Fatal("Forced shutdown:", err)
 	}
 
-	// Notice e-mails still sending in the background get a few seconds to
-	// finish; past that they are cancelled rather than cut by the exit (#997).
-	drainCtx, cancelDrain := context.WithTimeout(context.Background(), 10*time.Second)
-	if err := requestNoticeDispatcher.Drain(drainCtx); err != nil {
-		log.Println("Notifications: e-mails still sending at shutdown were cancelled")
+	// The notice e-mail worker finishes its batch, up to a deadline. Past it,
+	// the sends are cancelled and their rows go back to the outbox for the
+	// next boot or another replica (#997).
+	stopNoticeWorker()
+	if email.Delivers(emailTransport) {
+		drainCtx, cancelDrain := context.WithTimeout(context.Background(), 10*time.Second)
+		if err := noticeEmailWorker.Drain(drainCtx); err != nil {
+			log.Println("Notifications: e-mails still sending at shutdown were put back in the outbox")
+		}
+		cancelDrain()
 	}
-	cancelDrain()
 
 	log.Println("Server exited properly")
 }
@@ -3494,23 +3511,8 @@ func buildEmailTransport() email.Service {
 	return email.FromEnv(host, port, os.Getenv("SMTP_USERNAME"), os.Getenv("SMTP_PASSWORD"), from)
 }
 
-// noticeThrottleWindow reads NOTICE_EMAIL_THROTTLE_WINDOW, a Go duration
-// ("1h", "30m"). One hour by default; "0" turns the throttle off.
-func noticeThrottleWindow() time.Duration {
-	raw := strings.TrimSpace(os.Getenv("NOTICE_EMAIL_THROTTLE_WINDOW"))
-	if raw == "" {
-		return time.Hour
-	}
-	d, err := time.ParseDuration(raw)
-	if err != nil || d < 0 {
-		log.Printf("Notifications: NOTICE_EMAIL_THROTTLE_WINDOW=%q is not a duration — using 1h", raw)
-		return time.Hour
-	}
-	return d
-}
-
-// noticeMaxInFlight reads NOTICE_EMAIL_MAX_IN_FLIGHT, the number of notice
-// e-mails sent at once from request paths. 0 or unset keeps the default.
+// noticeMaxInFlight reads NOTICE_EMAIL_MAX_IN_FLIGHT, how many notice e-mails
+// one replica sends at once. 0 or unset keeps the default (8).
 func noticeMaxInFlight() int {
 	n, err := strconv.Atoi(strings.TrimSpace(os.Getenv("NOTICE_EMAIL_MAX_IN_FLIGHT")))
 	if err != nil || n < 0 {

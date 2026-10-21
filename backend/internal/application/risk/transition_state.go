@@ -383,11 +383,12 @@ func notifyRiskStateChange(ctx context.Context, notices NoticeDeliverer, tenantI
 	}
 	id := ch.RiskID
 	_ = notices.Deliver(ctx, domain.Notice{
-		TenantID:     tenantID,
-		UserID:       *ch.OwnerID,
-		Type:         notifType,
-		ResourceID:   &id,
-		ResourceType: "risk",
+		TenantID:      tenantID,
+		UserID:        *ch.OwnerID,
+		Type:          notifType,
+		ResourceID:    &id,
+		ResourceType:  "risk",
+		ResourceTitle: ch.Title,
 		Compose: func(locale string) domain.NoticeMessage {
 			return riskStateNoticeCopy(locale, ch.Title, ch.From, ch.To)
 		},
@@ -415,11 +416,12 @@ func notifyRiskStatusChange(ctx context.Context, notices NoticeDeliverer, tenant
 	}
 	id := r.ID
 	_ = notices.Deliver(ctx, domain.Notice{
-		TenantID:     tenantID,
-		UserID:       *r.OwnerID,
-		Type:         notifType,
-		ResourceID:   &id,
-		ResourceType: "risk",
+		TenantID:      tenantID,
+		UserID:        *r.OwnerID,
+		Type:          notifType,
+		ResourceID:    &id,
+		ResourceType:  "risk",
+		ResourceTitle: title,
 		Compose: func(locale string) domain.NoticeMessage {
 			if locale == "en" {
 				return domain.NoticeMessage{

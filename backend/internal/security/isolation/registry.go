@@ -637,6 +637,8 @@ var decisions = []Decision{
 		"repository/gorm_risk_acceptance_repository_test TestMaxAcceptanceMonths_IsTenantScoped: the maximum lives in the caller's own organization row (id = tenant from the token); setting tenant A leaves tenant B on the default. application/risk TestAcceptancePolicy_Unauthorized refuses an unresolved tenant (#811)"},
 	{"/api/v1/bulk-operations", Covered,
 		"service/bulk_operation_isolation_test TestBulkOperation_ListIsTenantScoped"},
+	{"/api/v1/notifications/email-policy", Covered,
+		"repository/gorm_notice_email_outbox_pg_test TestGormNoticeEmailPolicy_IsTenantScoped: one row per tenant, read and written by the caller's tenant only, another tenant reads nil; application/notification TestNoticeEmailPolicy_Unauthorized refuses the zero tenant"},
 	{"/api/v1/security/mfa-policy", Covered,
 		"repository/gorm_mfa_policy_repository_test TestMFAPolicyRepo_IsTenantScoped, with TestMFAPolicyRepo_UnsavedTenantReadsAsNil and TestMFAPolicyRepo_RefusesOutOfRangeAndMissingTenant covering the empty and zero-tenant cases"},
 	{"/api/v1/search", Pending,

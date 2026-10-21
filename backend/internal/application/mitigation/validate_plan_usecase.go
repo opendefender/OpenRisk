@@ -93,11 +93,12 @@ func (uc *ValidateMitigationPlanUseCase) notifyValidated(tenantID uuid.UUID, m *
 	}
 	id, title := m.ID, m.Title
 	_ = uc.notifier.Deliver(context.Background(), domain.Notice{
-		TenantID:     tenantID,
-		UserID:       recipient,
-		Type:         domain.NotificationTypeMitigationValidated,
-		ResourceID:   &id,
-		ResourceType: "mitigation",
+		TenantID:      tenantID,
+		UserID:        recipient,
+		Type:          domain.NotificationTypeMitigationValidated,
+		ResourceID:    &id,
+		ResourceType:  "mitigation",
+		ResourceTitle: title,
 		Compose: func(locale string) domain.NoticeMessage {
 			if locale == "en" {
 				return domain.NoticeMessage{
