@@ -282,14 +282,22 @@ func (d *Dispatcher) Deliver(ctx context.Context, n domain.Notice) error {
 			if err != nil {
 				return err
 			}
+			// The claim goes back unless the e-mail went out, a panic in a
+			// template included.
+			sent := false
+			defer func() {
+				if !sent {
+					d.release(ctx, claim, warn)
+				}
+			}()
 			mail := msg
 			if claim != nil {
 				mail = withThrottleNote(msg, locale, d.window)
 			}
 			if err := d.mailer.SendNotice(ctx, rcpt.Email, rcpt.FullName, locale, mail, link); err != nil {
-				d.release(ctx, claim, warn)
 				return redactedEmailError(err, rcpt.Email)
 			}
+			sent = true
 			return nil
 		}
 		if d.background != nil {

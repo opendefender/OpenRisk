@@ -114,3 +114,18 @@ func TestMitigationDueSweep_CancelledStampsNothing(t *testing.T) {
 	w.Sweep(ctx)
 	require.Empty(t, store.stamped)
 }
+
+// A plan is not stamped when the budget left cannot cover its e-mail: it waits
+// for the next tick instead of being stamped and cut off.
+func TestMitigationDueSweep_KeepsTimeToSendWhatItStamps(t *testing.T) {
+	store := &dueStore{plans: duePlans(2)}
+	var notified int
+	w := NewMitigationDueWorker(store, func(context.Context, domain.Notice) {
+		notified++
+		time.Sleep(60 * time.Millisecond) // eats past half the budget
+	}, zerolog.Nop()).WithBudget(100 * time.Millisecond)
+
+	w.Sweep(context.Background())
+	require.Equal(t, 1, notified)
+	require.Equal(t, []uuid.UUID{store.plans[0].ID}, store.stamped, "the second plan is left unstamped")
+}

@@ -50,6 +50,10 @@ type MitigationDueWorker struct {
 	budget time.Duration
 }
 
+// sendReserve is the time a sweep keeps back to notify a plan it stamps: the
+// dispatcher's per-e-mail timeout.
+const sendReserve = 30 * time.Second
+
 func NewMitigationDueWorker(store MitigationDueStore, notify NotifyDueFunc, logger zerolog.Logger) *MitigationDueWorker {
 	return &MitigationDueWorker{store: store, notify: notify, logger: logger, interval: time.Hour, budget: 10 * time.Minute}
 }
@@ -101,10 +105,14 @@ func (w *MitigationDueWorker) Sweep(ctx context.Context) {
 		return
 	}
 
+	// A plan is stamped before it is notified, so it is only started with
+	// time left to send it: one e-mail's timeout, or half the budget when the
+	// budget is smaller than that.
+	reserve := min(sendReserve, w.budget/2)
 	for i := range rows {
 		// Before the stamp: a plan stamped and then not notified would lose its
 		// reminder for good.
-		if ctx.Err() != nil {
+		if dl, _ := ctx.Deadline(); ctx.Err() != nil || time.Until(dl) < reserve {
 			w.logger.Warn().Int("left_for_next_tick", len(rows)-i).
 				Msg("mitigation due: sweep budget spent — the remaining plans wait for the next tick")
 			return

@@ -332,3 +332,26 @@ func TestDispatcherDrain_NoBackgroundIsNoop(t *testing.T) {
 	var nilDispatcher *Dispatcher
 	require.NoError(t, nilDispatcher.Drain(context.Background()))
 }
+
+type panicMailer struct{}
+
+func (panicMailer) SendNotice(context.Context, string, string, string, domain.NoticeMessage, string) error {
+	panic("template")
+}
+
+// A panic while sending gives the claim back too: the retry is not held.
+func TestDispatcherThrottle_PanicReleasesClaim(t *testing.T) {
+	f := newDispatcherFixture("fr")
+	th := newMemThrottle()
+	reported := make(chan error, 10)
+	f.dispatcher.WithEmail(panicMailer{}, true).WithThrottle(th, time.Hour).
+		InBackground(func(err error) { reported <- err }, 0)
+
+	require.NoError(t, f.dispatcher.Deliver(context.Background(), testNotice(f.tenantID, f.userID)))
+	require.NoError(t, f.dispatcher.Drain(context.Background()))
+	require.ErrorIs(t, <-reported, ErrEmailFailed)
+	th.mu.Lock()
+	defer th.mu.Unlock()
+	require.Equal(t, 1, th.released)
+	require.Empty(t, th.rows)
+}
