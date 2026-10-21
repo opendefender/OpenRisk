@@ -143,6 +143,18 @@ func main() {
 	// Initialisation de la Timezone (Important pour les logs/dates)
 	time.Local = time.UTC
 
+	// D-065 (#879): addresses in the auth audit trail and the per-address limits
+	// are hashed under a server key. Set before anything can hash one; a
+	// production server without the key refuses to boot.
+	auditKey, auditKeyWarning, err := auditHashKey(os.Getenv, middleware.IsProductionEnv())
+	if err != nil {
+		log.Fatalf("%v", err)
+	}
+	if auditKeyWarning != "" {
+		log.Println(auditKeyWarning)
+	}
+	domain.SetAddressHashKey(auditKey)
+
 	// Connexion Base de Données
 	database.Connect()
 

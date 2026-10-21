@@ -66,7 +66,7 @@ func TestLoginThrottle_LockedAddressAnswers429AndEveryFailureIsAudited(t *testin
 	require.NoError(t, f.db.Model(&domain.AuthAuditLog{}).Where("success = ?", false).
 		Order("created_at").Pluck("failure_reason", &reasons).Error)
 	require.Len(t, reasons, appauth.LoginMaxFailuresPerAddress+1)
-	hashed := "email_sha256=" + domain.HashEmailForReset(f.user.Email)
+	hashed := "email_hmac=" + domain.HashEmailForReset(f.user.Email)
 	for _, r := range reasons {
 		assert.Contains(t, r, hashed)
 		assert.NotContains(t, r, f.user.Email, "never the address in clear")
