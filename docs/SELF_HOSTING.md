@@ -286,7 +286,14 @@ requests are deleted, and from then on every hour. This cannot be undone. If
 you must keep those hashes, back up the database before upgrading.
 
 With Helm, pass it as `--set secrets.inline.auditHashKey=...` (or in your
-values file). The chart stores it in the `openrisk-secrets` Secret, and the
+values file).
+
+The MFA key goes the same way: `secrets.inline.mfaEncryptionKey`, stored in the
+`openrisk-secrets` Secret rather than in clear in the Deployment (#1057). A
+values file that still sets `backend.env.MFA_ENCRYPTION_KEY` keeps working, and
+its value moves into the Secret on the next upgrade. Move it to the new place
+with **the same value**: once anyone has enrolled two-factor, a different key
+cannot decrypt their secrets and they are locked out of it. The chart stores it in the `openrisk-secrets` Secret, and the
 render fails without it, so `helm upgrade` stops before any pod restarts.
 
 ### Password hashing
