@@ -95,7 +95,8 @@ func (t *Transport) SendEmail(ctx context.Context, to, subject, htmlBody string)
 		err  error
 	)
 	if t.cfg.Port == 465 {
-		conn, err = tls.DialWithDialer(dialer, "tcp", addr, &tls.Config{ServerName: t.cfg.Host, MinVersion: tls.VersionTLS12})
+		tlsDialer := &tls.Dialer{NetDialer: dialer, Config: &tls.Config{ServerName: t.cfg.Host, MinVersion: tls.VersionTLS12}}
+		conn, err = tlsDialer.DialContext(ctx, "tcp", addr)
 	} else {
 		conn, err = dialer.DialContext(ctx, "tcp", addr)
 	}
@@ -108,6 +109,11 @@ func (t *Transport) SendEmail(ctx context.Context, to, subject, htmlBody string)
 	} else {
 		_ = conn.SetDeadline(time.Now().Add(t.cfg.Timeout))
 	}
+	// A cancelled context ends the exchange now, not at the deadline: shutdown
+	// cancels the sends it can no longer wait for (#997). A message cut before
+	// the final "." is discarded by the server, never half delivered.
+	stopOnCancel := context.AfterFunc(ctx, func() { _ = conn.SetDeadline(time.Now()) })
+	defer stopOnCancel()
 
 	client, err := smtp.NewClient(conn, t.cfg.Host)
 	if err != nil {
