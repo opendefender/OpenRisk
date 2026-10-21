@@ -692,7 +692,11 @@ func main() {
 		// Anchors t0 for the time-to-Aha histogram.
 		WithActivation(activationRecorder).
 		// Organization + owner + root membership in one transaction (#687).
-		WithAccounts(repository.NewGormRegistrationRepository(database.DB))
+		WithAccounts(repository.NewGormRegistrationRepository(database.DB)).
+		// #686 — a sign-up for a registered address: five per address per
+		// hour, then an hour's pause; the owner is mailed at most once a day.
+		// Same Redis store as the sign-in lock, under its own keys.
+		WithDuplicateGuard(loginAttemptStore, securityMailer, appBaseURL)
 	refreshUseCase := auth.NewRefreshTokenUseCase(tokenManager)
 	// #689 — logout also blacklists the access token it was called with, so the
 	// session ends now instead of at the end of the access TTL.
