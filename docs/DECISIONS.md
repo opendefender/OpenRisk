@@ -5,7 +5,37 @@ recommends, and surfaces these in the daily brief. Run `/decide` to clear them.
 
 ## Open
 
-Nothing open.
+### D-073 — Settings → Sessions cannot tell which row is "this device" · raised 2026-10-21
+**Raised by** — #727, criterion 2. Escalated because both ways to fix it change auth design:
+the access token contract, or the scope of the refresh cookie.
+
+**Context** — The session list marks the caller's own row by hashing the refresh token the
+request carries. The browser never sends it to `GET /auth/sessions`: the `or_refresh` cookie
+has `Path=/api/v1/auth/refresh` (`backend/internal/middleware/session_cookie.go`), and the SPA
+cannot read an HttpOnly cookie to send it as `X-Refresh-Token`. So no row is ever marked
+current, and the SPA cannot warn before someone revokes the device they are holding.
+Criterion 1 of #727 (the caller was signed out by "sign out other devices") is fixed without
+this, by re-issuing the caller's session the way the password change does (D-047). Only the
+marking is left.
+
+**Options**
+- **A — leave it unmarked.** No change. The list shows every device as "another device",
+  the caller's included. Revoking that row signs the caller out at the next refresh.
+- **B — a session id in the access token.** Add a `sid` claim carrying the refresh family id
+  (`refresh_tokens.family_id`, stable across rotations). Any route can then name the caller's
+  session. Changes the token contract, so it needs an ADR. Tokens issued before the change
+  carry no `sid` until their next refresh (15 minutes at most).
+- **C — widen the refresh cookie to `/api/v1/auth`.** The cookie then reaches `/auth/sessions`
+  and `/auth/logout` too, which would also let logout revoke the refresh session for cookie
+  clients. Exposes the refresh token on every auth route, which is what the narrow path was
+  chosen to avoid, and browsers holding the old cookie would carry two `or_refresh` cookies
+  until the old one expires or is cleared.
+
+**Recommendation** — B. It answers the question at its source and keeps the refresh token
+where it is. C is less code but undoes a deliberate hardening.
+
+**Cost of delay** — Low. Cosmetic until someone revokes their own row, and that only costs
+them a sign-in.
 
 ## Resolved
 
