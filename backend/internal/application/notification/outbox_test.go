@@ -376,6 +376,7 @@ func TestOutboxSender_DigestEndsOnCurrentState(t *testing.T) {
 	}}
 	f.sender.WithCurrentState(reader)
 	row := f.row(event("Affecté"), event("Désaffecté"), event("Réaffecté"))
+	row.Kind = domain.NoticeEmailDigest
 
 	require.NoError(t, f.sender.Send(context.Background(), row))
 	msg := f.mailer.sent[0].msg
@@ -397,6 +398,7 @@ func TestOutboxSender_DigestSaysWhenTheItemIsGone(t *testing.T) {
 	f := newSenderFixture()
 	f.sender.WithCurrentState(&stateReader{state: &domain.NoticeResourceState{Exists: false}})
 	row := f.row(event("Affecté"), event("Désaffecté"))
+	row.Kind = domain.NoticeEmailDigest
 	row.Locale = "en"
 
 	require.NoError(t, f.sender.Send(context.Background(), row))
@@ -411,12 +413,33 @@ func TestOutboxSender_StateErrorStillSends(t *testing.T) {
 	reader := &stateReader{err: errors.New("db down")}
 	f.sender.WithCurrentState(reader)
 
-	require.NoError(t, f.sender.Send(context.Background(), f.row(event("Affecté"), event("Désaffecté"))))
+	digest := f.row(event("Affecté"), event("Désaffecté"))
+	digest.Kind = domain.NoticeEmailDigest
+	require.NoError(t, f.sender.Send(context.Background(), digest))
 	lines := f.mailer.sent[0].msg.Lines
 	require.Equal(t, "Le plus récent : Désaffecté.", lines[len(lines)-1])
 
 	require.NoError(t, f.sender.Send(context.Background(), f.row(event("Affecté"))))
 	require.Len(t, reader.asked, 1, "no state read for a single notice")
+}
+
+// A digest that holds one change still waited: it ends on the current state.
+func TestOutboxSender_OneEventDigestEndsOnCurrentState(t *testing.T) {
+	f := newSenderFixture()
+	progress := 80
+	f.sender.WithCurrentState(&stateReader{state: &domain.NoticeResourceState{
+		Exists: true, Title: "Patch VPN", MitigationStatus: domain.MitigationInProgress, Progress: &progress, Assignee: "Bob",
+	}})
+	row := f.row(event("Vous êtes désormais responsable"))
+	row.Kind = domain.NoticeEmailDigest
+
+	require.NoError(t, f.sender.Send(context.Background(), row))
+	msg := f.mailer.sent[0].msg
+	require.Equal(t, "Vous êtes désormais responsable", msg.Subject)
+	require.Equal(t, []string{
+		"Vous êtes désormais responsable.",
+		"État actuel :", "Statut : En cours", "Avancement : 80 %", "Exécutant : Bob",
+	}, msg.Lines)
 }
 
 func TestDigestMessage_RiskStateAndNobodyAssigned(t *testing.T) {

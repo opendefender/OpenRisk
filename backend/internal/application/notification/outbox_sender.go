@@ -110,10 +110,11 @@ func (s *OutboxSender) Send(ctx context.Context, row domain.NoticeEmailOutbox) e
 		return s.store.Close(keep, row, domain.NoticeEmailSkipped, "recipient turned this e-mail off")
 	}
 
-	// A digest ends on the item as it stands now. If it cannot be read, the
-	// digest still goes out, ending on the latest change.
+	// A digest waited for its window, so it ends on the item as it stands now,
+	// even when it holds one change. If the state cannot be read, the digest
+	// still goes out, ending on the latest change.
 	var current *domain.NoticeResourceState
-	if len(events) > 1 && s.state != nil && row.ResourceID != nil {
+	if row.Kind == domain.NoticeEmailDigest && s.state != nil && row.ResourceID != nil {
 		if st, err := s.state.NoticeResourceState(ctx, row.TenantID, row.ResourceType, *row.ResourceID); err == nil {
 			current = st
 		}
@@ -164,19 +165,28 @@ func OutboxBackoff(attempts int) time.Duration {
 	return d
 }
 
-// DigestMessage words the e-mail for a row. One event is sent as written.
+// DigestMessage words the e-mail for a row. One event is sent as written,
+// followed by the current state when one is given (a digest that waited).
 // Several become a digest that lists every change in order and ends on the
 // item's current state when it is known, else on the latest change.
 func DigestMessage(events []domain.NoticeEmailEvent, title, resourceType, locale string, current *domain.NoticeResourceState) domain.NoticeMessage {
-	if len(events) == 1 {
-		return domain.NoticeMessage{Subject: events[0].Subject, Lines: events[0].Lines}
-	}
 	en := locale == "en"
 	tr := func(fr, eng string) string {
 		if en {
 			return eng
 		}
 		return fr
+	}
+	if len(events) == 1 {
+		msg := domain.NoticeMessage{Subject: events[0].Subject, Lines: append([]string(nil), events[0].Lines...)}
+		switch {
+		case current != nil && !current.Exists:
+			msg.Lines = append(msg.Lines, tr("Cet élément a été supprimé depuis.", "This item has since been deleted."))
+		case current != nil:
+			msg.Lines = append(msg.Lines, tr("État actuel :", "Current state:"))
+			msg.Lines = append(msg.Lines, currentStateLines(current, locale, tr)...)
+		}
+		return msg
 	}
 	name := strings.TrimSpace(title)
 	if current != nil && current.Exists && current.Title != "" {
