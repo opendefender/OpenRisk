@@ -95,14 +95,36 @@ func (r *GormSessionRepository) Revoke(ctx context.Context, userID, sessionID uu
 //
 // When keepHash is empty this revokes everything, which is what the password
 // reset path wants.
+//
+// Sweeps until a pass removes nothing, like the token manager's revocations
+// (sweepRefreshTokens, #725): on Postgres a single DELETE misses a successor
+// that another device's rotation stores while it runs, and that device would
+// stay signed in.
 func (r *GormSessionRepository) RevokeAllExcept(ctx context.Context, userID uuid.UUID, keepHash string) (int64, error) {
-	q := r.db.WithContext(ctx).Where("user_id = ?", userID)
-	if keepHash != "" {
-		q = q.Where("token_hash <> ?", keepHash)
+	var total int64
+	for i := 0; i < maxRevocationSweeps; i++ {
+		// Account-wide on purpose, no tenant_id: signing out other devices ends the
+		// user's sessions in every org, as RevokeAllUserTokens does (D-047).
+		q := r.db.WithContext(ctx).Where("user_id = ?", userID)
+		if keepHash != "" {
+			// Chained onto the user-scoped query above.
+			q = q.Where("token_hash <> ?", keepHash)
+		}
+		res := q.Delete(&sessionRow{})
+		if res.Error != nil {
+			return total, res.Error
+		}
+		total += res.RowsAffected
+		if res.RowsAffected == 0 {
+			break
+		}
 	}
-	res := q.Delete(&sessionRow{})
-	return res.RowsAffected, res.Error
+	return total, nil
 }
+
+// maxRevocationSweeps mirrors the bound in internal/auth, which this package
+// cannot import (see sessionRow).
+const maxRevocationSweeps = 5
 
 // HasSeenDevice reports whether this user ever held a session on a fingerprint.
 //
