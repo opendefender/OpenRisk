@@ -77,6 +77,7 @@ import (
 	govinfra "github.com/opendefender/openrisk/internal/infrastructure/governance"
 	incinfra "github.com/opendefender/openrisk/internal/infrastructure/incident"
 	"github.com/opendefender/openrisk/internal/infrastructure/integrations/thehive"
+	"github.com/opendefender/openrisk/internal/infrastructure/keycheck"
 	orgdeletioninfra "github.com/opendefender/openrisk/internal/infrastructure/orgdeletion"
 	"github.com/opendefender/openrisk/internal/infrastructure/orgexport"
 	"github.com/opendefender/openrisk/internal/infrastructure/osv"
@@ -622,6 +623,35 @@ func main() {
 		log.Println("Warning: MFA_ENCRYPTION_KEY not set — using an insecure dev key. Set a strong 32-byte key in production.")
 	}
 	mfaKey := sha256.Sum256([]byte(mfaKeyRaw)) // 32 bytes for AES-256-GCM
+
+	// #1063: replicas compare fingerprints of their secret keys through Redis.
+	// Different values split the audit trail and the per-address limits, or
+	// leave a second factor unreadable on another replica, and nothing said so.
+	// A mismatch is logged and exported, never fatal: a rolling key rotation is
+	// a brief, legitimate one.
+	keyChecker := keycheck.New(redisClientInstance, instanceID(), map[string]string{
+		"AUDIT_HASH_KEY":     domain.AddressHashFingerprint(),
+		"MFA_ENCRYPTION_KEY": domain.KeyFingerprint(mfaKey[:]),
+	})
+	go func() {
+		ticker := time.NewTicker(keycheck.Interval)
+		defer ticker.Stop()
+		for {
+			results, err := keyChecker.Check(context.Background())
+			if err != nil {
+				log.Printf("key fingerprint check: %v", err)
+			}
+			for _, r := range results {
+				if r.Mismatch {
+					monitoring.KeyFingerprintMismatch.WithLabelValues(r.Key).Set(1)
+					log.Printf("ERROR: replicas are running with different %s values (%d distinct): give every replica the same key", r.Key, len(r.Fingerprints))
+				} else {
+					monitoring.KeyFingerprintMismatch.WithLabelValues(r.Key).Set(0)
+				}
+			}
+			<-ticker.C
+		}
+	}()
 
 	// --- Password policy (server-authoritative) ------------------------------
 	// One policy object shared by registration, reset and the live strength meter,
