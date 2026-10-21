@@ -289,7 +289,8 @@ With Helm, pass it as `--set secrets.inline.auditHashKey=...` (or in your
 values file). The chart stores it in the `openrisk-secrets` Secret, and the
 render fails without it, so `helm upgrade` stops before any pod restarts.
 
-`DEVICE_COOKIE_KEY` is optional. It signs the cookie that lets a browser
+`DEVICE_COOKIE_KEY` is optional (Helm: `secrets.inline.deviceCookieKey` and
+`deviceCookiePreviousKey`; compose: `.env`). It signs the cookie that lets a browser
 which already signed in get past a sign-in lock someone else keeps setting
 (D-064). Without it, the key is derived from `AUDIT_HASH_KEY`. Set it to
 rotate the cookie key on its own, with the old value in

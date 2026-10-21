@@ -177,11 +177,11 @@ that says "a calm year is impossible" is not one a risk committee should read.
 **Rationale (owner)** — Matches the recommendation: it removes the lock-out where it hurts, the owner on their usual device, without loosening anything for an unknown device, and needs no third party.
 **Consequence** — #879 criterion 1: a successful sign-in plants a signed cookie tied to the account; a locked address still accepts attempts from a browser carrying a valid cookie for it, with its own small budget. The key is a server secret with rotation, and the cookie is revoked with the sessions. Until it ships, A stands: the lock is bounded and the reset works.
 **Unblocked** — #879 criterion 1.
-**Applied** — #879 (2026-10-21). Every sign-in that ends in a full session plants `or_trusted_device`, through `/auth/login` or the MFA challenge:
-- **The cookie:** HttpOnly, sent only to `/api/v1/auth/login`, 90 days. It is signed with HMAC-SHA256 and carries the account, a random device id and the issue time in µs.
-- **The key:** `DEVICE_COOKIE_KEY`, optional, derived from `AUDIT_HASH_KEY` when unset. `DEVICE_COOKIE_PREVIOUS_KEY` handles rotation.
-- **On a locked address:** a valid cookie **for that account** is evaluated against its own budget, 5 failures in 15 min, then a 15 min lock. Its success clears only that budget, never the address lock. Anything else gets the same 429 as before.
-- **Revocation:** the cookie is revoked with the sessions through `users.devices_revoked_at` (migration 0080), stamped by password reset, password change and "sign out other devices". The browser that made the change gets a fresh cookie.
+**Applied** — #879 (2026-10-21). Every sign-in that ends in a full session plants the cookie, through `/auth/login` or the MFA challenge:
+- **The cookie:** `__Secure-or_trusted_device` over HTTPS. HttpOnly, Lax, `Path=/api/v1/auth`, 90 days. It is signed with HMAC-SHA256 and carries the account, a random device id and the issue time in µs.
+- **The key:** `DEVICE_COOKIE_KEY`, optional, derived from `AUDIT_HASH_KEY` when unset; at least 32 characters in production when set. `DEVICE_COOKIE_PREVIOUS_KEY` handles rotation.
+- **On a locked address:** a valid cookie **for that account** is evaluated against its own budget, 5 failures in 15 min, then a 15 min lock. All the account's devices share a ceiling of 20 failures an hour. A success clears only the device budget, never the address lock. Anything else gets the same 429 as before, and the account is looked up by the cookie's id, so timing tells nothing about the typed address.
+- **Revocation:** the cookie is revoked with the sessions through `users.devices_revoked_at` (migration 0080), stamped by password reset, password change and "sign out other devices". The generic user `Update` never writes that column, so a sign-in in progress cannot undo a revocation. After a password change, the browser that made it gets a fresh cookie; after "sign out other devices", only if it already held one.
 
 **Raised by** — #688 (PR #874), tracked in #879. Since #688, 10 failed sign-ins on one
 address, from any source, lock that address for 15 minutes. The lock is bounded (refused

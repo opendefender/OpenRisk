@@ -772,7 +772,10 @@ func main() {
 		WithPolicies(mfaPolicyRepo)
 	// D-064 (#879): the trusted-device cookie lets the owner's usual browser
 	// past a sign-in lock someone else keeps setting.
-	deviceCookies := trustedDeviceSigner(os.Getenv)
+	deviceCookies, err := trustedDeviceSigner(os.Getenv, middleware.IsProductionEnv())
+	if err != nil {
+		log.Fatalf("%v", err)
+	}
 
 	mfaHandler := authhandler.NewMFAHandler(setupMFAUseCase, verifyMFAUseCase, disableMFAUseCase, challengeMFAUseCase, tokenManager, userRepo, authAudit).
 		WithMFAStatus(mfaStatusResolver).

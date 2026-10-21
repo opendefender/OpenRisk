@@ -57,7 +57,7 @@ func TestTrustedDevice_GetsPastALockOthersStayOut(t *testing.T) {
 		req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/login", strings.NewReader(string(raw)))
 		req.Header.Set("Content-Type", "application/json")
 		if cookie != "" {
-			req.AddCookie(&http.Cookie{Name: middleware.TrustedDeviceCookie, Value: cookie})
+			req.AddCookie(&http.Cookie{Name: middleware.TrustedDeviceCookieName(), Value: cookie})
 		}
 		resp, err := app.Test(req, -1)
 		require.NoError(t, err)
@@ -70,13 +70,13 @@ func TestTrustedDevice_GetsPastALockOthersStayOut(t *testing.T) {
 	require.Equal(t, http.StatusOK, first.StatusCode)
 	var cookie *http.Cookie
 	for _, c := range first.Cookies() {
-		if c.Name == middleware.TrustedDeviceCookie {
+		if c.Name == middleware.TrustedDeviceCookieName() {
 			cookie = c
 		}
 	}
 	require.NotNil(t, cookie, "a full sign-in plants the cookie")
 	assert.True(t, cookie.HttpOnly)
-	assert.Equal(t, "/api/v1/auth/login", cookie.Path)
+	assert.Equal(t, "/api/v1/auth", cookie.Path)
 
 	// Someone else locks the address.
 	for i := 1; i <= appauth.LoginMaxFailuresPerAddress; i++ {

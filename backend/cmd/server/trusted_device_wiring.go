@@ -6,6 +6,7 @@
 package main
 
 import (
+	"fmt"
 	"strings"
 
 	coreauth "github.com/opendefender/openrisk/internal/auth"
@@ -20,11 +21,22 @@ import (
 // AUDIT_HASH_KEY. A dedicated key can be rotated on its own:
 // DEVICE_COOKIE_PREVIOUS_KEY keeps the cookies signed with the old one valid
 // until they age out, instead of untrusting every device at once.
-func trustedDeviceSigner(getenv func(string) string) *coreauth.DeviceCookieSigner {
+//
+// In production a key that IS set must be as strong as AUDIT_HASH_KEY (#879
+// review): one cookie for the attacker's own account is enough to try to crack
+// a weak key offline, and the key forges a cookie for any account.
+func trustedDeviceSigner(getenv func(string) string, production bool) (*coreauth.DeviceCookieSigner, error) {
 	current := []byte(strings.TrimSpace(getenv("DEVICE_COOKIE_KEY")))
+	previous := []byte(strings.TrimSpace(getenv("DEVICE_COOKIE_PREVIOUS_KEY")))
+	if production {
+		for name, k := range map[string][]byte{"DEVICE_COOKIE_KEY": current, "DEVICE_COOKIE_PREVIOUS_KEY": previous} {
+			if len(k) > 0 && len(k) < minAuditHashKeyLength {
+				return nil, fmt.Errorf("%s is too short: %d characters, production needs at least %d (or leave DEVICE_COOKIE_KEY unset to derive it from AUDIT_HASH_KEY)", name, len(k), minAuditHashKeyLength)
+			}
+		}
+	}
 	if len(current) == 0 {
 		current = domain.DeriveFromAddressHashKey("openrisk/trusted-device-cookie/v1")
 	}
-	previous := []byte(strings.TrimSpace(getenv("DEVICE_COOKIE_PREVIOUS_KEY")))
-	return coreauth.NewDeviceCookieSigner(current, previous)
+	return coreauth.NewDeviceCookieSigner(current, previous), nil
 }

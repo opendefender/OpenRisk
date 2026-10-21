@@ -44,6 +44,13 @@ const (
 	TrustedDeviceMaxFailures   = 5
 	TrustedDeviceFailureWindow = 15 * time.Minute
 	TrustedDeviceLockDuration  = 15 * time.Minute
+
+	// A ceiling per ACCOUNT across all its devices (#879 review). Each new
+	// device id brings its own budget, so without this a forged or multiplied
+	// cookie would turn the lock back into unlimited guessing.
+	TrustedDeviceAccountMaxFailures = 20
+	TrustedDeviceAccountWindow      = time.Hour
+	TrustedDeviceAccountLock        = time.Hour
 )
 
 // LoginLockedError means the address refuses sign-in for a while. It is
@@ -147,7 +154,32 @@ func (uc *LoginUseCase) deviceLockedFor(ctx context.Context, d *domain.TrustedDe
 	return left
 }
 
+func deviceAccountFailKey(d *domain.TrustedDevice) string {
+	return "login:devacct:fail:" + d.UserID.String()
+}
+func deviceAccountLockKey(d *domain.TrustedDevice) string {
+	return "login:devacct:lock:" + d.UserID.String()
+}
+
+// deviceAccountClosed reports whether the account's devices have used up their
+// shared ceiling. A store error closes it, like deviceLockedFor.
+func (uc *LoginUseCase) deviceAccountClosed(ctx context.Context, d *domain.TrustedDevice) bool {
+	left, err := uc.attempts.LockedFor(ctx, deviceAccountLockKey(d))
+	if err != nil {
+		log.Printf("login: device account lock check failed: %v", err)
+		return true
+	}
+	return left > 0
+}
+
 func (uc *LoginUseCase) recordDeviceFailure(ctx context.Context, d *domain.TrustedDevice) {
+	if n, err := uc.attempts.Increment(ctx, deviceAccountFailKey(d), TrustedDeviceAccountWindow); err != nil {
+		log.Printf("login: device account failure count not recorded: %v", err)
+	} else if n >= TrustedDeviceAccountMaxFailures {
+		if _, err := uc.attempts.Lock(ctx, deviceAccountLockKey(d), TrustedDeviceAccountLock); err == nil {
+			_ = uc.attempts.Delete(ctx, deviceAccountFailKey(d))
+		}
+	}
 	n, err := uc.attempts.Increment(ctx, deviceFailKey(d), TrustedDeviceFailureWindow)
 	if err != nil {
 		log.Printf("login: device failure count not recorded: %v", err)

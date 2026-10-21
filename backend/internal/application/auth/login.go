@@ -207,16 +207,21 @@ func (uc *LoginUseCase) Execute(ctx context.Context, input LoginInput) (*LoginOu
 		if left := uc.deviceLockedFor(ctx, input.TrustedDevice); left > 0 {
 			return nil, &LoginLockedError{RetryAfter: left}
 		}
+		// The account's devices together used up their ceiling: the device
+		// path is closed, and the answer is the address's own lock.
+		if uc.deviceAccountClosed(ctx, input.TrustedDevice) {
+			return nil, &LoginLockedError{RetryAfter: addressLock}
+		}
 		device = input.TrustedDevice
 	}
 
-	user, err := uc.userRepo.GetByEmail(ctx, email)
+	user, err := uc.lookupUser(ctx, email, device)
 	if err != nil {
 		return nil, fmt.Errorf("authentication failed")
 	}
 	// A cookie for another account, or one issued before the sessions were
 	// revoked, is no cookie: the same refusal as without one.
-	if device != nil && !device.TrustsFor(user) {
+	if device != nil && (user == nil || !device.TrustsFor(user)) {
 		return nil, &LoginLockedError{RetryAfter: addressLock}
 	}
 	recordFailure := uc.recordFailure
@@ -493,4 +498,31 @@ type UserRepository interface {
 	Create(ctx context.Context, user *domain.User) error
 	Update(ctx context.Context, user *domain.User) error
 	CreateOrganizationMember(ctx context.Context, member *domain.OrganizationMember) error
+}
+
+// userByID is the lookup the trusted-device path prefers. Satisfied by
+// *repository.GormUserRepository; optional so the narrow test fakes still fit.
+type userByID interface {
+	GetByID(ctx context.Context, id uuid.UUID) (*domain.User, error)
+}
+
+// lookupUser finds the account being signed into.
+//
+// On the trusted-device path (a locked address) it starts from the cookie's
+// account, not the typed address (#879 review): looking the address up would
+// cost more when it holds an account, and with no password hash to blur it,
+// anyone holding a cookie for their own account could time which locked
+// addresses exist. The address must still be that account's.
+func (uc *LoginUseCase) lookupUser(ctx context.Context, email string, device *domain.TrustedDevice) (*domain.User, error) {
+	byID, ok := uc.userRepo.(userByID)
+	if device == nil || !ok {
+		return uc.userRepo.GetByEmail(ctx, email)
+	}
+	// Any miss, the account gone included, reads as "no account" here, so the
+	// caller answers with the same lock as for no cookie at all.
+	user, err := byID.GetByID(ctx, device.UserID)
+	if err != nil || user == nil || domain.NormaliseEmail(user.Email) != email {
+		return nil, nil
+	}
+	return user, nil
 }

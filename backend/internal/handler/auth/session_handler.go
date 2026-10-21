@@ -118,9 +118,14 @@ func (h *SessionHandler) RevokeOtherSessions(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to revoke sessions"})
 	}
 
-	// Every trusted device was untrusted with the sessions; the one that asked
-	// for it keeps its trust, like it keeps its session.
-	plantTrustedDevice(c, h.devices, mwCtx.UserID)
+	// Every trusted device was untrusted with the sessions. The one that asked
+	// keeps its trust, like it keeps its session, but only if it already had
+	// it (#879 review): a stolen session alone must not mint a 90-day cookie.
+	if h.devices != nil {
+		if d := h.devices.Verify(middleware.TrustedDeviceCookieValue(c)); d != nil && d.UserID == mwCtx.UserID {
+			plantTrustedDevice(c, h.devices, mwCtx.UserID)
+		}
+	}
 
 	h.logAudit(c, &mwCtx.UserID, coreauth.AuditActionSessionRevokeAll, true)
 	return c.JSON(fiber.Map{"revoked": revoked})

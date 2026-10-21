@@ -86,4 +86,17 @@ func TestLogin_TrustedDeviceOnALockedAddress(t *testing.T) {
 		require.True(t, errors.As(err, &l), "got %v", err)
 		assert.InDelta(t, TrustedDeviceLockDuration.Seconds(), l.RetryAfter.Seconds(), 1)
 	})
+
+	t.Run("all the account's devices share a ceiling", func(t *testing.T) {
+		uc, users := locked(t)
+		// Fresh device ids, as a forged or copied cookie would bring.
+		for dev := 0; dev < TrustedDeviceAccountMaxFailures/TrustedDeviceMaxFailures; dev++ {
+			d := deviceOf(users.user.ID)
+			for i := 0; i < TrustedDeviceMaxFailures; i++ {
+				_, _ = uc.Execute(ctx, LoginInput{Email: users.user.Email, Password: "wrong-" + uuid.NewString(), TrustedDevice: d})
+			}
+		}
+		_, err := uc.Execute(ctx, LoginInput{Email: users.user.Email, Password: right, TrustedDevice: deviceOf(users.user.ID)})
+		assert.True(t, isLocked(err), "a new device id must not bring a new budget past the account ceiling: %v", err)
+	})
 }
