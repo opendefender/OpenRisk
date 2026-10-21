@@ -20,7 +20,7 @@ import (
 // OutboxStore is what the sender needs from the outbox
 // (repository.GormNoticeEmailOutbox).
 type OutboxStore interface {
-	ClaimDue(ctx context.Context, limit int, lease time.Duration) ([]domain.NoticeEmailOutbox, error)
+	ClaimDue(ctx context.Context, limit int, lease time.Duration, maxAttempts int) ([]domain.NoticeEmailOutbox, error)
 	MarkSent(ctx context.Context, row domain.NoticeEmailOutbox) error
 	Retry(ctx context.Context, row domain.NoticeEmailOutbox, at time.Time, reason string) error
 	Close(ctx context.Context, row domain.NoticeEmailOutbox, status, reason string) error
@@ -30,9 +30,12 @@ const (
 	// OutboxMaxAttempts is how many times a row is tried before it is marked
 	// failed. With the backoff below that is about seven hours of retries.
 	OutboxMaxAttempts = 12
-	// OutboxLease is how long a claimed row is held. It outlasts one send, so
-	// only a replica that died lets it go.
+	// OutboxLease is how long a claimed row is held. It outlasts the lookups
+	// and the send together, so only a replica that died lets it go.
 	OutboxLease = 2 * time.Minute
+	// lookupTimeout bounds each read around the send (recipient, current
+	// state), keeping the whole send well inside the lease.
+	lookupTimeout = 20 * time.Second
 )
 
 // ResourceStateReader reads an item as it stands, tenant-scoped
@@ -75,7 +78,7 @@ func NewOutboxSender(store OutboxStore, directory RecipientDirectory, prefs *Use
 
 // Claim leases up to limit due rows.
 func (s *OutboxSender) Claim(ctx context.Context, limit int) ([]domain.NoticeEmailOutbox, error) {
-	return s.store.ClaimDue(ctx, limit, OutboxLease)
+	return s.store.ClaimDue(ctx, limit, OutboxLease, OutboxMaxAttempts)
 }
 
 // Send delivers one claimed row and records what happened. It returns an
@@ -88,7 +91,9 @@ func (s *OutboxSender) Send(ctx context.Context, row domain.NoticeEmailOutbox) e
 	keep, cancel := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
 	defer cancel()
 
-	rcpt, err := s.directory.NoticeRecipient(ctx, row.TenantID, row.UserID)
+	lookup, cancelLookup := context.WithTimeout(ctx, lookupTimeout)
+	rcpt, err := s.directory.NoticeRecipient(lookup, row.TenantID, row.UserID)
+	cancelLookup()
 	if err != nil {
 		return s.retry(keep, ctx, row, fmt.Errorf("recipient lookup: %w", err))
 	}
@@ -115,11 +120,13 @@ func (s *OutboxSender) Send(ctx context.Context, row domain.NoticeEmailOutbox) e
 	// still goes out, ending on the latest change.
 	var current *domain.NoticeResourceState
 	if row.Kind == domain.NoticeEmailDigest && s.state != nil && row.ResourceID != nil {
-		if st, err := s.state.NoticeResourceState(ctx, row.TenantID, row.ResourceType, *row.ResourceID); err == nil {
+		lookup, cancelLookup := context.WithTimeout(ctx, lookupTimeout)
+		if st, err := s.state.NoticeResourceState(lookup, row.TenantID, row.ResourceType, *row.ResourceID); err == nil {
 			current = st
 		}
+		cancelLookup()
 	}
-	msg := DigestMessage(events, row.ResourceTitle, row.ResourceType, row.Locale, current)
+	msg := DigestMessage(events, row.Omitted, row.ResourceTitle, row.ResourceType, row.Locale, current)
 	link := ""
 	if s.link != nil {
 		link = s.link(row.ResourceType, row.ResourceID)
@@ -169,7 +176,10 @@ func OutboxBackoff(attempts int) time.Duration {
 // followed by the current state when one is given (a digest that waited).
 // Several become a digest that lists every change in order and ends on the
 // item's current state when it is known, else on the latest change.
-func DigestMessage(events []domain.NoticeEmailEvent, title, resourceType, locale string, current *domain.NoticeResourceState) domain.NoticeMessage {
+//
+// omitted counts the older changes the outbox kept count of but not word for
+// word (past NoticeEmailDigestCap); they are announced, not hidden.
+func DigestMessage(events []domain.NoticeEmailEvent, omitted int, title, resourceType, locale string, current *domain.NoticeResourceState) domain.NoticeMessage {
 	en := locale == "en"
 	tr := func(fr, eng string) string {
 		if en {
@@ -177,7 +187,7 @@ func DigestMessage(events []domain.NoticeEmailEvent, title, resourceType, locale
 		}
 		return fr
 	}
-	if len(events) == 1 {
+	if len(events) == 1 && omitted == 0 {
 		msg := domain.NoticeMessage{Subject: events[0].Subject, Lines: append([]string(nil), events[0].Lines...)}
 		switch {
 		case current != nil && !current.Exists:
@@ -196,13 +206,19 @@ func DigestMessage(events []domain.NoticeEmailEvent, title, resourceType, locale
 		name = itemLabel(resourceType, en)
 	}
 
-	subject := fmt.Sprintf(tr("%d changements sur « %s »", "%d changes to “%s”"), len(events), name)
-	lines := make([]string, 0, len(events)+8)
+	total := len(events) + omitted
+	subject := fmt.Sprintf(tr("%d changements sur « %s »", "%d changes to “%s”"), total, name)
+	lines := make([]string, 0, len(events)+9)
 	lines = append(lines, fmt.Sprintf(tr(
 		"%d changements ont eu lieu sur « %s » depuis le dernier e-mail à ce sujet :",
-		"%d changes were made to “%s” since the last e-mail about it:"), len(events), name))
+		"%d changes were made to “%s” since the last e-mail about it:"), total, name))
+	if omitted > 0 {
+		lines = append(lines, fmt.Sprintf(tr(
+			"(les %d plus anciens ne sont pas détaillés ; voici les %d derniers)",
+			"(the %d oldest are not listed; here are the latest %d)"), omitted, len(events)))
+	}
 	for i, ev := range events {
-		lines = append(lines, fmt.Sprintf("%d. %s", i+1, ev.Subject))
+		lines = append(lines, fmt.Sprintf("%d. %s", omitted+i+1, ev.Subject))
 	}
 
 	switch {

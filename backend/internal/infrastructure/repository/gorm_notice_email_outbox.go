@@ -95,11 +95,17 @@ func (r *GormNoticeEmailOutbox) Enqueue(ctx context.Context, row domain.NoticeEm
 			if err != nil {
 				return err
 			}
+			// Past the cap the oldest change is counted instead of kept, so
+			// the e-mail stays a size any relay accepts.
 			res := tx.Exec(`
 				UPDATE notice_email_outbox
-				   SET events = events || ?::jsonb, resource_title = ?, locale = ?
+				   SET events = CASE WHEN jsonb_array_length(events) >= ? THEN (events - 0) || ?::jsonb
+				                     ELSE events || ?::jsonb END,
+				       omitted = omitted + CASE WHEN jsonb_array_length(events) >= ? THEN 1 ELSE 0 END,
+				       resource_title = ?, locale = ?
 				 WHERE id = ? AND tenant_id = ? AND status = ?`,
-				string(events), row.ResourceTitle, row.Locale, digest[0].ID, row.TenantID, domain.NoticeEmailPending)
+				domain.NoticeEmailDigestCap, string(events), string(events), domain.NoticeEmailDigestCap,
+				row.ResourceTitle, row.Locale, digest[0].ID, row.TenantID, domain.NoticeEmailPending)
 			if res.Error != nil {
 				return res.Error
 			}
@@ -141,7 +147,19 @@ func (r *GormNoticeEmailOutbox) Enqueue(ctx context.Context, row domain.NoticeEm
 // (a replica died mid-send), and leases them for lease. SKIP LOCKED lets
 // replicas split the work. Each grouped row claimed restamps its throttle, so a
 // notice arriving while it is sent waits for the next window.
-func (r *GormNoticeEmailOutbox) ClaimDue(ctx context.Context, limit int, lease time.Duration) ([]domain.NoticeEmailOutbox, error) {
+//
+// A row whose lease expired after maxAttempts claims never came back from its
+// send: it crashed the process each time. It is marked failed, kept and logged
+// by the caller, rather than taken again forever.
+func (r *GormNoticeEmailOutbox) ClaimDue(ctx context.Context, limit int, lease time.Duration, maxAttempts int) ([]domain.NoticeEmailOutbox, error) {
+	if err := r.db.WithContext(ctx).Exec(`
+		UPDATE notice_email_outbox
+		   SET status = ?, locked_until = NULL,
+		       last_error = 'no outcome recorded after the last attempt (the send never returned)'
+		 WHERE status = ? AND locked_until < now() AND attempts >= ?`,
+		domain.NoticeEmailFailed, domain.NoticeEmailSending, maxAttempts).Error; err != nil {
+		return nil, err
+	}
 	var rows []domain.NoticeEmailOutbox
 	err := r.db.WithContext(ctx).Raw(`
 		UPDATE notice_email_outbox

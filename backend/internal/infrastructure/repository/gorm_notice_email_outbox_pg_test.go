@@ -248,7 +248,7 @@ func TestGormNoticeEmailOutbox_ConcurrentClaims_Postgres(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			for {
-				rows, err := box.ClaimDue(ctx, 4, time.Minute)
+				rows, err := box.ClaimDue(ctx, 4, time.Minute, 12)
 				if !assert.NoError(t, err) || len(rows) == 0 {
 					return
 				}
@@ -277,7 +277,7 @@ func TestGormNoticeEmailOutbox_ClaimLeaseAndOutcome(t *testing.T) {
 	_, _, err = box.Enqueue(ctx, k.row("Désaffecté"), time.Hour)
 	require.NoError(t, err)
 
-	rows, err := box.ClaimDue(ctx, 10, time.Minute)
+	rows, err := box.ClaimDue(ctx, 10, time.Minute, 12)
 	require.NoError(t, err)
 	require.Len(t, rows, 1, "the digest is not due yet")
 	require.Equal(t, domain.NoticeEmailSending, rows[0].Status)
@@ -286,7 +286,7 @@ func TestGormNoticeEmailOutbox_ClaimLeaseAndOutcome(t *testing.T) {
 
 	// A replica that died: its lease runs out and the row is claimed again.
 	require.NoError(t, db.Exec(`UPDATE notice_email_outbox SET locked_until = now() - interval '1 second' WHERE id = ? AND tenant_id = ?`, rows[0].ID, k.tenant).Error)
-	again, err := box.ClaimDue(ctx, 10, time.Minute)
+	again, err := box.ClaimDue(ctx, 10, time.Minute, 12)
 	require.NoError(t, err)
 	require.Len(t, again, 1)
 	require.Equal(t, rows[0].ID, again[0].ID)
@@ -294,18 +294,18 @@ func TestGormNoticeEmailOutbox_ClaimLeaseAndOutcome(t *testing.T) {
 
 	// Retry puts it back for later; MarkSent closes it.
 	require.NoError(t, box.Retry(ctx, again[0], time.Now().Add(-time.Second), "421"))
-	third, err := box.ClaimDue(ctx, 10, time.Minute)
+	third, err := box.ClaimDue(ctx, 10, time.Minute, 12)
 	require.NoError(t, err)
 	require.Len(t, third, 1)
 	require.Equal(t, "421", third[0].LastError)
 	require.NoError(t, box.MarkSent(ctx, third[0]))
-	none, err := box.ClaimDue(ctx, 10, time.Minute)
+	none, err := box.ClaimDue(ctx, 10, time.Minute, 12)
 	require.NoError(t, err)
 	require.Empty(t, none)
 
 	// The digest is claimed once its window is over, and restamps the throttle.
 	require.NoError(t, db.Exec(`UPDATE notice_email_outbox SET due_at = now() - interval '1 second' WHERE kind = 'digest' AND tenant_id = ?`, k.tenant).Error)
-	digest, err := box.ClaimDue(ctx, 10, time.Minute)
+	digest, err := box.ClaimDue(ctx, 10, time.Minute, 12)
 	require.NoError(t, err)
 	require.Len(t, digest, 1)
 	require.Equal(t, domain.NoticeEmailDigest, digest[0].Kind)
@@ -388,7 +388,7 @@ func TestNoticeEmailOutbox_AutoMigrateTablesWork(t *testing.T) {
 	kind, _, err = box.Enqueue(context.Background(), k.row("b"), time.Hour)
 	require.NoError(t, err)
 	require.Equal(t, domain.NoticeEmailDigest, kind)
-	rows, err := box.ClaimDue(context.Background(), 10, time.Minute)
+	rows, err := box.ClaimDue(context.Background(), 10, time.Minute, 12)
 	require.NoError(t, err)
 	require.Len(t, rows, 1)
 	require.NoError(t, NewGormNoticeEmailPolicyRepository(db).SaveNoticeEmailPolicy(context.Background(),
@@ -413,4 +413,57 @@ func TestNoticeEmailOutboxMigration_DownDropsTables(t *testing.T) {
 	for _, tbl := range tables {
 		require.False(t, exists(tbl), "down drops %s", tbl)
 	}
+}
+
+// #997 review — a digest keeps the latest NoticeEmailDigestCap changes and
+// counts the rest, so a day of changes never makes an e-mail the relay refuses.
+func TestGormNoticeEmailOutbox_DigestIsCapped(t *testing.T) {
+	db, _ := outboxSchema(t, false)
+	box := NewGormNoticeEmailOutbox(db)
+	ctx := context.Background()
+	k := newOutboxKey()
+	const n = domain.NoticeEmailDigestCap + 11 // 1 single, then 60 into the digest
+	for i := range n {
+		_, _, err := box.Enqueue(ctx, k.row(fmt.Sprintf("change %d", i)), 24*time.Hour)
+		require.NoError(t, err)
+	}
+	rows := outboxRows(t, db, k.tenant)
+	require.Len(t, rows, 2)
+	digest := rows[1]
+	require.Equal(t, domain.NoticeEmailDigest, digest.Kind)
+	require.Len(t, digest.Events, domain.NoticeEmailDigestCap)
+	require.Equal(t, 10, digest.Omitted, "the oldest are counted, not lost from the total")
+	require.Equal(t, "change 11", digest.Events[0].Subject, "the oldest kept")
+	require.Equal(t, fmt.Sprintf("change %d", n-1), digest.Events[len(digest.Events)-1].Subject, "the latest kept")
+}
+
+// #997 review — a row whose send never returns (it crashes the process) is
+// marked failed after the last attempt instead of being claimed forever.
+func TestGormNoticeEmailOutbox_CrashLoopingRowEndsFailed(t *testing.T) {
+	db, _ := outboxSchema(t, false)
+	box := NewGormNoticeEmailOutbox(db)
+	ctx := context.Background()
+	k := newOutboxKey()
+	r := k.row("x")
+	r.Grouped = false
+	_, _, err := box.Enqueue(ctx, r, time.Hour)
+	require.NoError(t, err)
+	require.NoError(t, db.Exec(`UPDATE notice_email_outbox SET status = 'sending', attempts = 12, locked_until = now() - interval '1 second' WHERE tenant_id = ?`, k.tenant).Error)
+
+	rows, err := box.ClaimDue(ctx, 10, time.Minute, 12)
+	require.NoError(t, err)
+	require.Empty(t, rows, "not leased again")
+	got := outboxRows(t, db, k.tenant)[0]
+	require.Equal(t, domain.NoticeEmailFailed, got.Status, "kept, marked failed")
+	require.Contains(t, got.LastError, "never returned")
+
+	// One attempt short of the cap: taken again.
+	r2 := k.row("y")
+	r2.Grouped = false
+	_, _, err = box.Enqueue(ctx, r2, time.Hour)
+	require.NoError(t, err)
+	require.NoError(t, db.Exec(`UPDATE notice_email_outbox SET status = 'sending', attempts = 11, locked_until = now() - interval '1 second' WHERE tenant_id = ? AND status = 'pending'`, k.tenant).Error)
+	rows, err = box.ClaimDue(ctx, 10, time.Minute, 12)
+	require.NoError(t, err)
+	require.Len(t, rows, 1)
 }

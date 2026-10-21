@@ -35,6 +35,7 @@ CREATE TABLE IF NOT EXISTS notice_email_outbox (
     grouped        boolean     NOT NULL,
     locale         text        NOT NULL,
     events         jsonb       NOT NULL,
+    omitted        bigint      NOT NULL DEFAULT 0,
     status         text        NOT NULL,
     due_at         timestamptz NOT NULL,
     attempts       bigint      NOT NULL DEFAULT 0,

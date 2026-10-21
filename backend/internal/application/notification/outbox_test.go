@@ -53,7 +53,7 @@ func (m *memOutbox) Enqueue(_ context.Context, row domain.NoticeEmailOutbox, win
 	return domain.NoticeEmailSingle, time.Now(), nil
 }
 
-func (m *memOutbox) ClaimDue(_ context.Context, limit int, _ time.Duration) ([]domain.NoticeEmailOutbox, error) {
+func (m *memOutbox) ClaimDue(_ context.Context, limit int, _ time.Duration, _ int) ([]domain.NoticeEmailOutbox, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	n := min(limit, len(m.claimable))
@@ -348,7 +348,7 @@ func TestOutboxBackoff(t *testing.T) {
 }
 
 func TestDigestMessage_English(t *testing.T) {
-	msg := DigestMessage([]domain.NoticeEmailEvent{event("Assigned"), event("Status changed")}, "", "risk", "en", nil)
+	msg := DigestMessage([]domain.NoticeEmailEvent{event("Assigned"), event("Status changed")}, 0, "", "risk", "en", nil)
 	require.Equal(t, "2 changes to “a risk”", msg.Subject)
 	require.Equal(t, "Latest: Status changed.", msg.Lines[len(msg.Lines)-1])
 }
@@ -443,9 +443,21 @@ func TestOutboxSender_OneEventDigestEndsOnCurrentState(t *testing.T) {
 }
 
 func TestDigestMessage_RiskStateAndNobodyAssigned(t *testing.T) {
-	msg := DigestMessage([]domain.NoticeEmailEvent{event("a"), event("b")}, "R", "risk", "en",
+	msg := DigestMessage([]domain.NoticeEmailEvent{event("a"), event("b")}, 0, "R", "risk", "en",
 		&domain.NoticeResourceState{Exists: true, Title: "R", RiskState: domain.StateInTreatment})
 	require.Equal(t, []string{"Current state:", "Stage: " + domain.StateInTreatment.Label("en"), "Assignee: nobody"}, msg.Lines[3:])
+}
+
+// Past the cap, the oldest changes are counted and announced, the latest listed.
+func TestDigestMessage_AnnouncesChangesPastTheCap(t *testing.T) {
+	msg := DigestMessage([]domain.NoticeEmailEvent{event("x"), event("y")}, 120, "Patch VPN", "mitigation", "fr", nil)
+	require.Equal(t, "122 changements sur « Patch VPN »", msg.Subject)
+	require.Equal(t, []string{
+		"122 changements ont eu lieu sur « Patch VPN » depuis le dernier e-mail à ce sujet :",
+		"(les 120 plus anciens ne sont pas détaillés ; voici les 2 derniers)",
+		"121. x", "122. y",
+		"Le plus récent : y.",
+	}, msg.Lines)
 }
 
 // --- Policy use cases ------------------------------------------------------

@@ -84,6 +84,13 @@ type NoticeEmailThrottle struct {
 
 func (NoticeEmailThrottle) TableName() string { return "notice_email_throttle" }
 
+// NoticeEmailDigestCap is how many changes a digest keeps word for word. Past
+// it the oldest are counted, not kept: the digest still goes out, says how many
+// changes it summarises, lists the latest ones and ends on the current state.
+// Without a cap, a run of changes over a day could make the e-mail too large
+// for the relay, which would refuse it and lose it.
+const NoticeEmailDigestCap = 50
+
 // Outbox row kinds.
 const (
 	NoticeEmailSingle = "single" // one notice, its own e-mail
@@ -151,16 +158,18 @@ type NoticeEmailOutbox struct {
 	// Grouped rows count toward the window: sending one restamps the throttle.
 	// A deadline reminder is not grouped. No `default:` tag: GORM would drop
 	// an explicit false on insert in favour of it.
-	Grouped     bool              `gorm:"not null"`
-	Locale      string            `gorm:"type:text;not null"`
-	Events      NoticeEmailEvents `gorm:"type:jsonb;not null"`
-	Status      string            `gorm:"type:text;not null;index:idx_notice_email_outbox_due,priority:1"`
-	DueAt       time.Time         `gorm:"type:timestamptz;not null;index:idx_notice_email_outbox_due,priority:2"`
-	Attempts    int               `gorm:"not null;default:0"`
-	LockedUntil *time.Time        `gorm:"type:timestamptz"`
-	LastError   string            `gorm:"type:text;not null;default:''"`
-	CreatedAt   time.Time         `gorm:"type:timestamptz;not null"`
-	SentAt      *time.Time        `gorm:"type:timestamptz"`
+	Grouped bool              `gorm:"not null"`
+	Locale  string            `gorm:"type:text;not null"`
+	Events  NoticeEmailEvents `gorm:"type:jsonb;not null"`
+	// Omitted counts the oldest changes dropped from Events past the cap.
+	Omitted     int        `gorm:"not null;default:0"`
+	Status      string     `gorm:"type:text;not null;index:idx_notice_email_outbox_due,priority:1"`
+	DueAt       time.Time  `gorm:"type:timestamptz;not null;index:idx_notice_email_outbox_due,priority:2"`
+	Attempts    int        `gorm:"not null;default:0"`
+	LockedUntil *time.Time `gorm:"type:timestamptz"`
+	LastError   string     `gorm:"type:text;not null;default:''"`
+	CreatedAt   time.Time  `gorm:"type:timestamptz;not null"`
+	SentAt      *time.Time `gorm:"type:timestamptz"`
 }
 
 func (NoticeEmailOutbox) TableName() string { return "notice_email_outbox" }
