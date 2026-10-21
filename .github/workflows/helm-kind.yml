@@ -64,7 +64,7 @@ jobs:
             --set-file secrets.inline.rsaPrivateKey=private.pem \
             --set-file secrets.inline.rsaPublicKey=public.pem \
             --set backend.env.INITIAL_ADMIN_PASSWORD="Kind-$(openssl rand -hex 12)" \
-            --set backend.env.MFA_ENCRYPTION_KEY="$(openssl rand -hex 32)" \
+            --set secrets.inline.mfaEncryptionKey="$(openssl rand -hex 32)" \
             --set secrets.inline.auditHashKey="$(openssl rand -base64 32)"
 
       - name: Backend and frontend become Ready
