@@ -39,13 +39,23 @@ export function AuthScreen({ initialView = 'login' }: { initialView?: View }) {
   // Why the login form is showing, when another screen sent the user to it:
   // a challenge that cannot take another code ends on the password (#872).
   const [notice, setNotice] = useState('');
+  // The address a sign-up found already registered, carried to the sign-in
+  // form so the person does not type it twice (#686).
+  const [loginEmail, setLoginEmail] = useState('');
   return (
     <AuthLayout>
       {view === 'login' ? (
-        <LoginForm notice={notice} onRegister={() => setView('register')} />
+        <LoginForm
+          notice={notice}
+          initialEmail={loginEmail}
+          onRegister={() => setView('register')}
+        />
       ) : (
         <RegisterForm
-          onLogin={() => setView('login')}
+          onLogin={(email = '') => {
+            setLoginEmail(email);
+            setView('login');
+          }}
           onRestart={(message) => {
             setNotice(message);
             setView('login');
@@ -87,7 +97,15 @@ function throttleMinutes(err: unknown): number | null | undefined {
   return seconds === null ? null : Math.max(1, Math.ceil(seconds / 60));
 }
 
-function LoginForm({ notice = '', onRegister }: { notice?: string; onRegister: () => void }) {
+function LoginForm({
+  notice = '',
+  initialEmail = '',
+  onRegister,
+}: {
+  notice?: string;
+  initialEmail?: string;
+  onRegister: () => void;
+}) {
   const navigate = useNavigate();
   const [params, setParams] = useSearchParams();
   const lang = useUIStore((s) => s.lang);
@@ -95,7 +113,7 @@ function LoginForm({ notice = '', onRegister }: { notice?: string; onRegister: (
   const reduced = usePrefersReducedMotion();
   const login = useAuthStore((s) => s.login);
 
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(initialEmail);
   const [password, setPassword] = useState('');
   const [show, setShow] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -231,7 +249,7 @@ function LoginForm({ notice = '', onRegister }: { notice?: string; onRegister: (
             data-testid="login-email"
             type="email"
             autoComplete="username"
-            autoFocus
+            autoFocus={!initialEmail}
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             className={inputCls}
@@ -249,6 +267,9 @@ function LoginForm({ notice = '', onRegister }: { notice?: string; onRegister: (
               data-testid="login-password"
               type={show ? 'text' : 'password'}
               autoComplete="current-password"
+              // Arriving with the address already filled in, the password is
+              // the one thing left to type.
+              autoFocus={Boolean(initialEmail)}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className={inputCls}
@@ -682,7 +703,7 @@ function RegisterForm({
   onLogin,
   onRestart,
 }: {
-  onLogin: () => void;
+  onLogin: (email?: string) => void;
   onRestart: (message: string) => void;
 }) {
   const navigate = useNavigate();
@@ -702,6 +723,10 @@ function RegisterForm({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [nonce, setNonce] = useState(0);
+  // The address the server said already has an account (#686). Kept apart
+  // from `email` so editing the field clears the offer rather than pointing
+  // sign-in at an address nobody checked.
+  const [existing, setExisting] = useState('');
   // Comes from the shared policy meter, which defers to the server.
   const [acceptable, setAcceptable] = useState(false);
 
@@ -717,6 +742,7 @@ function RegisterForm({
 
     setBusy(true);
     setError('');
+    setExisting('');
     try {
       // Sign-up asks for no company, so the organisation starts under the
       // person's own name, and the tunnel's organisation step asks for the real
@@ -735,6 +761,9 @@ function RegisterForm({
         password,
         full_name: fullName.trim(),
         company_name: company,
+        // The language the owner is alerted in when this address turns out to
+        // have an account that records none (#686).
+        locale: lang,
       });
 
       // The account exists now; the session may not. login() can stop short in
@@ -770,7 +799,10 @@ function RegisterForm({
       } else if (status === 409 && body?.code && body.code !== 'EMAIL_ALREADY_REGISTERED') {
         setError(body.error || copy.registerFailed);
       } else if (status === 409) {
+        // #686: say it plainly and offer the two ways back into the account
+        // the person already owns, with the address carried over.
         setError(copy.registerEmailExists);
+        setExisting(email.trim());
       } else if (status === 400) {
         const msg = axios.isAxiosError(err)
           ? (err.response?.data as { error?: string })?.error
@@ -805,6 +837,28 @@ function RegisterForm({
       </div>
 
       <ErrorBanner>{error}</ErrorBanner>
+      {existing && (
+        <div className="flex flex-wrap gap-x-4 gap-y-1 -mt-2 mb-4 text-[12.5px] font-medium">
+          <button
+            type="button"
+            data-testid="register-conflict-signin"
+            onClick={() => onLogin(existing)}
+            className="font-semibold"
+          >
+            {copy.registerConflictSignIn}
+          </button>
+          {/* Router state, not the query string: the address stays out of the
+              URL, the history and any access log. The reset screen answers the
+              same for every address and mails only that inbox. */}
+          <Link
+            to="/forgot-password"
+            state={{ email: existing }}
+            data-testid="register-conflict-reset"
+          >
+            {copy.registerConflictReset}
+          </Link>
+        </div>
+      )}
 
       <div className="mb-[15px]" style={cascade(1, reduced)}>
         <Label htmlFor="reg-name">{copy.fullName}</Label>
@@ -829,7 +883,10 @@ function RegisterForm({
           type="email"
           autoComplete="email"
           value={email}
-          onChange={(e) => setEmail(e.target.value)}
+          onChange={(e) => {
+            setEmail(e.target.value);
+            setExisting('');
+          }}
           className={inputCls}
           style={inputStyle(false)}
         />

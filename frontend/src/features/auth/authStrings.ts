@@ -168,6 +168,8 @@ export interface AuthCopy {
   signInLink: string;
   registerNameRequired: string;
   registerEmailExists: string;
+  registerConflictSignIn: string;
+  registerConflictReset: string;
   registerFailed: string;
 
   // Forgot password
@@ -286,7 +288,9 @@ const fr: AuthCopy = {
   haveAccount: 'Vous avez déjà un compte ?',
   signInLink: 'Se connecter',
   registerNameRequired: 'Indiquez votre nom.',
-  registerEmailExists: 'Un compte existe déjà avec cet e-mail. Connectez-vous.',
+  registerEmailExists: 'Un compte existe déjà avec cette adresse e-mail.',
+  registerConflictSignIn: 'Se connecter avec cette adresse',
+  registerConflictReset: 'Mot de passe oublié ?',
   registerFailed: 'La création du compte a échoué. Réessayez dans un instant.',
 
   forgotTitle: 'Mot de passe oublié',
@@ -412,7 +416,9 @@ const en: AuthCopy = {
   haveAccount: 'Already have an account?',
   signInLink: 'Sign in',
   registerNameRequired: 'Please enter your name.',
-  registerEmailExists: 'An account already exists for this email. Please sign in.',
+  registerEmailExists: 'An account already exists with this email address.',
+  registerConflictSignIn: 'Sign in with this address',
+  registerConflictReset: 'Forgot password?',
   registerFailed: "We couldn't create your account. Please try again shortly.",
 
   forgotTitle: 'Forgot your password',

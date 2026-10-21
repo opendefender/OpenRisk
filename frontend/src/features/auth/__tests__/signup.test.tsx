@@ -14,7 +14,8 @@ import { AxiosError, AxiosHeaders, type AxiosResponse } from 'axios';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter } from 'react-router';
+import { MemoryRouter, Route, Routes } from 'react-router';
+import axe from 'axe-core';
 
 const navigate = vi.fn();
 const login = vi.fn();
@@ -36,6 +37,10 @@ vi.mock('../authService', () => ({
   listSessions: vi.fn(),
   revokeSession: vi.fn(),
   revokeOtherSessions: vi.fn(),
+  requestPasswordReset: vi.fn(),
+  // The strength meter asks the server after a pause. A slow test (axe) used
+  // to let that timer fire against a mock with no such export.
+  checkPassword: () => new Promise<never>(() => {}),
 }));
 vi.mock('../../../hooks/useAuthStore', () => {
   const state = {
@@ -49,6 +54,7 @@ vi.mock('../../../hooks/useAuthStore', () => {
 });
 
 import { AuthScreen } from '../AuthScreen';
+import { ForgotPasswordScreen } from '../ForgotPasswordScreen';
 import { authCopy } from '../authStrings';
 
 function renderSignup() {
@@ -181,7 +187,8 @@ describe('signing up', () => {
     await fillAndSubmit();
 
     expect(await screen.findByText(/username is already taken/i)).toBeInTheDocument();
-    expect(screen.queryByText(/compte existe déjà avec cet e-mail/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(authCopy('fr').registerEmailExists)).not.toBeInTheDocument();
+    expect(screen.queryByTestId('register-conflict-signin')).not.toBeInTheDocument();
   });
 
   it('says so plainly when the address already has an account', async () => {
@@ -199,7 +206,7 @@ describe('signing up', () => {
     renderSignup();
     await fillAndSubmit();
 
-    expect(await screen.findByText(/compte existe déjà avec cet e-mail/i)).toBeInTheDocument();
+    expect(await screen.findByText(authCopy('fr').registerEmailExists)).toBeInTheDocument();
   });
 
   it('still goes straight in when no second factor is demanded', async () => {
@@ -234,5 +241,89 @@ describe('signing up', () => {
 
     expect(await screen.findByTestId('login-password')).toBeInTheDocument();
     expect(screen.getByTestId('auth-error')).toHaveTextContent(authCopy('fr').mfaExpired);
+  });
+
+  // #686: the conflict says so plainly and offers the two ways back into the
+  // account the person already owns, with the address carried over.
+  describe('when the address already has an account', () => {
+    const conflict = {
+      isAxiosError: true,
+      response: {
+        status: 409,
+        data: {
+          error: 'An account already exists for this email address',
+          code: 'EMAIL_ALREADY_REGISTERED',
+        },
+      },
+    };
+
+    function renderWithReset() {
+      return render(
+        <MemoryRouter initialEntries={['/register']}>
+          <Routes>
+            <Route path="/register" element={<AuthScreen initialView="register" />} />
+            <Route path="/forgot-password" element={<ForgotPasswordScreen />} />
+          </Routes>
+        </MemoryRouter>,
+      );
+    }
+
+    beforeEach(() => {
+      post.mockRejectedValue(conflict);
+    });
+
+    it('offers sign-in with the address already filled in', async () => {
+      renderSignup();
+      const user = await fillAndSubmit();
+
+      await user.click(await screen.findByTestId('register-conflict-signin'));
+
+      expect(await screen.findByTestId('login-email')).toHaveValue('alix@example.com');
+      expect(screen.getByTestId('login-password')).toHaveFocus();
+      expect(login).not.toHaveBeenCalled();
+    });
+
+    it('offers the existing reset request with the address already filled in', async () => {
+      renderWithReset();
+      const user = await fillAndSubmit();
+
+      await user.click(await screen.findByTestId('register-conflict-reset'));
+
+      expect(await screen.findByTestId('forgot-email')).toHaveValue('alix@example.com');
+    });
+
+    it('drops the offer when the address is edited', async () => {
+      renderSignup();
+      const user = await fillAndSubmit();
+      await screen.findByTestId('register-conflict-signin');
+
+      await user.type(screen.getByTestId('register-email'), 'x');
+
+      expect(screen.queryByTestId('register-conflict-signin')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('register-conflict-reset')).not.toBeInTheDocument();
+    });
+
+    it('sends the screen language so the owner alert can fall back to it', async () => {
+      renderSignup();
+      await fillAndSubmit();
+
+      await screen.findByTestId('register-conflict-signin');
+      const [, body] = post.mock.calls[0] as [string, Record<string, unknown>];
+      expect(body.locale).toBe('fr');
+    });
+
+    it('has no serious or critical axe violations', async () => {
+      const { container } = renderSignup();
+      await fillAndSubmit();
+      await screen.findByTestId('register-conflict-signin');
+
+      const results = await axe.run(container, {
+        rules: { 'color-contrast': { enabled: false } },
+      });
+      const blocking = results.violations.filter(
+        (v) => v.impact === 'serious' || v.impact === 'critical',
+      );
+      expect(blocking.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
+    });
   });
 });
