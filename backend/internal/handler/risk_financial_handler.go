@@ -15,6 +15,7 @@ import (
 	"github.com/opendefender/openrisk/internal/domain"
 	"github.com/opendefender/openrisk/internal/middleware"
 	"github.com/opendefender/openrisk/pkg/crq"
+	ent "github.com/opendefender/openrisk/pkg/entitlements"
 	"github.com/opendefender/openrisk/pkg/validation"
 )
 
@@ -159,6 +160,13 @@ func (h *RiskHandler) GetRiskFinancial(c *fiber.Ctx) error {
 	}
 	if h.crq == nil {
 		return c.Status(500).JSON(fiber.Map{"error": "quantifier not configured"})
+	}
+
+	// The route admits a basic grant; the Monte-Carlo distribution and its
+	// methodology are the "on" depth (#613). Below it the plan gets the
+	// closed-form figures — SLE, ALE, worst/average, ROSI — and no simulation.
+	if !middleware.FeatureLevelAtLeast(c, ent.FeatFinancialQuant, ent.LevelOn) {
+		return c.JSON(h.crq.AssessDeterministic(financialInputsFromRisk(r), string(r.Criticality)))
 	}
 
 	assessment := h.assess(c, orgID, financialInputsFromRisk(r), string(r.Criticality))

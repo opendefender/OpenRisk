@@ -93,7 +93,9 @@ type RiskHistoryT struct {
 
 func (RiskHistoryT) TableName() string { return "risk_histories" }
 
-func setupAppWithDB(t *testing.T) *fiber.App {
+// financialGate, when given, is mounted in front of GET /risks/:id/financial the
+// way main.go mounts the entitlement level gate.
+func setupAppWithDB(t *testing.T, financialGate ...fiber.Handler) *fiber.App {
 	// In-memory SQLite for fast tests
 	dsn := "file:risk_handler_" + uuid.New().String() + "?mode=memory&cache=private"
 	db, err := gorm.Open(sqlite.Open(dsn), &gorm.Config{})
@@ -143,7 +145,7 @@ func setupAppWithDB(t *testing.T) *fiber.App {
 	api.Patch("/risks/:id", handler.UpdateRisk)
 	api.Post("/risks/:id/transition", handler.TransitionPhase)
 	api.Delete("/risks/:id", handler.DeleteRisk)
-	api.Get("/risks/:id/financial", handler.GetRiskFinancial)
+	api.Get("/risks/:id/financial", append(financialGate, handler.GetRiskFinancial)...)
 	api.Post("/risks/:id/simulate", handler.SimulateRiskFinancial)
 
 	return app
