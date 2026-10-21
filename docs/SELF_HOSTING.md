@@ -276,6 +276,12 @@ Re-running `./scripts/install.sh` does the same. Keep the key: if you change
 it, audit entries from before the change can no longer be matched with those
 after it, and per-address counters in progress start again (at most one hour,
 one day for the sign-up alert). Every replica must have the same key.
+During a rolling upgrade, old and new replicas count per-address attempts
+separately until the rollout ends.
+
+With Helm, pass it as `--set secrets.inline.auditHashKey=...` (or in your
+values file). The chart stores it in the `openrisk-secrets` Secret, and the
+render fails without it, so `helm upgrade` stops before any pod restarts.
 
 ### Password hashing
 
@@ -340,8 +346,7 @@ docker buildx build --platform linux/amd64,linux/arm64 \
 A maintained chart lives in [`helm/openrisk`](../helm/openrisk) with
 `values-dev.yaml` / `values-staging.yaml` / `values-prod.yaml`. It schedules on
 ARM64 nodes when you provide ARM64 images (above). Provide the same secrets
-(`RSA_*`, `MFA_ENCRYPTION_KEY`, `SCANNER_CREDENTIAL_KEY`, `AUDIT_EXPORT_KEY`,
-`AUDIT_HASH_KEY`) and
+(`RSA_*`, `MFA_ENCRYPTION_KEY`, `SCANNER_CREDENTIAL_KEY`, `AUDIT_EXPORT_KEY`) and
 optional payment/telemetry env via the chart's `values` / a `Secret`.
 
 ## Integrations on a private network
