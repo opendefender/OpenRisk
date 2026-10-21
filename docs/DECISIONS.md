@@ -5,7 +5,20 @@ recommends, and surfaces these in the daily brief. Run `/decide` to clear them.
 
 ## Open
 
-### D-073 — Settings → Sessions cannot tell which row is "this device" · raised 2026-10-21
+Nothing open.
+
+## Resolved
+
+### D-073 — Settings → Sessions marks "this device" through a sid claim · decided 2026-10-21
+**Decided (owner)** — Fix criterion 2 of #727 in the same PR. The owner asked for the result and
+did not name an option; B, the recommendation, was implemented. It is written up as
+`docs/adr/0006-access-token-names-its-session.md`. Going to C instead would mean reverting that ADR.
+
+**Consequence** — Access tokens minted with a session carry `sid` (the refresh family id).
+`GET /auth/sessions` marks the caller's row from it, and "sign out other devices" keeps that
+family rather than re-issuing. The re-issue path stays for tokens minted before the change.
+Verified on a live Postgres boot on 2026-10-21 (see PR #1055).
+
 **Raised by** — #727, criterion 2. Escalated because both ways to fix it change auth design:
 the access token contract, or the scope of the refresh cookie.
 
@@ -36,8 +49,6 @@ where it is. C is less code but undoes a deliberate hardening.
 
 **Cost of delay** — Low. Cosmetic until someone revokes their own row, and that only costs
 them a sign-in.
-
-## Resolved
 
 ### D-072 — Backend coverage gate: a 44% ratchet instead of a 50% line nobody met · decided 2026-10-15
 **Decided** — Option B. The backend coverage gate is a floor at 44.0%, compared to one decimal. It is raised by hand whenever coverage goes up, and never lowered without a decision here.
