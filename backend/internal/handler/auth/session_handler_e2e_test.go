@@ -91,6 +91,17 @@ func newSessionStack(t *testing.T) *sessionStack {
 	app := fiber.New()
 	api := app.Group("/api/v1")
 	api.Post("/auth/refresh", h.RefreshToken)
+	// Stands in for middleware.PATMiddleware, which main.go mounts before
+	// Protected: it sets the same locals and context for a PAT-authenticated
+	// request, and Protected then lets the request through untouched.
+	api.Use(func(c *fiber.Ctx) error {
+		if c.Get("X-Test-PAT") == "" {
+			return c.Next()
+		}
+		c.Locals("is_pat", true)
+		middleware.SetContext(c, &middleware.RequestContext{UserID: s.userID, OrganizationID: s.orgID})
+		return c.Next()
+	})
 	protected := api.Use(middleware.Protected(keys, func(string) (bool, error) { return false, nil }))
 	protected.Get("/auth/sessions", sessions.ListSessions)
 	protected.Delete("/auth/sessions/others", sessions.RevokeOtherSessions)
@@ -212,5 +223,20 @@ func TestRevokeOtherSessionsE2E_Unauthorized(t *testing.T) {
 	res := s.send(t, http.MethodDelete, "/api/v1/auth/sessions/others", nil, nil)
 	assert.Equal(t, http.StatusUnauthorized, res.status)
 	assert.Equal(t, int64(1), s.liveSessions(t), "an anonymous call revokes nothing")
+	assert.Equal(t, http.StatusOK, s.refresh(t, phone.RefreshToken).status)
+}
+
+// A personal access token never carries a refresh cookie. Re-issuing for it
+// would turn a scoped, revocable token into a full 30-day browser session, so
+// the route refuses PATs outright and touches nothing.
+func TestRevokeOtherSessionsE2E_PersonalAccessTokenRefused(t *testing.T) {
+	s := newSessionStack(t)
+	phone := s.signIn(t, "phone")
+
+	res := s.send(t, http.MethodDelete, "/api/v1/auth/sessions/others", nil, map[string]string{"X-Test-PAT": "1"})
+	assert.Equal(t, http.StatusForbidden, res.status, res.body)
+	assert.Nil(t, res.body["token_pair"], "a PAT must never be handed a session")
+	assert.Nil(t, res.cookies[middleware.RefreshTokenCookie])
+	assert.Equal(t, int64(1), s.liveSessions(t), "nothing is minted and nothing is revoked")
 	assert.Equal(t, http.StatusOK, s.refresh(t, phone.RefreshToken).status)
 }

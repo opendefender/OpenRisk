@@ -104,6 +104,13 @@ func (h *SessionHandler) RevokeOtherSessions(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "authentication required"})
 	}
 
+	// A personal access token carries no refresh token, so the use case would
+	// mint a session for it: a scoped, revocable token turned into a full
+	// browser session. Refused, as token creation refuses PATs.
+	if c.Locals("is_pat") == true {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "personal access tokens cannot manage sessions"})
+	}
+
 	out, err := h.revokeOther.Execute(c.UserContext(), appauth.RevokeOtherSessionsInput{
 		UserID:      mwCtx.UserID,
 		TenantID:    mwCtx.OrganizationID,
