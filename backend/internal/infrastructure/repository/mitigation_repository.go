@@ -163,19 +163,34 @@ func (r *GormMitigationRepository) Update(tenantID string, mitigation *domain.Mi
 		return fmt.Errorf("invalid tenant_id: %w", err)
 	}
 
-	// Verify ownership before updating
-	result := r.db.Where("tenant_id = ? AND id = ? AND deleted_at IS NULL", tenantUUID, mitigation.ID).
-		Updates(mitigation)
+	return r.db.Transaction(func(tx *gorm.DB) error {
+		// Verify ownership before updating
+		result := tx.Where("tenant_id = ? AND id = ? AND deleted_at IS NULL", tenantUUID, mitigation.ID).
+			Updates(mitigation)
 
-	if result.Error != nil {
-		return fmt.Errorf("failed to update mitigation: %w", result.Error)
-	}
+		if result.Error != nil {
+			return fmt.Errorf("failed to update mitigation: %w", result.Error)
+		}
 
-	if result.RowsAffected == 0 {
-		return domain.ErrNotFound
-	}
+		if result.RowsAffected == 0 {
+			return domain.ErrNotFound
+		}
 
-	return nil
+		// Updates(struct) skips nil fields, so a slot the caller cleared was
+		// kept (#1104). The three accountability slots are written as they
+		// stand, nil included; the caller loaded the row, so an untouched slot
+		// is written back unchanged.
+		if err := tx.Model(&domain.Mitigation{}).
+			Where("tenant_id = ? AND id = ? AND deleted_at IS NULL", tenantUUID, mitigation.ID).
+			Updates(map[string]interface{}{
+				"owner_id":    mitigation.OwnerID,
+				"assignee_id": mitigation.AssigneeID,
+				"reviewer_id": mitigation.ReviewerID,
+			}).Error; err != nil {
+			return fmt.Errorf("failed to update mitigation ownership: %w", err)
+		}
+		return nil
+	})
 }
 
 // Delete soft-deletes a mitigation

@@ -6,6 +6,7 @@
 package handler
 
 import (
+	"errors"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -302,6 +303,11 @@ func UpdateMitigation(c *fiber.Ctx) error {
 	}
 
 	if err := useCase.Execute(input); err != nil {
+		// A plan that is not in the caller's tenant is a 404, as on the read
+		// routes (#1104); everything else keeps its 400.
+		if errors.Is(err, domain.ErrNotFound) {
+			return c.Status(404).JSON(fiber.Map{"error": "Mitigation not found"})
+		}
 		return c.Status(400).JSON(fiber.Map{"error": err.Error()})
 	}
 
