@@ -19,6 +19,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/internal/infrastructure/authmfa"
 )
 
 // ---------------------------------------------------------------------------
@@ -259,4 +260,140 @@ func TestRegister_ValidationFailures(t *testing.T) {
 		})
 	}
 	assert.Equal(t, 0, accounts.calls)
+}
+
+// ---------------------------------------------------------------------------
+// A sign-up for an address that already has an account (#686)
+// ---------------------------------------------------------------------------
+
+type sentDuplicateAlert struct{ to, name, signIn, reset, locale string }
+
+type fakeDuplicateMailer struct {
+	sent []sentDuplicateAlert
+	err  error
+}
+
+func (m *fakeDuplicateMailer) SendDuplicateSignup(_ context.Context, to, fullName, signInURL, resetURL, locale string) error {
+	m.sent = append(m.sent, sentDuplicateAlert{to, fullName, signInURL, resetURL, locale})
+	return m.err
+}
+
+func newDuplicateHarness(t *testing.T) (*RegisterUseCase, *domain.User, *fakeDuplicateMailer, *authmfa.MemoryAttemptStore) {
+	t.Helper()
+	uc, users, _, _ := newRegisterHarness()
+	owner := &domain.User{ID: uuid.New(), Email: "karim@alpha.test", FullName: "Karim Alpha"}
+	users.byEmail[owner.Email] = owner
+	store := authmfa.NewMemoryAttemptStore()
+	mailer := &fakeDuplicateMailer{}
+	uc.WithDuplicateGuard(store, mailer, "https://risk.alpha.test/")
+	return uc, owner, mailer, store
+}
+
+func TestRegister_DuplicateEmail(t *testing.T) {
+	uc, owner, mailer, _ := newDuplicateHarness(t)
+
+	in := validInput()
+	in.Locale = "en"
+	out, err := uc.Execute(context.Background(), in)
+
+	require.ErrorIs(t, err, ErrEmailAlreadyRegistered)
+	assert.Nil(t, out)
+	// The owner is told, with both ways back in, and nothing about the
+	// requester: not their name, not the password they typed.
+	require.Len(t, mailer.sent, 1)
+	got := mailer.sent[0]
+	assert.Equal(t, owner.Email, got.to)
+	assert.Equal(t, owner.FullName, got.name)
+	assert.Equal(t, "https://risk.alpha.test/login", got.signIn)
+	assert.Equal(t, "https://risk.alpha.test/forgot-password", got.reset)
+	assert.Equal(t, "en", got.locale)
+	for _, field := range []string{got.signIn, got.reset} {
+		assert.NotContains(t, field, in.Password)
+		assert.NotContains(t, field, owner.Email, "the address never goes in a URL")
+	}
+}
+
+func TestRegister_DuplicateAlertUsesTheOwnersLanguage(t *testing.T) {
+	uc, owner, mailer, _ := newDuplicateHarness(t)
+	owner.Locale = "fr"
+
+	in := validInput()
+	in.Locale = "en"
+	_, err := uc.Execute(context.Background(), in)
+
+	require.ErrorIs(t, err, ErrEmailAlreadyRegistered)
+	require.Len(t, mailer.sent, 1)
+	assert.Equal(t, "fr", mailer.sent[0].locale)
+}
+
+func TestRegister_DuplicateAlertThrottled(t *testing.T) {
+	uc, _, mailer, store := newDuplicateHarness(t)
+	ctx := context.Background()
+
+	for i := 0; i < 3; i++ {
+		in := validInput()
+		if i == 1 {
+			in.Email = "  KARIM@alpha.test" // another spelling of the same mailbox
+		}
+		_, err := uc.Execute(ctx, in)
+		require.ErrorIs(t, err, ErrEmailAlreadyRegistered, "attempt %d", i+1)
+	}
+
+	// Three attempts, one message: a stranger retrying must not turn the
+	// owner's inbox into the attack.
+	assert.Len(t, mailer.sent, 1)
+	left, err := store.LockedFor(ctx, registerAlertKey("karim@alpha.test"))
+	require.NoError(t, err)
+	assert.InDelta(t, RegisterDuplicateAlertInterval.Seconds(), left.Seconds(), 2)
+}
+
+func TestRegister_DuplicateAlertFailureKeepsTheAnswer(t *testing.T) {
+	uc, _, mailer, _ := newDuplicateHarness(t)
+	mailer.err = errors.New("smtp down")
+
+	_, err := uc.Execute(context.Background(), validInput())
+
+	require.ErrorIs(t, err, ErrEmailAlreadyRegistered)
+	assert.Len(t, mailer.sent, 1)
+}
+
+func TestRegister_RateLimited(t *testing.T) {
+	uc, _, mailer, _ := newDuplicateHarness(t)
+	ctx := context.Background()
+
+	// The attempt that reaches the limit is still evaluated.
+	for i := 1; i <= RegisterMaxDuplicatesPerAddress; i++ {
+		_, err := uc.Execute(ctx, validInput())
+		require.ErrorIs(t, err, ErrEmailAlreadyRegistered, "attempt %d", i)
+	}
+
+	in := validInput()
+	in.Email = "Karim@Alpha.test"
+	_, err := uc.Execute(ctx, in)
+
+	var limited *RegisterRateLimitedError
+	require.ErrorAs(t, err, &limited)
+	assert.InDelta(t, RegisterDuplicateLockDuration.Seconds(), limited.RetryAfter.Seconds(), 2)
+	assert.Len(t, mailer.sent, 1)
+
+	// Another address is not affected, and a new account there still goes
+	// through.
+	other := validInput()
+	other.Email = "awa@beta.test"
+	_, err = uc.Execute(ctx, other)
+	require.NoError(t, err)
+}
+
+func TestRegister_UsernameTakenNeitherCountsNorAlerts(t *testing.T) {
+	uc, _, mailer, _ := newDuplicateHarness(t)
+	uc.userRepo.(*registerUsers).byUsername["chosen.name"] = &domain.User{ID: uuid.New(), Username: "chosen.name"}
+
+	in := validInput()
+	in.Email = "new@gamma.test"
+	in.Username = "chosen.name"
+	_, err := uc.Execute(context.Background(), in)
+
+	require.ErrorIs(t, err, ErrUsernameTaken)
+	assert.NotErrorIs(t, err, ErrEmailAlreadyRegistered)
+	assert.Empty(t, mailer.sent)
 }

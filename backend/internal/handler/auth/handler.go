@@ -326,6 +326,9 @@ type RegisterRequest struct {
 	Password    string `json:"password" validate:"required,min=12"`
 	FullName    string `json:"full_name" validate:"required"`
 	CompanyName string `json:"company_name" validate:"required"`
+	// Locale is the language of the sign-up screen ("fr" | "en"); the owner
+	// alert falls back to it when the account records no language (#686).
+	Locale string `json:"locale,omitempty"`
 }
 
 // RegisterResponse represents the registration response
@@ -345,6 +348,7 @@ type RegisterResponse struct {
 // @Success 201 {object} RegisterResponse
 // @Failure 400 {object} fiber.Map
 // @Failure 409 {object} fiber.Map
+// @Failure 429 {object} fiber.Map
 // @Router /auth/register [post]
 func (h *Handler) Register(c *fiber.Ctx) error {
 	var req RegisterRequest
@@ -360,15 +364,36 @@ func (h *Handler) Register(c *fiber.Ctx) error {
 		Password:    req.Password,
 		FullName:    req.FullName,
 		CompanyName: req.CompanyName,
+		Locale:      resolveLocale(c, req.Locale),
 	})
 
 	if err != nil {
+		// #686: every sign-up refused for a registered address is audited, with
+		// the address hashed — enough to see one address being probed from many
+		// sources, without writing it in clear.
+		addr := " email_sha256=" + domain.HashEmailForReset(req.Email)
+
+		var limited *auth.RegisterRateLimitedError
+		if errors.As(err, &limited) {
+			reason := "register_duplicate_limited" + addr
+			h.logAudit(c, nil, nil, coreauth.AuditActionRegister, false, &reason)
+			wait := int((limited.RetryAfter + time.Second - 1) / time.Second)
+			c.Set(fiber.HeaderRetryAfter, strconv.Itoa(wait))
+			return c.Status(fiber.StatusTooManyRequests).JSON(fiber.Map{
+				"error":       "Too many sign-ups for this address",
+				"code":        "REGISTER_RATE_LIMITED",
+				"retry_after": wait,
+			})
+		}
+
 		// #687: the two conflicts are different problems for the person at the
 		// screen, and they used to share one message. A taken username was
 		// reported as "this email is already registered", which was false and
 		// left the user nowhere to go. The codes let the client tell them apart.
 		switch {
 		case errors.Is(err, auth.ErrEmailAlreadyRegistered):
+			reason := "email_already_registered" + addr
+			h.logAudit(c, nil, nil, coreauth.AuditActionRegister, false, &reason)
 			return c.Status(fiber.StatusConflict).JSON(fiber.Map{
 				"error": "An account already exists for this email address",
 				"code":  "EMAIL_ALREADY_REGISTERED",

@@ -49,6 +49,11 @@ const (
 	// ("wrong_current_password", "weak_password", "no_local_password").
 	AuditActionPasswordChange AuditAction = "password_change"
 
+	// AuditActionRegister records a sign-up refused because the address already
+	// has an account (#686), and the refusals once that address is rate
+	// limited. The address is in the reason, hashed.
+	AuditActionRegister AuditAction = "register"
+
 	// Session management.
 	AuditActionSessionRevoke    AuditAction = "session_revoke"
 	AuditActionSessionRevokeAll AuditAction = "session_revoke_all"

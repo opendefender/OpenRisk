@@ -53,6 +53,9 @@ type RegisterInput struct {
 	Password    string
 	FullName    string
 	CompanyName string
+	// Locale is the language the sign-up was made in ("fr" | "en"). Used only
+	// for the owner alert when the account records no language of its own.
+	Locale string
 }
 
 // RegisterOutput represents the output of successful registration
@@ -79,6 +82,8 @@ type RegisterUseCase struct {
 	passwordHasher PasswordHasher
 	activation     ActivationRecorder
 	accounts       AccountCreator
+	// duplicates limits and reports sign-ups for a registered address (#686).
+	duplicates *duplicateGuard
 }
 
 // WithActivation attaches the optional activation recorder.
@@ -136,7 +141,7 @@ func (uc *RegisterUseCase) Execute(ctx context.Context, input RegisterInput) (*R
 		return nil, fmt.Errorf("failed to check existing user: %w", err)
 	}
 	if existingUser != nil {
-		return nil, ErrEmailAlreadyRegistered
+		return nil, uc.refuseDuplicate(ctx, existingUser, input.Locale)
 	}
 
 	username, err := uc.resolveUsername(ctx, input.Username, email)
