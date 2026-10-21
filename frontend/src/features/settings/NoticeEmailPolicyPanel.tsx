@@ -90,8 +90,8 @@ export function NoticeEmailPolicyPanel({ tr }: { tr: Tr }) {
       </div>
       <p className="text-[13px] text-ink-soft leading-relaxed mb-4">
         {tr(
-          "Les affectations, échéances, validations et changements d'état peuvent envoyer un e-mail. Pour éviter qu'une série de changements sur un même élément n'en envoie autant, ils sont regroupés. Aucun e-mail n'est perdu, et la cloche reste immédiate.",
-          'Assignments, deadlines, validations and state changes can send an e-mail. So that a run of changes to one item does not send as many, they are grouped. No e-mail is lost, and the bell stays immediate.',
+          "Les affectations, échéances, validations et changements d'état peuvent envoyer un e-mail. Pour éviter qu'une série de changements sur un même élément n'en envoie autant, ils sont regroupés. Un e-mail en file n'est jamais abandonné, et la cloche reste immédiate.",
+          'Assignments, deadlines, validations and state changes can send an e-mail. So that a run of changes to one item does not send as many, they are grouped. A queued e-mail is never dropped, and the bell stays immediate.',
         )}
       </p>
 
@@ -137,6 +137,14 @@ export function NoticeEmailPolicyPanel({ tr }: { tr: Tr }) {
 
       <p id="notice-email-summary" className="text-[13px] text-ink leading-relaxed mt-3 mb-0" aria-live="polite">
         {windowSummary(policy.window_minutes, tr)}
+      </p>
+      {/* At-least-once delivery, accepted by the owner (#997): a send cut by a
+          restart is sent again rather than risk losing it. */}
+      <p className="text-[12px] text-ink-muted leading-relaxed mt-2 mb-0">
+        {tr(
+          'Dans de rares cas, si le serveur redémarre au moment même de l’envoi, un e-mail peut arriver deux fois : il est renvoyé plutôt que perdu.',
+          'In rare cases, if the server restarts at the very moment of sending, an e-mail can arrive twice: it is sent again rather than lost.',
+        )}
       </p>
       {!canEdit && (
         <p className="text-[12px] text-ink-muted mt-2 mb-0">

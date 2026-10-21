@@ -78,6 +78,9 @@ describe('NoticeEmailPolicyPanel', () => {
     expect((radio('1 h') as HTMLInputElement).checked).toBe(true);
     expect(screen.getAllByRole('radio')).toHaveLength(5);
     expect(document.body.textContent).toContain('Au plus un e-mail par élément et par personne toutes les heures.');
+    // The accepted at-least-once behaviour is stated, not hidden (#997).
+    expect(document.body.textContent).toContain('un e-mail peut arriver deux fois');
+    expect(document.body.textContent).not.toContain("Aucun e-mail n'est perdu");
   });
 
   it('saves a choice at once and keeps it when the server agrees', async () => {
