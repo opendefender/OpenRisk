@@ -87,11 +87,15 @@ func newSessionStack(t *testing.T) *sessionStack {
 		appauth.NewRevokeOtherSessionsUseCase(sessionRepo).WithReissue(s.tokens),
 		nil,
 	)
-	h := authhandler.NewHandler(nil, nil, appauth.NewRefreshTokenUseCase(s.tokens), nil, nil, nil)
+	blacklist := authpkg.NewTokenBlacklistManager(&memoryBlacklist{keys: map[string]string{}})
+	logout := appauth.NewLogoutUseCase(s.tokens).WithAccessTokenRevocation(blacklist).WithSessionRevocation(s.tokens)
+	h := authhandler.NewHandler(nil, nil, appauth.NewRefreshTokenUseCase(s.tokens), logout, nil, nil).
+		WithAccessTokenRevocation(keys)
 
 	app := fiber.New()
 	api := app.Group("/api/v1")
 	api.Post("/auth/refresh", h.RefreshToken)
+	api.Post("/auth/logout", h.Logout)
 	// Stands in for middleware.PATMiddleware, which main.go mounts before
 	// Protected: it sets the same locals and context for a PAT-authenticated
 	// request, and Protected then lets the request through untouched.
@@ -323,4 +327,38 @@ func TestRevokeOtherSessionsE2E_PersonalAccessTokenRefused(t *testing.T) {
 	assert.Nil(t, res.cookies[middleware.RefreshTokenCookie])
 	assert.Equal(t, int64(1), s.liveSessions(t), "nothing is minted and nothing is revoked")
 	assert.Equal(t, http.StatusOK, s.refresh(t, phone.RefreshToken).status)
+}
+
+// #1061: the browser sends only its access cookie to /auth/logout, never the
+// refresh cookie. The session its sid names must end anyway.
+func TestLogoutE2E_BrowserLogoutEndsItsSession(t *testing.T) {
+	s := newSessionStack(t)
+	laptop := s.rotate(t, s.signIn(t, "laptop"))
+	phone := s.signIn(t, "phone")
+
+	res := s.send(t, http.MethodPost, "/api/v1/auth/logout", browserCookies(laptop), browserHeaders)
+	require.Equal(t, http.StatusOK, res.status, res.body)
+
+	assert.Equal(t, http.StatusUnauthorized, s.refresh(t, laptop.RefreshToken).status,
+		"the refresh token the browser held is dead, wherever a copy of it went")
+	assert.Equal(t, int64(1), s.liveSessions(t), "only the phone's session is left")
+	s.rotate(t, phone)
+}
+
+// The sid only ever ends a session of the token's own user.
+func TestLogoutE2E_ForeignSidRevokesNothing(t *testing.T) {
+	s := newSessionStack(t)
+	phone := s.signIn(t, "phone")
+	var family string
+	require.NoError(t, s.db.Table("refresh_tokens").Select("family_id").Where("user_id = ?", s.userID).Scan(&family).Error)
+
+	stranger, _, err := authpkg.GenerateSessionAccessToken(s.keys, uuid.New(), s.orgID, nil, nil, nil,
+		coreauth.AccessTokenTTL, uuid.MustParse(family))
+	require.NoError(t, err)
+
+	res := s.send(t, http.MethodPost, "/api/v1/auth/logout",
+		map[string]string{middleware.AccessTokenCookie: stranger}, nil)
+	assert.Equal(t, http.StatusOK, res.status, res.body)
+	assert.Equal(t, int64(1), s.liveSessions(t))
+	s.rotate(t, phone)
 }

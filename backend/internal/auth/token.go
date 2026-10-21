@@ -610,6 +610,20 @@ func (tm *TokenManager) RevokeAllUserTokens(ctx context.Context, userID uuid.UUI
 	return nil
 }
 
+// RevokeSession ends one session: every token of the family, scoped to its
+// user. A family id taken from someone else's token matches nothing. Used by
+// logout, which learns the family from the access token's sid because the
+// browser never sends it the refresh cookie (#1061, ADR 0006).
+func (tm *TokenManager) RevokeSession(ctx context.Context, userID, familyID uuid.UUID) error {
+	if userID == uuid.Nil || familyID == uuid.Nil {
+		return nil
+	}
+	if err := tm.sweepRefreshTokens(ctx, "user_id = ? AND family_id = ?", userID, familyID); err != nil {
+		return fmt.Errorf("failed to revoke session: %w", err)
+	}
+	return nil
+}
+
 // RevokeUserTokensInTenant revokes the user's refresh tokens for ONE
 // organization. It is what an organization's own decision about a member (a
 // role change, a deactivation) may end: that member's sessions in that

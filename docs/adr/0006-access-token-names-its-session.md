@@ -64,8 +64,8 @@ The options weighed in D-073 were: leave the list unmarked; widen the refresh co
 - During the first 15 minutes after a deploy, browsers still hold tokens without `sid`: their
   session is unmarked in the list until their next refresh, and "sign out other devices" uses the
   re-issue path. Nothing breaks.
-- `POST /auth/logout` could now revoke the caller's family from `sid` even though it never sees the
-  refresh cookie. It does not yet; that belongs to its own issue.
+- `POST /auth/logout` revokes the caller's family from `sid`, scoped to the token's subject,
+  although it never sees the refresh cookie (#1061).
 - Any future code that mints an access token for a session must use `GenerateSessionAccessToken`.
   The tests in `backend/internal/handler/auth/session_handler_e2e_test.go` go through the real
   `TokenManager` and fail if a session token comes back without `sid`.
