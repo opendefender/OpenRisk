@@ -63,6 +63,11 @@ spec:
             secretKeyRef:
               name: openrisk-secrets
               key: redis-url
+        - name: AUDIT_HASH_KEY
+          valueFrom:
+            secretKeyRef:
+              name: openrisk-secrets
+              key: audit-hash-key
         # The same RS256 pair on every replica (#1022).
         - name: RSA_PRIVATE_KEY_PATH
           value: /app/secrets/private.pem
