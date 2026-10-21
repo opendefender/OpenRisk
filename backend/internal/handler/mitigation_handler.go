@@ -6,7 +6,9 @@
 package handler
 
 import (
+	"encoding/json"
 	"errors"
+	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -244,7 +246,9 @@ func UpdateMitigation(c *fiber.Ctx) error {
 		Status      *string  `json:"status"`
 		Priority    *string  `json:"priority"`
 		AssignedTo  []string `json:"assigned_to"`
-		DueDate     *string  `json:"due_date"`
+		// Raw so that an absent key (leave alone), null or "" (clear) and a
+		// date (set) can be told apart (#1104).
+		DueDate json.RawMessage `json:"due_date"`
 		// Ownership — tri-state; an absent key leaves the slot alone.
 		domain.OwnershipPatch
 	}{}
@@ -277,11 +281,9 @@ func UpdateMitigation(c *fiber.Ctx) error {
 		priority = &p
 	}
 
-	var dueDate *time.Time
-	if payload.DueDate != nil {
-		if t, err := time.Parse(time.RFC3339, *payload.DueDate); err == nil {
-			dueDate = &t
-		}
+	dueDate, clearDueDate, err := parsePlanDueDate(payload.DueDate)
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": err.Error()})
 	}
 
 	repo := repository.NewGormMitigationRepository(database.DB)
@@ -289,17 +291,18 @@ func UpdateMitigation(c *fiber.Ctx) error {
 		WithOwnership(OwnershipServiceInstance())
 
 	input := mitigation.UpdateMitigationPlanInput{
-		TenantID:    ctx.OrganizationID,
-		PlanID:      uuid.MustParse(planID),
-		Title:       payload.Title,
-		Description: payload.Description,
-		Status:      status,
-		Priority:    priority,
-		AssignedTo:  assignedTo,
-		DueDate:     dueDate,
-		Ownership:   payload.OwnershipPatch,
-		Actor:       ctx.UserID,
-		Locale:      c.Query("locale", "fr"),
+		TenantID:     ctx.OrganizationID,
+		PlanID:       uuid.MustParse(planID),
+		Title:        payload.Title,
+		Description:  payload.Description,
+		Status:       status,
+		Priority:     priority,
+		AssignedTo:   assignedTo,
+		DueDate:      dueDate,
+		ClearDueDate: clearDueDate,
+		Ownership:    payload.OwnershipPatch,
+		Actor:        ctx.UserID,
+		Locale:       c.Query("locale", "fr"),
 	}
 
 	if err := useCase.Execute(input); err != nil {
@@ -313,6 +316,32 @@ func UpdateMitigation(c *fiber.Ctx) error {
 
 	updated, _ := repo.GetByIDWithSubActions(ctx.OrganizationID.String(), uuid.MustParse(planID))
 	return c.JSON(updated)
+}
+
+// parsePlanDueDate reads the PATCH due_date. Absent: nil, false. null or "":
+// clear. RFC3339 or YYYY-MM-DD: that date. Anything else is refused, where it
+// used to be dropped without a word.
+func parsePlanDueDate(raw json.RawMessage) (*time.Time, bool, error) {
+	if len(raw) == 0 {
+		return nil, false, nil
+	}
+	if string(raw) == "null" {
+		return nil, true, nil
+	}
+	var s string
+	if err := json.Unmarshal(raw, &s); err != nil {
+		return nil, false, errors.New("due_date must be a date (YYYY-MM-DD or RFC3339) or null")
+	}
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return nil, true, nil
+	}
+	for _, layout := range []string{time.RFC3339, "2006-01-02"} {
+		if t, err := time.Parse(layout, s); err == nil {
+			return &t, false, nil
+		}
+	}
+	return nil, false, errors.New("due_date must be a date (YYYY-MM-DD or RFC3339) or null")
 }
 
 // DeleteMitigation deletes (soft-deletes) a mitigation plan

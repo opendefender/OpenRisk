@@ -96,6 +96,24 @@ func TestGormMitigationRepository_UpdateClearsOwnership_Unauthorized(t *testing.
 	require.Error(t, repo.Update("not-a-tenant", m))
 }
 
+// #1104 — a cleared due date reaches the row too.
+func TestGormMitigationRepository_UpdateClearsDueDate_Success(t *testing.T) {
+	repo, db := setupMitigationTxRepo(t, false)
+	tenant := uuid.New()
+	m, _ := seedOwnedPlan(t, repo, tenant)
+	due := time.Now().AddDate(0, 0, 5)
+	m.DueDate = &due
+	require.NoError(t, repo.Update(tenant.String(), m))
+	var n int64
+	require.NoError(t, db.Raw(`SELECT count(*) FROM mitigations WHERE id = ? AND due_date IS NOT NULL`, m.ID.String()).Scan(&n).Error)
+	require.EqualValues(t, 1, n)
+
+	m.DueDate = nil
+	require.NoError(t, repo.Update(tenant.String(), m))
+	require.NoError(t, db.Raw(`SELECT count(*) FROM mitigations WHERE id = ? AND due_date IS NULL`, m.ID.String()).Scan(&n).Error)
+	require.EqualValues(t, 1, n, "a cleared due date is written")
+}
+
 // The same on Postgres, on the table AutoMigrate builds in production.
 func TestGormMitigationRepository_UpdateClearsOwnership_Postgres(t *testing.T) {
 	dsn := os.Getenv("DATABASE_URL")
@@ -141,6 +159,15 @@ func TestGormMitigationRepository_UpdateClearsOwnership_Postgres(t *testing.T) {
 	require.Nil(t, got.OwnerID)
 	require.NotNil(t, got.ReviewerID, "untouched")
 	require.Empty(t, got.AssignedTo)
+
+	due := time.Now().AddDate(0, 1, 0)
+	m.DueDate = &due
+	require.NoError(t, repo.Update(tenant.String(), m))
+	m.DueDate = nil
+	require.NoError(t, repo.Update(tenant.String(), m))
+	got, err = repo.GetByID(tenant.String(), m.ID)
+	require.NoError(t, err)
+	require.Nil(t, got.DueDate, "a cleared due date is written")
 
 	m.ReviewerID = nil
 	require.ErrorIs(t, repo.Update(uuid.New().String(), m), domain.ErrNotFound)

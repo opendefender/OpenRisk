@@ -14,6 +14,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
@@ -149,4 +150,65 @@ func TestUpdateMitigation_ClearOwnership_UnrelatedEditKeepsSlots(t *testing.T) {
 	require.NotNil(t, owner)
 	require.NotNil(t, assignee)
 	require.NotNil(t, reviewer)
+}
+
+func (r *clearOwnershipRig) dueDate(t *testing.T) *time.Time {
+	t.Helper()
+	var rows []struct{ DueDate *time.Time }
+	require.NoError(t, r.db.Raw(`SELECT due_date FROM mitigations WHERE id = ?`, r.plan.String()).Scan(&rows).Error)
+	return rows[0].DueDate
+}
+
+// #1104 — the due date: set, kept when absent, cleared by null or "", and a
+// value that is not a date is refused instead of ignored.
+func TestUpdateMitigation_DueDate(t *testing.T) {
+	r := newClearOwnershipRig(t)
+
+	require.Equal(t, http.StatusOK, r.patch(t, `{"due_date": "2026-12-01"}`), "a plain date is accepted")
+	require.NotNil(t, r.dueDate(t))
+	require.Equal(t, "2026-12-01", r.dueDate(t).UTC().Format("2006-01-02"))
+
+	require.Equal(t, http.StatusOK, r.patch(t, `{"title": "Patch VPN"}`))
+	require.NotNil(t, r.dueDate(t), "an absent key leaves the date alone")
+
+	require.Equal(t, http.StatusOK, r.patch(t, `{"due_date": null}`))
+	require.Nil(t, r.dueDate(t), "null clears it")
+
+	require.Equal(t, http.StatusOK, r.patch(t, `{"due_date": "2026-12-15T09:00:00Z"}`), "RFC3339 is accepted")
+	require.Equal(t, "2026-12-15", r.dueDate(t).UTC().Format("2006-01-02"))
+	require.Equal(t, http.StatusOK, r.patch(t, `{"due_date": ""}`))
+	require.Nil(t, r.dueDate(t), `"" clears it too`)
+
+	require.Equal(t, http.StatusOK, r.patch(t, `{"due_date": "2026-12-01"}`))
+	for _, bad := range []string{`"next tuesday"`, `"2026-13-40"`, `42`, `true`} {
+		require.Equal(t, http.StatusBadRequest, r.patch(t, `{"due_date": `+bad+`}`), bad)
+	}
+	require.NotNil(t, r.dueDate(t), "a refused value changes nothing")
+}
+
+// Clearing the date resets the reminder stamps: a date set again later starts
+// a fresh D-7 / D-1 schedule.
+func TestUpdateMitigation_ClearDueDateResetsReminders(t *testing.T) {
+	r := newClearOwnershipRig(t)
+	require.Equal(t, http.StatusOK, r.patch(t, `{"due_date": "2026-12-01"}`))
+	require.NoError(t, r.db.Exec(`UPDATE mitigations SET reminder_d7_sent_at = datetime('now'), reminder_d1_sent_at = datetime('now') WHERE id = ?`, r.plan.String()).Error)
+
+	require.Equal(t, http.StatusOK, r.patch(t, `{"due_date": null}`))
+	var stamped int64
+	require.NoError(t, r.db.Raw(`SELECT count(*) FROM mitigations WHERE id = ? AND (reminder_d7_sent_at IS NOT NULL OR reminder_d1_sent_at IS NOT NULL OR reminder_overdue_sent_at IS NOT NULL)`, r.plan.String()).Scan(&stamped).Error)
+	require.Zero(t, stamped)
+}
+
+// Moving the date resets the stamps too. The use case always did this, but
+// Updates(struct) dropped the nil stamps, so a postponed plan never got its
+// new D-7 / D-1 reminders (#1104).
+func TestUpdateMitigation_MovedDueDateResetsReminders(t *testing.T) {
+	r := newClearOwnershipRig(t)
+	require.Equal(t, http.StatusOK, r.patch(t, `{"due_date": "2026-12-01"}`))
+	require.NoError(t, r.db.Exec(`UPDATE mitigations SET reminder_d7_sent_at = datetime('now') WHERE id = ?`, r.plan.String()).Error)
+
+	require.Equal(t, http.StatusOK, r.patch(t, `{"due_date": "2027-01-15"}`))
+	var stamped int64
+	require.NoError(t, r.db.Raw(`SELECT count(*) FROM mitigations WHERE id = ? AND reminder_d7_sent_at IS NOT NULL`, r.plan.String()).Scan(&stamped).Error)
+	require.Zero(t, stamped, "a postponed plan is nudged again")
 }
