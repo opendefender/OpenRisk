@@ -669,6 +669,23 @@ func main() {
 	// --- Sessions -------------------------------------------------------------
 	sessionRepo := repository.NewGormSessionRepository(database.DB)
 	passwordResetRepo := repository.NewGormPasswordResetRepository(database.DB)
+	// D-074 (#879): a reset request is only read inside the hourly cap's window
+	// and its link's life. Past both, the row holds nothing but the hash of an
+	// address someone typed, so it is deleted. Hourly, from every replica: the
+	// delete is idempotent.
+	go func() {
+		ticker := time.NewTicker(time.Hour)
+		defer ticker.Stop()
+		for {
+			cutoff := time.Now().Add(-domain.PasswordResetWindow)
+			if n, err := passwordResetRepo.DeleteExpiredBefore(context.Background(), cutoff); err != nil {
+				log.Printf("password reset purge error: %v", err)
+			} else if n > 0 {
+				log.Printf("password reset purge: deleted %d expired request(s)", n)
+			}
+			<-ticker.C
+		}
+	}()
 	oauthLinkRepo := repository.NewGormOAuthLinkRepository(database.DB)
 
 	// Initialize use cases. Login enforces MFA when the user has a verified secret,

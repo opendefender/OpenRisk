@@ -279,6 +279,12 @@ one day for the sign-up alert). Every replica must have the same key.
 During a rolling upgrade, old and new replicas count per-address attempts
 separately until the rollout ends.
 
+The same upgrade removes the unkeyed hashes written before it (migration
+0079, decision D-074): in the sign-in audit trail they read
+`email_sha256=redacted` and the rest of each entry stays; expired password-reset
+requests are deleted, and from then on every hour. This cannot be undone. If
+you must keep those hashes, back up the database before upgrading.
+
 With Helm, pass it as `--set secrets.inline.auditHashKey=...` (or in your
 values file). The chart stores it in the `openrisk-secrets` Secret, and the
 render fails without it, so `helm upgrade` stops before any pod restarts.

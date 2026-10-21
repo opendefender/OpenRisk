@@ -5,7 +5,13 @@ recommends, and surfaces these in the daily brief. Run `/decide` to clear them.
 
 ## Open
 
-### D-074 — Purge old password-reset rows that hold a plain SHA-256 of an address? · raised 2026-10-21
+Nothing open.
+
+## Resolved
+
+### D-074 — Purge old password-reset rows that hold a plain SHA-256 of an address? · decided 2026-10-21
+**Decided (owner)** — Option B, and the same for the audit trail: the plain hashes written before #879 are removed from `auth_audit_logs` too, keeping the rows.
+**Applied** — #879, migration `0079_redact_plain_address_hashes`: in `auth_audit_logs`, `email_sha256=<hex>` becomes `email_sha256=redacted` (date, IP, user agent and outcome stay); `password_reset_tokens` rows whose link expired more than an hour ago are deleted, and the backend keeps deleting them every hour (`DeleteExpiredBefore`, `main.go`). Irreversible: the down migration changes nothing.
 **Raised by** — #879 security review (D-065 applied).
 **Context** — `password_reset_tokens` keeps one row per "forgot password" request, for every address typed, registered or not, and nothing ever deletes them. Rows written before #879 hold a plain SHA-256 of the address, reversible with a list of candidates by anyone with the database or a backup. A row is only read for the one-hour rate-limit window and the 30-minute token life.
 **Options**
@@ -14,8 +20,6 @@ recommends, and surfaces these in the daily brief. Run `/decide` to clear them.
 - **C — purge once, only rows created before the switch.**
 **Recommendation** — B. The rows have no use after the window, and every one written before #879 is exactly the data D-065 meant to protect. The audit trail (`auth_audit_logs`) keeps the record of reset requests.
 **Cost of delay** — Low: needs database or backup access to exploit.
-
-## Resolved
 
 ### D-073 — Sign-up with an address that already has an account: say so, protect the account · decided 2026-09-15
 **Decided (owner)** — Tell the person plainly that an account already exists, offer sign-in and password reset with the address prefilled, and protect the account.
@@ -216,7 +220,7 @@ meantime: the lock is bounded and the reset works.
 **Rationale (owner)** — Matches the recommendation: the trail keeps the "one address hammered from many IPs" signal and becomes useless for re-identification without the key.
 **Consequence** — #879 criterion 2: audit entries and the Redis lock keys use the keyed hash; the reset limiter may follow (only in-flight one-hour counters reset). Boot in production refuses a missing key with a message naming the variable; self-hosting docs list it. Rotating the key breaks correlation between periods of the trail, which the docs say.
 **Unblocked** — #879 criterion 2.
-**Applied** — #879 (2026-10-21): `domain.HashEmailForReset` is HMAC-SHA256 under `AUDIT_HASH_KEY`, so the audit trail (label `email_hmac=`), the Redis keys of the sign-in and sign-up limits, and the reset limiter all use it. Production boot refuses a missing key, or one under 32 characters (`backend/cmd/server/audit_hash_key_wiring.go`). The installer fills it on new and existing `.env` files; `docs/SELF_HOSTING.md` gives the upgrade step and says what rotation breaks. Entries written before the switch keep their plain SHA-256: they cannot be re-keyed without the addresses, and deleting audit data was not decided. The same holds for `password_reset_tokens.email_hash`, which nothing ever deletes: every address submitted to "forgot password" before the switch, registered or not, stays reversible there. Whether to purge those rows is D-074. Helm takes the key from `secrets.inline.auditHashKey` into the `openrisk-secrets` Secret, and the render fails without it.
+**Applied** — #879 (2026-10-21): `domain.HashEmailForReset` is HMAC-SHA256 under `AUDIT_HASH_KEY`, so the audit trail (label `email_hmac=`), the Redis keys of the sign-in and sign-up limits, and the reset limiter all use it. Production boot refuses a missing key, or one under 32 characters (`backend/cmd/server/audit_hash_key_wiring.go`). The installer fills it on new and existing `.env` files; `docs/SELF_HOSTING.md` gives the upgrade step and says what rotation breaks. Entries written before the switch could not be re-keyed without the addresses; per D-074 they are redacted, and expired `password_reset_tokens` rows purged (migration 0079). Helm takes the key from `secrets.inline.auditHashKey` into the `openrisk-secrets` Secret, and the render fails without it.
 
 **Raised by** — #688 (PR #874), tracked in #879. Every failed sign-in is audited with
 `email_sha256=<hex>`. Changing that hash means a server key, so a crypto design choice.
