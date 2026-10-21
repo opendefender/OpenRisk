@@ -462,3 +462,28 @@ func (failingAttemptStore) LockedFor(context.Context, string) (time.Duration, er
 	return 0, errStoreDown
 }
 func (failingAttemptStore) Delete(context.Context, string) error { return errStoreDown }
+
+// #686 review: a taken username used to be checked after the address, so it
+// answered differently for a registered and a free address and let any caller
+// test addresses without creating an account or meeting the per-address limit.
+func TestRegister_TakenUsernameDoesNotRevealTheAddress(t *testing.T) {
+	uc, owner, mailer, store := newDuplicateHarness(t)
+	uc.userRepo.(*registerUsers).byUsername["chosen.name"] = &domain.User{ID: uuid.New(), Username: "chosen.name"}
+	ctx := context.Background()
+
+	for _, email := range []string{owner.Email, "nobody@gamma.test"} {
+		in := validInput()
+		in.Email = email
+		in.Username = "chosen.name"
+		_, err := uc.Execute(ctx, in)
+
+		require.ErrorIs(t, err, ErrUsernameTaken, email)
+		assert.NotErrorIs(t, err, ErrEmailAlreadyRegistered, email)
+	}
+
+	// The registered address was never reached: no alert, nothing counted.
+	assert.Empty(t, mailer.sent)
+	n, err := store.Increment(ctx, registerDupKey(owner.Email), RegisterDuplicateWindow)
+	require.NoError(t, err)
+	assert.Equal(t, int64(1), n)
+}
