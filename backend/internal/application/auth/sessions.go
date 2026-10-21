@@ -13,7 +13,6 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/opendefender/openrisk/internal/auth"
 	"github.com/opendefender/openrisk/internal/domain"
 )
 
@@ -129,25 +128,11 @@ func (uc *RevokeSessionUseCase) Execute(ctx context.Context, userID, sessionID u
 // are using it is one people hesitate to press.
 type RevokeOtherSessionsUseCase struct {
 	sessions SessionRepository
-	issuer   SessionIssuer
-}
-
-// SessionIssuer mints a fresh session for the calling device. Satisfied by
-// *auth.TokenManager.
-type SessionIssuer interface {
-	IssueSessionForOrg(ctx context.Context, userID, orgID uuid.UUID, device auth.DeviceContext) (*auth.TokenPair, error)
 }
 
 // NewRevokeOtherSessionsUseCase builds the use case.
 func NewRevokeOtherSessionsUseCase(sessions SessionRepository) *RevokeOtherSessionsUseCase {
 	return &RevokeOtherSessionsUseCase{sessions: sessions}
-}
-
-// WithReissue lets the use case keep a caller whose refresh token it cannot see
-// signed in, by giving that device a new session (#727).
-func (uc *RevokeOtherSessionsUseCase) WithReissue(issuer SessionIssuer) *RevokeOtherSessionsUseCase {
-	uc.issuer = issuer
-	return uc
 }
 
 // RevokeOtherSessionsInput is the request. Everything comes from the session,
@@ -156,35 +141,28 @@ func (uc *RevokeOtherSessionsUseCase) WithReissue(issuer SessionIssuer) *RevokeO
 // refresh token the caller presented, empty when it presented none.
 type RevokeOtherSessionsInput struct {
 	UserID         uuid.UUID
-	TenantID       uuid.UUID
 	CurrentSession uuid.UUID
 	CurrentHash    string
-	Device         auth.DeviceContext
 }
 
-// RevokeOtherSessionsOutput reports the result. TokenPair is set when the
-// caller's device was given a new session; Reauthenticate is true when the
-// caller's own session ended too and none could be minted.
+// RevokeOtherSessionsOutput reports the result. Reauthenticate is true when the
+// caller's own session could not be identified and ended with the others.
 type RevokeOtherSessionsOutput struct {
 	Revoked        int64
-	TokenPair      *auth.TokenPair
 	Reauthenticate bool
 }
 
 // Execute revokes every session but the caller's.
 //
-// The caller's session is found, in order, by the sid claim of its access
-// token, by the refresh token an API client presented, and failing both by
-// re-issuing. The browser never sends the refresh cookie here: it is scoped to
-// /api/v1/auth/refresh. An empty keep-hash would revoke the caller's session
-// too, which is how this button used to sign its own user out (#727). So an
-// access token minted before sid existed gets a new session for its device
-// first, and every other one, its old session included, is revoked after.
-// Revoked then counts that old session as well.
+// The caller's session is found by the sid claim of its access token, or by
+// the refresh token an API client presented. The browser never sends the
+// refresh cookie here: it is scoped to /api/v1/auth/refresh (ADR 0006).
 //
-// When no session can be minted, everything is revoked anyway: this is the
-// button people press when someone else is in their account, and leaving that
-// someone signed in to spare the caller a sign-in is the wrong trade.
+// When neither names a session, everything is revoked and the caller is told
+// to sign in again. This is the button people press when someone else is in
+// their account: leaving that someone signed in to spare the caller a sign-in
+// is the wrong trade, and minting a new session for a token that names none
+// would hand a session to whatever holds it (#1060).
 func (uc *RevokeOtherSessionsUseCase) Execute(ctx context.Context, in RevokeOtherSessionsInput) (*RevokeOtherSessionsOutput, error) {
 	if in.UserID == uuid.Nil {
 		return nil, domain.NewValidationError("user is required")
@@ -210,16 +188,8 @@ func (uc *RevokeOtherSessionsUseCase) Execute(ctx context.Context, in RevokeOthe
 		return out, nil
 	}
 
-	keep := in.CurrentHash
-	if keep == "" && uc.issuer != nil && in.TenantID != uuid.Nil {
-		if pair, err := uc.issuer.IssueSessionForOrg(ctx, in.UserID, in.TenantID, in.Device); err == nil {
-			out.TokenPair = pair
-			keep = auth.HashToken(pair.RefreshToken)
-		}
-	}
-	out.Reauthenticate = keep == ""
-
-	n, err := uc.sessions.RevokeAllExcept(ctx, in.UserID, keep)
+	out.Reauthenticate = in.CurrentHash == ""
+	n, err := uc.sessions.RevokeAllExcept(ctx, in.UserID, in.CurrentHash)
 	if err != nil {
 		return nil, fmt.Errorf("failed to revoke sessions: %w", err)
 	}

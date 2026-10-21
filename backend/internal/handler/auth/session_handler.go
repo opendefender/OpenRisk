@@ -105,23 +105,17 @@ func (h *SessionHandler) RevokeOtherSessions(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "authentication required"})
 	}
 
-	// A personal access token carries no refresh token, so the use case would
-	// mint a session for it: a scoped, revocable token turned into a full
-	// browser session. Refused, as token creation refuses PATs.
+	// A personal access token names no session, so it could only sign out every
+	// device of its owner. Session management stays with the owner's own
+	// sessions, as token creation does.
 	if c.Locals("is_pat") == true {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "personal access tokens cannot manage sessions"})
 	}
 
 	out, err := h.revokeOther.Execute(c.UserContext(), appauth.RevokeOtherSessionsInput{
 		UserID:         mwCtx.UserID,
-		TenantID:       mwCtx.OrganizationID,
 		CurrentSession: mwCtx.SessionID,
 		CurrentHash:    currentSessionHash(c),
-		Device: coreauth.DeviceContext{
-			Fingerprint: c.Get("X-Device-Fingerprint"),
-			IP:          c.IP(),
-			UserAgent:   c.Get("User-Agent"),
-		},
 	})
 	var appErr *domain.AppError
 	switch {
@@ -133,24 +127,11 @@ func (h *SessionHandler) RevokeOtherSessions(c *fiber.Ctx) error {
 	}
 
 	h.logAudit(c, &mwCtx.UserID, coreauth.AuditActionSessionRevokeAll, true)
-	body := fiber.Map{"revoked": out.Revoked, "reauthenticate": out.Reauthenticate}
-	switch {
-	case out.TokenPair != nil:
-		// The caller's device was given a new session: hand it over the same
-		// way sign-in does, so the refresh cookie the browser holds is the live one.
-		csrfToken, err := middleware.IssueSessionCookies(c, out.TokenPair.AccessToken, out.TokenPair.RefreshToken,
-			coreauth.AccessTokenTTL, coreauth.RefreshTokenTTL)
-		if err != nil {
-			middleware.ClearSessionCookies(c)
-			body["reauthenticate"] = true
-			break
-		}
-		body["token_pair"] = out.TokenPair
-		body["csrf_token"] = csrfToken
-	case out.Reauthenticate:
+	if out.Reauthenticate {
+		// The caller's own session ended with the others.
 		middleware.ClearSessionCookies(c)
 	}
-	return c.JSON(body)
+	return c.JSON(fiber.Map{"revoked": out.Revoked, "reauthenticate": out.Reauthenticate})
 }
 
 func (h *SessionHandler) logAudit(c *fiber.Ctx, userID *uuid.UUID, action coreauth.AuditAction, success bool) {
