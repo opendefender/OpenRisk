@@ -34,7 +34,7 @@ func setupUserEmailRepo(t *testing.T) (*GormUserRepository, *gorm.DB) {
 			avatar_url TEXT, avatar_key TEXT, locale TEXT, date_format TEXT,
 			theme_mode TEXT, last_login DATETIME, tenant_id TEXT, default_org_id TEXT,
 			created_by_id TEXT, created_at DATETIME, updated_at DATETIME,
-			deleted_at DATETIME)`,
+			deleted_at DATETIME, devices_revoked_at DATETIME)`,
 	} {
 		require.NoError(t, db.Exec(ddl).Error)
 	}

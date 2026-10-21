@@ -23,6 +23,15 @@ type SessionHandler struct {
 	revoke      *appauth.RevokeSessionUseCase
 	revokeOther *appauth.RevokeOtherSessionsUseCase
 	audit       *coreauth.AuditService
+	// devices re-issues the caller's trusted-device cookie after "sign out
+	// other devices" untrusted them all (D-064). Optional.
+	devices *coreauth.DeviceCookieSigner
+}
+
+// WithTrustedDevices turns the cookie re-issue on.
+func (h *SessionHandler) WithTrustedDevices(s *coreauth.DeviceCookieSigner) *SessionHandler {
+	h.devices = s
+	return h
 }
 
 // NewSessionHandler builds the handler.
@@ -108,6 +117,10 @@ func (h *SessionHandler) RevokeOtherSessions(c *fiber.Ctx) error {
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to revoke sessions"})
 	}
+
+	// Every trusted device was untrusted with the sessions; the one that asked
+	// for it keeps its trust, like it keeps its session.
+	plantTrustedDevice(c, h.devices, mwCtx.UserID)
 
 	h.logAudit(c, &mwCtx.UserID, coreauth.AuditActionSessionRevokeAll, true)
 	return c.JSON(fiber.Map{"revoked": revoked})

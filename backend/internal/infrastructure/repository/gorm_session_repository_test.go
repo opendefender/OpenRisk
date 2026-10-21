@@ -39,6 +39,8 @@ func setupSessionRepo(t *testing.T) *GormSessionRepository {
 			created_at DATETIME,
 			updated_at DATETIME
 		)`).Error)
+	// "Sign out other devices" also stamps users.devices_revoked_at (D-064).
+	require.NoError(t, db.Exec(`CREATE TABLE users (id TEXT PRIMARY KEY, devices_revoked_at DATETIME, deleted_at DATETIME)`).Error)
 
 	return &GormSessionRepository{db: db}
 }
@@ -189,4 +191,23 @@ func TestHasSeenDevice(t *testing.T) {
 	seen, err = repo.HasSeenDevice(ctx, me, "")
 	require.NoError(t, err)
 	assert.True(t, seen)
+}
+
+// D-064 (#879): signing out the other devices also untrusts their device
+// cookies, for this user only.
+func TestRevokeAllExcept_UntrustsTheUsersDevices(t *testing.T) {
+	repo := setupSessionRepo(t)
+	ctx := context.Background()
+	me, bystander := uuid.New(), uuid.New()
+	for _, id := range []uuid.UUID{me, bystander} {
+		require.NoError(t, repo.db.Exec(`INSERT INTO users (id) VALUES (?)`, id).Error)
+	}
+	seedSession(t, repo, me, "hash-current", "fp-a", "Chrome", time.Now().Add(time.Hour))
+
+	_, err := repo.RevokeAllExcept(ctx, me, "hash-current")
+	require.NoError(t, err)
+
+	var stamped []string
+	require.NoError(t, repo.db.Raw(`SELECT id FROM users WHERE devices_revoked_at IS NOT NULL`).Scan(&stamped).Error)
+	assert.Equal(t, []string{me.String()}, stamped)
 }

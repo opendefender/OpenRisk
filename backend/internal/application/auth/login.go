@@ -28,6 +28,9 @@ type LoginInput struct {
 	// something to report.
 	IP        string
 	UserAgent string
+	// TrustedDevice is the browser's trusted-device cookie, already checked
+	// for its signature (D-064). Nil when absent or invalid.
+	TrustedDevice *domain.TrustedDevice
 }
 
 // LoginOutput represents the output of successful login.
@@ -192,13 +195,33 @@ func (uc *LoginUseCase) Execute(ctx context.Context, input LoginInput) (*LoginOu
 
 	// A locked address is refused before the database or the hasher is asked
 	// anything, so the refusal costs the same whether the account exists.
-	if left := uc.lockedFor(ctx, email); left > 0 {
-		return nil, &LoginLockedError{RetryAfter: left}
+	//
+	// D-064: a browser that already signed into this account gets past the
+	// lock, on a small budget of its own. Anyone else is still refused here.
+	addressLock := uc.lockedFor(ctx, email)
+	var device *domain.TrustedDevice
+	if addressLock > 0 {
+		if input.TrustedDevice == nil || uc.attempts == nil {
+			return nil, &LoginLockedError{RetryAfter: addressLock}
+		}
+		if left := uc.deviceLockedFor(ctx, input.TrustedDevice); left > 0 {
+			return nil, &LoginLockedError{RetryAfter: left}
+		}
+		device = input.TrustedDevice
 	}
 
 	user, err := uc.userRepo.GetByEmail(ctx, email)
 	if err != nil {
 		return nil, fmt.Errorf("authentication failed")
+	}
+	// A cookie for another account, or one issued before the sessions were
+	// revoked, is no cookie: the same refusal as without one.
+	if device != nil && !device.TrustsFor(user) {
+		return nil, &LoginLockedError{RetryAfter: addressLock}
+	}
+	recordFailure := uc.recordFailure
+	if device != nil {
+		recordFailure = func(ctx context.Context, _ string) { uc.recordDeviceFailure(ctx, device) }
 	}
 
 	// Every refusal for bad credentials costs one password comparison (#688).
@@ -207,19 +230,25 @@ func (uc *LoginUseCase) Execute(ctx context.Context, input LoginInput) (*LoginOu
 	// told an attacker which addresses held an account.
 	if user == nil {
 		uc.passwordHasher.Verify(uc.dummyHash, input.Password)
-		uc.recordFailure(ctx, email)
+		recordFailure(ctx, email)
 		return nil, domain.NewValidationError("invalid credentials")
 	}
 	passwordOK := uc.passwordHasher.Verify(user.Password, input.Password)
 	if !user.IsActive {
-		uc.recordFailure(ctx, email)
+		recordFailure(ctx, email)
 		return nil, domain.NewValidationError("account is disabled")
 	}
 	if !passwordOK {
-		uc.recordFailure(ctx, email)
+		recordFailure(ctx, email)
 		return nil, domain.NewValidationError("invalid credentials")
 	}
-	uc.clearFailures(ctx, email)
+	if device != nil {
+		// The address stays locked for everyone else; only this device's
+		// count starts over.
+		uc.clearDeviceFailures(ctx, device)
+	} else {
+		uc.clearFailures(ctx, email)
+	}
 
 	// The password is correct and the plaintext is in hand: if the stored hash
 	// was written with a lower Argon2id cost than today's, rewrite it now.

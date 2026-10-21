@@ -47,6 +47,24 @@ type Handler struct {
 	// JTI can be revoked (#689). Optional; without it logout ends only the
 	// refresh token, and the access token lives out its TTL.
 	accessTokenKeys *authpkg.RSAKeys
+	// devices signs and checks the trusted-device cookie (D-064). Optional;
+	// without it no cookie is planted or read.
+	devices *coreauth.DeviceCookieSigner
+}
+
+// WithTrustedDevices turns the trusted-device cookie on.
+func (h *Handler) WithTrustedDevices(s *coreauth.DeviceCookieSigner) *Handler {
+	h.devices = s
+	return h
+}
+
+// plantTrustedDevice marks this browser as one that signed into the account.
+// Called only where a password sign-in ends in a full session.
+func plantTrustedDevice(c *fiber.Ctx, s *coreauth.DeviceCookieSigner, userID uuid.UUID) {
+	if s == nil {
+		return
+	}
+	middleware.SetTrustedDeviceCookie(c, s.Issue(userID), coreauth.TrustedDeviceTTL)
 }
 
 // WithAccessTokenRevocation lets logout verify and revoke the access token it
@@ -199,6 +217,7 @@ func (h *Handler) Login(c *fiber.Ctx) error {
 		DeviceFingerprint: req.DeviceFingerprint,
 		IP:                c.IP(),
 		UserAgent:         c.Get("User-Agent"),
+		TrustedDevice:     h.trustedDevice(c),
 	})
 
 	if err != nil {
@@ -281,6 +300,7 @@ func (h *Handler) Login(c *fiber.Ctx) error {
 			"error": "Could not establish session",
 		})
 	}
+	plantTrustedDevice(c, h.devices, result.User.ID)
 
 	mfaStatus := result.MFAStatus
 	return c.JSON(LoginResponse{
@@ -725,4 +745,17 @@ func (h *Handler) resolveMFABlock(c *fiber.Ctx, userID, tenantID uuid.UUID) *dom
 		return nil
 	}
 	return &decision
+}
+
+// trustedDevice returns the device the request's cookie names, signature
+// checked, or nil.
+func (h *Handler) trustedDevice(c *fiber.Ctx) *domain.TrustedDevice {
+	if h.devices == nil {
+		return nil
+	}
+	v := middleware.TrustedDeviceCookieValue(c)
+	if v == "" {
+		return nil
+	}
+	return h.devices.Verify(v)
 }

@@ -289,6 +289,14 @@ With Helm, pass it as `--set secrets.inline.auditHashKey=...` (or in your
 values file). The chart stores it in the `openrisk-secrets` Secret, and the
 render fails without it, so `helm upgrade` stops before any pod restarts.
 
+`DEVICE_COOKIE_KEY` is optional. It signs the cookie that lets a browser
+which already signed in get past a sign-in lock someone else keeps setting
+(D-064). Without it, the key is derived from `AUDIT_HASH_KEY`. Set it to
+rotate the cookie key on its own, with the old value in
+`DEVICE_COOKIE_PREVIOUS_KEY` until the cookies signed with it age out (90
+days); changing it without that untrusts every browser, which then waits out
+a lock like any other.
+
 ### Password hashing
 
 Passwords are stored with Argon2id. The defaults are 64 MiB of memory,

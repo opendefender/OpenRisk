@@ -95,13 +95,25 @@ func (r *GormSessionRepository) Revoke(ctx context.Context, userID, sessionID uu
 //
 // When keepHash is empty this revokes everything, which is what the password
 // reset path wants.
+//
+// It also untrusts every device cookie the user holds (D-064, #879), in the
+// same transaction; the caller re-issues one to the device that pressed it.
 func (r *GormSessionRepository) RevokeAllExcept(ctx context.Context, userID uuid.UUID, keepHash string) (int64, error) {
-	q := r.db.WithContext(ctx).Where("user_id = ?", userID)
-	if keepHash != "" {
-		q = q.Where("token_hash <> ?", keepHash)
-	}
-	res := q.Delete(&sessionRow{})
-	return res.RowsAffected, res.Error
+	var revoked int64
+	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Model(&domain.User{}).Where("id = ?", userID).
+			UpdateColumn("devices_revoked_at", time.Now()).Error; err != nil {
+			return err
+		}
+		q := tx.Where("user_id = ?", userID)
+		if keepHash != "" {
+			q = q.Where("token_hash <> ?", keepHash)
+		}
+		res := q.Delete(&sessionRow{})
+		revoked = res.RowsAffected
+		return res.Error
+	})
+	return revoked, err
 }
 
 // HasSeenDevice reports whether this user ever held a session on a fingerprint.

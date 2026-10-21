@@ -770,10 +770,15 @@ func main() {
 	// policy changes drop the entry immediately.
 	mfaStatusResolver := auth.NewMFAStatusResolver(mfaRepo, userRepo, mfaRequiredRoles, mfaRequiredBusinessRoles).
 		WithPolicies(mfaPolicyRepo)
+	// D-064 (#879): the trusted-device cookie lets the owner's usual browser
+	// past a sign-in lock someone else keeps setting.
+	deviceCookies := trustedDeviceSigner(os.Getenv)
+
 	mfaHandler := authhandler.NewMFAHandler(setupMFAUseCase, verifyMFAUseCase, disableMFAUseCase, challengeMFAUseCase, tokenManager, userRepo, authAudit).
 		WithMFAStatus(mfaStatusResolver).
 		// #754 — per-account budget on disabling MFA, shared across instances.
-		WithDisableAttemptLimit(middleware.NewRedisRateLimitStore(redisClientInstance))
+		WithDisableAttemptLimit(middleware.NewRedisRateLimitStore(redisClientInstance)).
+		WithTrustedDevices(deviceCookies)
 	mfaPolicyHandler := authhandler.NewMFAPolicyHandler(
 		auth.NewGetMFAPolicyUseCase(mfaPolicyRepo, mfaRequiredRoles, mfaRequiredBusinessRoles),
 		auth.NewUpdateMFAPolicyUseCase(mfaPolicyRepo, mfaRequiredRoles, mfaRequiredBusinessRoles).
@@ -790,7 +795,7 @@ func main() {
 		requestResetUseCase, confirmResetUseCase, passwordPolicy, appBaseURL, authAudit,
 	).WithChangePassword(auth.NewChangePasswordUseCase(
 		userRepo, passwordHasher, passwordPolicy, tokenManager, securityMailer,
-	))
+	)).WithTrustedDevices(deviceCookies)
 
 	// Session (device) management use cases + handler.
 	listSessionsUseCase := auth.NewListSessionsUseCase(sessionRepo)
@@ -798,7 +803,7 @@ func main() {
 	revokeOtherSessionsUseCase := auth.NewRevokeOtherSessionsUseCase(sessionRepo)
 	sessionHandler := authhandler.NewSessionHandler(
 		listSessionsUseCase, revokeSessionUseCase, revokeOtherSessionsUseCase, authAudit,
-	)
+	).WithTrustedDevices(deviceCookies)
 	newDeviceNotifier := auth.NewNotifyNewDeviceUseCase(sessionRepo, securityMailer)
 
 	// Organization switching (server-authorized). userRepo satisfies the narrow
@@ -824,7 +829,8 @@ func main() {
 		// /auth/me's business role and the token's permissions come from one
 		// membership row and cannot disagree (#338).
 		WithMemberLookup(userRepo).
-		WithAccessTokenRevocation(rsaKeys)
+		WithAccessTokenRevocation(rsaKeys).
+		WithTrustedDevices(deviceCookies)
 
 	// OAuth identity resolution: known link → verified-email link → provision.
 	// No provisioner is wired, so an identity with no OpenRisk account is refused

@@ -38,6 +38,14 @@ type LoginAttemptStore interface {
 	Delete(ctx context.Context, key string) error
 }
 
+// D-064 (#879): a trusted device's own budget on a locked address. Small, so a
+// stolen cookie buys a handful of guesses, not a way round the lock.
+const (
+	TrustedDeviceMaxFailures   = 5
+	TrustedDeviceFailureWindow = 15 * time.Minute
+	TrustedDeviceLockDuration  = 15 * time.Minute
+)
+
 // LoginLockedError means the address refuses sign-in for a while. It is
 // returned without the password being looked at.
 type LoginLockedError struct {
@@ -123,4 +131,38 @@ func (uc *ConfirmPasswordResetUseCase) clearLoginLock(ctx context.Context, email
 	}
 	_ = uc.loginAttempts.Delete(ctx, loginLockKey(email))
 	_ = uc.loginAttempts.Delete(ctx, loginFailKey(email))
+}
+
+func deviceFailKey(d *domain.TrustedDevice) string { return "login:devfail:" + d.DeviceID.String() }
+func deviceLockKey(d *domain.TrustedDevice) string { return "login:devlock:" + d.DeviceID.String() }
+
+func (uc *LoginUseCase) deviceLockedFor(ctx context.Context, d *domain.TrustedDevice) time.Duration {
+	left, err := uc.attempts.LockedFor(ctx, deviceLockKey(d))
+	if err != nil {
+		// Unlike the address lock, a store error refuses: the address is
+		// already locked, and this is the way round it.
+		log.Printf("login: device lock check failed: %v", err)
+		return TrustedDeviceLockDuration
+	}
+	return left
+}
+
+func (uc *LoginUseCase) recordDeviceFailure(ctx context.Context, d *domain.TrustedDevice) {
+	n, err := uc.attempts.Increment(ctx, deviceFailKey(d), TrustedDeviceFailureWindow)
+	if err != nil {
+		log.Printf("login: device failure count not recorded: %v", err)
+		return
+	}
+	if n < TrustedDeviceMaxFailures {
+		return
+	}
+	if _, err := uc.attempts.Lock(ctx, deviceLockKey(d), TrustedDeviceLockDuration); err != nil {
+		log.Printf("login: device lock not set: %v", err)
+		return
+	}
+	_ = uc.attempts.Delete(ctx, deviceFailKey(d))
+}
+
+func (uc *LoginUseCase) clearDeviceFailures(ctx context.Context, d *domain.TrustedDevice) {
+	_ = uc.attempts.Delete(ctx, deviceFailKey(d))
 }

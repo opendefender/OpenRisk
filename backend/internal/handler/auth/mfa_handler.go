@@ -37,6 +37,9 @@ type MFAHandler struct {
 	mfaStatus *appauth.MFAStatusResolver
 	// disableAttempts counts disable attempts per account (#754). Optional.
 	disableAttempts middleware.RateLimitBackend
+	// devices plants the trusted-device cookie when the challenge completes a
+	// sign-in (D-064). Optional.
+	devices *coreauth.DeviceCookieSigner
 }
 
 // Per-account budget for POST /auth/mfa/disable. The per-IP limiter on the
@@ -340,8 +343,16 @@ func (h *MFAHandler) Challenge(c *fiber.Ctx) error {
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to issue session"})
 	}
+	plantTrustedDevice(c, h.devices, userID)
 
 	return c.JSON(LoginResponse{TokenPair: pair, CSRFToken: csrfToken})
+}
+
+// WithTrustedDevices turns the trusted-device cookie on for the second leg of
+// sign-in.
+func (h *MFAHandler) WithTrustedDevices(s *coreauth.DeviceCookieSigner) *MFAHandler {
+	h.devices = s
+	return h
 }
 
 // challengeFailed answers a refused challenge and audits it. The codes let the

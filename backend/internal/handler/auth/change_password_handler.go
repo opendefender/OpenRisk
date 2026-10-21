@@ -109,6 +109,9 @@ func (h *PasswordHandler) ChangePassword(c *fiber.Ctx) error {
 			"reauthenticate": true,
 		})
 	}
+	// The change untrusted every device (D-064); this one keeps its trust, as
+	// it keeps its session.
+	plantTrustedDevice(c, h.devices, userID)
 	return c.JSON(fiber.Map{
 		"message":        pick(locale, "Mot de passe modifié. Vos autres appareils ont été déconnectés.", "Password changed. Your other devices were signed out."),
 		"reauthenticate": false,
