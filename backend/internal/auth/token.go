@@ -219,7 +219,7 @@ func (tm *TokenManager) generatePair(ctx context.Context, userID, tenantID uuid.
 	}
 
 	// Generate access token via the SINGLE pkg/auth minter.
-	accessToken, _, err := authpkg.GenerateAccessToken(tm.rsaKeys, userID, tenantID, orgRoles, permissions, featureFlags, AccessTokenTTL)
+	accessToken, _, err := authpkg.GenerateSessionAccessToken(tm.rsaKeys, userID, tenantID, orgRoles, permissions, featureFlags, AccessTokenTTL, familyID)
 	if err != nil {
 		// Clean up the refresh token if access token generation fails.
 		tm.db.WithContext(ctx).Delete(refreshToken)
@@ -507,7 +507,7 @@ func (tm *TokenManager) issueSuccessor(ctx context.Context, prev RefreshToken, s
 		}
 	}
 
-	accessToken, _, err := authpkg.GenerateAccessToken(tm.rsaKeys, prev.UserID, tenantID, orgRoles, permissions, featureFlags, AccessTokenTTL)
+	accessToken, _, err := authpkg.GenerateSessionAccessToken(tm.rsaKeys, prev.UserID, tenantID, orgRoles, permissions, featureFlags, AccessTokenTTL, prev.FamilyID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate access token: %w", err)
 	}

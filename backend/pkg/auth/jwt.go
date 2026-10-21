@@ -25,6 +25,13 @@ type Claims struct {
 	Permissions  []string             `json:"permissions"`   // RBAC permissions
 	FeatureFlags []string             `json:"feature_flags"` // Feature toggles
 	JTI          string               `json:"jti"`           // JWT ID (for Redis blacklist)
+	// SID names the session the token was minted for: the refresh-token family
+	// (refresh_tokens.family_id), stable across rotations. It lets any route
+	// tell which session is the caller's without seeing the refresh token, whose
+	// cookie only reaches /auth/refresh (ADR 0006, #727). Empty on tokens that
+	// belong to no session (scanner agents, MFA steps) and on tokens minted
+	// before it existed.
+	SID string `json:"sid,omitempty"`
 	// Type distinguishes a full access token (TokenTypeAccess, empty) from the
 	// short-lived MFA_REQUIRED / MFA_ENROLLMENT tokens minted by
 	// GenerateTypedToken. ValidateAccessToken refuses any non-access type (#944).
@@ -82,9 +89,20 @@ func GenerateAccessToken(
 	return GenerateTypedToken(rsaKeys, userID, tenantID, orgRoles, permissions, featureFlags, duration, TokenTypeAccess)
 }
 
-// GenerateTypedToken is the single low-level RS256 token minter. Every token in
-// the system (access + MFA-challenge) is produced here so signing, claims shape
-// and JTI generation have exactly one implementation.
+// GenerateSessionAccessToken mints an access token bound to a session: the
+// refresh-token family it was issued with, carried in the sid claim.
+func GenerateSessionAccessToken(
+	rsaKeys *RSAKeys,
+	userID, tenantID uuid.UUID,
+	orgRoles map[uuid.UUID]string,
+	permissions, featureFlags []string,
+	duration time.Duration,
+	sessionID uuid.UUID,
+) (string, string, error) {
+	return mintToken(rsaKeys, userID, tenantID, orgRoles, permissions, featureFlags, duration, TokenTypeAccess, sessionID)
+}
+
+// GenerateTypedToken mints a token of the given type that belongs to no session.
 func GenerateTypedToken(
 	rsaKeys *RSAKeys,
 	userID, tenantID uuid.UUID,
@@ -92,6 +110,21 @@ func GenerateTypedToken(
 	permissions, featureFlags []string,
 	duration time.Duration,
 	tokenType string,
+) (string, string, error) {
+	return mintToken(rsaKeys, userID, tenantID, orgRoles, permissions, featureFlags, duration, tokenType, uuid.Nil)
+}
+
+// mintToken is the single low-level RS256 token minter. Every token in the
+// system (access + MFA-challenge) is produced here so signing, claims shape and
+// JTI generation have exactly one implementation.
+func mintToken(
+	rsaKeys *RSAKeys,
+	userID, tenantID uuid.UUID,
+	orgRoles map[uuid.UUID]string,
+	permissions, featureFlags []string,
+	duration time.Duration,
+	tokenType string,
+	sessionID uuid.UUID,
 ) (string, string, error) {
 	if rsaKeys == nil || rsaKeys.PrivateKey == nil {
 		return "", "", errors.New("RSA private key not initialized")
@@ -115,6 +148,9 @@ func GenerateTypedToken(
 		FeatureFlags: featureFlags,
 		JTI:          jti,
 		Type:         tokenType,
+	}
+	if sessionID != uuid.Nil {
+		claims.SID = sessionID.String()
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)

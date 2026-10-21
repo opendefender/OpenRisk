@@ -22,11 +22,14 @@ type RequestContext struct {
 	UserID         uuid.UUID
 	User           *domain.User
 	OrganizationID uuid.UUID
-	Organization   *domain.Organization
-	Member         *domain.OrganizationMember
-	Permissions    *domain.PermissionSet
-	IPAddress      string
-	UserAgent      string
+	// SessionID is the refresh-token family the access token was minted for
+	// (its sid claim), uuid.Nil when the token names none (ADR 0006).
+	SessionID    uuid.UUID
+	Organization *domain.Organization
+	Member       *domain.OrganizationMember
+	Permissions  *domain.PermissionSet
+	IPAddress    string
+	UserAgent    string
 }
 
 // SetContext stores the request context in Fiber locals

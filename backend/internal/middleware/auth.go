@@ -124,7 +124,10 @@ func AuthMiddlewareRS256(rsaKeys *authpkg.RSAKeys, redisBlacklistChecker func(jt
 		// back to uuid.Nil for the tenant, regardless of who was logged in. The nil-tenant
 		// guard in GormComplianceRepository.CreateControl is what finally surfaced this as a
 		// hard 500 instead of silently mixing every tenant's data into one Nil bucket.
-		SetContext(c, &RequestContext{UserID: claims.Sub, OrganizationID: claims.TenantID})
+		// SessionID stays Nil for a token without a valid sid: one minted before
+		// the claim existed, or one that belongs to no session.
+		sessionID, _ := uuid.Parse(claims.SID)
+		SetContext(c, &RequestContext{UserID: claims.Sub, OrganizationID: claims.TenantID, SessionID: sessionID})
 
 		return c.Next()
 	}
