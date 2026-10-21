@@ -104,13 +104,39 @@ func (h *SessionHandler) RevokeOtherSessions(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "authentication required"})
 	}
 
-	revoked, err := h.revokeOther.Execute(c.UserContext(), mwCtx.UserID, currentSessionHash(c))
+	out, err := h.revokeOther.Execute(c.UserContext(), appauth.RevokeOtherSessionsInput{
+		UserID:      mwCtx.UserID,
+		TenantID:    mwCtx.OrganizationID,
+		CurrentHash: currentSessionHash(c),
+		Device: coreauth.DeviceContext{
+			Fingerprint: c.Get("X-Device-Fingerprint"),
+			IP:          c.IP(),
+			UserAgent:   c.Get("User-Agent"),
+		},
+	})
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to revoke sessions"})
 	}
 
 	h.logAudit(c, &mwCtx.UserID, coreauth.AuditActionSessionRevokeAll, true)
-	return c.JSON(fiber.Map{"revoked": revoked})
+	body := fiber.Map{"revoked": out.Revoked, "reauthenticate": out.Reauthenticate}
+	switch {
+	case out.TokenPair != nil:
+		// The caller's device was given a new session: hand it over the same
+		// way sign-in does, so the refresh cookie the browser holds is the live one.
+		csrfToken, err := middleware.IssueSessionCookies(c, out.TokenPair.AccessToken, out.TokenPair.RefreshToken,
+			coreauth.AccessTokenTTL, coreauth.RefreshTokenTTL)
+		if err != nil {
+			middleware.ClearSessionCookies(c)
+			body["reauthenticate"] = true
+			break
+		}
+		body["token_pair"] = out.TokenPair
+		body["csrf_token"] = csrfToken
+	case out.Reauthenticate:
+		middleware.ClearSessionCookies(c)
+	}
+	return c.JSON(body)
 }
 
 func (h *SessionHandler) logAudit(c *fiber.Ctx, userID *uuid.UUID, action coreauth.AuditAction, success bool) {
