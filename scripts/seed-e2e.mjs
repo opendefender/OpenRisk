@@ -10,9 +10,10 @@
 // org — the registration path returns no token and second-member creation has no
 // working API path (documented as OR-BUG in docs/UX_AUDIT_2026-07.md).
 //
-// The analyst/auditor personas are ATTEMPTED (POST /users + business-role assign);
-// if the platform has no working "add a business-role member to a tenant" path,
-// they are recorded as unusable with a reason and their journeys become test.fixme.
+// The analyst/auditor personas are created by POST /users as members of the
+// admin's tenant, each carrying its business role on the membership (#590).
+// If either cannot be created or cannot sign in, it is recorded as unusable
+// with the reason, and the journeys that need it become test.fixme.
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -302,8 +303,8 @@ async function ensureIncident() {
   return { incidentId };
 }
 
-// Attempt to provision analyst + auditor as business-role members of the tenant.
-// Recorded honestly whether it works or not — the platform may lack the path.
+// Provision analyst + auditor as business-role members of the tenant. Recorded
+// honestly whether it works or not, with the server's own error when it refuses.
 async function tryPersonas() {
   const personas = {
     admin: { usable: true, email: ADMIN.email },
@@ -317,10 +318,12 @@ async function tryPersonas() {
       full_name: spec.full_name,
       password: spec.password,
       role: 'user',
+      business_role: spec.business_role,
       department: 'E2E',
     });
     if (!created.ok && created.status !== 409) {
-      personas[key] = { usable: false, reason: `POST /users -> ${created.status}`, email: spec.email };
+      const cause = created.body?.error ? ` ${created.body.error}` : '';
+      personas[key] = { usable: false, reason: `POST /users -> ${created.status}${cause}`, email: spec.email };
       continue;
     }
     // Can this user actually authenticate into a tenant?

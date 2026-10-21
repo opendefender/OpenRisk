@@ -96,7 +96,7 @@ export default async function globalSetup(_config: FullConfig) {
           console.warn(`[global-setup] ${key} login failed, skipping: ${(e as Error).message}`);
         }
       } else {
-        console.warn(`[global-setup] ${key} not usable (${p?.reason ?? 'no seed record'}) — its tests will fixme`);
+        console.warn(`[global-setup] ${key} not usable (${p?.reason ?? 'no seed record'}) — the journeys that need it will fail or fixme`);
       }
     }
   } finally {
