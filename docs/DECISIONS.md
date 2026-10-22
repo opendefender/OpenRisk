@@ -5,7 +5,39 @@ recommends, and surfaces these in the daily brief. Run `/decide` to clear them.
 
 ## Open
 
-### D-076 — Compliance tiers on hosted plans: define Basic → Custom, or drop the tiers? · raised 2026-10-22
+Nothing open.
+
+
+## Resolved
+
+### D-076 — Compliance on hosted plans: every framework on every plan, a cap on how many are active · decided 2026-10-22
+**Decided (owner)** — Option B, amended. In the owner's words: "D-076 : option B, tous les référentiels inclus partout, Mais avec un nombre de compliance defini selon le plan".
+
+**Reading confirmed** — stated back to the owner, no objection: the whole
+framework catalogue is available on every hosted plan, no framework is
+reserved to a plan. What the plan caps is the **number of frameworks active at
+the same time** in a tenant. The owner then set the caps:
+
+| Plan | Frameworks active at once |
+|---|---|
+| Free | 1 |
+| Pro | 3 |
+| Business | 10 |
+| Enterprise | unlimited |
+
+Self-hosted stays uncapped (D-040, D-075): no coded quota in the AGPL edition.
+The Basic / Standard / Advanced / Custom levels on `FeatCompliance` in
+`backend/pkg/entitlements/entitlements.go` are dropped and replaced by this
+count quota.
+
+**Consequence** — the Compliance row of #783 is now specifiable: a count limit
+enforced on framework activation for hosted tenants, shipped after #612 so a
+self-hosted instance never hits it. `docs/PRICING.md` and `entitlements.go`
+change in #783's implementation, not in the PR that records this ruling.
+
+**Unblocked** — #783 refinement.
+
+**Context, as raised**
 **Question** — `docs/PRICING.md` shows the Compliance row as Basic / Standard /
 Advanced / Custom across the hosted plans. `FeatCompliance` carries those levels
 in `backend/pkg/entitlements/entitlements.go`, but nothing reads them: no route
@@ -40,9 +72,6 @@ over-claim D-075 addresses. It does not block the five gates of D-075, which can
 ship without it.
 
 **Raised by** — #783 (left open by the D-075 ruling).
-
-
-## Resolved
 
 ### D-075 — Five paid plan lines the backend does not enforce: gate them, or stop selling them? · decided 2026-10-22
 **Decided (owner)** — Model A, "par le service". In the owner's words, in order:
