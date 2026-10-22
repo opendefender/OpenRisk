@@ -192,7 +192,7 @@ export interface paths {
         put?: never;
         /**
          * Create an account and its organization
-         * @description Creates the user, a new organization they own and their root membership in one transaction. No session is issued: the client signs in with /auth/login afterwards. Rate limited per IP (10 per 15 minutes) and, for an address that already has an account, per address (`REGISTER_RATE_LIMITED`). A taken username is checked before the address, so the two 409 codes do not reveal whether an address is registered.
+         * @description Creates the user, a new organization they own and their root membership in one transaction. No session is issued: the client signs in with /auth/login afterwards. Rate limited per IP (10 per 15 minutes) and, for an address that already has an account, per address (`REGISTER_RATE_LIMITED`). `EMAIL_ALREADY_REGISTERED` and `REGISTER_RATE_LIMITED` confirm that an address has an account; the owner accepted that in D-073. A taken username is checked before the address is looked up, so `USERNAME_TAKEN` says nothing about the address.
          */
         post: operations["register"];
         delete?: never;
@@ -5206,7 +5206,8 @@ export interface operations {
                 content: {
                     "application/json": {
                         message?: string;
-                        sessions_revoked?: number;
+                        /** @description True once every session of the account was signed out */
+                        sessions_revoked?: boolean;
                     };
                 };
             };
