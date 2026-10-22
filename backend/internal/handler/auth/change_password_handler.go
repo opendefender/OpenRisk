@@ -38,6 +38,12 @@ func (h *PasswordHandler) ChangePassword(c *fiber.Ctx) error {
 	if mwCtx == nil || mwCtx.UserID == uuid.Nil || h.change == nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "authentication required"})
 	}
+	// A change ends every session and mints a new one for the caller. A personal
+	// access token would come out of it holding a full, refreshable session
+	// (#1123), and the password is the owner's to change, not a script's.
+	if c.Locals("is_pat") == true {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "personal access tokens cannot change the password"})
+	}
 	var req changePasswordRequest
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request body"})

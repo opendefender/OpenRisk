@@ -65,6 +65,13 @@ func (h *SwitchHandler) SwitchOrganization(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "authentication required"})
 	}
 
+	// The switch mints a full session out of the caller's credential. From a
+	// personal access token that session would drop the token's scopes and keep
+	// refreshing after the token is revoked (#1123).
+	if c.Locals("is_pat") == true {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "personal access tokens cannot switch organizations"})
+	}
+
 	var req SwitchOrganizationRequest
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request body"})

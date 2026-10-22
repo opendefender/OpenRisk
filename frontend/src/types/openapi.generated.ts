@@ -4859,7 +4859,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description `wrong_current_password`; or, from the middleware, `CSRF_FAILED` or `MFA_ENROLLMENT_REQUIRED` */
+            /** @description Called with a personal access token, which cannot change the password and is given no session; `wrong_current_password`; or, from the middleware, `CSRF_FAILED` or `MFA_ENROLLMENT_REQUIRED` */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -5968,7 +5968,7 @@ export interface operations {
                     "application/json": components["schemas"]["TokenError"] | components["schemas"]["AuthError"];
                 };
             };
-            /** @description Not an active member of the target organization; or, from the middleware, `CSRF_FAILED` (cookie session without a valid CSRF token) or `MFA_ENROLLMENT_REQUIRED` (the account must enrol an authenticator first) */
+            /** @description Called with a personal access token, which cannot switch organizations and is given no session; not an active member of the target organization; or, from the middleware, `CSRF_FAILED` (cookie session without a valid CSRF token) or `MFA_ENROLLMENT_REQUIRED` (the account must enrol an authenticator first) */
             403: {
                 headers: {
                     [name: string]: unknown;
