@@ -5,7 +5,72 @@ recommends, and surfaces these in the daily brief. Run `/decide` to clear them.
 
 ## Open
 
-Nothing open.
+### D-075 — Five paid plan lines the backend does not enforce: gate them, or stop selling them? · raised 2026-10-22
+**Question** — `docs/PRICING.md` sells Automation (SOAR) and Infra scanner on Pro+,
+and Threat intel (CTI), Governance / approvals and SSO / SAML on Business+. The
+page also says "the backend enforces it". It does for five features only:
+`backend/cmd/server/main.go:1177-1181` mounts `middleware.RequireFeature` for
+financial quantification, smart score, executive dashboard, AI advisor and
+vendor risk. `FeatAutomation`, `FeatScanner`, `FeatCTI`, `FeatGovernance` and
+`FeatSSO` exist in `backend/pkg/entitlements/entitlements.go` and are mounted
+on no route. On the frontend, `AutomationPage`, `GovernancePage` and
+`ThreatIntel` mount with no plan guard. So a hosted Free tenant gets today, at
+no cost, five lines the grid bills for. Either the code catches up with the
+grid, or the grid catches up with the code. Changing what a plan grants is a
+pricing call (D-006), like TPRM on Business+ was (D-044).
+
+**The Compliance row needs a ruling too.** The grid shows Basic / Standard /
+Advanced / Custom. `FeatCompliance` carries those levels in the matrix, but
+nothing reads them: no route and no use case behaves differently between
+Basic and Custom, and nowhere is it written what each tier contains (which
+frameworks, how many, which reports). Under (a) the tiers have to be defined
+before they can be enforced. Under (b) the row becomes "included" in every
+column.
+
+**Self-hosting is not what this decides.** The issue presents (a) as breaking
+for self-hosted installs because they resolve to `PlanFree`
+(`backend/internal/application/entitlements/service.go`). D-040 has already
+decided that self-hosting is free and complete, scanner, CTI, automation,
+governance and SSO included, and #612 (open, `status:ready`) stops self-hosted
+from resolving to `PlanFree`. Once #612 lands, these gates only affect hosted
+tenants. The break exists only if (a) ships before #612.
+
+**Recommendation — (a), sequenced after #612.** This is a pricing call; the
+reasoning is: D-040 put the free/paid line at "self-hosted gets everything,
+hosted pays for the plan". Under (b) the hosted Pro and Business plans keep
+four and five gated features plus volume caps, which is a thin case for
+149 € / 39 000 XAF. And nobody is losing anything they paid for: pilots run on
+synthetic data (D-051) and the launch is January 2027 (D-054), so no hosted
+customer relies on these routes being free today. If the owner prefers (b),
+it is a smaller job and just as honest. What is not acceptable is the current
+state, where the page is wrong in both directions.
+
+**Options**
+- **A — Gate the five lines on hosted plans.** Mount `RequireFeature` on the
+  automation, scanner, CTI, governance and SSO routes; give the three pages a
+  `FeatureGate` instead of letting the API return 402; one Free-refused /
+  plan-allowed test per feature (#783 criterion 3). SSO: gate the SSO
+  *configuration* routes, not `/auth/saml2/*` and OAuth callbacks, which run
+  before a tenant is known; a downgraded tenant must still be able to sign in.
+  Define the Compliance tiers or drop the levels to "included". Depends on #612,
+  M-to-L. Any hosted trial tenant now using these pages loses them when the
+  trial ends, which is the intended behaviour of a paid line.
+- **B — Move the five lines (and Compliance) to "included" in every column.**
+  Edit `docs/PRICING.md` and the matrix in `entitlements.go` so the two agree,
+  and make the "the backend enforces it" sentence true by narrowing it. No
+  break, no dependency, S. Pro would be sold on AI advisor, financial
+  quantification, smart score, executive dashboard and limits; Business adds
+  TPRM, SLA and support. The paid offer shrinks, and with it the reason to
+  upgrade from Free on hosted.
+
+**Cost of delay** — every day the public pricing page describes a product that
+does not exist, the same over-claim #483 just fixed in the README. It blocks
+#783 and criterion 5 of #781. The cost grows at launch: once hosted customers
+sign up on a grid that is not enforced, (a) stops being a fix and becomes taking
+something away from paying users.
+
+**Raised by** — #783 (found during #483, PR #753).
+
 
 ## Resolved
 
