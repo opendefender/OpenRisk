@@ -95,7 +95,11 @@ export function NoticeEmailPolicyPanel({ tr }: { tr: Tr }) {
         )}
       </p>
 
-      <fieldset className="border-0 p-0 m-0" disabled={!canEdit} aria-describedby="notice-email-summary">
+      <fieldset
+        className="border-0 p-0 m-0"
+        disabled={!canEdit}
+        aria-describedby="notice-email-summary"
+      >
         <legend className="text-[11px] font-semibold uppercase tracking-[.04em] text-ink-muted mb-2">
           {tr('Regrouper les changements sur', 'Group changes over')}
         </legend>
@@ -135,7 +139,11 @@ export function NoticeEmailPolicyPanel({ tr }: { tr: Tr }) {
         </div>
       </fieldset>
 
-      <p id="notice-email-summary" className="text-[13px] text-ink leading-relaxed mt-3 mb-0" aria-live="polite">
+      <p
+        id="notice-email-summary"
+        className="text-[13px] text-ink leading-relaxed mt-3 mb-0"
+        aria-live="polite"
+      >
         {windowSummary(policy.window_minutes, tr)}
       </p>
       {/* At-least-once delivery, accepted by the owner (#997): a send cut by a

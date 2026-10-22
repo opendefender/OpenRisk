@@ -36,7 +36,13 @@ vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: (m: string) => toas
 const fr = (f: string) => f;
 
 function policy(over: Partial<NoticeEmailPolicy> = {}): NoticeEmailPolicy {
-  return { window_minutes: 60, configured: false, options: [15, 30, 60, 240, 1440], default_minutes: 60, ...over };
+  return {
+    window_minutes: 60,
+    configured: false,
+    options: [15, 30, 60, 240, 1440],
+    default_minutes: 60,
+    ...over,
+  };
 }
 
 function signInAs(orgRole: string) {
@@ -55,7 +61,9 @@ function signInAs(orgRole: string) {
 }
 
 function renderPanel() {
-  const qc = new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } });
+  const qc = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
   render(
     <QueryClientProvider client={qc}>
       <NoticeEmailPolicyPanel tr={fr} />
@@ -77,7 +85,9 @@ describe('NoticeEmailPolicyPanel', () => {
     await screen.findByText('Valeur par défaut');
     expect((radio('1 h') as HTMLInputElement).checked).toBe(true);
     expect(screen.getAllByRole('radio')).toHaveLength(5);
-    expect(document.body.textContent).toContain('Au plus un e-mail par élément et par personne toutes les heures.');
+    expect(document.body.textContent).toContain(
+      'Au plus un e-mail par élément et par personne toutes les heures.',
+    );
     // The accepted at-least-once behaviour is stated, not hidden (#997).
     expect(document.body.textContent).toContain('un e-mail peut arriver deux fois');
     expect(document.body.textContent).not.toContain("Aucun e-mail n'est perdu");
@@ -107,7 +117,9 @@ describe('NoticeEmailPolicyPanel', () => {
     await waitFor(() => expect((radio('15 min') as HTMLInputElement).checked).toBe(true));
     refuse(new Error('403'));
     await waitFor(() => expect((radio('1 h') as HTMLInputElement).checked).toBe(true));
-    expect(toastError).toHaveBeenCalledWith(expect.stringContaining('le réglage précédent est rétabli'));
+    expect(toastError).toHaveBeenCalledWith(
+      expect.stringContaining('le réglage précédent est rétabli'),
+    );
   });
 
   it('is read-only for a member who is not an administrator', async () => {
@@ -122,7 +134,9 @@ describe('NoticeEmailPolicyPanel', () => {
 
   it('offers a retry when the setting cannot be read', async () => {
     signInAs('admin');
-    getEmailPolicy.mockRejectedValueOnce(new Error('500')).mockResolvedValueOnce(policy({ configured: true }));
+    getEmailPolicy
+      .mockRejectedValueOnce(new Error('500'))
+      .mockResolvedValueOnce(policy({ configured: true }));
     renderPanel();
     await userEvent.click(await screen.findByRole('button', { name: 'Réessayer' }));
     await screen.findByText("Réglage de l'organisation");
