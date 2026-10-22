@@ -48,6 +48,7 @@ paths:
       summary: Health check
       operationId: healthCheck
       description: Check API health status
+      security: []
       responses:
         '200':
           description: API is healthy
@@ -89,6 +90,7 @@ paths:
         - Authentication
       summary: Login with email and password
       operationId: login
+      security: []
       requestBody:
         required: true
         content:
@@ -1700,22 +1702,6 @@ paths:
           description: Unauthorized
         '404':
           description: Sub-action not found
-
-  /mitigations/recommended:
-    get:
-      tags:
-        - Mitigations
-      summary: Get recommended mitigations (sorted by SPP score)
-      operationId: getRecommendedMitigations
-      responses:
-        '200':
-          description: Recommended mitigations
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Mitigation'
 
   # ==================== COMPLIANCE (M1) ====================
   /compliance/catalogs:
@@ -3391,6 +3377,8 @@ paths:
         - Statistics
       summary: Get risk matrix data (impact vs probability)
       operationId: getRiskMatrix
+      security:
+        - bearerAuth: []
       responses:
         '200':
           description: Risk matrix data
@@ -3606,7 +3594,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/BulkPreview'
         '400': {description: Validation error}
-        '403': {description: The caller lacks read access, or the session carries no tenant}
+        '403': {description: "The caller lacks read access, or the session carries no tenant"}
 
   /vulnerabilities/bulk/change-status:
     post:
@@ -3635,9 +3623,9 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/BulkResult'
-        '400': {description: Validation error — empty selection, over 100 items, or an invalid status}
-        '403': {description: The caller lacks vulnerabilities:update, or the session carries no tenant}
-        '404': {description: An id did not resolve — absent, or another tenant's, deliberately indistinguishable. Nothing was modified.}
+        '400': {description: "Validation error — empty selection, over 100 items, or an invalid status"}
+        '403': {description: "The caller lacks vulnerabilities:update, or the session carries no tenant"}
+        '404': {description: "An id did not resolve — absent, or another tenant's, deliberately indistinguishable. Nothing was modified."}
         '409': {description: The selection changed since it was previewed. Nothing was modified.}
 
   /vulnerabilities/bulk/delete:
@@ -3667,9 +3655,9 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/BulkResult'
-        '400': {description: Validation error — empty selection, over 100 items, or an invalid status}
-        '403': {description: The caller lacks vulnerabilities:delete, or the session carries no tenant}
-        '404': {description: An id did not resolve — absent, or another tenant's, deliberately indistinguishable. Nothing was modified.}
+        '400': {description: "Validation error — empty selection, over 100 items, or an invalid status"}
+        '403': {description: "The caller lacks vulnerabilities:delete, or the session carries no tenant"}
+        '404': {description: "An id did not resolve — absent, or another tenant's, deliberately indistinguishable. Nothing was modified."}
         '409': {description: The selection changed since it was previewed. Nothing was modified.}
 
   /assets/bulk/capabilities:
@@ -3718,7 +3706,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/BulkPreview'
         '400': {description: Validation error}
-        '403': {description: The caller lacks read access, or the session carries no tenant}
+        '403': {description: "The caller lacks read access, or the session carries no tenant"}
 
   /assets/bulk/delete:
     post:
@@ -3747,9 +3735,9 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/BulkResult'
-        '400': {description: Validation error — empty selection, over 100 items, or an invalid status}
-        '403': {description: The caller lacks assets:delete, or the session carries no tenant}
-        '404': {description: An id did not resolve — absent, or another tenant's, deliberately indistinguishable. Nothing was modified.}
+        '400': {description: "Validation error — empty selection, over 100 items, or an invalid status"}
+        '403': {description: "The caller lacks assets:delete, or the session carries no tenant"}
+        '404': {description: "An id did not resolve — absent, or another tenant's, deliberately indistinguishable. Nothing was modified."}
         '409': {description: The selection changed since it was previewed. Nothing was modified.}
 
   # ==================== SAVED VIEWS (#580) ====================
@@ -4001,9 +3989,8 @@ components:
             (/risks?drawer=risk&entity={id}).
           example: /risks/mitigations/8f1e2d3c-4b5a-6978-8796-a5b4c3d2e1f0
         due_at:
-          type: string
+          type: [string, 'null']
           format: date-time
-          nullable: true
           description: Due date, expiry or approval deadline, depending on the type. Null when the category has no date.
         category_rank:
           type: integer
@@ -4296,16 +4283,14 @@ components:
           type: integer
           description: Risks whose treatment plan has a cost.
         loss_exceedance:
-          nullable: true
-          allOf: [{ $ref: '#/components/schemas/LossExceedance' }]
+          anyOf: [{ $ref: '#/components/schemas/LossExceedance' }, { type: 'null' }]
           description: Null when the register is empty.
         treatments:
           type: array
           description: Treatment plans with a measurable reduction, shortest payback first.
           items: { $ref: '#/components/schemas/TreatmentPayback' }
         risk_appetite_xaf:
-          type: number
-          nullable: true
+          type: [number, 'null']
           description: Annual loss the board accepts (XAF); null until set.
 
     # ========== INPUT SCHEMAS ==========
@@ -4546,9 +4531,8 @@ components:
         grace_period_active:
           type: boolean
         deadline:
-          type: string
+          type: [string, 'null']
           format: date-time
-          nullable: true
           description: Absent for a member the mandate does not apply to, and for an enrolled one.
         grace_days:
           type: integer
@@ -4569,9 +4553,8 @@ components:
             False when the tenant has never saved the setting, so the screen can
             say "using the default" rather than imply somebody chose it.
         updated_by_id:
-          type: string
+          type: [string, 'null']
           format: uuid
-          nullable: true
         min_days:
           type: integer
         max_days:
@@ -4670,29 +4653,24 @@ components:
           type: string
           format: date-time
         accepted_at:
-          type: string
+          type: [string, 'null']
           format: date-time
-          nullable: true
           description: Start of the current (or last) residual-risk acceptance (#811).
         acceptance_expires_at:
-          type: string
+          type: [string, 'null']
           format: date-time
-          nullable: true
           description: End of the residual-risk acceptance. Set only by the transition to residual_accepted or by a renewal.
         acceptance_approval_id:
-          type: string
+          type: [string, 'null']
           format: uuid
-          nullable: true
           description: The approved governance request the acceptance rests on.
         acceptance_approved_by:
-          type: string
+          type: [string, 'null']
           format: uuid
-          nullable: true
           description: The approver who closed that request's circuit.
         acceptance_expired_at:
-          type: string
+          type: [string, 'null']
           format: date-time
-          nullable: true
           description: When the expiry worker moved the risk back to assessed (reason acceptance_expired).
 
     RiskAcceptancePolicy:
@@ -5019,7 +4997,7 @@ components:
       properties:
         id: { type: string, format: uuid }
         tenant_id: { type: string, format: uuid }
-        framework_id: { type: string, format: uuid, nullable: true, description: null for a program-wide audit }
+        framework_id: { type: [string, 'null'], format: uuid, description: null for a program-wide audit }
         title: { type: string }
         type: { type: string, enum: [internal, external, certification, surveillance] }
         status: { type: string, enum: [planned, in_progress, completed, cancelled] }
@@ -5027,10 +5005,10 @@ components:
         scope: { type: string }
         summary: { type: string }
         compliance_score: { type: number, format: float, description: compliance % snapshotted when the audit completes }
-        scheduled_start: { type: string, format: date-time, nullable: true }
-        scheduled_end: { type: string, format: date-time, nullable: true }
-        completed_at: { type: string, format: date-time, nullable: true }
-        created_by: { type: string, format: uuid, nullable: true }
+        scheduled_start: { type: [string, 'null'], format: date-time }
+        scheduled_end: { type: [string, 'null'], format: date-time }
+        completed_at: { type: [string, 'null'], format: date-time }
+        created_by: { type: [string, 'null'], format: uuid }
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
 
@@ -5068,15 +5046,15 @@ components:
         tenant_id: { type: string, format: uuid }
         title: { type: string }
         description: { type: string }
-        control_id: { type: string, format: uuid, nullable: true }
-        framework_id: { type: string, format: uuid, nullable: true }
-        audit_id: { type: string, format: uuid, nullable: true }
+        control_id: { type: [string, 'null'], format: uuid }
+        framework_id: { type: [string, 'null'], format: uuid }
+        audit_id: { type: [string, 'null'], format: uuid }
         priority: { type: string, enum: [low, medium, high, critical] }
         status: { type: string, enum: [open, in_progress, completed, cancelled] }
-        assigned_to: { type: string, format: uuid, nullable: true }
-        due_date: { type: string, format: date-time, nullable: true }
-        completed_at: { type: string, format: date-time, nullable: true }
-        created_by: { type: string, format: uuid, nullable: true }
+        assigned_to: { type: [string, 'null'], format: uuid }
+        due_date: { type: [string, 'null'], format: date-time }
+        completed_at: { type: [string, 'null'], format: date-time }
+        created_by: { type: [string, 'null'], format: uuid }
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
         control_code: { type: string }
@@ -5126,7 +5104,7 @@ components:
         target_control_id: { type: string, format: uuid }
         relation: { type: string, enum: [equivalent, partial, related] }
         note: { type: string }
-        created_by: { type: string, format: uuid, nullable: true }
+        created_by: { type: [string, 'null'], format: uuid }
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
         source_code: { type: string }
@@ -5180,8 +5158,7 @@ components:
         financial_exposure_fcfa: { type: integer, format: int64, description: Estimated annual exposure in FCFA (order-of-magnitude model) }
         overall_compliance_percent: { type: number, format: float }
         frameworks_snapshot:
-          type: array
-          nullable: true
+          type: [array, 'null']
           items: { $ref: '#/components/schemas/FrameworkSnapshot' }
         executive_summary: { type: string }
         risk_commentary: { type: string }
@@ -5192,8 +5169,8 @@ components:
           items: { type: string }
         generated_by_model: { type: string, description: '"claude-opus-4-8" or "template" (provenance)' }
         created_by: { type: string, format: uuid }
-        approved_by: { type: string, format: uuid, nullable: true }
-        approved_at: { type: string, format: date-time, nullable: true }
+        approved_by: { type: [string, 'null'], format: uuid }
+        approved_at: { type: [string, 'null'], format: date-time }
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
 
@@ -5711,9 +5688,8 @@ components:
         version:
           type: integer
         archived_at:
-          type: string
+          type: [string, 'null']
           format: date-time
-          nullable: true
         created_at:
           type: string
           format: date-time
@@ -5721,8 +5697,7 @@ components:
           type: string
           format: date-time
         questions:
-          type: array
-          nullable: true
+          type: [array, 'null']
           items:
             $ref: '#/components/schemas/VendorQuestionnaireQuestion'
 
@@ -5743,8 +5718,7 @@ components:
           type: string
           enum: [choice, text]
         options:
-          type: array
-          nullable: true
+          type: [array, 'null']
           items:
             $ref: '#/components/schemas/VendorQuestionOption'
         weight:
@@ -5756,16 +5730,14 @@ components:
         control_ref:
           type: string
         answer_value:
-          type: string
-          nullable: true
+          type: [string, 'null']
         answer_na:
           type: boolean
         answer_comment:
           type: string
         answered_at:
-          type: string
+          type: [string, 'null']
           format: date-time
-          nullable: true
 
     VendorAssessment:
       type: object
@@ -5799,16 +5771,13 @@ components:
           type: string
           format: date-time
         submitted_at:
-          type: string
+          type: [string, 'null']
           format: date-time
-          nullable: true
         revoked_at:
-          type: string
+          type: [string, 'null']
           format: date-time
-          nullable: true
         score:
-          type: number
-          nullable: true
+          type: [number, 'null']
           minimum: 0
           maximum: 100
           description: >-
@@ -5816,19 +5785,16 @@ components:
             submission. Null until then, and null when nothing was scorable. Never an
             input to a risk's score.
         tier:
-          type: string
-          nullable: true
+          type: [string, 'null']
           enum: [critical, high, medium, low, null]
           description: critical ≥ 70 · high ≥ 40 · medium ≥ 20 · low < 20
         score_breakdown:
-          type: array
-          nullable: true
+          type: [array, 'null']
           description: The arithmetic of the score. Contributions sum to it.
           items:
             $ref: '#/components/schemas/VendorScoreContribution'
         scoring_version:
-          type: string
-          nullable: true
+          type: [string, 'null']
           description: The formula that produced the score, e.g. vendorscore/1
         source:
           type: string
@@ -5837,9 +5803,8 @@ components:
         source_version:
           type: string
         observed_at:
-          type: string
+          type: [string, 'null']
           format: date-time
-          nullable: true
         confidence:
           type: number
           description: 0.50 — self-attested (ADR 0004 D3a)
@@ -5892,8 +5857,7 @@ components:
           type: string
           format: uuid
         answer_value:
-          type: string
-          nullable: true
+          type: [string, 'null']
           description: An offered option's value, or free text. Empty clears a draft answer.
         answer_na:
           type: boolean
@@ -5932,8 +5896,7 @@ components:
         na_allowed:
           type: boolean
         answer_value:
-          type: string
-          nullable: true
+          type: [string, 'null']
         answer_na:
           type: boolean
         answer_comment:
@@ -5972,11 +5935,9 @@ components:
         status:
           type: string
         score:
-          type: number
-          nullable: true
+          type: [number, 'null']
         tier:
-          type: string
-          nullable: true
+          type: [string, 'null']
         due_at:
           type: string
           format: date-time
@@ -6008,9 +5969,9 @@ components:
           type: integer
           description: Distinct assets linked to the vendor
         latest_assessment:
-          allOf:
+          anyOf:
             - $ref: '#/components/schemas/VendorLatestAssessment'
-          nullable: true
+            - type: 'null'
 
     VendorPage:
       type: object
@@ -6618,9 +6579,8 @@ components:
           type: string
           description: The entity id as it appears in the path (a uuid, or an integer for incidents).
         previous_owner_id:
-          type: string
+          type: [string, 'null']
           format: uuid
-          nullable: true
           description: Null when the entity had no owner.
         owner_id:
           type: string
@@ -6684,7 +6644,7 @@ components:
         kev_open: { type: integer }
         overdue: { type: integer }
         resolved: { type: integer }
-        last_detected_at: { type: string, format: date-time, nullable: true }
+        last_detected_at: { type: [string, 'null'], format: date-time }
         truncated:
           type: boolean
           description: More than 500 findings; the first 500 by urgency are analysed.
@@ -6702,7 +6662,7 @@ components:
               epss: { type: number }
               kev: { type: boolean }
               status: { type: string }
-              sla_due_at: { type: string, format: date-time, nullable: true }
+              sla_due_at: { type: [string, 'null'], format: date-time }
               overdue: { type: boolean }
               first_seen: { type: string, format: date-time }
               remediation_hint: { type: string }
@@ -6732,8 +6692,7 @@ components:
               days: { type: integer }
               value: { type: string }
         next_action:
-          nullable: true
-          type: object
+          type: [object, 'null']
           required: [vulnerability_id, reasons]
           properties:
             vulnerability_id: { type: string, format: uuid }
@@ -6747,7 +6706,7 @@ components:
         asset_id: { type: string, format: uuid }
         open_vulnerabilities: { type: integer }
         kev_open: { type: integer }
-        last_detected_at: { type: string, format: date-time, nullable: true }
+        last_detected_at: { type: [string, 'null'], format: date-time }
     TimelineActor:
       type: object
       properties:
