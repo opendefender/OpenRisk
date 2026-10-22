@@ -68,10 +68,10 @@
     "zustand": "^5.0.8"
   },
   "devDependencies": {
-    "@redocly/openapi-core": "^1.34.18",
     "@axe-core/playwright": "^4.12.1",
     "@eslint/js": "^9.39.1",
     "@playwright/test": "^1.62.1",
+    "@redocly/openapi-core": "^1.34.18",
     "@tailwindcss/postcss": "^4.3.3",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.0",
