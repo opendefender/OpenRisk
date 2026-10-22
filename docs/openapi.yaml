@@ -457,7 +457,9 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/DisableMFAError'
+                oneOf:
+                  - $ref: '#/components/schemas/DisableMFAError'
+                  - $ref: '#/components/schemas/GuardError'
         '404':
           description: "`not_enrolled`"
           content:

@@ -4964,7 +4964,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["DisableMFAError"];
+                    "application/json": components["schemas"]["DisableMFAError"] | components["schemas"]["GuardError"];
                 };
             };
             /** @description `not_enrolled` */
