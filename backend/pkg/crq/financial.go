@@ -83,6 +83,8 @@ type FinancialAssessment struct {
 	Distribution *DistributionAmounts `json:"distribution,omitempty"`
 	// --- Explainability (spec §4) ---
 	Methodology *Methodology `json:"methodology,omitempty"`
+	// --- The closed-form figures in the tenant's display currency ---
+	Display *AssessmentAmounts `json:"display,omitempty"`
 
 	// --- Single-event loss magnitude ---
 	SLE          Money `json:"sle"`           // effective single loss expectancy
@@ -174,6 +176,38 @@ func (q *Quantifier) AssessDeterministic(in FinancialInputs, criticality string)
 	return q.assessCore(in, criticality)
 }
 
+// AssessmentAmounts is the closed-form part of an assessment presented in the
+// tenant's display currency, so a plan without the simulation still reads its
+// exposure in euros (or whatever it chose), not only in XAF/USD (#613).
+type AssessmentAmounts struct {
+	SLE             Amount `json:"sle"`
+	ALE             Amount `json:"ale"`
+	ALEWorst        Amount `json:"ale_worst"`
+	ALEAfter        Amount `json:"ale_after"`
+	RiskReduction   Amount `json:"risk_reduction"`
+	RemediationCost Amount `json:"remediation_cost"`
+}
+
+func presentAssessment(fa FinancialAssessment, p Presenter) *AssessmentAmounts {
+	return &AssessmentAmounts{
+		SLE:             p.Amount(fa.SLE.XAF),
+		ALE:             p.Amount(fa.ALE.XAF),
+		ALEWorst:        p.Amount(fa.ALEWorst.XAF),
+		ALEAfter:        p.Amount(fa.ALEAfter.XAF),
+		RiskReduction:   p.Amount(fa.RiskReduction.XAF),
+		RemediationCost: p.Amount(fa.RemediationCost.XAF),
+	}
+}
+
+// AssessDeterministicP is AssessDeterministic with the figures also presented in
+// the tenant's display currency via p. It is what a plan below the Monte-Carlo
+// depth receives for one risk: real numbers, no simulation.
+func (q *Quantifier) AssessDeterministicP(in FinancialInputs, criticality string, p Presenter) FinancialAssessment {
+	fa := q.assessCore(in, criticality)
+	fa.Display = presentAssessment(fa, p)
+	return fa
+}
+
 // AssessP runs the full financial model for one risk and presents every figure in
 // the tenant's display currency via p, including the FAIR-lite loss distribution
 // and the explainability methodology. It never errors: absent inputs degrade
@@ -185,6 +219,7 @@ func (q *Quantifier) AssessP(in FinancialInputs, criticality string, p Presenter
 	dist := p.Present(Simulate(sim))
 	fa.Distribution = &dist
 	fa.Methodology = q.methodology(in, sim, p, fa.SLEBasis)
+	fa.Display = presentAssessment(fa, p)
 	return fa
 }
 

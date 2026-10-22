@@ -131,3 +131,61 @@ func TestResolve_ListsAllFeaturesAndPrices(t *testing.T) {
 		t.Fatal("africa region should price in XAF")
 	}
 }
+
+type countingOrg struct {
+	plan  string
+	calls *int
+	err   error
+}
+
+func (f countingOrg) PlanAndRegion(context.Context, uuid.UUID) (string, string, error) {
+	*f.calls++
+	return f.plan, "eu", f.err
+}
+
+func TestLevel_Success(t *testing.T) {
+	calls := 0
+	s := NewService(countingOrg{plan: "pro", calls: &calls})
+	tenant := uuid.New()
+
+	lvl, plan, err := s.Level(context.Background(), tenant, ent.FeatCompliance)
+	if err != nil || lvl != ent.LevelStandard || plan != ent.PlanPro {
+		t.Fatalf("pro compliance: got %q/%s err=%v, want standard/pro", lvl, plan, err)
+	}
+	lvl, _, _ = s.Level(context.Background(), tenant, ent.FeatFinancialQuant)
+	if lvl != ent.LevelOn {
+		t.Fatalf("pro financial: got %q, want on", lvl)
+	}
+	// Both reads share the cached plan: one org lookup, like Allowed.
+	if calls != 1 {
+		t.Fatalf("org reader called %d times, want 1 (cached)", calls)
+	}
+	// The cache is per tenant: another tenant is its own lookup.
+	_, _, _ = s.Level(context.Background(), uuid.New(), ent.FeatCompliance)
+	if calls != 2 {
+		t.Fatalf("a second tenant must not reuse the first's plan; calls = %d", calls)
+	}
+}
+
+func TestLevel_NotFound(t *testing.T) {
+	// An unknown tenant (the org lookup fails) reports no depth at all, with
+	// the error, so the middleware can apply its fail-open posture knowingly.
+	calls := 0
+	s := NewService(countingOrg{calls: &calls, err: domain.ErrNotFound})
+	lvl, _, err := s.Level(context.Background(), uuid.New(), ent.FeatCompliance)
+	if err == nil || lvl != ent.LevelOff {
+		t.Fatalf("got %q err=%v, want off + error", lvl, err)
+	}
+}
+
+func TestLevel_Unauthorized(t *testing.T) {
+	// A feature the plan does not grant is LevelOff — below every depth.
+	s := NewService(fakeOrg{plan: "free"})
+	lvl, plan, err := s.Level(context.Background(), uuid.New(), ent.FeatFinancialQuant)
+	if err != nil || lvl != ent.LevelOff || plan != ent.PlanFree {
+		t.Fatalf("free financial: got %q/%s err=%v, want off/free", lvl, plan, err)
+	}
+	if lvl.AtLeast(ent.LevelBasic) {
+		t.Fatal("off must not reach basic")
+	}
+}

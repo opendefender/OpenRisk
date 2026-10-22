@@ -114,6 +114,43 @@ const (
 // Enabled reports whether the level grants the feature at all.
 func (l Level) Enabled() bool { return l != LevelOff }
 
+// levelRank is THE ordering of depths, declared once:
+//
+//	off < limited < basic < on = standard < advanced < custom
+//
+// "on" is the plain full grant of a feature that has no named tiers; it ranks
+// with "standard", the plain full grant of one that does (compliance). No row of
+// the matrix uses both, so the tie never has to break.
+//
+// The support (community/email/priority/dedicated) and SLA (99.5/99.9) values
+// are DESCRIPTORS, not depths: they say what a plan includes, nothing gates on
+// them, and they are deliberately absent here so no code can compare them.
+var levelRank = map[Level]int{
+	LevelOff:      0,
+	LevelLimited:  1,
+	LevelBasic:    2,
+	LevelOn:       3,
+	LevelStandard: 3,
+	LevelAdvanced: 4,
+	LevelCustom:   5,
+}
+
+// Ordered reports whether the level is a depth (comparable) rather than a
+// descriptor.
+func (l Level) Ordered() bool {
+	_, ok := levelRank[l]
+	return ok
+}
+
+// AtLeast reports whether l grants at least the depth min. A descriptor on
+// either side is never at least anything: comparing "priority" support to
+// "advanced" has no meaning, so the answer is the safe one.
+func (l Level) AtLeast(min Level) bool {
+	have, ok := levelRank[l]
+	want, okMin := levelRank[min]
+	return ok && okMin && have >= want
+}
+
 // LimitKey is a countable resource cap.
 type LimitKey string
 
@@ -261,6 +298,18 @@ func LimitOf(p Plan, k LimitKey) int {
 func MinPlanFor(f Feature) Plan {
 	for _, p := range AllPlans {
 		if Has(p, f) {
+			return p
+		}
+	}
+	return PlanEnterprise
+}
+
+// MinPlanForLevel returns the least-capable plan that grants a feature at depth
+// min or deeper, for the upgrade copy of a level gate ("Advanced compliance is
+// available from Business"). Returns PlanEnterprise if no plan reaches it.
+func MinPlanForLevel(f Feature, min Level) Plan {
+	for _, p := range AllPlans {
+		if LevelOf(p, f).AtLeast(min) {
 			return p
 		}
 	}

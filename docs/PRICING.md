@@ -60,6 +60,13 @@ Prices are purchasing-power adjusted by region. A trial of any paid plan runs
 - The **backend refuses** a premium route the plan does not include, returning
   `402 Payment Required` with an explaining body (feature, current plan, required
   plan). Creation routes are capped by plan limits the same way.
+- A depth (Basic, Standard, Advanced, Custom) is refused the same way when a
+  route requires more than the plan grants. Today that holds for financial
+  quantification only: a basic grant reads a risk's closed-form ALE, the
+  Monte-Carlo simulation needs ✓. The other depths in the table are not yet
+  told apart by the backend; the list of those gaps is kept, and checked
+  against the code, in
+  [`pricing_enforcement_test.go`](../backend/pkg/entitlements/pricing_enforcement_test.go).
 - The **frontend never grants**. It greys the feature and explains the value with
   an upgrade CTA (`FeatureGate` / `UpsellLock`). A wall that explains converts; a
   wall that hides frustrates.

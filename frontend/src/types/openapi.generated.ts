@@ -728,27 +728,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/risks/{id}/financial": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Full financial assessment for one risk
-         * @description Returns the complete Cyber Risk Quantification for a risk (spec §9): SLE (explicit/composed/reference), downtime cost, worst/average loss, ALE (XAF+USD), remediation cost, residual ALE and ROSI.
-         */
-        get: operations["getRiskFinancial"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/risks/{id}/simulate": {
+    "/compliance/catalogs": {
         parameters: {
             query?: never;
             header?: never;
@@ -7496,6 +7476,166 @@ export interface operations {
                 content?: never;
             };
             /** @description Mitigation not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    toggleMitigationStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                mitigationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Status toggled */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Mitigation"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Mitigation not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    createMitigationSubAction: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Mitigation UUID */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateSubActionInput"];
+            };
+        };
+        responses: {
+            /** @description Sub-action created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MitigationSubAction"];
+                };
+            };
+            /** @description Invalid input */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Mitigation not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    toggleSubAction: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Mitigation UUID */
+                id: string;
+                /** @description Sub-action UUID */
+                subactionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Sub-action toggled */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MitigationSubAction"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Sub-action not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    deleteSubAction: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Mitigation UUID */
+                id: string;
+                /** @description Sub-action UUID */
+                subactionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Sub-action deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Sub-action not found */
             404: {
                 headers: {
                     [name: string]: unknown;

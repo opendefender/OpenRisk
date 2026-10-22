@@ -1232,7 +1232,13 @@ func main() {
 	// Feature/limit gates reused on the premium routes below. A gated read that a
 	// plan does not include returns 402 with an explaining body the frontend turns
 	// into an upgrade prompt (the blurred UpsellLock), never a bare wall.
-	featFinancial := middleware.RequireFeature(entitlementService, ent.FeatFinancialQuant)
+	//
+	// Financial quantification is gated by DEPTH (#613): a basic grant reads a
+	// risk's closed-form ALE, the Monte-Carlo routes (simulation, portfolio LEC,
+	// appetite drawn on it) need "on". No plan grants basic today — the matrix is
+	// #415's call — so both gates refuse Free and admit Pro+ exactly as before.
+	featFinancialBasic := middleware.RequireLevel(entitlementService, ent.FeatFinancialQuant, ent.LevelBasic)
+	featFinancial := middleware.RequireLevel(entitlementService, ent.FeatFinancialQuant, ent.LevelOn)
 	featSmartScore := middleware.RequireFeature(entitlementService, ent.FeatSmartScore)
 	featExecutive := middleware.RequireFeature(entitlementService, ent.FeatExecutiveDashboard)
 	featAI := middleware.RequireFeature(entitlementService, ent.FeatAIAdvisor)
@@ -1483,7 +1489,7 @@ func main() {
 	protected.Get("/risks/:id/score-working",
 		middleware.RequirePermission("risks:read"), scoreWorkingHandler.Get)
 	protected.Get("/risks/:id/financial",
-		middleware.RequirePermission("risks:read"), featFinancial, riskHandler.GetRiskFinancial)
+		middleware.RequirePermission("risks:read"), featFinancialBasic, riskHandler.GetRiskFinancial)
 	protected.Post("/risks/:id/simulate",
 		middleware.RequirePermission("risks:read"), featFinancial, riskHandler.SimulateRiskFinancial)
 
