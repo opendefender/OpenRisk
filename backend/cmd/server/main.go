@@ -617,12 +617,31 @@ func main() {
 
 	// MFA (L4). AES-256 key for the encrypted TOTP secret at rest.
 	mfaRepo := repository.NewGormMFARepository(database.DB)
-	mfaKeyRaw := os.Getenv("MFA_ENCRYPTION_KEY")
-	if mfaKeyRaw == "" {
-		mfaKeyRaw = "openrisk-dev-mfa-encryption-key-change-me"
-		log.Println("Warning: MFA_ENCRYPTION_KEY not set — using an insecure dev key. Set a strong 32-byte key in production.")
+	// #1062: required in production, and never the public dev value.
+	mfaKeyRaw, mfaKeyWarning, err := mfaEncryptionKey(os.Getenv, middleware.IsProductionEnv())
+	if err != nil {
+		log.Fatalf("%v", err)
+	}
+	if mfaKeyWarning != "" {
+		log.Println(mfaKeyWarning)
 	}
 	mfaKey := sha256.Sum256([]byte(mfaKeyRaw)) // 32 bytes for AES-256-GCM
+	// Secrets an earlier boot encrypted with the dev key move to the real one
+	// before anything reads them, so nobody has to enrol again. Idempotent and
+	// safe across replicas booting together.
+	if mfaKeyRaw != devMFAEncryptionKey {
+		devKey := sha256.Sum256([]byte(devMFAEncryptionKey))
+		res, err := authmfa.RekeySecrets(context.Background(), database.DB, devKey[:], mfaKey[:])
+		switch {
+		case err != nil:
+			log.Fatalf("MFA: re-encrypting secrets left on the development key failed: %v", err)
+		case res.Rekeyed > 0:
+			log.Printf("MFA: re-encrypted %d two-factor secret(s) from the development key to MFA_ENCRYPTION_KEY", res.Rekeyed)
+		}
+		if res.Unreadable > 0 {
+			log.Printf("ERROR: MFA: %d two-factor secret(s) decrypt with neither MFA_ENCRYPTION_KEY nor the development key; was the key changed?", res.Unreadable)
+		}
+	}
 
 	// #1063: replicas compare fingerprints of their secret keys through Redis.
 	// Different values split the audit trail and the per-address limits, or
