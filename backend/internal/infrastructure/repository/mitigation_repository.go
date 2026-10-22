@@ -163,19 +163,39 @@ func (r *GormMitigationRepository) Update(tenantID string, mitigation *domain.Mi
 		return fmt.Errorf("invalid tenant_id: %w", err)
 	}
 
-	// Verify ownership before updating
-	result := r.db.Where("tenant_id = ? AND id = ? AND deleted_at IS NULL", tenantUUID, mitigation.ID).
-		Updates(mitigation)
+	return r.db.Transaction(func(tx *gorm.DB) error {
+		// Verify ownership before updating
+		result := tx.Where("tenant_id = ? AND id = ? AND deleted_at IS NULL", tenantUUID, mitigation.ID).
+			Updates(mitigation)
 
-	if result.Error != nil {
-		return fmt.Errorf("failed to update mitigation: %w", result.Error)
-	}
+		if result.Error != nil {
+			return fmt.Errorf("failed to update mitigation: %w", result.Error)
+		}
 
-	if result.RowsAffected == 0 {
-		return domain.ErrNotFound
-	}
+		if result.RowsAffected == 0 {
+			return domain.ErrNotFound
+		}
 
-	return nil
+		// Updates(struct) skips nil fields, so a slot or a due date the caller
+		// cleared was kept (#1104). These columns are written as they stand,
+		// nil included; the caller loaded the row, so an untouched one is
+		// written back unchanged. The reminder stamps go with the due date:
+		// clearing or moving it resets them.
+		if err := tx.Model(&domain.Mitigation{}).
+			Where("tenant_id = ? AND id = ? AND deleted_at IS NULL", tenantUUID, mitigation.ID).
+			Updates(map[string]interface{}{
+				"owner_id":                 mitigation.OwnerID,
+				"assignee_id":              mitigation.AssigneeID,
+				"reviewer_id":              mitigation.ReviewerID,
+				"due_date":                 mitigation.DueDate,
+				"reminder_d7_sent_at":      mitigation.ReminderD7SentAt,
+				"reminder_d1_sent_at":      mitigation.ReminderD1SentAt,
+				"reminder_overdue_sent_at": mitigation.ReminderOverdueSentAt,
+			}).Error; err != nil {
+			return fmt.Errorf("failed to update mitigation ownership: %w", err)
+		}
+		return nil
+	})
 }
 
 // Delete soft-deletes a mitigation

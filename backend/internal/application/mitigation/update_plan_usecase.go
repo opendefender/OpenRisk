@@ -40,6 +40,9 @@ type UpdateMitigationPlanInput struct {
 	Priority    *domain.MitigationPriority
 	AssignedTo  *domain.UUIDArray
 	DueDate     *time.Time
+	// ClearDueDate removes the due date (the request sent null or ""). It
+	// wins over DueDate.
+	ClearDueDate bool
 	// Ownership is the tri-state patch of responsable / exécutant / validateur.
 	Ownership domain.OwnershipPatch
 	// Actor is the authenticated user, so nobody is notified of assigning
@@ -91,7 +94,13 @@ func (uc *UpdateMitigationPlanUseCase) Execute(input UpdateMitigationPlanInput) 
 	if input.AssignedTo != nil {
 		mitigation.AssignedTo = *input.AssignedTo
 	}
-	if input.DueDate != nil {
+	if input.ClearDueDate {
+		// No deadline, no reminders: a date set again later starts afresh.
+		if mitigation.DueDate != nil {
+			mitigation.ClearReminders()
+		}
+		mitigation.DueDate = nil
+	} else if input.DueDate != nil {
 		// A moved deadline restarts the D-7 / D-1 schedule: a postponed plan
 		// should be nudged again, not stay silent because the old date's
 		// reminders were already sent.
