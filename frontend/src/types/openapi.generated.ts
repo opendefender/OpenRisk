@@ -2299,6 +2299,12 @@ export interface components {
             xaf_per_usd: number;
             total_risks: number;
             quantified_risks: number;
+            /**
+             * @description insufficient_data until min_quantified_risks risks carry their own loss figures; the amounts then come from the reference model only.
+             * @enum {string}
+             */
+            data_status?: "ok" | "insufficient_data";
+            min_quantified_risks?: number;
             total_ale: components["schemas"]["Money"];
             total_ale_worst: components["schemas"]["Money"];
             total_ale_after: components["schemas"]["Money"];
