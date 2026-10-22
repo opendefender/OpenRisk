@@ -729,7 +729,7 @@ func main() {
 	refreshUseCase := auth.NewRefreshTokenUseCase(tokenManager)
 	// #689 — logout also blacklists the access token it was called with, so the
 	// session ends now instead of at the end of the access TTL.
-	logoutUseCase := auth.NewLogoutUseCase(tokenManager).WithAccessTokenRevocation(tokenBlacklistManager)
+	logoutUseCase := auth.NewLogoutUseCase(tokenManager).WithAccessTokenRevocation(tokenBlacklistManager).WithSessionRevocation(tokenManager)
 
 	// MFA use cases + handler.
 	setupMFAUseCase := auth.NewSetupMFAUseCase(mfaRepo, mfaKey[:])

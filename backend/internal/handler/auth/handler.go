@@ -557,6 +557,10 @@ func (h *Handler) Logout(c *fiber.Ctx) error {
 		if claims.ExpiresAt != nil {
 			input.AccessExpiresAt = claims.ExpiresAt.Time
 		}
+		// The session the token names. The browser never sends the refresh
+		// cookie here, so this is the only way its session can end (#1061).
+		input.UserID = claims.Sub
+		input.SessionID, _ = uuid.Parse(claims.SID)
 	}
 
 	if input.RefreshToken == "" && input.AccessJTI == "" {

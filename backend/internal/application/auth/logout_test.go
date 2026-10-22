@@ -10,6 +10,8 @@ import (
 	"errors"
 	"testing"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 type fakeRefreshRevoker struct {
@@ -103,5 +105,64 @@ func TestLogout_BlacklistOutageStillRevokesRefreshToken(t *testing.T) {
 	}
 	if broken.calls != 1 || len(refresh.revoked) != 1 {
 		t.Fatalf("both revocations must be attempted: blacklist=%d refresh=%d", broken.calls, len(refresh.revoked))
+	}
+}
+
+type fakeSessionEnder struct {
+	user, family uuid.UUID
+	log          *[]string
+}
+
+func (f *fakeSessionEnder) RevokeSession(_ context.Context, userID, familyID uuid.UUID) error {
+	f.user, f.family = userID, familyID
+	*f.log = append(*f.log, "session")
+	return nil
+}
+
+type orderedRefreshRevoker struct {
+	fakeRefreshRevoker
+	log *[]string
+}
+
+func (o *orderedRefreshRevoker) RevokeRefreshToken(ctx context.Context, v string) error {
+	*o.log = append(*o.log, "refresh")
+	return o.fakeRefreshRevoker.RevokeRefreshToken(ctx, v)
+}
+
+// #1061: a browser logout names its session only through the access token.
+func TestLogout_EndsTheSessionTheTokenNames(t *testing.T) {
+	var log []string
+	sessions := &fakeSessionEnder{log: &log}
+	refresh := &orderedRefreshRevoker{fakeRefreshRevoker: fakeRefreshRevoker{known: map[string]bool{"rt-1": true}}, log: &log}
+	uc := NewLogoutUseCase(refresh).WithSessionRevocation(sessions)
+	user, family := uuid.New(), uuid.New()
+
+	if err := uc.Execute(context.Background(), LogoutInput{UserID: user, SessionID: family}); err != nil {
+		t.Fatal(err)
+	}
+	if sessions.user != user || sessions.family != family {
+		t.Fatalf("want the token's own session ended, got %v %v", sessions.user, sessions.family)
+	}
+
+	// With an explicit refresh token too, it goes first, so the sweep cannot
+	// turn it into a "not found" failure.
+	log = nil
+	if err := uc.Execute(context.Background(), LogoutInput{RefreshToken: "rt-1", UserID: user, SessionID: family}); err != nil {
+		t.Fatal(err)
+	}
+	if len(log) != 2 || log[0] != "refresh" || log[1] != "session" {
+		t.Fatalf("want refresh then session, got %v", log)
+	}
+}
+
+// Without a user, a sid alone ends nothing.
+func TestLogout_SessionWithoutUserEndsNothing(t *testing.T) {
+	var log []string
+	sessions := &fakeSessionEnder{log: &log}
+	uc := NewLogoutUseCase(&fakeRefreshRevoker{}).WithSessionRevocation(sessions)
+
+	_ = uc.Execute(context.Background(), LogoutInput{SessionID: uuid.New()})
+	if len(log) != 0 {
+		t.Fatalf("nothing may be revoked without the token's user, got %v", log)
 	}
 }

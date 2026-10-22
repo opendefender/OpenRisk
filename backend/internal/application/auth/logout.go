@@ -10,6 +10,8 @@ import (
 	"errors"
 	"fmt"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 // LogoutInput represents the input for user logout
@@ -20,6 +22,18 @@ type LogoutInput struct {
 	// end the session now rather than when the token expires (#689).
 	AccessJTI       string
 	AccessExpiresAt time.Time
+	// UserID and SessionID come from the same verified access token: its
+	// subject and its sid claim. They end the session the token belongs to,
+	// which a browser cannot name otherwise: its refresh cookie never reaches
+	// /auth/logout (#1061).
+	UserID    uuid.UUID
+	SessionID uuid.UUID
+}
+
+// LogoutSessionRevoker ends one session, scoped to its user. Satisfied by
+// *auth.TokenManager.
+type LogoutSessionRevoker interface {
+	RevokeSession(ctx context.Context, userID, familyID uuid.UUID) error
 }
 
 // RefreshTokenRevoker deletes a refresh token. Satisfied by *auth.TokenManager.
@@ -31,6 +45,7 @@ type RefreshTokenRevoker interface {
 type LogoutUseCase struct {
 	tokenManager RefreshTokenRevoker
 	accessTokens TokenRevoker
+	sessions     LogoutSessionRevoker
 }
 
 // NewLogoutUseCase creates a new logout use case
@@ -47,6 +62,13 @@ func (uc *LogoutUseCase) WithAccessTokenRevocation(r TokenRevoker) *LogoutUseCas
 	return uc
 }
 
+// WithSessionRevocation ends the session the access token names. Without it a
+// browser logout leaves its refresh token alive until it expires.
+func (uc *LogoutUseCase) WithSessionRevocation(r LogoutSessionRevoker) *LogoutUseCase {
+	uc.sessions = r
+	return uc
+}
+
 // Execute performs user logout.
 //
 // The access token is revoked first: a refresh token that is already gone (a
@@ -54,7 +76,7 @@ func (uc *LogoutUseCase) WithAccessTokenRevocation(r TokenRevoker) *LogoutUseCas
 // Both revocations are always attempted, so a Redis outage on the first never
 // spares the refresh token.
 func (uc *LogoutUseCase) Execute(ctx context.Context, input LogoutInput) error {
-	if input.RefreshToken == "" && input.AccessJTI == "" {
+	if input.RefreshToken == "" && input.AccessJTI == "" && input.SessionID == uuid.Nil {
 		return fmt.Errorf("refresh token is required")
 	}
 
@@ -67,10 +89,19 @@ func (uc *LogoutUseCase) Execute(ctx context.Context, input LogoutInput) error {
 		}
 	}
 
+	// The presented refresh token goes before the session: when both name the
+	// same family, the session sweep would otherwise leave this token "not
+	// found" and fail a logout that succeeded.
+	var refreshErr error
 	if input.RefreshToken != "" {
 		if err := uc.tokenManager.RevokeRefreshToken(ctx, input.RefreshToken); err != nil {
-			return errors.Join(fmt.Errorf("failed to revoke refresh token: %w", err), accessErr)
+			refreshErr = fmt.Errorf("failed to revoke refresh token: %w", err)
 		}
 	}
-	return accessErr
+
+	var sessionErr error
+	if input.SessionID != uuid.Nil && input.UserID != uuid.Nil && uc.sessions != nil {
+		sessionErr = uc.sessions.RevokeSession(ctx, input.UserID, input.SessionID)
+	}
+	return errors.Join(refreshErr, sessionErr, accessErr)
 }
