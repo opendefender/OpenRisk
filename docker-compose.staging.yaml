@@ -45,6 +45,8 @@ services:
       dockerfile: backend/Dockerfile
     environment:
       ENV: staging
+      # No APP_ENV, so the backend runs as production and needs this (D-065).
+      AUDIT_HASH_KEY: ${STAGING_AUDIT_HASH_KEY:?set STAGING_AUDIT_HASH_KEY}
       DB_HOST: postgres-staging
       DB_PORT: 5432
       DB_USER: openrisk_user

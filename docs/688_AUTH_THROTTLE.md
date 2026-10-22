@@ -46,7 +46,8 @@ pause that address for a bounded time; unknown and real addresses cost the same;
    | `auth-reset:` | `/auth/password/forgot`, `/auth/password/reset` | 15 / 5 min |
    | `auth-check:` | `/auth/password/check` | 120 / 5 min |
    | `auth-reauth:` | `/auth/password/change`, `/auth/mfa/disable` | 15 / 5 min (today's limit, moved off the login key) |
-2. **Per-account backoff**, keyed by `sha256(normalised address)`, so unknown
+2. **Per-account backoff**, keyed by `sha256(normalised address)` (HMAC under
+   `AUDIT_HASH_KEY` since #879), so unknown
    addresses lock exactly like real ones (no new oracle):
    10 failed logins in 15 min → the address is refused for 15 min with
    `429 {"code":"LOGIN_LOCKED","retry_after":N}` + `Retry-After`. Refused attempts
@@ -59,6 +60,8 @@ pause that address for a bounded time; unknown and real addresses cost the same;
    "invalid_credentials email_sha256=<hex>"`; a refused-by-lock attempt carries
    `"login_locked email_sha256=<hex>"`. The hash is `domain.HashEmailForReset`
    (unsalted SHA-256, the function reset already uses). No migration.
+   *Since #879 (D-065):* HMAC-SHA256 under `AUDIT_HASH_KEY`, and the label is
+   `email_hmac=<hex>`.
 5. **Constant work:** the login use case hashes a fixed dummy password once at
    construction with the live hasher (current Argon2id params) and verifies the
    submitted password against it for unknown addresses. A disabled account is
@@ -118,7 +121,7 @@ Live: throwaway pg + redis on spare ports, server from the repo root (live-boot 
 ## Success criteria
 1. 121 × `/auth/password/check` from one IP, then `/auth/login` with valid credentials → 200; `/auth/register` → 201.
 2. Any throttled auth call → 429 with `Retry-After` and `code`; both screens show the wait in FR and EN.
-3. 10 wrong passwords on one address over ≥ 2 IPs → the 11th, even correct, answers 429 `LOGIN_LOCKED`; after the lock, correct → 200; a password reset clears it immediately; every failure has an audit row with `email_sha256=`.
+3. 10 wrong passwords on one address over ≥ 2 IPs → the 11th, even correct, answers 429 `LOGIN_LOCKED`; after the lock, correct → 200; a password reset clears it immediately; every failure has an audit row with `email_sha256=` (`email_hmac=` since #879).
 4. Median login time over 20 attempts, unknown vs existing address, differs by < 10 ms.
 5. `Awa.Diallo@X.test` logs into `awa.diallo@x.test`.
 6. The five named tests pass under `-race`; full backend and frontend gates green.

@@ -58,12 +58,14 @@ jobs:
           openssl rsa -in private.pem -pubout -out public.pem 2>/dev/null
           helm lint helm/openrisk -f helm/kind/values.yaml \
             --set-file secrets.inline.rsaPrivateKey=private.pem \
-            --set-file secrets.inline.rsaPublicKey=public.pem
+            --set-file secrets.inline.rsaPublicKey=public.pem \
+            --set secrets.inline.auditHashKey=lint-only-audit-hash-key-0000000000
           helm install openrisk helm/openrisk -f helm/kind/values.yaml \
             --set-file secrets.inline.rsaPrivateKey=private.pem \
             --set-file secrets.inline.rsaPublicKey=public.pem \
             --set backend.env.INITIAL_ADMIN_PASSWORD="Kind-$(openssl rand -hex 12)" \
-            --set backend.env.MFA_ENCRYPTION_KEY="$(openssl rand -hex 32)"
+            --set secrets.inline.mfaEncryptionKey="$(openssl rand -hex 32)" \
+            --set secrets.inline.auditHashKey="$(openssl rand -base64 32)"
 
       - name: Backend and frontend become Ready
         run: |

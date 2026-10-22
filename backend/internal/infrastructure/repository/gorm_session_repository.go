@@ -124,6 +124,18 @@ func (r *GormSessionRepository) RevokeAllExceptFamily(ctx context.Context, userI
 	return r.sweep(ctx, "user_id = ? AND family_id <> ?", userID, keepFamily)
 }
 
+// HasLiveSession reports whether the user holds a live, unexpired token in the
+// family. Scoped by user_id, so a family id from someone else's token reads as
+// absent.
+func (r *GormSessionRepository) HasLiveSession(ctx context.Context, userID, family uuid.UUID) (bool, error) {
+	var n int64
+	err := r.db.WithContext(ctx).Model(&sessionRow{}).
+		// Account-wide on purpose, no tenant_id: a session belongs to its user.
+		Where("user_id = ? AND family_id = ? AND rotated_at IS NULL AND expires_at > ?", userID, family, time.Now()).
+		Count(&n).Error
+	return n > 0, err
+}
+
 // sweep deletes the refresh tokens matching the condition until a pass removes
 // nothing, like the token manager's revocations (sweepRefreshTokens, #725): on
 // Postgres a single DELETE misses a successor that another device's rotation

@@ -98,3 +98,17 @@ func (r *GormPasswordResetRepository) InvalidateOutstandingForUser(ctx context.C
 		Where("user_id = ? AND id <> ? AND used_at IS NULL", userID, except).
 		Update("used_at", now).Error
 }
+
+// DeleteExpiredBefore deletes reset requests whose link expired before
+// `before`, and reports how many (D-074, #879).
+//
+// A row is only read inside the rate-limit window and the life of its link;
+// past both, all it keeps is the hash of an address someone typed. The table
+// has no tenant_id: a reset request is made before anyone is signed in, so it
+// belongs to no organisation, and this purge is global by design.
+func (r *GormPasswordResetRepository) DeleteExpiredBefore(ctx context.Context, before time.Time) (int64, error) {
+	res := r.db.WithContext(ctx).
+		Where("expires_at < ?", before).
+		Delete(&domain.PasswordResetToken{})
+	return res.RowsAffected, res.Error
+}

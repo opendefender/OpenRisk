@@ -75,6 +75,7 @@ services:
       MFA_ENCRYPTION_KEY: ${MFA_ENCRYPTION_KEY}
       SCANNER_CREDENTIAL_KEY: ${SCANNER_CREDENTIAL_KEY}
       AUDIT_EXPORT_KEY: ${AUDIT_EXPORT_KEY}
+      AUDIT_HASH_KEY: ${AUDIT_HASH_KEY}
       # Private ranges integrations may reach (on-prem Nessus, self-hosted Jira).
       # Empty ⇒ public addresses only. Loopback and link-local stay denied.
       OUTBOUND_ALLOWED_CIDRS: ${OUTBOUND_ALLOWED_CIDRS:-}

@@ -259,6 +259,43 @@ Fix the cause, then mark the last good version:
 
 Your `.env` and `secrets/` are preserved across upgrades.
 
+### Audit hash key (`AUDIT_HASH_KEY`)
+
+Since #879 the backend refuses to boot in production without `AUDIT_HASH_KEY`.
+It keys the hash of e-mail addresses in the sign-in audit trail and in the
+per-address limits (decision D-065). The log names the variable when it is
+missing. New installs get one from `install.sh`. On an install that predates
+it, add it once **before** `docker compose up`:
+
+```bash
+cd deploy/selfhost
+grep -qE '^AUDIT_HASH_KEY=.+' .env || echo "AUDIT_HASH_KEY=$(openssl rand -base64 32)" >> .env
+```
+
+Re-running `./scripts/install.sh` does the same. Keep the key: if you change
+it, audit entries from before the change can no longer be matched with those
+after it, and per-address counters in progress start again (at most one hour,
+one day for the sign-up alert). Every replica must have the same key.
+During a rolling upgrade, old and new replicas count per-address attempts
+separately until the rollout ends.
+
+The same upgrade removes the unkeyed hashes written before it (migration
+0079, decision D-074): in the sign-in audit trail they read
+`email_sha256=redacted` and the rest of each entry stays; expired password-reset
+requests are deleted, and from then on every hour. This cannot be undone. If
+you must keep those hashes, back up the database before upgrading.
+
+With Helm, pass it as `--set secrets.inline.auditHashKey=...` (or in your
+values file).
+
+The MFA key goes the same way: `secrets.inline.mfaEncryptionKey`, stored in the
+`openrisk-secrets` Secret rather than in clear in the Deployment (#1057). A
+values file that still sets `backend.env.MFA_ENCRYPTION_KEY` keeps working, and
+its value moves into the Secret on the next upgrade. Move it to the new place
+with **the same value**: once anyone has enrolled two-factor, a different key
+cannot decrypt their secrets and they are locked out of it. The chart stores it in the `openrisk-secrets` Secret, and the
+render fails without it, so `helm upgrade` stops before any pod restarts.
+
 ### Password hashing
 
 Passwords are stored with Argon2id. The defaults are 64 MiB of memory,

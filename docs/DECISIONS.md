@@ -9,46 +9,29 @@ Nothing open.
 
 ## Resolved
 
-### D-073 — Settings → Sessions marks "this device" through a sid claim · decided 2026-10-21
-**Decided (owner)** — Fix criterion 2 of #727 in the same PR. The owner asked for the result and
-did not name an option; B, the recommendation, was implemented. It is written up as
-`docs/adr/0006-access-token-names-its-session.md`. Going to C instead would mean reverting that ADR.
-
-**Consequence** — Access tokens minted with a session carry `sid` (the refresh family id).
-`GET /auth/sessions` marks the caller's row from it, and "sign out other devices" keeps that
-family rather than re-issuing. The re-issue path stays for tokens minted before the change.
-Verified on a live Postgres boot on 2026-10-21 (see PR #1055).
-
-**Raised by** — #727, criterion 2. Escalated because both ways to fix it change auth design:
-the access token contract, or the scope of the refresh cookie.
-
-**Context** — The session list marks the caller's own row by hashing the refresh token the
-request carries. The browser never sends it to `GET /auth/sessions`: the `or_refresh` cookie
-has `Path=/api/v1/auth/refresh` (`backend/internal/middleware/session_cookie.go`), and the SPA
-cannot read an HttpOnly cookie to send it as `X-Refresh-Token`. So no row is ever marked
-current, and the SPA cannot warn before someone revokes the device they are holding.
-Criterion 1 of #727 (the caller was signed out by "sign out other devices") is fixed without
-this, by re-issuing the caller's session the way the password change does (D-047). Only the
-marking is left.
-
+### D-074 — Purge old password-reset rows that hold a plain SHA-256 of an address? · decided 2026-10-21
+**Decided (owner)** — Option B, and the same for the audit trail: the plain hashes written before #879 are removed from `auth_audit_logs` too, keeping the rows.
+**Applied** — #879, migration `0079_redact_plain_address_hashes`: in `auth_audit_logs`, `email_sha256=<hex>` becomes `email_sha256=redacted` (date, IP, user agent and outcome stay); `password_reset_tokens` rows whose link expired more than an hour ago are deleted, and the backend keeps deleting them every hour (`DeleteExpiredBefore`, `main.go`). Irreversible: the down migration changes nothing.
+**Raised by** — #879 security review (D-065 applied).
+**Context** — `password_reset_tokens` keeps one row per "forgot password" request, for every address typed, registered or not, and nothing ever deletes them. Rows written before #879 hold a plain SHA-256 of the address, reversible with a list of candidates by anyone with the database or a backup. A row is only read for the one-hour rate-limit window and the 30-minute token life.
 **Options**
-- **A — leave it unmarked.** No change. The list shows every device as "another device",
-  the caller's included. Revoking that row signs the caller out at the next refresh.
-- **B — a session id in the access token.** Add a `sid` claim carrying the refresh family id
-  (`refresh_tokens.family_id`, stable across rotations). Any route can then name the caller's
-  session. Changes the token contract, so it needs an ADR. Tokens issued before the change
-  carry no `sid` until their next refresh (15 minutes at most).
-- **C — widen the refresh cookie to `/api/v1/auth`.** The cookie then reaches `/auth/sessions`
-  and `/auth/logout` too, which would also let logout revoke the refresh session for cookie
-  clients. Exposes the refresh token on every auth route, which is what the narrow path was
-  chosen to avoid, and browsers holding the old cookie would carry two `or_refresh` cookies
-  until the old one expires or is cleared.
+- **A — leave them.** Nothing to run; the residual stays, documented under D-065.
+- **B — purge expired rows** (`expires_at` older than one hour) once, by migration, and keep purging on a schedule. Irreversible, and it also removes the history of reset requests.
+- **C — purge once, only rows created before the switch.**
+**Recommendation** — B. The rows have no use after the window, and every one written before #879 is exactly the data D-065 meant to protect. The audit trail (`auth_audit_logs`) keeps the record of reset requests.
+**Cost of delay** — Low: needs database or backup access to exploit.
 
-**Recommendation** — B. It answers the question at its source and keeps the refresh token
-where it is. C is less code but undoes a deliberate hardening.
-
-**Cost of delay** — Low. Cosmetic until someone revokes their own row, and that only costs
-them a sign-in.
+### D-073 — Sign-up with an address that already has an account: say so, protect the account · decided 2026-09-15
+**Decided (owner)** — Tell the person plainly that an account already exists, offer sign-in and password reset with the address prefilled, and protect the account.
+**Rejected** — The same "check your inbox" answer for every address, plus an email to confirm every new account. It removes the instant sign-in at registration, and it makes sign-up impossible on an instance without SMTP.
+**Cost, stated** — Whether an address is registered can still be found out. The per-address limit stops one address being probed again and again, and the owner is told when it happens. Testing many addresses once each is bounded only by the per-IP limit (10 per 15 min). A taken `username` is checked before the address, so it answers the same whatever the address and cannot be used to test one (fixed after the #686 security review).
+**Known limit** — If Redis is down, each replica counts and claims the alert on its own: up to N×5 attempts an hour and N alerts a day on N replicas. The #688 sign-in lock behaves the same way.
+**Applied** — #686:
+- `POST /auth/register` answers `409` with `EMAIL_ALREADY_REGISTERED`, compared on the normalised address. A username collision stays `USERNAME_TAKEN` (#687).
+- Per address, on top of the per-IP limit: 5 duplicate attempts per hour, then refusals for one hour with `429`, `Retry-After` and `REGISTER_RATE_LIMITED` (`backend/internal/application/auth/register_duplicates.go`).
+- The owner is emailed at most once per address per 24 h, in FR or EN, with links to sign in and to reset. The email has no attempted password and no requester data. A mail failure never changes the answer.
+- Every duplicate attempt is in `auth_audit_logs` (`action=register`, `success=false`, IP, user agent, the address hashed in the reason — `email_hmac=` since #879 — never in clear).
+**Reversible** — Yes. Going to the uniform answer means a confirmation-email step at sign-up and a decision on instances without SMTP.
 
 ### D-072 — Backend coverage gate: a 44% ratchet instead of a 50% line nobody met · decided 2026-10-15
 **Decided** — Option B. The backend coverage gate is a floor at 44.0%, compared to one decimal. It is raised by hand whenever coverage goes up, and never lowered without a decision here.
@@ -237,6 +220,7 @@ meantime: the lock is bounded and the reset works.
 **Rationale (owner)** — Matches the recommendation: the trail keeps the "one address hammered from many IPs" signal and becomes useless for re-identification without the key.
 **Consequence** — #879 criterion 2: audit entries and the Redis lock keys use the keyed hash; the reset limiter may follow (only in-flight one-hour counters reset). Boot in production refuses a missing key with a message naming the variable; self-hosting docs list it. Rotating the key breaks correlation between periods of the trail, which the docs say.
 **Unblocked** — #879 criterion 2.
+**Applied** — #879 (2026-10-21): `domain.HashEmailForReset` is HMAC-SHA256 under `AUDIT_HASH_KEY`, so the audit trail (label `email_hmac=`), the Redis keys of the sign-in and sign-up limits, and the reset limiter all use it. Production boot refuses a missing key, or one under 32 characters (`backend/cmd/server/audit_hash_key_wiring.go`). The installer fills it on new and existing `.env` files; `docs/SELF_HOSTING.md` gives the upgrade step and says what rotation breaks. Entries written before the switch could not be re-keyed without the addresses; per D-074 they are redacted, and expired `password_reset_tokens` rows purged (migration 0079). Helm takes the key from `secrets.inline.auditHashKey` into the `openrisk-secrets` Secret, and the render fails without it.
 
 **Raised by** — #688 (PR #874), tracked in #879. Every failed sign-in is audited with
 `email_sha256=<hex>`. Changing that hash means a server key, so a crypto design choice.

@@ -41,9 +41,12 @@ The options weighed in D-073 were: leave the list unmarked; widen the refresh co
 4. **Consumers prefer `sid`, then fall back**:
    - the session list marks the live row whose `family_id` equals `sid`, else the row whose hash
      matches a presented `X-Refresh-Token`;
-   - "sign out other devices" keeps the `sid` family, else the presented token's row, else
-     re-issues a session for the caller (the #727 fix, kept for access tokens minted before this
-     ADR, which live at most `AccessTokenTTL`, 15 minutes).
+   - "sign out other devices" keeps the `sid` family, else the presented token's row. If neither
+     names a session, every session ends and the caller is told to sign in again. A `sid` whose
+     family has no live session is refused with 401: it is a leftover access token of a session
+     already signed out (#1059).
+   - The first #727 fix re-issued a session for a caller that named none. It was removed before
+     release (#1060): a token without `sid` must not be handed a session.
 5. **The listing shows live rows only** (`rotated_at IS NULL`). Spent rows stay in the table for
    reuse detection, but they are not devices, and listing them showed a device once per refresh.
 6. **Revocation counts live sessions only**, and sweeps until a pass removes nothing (#725).

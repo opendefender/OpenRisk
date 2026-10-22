@@ -13,7 +13,6 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/opendefender/openrisk/internal/auth"
 	"github.com/opendefender/openrisk/internal/domain"
 )
 
@@ -24,6 +23,12 @@ type fakeSessionRepo struct {
 	calls      []string
 	revoked    int64
 	records    []domain.SessionRecord
+	// gone lists families that no longer hold a live session.
+	gone map[uuid.UUID]bool
+}
+
+func (f *fakeSessionRepo) HasLiveSession(_ context.Context, _ uuid.UUID, family uuid.UUID) (bool, error) {
+	return !f.gone[family], nil
 }
 
 func (f *fakeSessionRepo) ListByUser(context.Context, uuid.UUID) ([]domain.SessionRecord, error) {
@@ -46,124 +51,61 @@ func (f *fakeSessionRepo) HasSeenDevice(context.Context, uuid.UUID, string) (boo
 	return true, nil
 }
 
-type fakeSessionIssuer struct {
-	repo   *fakeSessionRepo
-	org    uuid.UUID
-	device auth.DeviceContext
-	err    error
-}
-
-func (f *fakeSessionIssuer) IssueSessionForOrg(_ context.Context, _, orgID uuid.UUID, device auth.DeviceContext) (*auth.TokenPair, error) {
-	f.repo.calls = append(f.repo.calls, "issue")
-	f.org, f.device = orgID, device
-	if f.err != nil {
-		return nil, f.err
-	}
-	return &auth.TokenPair{AccessToken: "fresh-access", RefreshToken: "fresh-refresh"}, nil
-}
-
-// A browser caller presents no refresh token: its device gets a new session
-// BEFORE the sweep, and the sweep spares exactly that one.
+// The browser's case: the access token's sid names the caller's session, and
+// its whole family is kept. The count is the other devices only.
 func TestRevokeOtherSessions_Success(t *testing.T) {
-	repo := &fakeSessionRepo{revoked: 2}
-	issuer := &fakeSessionIssuer{repo: repo}
-	org := uuid.New()
-	device := auth.DeviceContext{UserAgent: "laptop", IP: "10.0.0.1"}
-
-	out, err := NewRevokeOtherSessionsUseCase(repo).WithReissue(issuer).Execute(context.Background(),
-		RevokeOtherSessionsInput{UserID: uuid.New(), TenantID: org, Device: device})
+	repo := &fakeSessionRepo{revoked: 1}
+	family := uuid.New()
+	out, err := NewRevokeOtherSessionsUseCase(repo).Execute(context.Background(),
+		RevokeOtherSessionsInput{UserID: uuid.New(), CurrentSession: family, CurrentHash: "presented"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if out.TokenPair == nil || out.Reauthenticate || out.Revoked != 2 {
-		t.Fatalf("want a new session and 2 revoked, got %+v", out)
+	if repo.keepFamily != family || out.Reauthenticate || out.Revoked != 1 {
+		t.Fatalf("want the named family kept, got keep=%v %+v", repo.keepFamily, out)
 	}
-	if repo.keepHash != auth.HashToken("fresh-refresh") {
-		t.Fatalf("the sweep must keep the new session, kept %q", repo.keepHash)
-	}
-	if len(repo.calls) != 2 || repo.calls[0] != "issue" {
-		t.Fatalf("the session must be issued before the sweep, got %v", repo.calls)
-	}
-	if issuer.org != org || issuer.device != device {
-		t.Fatalf("the session must be issued for the caller's org and device, got %v %+v", issuer.org, issuer.device)
+	if len(repo.calls) != 1 || repo.calls[0] != "revoke-family" {
+		t.Fatalf("want the family sweep alone, got %v", repo.calls)
 	}
 }
 
-// An API client that names its session keeps it; nothing is re-issued.
+// An API client on a token without sid that names its session keeps it.
 func TestRevokeOtherSessions_KeepsPresentedSession(t *testing.T) {
 	repo := &fakeSessionRepo{revoked: 1}
-	out, err := NewRevokeOtherSessionsUseCase(repo).WithReissue(&fakeSessionIssuer{repo: repo}).Execute(context.Background(),
-		RevokeOtherSessionsInput{UserID: uuid.New(), TenantID: uuid.New(), CurrentHash: "presented"})
+	out, err := NewRevokeOtherSessionsUseCase(repo).Execute(context.Background(),
+		RevokeOtherSessionsInput{UserID: uuid.New(), CurrentHash: "presented"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if repo.keepHash != "presented" || out.TokenPair != nil || out.Reauthenticate {
-		t.Fatalf("want the presented session kept and no re-issue, got keep=%q %+v", repo.keepHash, out)
-	}
-	if len(repo.calls) != 1 {
-		t.Fatalf("want the sweep alone, got %v", repo.calls)
+	if repo.keepHash != "presented" || out.Reauthenticate {
+		t.Fatalf("want the presented session kept, got keep=%q %+v", repo.keepHash, out)
 	}
 }
 
-// When the caller's session cannot be found or minted, everyone is signed out,
-// the caller included, and told so: leaving an intruder in to spare the caller
-// a sign-in is the wrong trade.
+// When nothing names the caller's session, everyone is signed out, the caller
+// included, and told so. No session is minted in its place (#1060).
 func TestRevokeOtherSessions_NotFound(t *testing.T) {
-	cases := map[string]struct {
-		issuer *fakeSessionIssuer
-		tenant uuid.UUID
-	}{
-		"mint refused":    {issuer: &fakeSessionIssuer{err: errors.New("membership not found")}, tenant: uuid.New()},
-		"no tenant":       {issuer: &fakeSessionIssuer{}, tenant: uuid.Nil},
-		"no issuer wired": {issuer: nil, tenant: uuid.New()},
+	repo := &fakeSessionRepo{revoked: 3}
+	out, err := NewRevokeOtherSessionsUseCase(repo).Execute(context.Background(),
+		RevokeOtherSessionsInput{UserID: uuid.New()})
+	if err != nil {
+		t.Fatal(err)
 	}
-	for name, tc := range cases {
-		t.Run(name, func(t *testing.T) {
-			repo := &fakeSessionRepo{revoked: 3}
-			uc := NewRevokeOtherSessionsUseCase(repo)
-			if tc.issuer != nil {
-				tc.issuer.repo = repo
-				uc = uc.WithReissue(tc.issuer)
-			}
-			out, err := uc.Execute(context.Background(), RevokeOtherSessionsInput{UserID: uuid.New(), TenantID: tc.tenant})
-			if err != nil {
-				t.Fatal(err)
-			}
-			if repo.keepHash != "" || !out.Reauthenticate || out.TokenPair != nil || out.Revoked != 3 {
-				t.Fatalf("want every session revoked and a re-authentication, got keep=%q %+v", repo.keepHash, out)
-			}
-		})
+	if repo.keepHash != "" || !out.Reauthenticate || out.Revoked != 3 {
+		t.Fatalf("want every session revoked and a re-authentication, got keep=%q %+v", repo.keepHash, out)
 	}
 }
 
 func TestRevokeOtherSessions_Unauthorized(t *testing.T) {
 	repo := &fakeSessionRepo{}
-	_, err := NewRevokeOtherSessionsUseCase(repo).WithReissue(&fakeSessionIssuer{repo: repo}).Execute(context.Background(),
-		RevokeOtherSessionsInput{TenantID: uuid.New()})
+	_, err := NewRevokeOtherSessionsUseCase(repo).Execute(context.Background(),
+		RevokeOtherSessionsInput{CurrentSession: uuid.New()})
 	var appErr *domain.AppError
 	if !errors.As(err, &appErr) || appErr.Code != http.StatusBadRequest {
 		t.Fatalf("want a validation error, got %v", err)
 	}
 	if len(repo.calls) != 0 {
 		t.Fatalf("an anonymous call must touch nothing, got %v", repo.calls)
-	}
-}
-
-// An access token that names its session keeps that session's whole family:
-// nothing is re-issued, and the count is the other devices only.
-func TestRevokeOtherSessions_KeepsSessionNamedByToken(t *testing.T) {
-	repo := &fakeSessionRepo{revoked: 1}
-	family := uuid.New()
-	out, err := NewRevokeOtherSessionsUseCase(repo).WithReissue(&fakeSessionIssuer{repo: repo}).Execute(context.Background(),
-		RevokeOtherSessionsInput{UserID: uuid.New(), TenantID: uuid.New(), CurrentSession: family, CurrentHash: "presented"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if repo.keepFamily != family || out.TokenPair != nil || out.Reauthenticate || out.Revoked != 1 {
-		t.Fatalf("want the named family kept and no re-issue, got keep=%v %+v", repo.keepFamily, out)
-	}
-	if len(repo.calls) != 1 || repo.calls[0] != "revoke-family" {
-		t.Fatalf("want the family sweep alone, got %v", repo.calls)
 	}
 }
 
@@ -236,5 +178,20 @@ func TestListSessions_Unauthorized(t *testing.T) {
 	var appErr *domain.AppError
 	if !errors.As(err, &appErr) || appErr.Code != http.StatusBadRequest {
 		t.Fatalf("want a validation error, got %v", err)
+	}
+}
+
+// #1059: a revoked session's leftover access token cannot sign out the rest.
+func TestRevokeOtherSessions_RevokedSessionIsRefused(t *testing.T) {
+	family := uuid.New()
+	repo := &fakeSessionRepo{revoked: 3, gone: map[uuid.UUID]bool{family: true}}
+	_, err := NewRevokeOtherSessionsUseCase(repo).Execute(context.Background(),
+		RevokeOtherSessionsInput{UserID: uuid.New(), CurrentSession: family})
+	var appErr *domain.AppError
+	if !errors.As(err, &appErr) || appErr.Code != http.StatusUnauthorized {
+		t.Fatalf("want an unauthorized error, got %v", err)
+	}
+	if len(repo.calls) != 0 {
+		t.Fatalf("nothing may be revoked, got %v", repo.calls)
 	}
 }

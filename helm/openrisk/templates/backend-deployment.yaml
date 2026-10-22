@@ -50,8 +50,18 @@ spec:
         
         env:
         {{- range $key, $value := .Values.backend.env }}
+        {{- /* Never in clear in the Deployment (#1057): read from the Secret below. */}}
+        {{- if ne $key "MFA_ENCRYPTION_KEY" }}
         - name: {{ $key }}
           value: {{ $value | quote }}
+        {{- end }}
+        {{- end }}
+        {{- if include "openrisk.mfaEncryptionKey" . }}
+        - name: MFA_ENCRYPTION_KEY
+          valueFrom:
+            secretKeyRef:
+              name: openrisk-secrets
+              key: mfa-encryption-key
         {{- end }}
         - name: DATABASE_URL
           valueFrom:
@@ -63,6 +73,11 @@ spec:
             secretKeyRef:
               name: openrisk-secrets
               key: redis-url
+        - name: AUDIT_HASH_KEY
+          valueFrom:
+            secretKeyRef:
+              name: openrisk-secrets
+              key: audit-hash-key
         # The same RS256 pair on every replica (#1022).
         - name: RSA_PRIVATE_KEY_PATH
           value: /app/secrets/private.pem

@@ -53,6 +53,9 @@ type RegisterInput struct {
 	Password    string
 	FullName    string
 	CompanyName string
+	// Locale is the language the sign-up was made in ("fr" | "en"). Used only
+	// for the owner alert when the account records no language of its own.
+	Locale string
 }
 
 // RegisterOutput represents the output of successful registration
@@ -79,6 +82,8 @@ type RegisterUseCase struct {
 	passwordHasher PasswordHasher
 	activation     ActivationRecorder
 	accounts       AccountCreator
+	// duplicates limits and reports sign-ups for a registered address (#686).
+	duplicates *duplicateGuard
 }
 
 // WithActivation attaches the optional activation recorder.
@@ -131,17 +136,23 @@ func (uc *RegisterUseCase) Execute(ctx context.Context, input RegisterInput) (*R
 	// depended on the casing typed that day.
 	email := domain.NormaliseEmail(input.Email)
 
+	// The username is settled BEFORE the address is looked up (#686 review).
+	// Checked after, a taken username answered USERNAME_TAKEN for a free
+	// address and EMAIL_ALREADY_REGISTERED for a registered one, so any
+	// caller could test an address without creating an account and without
+	// ever meeting the per-address limit. Now a taken username answers the
+	// same whatever the address.
+	username, err := uc.resolveUsername(ctx, input.Username, email)
+	if err != nil {
+		return nil, err
+	}
+
 	existingUser, err := uc.userRepo.GetByEmail(ctx, email)
 	if err != nil {
 		return nil, fmt.Errorf("failed to check existing user: %w", err)
 	}
 	if existingUser != nil {
-		return nil, ErrEmailAlreadyRegistered
-	}
-
-	username, err := uc.resolveUsername(ctx, input.Username, email)
-	if err != nil {
-		return nil, err
+		return nil, uc.refuseDuplicate(ctx, existingUser, input.Locale)
 	}
 
 	hashedPassword, err := uc.passwordHasher.Hash(input.Password)

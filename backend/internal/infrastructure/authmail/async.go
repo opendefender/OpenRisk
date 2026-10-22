@@ -36,6 +36,7 @@ type ResetMailerLike interface {
 	SendMFADisabled(ctx context.Context, to, fullName, locale string) error
 	SendMFALocked(ctx context.Context, to, fullName, locale string) error
 	SendMFABackupCodesPurged(ctx context.Context, to, fullName, locale string) error
+	SendDuplicateSignup(ctx context.Context, to, fullName, signInURL, resetURL, locale string) error
 }
 
 // NewAsync wraps a mailer so every send returns immediately.
@@ -76,6 +77,14 @@ func (a *Async) SendMFABackupCodesPurged(_ context.Context, to, fullName, locale
 // SendMFALocked queues the second-factor lock notice (#689).
 func (a *Async) SendMFALocked(_ context.Context, to, fullName, locale string) error {
 	a.dispatch(func(ctx context.Context) { _ = a.inner.SendMFALocked(ctx, to, fullName, locale) })
+	return nil
+}
+
+// SendDuplicateSignup queues the duplicate sign-up notice (#686).
+func (a *Async) SendDuplicateSignup(_ context.Context, to, fullName, signInURL, resetURL, locale string) error {
+	a.dispatch(func(ctx context.Context) {
+		_ = a.inner.SendDuplicateSignup(ctx, to, fullName, signInURL, resetURL, locale)
+	})
 	return nil
 }
 
