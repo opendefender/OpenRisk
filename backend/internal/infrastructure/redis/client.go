@@ -180,6 +180,16 @@ func (c *Client) AllowRate(ctx context.Context, key string, maxRequests int, win
 	return incr.Val() <= int64(maxRequests), nil
 }
 
+// HSet writes one field of a hash.
+func (c *Client) HSet(ctx context.Context, key, field, value string) error {
+	return c.redis.HSet(ctx, key, field, value).Err()
+}
+
+// HGetAll reads every field of a hash; an absent key reads as empty.
+func (c *Client) HGetAll(ctx context.Context, key string) (map[string]string, error) {
+	return c.redis.HGetAll(ctx, key).Result()
+}
+
 // Close ferme la connexion Redis.
 func (c *Client) Close() error {
 	return c.redis.Close()

@@ -25,6 +25,10 @@ type SessionRecord struct {
 	// credential-equivalent lookup key and must never reach a client.
 	TokenHash string `json:"-"`
 
+	// FamilyID is the session's lineage across refresh rotations, matched
+	// against the access token's sid claim to find the caller's own session.
+	FamilyID uuid.UUID `json:"-"`
+
 	// Device is a human label derived from the User-Agent ("Chrome on macOS"),
 	// because a raw UA string is not something a user can judge.
 	Device    string `json:"device"`

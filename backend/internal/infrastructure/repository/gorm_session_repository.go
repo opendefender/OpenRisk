@@ -24,6 +24,7 @@ import (
 type sessionRow struct {
 	ID                uuid.UUID
 	UserID            uuid.UUID
+	FamilyID          uuid.UUID
 	TokenHash         string
 	DeviceFingerprint string
 	IPAddress         string
@@ -57,7 +58,10 @@ func NewGormSessionRepository(db *gorm.DB) *GormSessionRepository {
 func (r *GormSessionRepository) ListByUser(ctx context.Context, userID uuid.UUID) ([]domain.SessionRecord, error) {
 	var tokens []sessionRow
 	err := r.db.WithContext(ctx).
-		Where("user_id = ? AND expires_at > ?", userID, time.Now()).
+		// A rotated token is spent: it stays in the table for reuse detection
+		// only, and its successor is the live session. Listing it would show one
+		// device once per refresh.
+		Where("user_id = ? AND expires_at > ? AND rotated_at IS NULL", userID, time.Now()).
 		Order("COALESCE(last_used_at, created_at) DESC").
 		Find(&tokens).Error
 	if err != nil {
@@ -69,6 +73,7 @@ func (r *GormSessionRepository) ListByUser(ctx context.Context, userID uuid.UUID
 		records = append(records, domain.SessionRecord{
 			ID:         t.ID,
 			TokenHash:  t.TokenHash,
+			FamilyID:   t.FamilyID,
 			Device:     domain.DescribeDevice(t.UserAgent),
 			UserAgent:  t.UserAgent,
 			IPAddress:  t.IPAddress,
@@ -115,6 +120,10 @@ func (r *GormSessionRepository) RevokeAllExcept(ctx context.Context, userID uuid
 	})
 	return revoked, err
 }
+
+// maxRevocationSweeps mirrors the bound in internal/auth, which this package
+// cannot import (see sessionRow).
+const maxRevocationSweeps = 5
 
 // HasSeenDevice reports whether this user ever held a session on a fingerprint.
 //

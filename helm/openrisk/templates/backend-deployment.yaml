@@ -50,9 +50,17 @@ spec:
         
         env:
         {{- range $key, $value := .Values.backend.env }}
+        {{- /* Never in clear in the Deployment (#1057): read from the Secret below. */}}
+        {{- if ne $key "MFA_ENCRYPTION_KEY" }}
         - name: {{ $key }}
           value: {{ $value | quote }}
         {{- end }}
+        {{- end }}
+        - name: MFA_ENCRYPTION_KEY
+          valueFrom:
+            secretKeyRef:
+              name: openrisk-secrets
+              key: mfa-encryption-key
         - name: DATABASE_URL
           valueFrom:
             secretKeyRef:

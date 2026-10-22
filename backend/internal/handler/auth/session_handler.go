@@ -13,6 +13,7 @@ import (
 
 	appauth "github.com/opendefender/openrisk/internal/application/auth"
 	coreauth "github.com/opendefender/openrisk/internal/auth"
+	"github.com/opendefender/openrisk/internal/domain"
 	"github.com/opendefender/openrisk/internal/middleware"
 )
 
@@ -67,7 +68,7 @@ func (h *SessionHandler) ListSessions(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "authentication required"})
 	}
 
-	records, err := h.list.Execute(c.UserContext(), mwCtx.UserID, currentSessionHash(c))
+	records, err := h.list.Execute(c.UserContext(), mwCtx.UserID, mwCtx.SessionID, currentSessionHash(c))
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to list sessions"})
 	}
@@ -113,8 +114,24 @@ func (h *SessionHandler) RevokeOtherSessions(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "authentication required"})
 	}
 
-	revoked, err := h.revokeOther.Execute(c.UserContext(), mwCtx.UserID, currentSessionHash(c))
-	if err != nil {
+	// A personal access token names no session, so it could only sign out every
+	// device of its owner. Session management stays with the owner's own
+	// sessions, as token creation does.
+	if c.Locals("is_pat") == true {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "personal access tokens cannot manage sessions"})
+	}
+
+	out, err := h.revokeOther.Execute(c.UserContext(), appauth.RevokeOtherSessionsInput{
+		UserID:         mwCtx.UserID,
+		CurrentSession: mwCtx.SessionID,
+		CurrentHash:    currentSessionHash(c),
+	})
+	var appErr *domain.AppError
+	switch {
+	case errors.As(err, &appErr) && appErr.Code == fiber.StatusUnauthorized:
+		h.logAudit(c, &mwCtx.UserID, coreauth.AuditActionSessionRevokeAll, false)
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": appErr.Detail})
+	case err != nil:
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to revoke sessions"})
 	}
 
@@ -128,7 +145,11 @@ func (h *SessionHandler) RevokeOtherSessions(c *fiber.Ctx) error {
 	}
 
 	h.logAudit(c, &mwCtx.UserID, coreauth.AuditActionSessionRevokeAll, true)
-	return c.JSON(fiber.Map{"revoked": revoked})
+	if out.Reauthenticate {
+		// The caller's own session ended with the others.
+		middleware.ClearSessionCookies(c)
+	}
+	return c.JSON(fiber.Map{"revoked": out.Revoked, "reauthenticate": out.Reauthenticate})
 }
 
 func (h *SessionHandler) logAudit(c *fiber.Ctx, userID *uuid.UUID, action coreauth.AuditAction, success bool) {

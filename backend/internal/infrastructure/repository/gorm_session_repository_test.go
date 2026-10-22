@@ -22,19 +22,21 @@ func setupSessionRepo(t *testing.T) *GormSessionRepository {
 	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
 	require.NoError(t, err)
 
-	// Mirrors the refresh_tokens shape after migration 0042. Written out rather
-	// than AutoMigrated so drift between this DDL and the real table surfaces
-	// here rather than in Postgres.
+	// Mirrors the refresh_tokens shape with its family and rotation columns.
+	// Written out rather than AutoMigrated so drift between this DDL and the
+	// real table surfaces here rather than in Postgres.
 	require.NoError(t, db.Exec(`
 		CREATE TABLE refresh_tokens (
 			id TEXT PRIMARY KEY,
 			user_id TEXT NOT NULL,
 			tenant_id TEXT NOT NULL,
+			family_id TEXT NOT NULL,
 			token_hash TEXT NOT NULL UNIQUE,
 			device_fingerprint TEXT,
 			ip_address TEXT,
 			user_agent TEXT,
 			expires_at DATETIME NOT NULL,
+			rotated_at DATETIME,
 			last_used_at DATETIME,
 			created_at DATETIME,
 			updated_at DATETIME
@@ -50,9 +52,9 @@ func seedSession(t *testing.T, r *GormSessionRepository, userID uuid.UUID, hash,
 	id := uuid.New()
 	require.NoError(t, r.db.Exec(
 		`INSERT INTO refresh_tokens
-		 (id, user_id, tenant_id, token_hash, device_fingerprint, ip_address, user_agent, expires_at, created_at, updated_at)
-		 VALUES (?,?,?,?,?,?,?,?,?,?)`,
-		id.String(), userID.String(), uuid.New().String(), hash, fingerprint,
+		 (id, user_id, tenant_id, family_id, token_hash, device_fingerprint, ip_address, user_agent, expires_at, created_at, updated_at)
+		 VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
+		id.String(), userID.String(), uuid.New().String(), uuid.New().String(), hash, fingerprint,
 		"41.202.10.7", ua, expires, time.Now(), time.Now(),
 	).Error)
 	return id

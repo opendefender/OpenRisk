@@ -220,7 +220,7 @@ func (tm *TokenManager) generatePair(ctx context.Context, userID, tenantID uuid.
 	}
 
 	// Generate access token via the SINGLE pkg/auth minter.
-	accessToken, _, err := authpkg.GenerateAccessToken(tm.rsaKeys, userID, tenantID, orgRoles, permissions, featureFlags, AccessTokenTTL)
+	accessToken, _, err := authpkg.GenerateSessionAccessToken(tm.rsaKeys, userID, tenantID, orgRoles, permissions, featureFlags, AccessTokenTTL, familyID)
 	if err != nil {
 		// Clean up the refresh token if access token generation fails.
 		tm.db.WithContext(ctx).Delete(refreshToken)
@@ -508,7 +508,7 @@ func (tm *TokenManager) issueSuccessor(ctx context.Context, prev RefreshToken, s
 		}
 	}
 
-	accessToken, _, err := authpkg.GenerateAccessToken(tm.rsaKeys, prev.UserID, tenantID, orgRoles, permissions, featureFlags, AccessTokenTTL)
+	accessToken, _, err := authpkg.GenerateSessionAccessToken(tm.rsaKeys, prev.UserID, tenantID, orgRoles, permissions, featureFlags, AccessTokenTTL, prev.FamilyID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate access token: %w", err)
 	}
@@ -618,6 +618,20 @@ func (tm *TokenManager) RevokeAllUserTokens(ctx context.Context, userID uuid.UUI
 	}
 	if err := tm.sweepRefreshTokens(ctx, "user_id = ?", userID); err != nil {
 		return fmt.Errorf("failed to revoke user tokens: %w", err)
+	}
+	return nil
+}
+
+// RevokeSession ends one session: every token of the family, scoped to its
+// user. A family id taken from someone else's token matches nothing. Used by
+// logout, which learns the family from the access token's sid because the
+// browser never sends it the refresh cookie (#1061, ADR 0006).
+func (tm *TokenManager) RevokeSession(ctx context.Context, userID, familyID uuid.UUID) error {
+	if userID == uuid.Nil || familyID == uuid.Nil {
+		return nil
+	}
+	if err := tm.sweepRefreshTokens(ctx, "user_id = ? AND family_id = ?", userID, familyID); err != nil {
+		return fmt.Errorf("failed to revoke session: %w", err)
 	}
 	return nil
 }

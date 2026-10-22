@@ -77,6 +77,7 @@ import (
 	govinfra "github.com/opendefender/openrisk/internal/infrastructure/governance"
 	incinfra "github.com/opendefender/openrisk/internal/infrastructure/incident"
 	"github.com/opendefender/openrisk/internal/infrastructure/integrations/thehive"
+	"github.com/opendefender/openrisk/internal/infrastructure/keycheck"
 	orgdeletioninfra "github.com/opendefender/openrisk/internal/infrastructure/orgdeletion"
 	"github.com/opendefender/openrisk/internal/infrastructure/orgexport"
 	"github.com/opendefender/openrisk/internal/infrastructure/osv"
@@ -616,12 +617,60 @@ func main() {
 
 	// MFA (L4). AES-256 key for the encrypted TOTP secret at rest.
 	mfaRepo := repository.NewGormMFARepository(database.DB)
-	mfaKeyRaw := os.Getenv("MFA_ENCRYPTION_KEY")
-	if mfaKeyRaw == "" {
-		mfaKeyRaw = "openrisk-dev-mfa-encryption-key-change-me"
-		log.Println("Warning: MFA_ENCRYPTION_KEY not set — using an insecure dev key. Set a strong 32-byte key in production.")
+	// #1062: required in production, and never the public dev value.
+	mfaKeyRaw, mfaKeyWarning, err := mfaEncryptionKey(os.Getenv, middleware.IsProductionEnv())
+	if err != nil {
+		log.Fatalf("%v", err)
+	}
+	if mfaKeyWarning != "" {
+		log.Println(mfaKeyWarning)
 	}
 	mfaKey := sha256.Sum256([]byte(mfaKeyRaw)) // 32 bytes for AES-256-GCM
+	// Secrets an earlier boot encrypted with the dev key move to the real one
+	// before anything reads them, so nobody has to enrol again. Idempotent and
+	// safe across replicas booting together.
+	if mfaKeyRaw != devMFAEncryptionKey {
+		devKey := sha256.Sum256([]byte(devMFAEncryptionKey))
+		res, err := authmfa.RekeySecrets(context.Background(), database.DB, devKey[:], mfaKey[:])
+		switch {
+		case err != nil:
+			log.Fatalf("MFA: re-encrypting secrets left on the development key failed: %v", err)
+		case res.Rekeyed > 0:
+			log.Printf("MFA: re-encrypted %d two-factor secret(s) from the development key to MFA_ENCRYPTION_KEY", res.Rekeyed)
+		}
+		if res.Unreadable > 0 {
+			log.Printf("ERROR: MFA: %d two-factor secret(s) decrypt with neither MFA_ENCRYPTION_KEY nor the development key; was the key changed?", res.Unreadable)
+		}
+	}
+
+	// #1063: replicas compare fingerprints of their secret keys through Redis.
+	// Different values split the audit trail and the per-address limits, or
+	// leave a second factor unreadable on another replica, and nothing said so.
+	// A mismatch is logged and exported, never fatal: a rolling key rotation is
+	// a brief, legitimate one.
+	keyChecker := keycheck.New(redisClientInstance, instanceID(), map[string]string{
+		"AUDIT_HASH_KEY":     domain.AddressHashFingerprint(),
+		"MFA_ENCRYPTION_KEY": domain.KeyFingerprint(mfaKey[:]),
+	})
+	go func() {
+		ticker := time.NewTicker(keycheck.Interval)
+		defer ticker.Stop()
+		for {
+			results, err := keyChecker.Check(context.Background())
+			if err != nil {
+				log.Printf("key fingerprint check: %v", err)
+			}
+			for _, r := range results {
+				if r.Mismatch {
+					monitoring.KeyFingerprintMismatch.WithLabelValues(r.Key).Set(1)
+					log.Printf("ERROR: replicas are running with different %s values (%d distinct): give every replica the same key", r.Key, len(r.Fingerprints))
+				} else {
+					monitoring.KeyFingerprintMismatch.WithLabelValues(r.Key).Set(0)
+				}
+			}
+			<-ticker.C
+		}
+	}()
 
 	// --- Password policy (server-authoritative) ------------------------------
 	// One policy object shared by registration, reset and the live strength meter,
@@ -729,7 +778,7 @@ func main() {
 	refreshUseCase := auth.NewRefreshTokenUseCase(tokenManager)
 	// #689 — logout also blacklists the access token it was called with, so the
 	// session ends now instead of at the end of the access TTL.
-	logoutUseCase := auth.NewLogoutUseCase(tokenManager).WithAccessTokenRevocation(tokenBlacklistManager)
+	logoutUseCase := auth.NewLogoutUseCase(tokenManager).WithAccessTokenRevocation(tokenBlacklistManager).WithSessionRevocation(tokenManager)
 
 	// MFA use cases + handler.
 	setupMFAUseCase := auth.NewSetupMFAUseCase(mfaRepo, mfaKey[:])
