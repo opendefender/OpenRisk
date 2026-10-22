@@ -127,6 +127,18 @@ func SetAddressHashKey(key []byte) {
 	configuredAddressHashKey.Store(&k)
 }
 
+// KeyFingerprint identifies a key without revealing it: the first 8 bytes of
+// HMAC-SHA256(key, a fixed label), in hex. Replicas compare fingerprints to
+// notice they were given different keys (#1063).
+func KeyFingerprint(key []byte) string {
+	mac := hmac.New(sha256.New, key)
+	mac.Write([]byte("openrisk-key-fingerprint"))
+	return hex.EncodeToString(mac.Sum(nil)[:8])
+}
+
+// AddressHashFingerprint is the fingerprint of the key HashEmailForReset uses.
+func AddressHashFingerprint() string { return KeyFingerprint(addressHashKey()) }
+
 func addressHashKey() []byte {
 	if k := configuredAddressHashKey.Load(); k != nil && len(*k) > 0 {
 		return *k
