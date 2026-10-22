@@ -35,7 +35,8 @@ import (
 //	FeatureLevelAtLeast(c, ent.FeatX, ent.LevelY)
 //
 // A gate written any other way is not seen, which can only make this test
-// stricter, never let a gap through.
+// stricter, never let a gap through. Line comments are stripped first: a gate
+// quoted in a comment enforces nothing and must not close a gap.
 //
 // knownUnenforced is the measured gap. An unlisted gap fails; a listed one that
 // a gate now closes also fails, so the list cannot go stale in either direction.
@@ -67,6 +68,7 @@ var knownUnenforced = map[string]string{
 var (
 	constFeatureRe = regexp.MustCompile(`(Feat\w+)\s+Feature\s*=\s*"([^"]*)"`)
 	constLevelRe   = regexp.MustCompile(`(Level\w+)\s+Level\s*=\s*"([^"]*)"`)
+	lineCommentRe  = regexp.MustCompile(`(?m)//.*$`)
 
 	gateAnyRe = []*regexp.Regexp{
 		regexp.MustCompile(`RequireFeature\(\s*\w+\s*,\s*ent\.(Feat\w+)\s*\)`),
@@ -114,7 +116,7 @@ func enforcedThresholds(t *testing.T) map[Feature][]Level {
 			if err != nil {
 				return err
 			}
-			code := string(b)
+			code := lineCommentRe.ReplaceAllString(string(b), "")
 			for _, re := range gateAnyRe {
 				for _, m := range re.FindAllStringSubmatch(code, -1) {
 					add(path, m[1], LevelLimited) // the shallowest enabled depth
