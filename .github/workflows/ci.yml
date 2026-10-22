@@ -354,6 +354,12 @@ jobs:
       - name: Install dependencies
         run: cd frontend && npm ci
 
+      # The spec itself, before anything is generated from it (#814). The
+      # generator accepts an invalid spec, so this is the only check that
+      # docs/openapi.yaml is a valid OpenAPI 3.1 document. Errors fail.
+      - name: docs/openapi.yaml is a valid OpenAPI document
+        run: cd frontend && npm run lint:openapi
+
       # The committed API types must match docs/openapi.yaml (#814). Nothing
       # compared them before, so the file drifted ~1,000 lines while this
       # typecheck stayed green on stale types. Regenerate first, so the
