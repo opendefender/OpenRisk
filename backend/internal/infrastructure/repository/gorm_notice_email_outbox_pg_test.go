@@ -317,6 +317,54 @@ func TestGormNoticeEmailOutbox_ClaimLeaseAndOutcome(t *testing.T) {
 	require.WithinDuration(t, time.Now().Add(time.Hour), due, 5*time.Second)
 }
 
+// After a relay outage the first e-mail has backed off further than the digest
+// queued behind it. The digest waits for it, so the two go out in order.
+func TestGormNoticeEmailOutbox_DigestWaitsForEarlierRow(t *testing.T) {
+	db, _ := outboxSchema(t, false)
+	box := NewGormNoticeEmailOutbox(db)
+	ctx := context.Background()
+	k := newOutboxKey()
+	_, _, err := box.Enqueue(ctx, k.row("Affecté"), time.Hour)
+	require.NoError(t, err)
+	_, _, err = box.Enqueue(ctx, k.row("Désaffecté"), time.Hour)
+	require.NoError(t, err)
+	other := newOutboxKey()
+	other.tenant = k.tenant
+
+	first, err := box.ClaimDue(ctx, 10, time.Minute, 12)
+	require.NoError(t, err)
+	require.Len(t, first, 1)
+	require.NoError(t, box.Retry(ctx, first[0], time.Now().Add(32*time.Minute), "421"))
+
+	// The digest is due, the first e-mail is not: nothing about this item
+	// goes out. Another item of the same person is not held.
+	require.NoError(t, db.Exec(`UPDATE notice_email_outbox SET due_at = now() - interval '1 second' WHERE kind = 'digest' AND tenant_id = ?`, k.tenant).Error)
+	_, _, err = box.Enqueue(ctx, other.row("Autre"), time.Hour)
+	require.NoError(t, err)
+	held, err := box.ClaimDue(ctx, 10, time.Minute, 12)
+	require.NoError(t, err)
+	require.Len(t, held, 1)
+	require.Equal(t, other.resource, *held[0].ResourceID)
+	require.NoError(t, box.MarkSent(ctx, held[0]))
+
+	// Both due: only the first is claimed, and the digest still waits while
+	// it is being sent.
+	require.NoError(t, db.Exec(`UPDATE notice_email_outbox SET due_at = now() - interval '1 second' WHERE id = ? AND tenant_id = ?`, first[0].ID, k.tenant).Error)
+	again, err := box.ClaimDue(ctx, 10, time.Minute, 12)
+	require.NoError(t, err)
+	require.Len(t, again, 1)
+	require.Equal(t, first[0].ID, again[0].ID)
+	none, err := box.ClaimDue(ctx, 10, time.Minute, 12)
+	require.NoError(t, err)
+	require.Empty(t, none)
+
+	require.NoError(t, box.MarkSent(ctx, again[0]))
+	digest, err := box.ClaimDue(ctx, 10, time.Minute, 12)
+	require.NoError(t, err)
+	require.Len(t, digest, 1)
+	require.Equal(t, domain.NoticeEmailDigest, digest[0].Kind)
+}
+
 func TestGormNoticeEmailOutbox_Prune(t *testing.T) {
 	db, _ := outboxSchema(t, false)
 	box := NewGormNoticeEmailOutbox(db)

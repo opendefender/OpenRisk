@@ -167,16 +167,28 @@ func (r *GormNoticeEmailOutbox) ClaimDue(ctx context.Context, limit int, lease t
 	// before any tenant's second. One tenant's burst (a bulk reassignment)
 	// waits its turn instead of delaying everyone else's mail.
 	//
+	// Grouped rows about one item go out in the order they were queued: a row
+	// waits while an earlier one for the same (tenant, user, item) is pending
+	// or sending. After a relay outage the first e-mail has backed off further
+	// than the digest that follows it; without this the digest ("3 changes,
+	// current state") would arrive first and the stale first notice after it.
+	//
 	// The due condition is repeated on the locked row: FOR UPDATE re-checks it
 	// against the row's latest version, so a row another replica claimed
 	// between the ranking and the lock is skipped, never claimed twice.
 	var rows []domain.NoticeEmailOutbox
 	err := r.db.WithContext(ctx).Raw(`
 		WITH ranked AS (
-		     SELECT id, due_at, row_number() OVER (PARTITION BY tenant_id ORDER BY due_at, id) AS turn
-		       FROM notice_email_outbox
-		      WHERE (status = @pending AND due_at <= now())
-		         OR (status = @sending AND locked_until < now())
+		     SELECT n.id, n.due_at, row_number() OVER (PARTITION BY n.tenant_id ORDER BY n.due_at, n.id) AS turn
+		       FROM notice_email_outbox n
+		      WHERE ((n.status = @pending AND n.due_at <= now())
+		          OR (n.status = @sending AND n.locked_until < now()))
+		        AND NOT (n.grouped AND EXISTS (
+		             SELECT 1 FROM notice_email_outbox e
+		              WHERE e.tenant_id = n.tenant_id AND e.user_id = n.user_id
+		                AND e.resource_type = n.resource_type AND e.resource_id = n.resource_id
+		                AND e.grouped AND e.status IN (@pending, @sending)
+		                AND (e.created_at, e.id) < (n.created_at, n.id)))
 		), picked AS (
 		     SELECT o.id
 		       FROM notice_email_outbox o

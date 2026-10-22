@@ -13,6 +13,7 @@ package repository_test
 import (
 	"context"
 	"mime"
+	"net"
 	"strings"
 	"sync"
 	"testing"
@@ -168,4 +169,73 @@ func TestNoticeEmailDelivery_FirstAtOnceThenOneDigest_Postgres(t *testing.T) {
 	require.NoError(t, db.Model(&domain.NoticeEmailOutbox{}).
 		Where("tenant_id = ? AND status IN ?", tenant, []string{domain.NoticeEmailPending, domain.NoticeEmailSending}).Count(&pending).Error)
 	require.Zero(t, pending, "nothing left behind")
+}
+
+// The relay is down for both the first e-mail and its digest. The first has
+// failed more often, so it is due well after the digest when the relay comes
+// back. The digest must still follow it, not supersede it in the inbox.
+func TestNoticeEmailDelivery_DigestFollowsFirstAfterOutage_Postgres(t *testing.T) {
+	db, _ := repository.OutboxSchemaForTest(t, false)
+	ctx := context.Background()
+	smtp := smtpmock.Start(t)
+	tenant, alice := uuid.New(), uuid.New()
+	members := &roster{members: map[uuid.UUID]map[uuid.UUID]notification.Recipient{
+		tenant: {alice: {Email: "alice@a.example", FullName: "Alice", Locale: "fr"}},
+	}}
+	// A port nothing listens on stands for the relay during the outage.
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	deadPort := ln.Addr().(*net.TCPAddr).Port
+	require.NoError(t, ln.Close())
+
+	link := func(rt string, id *uuid.UUID) string { return "/" + rt + "s/" + id.String() }
+	inApp := notification.NewUseCase(&bellStore{})
+	box := repository.NewGormNoticeEmailOutbox(db)
+	policies := repository.NewGormNoticeEmailPolicyRepository(db)
+	require.NoError(t, policies.SaveNoticeEmailPolicy(ctx, &domain.NoticeEmailPolicy{TenantID: tenant, WindowMinutes: 15}))
+	mailerOn := func(port int) *authmail.NoticeMailer {
+		transport := email.NewTransport(email.Config{Host: smtp.Host(), Port: port, From: "noreply@openrisk.test", Timeout: 2 * time.Second})
+		return authmail.NewNoticeMailer(transport, "https://risk.example")
+	}
+	worker := func(port int) *workers.NoticeEmailWorker {
+		return workers.NewNoticeEmailWorker(notification.NewOutboxSender(box, members, inApp, mailerOn(port), link), box, 4, zerolog.Nop())
+	}
+	down, up := worker(deadPort), worker(smtp.Port())
+	dispatcher := notification.NewDispatcher(inApp, members).
+		WithEmail(mailerOn(deadPort), true).WithLinks(link).WithOutbox(box, policies, nil)
+
+	plan := uuid.New()
+	notice := func(subject string) domain.Notice {
+		return domain.Notice{
+			TenantID: tenant, UserID: alice, Type: domain.NotificationTypeActionAssigned,
+			ResourceID: &plan, ResourceType: "mitigation", ResourceTitle: "Patch VPN",
+			Compose: func(string) domain.NoticeMessage {
+				return domain.NoticeMessage{Subject: subject, Lines: []string{subject + "."}}
+			},
+		}
+	}
+
+	require.NoError(t, dispatcher.Deliver(ctx, notice("Affectée à vous")))
+	down.Pass(ctx)
+	require.NoError(t, dispatcher.Deliver(ctx, notice("Désaffectée")))
+	require.NoError(t, dispatcher.Deliver(ctx, notice("Réaffectée à vous")))
+
+	// The outage lasts: the first e-mail is at its 32-minute backoff, the
+	// digest's window is over and its own short backoff has run out.
+	require.NoError(t, db.Exec(`UPDATE notice_email_outbox SET due_at = now() + interval '32 minutes', attempts = 5 WHERE tenant_id = ? AND kind = 'single'`, tenant).Error)
+	require.NoError(t, db.Exec(`UPDATE notice_email_outbox SET due_at = now() - interval '1 second' WHERE tenant_id = ? AND kind = 'digest'`, tenant).Error)
+	down.Pass(ctx)
+	require.NoError(t, db.Exec(`UPDATE notice_email_outbox SET due_at = now() - interval '1 second' WHERE tenant_id = ? AND kind = 'digest'`, tenant).Error)
+
+	// The relay is back. The digest does not overtake the first e-mail.
+	up.Pass(ctx)
+	require.Empty(t, smtp.Messages(), "the digest waits for the first e-mail")
+
+	require.NoError(t, db.Exec(`UPDATE notice_email_outbox SET due_at = now() - interval '1 second' WHERE tenant_id = ? AND kind = 'single'`, tenant).Error)
+	up.Pass(ctx)
+	up.Pass(ctx)
+	msgs := smtp.Messages()
+	require.Len(t, msgs, 2)
+	require.Equal(t, "Affectée à vous", subjectOf(t, msgs[0].Data))
+	require.Equal(t, "2 changements sur « Patch VPN »", subjectOf(t, msgs[1].Data))
 }
