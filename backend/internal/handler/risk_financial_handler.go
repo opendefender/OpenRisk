@@ -164,23 +164,28 @@ func (h *RiskHandler) GetRiskFinancial(c *fiber.Ctx) error {
 
 	// The route admits a basic grant; the Monte-Carlo distribution and its
 	// methodology are the "on" depth (#613). Below it the plan gets the
-	// closed-form figures — SLE, ALE, worst/average, ROSI — and no simulation.
+	// closed-form figures — SLE, ALE, worst/average, ROSI — in the tenant's
+	// display currency, and no simulation.
 	if !middleware.FeatureLevelAtLeast(c, ent.FeatFinancialQuant, ent.LevelOn) {
-		return c.JSON(h.crq.AssessDeterministic(financialInputsFromRisk(r), string(r.Criticality)))
+		return c.JSON(h.crq.AssessDeterministicP(financialInputsFromRisk(r), string(r.Criticality), h.presenter(c, orgID)))
 	}
 
 	assessment := h.assess(c, orgID, financialInputsFromRisk(r), string(r.Criticality))
 	return c.JSON(assessment)
 }
 
+// presenter returns the caller's tenant currency presenter (XAF without one).
+func (h *RiskHandler) presenter(c *fiber.Ctx, orgID uuid.UUID) crq.Presenter {
+	if h.presenters != nil {
+		return h.presenters.For(c.UserContext(), orgID)
+	}
+	return crq.NewPresenter(crq.CurrencyXAF, crq.DefaultRateTable(), h.crq.XAFPerUSD)
+}
+
 // assess runs the full currency-aware assessment for the caller's tenant and
 // stamps the methodology's computed-at (the pure engine leaves it zero).
 func (h *RiskHandler) assess(c *fiber.Ctx, orgID uuid.UUID, in crq.FinancialInputs, criticality string) crq.FinancialAssessment {
-	pres := crq.NewPresenter(crq.CurrencyXAF, crq.DefaultRateTable(), h.crq.XAFPerUSD)
-	if h.presenters != nil {
-		pres = h.presenters.For(c.UserContext(), orgID)
-	}
-	a := h.crq.AssessP(in, criticality, pres)
+	a := h.crq.AssessP(in, criticality, h.presenter(c, orgID))
 	if a.Methodology != nil {
 		a.Methodology.ComputedAt = time.Now().UTC()
 	}

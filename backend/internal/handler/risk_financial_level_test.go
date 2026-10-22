@@ -16,6 +16,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 	entapp "github.com/opendefender/openrisk/internal/application/entitlements"
+	applicationrisk "github.com/opendefender/openrisk/internal/application/risk"
 	"github.com/opendefender/openrisk/internal/domain"
 	"github.com/opendefender/openrisk/internal/middleware"
 	"github.com/opendefender/openrisk/pkg/crq"
@@ -43,7 +44,18 @@ func freeWithBasicFinancial(p ent.Plan, f ent.Feature) ent.Level {
 // through the same gate main.go mounts on GET /risks/:id/financial.
 func getFinancial(t *testing.T, svc *entapp.Service) (int, crq.FinancialAssessment) {
 	t.Helper()
-	app := setupAppWithDB(t, middleware.RequireLevel(svc, ent.FeatFinancialQuant, ent.LevelBasic))
+	return getFinancialIn(t, svc, nil)
+}
+
+type fixedCurrency string
+
+func (f fixedCurrency) OrgCurrency(context.Context, uuid.UUID) (string, error) { return string(f), nil }
+
+// getFinancialIn is getFinancial for a tenant whose display currency the
+// presenters resolve (nil → XAF).
+func getFinancialIn(t *testing.T, svc *entapp.Service, presenters *applicationrisk.FinancialPresenterFactory) (int, crq.FinancialAssessment) {
+	t.Helper()
+	app := newRiskTestApp(t, presenters, middleware.RequireLevel(svc, ent.FeatFinancialQuant, ent.LevelBasic))
 
 	b, _ := json.Marshal(map[string]interface{}{
 		"title": "Ransomware", "description": "d", "impact": 8, "probability": 0.6,
@@ -78,6 +90,22 @@ func TestGetRiskFinancial_BasicServesDeterministicALE(t *testing.T) {
 	assert.Nil(t, a.Methodology, "no simulation ran, so no simulation methodology")
 }
 
+func TestGetRiskFinancial_BasicReadsItsALEInEuros(t *testing.T) {
+	// A euro tenant on the basic depth: no simulation, and the ALE still reaches
+	// it in euros at the BCEAO/BEAC peg — 10 M XAF (20 M SLE × 0.5 ARO).
+	svc := entapp.NewService(planOnlyOrg{plan: "free"}).WithLevelSource(freeWithBasicFinancial)
+	presenters := applicationrisk.NewFinancialPresenterFactory(crq.NewQuantifier(0, crq.Reference{})).
+		WithCurrency(fixedCurrency("EUR"))
+
+	status, a := getFinancialIn(t, svc, presenters)
+	require.Equal(t, fiber.StatusOK, status)
+	require.Nil(t, a.Distribution)
+	require.NotNil(t, a.Display, "the closed-form figures must be presented in the tenant currency")
+	assert.Equal(t, crq.CurrencyEUR, a.Display.ALE.Currency)
+	assert.InDelta(t, 10_000_000/655.957, a.Display.ALE.Value, 0.01)
+	assert.Equal(t, a.ALE.XAF, a.Display.ALE.XAF)
+}
+
 func TestGetRiskFinancial_OnServesTheSimulation(t *testing.T) {
 	svc := entapp.NewService(planOnlyOrg{plan: "pro"})
 
@@ -86,6 +114,7 @@ func TestGetRiskFinancial_OnServesTheSimulation(t *testing.T) {
 	require.NotNil(t, a.Distribution)
 	require.NotNil(t, a.Methodology)
 	assert.Greater(t, a.Methodology.Iterations, 0)
+	require.NotNil(t, a.Display, "the simulated tier carries the same presented figures")
 }
 
 func TestGetRiskFinancial_ShippedFreeIsRefused(t *testing.T) {

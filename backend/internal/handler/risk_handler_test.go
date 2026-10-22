@@ -96,6 +96,12 @@ func (RiskHistoryT) TableName() string { return "risk_histories" }
 // financialGate, when given, is mounted in front of GET /risks/:id/financial the
 // way main.go mounts the entitlement level gate.
 func setupAppWithDB(t *testing.T, financialGate ...fiber.Handler) *fiber.App {
+	return newRiskTestApp(t, nil, financialGate...)
+}
+
+// newRiskTestApp is setupAppWithDB with the tenant currency presenters main.go
+// attaches (nil → XAF).
+func newRiskTestApp(t *testing.T, presenters *applicationrisk.FinancialPresenterFactory, financialGate ...fiber.Handler) *fiber.App {
 	// In-memory SQLite for fast tests
 	dsn := "file:risk_handler_" + uuid.New().String() + "?mode=memory&cache=private"
 	db, err := gorm.Open(sqlite.Open(dsn), &gorm.Config{})
@@ -139,7 +145,7 @@ func setupAppWithDB(t *testing.T, financialGate ...fiber.Handler) *fiber.App {
 		applicationrisk.NewTransitionRiskStateUseCase(riskRepo),
 		nil,
 		crq.NewQuantifier(0, crq.Reference{}),
-	)
+	).WithFinancialPresenters(presenters)
 	api.Post("/risks", handler.CreateRisk)
 	api.Get("/risks/:id", handler.GetRisk)
 	api.Patch("/risks/:id", handler.UpdateRisk)
