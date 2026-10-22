@@ -855,7 +855,7 @@ func main() {
 	revokeOtherSessionsUseCase := auth.NewRevokeOtherSessionsUseCase(sessionRepo)
 	sessionHandler := authhandler.NewSessionHandler(
 		listSessionsUseCase, revokeSessionUseCase, revokeOtherSessionsUseCase, authAudit,
-	).WithTrustedDevices(deviceCookies)
+	).WithTrustedDevices(deviceCookies, userRepo)
 	newDeviceNotifier := auth.NewNotifyNewDeviceUseCase(sessionRepo, securityMailer)
 
 	// Organization switching (server-authorized). userRepo satisfies the narrow

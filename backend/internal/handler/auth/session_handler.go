@@ -27,12 +27,40 @@ type SessionHandler struct {
 	// devices re-issues the caller's trusted-device cookie after "sign out
 	// other devices" untrusted them all (D-064). Optional.
 	devices *coreauth.DeviceCookieSigner
+	// users reads devices_revoked_at, without which no cookie is re-issued.
+	users UserByIDReader
 }
 
-// WithTrustedDevices turns the cookie re-issue on.
-func (h *SessionHandler) WithTrustedDevices(s *coreauth.DeviceCookieSigner) *SessionHandler {
+// WithTrustedDevices turns the cookie re-issue on. users is how the handler
+// tells a cookie the account still trusts from one an earlier revocation
+// ended (#1118); with no reader, nothing is re-issued.
+func (h *SessionHandler) WithTrustedDevices(s *coreauth.DeviceCookieSigner, users UserByIDReader) *SessionHandler {
 	h.devices = s
+	h.users = users
 	return h
+}
+
+// callerStillTrusted reports whether the caller's trusted-device cookie is
+// one the account trusts right now: signed for this user, and issued after
+// the user's devices were last revoked. A valid signature is not enough: a
+// password reset or an earlier sign-out-others ended every cookie issued
+// before it, and re-issuing such a cookie would bring it back for 90 days
+// (#1118). Read before this revocation stamps devices_revoked_at again.
+func (h *SessionHandler) callerStillTrusted(c *fiber.Ctx, userID uuid.UUID) bool {
+	if h.devices == nil || h.users == nil {
+		return false
+	}
+	d := h.devices.Verify(middleware.TrustedDeviceCookieValue(c))
+	if d == nil {
+		return false
+	}
+	user, err := h.users.GetByID(c.UserContext(), userID)
+	if err != nil {
+		// Unreadable state: no re-issue. The device waits out a lock like any
+		// other, which costs less than trusting one that may have been ended.
+		return false
+	}
+	return d.TrustsFor(user)
 }
 
 // NewSessionHandler builds the handler.
@@ -121,6 +149,8 @@ func (h *SessionHandler) RevokeOtherSessions(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "personal access tokens cannot manage sessions"})
 	}
 
+	keepTrust := h.callerStillTrusted(c, mwCtx.UserID)
+
 	out, err := h.revokeOther.Execute(c.UserContext(), appauth.RevokeOtherSessionsInput{
 		UserID:         mwCtx.UserID,
 		CurrentSession: mwCtx.SessionID,
@@ -136,12 +166,11 @@ func (h *SessionHandler) RevokeOtherSessions(c *fiber.Ctx) error {
 	}
 
 	// Every trusted device was untrusted with the sessions. The one that asked
-	// keeps its trust, like it keeps its session, but only if it already had
-	// it (#879 review): a stolen session alone must not mint a 90-day cookie.
-	if h.devices != nil {
-		if d := h.devices.Verify(middleware.TrustedDeviceCookieValue(c)); d != nil && d.UserID == mwCtx.UserID {
-			plantTrustedDevice(c, h.devices, mwCtx.UserID)
-		}
+	// keeps its trust, like it keeps its session, but only if it still had it
+	// (#879 review, #1118): a stolen session alone must not mint a 90-day
+	// cookie, and neither may a cookie that an earlier revocation ended.
+	if keepTrust {
+		plantTrustedDevice(c, h.devices, mwCtx.UserID)
 	}
 
 	h.logAudit(c, &mwCtx.UserID, coreauth.AuditActionSessionRevokeAll, true)
