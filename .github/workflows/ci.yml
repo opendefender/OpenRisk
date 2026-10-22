@@ -361,7 +361,9 @@ jobs:
       - name: API types match docs/openapi.yaml
         run: |
           cd frontend && npm run generate:api-types
-          if ! git diff --exit-code -- src/types/openapi.generated.ts; then
+          # `git status` too: `git diff` cannot see an untracked file, which is
+          # what a changed `-o` path in package.json would produce.
+          if ! git diff --exit-code -- src/types/openapi.generated.ts || [ -n "$(git status --porcelain -- src/types)" ]; then
             echo "::error file=frontend/src/types/openapi.generated.ts::Out of date with docs/openapi.yaml. Run 'cd frontend && npm run generate:api-types' and commit the result."
             exit 1
           fi
@@ -601,7 +603,7 @@ jobs:
             exit 1
           fi
           if [ "${{ needs.frontend-typecheck.result }}" != "success" ]; then
-            echo "Frontend typecheck failed"
+            echo "Frontend typecheck or API types drift failed"
             exit 1
           fi
           if [ "${{ needs.frontend-unit-tests.result }}" != "success" ]; then
