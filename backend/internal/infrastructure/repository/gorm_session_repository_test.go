@@ -281,3 +281,24 @@ func TestRevokeAllExceptFamily_UntrustsTheUsersDevicesAndKeepsTheFamily(t *testi
 	require.NoError(t, repo.db.Raw(`SELECT id FROM users WHERE devices_revoked_at IS NOT NULL`).Scan(&stamped).Error)
 	assert.Equal(t, []string{me.String()}, stamped)
 }
+
+// A spent (rotated) token is deleted with the others but is not a device, so
+// it is not counted: the user is told how many devices they saw go (#727).
+func TestRevokeAllExcept_CountsLiveSessionsOnly(t *testing.T) {
+	repo := setupSessionRepo(t)
+	ctx := context.Background()
+	me := uuid.New()
+	future := time.Now().Add(time.Hour)
+	seedSession(t, repo, me, "hash-current", "fp-a", "Chrome", future)
+	seedSession(t, repo, me, "hash-other", "fp-b", "Firefox", future)
+	spent := seedSession(t, repo, me, "hash-spent", "fp-b", "Firefox", future)
+	require.NoError(t, repo.db.Exec(`UPDATE refresh_tokens SET rotated_at = ? WHERE id = ?`, time.Now(), spent.String()).Error)
+
+	n, err := repo.RevokeAllExcept(ctx, me, "hash-current")
+	require.NoError(t, err)
+	assert.Equal(t, int64(1), n)
+
+	var left []string
+	require.NoError(t, repo.db.Raw(`SELECT token_hash FROM refresh_tokens`).Scan(&left).Error)
+	assert.Equal(t, []string{"hash-current"}, left)
+}
