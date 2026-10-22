@@ -147,3 +147,86 @@ func TestMatrixIntegrity(t *testing.T) {
 		}
 	}
 }
+
+// TestLevelOrdering is the one declaration of the depth order, as a table:
+// off < limited < basic < on = standard < advanced < custom (#613).
+func TestLevelOrdering(t *testing.T) {
+	ladder := []Level{LevelOff, LevelLimited, LevelBasic, LevelOn, LevelAdvanced, LevelCustom}
+	for i, lo := range ladder {
+		for j, hi := range ladder {
+			if got, want := hi.AtLeast(lo), j >= i; got != want {
+				t.Errorf("%q.AtLeast(%q) = %v, want %v", hi, lo, got, want)
+			}
+		}
+	}
+
+	// on and standard are the same depth, named for rows with and without tiers.
+	if !LevelOn.AtLeast(LevelStandard) || !LevelStandard.AtLeast(LevelOn) {
+		t.Error("on and standard must rank together")
+	}
+	if !LevelStandard.AtLeast(LevelBasic) || LevelStandard.AtLeast(LevelAdvanced) {
+		t.Error("standard must sit between basic and advanced")
+	}
+}
+
+// TestLevelDescriptors_AreNotOrdered keeps support and SLA values out of the
+// ordering: they describe a plan, they are not depths anything can gate on.
+func TestLevelDescriptors_AreNotOrdered(t *testing.T) {
+	for _, d := range []Level{LevelCommunity, LevelEmail, LevelPriority, LevelDedicated, Level("99.5"), Level("99.9")} {
+		if d.Ordered() {
+			t.Errorf("%q must be a descriptor, not a depth", d)
+		}
+		if d.AtLeast(LevelOff) || LevelCustom.AtLeast(d) {
+			t.Errorf("%q must compare to nothing", d)
+		}
+	}
+	// Every level the matrix grants outside support/SLA is a depth.
+	for _, p := range AllPlans {
+		for f, l := range For(p).Features {
+			if f == FeatSupport || f == FeatSLA {
+				continue
+			}
+			if !l.Ordered() {
+				t.Errorf("%s / %s grants %q, which is not in the depth ordering", p, f, l)
+			}
+		}
+	}
+}
+
+func TestMinPlanForLevel(t *testing.T) {
+	cases := []struct {
+		f    Feature
+		min  Level
+		want Plan
+	}{
+		{FeatCompliance, LevelBasic, PlanFree},
+		{FeatCompliance, LevelStandard, PlanPro},
+		{FeatCompliance, LevelAdvanced, PlanBusiness},
+		{FeatCompliance, LevelCustom, PlanEnterprise},
+		{FeatFinancialQuant, LevelBasic, PlanPro},
+		{FeatFinancialQuant, LevelOn, PlanPro},
+		{FeatAutomation, LevelAdvanced, PlanBusiness},
+		{FeatAPI, LevelOn, PlanPro},
+	}
+	for _, tc := range cases {
+		if got := MinPlanForLevel(tc.f, tc.min); got != tc.want {
+			t.Errorf("MinPlanForLevel(%s, %q) = %s, want %s", tc.f, tc.min, got, tc.want)
+		}
+	}
+}
+
+// TestFinancialDashboard_OpensAtPro pins the floor of the financial dashboard
+// (#613): its routes need the Monte-Carlo depth ("on"), and no plan below Pro
+// may grant that depth. A matrix edit giving Free a basic grant (#415) keeps
+// the dashboard at Pro; one giving Free "on" fails here and needs the owner.
+func TestFinancialDashboard_OpensAtPro(t *testing.T) {
+	if got := MinPlanForLevel(FeatFinancialQuant, LevelOn); got != PlanPro {
+		t.Fatalf("the Monte-Carlo depth opens at %s, want pro", got)
+	}
+	for _, p := range AllPlans {
+		if !p.AtLeast(PlanPro) && LevelOf(p, FeatFinancialQuant).AtLeast(LevelOn) {
+			t.Errorf("%s grants financial quantification at %q: the dashboard would open below Pro",
+				p, LevelOf(p, FeatFinancialQuant))
+		}
+	}
+}

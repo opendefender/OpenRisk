@@ -354,6 +354,26 @@ jobs:
       - name: Install dependencies
         run: cd frontend && npm ci
 
+      # The spec itself, before anything is generated from it (#814). The
+      # generator accepts an invalid spec, so this is the only check that
+      # docs/openapi.yaml is a valid OpenAPI 3.1 document. Errors fail.
+      - name: docs/openapi.yaml is a valid OpenAPI document
+        run: cd frontend && npm run lint:openapi
+
+      # The committed API types must match docs/openapi.yaml (#814). Nothing
+      # compared them before, so the file drifted ~1,000 lines while this
+      # typecheck stayed green on stale types. Regenerate first, so the
+      # typecheck below runs on what the spec actually says.
+      - name: API types match docs/openapi.yaml
+        run: |
+          cd frontend && npm run generate:api-types
+          # `git status` too: `git diff` cannot see an untracked file, which is
+          # what a changed `-o` path in package.json would produce.
+          if ! git diff --exit-code -- src/types/openapi.generated.ts || [ -n "$(git status --porcelain -- src/types)" ]; then
+            echo "::error file=frontend/src/types/openapi.generated.ts::Out of date with docs/openapi.yaml. Run 'cd frontend && npm run generate:api-types' and commit the result."
+            exit 1
+          fi
+
       - name: Typecheck (tsc -b --noEmit)
         run: cd frontend && npm run type-check
 
@@ -589,7 +609,7 @@ jobs:
             exit 1
           fi
           if [ "${{ needs.frontend-typecheck.result }}" != "success" ]; then
-            echo "Frontend typecheck failed"
+            echo "Frontend typecheck or API types drift failed"
             exit 1
           fi
           if [ "${{ needs.frontend-unit-tests.result }}" != "success" ]; then

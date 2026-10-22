@@ -714,23 +714,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/mitigations/recommended": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Get recommended mitigations (sorted by SPP score) */
-        get: operations["getRecommendedMitigations"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/compliance/catalogs": {
         parameters: {
             query?: never;
@@ -2299,6 +2282,12 @@ export interface components {
             xaf_per_usd: number;
             total_risks: number;
             quantified_risks: number;
+            /**
+             * @description insufficient_data until min_quantified_risks risks carry their own loss figures; the amounts then come from the reference model only.
+             * @enum {string}
+             */
+            data_status?: "ok" | "insufficient_data";
+            min_quantified_risks?: number;
             total_ale: components["schemas"]["Money"];
             total_ale_worst: components["schemas"]["Money"];
             total_ale_after: components["schemas"]["Money"];
@@ -5901,26 +5890,6 @@ export interface operations {
             };
         };
     };
-    getRecommendedMitigations: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Recommended mitigations */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Mitigation"][];
-                };
-            };
-        };
-    };
     listComplianceCatalogs: {
         parameters: {
             query?: never;
@@ -8311,7 +8280,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description The caller lacks read access */
+            /** @description The caller lacks read access, or the session carries no tenant */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -8342,21 +8311,21 @@ export interface operations {
                     "application/json": components["schemas"]["BulkResult"];
                 };
             };
-            /** @description Validation error — empty selection */
+            /** @description Validation error — empty selection, over 100 items, or an invalid status */
             400: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
-            /** @description The caller lacks vulnerabilities:update */
+            /** @description The caller lacks vulnerabilities:update, or the session carries no tenant */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
-            /** @description An id did not resolve — absent */
+            /** @description An id did not resolve — absent, or another tenant's, deliberately indistinguishable. Nothing was modified. */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -8394,21 +8363,21 @@ export interface operations {
                     "application/json": components["schemas"]["BulkResult"];
                 };
             };
-            /** @description Validation error — empty selection */
+            /** @description Validation error — empty selection, over 100 items, or an invalid status */
             400: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
-            /** @description The caller lacks vulnerabilities:delete */
+            /** @description The caller lacks vulnerabilities:delete, or the session carries no tenant */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
-            /** @description An id did not resolve — absent */
+            /** @description An id did not resolve — absent, or another tenant's, deliberately indistinguishable. Nothing was modified. */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -8480,7 +8449,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description The caller lacks read access */
+            /** @description The caller lacks read access, or the session carries no tenant */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -8511,21 +8480,21 @@ export interface operations {
                     "application/json": components["schemas"]["BulkResult"];
                 };
             };
-            /** @description Validation error — empty selection */
+            /** @description Validation error — empty selection, over 100 items, or an invalid status */
             400: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
-            /** @description The caller lacks assets:delete */
+            /** @description The caller lacks assets:delete, or the session carries no tenant */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
-            /** @description An id did not resolve — absent */
+            /** @description An id did not resolve — absent, or another tenant's, deliberately indistinguishable. Nothing was modified. */
             404: {
                 headers: {
                     [name: string]: unknown;

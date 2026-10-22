@@ -42,6 +42,9 @@ type Service struct {
 	subs  SubscriptionReader
 	usage UsageCounter
 
+	// levelOf is the matrix Level reads; ent.LevelOf unless WithLevelSource.
+	levelOf func(ent.Plan, ent.Feature) ent.Level
+
 	now func() time.Time
 	ttl time.Duration
 	mu  sync.Mutex
@@ -58,10 +61,11 @@ type cached struct {
 // NewService builds a resolver. subs/usage may be attached via With*.
 func NewService(orgs OrgReader) *Service {
 	return &Service{
-		orgs: orgs,
-		now:  time.Now,
-		ttl:  30 * time.Second,
-		c:    make(map[uuid.UUID]cached),
+		orgs:    orgs,
+		levelOf: ent.LevelOf,
+		now:     time.Now,
+		ttl:     30 * time.Second,
+		c:       make(map[uuid.UUID]cached),
 	}
 }
 
@@ -70,6 +74,14 @@ func (s *Service) WithSubscriptions(r SubscriptionReader) *Service { s.subs = r;
 
 // WithUsage attaches the usage counter (makes limits enforceable, not advisory).
 func (s *Service) WithUsage(u UsageCounter) *Service { s.usage = u; return s }
+
+// WithLevelSource replaces the matrix Level reads depths from. Production never
+// calls it; tests use it to drive a depth no shipped plan grants yet (a Free
+// with basic financial quantification is #415's proposal, not the matrix).
+func (s *Service) WithLevelSource(f func(ent.Plan, ent.Feature) ent.Level) *Service {
+	s.levelOf = f
+	return s
+}
 
 // TrialInfo describes an active no-card trial.
 type TrialInfo struct {
@@ -126,6 +138,17 @@ func (s *Service) Invalidate(tenant uuid.UUID) {
 	s.mu.Lock()
 	delete(s.c, tenant)
 	s.mu.Unlock()
+}
+
+// Level returns the depth at which a tenant's effective plan grants a feature,
+// and that plan. It reads the same cached, tenant-scoped plan as Allowed, so a
+// level gate costs no extra query.
+func (s *Service) Level(ctx context.Context, tenant uuid.UUID, f ent.Feature) (ent.Level, ent.Plan, error) {
+	plan, _, _, err := s.EffectivePlan(ctx, tenant)
+	if err != nil {
+		return ent.LevelOff, plan, err
+	}
+	return s.levelOf(plan, f), plan, nil
 }
 
 // Allowed reports whether a tenant's effective plan grants a feature, and the
