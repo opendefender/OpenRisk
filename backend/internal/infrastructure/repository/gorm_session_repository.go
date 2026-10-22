@@ -101,24 +101,90 @@ func (r *GormSessionRepository) Revoke(ctx context.Context, userID, sessionID uu
 // When keepHash is empty this revokes everything, which is what the password
 // reset path wants.
 //
-// It also untrusts every device cookie the user holds (D-064, #879), in the
-// same transaction; the caller re-issues one to the device that pressed it.
+// It also untrusts every device cookie the user holds (D-064, #879); the caller
+// re-issues one to the device that pressed it. See untrustDevices for why the
+// stamp and the sweep are not one transaction.
 func (r *GormSessionRepository) RevokeAllExcept(ctx context.Context, userID uuid.UUID, keepHash string) (int64, error) {
-	var revoked int64
-	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		if err := tx.Model(&domain.User{}).Where("id = ?", userID).
-			UpdateColumn("devices_revoked_at", time.Now()).Error; err != nil {
-			return err
+	if err := r.untrustDevices(ctx, userID); err != nil {
+		return 0, err
+	}
+	if keepHash == "" {
+		// Account-wide on purpose, no tenant_id: signing out other devices ends the
+		// user's sessions in every org, as RevokeAllUserTokens does (D-047).
+		return r.sweep(ctx, "user_id = ?", userID)
+	}
+	// Account-wide on purpose, no tenant_id: as above.
+	return r.sweep(ctx, "user_id = ? AND token_hash <> ?", userID, keepHash)
+}
+
+// RevokeAllExceptFamily signs out every device but the session the caller's
+// access token names. Keeping the whole family, rather than one row, keeps the
+// caller's rotated tokens too, so a replay inside the grace window still gets
+// the successor instead of tripping reuse detection.
+//
+// Like RevokeAllExcept, it untrusts every device cookie the user holds first.
+func (r *GormSessionRepository) RevokeAllExceptFamily(ctx context.Context, userID, keepFamily uuid.UUID) (int64, error) {
+	if err := r.untrustDevices(ctx, userID); err != nil {
+		return 0, err
+	}
+	// Account-wide on purpose, no tenant_id: see RevokeAllExcept.
+	return r.sweep(ctx, "user_id = ? AND family_id <> ?", userID, keepFamily)
+}
+
+// HasLiveSession reports whether the user holds a live, unexpired token in the
+// family. Scoped by user_id, so a family id from someone else's token reads as
+// absent.
+func (r *GormSessionRepository) HasLiveSession(ctx context.Context, userID, family uuid.UUID) (bool, error) {
+	var n int64
+	err := r.db.WithContext(ctx).Model(&sessionRow{}).
+		// Account-wide on purpose, no tenant_id: a session belongs to its user.
+		Where("user_id = ? AND family_id = ? AND rotated_at IS NULL AND expires_at > ?", userID, family, time.Now()).
+		Count(&n).Error
+	return n > 0, err
+}
+
+// untrustDevices ends every trusted-device cookie the user holds by stamping
+// users.devices_revoked_at (D-064, #879).
+//
+// Not in one transaction with the sweep, on purpose, as in the token manager's
+// RevokeAllUserTokens: the sweep is only correct because each of its passes
+// commits on its own. The stamp comes first, so a sweep that fails after it
+// leaves the stricter state (devices untrusted), and the error is returned
+// either way.
+func (r *GormSessionRepository) untrustDevices(ctx context.Context, userID uuid.UUID) error {
+	// Account-wide on purpose, no tenant_id: trust belongs to the user's browser,
+	// not to one org.
+	return r.db.WithContext(ctx).Model(&domain.User{}).Where("id = ?", userID).
+		UpdateColumn("devices_revoked_at", time.Now()).Error
+}
+
+// sweep deletes the refresh tokens matching the condition until a pass removes
+// nothing, like the token manager's revocations (sweepRefreshTokens, #725): on
+// Postgres a single DELETE misses a successor that another device's rotation
+// stores while it runs, and that device would stay signed in.
+//
+// It returns the number of live sessions removed. Spent (rotated) rows go too,
+// but they are not devices, and counting them would tell the user more
+// devices were signed out than they ever saw in the list.
+func (r *GormSessionRepository) sweep(ctx context.Context, cond string, args ...interface{}) (int64, error) {
+	var live int64
+	for i := 0; i < maxRevocationSweeps; i++ {
+		// cond carries the user_id scope; see the callers.
+		active := r.db.WithContext(ctx).Where(cond, args...).Where("rotated_at IS NULL").Delete(&sessionRow{})
+		if active.Error != nil {
+			return live, active.Error
 		}
-		q := tx.Where("user_id = ?", userID)
-		if keepHash != "" {
-			q = q.Where("token_hash <> ?", keepHash)
+		// cond carries the user_id scope; see the callers.
+		spent := r.db.WithContext(ctx).Where(cond, args...).Where("rotated_at IS NOT NULL").Delete(&sessionRow{})
+		if spent.Error != nil {
+			return live, spent.Error
 		}
-		res := q.Delete(&sessionRow{})
-		revoked = res.RowsAffected
-		return res.Error
-	})
-	return revoked, err
+		live += active.RowsAffected
+		if active.RowsAffected+spent.RowsAffected == 0 {
+			break
+		}
+	}
+	return live, nil
 }
 
 // maxRevocationSweeps mirrors the bound in internal/auth, which this package
