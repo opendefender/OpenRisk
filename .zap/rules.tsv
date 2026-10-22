@@ -1,0 +1,2 @@
+# ZAP baseline rules for .github/workflows/dast.yml (#649).
+# Format: <rule id>\t<WARN|FAIL|IGNORE>\t<note>. Tab separated.
