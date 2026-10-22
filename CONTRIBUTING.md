@@ -249,7 +249,7 @@ Fixes #123
 1. **Check for existing pull requests** - Search for related PRs
 2. **Run tests locally** - Ensure all tests pass
 3. **Test your changes** - Verify the fix/feature works
-4. **Update documentation** - Include any necessary docs updates
+4. **Update documentation** - Include any necessary docs updates. If you edit `docs/openapi.yaml`, run `cd frontend && npm run generate:api-types` and commit `frontend/src/types/openapi.generated.ts`; CI fails when the two differ.
 5. **Sync with upstream** - `git pull upstream main`
 
 ### Submitting a Pull Request
