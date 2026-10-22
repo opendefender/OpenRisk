@@ -26,6 +26,13 @@
 // change was. Treating the stream as the state is how two clients end up
 // disagreeing about the same record with no way to tell which is right.
 
+import {
+  endSession,
+  isRefreshableCode,
+  isSessionErrorCode,
+  refreshSessionOutcome,
+  type RefreshOutcome,
+} from './api';
 import { getAccessToken } from './session';
 
 /**
@@ -107,6 +114,15 @@ const DEDUP_WINDOW = 2_000;
 
 const API_BASE = import.meta.env.VITE_API_URL ?? '/api/v1';
 
+/**
+ * At most one session renewal per window (#701). An access token lives 15
+ * minutes, so a genuine expiry never comes back this fast. A stream refused
+ * again within the window was refused a credential minted moments ago, which
+ * is a session ending rather than expiring, and the bound also stops a server
+ * that keeps dropping the stream from driving a refresh per reconnect.
+ */
+const RENEWAL_WINDOW_MS = 60_000;
+
 class RealtimeClient {
   private source: EventSource | null = null;
   private status: RealtimeStatus = {
@@ -131,6 +147,12 @@ class RealtimeClient {
   private started = false;
   /** Identifies the latest refusal probe, so a stale answer is ignored. */
   private probeSeq = 0;
+  /** When this client last renewed the session for a refused stream (ms epoch). */
+  private lastRenewalAt = 0;
+  /** A renewal is in flight; reconnects wait for it rather than race it. */
+  private renewing = false;
+  /** Bumped by stop(), so a renewal that outlives its session is ignored. */
+  private epoch = 0;
 
   // -- public API ---------------------------------------------------------
 
@@ -154,6 +176,7 @@ class RealtimeClient {
   /** Closes the stream and forgets everything about it. */
   stop(): void {
     this.started = false;
+    this.epoch++;
     this.clearTimers();
     this.closeSource();
     this.setStatus({ state: 'DISCONNECTED', attempts: 0 });
@@ -181,7 +204,8 @@ class RealtimeClient {
     this.emitResync('tenant_changed');
     if (this.started) {
       this.setStatus({ state: 'RESYNCING', attempts: 0 });
-      this.connect();
+      // A renewal in flight reconnects when it lands, with the new credential.
+      if (!this.renewing) this.connect();
     }
   }
 
@@ -372,11 +396,18 @@ class RealtimeClient {
    * the scheduled reconnect is cancelled and the state becomes FORBIDDEN until
    * the session or the tenant changes (switchTenant) or the page reloads. Any
    * other answer, or no answer, leaves the backoff exactly as it was.
+   *
+   * A 401 is first read the way the axios interceptor reads it (#701). An
+   * access cookie that merely expired is renewed through the same shared
+   * refresh, and the stream reconnects at once; a session that cannot be
+   * renewed takes the same sign-out path. Without this, an idle page lost its
+   * live updates 15 minutes after the last click, refresh cookie still valid.
    */
   private async checkRefusal(): Promise<void> {
     const probe = ++this.probeSeq;
     const ctrl = new AbortController();
     let status = 0;
+    let code: unknown;
     let reason: string | undefined;
     try {
       const res = await fetch(this.streamUrl(false), {
@@ -387,7 +418,8 @@ class RealtimeClient {
       status = res.status;
       if (status === 401 || status === 403) {
         try {
-          const body = (await res.json()) as { error?: string; message?: string };
+          const body = (await res.json()) as { code?: unknown; error?: string; message?: string };
+          code = body.code;
           reason = body.message ?? body.error;
         } catch {
           reason = undefined;
@@ -403,10 +435,67 @@ class RealtimeClient {
 
     // Stale: a newer failure, a stop, or a connection that came back meanwhile.
     if (probe !== this.probeSeq || !this.started || this.status.state !== 'RECONNECTING') return;
+    if (this.renewing) return;
     if (status !== 401 && status !== 403) return;
+
+    if (
+      status === 401 &&
+      isRefreshableCode(code) &&
+      Date.now() - this.lastRenewalAt >= RENEWAL_WINDOW_MS
+    ) {
+      await this.renewSession();
+      return;
+    }
+    if (status === 401 && (isRefreshableCode(code) || isSessionErrorCode(code))) {
+      // Revoked, invalid, or refused again right after a renewal.
+      this.sessionEnded();
+      return;
+    }
 
     this.clearTimers();
     this.setStatus({ state: 'FORBIDDEN', error: reason ?? `HTTP ${status}` });
+  }
+
+  /**
+   * Renews the session for a stream refused with an expired credential, then
+   * reconnects. The backoff and the watchdog are cancelled first: the next
+   * attempt waits for the refresh instead of racing it, so a stream needs one
+   * /auth/refresh, not one per reconnect. It is the single flight axios
+   * uses, so a stream and a burst of API calls expiring together still
+   * refresh once. A refresh that never reached the server says nothing about
+   * the session: the stream goes back to its backoff instead of signing out.
+   */
+  private async renewSession(): Promise<void> {
+    const epoch = this.epoch;
+    this.renewing = true;
+    this.lastRenewalAt = Date.now();
+    this.clearTimers();
+    let outcome: RefreshOutcome;
+    try {
+      outcome = await refreshSessionOutcome();
+    } finally {
+      this.renewing = false;
+    }
+    if (epoch !== this.epoch || !this.started) return;
+
+    if (outcome === 'refused') {
+      this.sessionEnded();
+      return;
+    }
+    if (outcome === 'unreachable') {
+      this.lastRenewalAt = 0;
+      this.scheduleReconnect(Math.max(this.status.attempts, 1));
+      return;
+    }
+    this.connect();
+  }
+
+  /** The session cannot come back: stop for good and sign out like axios. */
+  private sessionEnded(): void {
+    this.clearTimers();
+    this.closeSource();
+    this.setStatus({ state: 'DISCONNECTED', error: undefined });
+    endSession();
   }
 
   private scheduleReconnect(attempts: number): void {
@@ -421,7 +510,8 @@ class RealtimeClient {
   }
 
   private handleOnline = (): void => {
-    if (!this.started) return;
+    // A renewal in flight reconnects when it lands, with the new credential.
+    if (!this.started || this.renewing) return;
     // The network came back; there is nothing to wait for.
     this.clearReconnect();
     this.setStatus({ state: 'RECONNECTING' });

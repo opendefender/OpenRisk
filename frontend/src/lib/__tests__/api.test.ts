@@ -8,7 +8,7 @@
 import axios from 'axios';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { api } from '../api';
+import { api, refreshSessionOutcome } from '../api';
 import { getAccessToken, setAccessToken } from '../session';
 
 type MockCall = (config: unknown) => Promise<unknown>;
@@ -210,5 +210,31 @@ describe('api interceptor — requests with their own credential keep their 401s
 
     await expect(api.get('/auth/mfa/status')).rejects.toBeTruthy();
     expect(window.location.href).toBe('/login');
+  });
+});
+
+// #701 — the realtime client renews in the background and must not sign a user
+// out over a refresh that never reached the server.
+describe('refreshSessionOutcome', () => {
+  it('reports a refusal when the server answers', async () => {
+    const err = Object.assign(new axios.AxiosError('401'), {
+      response: { status: 401, data: {}, headers: {}, statusText: '', config: {} },
+    });
+    vi.spyOn(axios, 'post').mockRejectedValue(err);
+    await expect(refreshSessionOutcome()).resolves.toBe('refused');
+  });
+
+  it('reports the server unreachable when no answer came back', async () => {
+    vi.spyOn(axios, 'post').mockRejectedValue(new axios.AxiosError('Network Error'));
+    await expect(refreshSessionOutcome()).resolves.toBe('unreachable');
+  });
+
+  it('reports a renewal and records the new token', async () => {
+    vi.spyOn(axios, 'post').mockResolvedValue({
+      status: 200,
+      data: { token_pair: { access_token: 'renewed-token' } },
+    } as never);
+    await expect(refreshSessionOutcome()).resolves.toBe('renewed');
+    expect(getAccessToken()).toBe('renewed-token');
   });
 });

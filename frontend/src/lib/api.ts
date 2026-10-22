@@ -87,11 +87,40 @@ const TOKEN_ERROR_CODES = new Set([
 // A revoked or invalid token is not recoverable and still goes to /login.
 const REFRESHABLE_CODES = new Set(['TOKEN_EXPIRED', 'UNAUTHORIZED']);
 
+/**
+ * Whether a 401 carrying this `code` can be recovered by a refresh. Shared with
+ * the realtime client (#701), which reads the same 401s from its probe.
+ */
+export function isRefreshableCode(code: unknown): boolean {
+  return typeof code === 'string' && REFRESHABLE_CODES.has(code);
+}
+
+/** Whether a 401 carrying this `code` means the session itself is over. */
+export function isSessionErrorCode(code: unknown): boolean {
+  return typeof code === 'string' && TOKEN_ERROR_CODES.has(code);
+}
+
+/**
+ * The one sign-out path for a session that cannot be recovered. The realtime
+ * client follows it too (#701), so a dead session ends the same way whichever
+ * transport noticed first.
+ */
+export function endSession(): void {
+  window.location.href = '/login';
+}
+
+/**
+ * How a refresh ended. `refused` means the server answered and would not renew
+ * the session; `unreachable` means no answer came back, which says nothing
+ * about the session (#701).
+ */
+export type RefreshOutcome = 'renewed' | 'refused' | 'unreachable';
+
 // A single in-flight refresh shared by every request that 401s at once, so a
 // dashboard full of widgets that all expire together triggers ONE /auth/refresh,
 // not one per widget. Cleared when it settles so a later expiry can refresh
-// again. Returns whether a usable session was re-established.
-let refreshInFlight: Promise<boolean> | null = null;
+// again.
+let refreshInFlight: Promise<RefreshOutcome> | null = null;
 
 /**
  * Rotates the session from the refresh cookie and records the new access
@@ -100,6 +129,15 @@ let refreshInFlight: Promise<boolean> | null = null;
  * with one cookie read as token reuse and revoke the session.
  */
 export function refreshSession(): Promise<boolean> {
+  return refreshSessionOutcome().then((outcome) => outcome === 'renewed');
+}
+
+/**
+ * The same single flight as refreshSession, telling a refusal apart from a
+ * refresh that never reached the server. The realtime client renews in the
+ * background, so it must not sign a user out over a network blip (#701).
+ */
+export function refreshSessionOutcome(): Promise<RefreshOutcome> {
   if (!refreshInFlight) {
     // Bare axios (not `api`) so the refresh call never recurses through this
     // interceptor. Cookie-based: the HttpOnly refresh cookie authenticates it;
@@ -111,12 +149,14 @@ export function refreshSession(): Promise<boolean> {
         {},
         { withCredentials: true, headers: csrf ? { [CSRF_HEADER]: csrf } : {} },
       )
-      .then((res) => {
+      .then((res): RefreshOutcome => {
         const token = res.data?.token_pair?.access_token as string | undefined;
         if (token) setAccessToken(token);
-        return res.status === 200;
+        return res.status === 200 ? 'renewed' : 'refused';
       })
-      .catch(() => false);
+      .catch((err: unknown): RefreshOutcome =>
+        axios.isAxiosError(err) && !err.response ? 'unreachable' : 'refused',
+      );
     // Null it out once settled — regardless of outcome — so the NEXT expiry
     // starts a fresh refresh instead of reusing this resolved promise.
     void refreshInFlight.finally(() => {
@@ -164,7 +204,7 @@ api.interceptors.response.use(
     // Retry at most once per request, and never for the refresh call itself.
     if (
       status === 401 &&
-      REFRESHABLE_CODES.has(code) &&
+      isRefreshableCode(code) &&
       original &&
       !original._retried &&
       !String(original.url ?? '').includes('/auth/refresh')
@@ -175,15 +215,15 @@ api.interceptors.response.use(
         return api(original); // replays with the refreshed token + cookies
       }
       // Refresh genuinely failed: the session is over, send them to login.
-      window.location.href = '/login';
+      endSession();
       return Promise.reject(error);
     }
 
     // A revoked or invalid token is not refreshable, and a request that is
     // still refused after its one refresh-and-replay is not either: go to
     // /login once, never loop.
-    if (status === 401 && TOKEN_ERROR_CODES.has(code)) {
-      window.location.href = '/login'; // Redirection forcée
+    if (status === 401 && isSessionErrorCode(code)) {
+      endSession();
     }
 
     // OR26-03 — the session is valid but the account's MFA grace period is over,
