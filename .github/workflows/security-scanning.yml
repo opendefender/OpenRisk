@@ -38,7 +38,8 @@ jobs:
           go-version: '1.26'
 
       - name: Gosec - Go Security
-        uses: securego/gosec@master
+        # Pinned by SHA (#818): @master ran whatever was pushed upstream last.
+        uses: securego/gosec@deb54465fea23d19a77f037e11e6589021f8501d # v2.29.0
         with:
           args: '-no-fail -fmt sarif -out gosec.sarif ./backend/...'
 
@@ -46,7 +47,7 @@ jobs:
       # turned this job red on every push to master. v3 is deprecated in
       # December 2026, so this goes straight to v4.
       - name: Upload Gosec report
-        uses: github/codeql-action/upload-sarif@v4
+        uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
         with:
           sarif_file: gosec.sarif
           category: gosec
