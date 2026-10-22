@@ -5,7 +5,82 @@ recommends, and surfaces these in the daily brief. Run `/decide` to clear them.
 
 ## Open
 
-### D-075 — Five paid plan lines the backend does not enforce: gate them, or stop selling them? · raised 2026-10-22
+### D-076 — Compliance tiers on hosted plans: define Basic → Custom, or drop the tiers? · raised 2026-10-22
+**Question** — `docs/PRICING.md` shows the Compliance row as Basic / Standard /
+Advanced / Custom across the hosted plans. `FeatCompliance` carries those levels
+in `backend/pkg/entitlements/entitlements.go`, but nothing reads them: no route
+and no use case behaves differently between Basic and Custom, and nowhere is it
+written what each tier contains. D-075 settled that plan gates differentiate
+hosted plans only; it did not say what these four tiers mean. Self-hosted is not
+affected either way: it gets every framework (D-040, D-075).
+
+**Options**
+- **A — Define per-tier content and enforce it on hosted plans.** For example a
+  number of frameworks a tenant can activate (Free 1, Pro 3, Business all,
+  Enterprise all plus custom frameworks), or which reports and exports each tier
+  unlocks. Needs a written definition, a use-case check on framework activation,
+  tests per tier, and a PRICING.md row that says it. M, after #612.
+- **B — Drop the tiers and include all frameworks on every hosted plan.** The
+  row becomes "included" in every column and the levels leave the matrix. S, no
+  dependency. Hosted plans then differ on the five D-075 lines, AI, TPRM, limits
+  and support, not on regulatory coverage.
+
+**Recommendation — B.** Regulatory depth for francophone Africa (COBAC,
+BCEAO-UEMOA, ANTIC-CM) is the main reason to choose OpenRisk over Archer or
+OneTrust; rationing frameworks on the Free plan hides the product's strongest
+argument from the people evaluating it. D-075 already gives hosted Pro and
+Business five more enforced lines on top of the five already gated, which is enough
+upgrade case. A also invents a framework count nobody has asked for. If the
+owner wants the tiers, A is honest too, but the content of each tier has to be
+written before any code.
+
+**Cost of delay** — the Compliance row of #783 cannot be specified, so the
+pricing page keeps a row that describes behaviour that does not exist, the same
+over-claim D-075 addresses. It does not block the five gates of D-075, which can
+ship without it.
+
+**Raised by** — #783 (left open by the D-075 ruling).
+
+
+## Resolved
+
+### D-075 — Five paid plan lines the backend does not enforce: gate them, or stop selling them? · decided 2026-10-22
+**Decided (owner)** — Model A, "par le service". In the owner's words, in order:
+1. "Je pense que celui qui self-host doit avoir tout gratuit et vu qu'il maintient lui, mais j'ai aussi envie de le pousser d'une certaine facon a aller sur le Saas, mais le self-host doit pouvoir etre vraiment un OpenSource"
+2. "J'aimerais qu'on puisse avoir des fonctionnalites mais limites qui encourageraient a passer sur le Saas"
+3. Offered four models (A: limits by hosted service only, code 100% AGPL, D-040 kept · A+B: plus a short commercial-licensed open-core list · B: broad open core · C: quotas coded into the AGPL edition), the owner picked **A**.
+
+**The rule** — Self-hosted is free, complete and fully AGPL; D-040 is confirmed.
+No licence keys, no coded quotas, no commercial module and no delayed features
+for self-host. The incentive to move to SaaS comes only from things the owner
+operates:
+- the AI advisor without the customer's own key (already D-040);
+- candidate hosted services: anonymised sector benchmarks, an external
+  attack-surface scan run from the owner's infrastructure, maintained
+  regulatory-watch updates, managed operations / backups / SLA.
+
+These candidates are **ideas, none built**. No code exists for any of them and
+none may be described as available (CLAUDE.md rule 12). They are tracked for
+refinement in a separate `status:needs-refinement` issue.
+
+**Reading applied** — the owner's words fix the self-hosted side; they do not
+say what separates Free from Pro and Business on the hosted service. The
+reading taken, as D-040 did for the AI row: plan gates (`RequireFeature`)
+differentiate **hosted plans only**. Option A of this item (gate automation,
+scanner, CTI, governance and SSO configuration on Pro / Business) applies to
+hosted tenants, and ships only after #612, so a self-hosted instance never hits
+a gate. If the owner meant something else, this row flips.
+
+**Not answered** — what each Compliance tier (Basic → Custom) contains on the
+hosted plans. Raised as D-076.
+
+**Consequence / Unblocked** — #783 can be refined: an ADR recording this
+decision comes next, then the criteria (gate the five features on hosted plans,
+frontend `FeatureGate`, one Free-refused / plan-allowed test per feature,
+`docs/PRICING.md` rewrite). #612 is a prerequisite for the implementation. The
+Compliance row of #783 waits on D-076.
+
+**Context, as raised**
 **Question** — `docs/PRICING.md` sells Automation (SOAR) and Infra scanner on Pro+,
 and Threat intel (CTI), Governance / approvals and SSO / SAML on Business+. The
 page also says "the backend enforces it". It does for five features only:
@@ -70,9 +145,6 @@ sign up on a grid that is not enforced, (a) stops being a fix and becomes taking
 something away from paying users.
 
 **Raised by** — #783 (found during #483, PR #753).
-
-
-## Resolved
 
 ### D-074 — Purge old password-reset rows that hold a plain SHA-256 of an address? · decided 2026-10-21
 **Decided (owner)** — Option B, and the same for the audit trail: the plain hashes written before #879 are removed from `auth_audit_logs` too, keeping the rows.
