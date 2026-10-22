@@ -462,6 +462,1003 @@ paths:
               schema:
                 $ref: '#/components/schemas/DisableMFAError'
 
+  # ==================== AUTHENTICATION (#1120) ====================
+  /auth/register:
+    post:
+      tags: [Authentication]
+      summary: Create an account and its organization
+      description: >-
+        Creates the user, a new organization they own and their root membership
+        in one transaction. No session is issued: the client signs in with
+        /auth/login afterwards. Rate limited per IP (10 per 15 minutes) and, for an
+        address that already has an account, per address (`REGISTER_RATE_LIMITED`).
+        A taken username is checked before the address, so the two 409 codes do
+        not reveal whether an address is registered.
+      operationId: register
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterInput'
+      responses:
+        '201':
+          description: Account and organization created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RegisterResponse'
+        '400':
+          description: "Malformed body, a missing field, or a password the policy refuses"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+        '409':
+          description: "`EMAIL_ALREADY_REGISTERED` or `USERNAME_TAKEN`"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+        '429':
+          description: "`RATE_LIMITED` (per IP) or `REGISTER_RATE_LIMITED` (per address); both set Retry-After"
+          headers:
+            Retry-After:
+              schema: { type: integer }
+              description: Seconds to wait
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/RateLimitedError'
+                  - $ref: '#/components/schemas/AuthError'
+        '500':
+          description: Registration failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+
+  /auth/refresh:
+    post:
+      tags: [Authentication]
+      summary: Rotate the session's token pair
+      description: >-
+        Takes the refresh token from the body or, for a browser client that sends
+        no body, from the session cookie. Rotation is single-use: the presented
+        token is destroyed and new session cookies are set with a fresh CSRF token.
+        Presenting a token that was already rotated revokes the whole session
+        family, clears the cookies and answers `REFRESH_REUSE_DETECTED`. A
+        concurrent refresh inside the grace window gets the same successor
+        instead (D-048). The device fingerprint may also come from the
+        X-Device-Fingerprint header.
+      operationId: refreshToken
+      security: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                refresh_token: { type: string }
+                device_fingerprint: { type: string }
+      responses:
+        '200':
+          description: New token pair; session cookies re-issued
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [token_pair]
+                properties:
+                  token_pair:
+                    $ref: '#/components/schemas/TokenPair'
+                  csrf_token:
+                    type: string
+                    description: Mirrors the refreshed or_csrf cookie
+        '400':
+          description: No refresh token anywhere and an unparseable body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+        '401':
+          description: "Refresh failed, or `REFRESH_REUSE_DETECTED` (the session family is revoked)"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+        '500':
+          description: The session cookies could not be issued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+
+  /auth/logout:
+    post:
+      tags: [Authentication]
+      summary: End the current session
+      description: >-
+        Clears the session cookies first, whatever happens next. Then revokes the
+        refresh token (from the body or the cookie) and, when a validly signed
+        access token is presented (Authorization header or cookie), blacklists its
+        JTI and ends the session it names. With nothing to revoke it still answers
+        200 "Logged out". A missing or forged access token is not an error; there
+        is just nothing to revoke.
+      operationId: logout
+      security: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                refresh_token: { type: string }
+      responses:
+        '200':
+          description: Logged out
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: { type: string }
+        '401':
+          description: Revocation failed (the cookies are cleared anyway)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+
+  /auth/password/forgot:
+    post:
+      tags: [Authentication]
+      summary: Request a password reset link
+      description: >-
+        The answer is identical, in status and body, whether or not the address
+        has an account, and the mail is sent asynchronously so latency does not
+        tell either. Limited per address (counted for unknown addresses too, so
+        the 429 reveals nothing) and per IP (15 per 5 minutes, shared with
+        /auth/password/reset). The link expires in 30 minutes. Messages follow
+        `locale`, then Accept-Language, then French.
+      operationId: forgotPassword
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email: { type: string, format: email }
+                locale: { type: string, enum: [fr, en] }
+      responses:
+        '200':
+          description: The uniform acknowledgement
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: { type: string }
+        '400':
+          description: Malformed body or no email
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+        '429':
+          description: "Too many requests for this address (`retry_after` in seconds), or the per-IP limit (`RATE_LIMITED`)"
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/RateLimitedError'
+                  - type: object
+                    properties:
+                      error: { type: string }
+                      retry_after: { type: integer }
+        '500':
+          description: Generic failure
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+
+  /auth/password/reset:
+    post:
+      tags: [Authentication]
+      summary: Set a new password from a reset link
+      description: >-
+        One answer (`invalid_token`) covers an unknown, expired or already-used
+        token, so a response never confirms that a token existed. A password the
+        policy refuses answers 422 `weak_password` with the full assessment. On
+        success every active session of the account is signed out.
+      operationId: resetPassword
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token, new_password]
+              properties:
+                token: { type: string }
+                new_password: { type: string, format: password }
+                locale: { type: string, enum: [fr, en] }
+      responses:
+        '200':
+          description: Password changed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: { type: string }
+                  sessions_revoked: { type: integer }
+        '400':
+          description: "Malformed body, or `invalid_token`"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+        '422':
+          description: "`weak_password`"
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error: { type: string }
+                  code: { type: string, enum: [weak_password] }
+                  assessment:
+                    $ref: '#/components/schemas/PasswordAssessment'
+        '429':
+          description: "`RATE_LIMITED` (per IP, shared with /auth/password/forgot)"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RateLimitedError'
+        '500':
+          description: Generic failure
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+
+  /auth/password/check:
+    post:
+      tags: [Authentication]
+      summary: Score a candidate password against the policy
+      description: >-
+        The same policy the write paths enforce, so the strength meter cannot
+        disagree with the server. Public because the registration and reset
+        screens have no session; it discloses nothing the caller did not type.
+        `email` and `name` let it judge the password against the identity it will
+        belong to. Limited to 120 per 5 minutes per IP.
+      operationId: checkPassword
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                password: { type: string, format: password }
+                email: { type: string, format: email }
+                name: { type: string }
+      responses:
+        '200':
+          description: The assessment
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PasswordAssessment'
+        '400':
+          description: Malformed body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+        '429':
+          description: "`RATE_LIMITED`"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RateLimitedError'
+
+  /auth/oauth2/login/{provider}:
+    get:
+      tags: [Authentication]
+      summary: Start an OAuth2 sign-in
+      description: >-
+        A browser navigation, not an API call: it answers 302 to the provider with
+        `state` and a PKCE challenge, and sets a cookie that binds the callback to
+        this browser. Every failure is a 302 to the SPA's /login with an `error`
+        code (`unsupported_provider`, `provider_not_configured`, `internal`) that
+        the login screen renders. `return_to` is kept only when it is a
+        root-relative path on this site.
+      operationId: oauth2Login
+      security: []
+      parameters:
+        - name: provider
+          in: path
+          required: true
+          schema: { type: string, enum: [google, github, azure] }
+        - name: return_to
+          in: query
+          required: false
+          schema: { type: string }
+          description: Root-relative path to land on after sign-in
+        - name: lang
+          in: query
+          required: false
+          schema: { type: string, enum: [fr, en] }
+      responses:
+        '302':
+          description: To the provider, or to /login?error=... on failure
+          headers:
+            Location:
+              schema: { type: string }
+
+  /auth/oauth2/callback/{provider}:
+    get:
+      tags: [Authentication]
+      summary: Finish an OAuth2 sign-in
+      description: >-
+        The provider's redirect back. The state cookie is checked and cleared
+        first, so a flow gets one try. On success the session cookies are set and
+        the browser is sent to the SPA's SSO completion page (with `next` when a
+        safe `return_to` was given). Every failure is a 302 to /login with an
+        `error` code: `access_denied`, `consent_required`, `provider_error`,
+        `state_missing`, `state_invalid`, `code_missing`, `unsupported_provider`,
+        `exchange_failed`, `userinfo_failed`, `email_unverified`, `no_email`,
+        `account_disabled`, `no_account`, `internal`, or `provider_conflict` with
+        `existing_provider` naming the provider that already owns the address.
+      operationId: oauth2Callback
+      security: []
+      parameters:
+        - name: provider
+          in: path
+          required: true
+          schema: { type: string, enum: [google, github, azure] }
+        - name: state
+          in: query
+          required: false
+          schema: { type: string }
+        - name: code
+          in: query
+          required: false
+          schema: { type: string }
+        - name: error
+          in: query
+          required: false
+          schema: { type: string }
+          description: Set by the provider when it failed the flow
+      responses:
+        '302':
+          description: To the SPA's SSO completion page, or to /login?error=...
+          headers:
+            Location:
+              schema: { type: string }
+
+  /auth/saml2/login:
+    get:
+      tags: [Authentication]
+      summary: Start a SAML sign-in (disabled)
+      description: >-
+        SAML sign-in is turned off (#866). Every request is answered with a 302 to
+        /login?error=provider_not_configured&provider=saml2.
+      operationId: saml2Login
+      security: []
+      responses:
+        '302':
+          description: To /login with `error=provider_not_configured`
+          headers:
+            Location:
+              schema: { type: string }
+
+  /auth/saml2/acs:
+    post:
+      tags: [Authentication]
+      summary: SAML assertion consumer service (disabled)
+      description: >-
+        Refuses every assertion, well-formed or not (#866). It creates no user and
+        no session, and answers a 302 to
+        /login?error=provider_not_configured&provider=saml2.
+      operationId: saml2Acs
+      security: []
+      responses:
+        '302':
+          description: To /login with `error=provider_not_configured`
+          headers:
+            Location:
+              schema: { type: string }
+
+  /auth/saml2/metadata:
+    get:
+      tags: [Authentication]
+      summary: SAML service provider metadata
+      description: >-
+        Built from SAML2_SP_ENTITY_ID and SAML2_ACS_URL. Served even though SAML
+        sign-in is disabled (#866).
+      operationId: saml2Metadata
+      security: []
+      responses:
+        '200':
+          description: The EntityDescriptor
+          content:
+            application/xml:
+              schema: { type: string }
+        '400':
+          description: SAML2_SP_ENTITY_ID or SAML2_ACS_URL is not set
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+
+  /auth/mfa/challenge:
+    post:
+      tags: [Authentication]
+      summary: "Second sign-in leg: prove the second factor"
+      description: >-
+        Takes the short-lived MFA_REQUIRED token that /auth/login returns to an
+        account with MFA, in the Authorization header (Bearer). A full access
+        token is refused. On a valid TOTP or backup code it mints the real session:
+        the same body and cookies as a password-only login, plus the
+        trusted-device cookie. Limited per IP (20 per 5 minutes), per challenge
+        token (`MFA_CHALLENGE_EXHAUSTED`: sign in again) and per account
+        (`MFA_LOCKED`, with Retry-After).
+      operationId: mfaChallenge
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code]
+              properties:
+                code: { type: string, description: TOTP or backup code }
+                device_fingerprint: { type: string }
+      responses:
+        '200':
+          description: Session issued; session cookies set
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionIssued'
+        '400':
+          description: Malformed body, no code, or a wrong code
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+        '401':
+          description: "No or invalid MFA token (`code`/`message` body), or `MFA_CHALLENGE_EXHAUSTED`"
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/TokenError'
+                  - $ref: '#/components/schemas/AuthError'
+        '404':
+          description: The account has no MFA secret
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+        '429':
+          description: "`RATE_LIMITED` (per IP) or `MFA_LOCKED` (per account, with Retry-After)"
+          headers:
+            Retry-After:
+              schema: { type: integer }
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/RateLimitedError'
+                  - $ref: '#/components/schemas/AuthError'
+        '500':
+          description: The session could not be issued
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+
+  /auth/mfa/setup:
+    post:
+      tags: [Authentication]
+      summary: Begin MFA enrolment
+      description: >-
+        Accepts a full access token (voluntary enrolment from Settings) or the
+        MFA_ENROLLMENT token /auth/login returns to an account whose role mandates
+        MFA. MFA_REQUIRED is refused, so a stolen password cannot replace an
+        existing authenticator. A cookie session must pass the CSRF check. Returns
+        the TOTP secret, a QR code and 8 backup codes; MFA is not active until
+        /auth/mfa/verify succeeds.
+      operationId: mfaSetup
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Enrolment material
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  secret: { type: string, description: Base32 TOTP secret }
+                  qr_code: { type: string, description: Base64-encoded image }
+                  backup_codes: { type: array, items: { type: string } }
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+        '401':
+          description: No token, an invalid token or a token type not accepted here
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/TokenError'
+                  - $ref: '#/components/schemas/AuthError'
+        '403':
+          description: "`CSRF_FAILED` on a cookie session"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenError'
+        '409':
+          description: MFA is already enabled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+        '429':
+          description: Tenant rate limit
+        '500':
+          description: Server fault
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+
+  /auth/mfa/verify:
+    post:
+      tags: [Authentication]
+      summary: Confirm a TOTP code and turn MFA on
+      description: >-
+        Same tokens as /auth/mfa/setup. With a full access token the session is
+        kept and the body is `{verified, message}`. With an MFA_ENROLLMENT token
+        the caller had no session yet: the sign-in is completed here, so the body
+        is the issued session and the session cookies are set.
+      operationId: mfaVerify
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code]
+              properties:
+                code: { type: string }
+      responses:
+        '200':
+          description: MFA enabled
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: object
+                    properties:
+                      verified: { type: boolean }
+                      message: { type: string }
+                  - $ref: '#/components/schemas/SessionIssued'
+        '400':
+          description: Malformed body, no code, or an invalid TOTP code
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+        '401':
+          description: No token, an invalid token or a token type not accepted here
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/TokenError'
+                  - $ref: '#/components/schemas/AuthError'
+        '403':
+          description: "`CSRF_FAILED` on a cookie session"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenError'
+        '404':
+          description: No enrolment in progress (call /auth/mfa/setup first)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+        '429':
+          description: Tenant rate limit
+        '500':
+          description: Server fault
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+
+  /auth/sessions:
+    get:
+      tags: [Authentication]
+      summary: List the devices signed in to the caller's account
+      description: >-
+        `current` marks the session making the request, identified from the
+        access token's session, or from the refresh cookie or the X-Refresh-Token
+        header.
+      operationId: listSessions
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: The caller's sessions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  sessions: { type: array, items: { $ref: '#/components/schemas/SessionRecord' } }
+                  total: { type: integer }
+        '401':
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/TokenError'
+                  - $ref: '#/components/schemas/AuthError'
+        '500':
+          description: Failed to list sessions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+
+  /auth/sessions/others:
+    delete:
+      tags: [Authentication]
+      summary: Sign out every other device
+      description: >-
+        Keeps the caller's own session. Every trusted device is untrusted with the
+        sessions; the calling device keeps its trust only if it already had it.
+        Refused to a personal access token, which names no session. When the
+        caller's own session ended too, `reauthenticate` is true and the session
+        cookies are cleared. A session that was already signed out answers 401.
+      operationId: revokeOtherSessions
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Other sessions revoked
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  revoked: { type: integer }
+                  reauthenticate: { type: boolean }
+        '401':
+          description: Not authenticated, or the calling session has been signed out
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/TokenError'
+                  - $ref: '#/components/schemas/AuthError'
+        '403':
+          description: Called with a personal access token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+        '500':
+          description: Failed to revoke sessions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+
+  /auth/sessions/{id}:
+    delete:
+      tags: [Authentication]
+      summary: Sign one device out
+      description: >-
+        Scoped to the caller's own sessions. Another account's session id answers
+        404, the same as an unknown one, so ids cannot be probed.
+      operationId: revokeSession
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '204':
+          description: Session revoked
+        '400':
+          description: The id is not a UUID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+        '401':
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/TokenError'
+                  - $ref: '#/components/schemas/AuthError'
+        '404':
+          description: No such session for this account
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+        '500':
+          description: Failed to revoke the session
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+
+  /auth/organizations:
+    get:
+      tags: [Authentication]
+      summary: List the organizations the caller may switch into
+      description: The caller's active memberships.
+      operationId: listMyOrganizations
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: The memberships
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  organizations: { type: array, items: { $ref: '#/components/schemas/MembershipSummary' } }
+                  total: { type: integer }
+        '401':
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/TokenError'
+                  - $ref: '#/components/schemas/AuthError'
+        '500':
+          description: Failed to list organizations
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+
+  /auth/switch-org:
+    post:
+      tags: [Authentication]
+      summary: Switch the session to another organization
+      description: >-
+        The server re-checks active membership of the target organization before
+        minting anything, so editing a tenant id in a token, cookie or body cannot
+        move a user. A non-member and a deactivated member get the same 403. On
+        success new session cookies scoped to the target organization are set.
+      operationId: switchOrganization
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [organization_id]
+              properties:
+                organization_id: { type: string, format: uuid }
+      responses:
+        '200':
+          description: A session in the target organization
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token_pair: { $ref: '#/components/schemas/TokenPair' }
+                  organization: { $ref: '#/components/schemas/Organization' }
+                  role: { $ref: '#/components/schemas/MemberRole' }
+                  business_role: { type: string }
+                  csrf_token: { type: string }
+        '400':
+          description: Malformed body or an invalid organization id
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+        '401':
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/TokenError'
+                  - $ref: '#/components/schemas/AuthError'
+        '403':
+          description: Not an active member of the target organization
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+        '500':
+          description: The switch or the session cookies failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+
+  /auth/pat:
+    post:
+      tags: [Authentication]
+      summary: Create a personal access token
+      description: >-
+        For the caller, in the current organization. The raw `token` is returned
+        once, here, and never again. A personal access token cannot create
+        another one. Without `expires_in_days` (or with 0) the token does not
+        expire.
+      operationId: createPersonalAccessToken
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, scopes]
+              properties:
+                name: { type: string }
+                description: { type: string }
+                scopes: { type: array, minItems: 1, items: { type: string } }
+                expires_in_days: { type: integer }
+      responses:
+        '201':
+          description: Token created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id: { type: string, format: uuid }
+                  name: { type: string }
+                  token_prefix: { type: string }
+                  scopes: { type: array, items: { type: string } }
+                  expires_at: { type: [string, 'null'], format: date-time }
+                  created_at: { type: string, format: date-time }
+                  token: { type: string, description: The raw token. Shown only in this response. }
+        '400':
+          description: Malformed body, no name, or no scope
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+        '401':
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/TokenError'
+                  - $ref: '#/components/schemas/AuthError'
+        '403':
+          description: Called with a personal access token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+        '500':
+          description: Failed to create the token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+    get:
+      tags: [Authentication]
+      summary: List the caller's personal access tokens
+      description: Tokens the caller created in the current organization. Metadata only, never the secret.
+      operationId: listPersonalAccessTokens
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: The tokens
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  tokens: { type: array, items: { $ref: '#/components/schemas/PersonalAccessToken' } }
+        '401':
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/TokenError'
+                  - $ref: '#/components/schemas/AuthError'
+        '500':
+          description: Failed to list tokens
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+
+  /auth/pat/{id}:
+    delete:
+      tags: [Authentication]
+      summary: Revoke one of the caller's personal access tokens
+      operationId: revokePersonalAccessToken
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '204':
+          description: Token revoked
+        '400':
+          description: The id is not a UUID
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+        '401':
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/TokenError'
+                  - $ref: '#/components/schemas/AuthError'
+        '404':
+          description: No such token for this caller in this organization
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+        '500':
+          description: Failed to revoke the token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
+
   # ==================== ORGANIZATION ====================
   /organization:
     get:
@@ -6657,3 +7654,190 @@ components:
           example: 400
         details:
           type: object
+
+    # ========== AUTHENTICATION (#1120) ==========
+    AuthError:
+      type: object
+      description: The error body the authentication handlers send.
+      required: [error]
+      properties:
+        error: { type: string, description: Human-readable message }
+        code: { type: string, description: "Machine-readable code, when the handler sets one" }
+        retry_after: { type: integer, description: "Seconds to wait, on a 429" }
+
+    RateLimitedError:
+      type: object
+      description: Sent by the per-IP rate limiter, alongside a Retry-After header.
+      properties:
+        error: { type: boolean, enum: [true] }
+        msg: { type: string }
+        code: { type: string, enum: [RATE_LIMITED] }
+        retry_after: { type: integer, description: Seconds }
+
+    TokenPair:
+      type: object
+      properties:
+        access_token: { type: string }
+        refresh_token: { type: string }
+        expires_in: { type: integer, description: Access token lifetime in seconds }
+        token_type: { type: string, example: Bearer }
+
+    RegisterInput:
+      type: object
+      required: [email, password, full_name, company_name]
+      properties:
+        email: { type: string, format: email }
+        username:
+          type: string
+          minLength: 3
+          maxLength: 50
+          description: Optional. Left empty, the server derives a free one.
+        password: { type: string, format: password, description: Must pass the password policy }
+        full_name: { type: string }
+        company_name: { type: string }
+        locale: { type: string, enum: [fr, en] }
+
+    RegisterResponse:
+      type: object
+      properties:
+        user:
+          $ref: '#/components/schemas/UserAccount'
+        organization:
+          $ref: '#/components/schemas/Organization'
+        message: { type: string }
+
+    UserAccount:
+      type: object
+      description: A user as domain.User serialises it. The password hash is never included.
+      properties:
+        id: { type: string, format: uuid }
+        email: { type: string, format: email }
+        username: { type: string }
+        full_name: { type: string }
+        bio: { type: string }
+        phone: { type: string }
+        department: { type: string }
+        timezone: { type: string }
+        role_id: { type: string, format: uuid }
+        role:
+          type: object
+          properties:
+            id: { type: string, format: uuid }
+            name: { type: string }
+            description: { type: string }
+            permissions: { type: array, items: { type: string } }
+            created_at: { type: string, format: date-time }
+            updated_at: { type: string, format: date-time }
+        is_active: { type: boolean }
+        avatar_url: { type: string }
+        locale: { type: string }
+        date_format: { type: string }
+        theme_mode: { type: string }
+        last_login: { type: string, format: date-time }
+        tenant_id: { type: string, format: uuid }
+        default_org_id: { type: string, format: uuid }
+        created_by_id: { type: string, format: uuid }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    Organization:
+      type: object
+      description: An organization as domain.Organization serialises it.
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        slug: { type: string }
+        logo_url: { type: string }
+        industry: { type: string }
+        size: { type: string, enum: ['1-50', '51-200', '201-1000', '1000+'] }
+        plan: { type: string, enum: [free, starter, professional, enterprise] }
+        owner_id: { type: string, format: uuid }
+        is_active: { type: boolean }
+        settings: { type: object }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    PasswordReason:
+      type: object
+      properties:
+        code: { type: string }
+        fr: { type: string }
+        en: { type: string }
+
+    PasswordAssessment:
+      type: object
+      description: The password policy's verdict. `ok` alone decides acceptance.
+      properties:
+        ok: { type: boolean }
+        score: { type: integer, minimum: 0, maximum: 4, description: zxcvbn score }
+        min_score: { type: integer }
+        length: { type: integer, description: Length in characters }
+        breached: { type: boolean, description: Found in the HaveIBeenPwned corpus }
+        breach_count: { type: integer }
+        breach_check_skipped: { type: boolean, description: The corpus could not be consulted }
+        blocking: { type: array, items: { $ref: '#/components/schemas/PasswordReason' } }
+        advisory: { type: array, items: { $ref: '#/components/schemas/PasswordReason' } }
+
+    TokenError:
+      type: object
+      description: The error body the token middlewares send.
+      properties:
+        code: { type: string, example: TOKEN_INVALID }
+        message: { type: string }
+
+    SessionIssued:
+      type: object
+      description: >-
+        A freshly issued session, as the second-factor legs return it. The same
+        shape as the /auth/login response: `user` and `organization` are sent as
+        null, and only the pair and the CSRF token are set.
+      properties:
+        user: { type: 'null' }
+        organization: { type: 'null' }
+        token_pair:
+          $ref: '#/components/schemas/TokenPair'
+        csrf_token:
+          type: string
+          description: Mirrors the readable or_csrf cookie
+
+    SessionRecord:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        device: { type: string, description: Coarse label such as "Chrome on Windows" }
+        user_agent: { type: string }
+        ip_address: { type: string }
+        created_at: { type: string, format: date-time }
+        last_used_at: { type: string, format: date-time }
+        expires_at: { type: string, format: date-time }
+        current: { type: boolean, description: The session making the request }
+
+    MemberRole:
+      type: string
+      enum: [root, admin, user]
+
+    MembershipSummary:
+      type: object
+      properties:
+        organization_id: { type: string, format: uuid }
+        name: { type: string }
+        slug: { type: string }
+        role: { $ref: '#/components/schemas/MemberRole' }
+        business_role: { type: string, description: GRC job-role preset; absent for root and admin }
+        is_default: { type: boolean }
+
+    PersonalAccessToken:
+      type: object
+      description: Token metadata. The secret is never included.
+      properties:
+        id: { type: string, format: uuid }
+        user_id: { type: string, format: uuid }
+        tenant_id: { type: string, format: uuid }
+        name: { type: string }
+        description: { type: string }
+        token_prefix: { type: string }
+        scopes: { type: array, items: { type: string } }
+        expires_at: { type: string, format: date-time }
+        last_used_at: { type: string, format: date-time }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }

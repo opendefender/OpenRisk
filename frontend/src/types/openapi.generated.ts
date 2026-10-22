@@ -181,6 +181,427 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/auth/register": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create an account and its organization
+         * @description Creates the user, a new organization they own and their root membership in one transaction. No session is issued: the client signs in with /auth/login afterwards. Rate limited per IP (10 per 15 minutes) and, for an address that already has an account, per address (`REGISTER_RATE_LIMITED`). A taken username is checked before the address, so the two 409 codes do not reveal whether an address is registered.
+         */
+        post: operations["register"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/refresh": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Rotate the session's token pair
+         * @description Takes the refresh token from the body or, for a browser client that sends no body, from the session cookie. Rotation is single-use: the presented token is destroyed and new session cookies are set with a fresh CSRF token. Presenting a token that was already rotated revokes the whole session family, clears the cookies and answers `REFRESH_REUSE_DETECTED`. A concurrent refresh inside the grace window gets the same successor instead (D-048). The device fingerprint may also come from the X-Device-Fingerprint header.
+         */
+        post: operations["refreshToken"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/logout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * End the current session
+         * @description Clears the session cookies first, whatever happens next. Then revokes the refresh token (from the body or the cookie) and, when a validly signed access token is presented (Authorization header or cookie), blacklists its JTI and ends the session it names. With nothing to revoke it still answers 200 "Logged out". A missing or forged access token is not an error; there is just nothing to revoke.
+         */
+        post: operations["logout"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/password/forgot": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Request a password reset link
+         * @description The answer is identical, in status and body, whether or not the address has an account, and the mail is sent asynchronously so latency does not tell either. Limited per address (counted for unknown addresses too, so the 429 reveals nothing) and per IP (15 per 5 minutes, shared with /auth/password/reset). The link expires in 30 minutes. Messages follow `locale`, then Accept-Language, then French.
+         */
+        post: operations["forgotPassword"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/password/reset": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Set a new password from a reset link
+         * @description One answer (`invalid_token`) covers an unknown, expired or already-used token, so a response never confirms that a token existed. A password the policy refuses answers 422 `weak_password` with the full assessment. On success every active session of the account is signed out.
+         */
+        post: operations["resetPassword"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/password/check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Score a candidate password against the policy
+         * @description The same policy the write paths enforce, so the strength meter cannot disagree with the server. Public because the registration and reset screens have no session; it discloses nothing the caller did not type. `email` and `name` let it judge the password against the identity it will belong to. Limited to 120 per 5 minutes per IP.
+         */
+        post: operations["checkPassword"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/oauth2/login/{provider}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Start an OAuth2 sign-in
+         * @description A browser navigation, not an API call: it answers 302 to the provider with `state` and a PKCE challenge, and sets a cookie that binds the callback to this browser. Every failure is a 302 to the SPA's /login with an `error` code (`unsupported_provider`, `provider_not_configured`, `internal`) that the login screen renders. `return_to` is kept only when it is a root-relative path on this site.
+         */
+        get: operations["oauth2Login"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/oauth2/callback/{provider}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Finish an OAuth2 sign-in
+         * @description The provider's redirect back. The state cookie is checked and cleared first, so a flow gets one try. On success the session cookies are set and the browser is sent to the SPA's SSO completion page (with `next` when a safe `return_to` was given). Every failure is a 302 to /login with an `error` code: `access_denied`, `consent_required`, `provider_error`, `state_missing`, `state_invalid`, `code_missing`, `unsupported_provider`, `exchange_failed`, `userinfo_failed`, `email_unverified`, `no_email`, `account_disabled`, `no_account`, `internal`, or `provider_conflict` with `existing_provider` naming the provider that already owns the address.
+         */
+        get: operations["oauth2Callback"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/saml2/login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Start a SAML sign-in (disabled)
+         * @description SAML sign-in is turned off (#866). Every request is answered with a 302 to /login?error=provider_not_configured&provider=saml2.
+         */
+        get: operations["saml2Login"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/saml2/acs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * SAML assertion consumer service (disabled)
+         * @description Refuses every assertion, well-formed or not (#866). It creates no user and no session, and answers a 302 to /login?error=provider_not_configured&provider=saml2.
+         */
+        post: operations["saml2Acs"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/saml2/metadata": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * SAML service provider metadata
+         * @description Built from SAML2_SP_ENTITY_ID and SAML2_ACS_URL. Served even though SAML sign-in is disabled (#866).
+         */
+        get: operations["saml2Metadata"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/mfa/challenge": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Second sign-in leg: prove the second factor
+         * @description Takes the short-lived MFA_REQUIRED token that /auth/login returns to an account with MFA, in the Authorization header (Bearer). A full access token is refused. On a valid TOTP or backup code it mints the real session: the same body and cookies as a password-only login, plus the trusted-device cookie. Limited per IP (20 per 5 minutes), per challenge token (`MFA_CHALLENGE_EXHAUSTED`: sign in again) and per account (`MFA_LOCKED`, with Retry-After).
+         */
+        post: operations["mfaChallenge"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/mfa/setup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Begin MFA enrolment
+         * @description Accepts a full access token (voluntary enrolment from Settings) or the MFA_ENROLLMENT token /auth/login returns to an account whose role mandates MFA. MFA_REQUIRED is refused, so a stolen password cannot replace an existing authenticator. A cookie session must pass the CSRF check. Returns the TOTP secret, a QR code and 8 backup codes; MFA is not active until /auth/mfa/verify succeeds.
+         */
+        post: operations["mfaSetup"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/mfa/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Confirm a TOTP code and turn MFA on
+         * @description Same tokens as /auth/mfa/setup. With a full access token the session is kept and the body is `{verified, message}`. With an MFA_ENROLLMENT token the caller had no session yet: the sign-in is completed here, so the body is the issued session and the session cookies are set.
+         */
+        post: operations["mfaVerify"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/sessions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the devices signed in to the caller's account
+         * @description `current` marks the session making the request, identified from the access token's session, or from the refresh cookie or the X-Refresh-Token header.
+         */
+        get: operations["listSessions"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/sessions/others": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Sign out every other device
+         * @description Keeps the caller's own session. Every trusted device is untrusted with the sessions; the calling device keeps its trust only if it already had it. Refused to a personal access token, which names no session. When the caller's own session ended too, `reauthenticate` is true and the session cookies are cleared. A session that was already signed out answers 401.
+         */
+        delete: operations["revokeOtherSessions"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/sessions/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Sign one device out
+         * @description Scoped to the caller's own sessions. Another account's session id answers 404, the same as an unknown one, so ids cannot be probed.
+         */
+        delete: operations["revokeSession"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/organizations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the organizations the caller may switch into
+         * @description The caller's active memberships.
+         */
+        get: operations["listMyOrganizations"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/switch-org": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Switch the session to another organization
+         * @description The server re-checks active membership of the target organization before minting anything, so editing a tenant id in a token, cookie or body cannot move a user. A non-member and a deactivated member get the same 403. On success new session cookies scoped to the target organization are set.
+         */
+        post: operations["switchOrganization"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/pat": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the caller's personal access tokens
+         * @description Tokens the caller created in the current organization. Metadata only, never the secret.
+         */
+        get: operations["listPersonalAccessTokens"];
+        put?: never;
+        /**
+         * Create a personal access token
+         * @description For the caller, in the current organization. The raw `token` is returned once, here, and never again. A personal access token cannot create another one. Without `expires_in_days` (or with 0) the token does not expire.
+         */
+        post: operations["createPersonalAccessToken"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/pat/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Revoke one of the caller's personal access tokens */
+        delete: operations["revokePersonalAccessToken"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/organization": {
         parameters: {
             query?: never;
@@ -3819,6 +4240,201 @@ export interface components {
             code?: number;
             details?: Record<string, never>;
         };
+        /** @description The error body the authentication handlers send. */
+        AuthError: {
+            /** @description Human-readable message */
+            error: string;
+            /** @description Machine-readable code, when the handler sets one */
+            code?: string;
+            /** @description Seconds to wait, on a 429 */
+            retry_after?: number;
+        };
+        /** @description Sent by the per-IP rate limiter, alongside a Retry-After header. */
+        RateLimitedError: {
+            /** @enum {boolean} */
+            error?: true;
+            msg?: string;
+            /** @enum {string} */
+            code?: "RATE_LIMITED";
+            /** @description Seconds */
+            retry_after?: number;
+        };
+        TokenPair: {
+            access_token?: string;
+            refresh_token?: string;
+            /** @description Access token lifetime in seconds */
+            expires_in?: number;
+            /** @example Bearer */
+            token_type?: string;
+        };
+        RegisterInput: {
+            /** Format: email */
+            email: string;
+            /** @description Optional. Left empty, the server derives a free one. */
+            username?: string;
+            /**
+             * Format: password
+             * @description Must pass the password policy
+             */
+            password: string;
+            full_name: string;
+            company_name: string;
+            /** @enum {string} */
+            locale?: "fr" | "en";
+        };
+        RegisterResponse: {
+            user?: components["schemas"]["UserAccount"];
+            organization?: components["schemas"]["Organization"];
+            message?: string;
+        };
+        /** @description A user as domain.User serialises it. The password hash is never included. */
+        UserAccount: {
+            /** Format: uuid */
+            id?: string;
+            /** Format: email */
+            email?: string;
+            username?: string;
+            full_name?: string;
+            bio?: string;
+            phone?: string;
+            department?: string;
+            timezone?: string;
+            /** Format: uuid */
+            role_id?: string;
+            role?: {
+                /** Format: uuid */
+                id?: string;
+                name?: string;
+                description?: string;
+                permissions?: string[];
+                /** Format: date-time */
+                created_at?: string;
+                /** Format: date-time */
+                updated_at?: string;
+            };
+            is_active?: boolean;
+            avatar_url?: string;
+            locale?: string;
+            date_format?: string;
+            theme_mode?: string;
+            /** Format: date-time */
+            last_login?: string;
+            /** Format: uuid */
+            tenant_id?: string;
+            /** Format: uuid */
+            default_org_id?: string;
+            /** Format: uuid */
+            created_by_id?: string;
+            /** Format: date-time */
+            created_at?: string;
+            /** Format: date-time */
+            updated_at?: string;
+        };
+        /** @description An organization as domain.Organization serialises it. */
+        Organization: {
+            /** Format: uuid */
+            id?: string;
+            name?: string;
+            slug?: string;
+            logo_url?: string;
+            industry?: string;
+            /** @enum {string} */
+            size?: "1-50" | "51-200" | "201-1000" | "1000+";
+            /** @enum {string} */
+            plan?: "free" | "starter" | "professional" | "enterprise";
+            /** Format: uuid */
+            owner_id?: string;
+            is_active?: boolean;
+            settings?: Record<string, never>;
+            /** Format: date-time */
+            created_at?: string;
+            /** Format: date-time */
+            updated_at?: string;
+        };
+        PasswordReason: {
+            code?: string;
+            fr?: string;
+            en?: string;
+        };
+        /** @description The password policy's verdict. `ok` alone decides acceptance. */
+        PasswordAssessment: {
+            ok?: boolean;
+            /** @description zxcvbn score */
+            score?: number;
+            min_score?: number;
+            /** @description Length in characters */
+            length?: number;
+            /** @description Found in the HaveIBeenPwned corpus */
+            breached?: boolean;
+            breach_count?: number;
+            /** @description The corpus could not be consulted */
+            breach_check_skipped?: boolean;
+            blocking?: components["schemas"]["PasswordReason"][];
+            advisory?: components["schemas"]["PasswordReason"][];
+        };
+        /** @description The error body the token middlewares send. */
+        TokenError: {
+            /** @example TOKEN_INVALID */
+            code?: string;
+            message?: string;
+        };
+        /** @description A freshly issued session, as the second-factor legs return it. The same shape as the /auth/login response: `user` and `organization` are sent as null, and only the pair and the CSRF token are set. */
+        SessionIssued: {
+            user?: null;
+            organization?: null;
+            token_pair?: components["schemas"]["TokenPair"];
+            /** @description Mirrors the readable or_csrf cookie */
+            csrf_token?: string;
+        };
+        SessionRecord: {
+            /** Format: uuid */
+            id?: string;
+            /** @description Coarse label such as "Chrome on Windows" */
+            device?: string;
+            user_agent?: string;
+            ip_address?: string;
+            /** Format: date-time */
+            created_at?: string;
+            /** Format: date-time */
+            last_used_at?: string;
+            /** Format: date-time */
+            expires_at?: string;
+            /** @description The session making the request */
+            current?: boolean;
+        };
+        /** @enum {string} */
+        MemberRole: "root" | "admin" | "user";
+        MembershipSummary: {
+            /** Format: uuid */
+            organization_id?: string;
+            name?: string;
+            slug?: string;
+            role?: components["schemas"]["MemberRole"];
+            /** @description GRC job-role preset; absent for root and admin */
+            business_role?: string;
+            is_default?: boolean;
+        };
+        /** @description Token metadata. The secret is never included. */
+        PersonalAccessToken: {
+            /** Format: uuid */
+            id?: string;
+            /** Format: uuid */
+            user_id?: string;
+            /** Format: uuid */
+            tenant_id?: string;
+            name?: string;
+            description?: string;
+            token_prefix?: string;
+            scopes?: string[];
+            /** Format: date-time */
+            expires_at?: string;
+            /** Format: date-time */
+            last_used_at?: string;
+            /** Format: date-time */
+            created_at?: string;
+            /** Format: date-time */
+            updated_at?: string;
+        };
     };
     responses: never;
     parameters: {
@@ -4341,6 +4957,1127 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DisableMFAError"];
+                };
+            };
+        };
+    };
+    register: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RegisterInput"];
+            };
+        };
+        responses: {
+            /** @description Account and organization created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RegisterResponse"];
+                };
+            };
+            /** @description Malformed body, a missing field, or a password the policy refuses */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthError"];
+                };
+            };
+            /** @description `EMAIL_ALREADY_REGISTERED` or `USERNAME_TAKEN` */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthError"];
+                };
+            };
+            /** @description `RATE_LIMITED` (per IP) or `REGISTER_RATE_LIMITED` (per address); both set Retry-After */
+            429: {
+                headers: {
+                    /** @description Seconds to wait */
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RateLimitedError"] | components["schemas"]["AuthError"];
+                };
+            };
+            /** @description Registration failed */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthError"];
+                };
+            };
+        };
+    };
+    refreshToken: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": {
+                    refresh_token?: string;
+                    device_fingerprint?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description New token pair; session cookies re-issued */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        token_pair: components["schemas"]["TokenPair"];
+                        /** @description Mirrors the refreshed or_csrf cookie */
+                        csrf_token?: string;
+                    };
+                };
+            };
+            /** @description No refresh token anywhere and an unparseable body */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthError"];
+                };
+            };
+            /** @description Refresh failed, or `REFRESH_REUSE_DETECTED` (the session family is revoked) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthError"];
+                };
+            };
+            /** @description The session cookies could not be issued */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthError"];
+                };
+            };
+        };
+    };
+    logout: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": {
+                    refresh_token?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Logged out */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        message?: string;
+                    };
+                };
+            };
+            /** @description Revocation failed (the cookies are cleared anyway) */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthError"];
+                };
+            };
+        };
+    };
+    forgotPassword: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: email */
+                    email: string;
+                    /** @enum {string} */
+                    locale?: "fr" | "en";
+                };
+            };
+        };
+        responses: {
+            /** @description The uniform acknowledgement */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        message?: string;
+                    };
+                };
+            };
+            /** @description Malformed body or no email */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthError"];
+                };
+            };
+            /** @description Too many requests for this address (`retry_after` in seconds), or the per-IP limit (`RATE_LIMITED`) */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RateLimitedError"] | {
+                        error?: string;
+                        retry_after?: number;
+                    };
+                };
+            };
+            /** @description Generic failure */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthError"];
+                };
+            };
+        };
+    };
+    resetPassword: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    token: string;
+                    /** Format: password */
+                    new_password: string;
+                    /** @enum {string} */
+                    locale?: "fr" | "en";
+                };
+            };
+        };
+        responses: {
+            /** @description Password changed */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        message?: string;
+                        sessions_revoked?: number;
+                    };
+                };
+            };
+            /** @description Malformed body, or `invalid_token` */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthError"];
+                };
+            };
+            /** @description `weak_password` */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        error?: string;
+                        /** @enum {string} */
+                        code?: "weak_password";
+                        assessment?: components["schemas"]["PasswordAssessment"];
+                    };
+                };
+            };
+            /** @description `RATE_LIMITED` (per IP, shared with /auth/password/forgot) */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RateLimitedError"];
+                };
+            };
+            /** @description Generic failure */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthError"];
+                };
+            };
+        };
+    };
+    checkPassword: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: password */
+                    password?: string;
+                    /** Format: email */
+                    email?: string;
+                    name?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description The assessment */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PasswordAssessment"];
+                };
+            };
+            /** @description Malformed body */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthError"];
+                };
+            };
+            /** @description `RATE_LIMITED` */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RateLimitedError"];
+                };
+            };
+        };
+    };
+    oauth2Login: {
+        parameters: {
+            query?: {
+                /** @description Root-relative path to land on after sign-in */
+                return_to?: string;
+                lang?: "fr" | "en";
+            };
+            header?: never;
+            path: {
+                provider: "google" | "github" | "azure";
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description To the provider, or to /login?error=... on failure */
+            302: {
+                headers: {
+                    Location?: string;
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    oauth2Callback: {
+        parameters: {
+            query?: {
+                state?: string;
+                code?: string;
+                /** @description Set by the provider when it failed the flow */
+                error?: string;
+            };
+            header?: never;
+            path: {
+                provider: "google" | "github" | "azure";
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description To the SPA's SSO completion page, or to /login?error=... */
+            302: {
+                headers: {
+                    Location?: string;
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    saml2Login: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description To /login with `error=provider_not_configured` */
+            302: {
+                headers: {
+                    Location?: string;
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    saml2Acs: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description To /login with `error=provider_not_configured` */
+            302: {
+                headers: {
+                    Location?: string;
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    saml2Metadata: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The EntityDescriptor */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/xml": string;
+                };
+            };
+            /** @description SAML2_SP_ENTITY_ID or SAML2_ACS_URL is not set */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthError"];
+                };
+            };
+        };
+    };
+    mfaChallenge: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description TOTP or backup code */
+                    code: string;
+                    device_fingerprint?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Session issued; session cookies set */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionIssued"];
+                };
+            };
+            /** @description Malformed body, no code, or a wrong code */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthError"];
+                };
+            };
+            /** @description No or invalid MFA token (`code`/`message` body), or `MFA_CHALLENGE_EXHAUSTED` */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TokenError"] | components["schemas"]["AuthError"];
+                };
+            };
+            /** @description The account has no MFA secret */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthError"];
+                };
+            };
+            /** @description `RATE_LIMITED` (per IP) or `MFA_LOCKED` (per account, with Retry-After) */
+            429: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RateLimitedError"] | components["schemas"]["AuthError"];
+                };
+            };
+            /** @description The session could not be issued */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthError"];
+                };
+            };
+        };
+    };
+    mfaSetup: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Enrolment material */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @description Base32 TOTP secret */
+                        secret?: string;
+                        /** @description Base64-encoded image */
+                        qr_code?: string;
+                        backup_codes?: string[];
+                    };
+                };
+            };
+            /** @description Validation error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthError"];
+                };
+            };
+            /** @description No token, an invalid token or a token type not accepted here */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TokenError"] | components["schemas"]["AuthError"];
+                };
+            };
+            /** @description `CSRF_FAILED` on a cookie session */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TokenError"];
+                };
+            };
+            /** @description MFA is already enabled */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthError"];
+                };
+            };
+            /** @description Tenant rate limit */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Server fault */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthError"];
+                };
+            };
+        };
+    };
+    mfaVerify: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    code: string;
+                };
+            };
+        };
+        responses: {
+            /** @description MFA enabled */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        verified?: boolean;
+                        message?: string;
+                    } | components["schemas"]["SessionIssued"];
+                };
+            };
+            /** @description Malformed body, no code, or an invalid TOTP code */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthError"];
+                };
+            };
+            /** @description No token, an invalid token or a token type not accepted here */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TokenError"] | components["schemas"]["AuthError"];
+                };
+            };
+            /** @description `CSRF_FAILED` on a cookie session */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TokenError"];
+                };
+            };
+            /** @description No enrolment in progress (call /auth/mfa/setup first) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthError"];
+                };
+            };
+            /** @description Tenant rate limit */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Server fault */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthError"];
+                };
+            };
+        };
+    };
+    listSessions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The caller's sessions */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        sessions?: components["schemas"]["SessionRecord"][];
+                        total?: number;
+                    };
+                };
+            };
+            /** @description Not authenticated */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TokenError"] | components["schemas"]["AuthError"];
+                };
+            };
+            /** @description Failed to list sessions */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthError"];
+                };
+            };
+        };
+    };
+    revokeOtherSessions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Other sessions revoked */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        revoked?: number;
+                        reauthenticate?: boolean;
+                    };
+                };
+            };
+            /** @description Not authenticated, or the calling session has been signed out */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TokenError"] | components["schemas"]["AuthError"];
+                };
+            };
+            /** @description Called with a personal access token */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthError"];
+                };
+            };
+            /** @description Failed to revoke sessions */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthError"];
+                };
+            };
+        };
+    };
+    revokeSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Session revoked */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The id is not a UUID */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthError"];
+                };
+            };
+            /** @description Not authenticated */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TokenError"] | components["schemas"]["AuthError"];
+                };
+            };
+            /** @description No such session for this account */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthError"];
+                };
+            };
+            /** @description Failed to revoke the session */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthError"];
+                };
+            };
+        };
+    };
+    listMyOrganizations: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The memberships */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        organizations?: components["schemas"]["MembershipSummary"][];
+                        total?: number;
+                    };
+                };
+            };
+            /** @description Not authenticated */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TokenError"] | components["schemas"]["AuthError"];
+                };
+            };
+            /** @description Failed to list organizations */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthError"];
+                };
+            };
+        };
+    };
+    switchOrganization: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: uuid */
+                    organization_id: string;
+                };
+            };
+        };
+        responses: {
+            /** @description A session in the target organization */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        token_pair?: components["schemas"]["TokenPair"];
+                        organization?: components["schemas"]["Organization"];
+                        role?: components["schemas"]["MemberRole"];
+                        business_role?: string;
+                        csrf_token?: string;
+                    };
+                };
+            };
+            /** @description Malformed body or an invalid organization id */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthError"];
+                };
+            };
+            /** @description Not authenticated */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TokenError"] | components["schemas"]["AuthError"];
+                };
+            };
+            /** @description Not an active member of the target organization */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthError"];
+                };
+            };
+            /** @description The switch or the session cookies failed */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthError"];
+                };
+            };
+        };
+    };
+    listPersonalAccessTokens: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The tokens */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        tokens?: components["schemas"]["PersonalAccessToken"][];
+                    };
+                };
+            };
+            /** @description Not authenticated */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TokenError"] | components["schemas"]["AuthError"];
+                };
+            };
+            /** @description Failed to list tokens */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthError"];
+                };
+            };
+        };
+    };
+    createPersonalAccessToken: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    name: string;
+                    description?: string;
+                    scopes: string[];
+                    expires_in_days?: number;
+                };
+            };
+        };
+        responses: {
+            /** @description Token created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        id?: string;
+                        name?: string;
+                        token_prefix?: string;
+                        scopes?: string[];
+                        /** Format: date-time */
+                        expires_at?: string | null;
+                        /** Format: date-time */
+                        created_at?: string;
+                        /** @description The raw token. Shown only in this response. */
+                        token?: string;
+                    };
+                };
+            };
+            /** @description Malformed body, no name, or no scope */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthError"];
+                };
+            };
+            /** @description Not authenticated */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TokenError"] | components["schemas"]["AuthError"];
+                };
+            };
+            /** @description Called with a personal access token */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthError"];
+                };
+            };
+            /** @description Failed to create the token */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthError"];
+                };
+            };
+        };
+    };
+    revokePersonalAccessToken: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Token revoked */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The id is not a UUID */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthError"];
+                };
+            };
+            /** @description Not authenticated */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TokenError"] | components["schemas"]["AuthError"];
+                };
+            };
+            /** @description No such token for this caller in this organization */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthError"];
+                };
+            };
+            /** @description Failed to revoke the token */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthError"];
                 };
             };
         };
