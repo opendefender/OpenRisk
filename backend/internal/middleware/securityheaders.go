@@ -92,10 +92,21 @@ func LoadSecurityHeadersConfig() SecurityHeadersConfig {
 // Note on HSTS: helmet only emits it when the request arrives over HTTPS. Behind
 // a TLS-terminating proxy this depends on the trusted-proxy configuration (see
 // TrustedProxies) for c.Protocol() to report "https".
+//
+// It also defaults every response to Cache-Control: no-store (#1124). These
+// responses are tenant data, and with no directive a browser or a proxy may
+// keep them and hand them back after sign-out. The default is set before the
+// handler runs, so a handler that needs another policy (event streams, report
+// downloads) overrides it with c.Set. The server-side response cache
+// (pkg/cache) decides on status and body only, so this does not turn it off.
 func SecurityHeaders(cfg SecurityHeadersConfig) fiber.Handler {
-	return helmet.New(helmet.Config{
+	h := helmet.New(helmet.Config{
 		ContentSecurityPolicy: cfg.ContentSecurityPolicy,
 		HSTSMaxAge:            cfg.HSTSMaxAge,
 		HSTSExcludeSubdomains: !cfg.HSTSIncludeSubdomains,
 	})
+	return func(c *fiber.Ctx) error {
+		c.Set(fiber.HeaderCacheControl, "no-store")
+		return h(c)
+	}
 }
