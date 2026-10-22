@@ -43,7 +43,17 @@ var featureBenefit = map[Feature]string{
 // UpgradeMessage builds the paywall sentence for a feature: what it does + the
 // plan that unlocks it. Never hides — always explains.
 func UpgradeMessage(f Feature) string {
-	req := planLabel(MinPlanFor(f))
+	return upgradeMessage(f, MinPlanFor(f))
+}
+
+// UpgradeMessageAt is UpgradeMessage for a level gate: the plan named is the one
+// that reaches depth min, which can be later than the one that opens the feature.
+func UpgradeMessageAt(f Feature, min Level) string {
+	return upgradeMessage(f, MinPlanForLevel(f, min))
+}
+
+func upgradeMessage(f Feature, p Plan) string {
+	req := planLabel(p)
 	if b, ok := featureBenefit[f]; ok {
 		return fmt.Sprintf("%s Disponible à partir du plan %s.", b, req)
 	}
