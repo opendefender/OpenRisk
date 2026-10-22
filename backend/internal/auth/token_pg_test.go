@@ -57,6 +57,9 @@ func newPgTokenHarness(t *testing.T) (*TokenManager, *gorm.DB) {
 		}
 	})
 	require.NoError(t, db.AutoMigrate(&RefreshToken{}))
+	// RevokeAllUserTokens stamps users.devices_revoked_at before its sweep
+	// (D-064, #879); without the table it fails before any DELETE starts.
+	require.NoError(t, db.Exec(`CREATE TABLE users (id uuid PRIMARY KEY, devices_revoked_at timestamptz, deleted_at timestamptz)`).Error)
 
 	priv, err := rsa.GenerateKey(rand.Reader, 2048)
 	require.NoError(t, err)
