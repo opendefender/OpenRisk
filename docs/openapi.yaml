@@ -372,7 +372,7 @@ paths:
         '401':
           description: No session
         '403':
-          description: "`wrong_current_password`; or, from the middleware, `CSRF_FAILED` or `MFA_ENROLLMENT_REQUIRED`"
+          description: "Called with a personal access token, which cannot change the password and is given no session; `wrong_current_password`; or, from the middleware, `CSRF_FAILED` or `MFA_ENROLLMENT_REQUIRED`"
         '409':
           description: "`no_local_password`: the account signs in through an identity provider"
         '429':
@@ -1480,9 +1480,10 @@ paths:
                   - $ref: '#/components/schemas/AuthError'
         '403':
           description: >-
-            Not an active member of the target organization; or, from the middleware, `CSRF_FAILED`
-            (cookie session without a valid CSRF token) or `MFA_ENROLLMENT_REQUIRED` (the account
-            must enrol an authenticator first)
+            Called with a personal access token, which cannot switch organizations and is given
+            no session; not an active member of the target organization; or, from the middleware,
+            `CSRF_FAILED` (cookie session without a valid CSRF token) or `MFA_ENROLLMENT_REQUIRED`
+            (the account must enrol an authenticator first)
           content:
             application/json:
               schema:
