@@ -214,3 +214,19 @@ func TestMinPlanForLevel(t *testing.T) {
 		}
 	}
 }
+
+// TestFinancialDashboard_OpensAtPro pins the floor of the financial dashboard
+// (#613): its routes need the Monte-Carlo depth ("on"), and no plan below Pro
+// may grant that depth. A matrix edit giving Free a basic grant (#415) keeps
+// the dashboard at Pro; one giving Free "on" fails here and needs the owner.
+func TestFinancialDashboard_OpensAtPro(t *testing.T) {
+	if got := MinPlanForLevel(FeatFinancialQuant, LevelOn); got != PlanPro {
+		t.Fatalf("the Monte-Carlo depth opens at %s, want pro", got)
+	}
+	for _, p := range AllPlans {
+		if !p.AtLeast(PlanPro) && LevelOf(p, FeatFinancialQuant).AtLeast(LevelOn) {
+			t.Errorf("%s grants financial quantification at %q: the dashboard would open below Pro",
+				p, LevelOf(p, FeatFinancialQuant))
+		}
+	}
+}
