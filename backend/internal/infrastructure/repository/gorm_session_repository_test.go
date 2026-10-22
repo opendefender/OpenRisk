@@ -213,3 +213,71 @@ func TestRevokeAllExcept_UntrustsTheUsersDevices(t *testing.T) {
 	require.NoError(t, repo.db.Raw(`SELECT id FROM users WHERE devices_revoked_at IS NOT NULL`).Scan(&stamped).Error)
 	assert.Equal(t, []string{me.String()}, stamped)
 }
+
+func TestHasLiveSession(t *testing.T) {
+	repo := setupSessionRepo(t)
+	ctx := context.Background()
+	me, stranger := uuid.New(), uuid.New()
+	future, past := time.Now().Add(time.Hour), time.Now().Add(-time.Hour)
+
+	family := func(user uuid.UUID, expires time.Time, rotated bool) uuid.UUID {
+		id, fam := uuid.New(), uuid.New()
+		var rotatedAt any
+		if rotated {
+			rotatedAt = time.Now()
+		}
+		require.NoError(t, repo.db.Exec(
+			`INSERT INTO refresh_tokens (id, user_id, tenant_id, family_id, token_hash, expires_at, rotated_at, created_at, updated_at)
+			 VALUES (?,?,?,?,?,?,?,?,?)`,
+			id.String(), user.String(), uuid.New().String(), fam.String(), "h-"+id.String(), expires, rotatedAt, time.Now(), time.Now(),
+		).Error)
+		return fam
+	}
+
+	cases := map[string]struct {
+		family uuid.UUID
+		want   bool
+	}{
+		"live":               {family(me, future, false), true},
+		"only a spent token": {family(me, future, true), false},
+		"expired":            {family(me, past, false), false},
+		"someone else's":     {family(stranger, future, false), false},
+		"never existed":      {uuid.New(), false},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			got, err := repo.HasLiveSession(ctx, me, tc.family)
+			require.NoError(t, err)
+			assert.Equal(t, tc.want, got)
+		})
+	}
+}
+
+// The sid path untrusts the user's devices too (D-064): the handler re-issues
+// the caller's cookie after either path, so both must have ended the others.
+func TestRevokeAllExceptFamily_UntrustsTheUsersDevicesAndKeepsTheFamily(t *testing.T) {
+	repo := setupSessionRepo(t)
+	ctx := context.Background()
+	me, bystander := uuid.New(), uuid.New()
+	for _, id := range []uuid.UUID{me, bystander} {
+		require.NoError(t, repo.db.Exec(`INSERT INTO users (id) VALUES (?)`, id).Error)
+	}
+	future := time.Now().Add(time.Hour)
+	mine := seedSession(t, repo, me, "hash-current", "fp-a", "Chrome", future)
+	seedSession(t, repo, me, "hash-other", "fp-b", "Firefox", future)
+	seedSession(t, repo, bystander, "hash-bystander", "fp-c", "Safari", future)
+	var family string
+	require.NoError(t, repo.db.Raw(`SELECT family_id FROM refresh_tokens WHERE id = ?`, mine.String()).Scan(&family).Error)
+
+	n, err := repo.RevokeAllExceptFamily(ctx, me, uuid.MustParse(family))
+	require.NoError(t, err)
+	assert.Equal(t, int64(1), n)
+
+	var left []string
+	require.NoError(t, repo.db.Raw(`SELECT token_hash FROM refresh_tokens ORDER BY token_hash`).Scan(&left).Error)
+	assert.Equal(t, []string{"hash-bystander", "hash-current"}, left)
+
+	var stamped []string
+	require.NoError(t, repo.db.Raw(`SELECT id FROM users WHERE devices_revoked_at IS NOT NULL`).Scan(&stamped).Error)
+	assert.Equal(t, []string{me.String()}, stamped)
+}
