@@ -144,10 +144,13 @@ test.describe("live stream with an expired session", () => {
       seen.filter((s) => s.at >= from && s.path === "/auth/refresh"),
     ).toHaveLength(1);
     await expect(page).not.toHaveURL(/\/login/);
+    // or_trusted_device is planted at sign-in (D-064, #879) and must survive
+    // the renewal like the session cookies.
     expect(await sessionCookies(context)).toEqual([
       "or_access",
       "or_csrf",
       "or_refresh",
+      "or_trusted_device",
     ]);
   });
 
