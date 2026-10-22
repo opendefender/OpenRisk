@@ -217,5 +217,11 @@ func schemaModels() []interface{} {
 		&domain.VendorAssessment{},
 		&domain.VendorAssessmentItem{},
 		&domain.VendorAssessmentToken{},
+		// Notice e-mail outbox (#997, migration 0081): the e-mails waiting to
+		// go out, the per-person-and-item throttle that groups them, and each
+		// organization's grouping window.
+		&domain.NoticeEmailOutbox{},
+		&domain.NoticeEmailThrottle{},
+		&domain.NoticeEmailPolicy{},
 	}
 }

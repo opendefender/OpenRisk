@@ -55,6 +55,7 @@ import { BillingPanel } from '../billing/BillingPanel';
 import { DangerZonePanel } from '../billing/DangerZonePanel';
 import { useOrganization } from '../organization/useOrganization';
 import { MFAPolicyPanel, MFAAccountPanel } from './MFAPolicyPanel';
+import { NoticeEmailPolicyPanel } from './NoticeEmailPolicyPanel';
 import { OrganizationProfileForm } from './OrganizationProfileForm';
 import { OrganizationLogoField } from './OrganizationLogoField';
 import { OrgLogo } from '../organization/OrgLogo';
@@ -1072,6 +1073,8 @@ function NotifTab({ tr }: { tr: Tr }) {
           />
         </div>
       </Card>
+      {/* #997 — the organization's grouping window for notice e-mails. */}
+      <NoticeEmailPolicyPanel tr={tr} />
     </>
   );
 }

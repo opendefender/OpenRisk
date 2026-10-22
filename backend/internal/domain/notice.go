@@ -49,7 +49,15 @@ type Notice struct {
 	Type         NotificationType
 	ResourceID   *uuid.UUID
 	ResourceType string
-	Compose      func(locale string) NoticeMessage
+	// ResourceTitle names the item in a digest e-mail ("3 changes to «Patch
+	// VPN»"). Optional: the digest falls back to the kind of item.
+	ResourceTitle string
+	Compose       func(locale string) NoticeMessage
+	// Deduplicated is set by a producer that already keeps its own ledger of
+	// what it sent (the deadline sweep stamps each D-7 / D-1 / "passed"
+	// reminder). Such a notice is e-mailed on its own and never folded into a
+	// digest, which would hold the D-1 reminder back behind the D-7 (#997).
+	Deduplicated bool
 }
 
 // NoticeLocale reduces a stored locale ("en-GB", "fr", "") to the two languages

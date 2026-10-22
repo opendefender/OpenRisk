@@ -163,11 +163,12 @@ func (s *Service) Notify(ctx context.Context, tenantID uuid.UUID, changes []doma
 		if s.deliverer != nil {
 			role := ch.Role
 			_ = s.deliverer.Deliver(ctx, domain.Notice{
-				TenantID:     tenantID,
-				UserID:       *ch.To,
-				Type:         domain.NotificationTypeActionAssigned,
-				ResourceID:   resourceID,
-				ResourceType: subject.ResourceType,
+				TenantID:      tenantID,
+				UserID:        *ch.To,
+				Type:          domain.NotificationTypeActionAssigned,
+				ResourceID:    resourceID,
+				ResourceType:  subject.ResourceType,
+				ResourceTitle: subject.Title,
 				Compose: func(locale string) domain.NoticeMessage {
 					localized := subject
 					localized.Locale = locale

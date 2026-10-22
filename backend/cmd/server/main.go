@@ -1304,15 +1304,32 @@ func main() {
 	// assignment never waits on a slow relay; the deadline sweep sends inline.
 	noticeInApp := notificationapp.NewUseCase(repository.NewNotificationRepository(database.DB))
 	noticeMailer := authmail.NewNoticeMailer(emailTransport, appBaseURL)
+	// Both queue their e-mails in the outbox (#997): the request writes a row,
+	// the notice e-mail worker sends it. The first e-mail about an item goes
+	// out at once; what follows within the organization's window becomes one
+	// digest. Nothing is sent from the request and nothing is dropped.
+	noticeOutbox := repository.NewGormNoticeEmailOutbox(database.DB)
+	noticePolicies := repository.NewGormNoticeEmailPolicyRepository(database.DB)
+	noticeEmailWorker := workers.NewNoticeEmailWorker(
+		notificationapp.NewOutboxSender(noticeOutbox, noticeDirectory{members: ownershipMembers}, noticeInApp, noticeMailer, noticeLink).
+			WithCurrentState(repository.NewGormNoticeResourceState(database.DB)),
+		noticeOutbox, noticeMaxInFlight(), zeroLogger)
+	reportNoticeEmail := func(err error) {
+		zeroLogger.Warn().Err(err).Msg("notice: e-mail not queued")
+	}
 	noticeDispatcher := notificationapp.NewDispatcher(noticeInApp, noticeDirectory{members: ownershipMembers}).
 		WithEmail(noticeMailer, email.Delivers(emailTransport)).
-		WithLinks(noticeLink)
-	requestNoticeDispatcher := notificationapp.NewDispatcher(noticeInApp, noticeDirectory{members: ownershipMembers}).
-		WithEmail(noticeMailer, email.Delivers(emailTransport)).
 		WithLinks(noticeLink).
-		InBackground(func(err error) {
-			zeroLogger.Warn().Err(err).Msg("notice: e-mail not delivered")
-		})
+		WithOutbox(noticeOutbox, noticePolicies, noticeEmailWorker.Wake).
+		ReportingTo(reportNoticeEmail)
+	requestNoticeDispatcher := noticeDispatcher
+	noticeWorkerCtx, stopNoticeWorker := context.WithCancel(context.Background())
+	if email.Delivers(emailTransport) {
+		go noticeEmailWorker.Start(noticeWorkerCtx)
+	}
+	noticeEmailPolicyHandler := handlers.NewNoticeEmailPolicyHandler(
+		notificationapp.NewGetNoticeEmailPolicyUseCase(noticePolicies),
+		notificationapp.NewUpdateNoticeEmailPolicyUseCase(noticePolicies))
 	if !noticeDispatcher.EmailEnabled() {
 		log.Println("Notifications: e-mail disabled (no SMTP transport) — in-app only")
 	}
@@ -2472,6 +2489,10 @@ func main() {
 	notificationsGroup.Patch("/:notificationId/read", notificationHandler.MarkAsRead)
 	notificationsGroup.Delete("/:notificationId", notificationHandler.DeleteNotification)
 	notificationsGroup.Get("/preferences", notificationHandler.GetNotificationPreferences)
+	// The organization's notice e-mail grouping window (#997): every member
+	// reads it, admins set it. Audited through domain.NoticeEmailPolicy.
+	notificationsGroup.Get("/email-policy", noticeEmailPolicyHandler.Get)
+	notificationsGroup.Put("/email-policy", middleware.RequireRole("admin", "root"), noticeEmailPolicyHandler.Update)
 	notificationsGroup.Patch("/preferences", notificationHandler.UpdateNotificationPreferences)
 	notificationsGroup.Post("/test", notificationHandler.TestNotification)
 
@@ -3537,6 +3558,18 @@ func main() {
 		log.Fatal("Forced shutdown:", err)
 	}
 
+	// The notice e-mail worker finishes its batch, up to a deadline. Past it,
+	// the sends are cancelled and their rows go back to the outbox for the
+	// next boot or another replica (#997).
+	stopNoticeWorker()
+	if email.Delivers(emailTransport) {
+		drainCtx, cancelDrain := context.WithTimeout(context.Background(), 10*time.Second)
+		if err := noticeEmailWorker.Drain(drainCtx); err != nil {
+			log.Println("Notifications: e-mails still sending at shutdown were put back in the outbox")
+		}
+		cancelDrain()
+	}
+
 	log.Println("Server exited properly")
 }
 
@@ -3564,6 +3597,16 @@ func buildEmailTransport() email.Service {
 	}
 	log.Printf("Email: SMTP transport %s:%d", host, port)
 	return email.FromEnv(host, port, os.Getenv("SMTP_USERNAME"), os.Getenv("SMTP_PASSWORD"), from)
+}
+
+// noticeMaxInFlight reads NOTICE_EMAIL_MAX_IN_FLIGHT, how many notice e-mails
+// one replica sends at once. 0 or unset keeps the default (8).
+func noticeMaxInFlight() int {
+	n, err := strconv.Atoi(strings.TrimSpace(os.Getenv("NOTICE_EMAIL_MAX_IN_FLIGHT")))
+	if err != nil || n < 0 {
+		return 0
+	}
+	return n
 }
 
 // memberDirectory adapts the tenant-scoped membership repository to the narrow

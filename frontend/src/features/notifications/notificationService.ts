@@ -82,6 +82,20 @@ export interface NotificationPreferences {
 /** A partial update — the server applies only the keys present. */
 export type NotificationPreferencePatch = Partial<NotificationPreferences>;
 
+/**
+ * The organization's notice e-mail grouping window (#997). The first e-mail
+ * about an item goes out at once; what follows within the window is sent as
+ * one digest when it ends. `options` and `default_minutes` come from the
+ * server so the panel offers exactly what it accepts.
+ */
+export interface NoticeEmailPolicy {
+  window_minutes: number;
+  configured: boolean;
+  updated_by_id?: string;
+  options: number[];
+  default_minutes: number;
+}
+
 interface ListResponse {
   data: Notification[] | null;
   limit: number;
@@ -127,6 +141,21 @@ export const notificationService = {
   // flipped in quick succession cannot clobber each other.
   async updatePreferences(patch: NotificationPreferencePatch): Promise<NotificationPreferences> {
     const { data } = await api.patch<NotificationPreferences>('/notifications/preferences', patch);
+    return data;
+  },
+
+  // --- organization e-mail policy (#997) ----------------------------------
+  // Any member reads it; admin and root write it (the server enforces both).
+
+  async getEmailPolicy(): Promise<NoticeEmailPolicy> {
+    const { data } = await api.get<NoticeEmailPolicy>('/notifications/email-policy');
+    return data;
+  },
+
+  async updateEmailPolicy(windowMinutes: number): Promise<NoticeEmailPolicy> {
+    const { data } = await api.put<NoticeEmailPolicy>('/notifications/email-policy', {
+      window_minutes: windowMinutes,
+    });
     return data;
   },
 };

@@ -57,6 +57,10 @@ func (Invitation) AuditEntityType() string { return "invitation" }
 // security decision an auditor asks who made and when (OR26-03, invariant 7).
 func (MFAPolicy) AuditEntityType() string { return "mfa_policy" }
 
+// How long notice e-mails about one item are grouped (#997). It decides how
+// soon members hear about changes, so who set it is worth recording.
+func (NoticeEmailPolicy) AuditEntityType() string { return "notice_email_policy" }
+
 func (Risk) AuditEntityType() string { return "risk" }
 
 // AuditSnapshot is the part of a risk the trail captures: the terms of the

@@ -54,7 +54,8 @@ type LinkFunc func(resourceType string, resourceID *uuid.UUID) string
 
 // Dispatcher delivers a notice to one member: in-app always (preferences
 // permitting), e-mail when a transport is configured and the member's
-// preferences allow it.
+// preferences allow it. The e-mail is queued in the outbox; OutboxSender sends
+// it.
 //
 // It is the one place that answers "may this person hear about this, and
 // how" — the producers (ownership, deadline sweep, lifecycle transitions,
@@ -65,18 +66,44 @@ type Dispatcher struct {
 	mailer    NoticeMailer
 	link      LinkFunc
 	emailOn   bool
-	// background, when set, sends the e-mail off the caller's goroutine and
-	// reports its outcome here. Request paths use it: an assignment must not
-	// wait on a slow SMTP relay.
-	background func(error)
-	timeout    time.Duration
+	timeout   time.Duration
+
+	// outbox, when set, takes the e-mail instead of sending it inline: a worker
+	// sends it, groups what follows within the organization's window, and
+	// retries what fails (#997). Every production path uses it.
+	outbox   EmailOutbox
+	policies NoticeEmailPolicyReader
+	// wake nudges the outbox worker after an enqueue, so an e-mail due now
+	// does not wait for the next poll. Optional.
+	wake func()
+	// report receives e-mail failures the caller would otherwise lose: the
+	// producers do not check Deliver's error. Optional.
+	report func(error)
 }
+
+// EmailOutbox queues notice e-mails (repository.GormNoticeEmailOutbox). It
+// returns the row's kind (single or digest) and when it is due.
+type EmailOutbox interface {
+	Enqueue(ctx context.Context, row domain.NoticeEmailOutbox, window time.Duration) (string, time.Time, error)
+}
+
+// NoticeEmailPolicyReader gives a tenant's grouping window.
+type NoticeEmailPolicyReader interface {
+	GetNoticeEmailPolicy(ctx context.Context, tenantID uuid.UUID) (*domain.NoticeEmailPolicy, error)
+}
+
+const (
+	// defaultSendTimeout bounds one inline e-mail.
+	defaultSendTimeout = 30 * time.Second
+	// enqueueTimeout bounds the outbox write on the request path.
+	enqueueTimeout = 5 * time.Second
+)
 
 // NewDispatcher builds a dispatcher with in-app delivery only. E-mail is added
 // by WithEmail; a deployment without SMTP leaves it off and in-app remains the
 // channel (#757 criterion 4).
 func NewDispatcher(inApp *UseCase, directory RecipientDirectory) *Dispatcher {
-	return &Dispatcher{inApp: inApp, directory: directory}
+	return &Dispatcher{inApp: inApp, directory: directory, timeout: defaultSendTimeout}
 }
 
 // WithEmail turns on e-mail delivery through mailer. enabled is false when the
@@ -94,15 +121,20 @@ func (d *Dispatcher) WithLinks(f LinkFunc) *Dispatcher {
 	return d
 }
 
-// InBackground makes the e-mail half asynchronous. report receives every
-// failure, already stripped of the address; it may be nil. The in-app record
-// stays synchronous, so the bell is up to date when the request returns.
-func (d *Dispatcher) InBackground(report func(error)) *Dispatcher {
-	if report == nil {
-		report = func(error) {}
-	}
-	d.background = report
-	d.timeout = 30 * time.Second
+// WithOutbox queues e-mails instead of sending them inline. policies gives
+// each tenant's grouping window (the default when nil or unset); wake, when
+// set, is called after each enqueue.
+func (d *Dispatcher) WithOutbox(outbox EmailOutbox, policies NoticeEmailPolicyReader, wake func()) *Dispatcher {
+	d.outbox = outbox
+	d.policies = policies
+	d.wake = wake
+	return d
+}
+
+// ReportingTo sends every e-mail failure to report as well as returning it.
+// The producers drop Deliver's error, so this is where it gets logged.
+func (d *Dispatcher) ReportingTo(report func(error)) *Dispatcher {
+	d.report = report
 	return d
 }
 
@@ -152,35 +184,67 @@ func (d *Dispatcher) Deliver(ctx context.Context, n domain.Notice) error {
 	if d.emailOn && strings.TrimSpace(rcpt.Email) != "" &&
 		d.inApp.ShouldNotify(n.UserID, n.TenantID, n.Type, domain.NotificationChannelEmail) {
 		link := ""
-		if d.link != nil {
+		if d.link != nil && d.outbox == nil {
 			link = d.link(n.ResourceType, n.ResourceID)
 		}
-		send := func(ctx context.Context) error {
-			if err := d.mailer.SendNotice(ctx, rcpt.Email, rcpt.FullName, locale, msg, link); err != nil {
-				return redactedEmailError(err, rcpt.Email)
-			}
-			return nil
+		var err error
+		if d.outbox != nil {
+			err = d.enqueue(ctx, n, locale, msg)
+		} else {
+			err = d.sendNow(ctx, rcpt, locale, msg, link)
 		}
-		if d.background != nil {
-			report, timeout := d.background, d.timeout
-			go func() {
-				// A panic in a template must not take the process down.
-				defer func() {
-					if r := recover(); r != nil {
-						report(fmt.Errorf("%w: panic while sending", ErrEmailFailed))
-					}
-				}()
-				bg, cancel := context.WithTimeout(context.Background(), timeout)
-				defer cancel()
-				if err := send(bg); err != nil {
-					report(err)
-				}
-			}()
-		} else if err := send(ctx); err != nil {
+		if err != nil {
+			if d.report != nil {
+				d.report(err)
+			}
 			errs = append(errs, err)
 		}
 	}
 	return errors.Join(errs...)
+}
+
+// enqueue hands the e-mail to the outbox, worded for the recipient. The
+// address is not stored: the worker resolves it again at send time.
+//
+// The write does not inherit the caller's cancellation: a request that ends
+// while the row is written must not lose the e-mail.
+func (d *Dispatcher) enqueue(ctx context.Context, n domain.Notice, locale string, msg domain.NoticeMessage) error {
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), enqueueTimeout)
+	defer cancel()
+	window := domain.NoticeEmailWindowDefault * time.Minute
+	if d.policies != nil {
+		// A policy that cannot be read falls back to the default: the e-mail
+		// is still queued.
+		if p, err := d.policies.GetNoticeEmailPolicy(ctx, n.TenantID); err == nil {
+			window = p.Window()
+		}
+	}
+	row := domain.NoticeEmailOutbox{
+		TenantID: n.TenantID, UserID: n.UserID,
+		ResourceType: n.ResourceType, ResourceID: n.ResourceID, ResourceTitle: n.ResourceTitle,
+		Locale:  locale,
+		Grouped: !n.Deduplicated,
+		Events: domain.NoticeEmailEvents{{
+			Type: n.Type, At: time.Now().UTC(), Subject: msg.Subject, Lines: msg.Lines,
+		}},
+	}
+	if _, _, err := d.outbox.Enqueue(ctx, row, window); err != nil {
+		return errors.Join(ErrEmailFailed, fmt.Errorf("queue: %w", err))
+	}
+	if d.wake != nil {
+		d.wake()
+	}
+	return nil
+}
+
+// sendNow is the path without an outbox (tests, tools): one e-mail, inline.
+func (d *Dispatcher) sendNow(ctx context.Context, rcpt *Recipient, locale string, msg domain.NoticeMessage, link string) error {
+	ctx, cancel := context.WithTimeout(ctx, d.timeout)
+	defer cancel()
+	if err := d.mailer.SendNotice(ctx, rcpt.Email, rcpt.FullName, locale, msg, link); err != nil {
+		return redactedEmailError(err, rcpt.Email)
+	}
+	return nil
 }
 
 // redactedEmailError keeps the transport's diagnosis and drops the address,
