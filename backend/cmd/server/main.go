@@ -795,7 +795,7 @@ func main() {
 	// Session (device) management use cases + handler.
 	listSessionsUseCase := auth.NewListSessionsUseCase(sessionRepo)
 	revokeSessionUseCase := auth.NewRevokeSessionUseCase(sessionRepo)
-	revokeOtherSessionsUseCase := auth.NewRevokeOtherSessionsUseCase(sessionRepo).WithReissue(tokenManager)
+	revokeOtherSessionsUseCase := auth.NewRevokeOtherSessionsUseCase(sessionRepo)
 	sessionHandler := authhandler.NewSessionHandler(
 		listSessionsUseCase, revokeSessionUseCase, revokeOtherSessionsUseCase, authAudit,
 	)

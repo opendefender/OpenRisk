@@ -84,7 +84,7 @@ func newSessionStack(t *testing.T) *sessionStack {
 	sessions := authhandler.NewSessionHandler(
 		appauth.NewListSessionsUseCase(sessionRepo),
 		appauth.NewRevokeSessionUseCase(sessionRepo),
-		appauth.NewRevokeOtherSessionsUseCase(sessionRepo).WithReissue(s.tokens),
+		appauth.NewRevokeOtherSessionsUseCase(sessionRepo),
 		nil,
 	)
 	h := authhandler.NewHandler(nil, nil, appauth.NewRefreshTokenUseCase(s.tokens), nil, nil, nil)
@@ -259,27 +259,26 @@ func TestListSessionsE2E_MarksTheCallersDevice(t *testing.T) {
 	assert.Equal(t, []string{"laptop"}, currentDevices(s.listSessions(t, laptopAtSignIn)))
 }
 
-// An access token minted before sid existed cannot name its session. The
-// caller's device is given a new one instead, as before ADR 0006.
-func TestRevokeOtherSessionsE2E_LegacyTokenIsReissued(t *testing.T) {
+// An access token minted before sid existed cannot name its session. It is
+// never handed a new one (#1060): every session ends, the caller's included,
+// and the caller is told to sign in again.
+func TestRevokeOtherSessionsE2E_LegacyTokenSignsOutEverywhere(t *testing.T) {
 	s := newSessionStack(t)
-	s.signIn(t, "laptop")
+	laptop := s.signIn(t, "laptop")
 	phone := s.signIn(t, "phone")
 
 	res := s.send(t, http.MethodDelete, "/api/v1/auth/sessions/others", browserCookies(s.legacyAccessToken(t)), browserHeaders)
 	require.Equal(t, http.StatusOK, res.status, res.body)
-	assert.Equal(t, false, res.body["reauthenticate"])
-	assert.EqualValues(t, 2, res.body["revoked"], "the phone, and the laptop's session it replaced")
-	assert.NotEmpty(t, res.body["csrf_token"])
-
-	issued := res.cookies[middleware.RefreshTokenCookie]
-	require.NotNil(t, issued, "the caller's device must be handed its new refresh cookie")
-	assert.Equal(t, "/api/v1/auth/refresh", issued.Path,
-		"same Path as at sign-in, so it replaces the cookie the browser holds")
-	assert.Equal(t, int64(1), s.liveSessions(t))
+	assert.Equal(t, true, res.body["reauthenticate"])
+	assert.EqualValues(t, 2, res.body["revoked"])
+	assert.Nil(t, res.body["token_pair"], "no session is minted for a token that names none")
+	if issued := res.cookies[middleware.RefreshTokenCookie]; issued != nil {
+		assert.Empty(t, issued.Value, "the refresh cookie may only be cleared, never set")
+	}
+	assert.Equal(t, int64(0), s.liveSessions(t))
 
 	assert.Equal(t, http.StatusUnauthorized, s.refresh(t, phone.RefreshToken).status)
-	s.rotate(t, &coreauth.TokenPair{RefreshToken: issued.Value})
+	assert.Equal(t, http.StatusUnauthorized, s.refresh(t, laptop.RefreshToken).status)
 }
 
 // An API client on a legacy token that names its session in X-Refresh-Token

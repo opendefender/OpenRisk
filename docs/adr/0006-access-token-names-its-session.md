@@ -41,9 +41,12 @@ The options weighed in D-073 were: leave the list unmarked; widen the refresh co
 4. **Consumers prefer `sid`, then fall back**:
    - the session list marks the live row whose `family_id` equals `sid`, else the row whose hash
      matches a presented `X-Refresh-Token`;
-   - "sign out other devices" keeps the `sid` family, else the presented token's row, else
-     re-issues a session for the caller (the #727 fix, kept for access tokens minted before this
-     ADR, which live at most `AccessTokenTTL`, 15 minutes).
+   - "sign out other devices" keeps the `sid` family, else the presented token's row. If neither
+     names a session, every session ends and the caller is told to sign in again. A `sid` whose
+     family has no live session is refused with 401: it is a leftover access token of a session
+     already signed out (#1059).
+   - The first #727 fix re-issued a session for a caller that named none. It was removed before
+     release (#1060): a token without `sid` must not be handed a session.
 5. **The listing shows live rows only** (`rotated_at IS NULL`). Spent rows stay in the table for
    reuse detection, but they are not devices, and listing them showed a device once per refresh.
 6. **Revocation counts live sessions only**, and sweeps until a pass removes nothing (#725).
@@ -62,8 +65,8 @@ The options weighed in D-073 were: leave the list unmarked; widen the refresh co
 
 - The access token grows by one short claim (~45 bytes).
 - During the first 15 minutes after a deploy, browsers still hold tokens without `sid`: their
-  session is unmarked in the list until their next refresh, and "sign out other devices" uses the
-  re-issue path. Nothing breaks.
+  session is unmarked in the list until their next refresh, and "sign out other devices" signs
+  them out too and asks them to sign in again.
 - `POST /auth/logout` could now revoke the caller's family from `sid` even though it never sees the
   refresh cookie. It does not yet; that belongs to its own issue.
 - Any future code that mints an access token for a session must use `GenerateSessionAccessToken`.
