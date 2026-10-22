@@ -131,22 +131,6 @@ jobs:
               -z "-openapifile /zap/wrk/openapi.yaml -openapitargeturl http://localhost:8080/api/v1" \
               -r report.html -J report.json -w report.md
 
-      # TEMPORARY, check branch only: prove the gate fails on a server that
-      # breaks the rules (Python's http.server sends a Server header and no
-      # X-Content-Type-Options). Must exit 1.
-      - name: Gate bite test (expects failure)
-        run: |
-          mkdir -p bite && chmod 777 bite && cp .zap/rules.tsv bite/
-          (cd bite && python3 -m http.server 8099 >/dev/null 2>&1 &)
-          sleep 2
-          set +e
-          docker run --rm --network host -v "$PWD/bite:/zap/wrk:rw" "$ZAP_IMAGE" \
-            zap-baseline.py -t http://localhost:8099/ -c rules.tsv -I
-          rc=$?
-          echo "bite exit code: $rc"
-          [ "$rc" -eq 1 ] || { echo "❌ gate did not fail"; exit 1; }
-          echo "✅ gate fails on FAIL rules"
-
       - name: ZAP report → job summary
         if: always()
         run: |
