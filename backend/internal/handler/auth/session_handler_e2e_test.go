@@ -67,6 +67,8 @@ func newSessionStack(t *testing.T) *sessionStack {
 			expires_at DATETIME NOT NULL, rotated_at DATETIME, last_used_at DATETIME,
 			created_at DATETIME, updated_at DATETIME
 		)`).Error)
+	// "Sign out other devices" also stamps users.devices_revoked_at (D-064).
+	require.NoError(t, db.Exec(`CREATE TABLE users (id TEXT PRIMARY KEY, devices_revoked_at DATETIME, deleted_at DATETIME)`).Error)
 
 	priv, err := rsa.GenerateKey(rand.Reader, 2048)
 	require.NoError(t, err)
