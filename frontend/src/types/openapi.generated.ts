@@ -4564,6 +4564,16 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            /** @description `RATE_LIMITED` (15 per 5 minutes per IP, or the API-wide quota) or `LOGIN_LOCKED` (too many failed sign-ins for this address); both set Retry-After */
+            429: {
+                headers: {
+                    "Retry-After"?: number;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RateLimitedError"] | components["schemas"]["AuthError"];
+                };
+            };
         };
     };
     getMfaPolicy: {
@@ -4849,7 +4859,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description `wrong_current_password` */
+            /** @description `wrong_current_password`; or, from the middleware, `CSRF_FAILED` or `MFA_ENROLLMENT_REQUIRED` */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -4870,6 +4880,7 @@ export interface operations {
                 };
                 content?: never;
             };
+            503: components["responses"]["MFAStatusUnavailable"];
         };
     };
     getMe: {
@@ -4904,6 +4915,7 @@ export interface operations {
                 };
                 content?: never;
             };
+            429: components["responses"]["QuotaExceeded"];
         };
     };
     disableMfa: {
@@ -4946,7 +4958,7 @@ export interface operations {
                     "application/json": components["schemas"]["DisableMFAError"];
                 };
             };
-            /** @description `mfa_required_by_role` */
+            /** @description `mfa_required_by_role`; or, from the middleware, `CSRF_FAILED` or `MFA_ENROLLMENT_REQUIRED` */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -4982,6 +4994,7 @@ export interface operations {
                     "application/json": components["schemas"]["DisableMFAError"];
                 };
             };
+            503: components["responses"]["MFAStatusUnavailable"];
         };
     };
     register: {

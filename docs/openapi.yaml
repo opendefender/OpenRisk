@@ -116,6 +116,17 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '429':
+          description: "`RATE_LIMITED` (15 per 5 minutes per IP, or the API-wide quota) or `LOGIN_LOCKED` (too many failed sign-ins for this address); both set Retry-After"
+          headers:
+            Retry-After:
+              schema: { type: integer }
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/RateLimitedError'
+                  - $ref: '#/components/schemas/AuthError'
 
   # OR26-03 — deferrable MFA enrolment. The organization-wide grace window
   # after which a privileged account (admin/root, or the RSSI business role)
@@ -361,11 +372,13 @@ paths:
         '401':
           description: No session
         '403':
-          description: "`wrong_current_password`"
+          description: "`wrong_current_password`; or, from the middleware, `CSRF_FAILED` or `MFA_ENROLLMENT_REQUIRED`"
         '409':
           description: "`no_local_password`: the account signs in through an identity provider"
         '429':
           description: Rate limited
+        '503':
+          $ref: '#/components/responses/MFAStatusUnavailable'
 
   /auth/me:
     get:
@@ -393,6 +406,8 @@ paths:
           description: No session
         '404':
           description: The session's user no longer exists
+        '429':
+          $ref: '#/components/responses/QuotaExceeded'
 
   /auth/mfa/disable:
     post:
@@ -438,7 +453,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/DisableMFAError'
         '403':
-          description: "`mfa_required_by_role`"
+          description: "`mfa_required_by_role`; or, from the middleware, `CSRF_FAILED` or `MFA_ENROLLMENT_REQUIRED`"
           content:
             application/json:
               schema:
@@ -461,6 +476,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/DisableMFAError'
+        '503':
+          $ref: '#/components/responses/MFAStatusUnavailable'
 
   # ==================== AUTHENTICATION (#1120) ====================
   /auth/register:
