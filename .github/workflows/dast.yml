@@ -1,0 +1,154 @@
+name: DAST
+
+# OWASP ZAP baseline scan of a running backend (#649).
+#
+# The old "DAST with OWASP ZAP" job in security.yml never scanned anything: it
+# died at setup on actions/upload-artifact@v3, and the server it started had no
+# RS256 keys and no migrations, so it would have exited before ZAP reached it.
+# #978 retired it. This job boots the backend the way e2e.yml does, checks that
+# it answers, and only then runs ZAP against it.
+#
+# The baseline scan is passive: it spiders the API and inspects the responses
+# (headers, cookies, disclosure), it does not attack. ZAP is run from its
+# pinned image rather than zaproxy/action-baseline, so no step holds a token
+# that can open issues, and the report goes up through the same pinned
+# upload-artifact as the rest of CI.
+#
+# Gate: a rule listed as FAIL in .zap/rules.tsv fails the job. Rules left at
+# WARN are reported but do not fail it; each open WARN has its own issue,
+# named in the rules file. Never move a rule to IGNORE to make this green.
+
+on:
+  push:
+    branches: [master, develop]
+  pull_request:
+    branches: [master, develop]
+  schedule:
+    - cron: '41 2 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dast-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  zap-baseline:
+    name: DAST with OWASP ZAP
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: openrisk
+          POSTGRES_PASSWORD: openrisk
+          POSTGRES_DB: openrisk_dast
+        options: >-
+          --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+        ports:
+          - 5432:5432
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping" --health-interval 10s --health-timeout 5s --health-retries 5
+        ports:
+          - 6379:6379
+
+    env:
+      DATABASE_URL: postgres://openrisk:openrisk@localhost:5432/openrisk_dast?sslmode=disable
+      DB_HOST: localhost
+      DB_PORT: '5432'
+      DB_USER: openrisk
+      DB_PASSWORD: openrisk
+      DB_NAME: openrisk_dast
+      REDIS_HOST: localhost
+      REDIS_PORT: '6379'
+      REDIS_URL: redis://localhost:6379
+      APP_ENV: test
+      PORT: '8080'
+      # The SQL migrations live at the repository root and the backend starts
+      # from backend/ (see e2e.yml, #297).
+      MIGRATIONS_DIR: ../migrations
+      CTI_SYNC_ENABLED: 'false'
+      PASSWORD_HIBP_DISABLED: 'true'
+      ZAP_IMAGE: ghcr.io/zaproxy/zaproxy:2.17.0
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate the admin password for this run
+        run: |
+          pw="$(openssl rand -hex 24)"
+          echo "::add-mask::$pw"
+          echo "INITIAL_ADMIN_PASSWORD=$pw" >> "$GITHUB_ENV"
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+
+      - name: Build backend
+        run: cd backend && go build -o openrisk ./cmd/server
+
+      # Generated per run in the runner's temp dir, never in the report dir.
+      - name: Generate ephemeral RS256 key pair
+        run: |
+          mkdir -p "$RUNNER_TEMP/dast-keys"
+          ( umask 077 && openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out "$RUNNER_TEMP/dast-keys/private.pem" 2>/dev/null )
+          openssl rsa -in "$RUNNER_TEMP/dast-keys/private.pem" -pubout -out "$RUNNER_TEMP/dast-keys/public.pem" 2>/dev/null
+          echo "RSA_PRIVATE_KEY_PATH=$RUNNER_TEMP/dast-keys/private.pem" >> "$GITHUB_ENV"
+          echo "RSA_PUBLIC_KEY_PATH=$RUNNER_TEMP/dast-keys/public.pem" >> "$GITHUB_ENV"
+
+      - name: Start backend (:8080)
+        run: |
+          cd backend && ./openrisk > "$RUNNER_TEMP/backend.log" 2>&1 &
+
+      - name: Wait for backend health
+        run: |
+          for i in $(seq 1 60); do
+            if curl -fsS http://localhost:8080/api/v1/health >/dev/null; then
+              echo "✅ backend ready"; exit 0
+            fi
+            echo "waiting for backend ($i/60)"; sleep 1
+          done
+          echo "❌ backend failed to start"; tail -n 50 "$RUNNER_TEMP/backend.log"; exit 1
+
+      # Exit codes of zap-baseline.py: 0 clean, 1 a FAIL rule fired, 2 WARN
+      # only (turned into 0 by -I), 3 ZAP itself failed. Anything but 0 fails.
+      - name: Run OWASP ZAP baseline scan
+        run: |
+          mkdir -p zap-report && chmod 777 zap-report
+          cp .zap/rules.tsv docs/openapi.yaml zap-report/
+          # The API returns JSON with no links, so the spider alone would only
+          # see /health. Importing the OpenAPI spec puts every documented route
+          # in front of the passive scanner.
+          docker run --rm --network host -v "$PWD/zap-report:/zap/wrk:rw" "$ZAP_IMAGE" \
+            zap-baseline.py -t http://localhost:8080/api/v1/health \
+              -c rules.tsv -g gen.conf -I \
+              -z "-openapifile /zap/wrk/openapi.yaml -openapitargeturl http://localhost:8080/api/v1" \
+              -r report.html -J report.json -w report.md
+
+      - name: ZAP report → job summary
+        if: always()
+        run: |
+          if [ -f zap-report/report.md ]; then
+            cat zap-report/report.md >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "ZAP produced no report." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload ZAP report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: zap-report
+          path: |
+            zap-report/report.html
+            zap-report/report.json
+            zap-report/report.md
+            zap-report/gen.conf
+          if-no-files-found: error
+          retention-days: 30
