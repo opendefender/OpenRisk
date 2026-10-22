@@ -2737,10 +2737,6 @@ export interface components {
             /** Format: date */
             due_date?: string;
         };
-        CreateSubActionInput: {
-            /** @example Install security patches */
-            title: string;
-        };
         CreateAssetInput: {
             /** @example Production Database Server */
             name: string;
@@ -4249,7 +4245,7 @@ export interface components {
             /** @description Seconds to wait, on a 429 */
             retry_after?: number;
         };
-        /** @description Sent by the per-IP rate limiter, alongside a Retry-After header. */
+        /** @description Sent by the rate limiters with a Retry-After header. The authentication limiters add `code` and `retry_after`; the API-wide quota sends `error` and `msg` only. */
         RateLimitedError: {
             /** @enum {boolean} */
             error?: true;
@@ -4435,8 +4431,35 @@ export interface components {
             /** Format: date-time */
             updated_at?: string;
         };
+        /** @description The error body the authentication middlewares send. */
+        GuardError: {
+            /** @enum {string} */
+            code?: "CSRF_FAILED" | "MFA_ENROLLMENT_REQUIRED" | "MFA_STATUS_UNAVAILABLE";
+            message?: string;
+            mfa?: components["schemas"]["MFAStatus"];
+        };
     };
-    responses: never;
+    responses: {
+        /** @description The API-wide quota, per IP on every /api/v1 route and per tenant on authenticated ones. Retry-After gives the seconds to wait. */
+        QuotaExceeded: {
+            headers: {
+                "Retry-After"?: number;
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["RateLimitedError"];
+            };
+        };
+        /** @description `MFA_STATUS_UNAVAILABLE`: the MFA policy guard could not check the account and fails closed. Safe to retry. */
+        MFAStatusUnavailable: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": components["schemas"]["GuardError"];
+            };
+        };
+    };
     parameters: {
         VendorPathId: string;
         /** @description The opaque questionnaire token from the link's URL fragment (ADR 0004 D4). Never send it in the path or the query string. */
@@ -5070,6 +5093,7 @@ export interface operations {
                     "application/json": components["schemas"]["AuthError"];
                 };
             };
+            429: components["responses"]["QuotaExceeded"];
             /** @description The session cookies could not be issued */
             500: {
                 headers: {
@@ -5116,6 +5140,7 @@ export interface operations {
                     "application/json": components["schemas"]["AuthError"];
                 };
             };
+            429: components["responses"]["QuotaExceeded"];
         };
     };
     forgotPassword: {
@@ -5325,6 +5350,7 @@ export interface operations {
                 };
                 content?: never;
             };
+            429: components["responses"]["QuotaExceeded"];
         };
     };
     oauth2Callback: {
@@ -5351,6 +5377,7 @@ export interface operations {
                 };
                 content?: never;
             };
+            429: components["responses"]["QuotaExceeded"];
         };
     };
     saml2Login: {
@@ -5370,6 +5397,7 @@ export interface operations {
                 };
                 content?: never;
             };
+            429: components["responses"]["QuotaExceeded"];
         };
     };
     saml2Acs: {
@@ -5389,6 +5417,7 @@ export interface operations {
                 };
                 content?: never;
             };
+            429: components["responses"]["QuotaExceeded"];
         };
     };
     saml2Metadata: {
@@ -5418,6 +5447,7 @@ export interface operations {
                     "application/json": components["schemas"]["AuthError"];
                 };
             };
+            429: components["responses"]["QuotaExceeded"];
         };
     };
     mfaChallenge: {
@@ -5683,6 +5713,16 @@ export interface operations {
                     "application/json": components["schemas"]["TokenError"] | components["schemas"]["AuthError"];
                 };
             };
+            /** @description From the middleware: `MFA_ENROLLMENT_REQUIRED` (the account must enrol an authenticator first) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GuardError"];
+                };
+            };
+            429: components["responses"]["QuotaExceeded"];
             /** @description Failed to list sessions */
             500: {
                 headers: {
@@ -5692,6 +5732,7 @@ export interface operations {
                     "application/json": components["schemas"]["AuthError"];
                 };
             };
+            503: components["responses"]["MFAStatusUnavailable"];
         };
     };
     revokeOtherSessions: {
@@ -5724,15 +5765,16 @@ export interface operations {
                     "application/json": components["schemas"]["TokenError"] | components["schemas"]["AuthError"];
                 };
             };
-            /** @description Called with a personal access token */
+            /** @description Called with a personal access token; or, from the middleware, `CSRF_FAILED` (cookie session without a valid CSRF token) or `MFA_ENROLLMENT_REQUIRED` (the account must enrol an authenticator first) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AuthError"];
+                    "application/json": components["schemas"]["AuthError"] | components["schemas"]["GuardError"];
                 };
             };
+            429: components["responses"]["QuotaExceeded"];
             /** @description Failed to revoke sessions */
             500: {
                 headers: {
@@ -5742,6 +5784,7 @@ export interface operations {
                     "application/json": components["schemas"]["AuthError"];
                 };
             };
+            503: components["responses"]["MFAStatusUnavailable"];
         };
     };
     revokeSession: {
@@ -5780,6 +5823,15 @@ export interface operations {
                     "application/json": components["schemas"]["TokenError"] | components["schemas"]["AuthError"];
                 };
             };
+            /** @description From the middleware: `CSRF_FAILED` (cookie session without a valid CSRF token) or `MFA_ENROLLMENT_REQUIRED` (the account must enrol an authenticator first) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GuardError"];
+                };
+            };
             /** @description No such session for this account */
             404: {
                 headers: {
@@ -5789,6 +5841,7 @@ export interface operations {
                     "application/json": components["schemas"]["AuthError"];
                 };
             };
+            429: components["responses"]["QuotaExceeded"];
             /** @description Failed to revoke the session */
             500: {
                 headers: {
@@ -5798,6 +5851,7 @@ export interface operations {
                     "application/json": components["schemas"]["AuthError"];
                 };
             };
+            503: components["responses"]["MFAStatusUnavailable"];
         };
     };
     listMyOrganizations: {
@@ -5830,6 +5884,16 @@ export interface operations {
                     "application/json": components["schemas"]["TokenError"] | components["schemas"]["AuthError"];
                 };
             };
+            /** @description From the middleware: `MFA_ENROLLMENT_REQUIRED` (the account must enrol an authenticator first) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GuardError"];
+                };
+            };
+            429: components["responses"]["QuotaExceeded"];
             /** @description Failed to list organizations */
             500: {
                 headers: {
@@ -5839,6 +5903,7 @@ export interface operations {
                     "application/json": components["schemas"]["AuthError"];
                 };
             };
+            503: components["responses"]["MFAStatusUnavailable"];
         };
     };
     switchOrganization: {
@@ -5890,15 +5955,16 @@ export interface operations {
                     "application/json": components["schemas"]["TokenError"] | components["schemas"]["AuthError"];
                 };
             };
-            /** @description Not an active member of the target organization */
+            /** @description Not an active member of the target organization; or, from the middleware, `CSRF_FAILED` (cookie session without a valid CSRF token) or `MFA_ENROLLMENT_REQUIRED` (the account must enrol an authenticator first) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AuthError"];
+                    "application/json": components["schemas"]["AuthError"] | components["schemas"]["GuardError"];
                 };
             };
+            429: components["responses"]["QuotaExceeded"];
             /** @description The switch or the session cookies failed */
             500: {
                 headers: {
@@ -5908,6 +5974,7 @@ export interface operations {
                     "application/json": components["schemas"]["AuthError"];
                 };
             };
+            503: components["responses"]["MFAStatusUnavailable"];
         };
     };
     listPersonalAccessTokens: {
@@ -5939,6 +6006,16 @@ export interface operations {
                     "application/json": components["schemas"]["TokenError"] | components["schemas"]["AuthError"];
                 };
             };
+            /** @description From the middleware: `MFA_ENROLLMENT_REQUIRED` (the account must enrol an authenticator first) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GuardError"];
+                };
+            };
+            429: components["responses"]["QuotaExceeded"];
             /** @description Failed to list tokens */
             500: {
                 headers: {
@@ -5948,6 +6025,7 @@ export interface operations {
                     "application/json": components["schemas"]["AuthError"];
                 };
             };
+            503: components["responses"]["MFAStatusUnavailable"];
         };
     };
     createPersonalAccessToken: {
@@ -6007,15 +6085,16 @@ export interface operations {
                     "application/json": components["schemas"]["TokenError"] | components["schemas"]["AuthError"];
                 };
             };
-            /** @description Called with a personal access token */
+            /** @description Called with a personal access token; or, from the middleware, `CSRF_FAILED` (cookie session without a valid CSRF token) or `MFA_ENROLLMENT_REQUIRED` (the account must enrol an authenticator first) */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AuthError"];
+                    "application/json": components["schemas"]["AuthError"] | components["schemas"]["GuardError"];
                 };
             };
+            429: components["responses"]["QuotaExceeded"];
             /** @description Failed to create the token */
             500: {
                 headers: {
@@ -6025,6 +6104,7 @@ export interface operations {
                     "application/json": components["schemas"]["AuthError"];
                 };
             };
+            503: components["responses"]["MFAStatusUnavailable"];
         };
     };
     revokePersonalAccessToken: {
@@ -6063,6 +6143,15 @@ export interface operations {
                     "application/json": components["schemas"]["TokenError"] | components["schemas"]["AuthError"];
                 };
             };
+            /** @description From the middleware: `CSRF_FAILED` (cookie session without a valid CSRF token) or `MFA_ENROLLMENT_REQUIRED` (the account must enrol an authenticator first) */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GuardError"];
+                };
+            };
             /** @description No such token for this caller in this organization */
             404: {
                 headers: {
@@ -6072,6 +6161,7 @@ export interface operations {
                     "application/json": components["schemas"]["AuthError"];
                 };
             };
+            429: components["responses"]["QuotaExceeded"];
             /** @description Failed to revoke the token */
             500: {
                 headers: {
@@ -6081,6 +6171,7 @@ export interface operations {
                     "application/json": components["schemas"]["AuthError"];
                 };
             };
+            503: components["responses"]["MFAStatusUnavailable"];
         };
     };
     getOrganization: {
