@@ -34,7 +34,7 @@ func setupUserEmailRepo(t *testing.T) (*GormUserRepository, *gorm.DB) {
 			avatar_url TEXT, avatar_key TEXT, locale TEXT, date_format TEXT,
 			theme_mode TEXT, last_login DATETIME, tenant_id TEXT, default_org_id TEXT,
 			created_by_id TEXT, created_at DATETIME, updated_at DATETIME,
-			deleted_at DATETIME)`,
+			deleted_at DATETIME, devices_revoked_at DATETIME)`,
 	} {
 		require.NoError(t, db.Exec(ddl).Error)
 	}
@@ -92,4 +92,29 @@ func TestGetByEmail_LegacyMixedCaseRows(t *testing.T) {
 	u, err = repo.GetByEmail(ctx, "nobody@alpha.test")
 	require.NoError(t, err)
 	assert.Nil(t, u)
+}
+
+// #879 review: sign-in loads the user, then saves it; a revocation stamped in
+// between used to be written back to its old value, trusting again every
+// device the owner had just untrusted.
+func TestUpdate_DoesNotUndoADeviceRevocation(t *testing.T) {
+	repo, db := setupUserEmailRepo(t)
+	ctx := context.Background()
+	id := insertUser(t, db, "awa@example.test", time.Now())
+
+	loaded, err := repo.GetByEmail(ctx, "awa@example.test")
+	require.NoError(t, err)
+	require.Nil(t, loaded.DevicesRevokedAt)
+
+	// "Sign out other devices" lands while the sign-in is still running.
+	require.NoError(t, db.Model(&domain.User{}).Where("id = ?", id).
+		UpdateColumn("devices_revoked_at", time.Now()).Error)
+
+	now := time.Now()
+	loaded.LastLogin = &now
+	require.NoError(t, repo.Update(ctx, loaded))
+
+	var stamped int64
+	require.NoError(t, db.Model(&domain.User{}).Where("id = ? AND devices_revoked_at IS NOT NULL", id).Count(&stamped).Error)
+	assert.EqualValues(t, 1, stamped, "the revocation was overwritten")
 }

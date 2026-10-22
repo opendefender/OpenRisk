@@ -35,6 +35,13 @@ type loginUsers struct {
 	member *domain.OrganizationMember
 }
 
+func (l *loginUsers) GetByID(_ context.Context, id uuid.UUID) (*domain.User, error) {
+	if l.user != nil && l.user.ID == id {
+		return l.user, nil
+	}
+	return nil, nil
+}
+
 func (l *loginUsers) GetByEmail(_ context.Context, email string) (*domain.User, error) {
 	if l.user != nil && domain.NormaliseEmail(l.user.Email) == domain.NormaliseEmail(email) {
 		return l.user, nil

@@ -47,6 +47,10 @@ type User struct {
 	DateFormat string     `gorm:"type:text" json:"date_format,omitempty"`
 	ThemeMode  string     `gorm:"type:text" json:"theme_mode,omitempty"`
 	LastLogin  *time.Time `json:"last_login,omitempty"`
+	// DevicesRevokedAt ends every trusted-device cookie issued before it
+	// (D-064, #879). Set with the sessions: password reset or change, or
+	// "sign out everywhere".
+	DevicesRevokedAt *time.Time `gorm:"column:devices_revoked_at" json:"-"`
 
 	// RBAC Extensions (Phase 5 Priority #5)
 	TenantID     *uuid.UUID `gorm:"type:uuid;index" json:"tenant_id,omitempty"` // NULL for system-wide users

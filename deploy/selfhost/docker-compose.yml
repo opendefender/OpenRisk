@@ -76,6 +76,9 @@ services:
       SCANNER_CREDENTIAL_KEY: ${SCANNER_CREDENTIAL_KEY}
       AUDIT_EXPORT_KEY: ${AUDIT_EXPORT_KEY}
       AUDIT_HASH_KEY: ${AUDIT_HASH_KEY}
+      # Optional (D-064): empty = derived from AUDIT_HASH_KEY.
+      DEVICE_COOKIE_KEY: ${DEVICE_COOKIE_KEY:-}
+      DEVICE_COOKIE_PREVIOUS_KEY: ${DEVICE_COOKIE_PREVIOUS_KEY:-}
       # Private ranges integrations may reach (on-prem Nessus, self-hosted Jira).
       # Empty ⇒ public addresses only. Loopback and link-local stay denied.
       OUTBOUND_ALLOWED_CIDRS: ${OUTBOUND_ALLOWED_CIDRS:-}

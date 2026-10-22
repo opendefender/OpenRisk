@@ -140,9 +140,15 @@ func (r *GormUserRepository) GetByUsername(ctx context.Context, username string)
 	return &user, nil
 }
 
-// Update updates an existing user
+// Update updates an existing user.
+//
+// devices_revoked_at is never written here (D-064, #879). Sign-in loads the
+// user, then saves it hundreds of milliseconds later (last login, hash
+// upgrade); a revocation stamped in between would be written back to its old
+// value, silently trusting again every device the owner just untrusted. Only
+// the revocation paths write that column, with a targeted update.
 func (r *GormUserRepository) Update(ctx context.Context, user *domain.User) error {
-	return r.db.WithContext(ctx).Save(user).Error
+	return r.db.WithContext(ctx).Omit("devices_revoked_at").Save(user).Error
 }
 
 // Delete soft-deletes a user

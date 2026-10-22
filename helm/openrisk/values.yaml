@@ -322,11 +322,11 @@ secrets:
     rsaPublicKey: ""
     oauth2ClientId: ""
     oauth2ClientSecret: ""
-    # Encrypts TOTP secrets at rest. Required (#1062); once users have
-    # enrolled, it must keep the same value forever. An older values file may still set
-    # it as backend.env.MFA_ENCRYPTION_KEY: that value is used, and moved into
-    # the Secret, when this one is empty.
-    mfaEncryptionKey: ""
+    # Optional (D-064): signs the trusted-device cookie. Empty = derived from
+    # auditHashKey. At least 32 characters when set. To rotate, move the old
+    # value to deviceCookiePreviousKey for 90 days.
+    deviceCookieKey: ""
+    deviceCookiePreviousKey: ""
     # Required (D-065): keys the hash of addresses in the auth audit trail.
     # At least 32 characters, the same across upgrades.
     auditHashKey: ""

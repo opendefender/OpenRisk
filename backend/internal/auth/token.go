@@ -22,6 +22,7 @@ import (
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 
+	"github.com/opendefender/openrisk/internal/domain"
 	authpkg "github.com/opendefender/openrisk/pkg/auth"
 )
 
@@ -603,7 +604,18 @@ func (tm *TokenManager) RevokeRefreshToken(ctx context.Context, refreshTokenValu
 }
 
 // RevokeAllUserTokens revokes all refresh tokens for a user
+//
+// It also ends every trusted-device cookie the user holds (D-064, #879), by
+// stamping devices_revoked_at. Not in one transaction with the sweep, on
+// purpose: the sweep is only correct because each of its passes commits on its
+// own (see sweepRefreshTokens). The stamp comes first, so a sweep that fails
+// after it leaves the stricter state (devices untrusted), and the error is
+// returned either way.
 func (tm *TokenManager) RevokeAllUserTokens(ctx context.Context, userID uuid.UUID) error {
+	if err := tm.db.WithContext(ctx).Model(&domain.User{}).Where("id = ?", userID).
+		UpdateColumn("devices_revoked_at", time.Now()).Error; err != nil {
+		return fmt.Errorf("failed to revoke trusted devices: %w", err)
+	}
 	if err := tm.sweepRefreshTokens(ctx, "user_id = ?", userID); err != nil {
 		return fmt.Errorf("failed to revoke user tokens: %w", err)
 	}

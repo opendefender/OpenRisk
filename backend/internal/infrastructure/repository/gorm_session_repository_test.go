@@ -41,6 +41,8 @@ func setupSessionRepo(t *testing.T) *GormSessionRepository {
 			created_at DATETIME,
 			updated_at DATETIME
 		)`).Error)
+	// "Sign out other devices" also stamps users.devices_revoked_at (D-064).
+	require.NoError(t, db.Exec(`CREATE TABLE users (id TEXT PRIMARY KEY, devices_revoked_at DATETIME, deleted_at DATETIME)`).Error)
 
 	return &GormSessionRepository{db: db}
 }
@@ -193,41 +195,21 @@ func TestHasSeenDevice(t *testing.T) {
 	assert.True(t, seen)
 }
 
-func TestHasLiveSession(t *testing.T) {
+// D-064 (#879): signing out the other devices also untrusts their device
+// cookies, for this user only.
+func TestRevokeAllExcept_UntrustsTheUsersDevices(t *testing.T) {
 	repo := setupSessionRepo(t)
 	ctx := context.Background()
-	me, stranger := uuid.New(), uuid.New()
-	future, past := time.Now().Add(time.Hour), time.Now().Add(-time.Hour)
+	me, bystander := uuid.New(), uuid.New()
+	for _, id := range []uuid.UUID{me, bystander} {
+		require.NoError(t, repo.db.Exec(`INSERT INTO users (id) VALUES (?)`, id).Error)
+	}
+	seedSession(t, repo, me, "hash-current", "fp-a", "Chrome", time.Now().Add(time.Hour))
 
-	family := func(user uuid.UUID, expires time.Time, rotated bool) uuid.UUID {
-		id, fam := uuid.New(), uuid.New()
-		var rotatedAt any
-		if rotated {
-			rotatedAt = time.Now()
-		}
-		require.NoError(t, repo.db.Exec(
-			`INSERT INTO refresh_tokens (id, user_id, tenant_id, family_id, token_hash, expires_at, rotated_at, created_at, updated_at)
-			 VALUES (?,?,?,?,?,?,?,?,?)`,
-			id.String(), user.String(), uuid.New().String(), fam.String(), "h-"+id.String(), expires, rotatedAt, time.Now(), time.Now(),
-		).Error)
-		return fam
-	}
+	_, err := repo.RevokeAllExcept(ctx, me, "hash-current")
+	require.NoError(t, err)
 
-	cases := map[string]struct {
-		family uuid.UUID
-		want   bool
-	}{
-		"live":               {family(me, future, false), true},
-		"only a spent token": {family(me, future, true), false},
-		"expired":            {family(me, past, false), false},
-		"someone else's":     {family(stranger, future, false), false},
-		"never existed":      {uuid.New(), false},
-	}
-	for name, tc := range cases {
-		t.Run(name, func(t *testing.T) {
-			got, err := repo.HasLiveSession(ctx, me, tc.family)
-			require.NoError(t, err)
-			assert.Equal(t, tc.want, got)
-		})
-	}
+	var stamped []string
+	require.NoError(t, repo.db.Raw(`SELECT id FROM users WHERE devices_revoked_at IS NOT NULL`).Scan(&stamped).Error)
+	assert.Equal(t, []string{me.String()}, stamped)
 }

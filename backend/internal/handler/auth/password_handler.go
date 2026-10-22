@@ -26,6 +26,15 @@ type PasswordHandler struct {
 	baseURL string
 	audit   *coreauth.AuditService
 	change  *appauth.ChangePasswordUseCase
+	// devices re-issues this browser's trusted-device cookie after a password
+	// change untrusted them all (D-064). Optional.
+	devices *coreauth.DeviceCookieSigner
+}
+
+// WithTrustedDevices turns the cookie re-issue on.
+func (h *PasswordHandler) WithTrustedDevices(s *coreauth.DeviceCookieSigner) *PasswordHandler {
+	h.devices = s
+	return h
 }
 
 // NewPasswordHandler builds the handler.
