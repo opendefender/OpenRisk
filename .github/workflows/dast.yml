@@ -3,8 +3,9 @@ name: DAST
 # OWASP ZAP baseline scan of a running backend (#649).
 #
 # The old "DAST with OWASP ZAP" job in security.yml never scanned anything: it
-# died at setup on actions/upload-artifact@v3, and the server it started had no
-# RS256 keys and no migrations, so it would have exited before ZAP reached it.
+# died at setup on upload-artifact v3, which GitHub rejects, and the server it
+# started had no RS256 keys and no migrations, so it would have exited before
+# ZAP reached it.
 # #978 retired it. This job boots the backend the way e2e.yml does, checks that
 # it answers, and only then runs ZAP against it.
 #
