@@ -52,8 +52,8 @@ func operationKey(method, path string) string {
 // registeredOperations returns every /api/v1 route in main.go, keyed by
 // operationKey, with the route as main.go spells it (prefix stripped).
 //
-// Routes outside /api/v1 (/metrics, scanner agents, webhooks) are mounted on
-// `app` on purpose and are not part of the spec's server, so they are skipped.
+// Routes outside /api/v1, such as /metrics, are not under the spec's server
+// URL, so they are skipped.
 func registeredOperations(t *testing.T) map[string]string {
 	t.Helper()
 	all, err := Extract(realRouterPath(t))
