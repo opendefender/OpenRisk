@@ -13,6 +13,7 @@ import (
 
 	appauth "github.com/opendefender/openrisk/internal/application/auth"
 	coreauth "github.com/opendefender/openrisk/internal/auth"
+	"github.com/opendefender/openrisk/internal/domain"
 	"github.com/opendefender/openrisk/internal/middleware"
 )
 
@@ -122,7 +123,12 @@ func (h *SessionHandler) RevokeOtherSessions(c *fiber.Ctx) error {
 			UserAgent:   c.Get("User-Agent"),
 		},
 	})
-	if err != nil {
+	var appErr *domain.AppError
+	switch {
+	case errors.As(err, &appErr) && appErr.Code == fiber.StatusUnauthorized:
+		h.logAudit(c, &mwCtx.UserID, coreauth.AuditActionSessionRevokeAll, false)
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": appErr.Detail})
+	case err != nil:
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to revoke sessions"})
 	}
 

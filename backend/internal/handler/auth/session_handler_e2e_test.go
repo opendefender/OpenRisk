@@ -324,3 +324,21 @@ func TestRevokeOtherSessionsE2E_PersonalAccessTokenRefused(t *testing.T) {
 	assert.Equal(t, int64(1), s.liveSessions(t), "nothing is minted and nothing is revoked")
 	assert.Equal(t, http.StatusOK, s.refresh(t, phone.RefreshToken).status)
 }
+
+// #1059: a device that was signed out keeps a valid access token for up to
+// AccessTokenTTL. Its sid names a session that no longer exists; using it to
+// sign out "the others" must not sign out the owner who removed it.
+func TestRevokeOtherSessionsE2E_SignedOutDeviceIsRefused(t *testing.T) {
+	s := newSessionStack(t)
+	owner := s.signIn(t, "laptop")
+	intruder := s.signIn(t, "phone")
+
+	res := s.send(t, http.MethodDelete, "/api/v1/auth/sessions/others", browserCookies(owner), browserHeaders)
+	require.Equal(t, http.StatusOK, res.status, res.body)
+
+	// The intruder's refresh session is gone, its access token is not.
+	res = s.send(t, http.MethodDelete, "/api/v1/auth/sessions/others", browserCookies(intruder), browserHeaders)
+	assert.Equal(t, http.StatusUnauthorized, res.status, res.body)
+	assert.Equal(t, int64(1), s.liveSessions(t), "nothing is revoked")
+	s.rotate(t, owner)
+}

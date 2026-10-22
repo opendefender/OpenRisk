@@ -24,6 +24,12 @@ type fakeSessionRepo struct {
 	calls      []string
 	revoked    int64
 	records    []domain.SessionRecord
+	// gone lists families that no longer hold a live session.
+	gone map[uuid.UUID]bool
+}
+
+func (f *fakeSessionRepo) HasLiveSession(_ context.Context, _ uuid.UUID, family uuid.UUID) (bool, error) {
+	return !f.gone[family], nil
 }
 
 func (f *fakeSessionRepo) ListByUser(context.Context, uuid.UUID) ([]domain.SessionRecord, error) {
@@ -236,5 +242,20 @@ func TestListSessions_Unauthorized(t *testing.T) {
 	var appErr *domain.AppError
 	if !errors.As(err, &appErr) || appErr.Code != http.StatusBadRequest {
 		t.Fatalf("want a validation error, got %v", err)
+	}
+}
+
+// #1059: a revoked session's leftover access token cannot sign out the rest.
+func TestRevokeOtherSessions_RevokedSessionIsRefused(t *testing.T) {
+	family := uuid.New()
+	repo := &fakeSessionRepo{revoked: 3, gone: map[uuid.UUID]bool{family: true}}
+	_, err := NewRevokeOtherSessionsUseCase(repo).Execute(context.Background(),
+		RevokeOtherSessionsInput{UserID: uuid.New(), TenantID: uuid.New(), CurrentSession: family})
+	var appErr *domain.AppError
+	if !errors.As(err, &appErr) || appErr.Code != http.StatusUnauthorized {
+		t.Fatalf("want an unauthorized error, got %v", err)
+	}
+	if len(repo.calls) != 0 {
+		t.Fatalf("nothing may be revoked, got %v", repo.calls)
 	}
 }
