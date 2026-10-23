@@ -56,10 +56,37 @@ jobs:
         run: |
           openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out private.pem 2>/dev/null
           openssl rsa -in private.pem -pubout -out public.pem 2>/dev/null
-          helm lint helm/openrisk -f helm/kind/values.yaml \
+          # Every required secret is set, or lint stops at the first required
+          # value and never looks at the templates after it.
+          helm lint --strict helm/openrisk -f helm/kind/values.yaml \
             --set-file secrets.inline.rsaPrivateKey=private.pem \
             --set-file secrets.inline.rsaPublicKey=public.pem \
+            --set secrets.inline.mfaEncryptionKey=lint-only-mfa-key \
             --set secrets.inline.auditHashKey=lint-only-audit-hash-key-0000000000
+          # helm lint reports a failed `required` without failing, so the guard
+          # each secret relies on is checked by rendering: leave one out and the
+          # render must refuse (#1062, D-065). A merge once dropped the MFA key
+          # from the Secret and nothing here noticed (#1115).
+          for missing in mfaEncryptionKey auditHashKey; do
+            args=(-f helm/kind/values.yaml
+              --set-file secrets.inline.rsaPrivateKey=private.pem
+              --set-file secrets.inline.rsaPublicKey=public.pem)
+            [ "$missing" = mfaEncryptionKey ] || args+=(--set secrets.inline.mfaEncryptionKey=render-check)
+            [ "$missing" = auditHashKey ] || args+=(--set secrets.inline.auditHashKey=render-check-audit-hash-key-000000)
+            if out="$(helm template openrisk helm/openrisk "${args[@]}" 2>&1)"; then
+              echo "❌ the chart renders without secrets.inline.$missing"; exit 1
+            fi
+            echo "$out" | grep -q "secrets.inline.$missing is required" \
+              || { echo "❌ render without $missing failed for another reason:"; echo "$out"; exit 1; }
+            echo "✅ the render refuses a missing secrets.inline.$missing"
+          done
+          helm template openrisk helm/openrisk -f helm/kind/values.yaml \
+            --set-file secrets.inline.rsaPrivateKey=private.pem \
+            --set-file secrets.inline.rsaPublicKey=public.pem \
+            --set secrets.inline.mfaEncryptionKey=render-check \
+            --set secrets.inline.auditHashKey=render-check-audit-hash-key-000000 \
+            | grep -q '^  mfa-encryption-key:' \
+            || { echo "❌ openrisk-secrets carries no mfa-encryption-key"; exit 1; }
           helm install openrisk helm/openrisk -f helm/kind/values.yaml \
             --set-file secrets.inline.rsaPrivateKey=private.pem \
             --set-file secrets.inline.rsaPublicKey=public.pem \
