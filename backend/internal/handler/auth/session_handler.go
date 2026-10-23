@@ -168,8 +168,10 @@ func (h *SessionHandler) RevokeOtherSessions(c *fiber.Ctx) error {
 	// Every trusted device was untrusted with the sessions. The one that asked
 	// keeps its trust, like it keeps its session, but only if it still had it
 	// (#879 review, #1118): a stolen session alone must not mint a 90-day
-	// cookie, and neither may a cookie that an earlier revocation ended.
-	if keepTrust {
+	// cookie, and neither may a cookie that an earlier revocation ended. A
+	// caller whose own session ended with the others signs in again, and that
+	// sign-in plants its own cookie, so nothing is extended here.
+	if keepTrust && !out.Reauthenticate {
 		plantTrustedDevice(c, h.devices, mwCtx.UserID)
 	}
 
