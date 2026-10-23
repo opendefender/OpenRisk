@@ -117,20 +117,15 @@ jobs:
           done
           echo "❌ backend failed to start"; tail -n 50 "$RUNNER_TEMP/backend.log"; exit 1
 
-      # Exit codes of zap-baseline.py: 0 clean, 1 a FAIL rule fired, 2 WARN
-      # only (turned into 0 by -I), 3 ZAP itself failed. Anything but 0 fails.
+      # The API returns JSON with no links, so the spider alone would only see
+      # /health. Importing the OpenAPI spec puts every documented route in
+      # front of the passive scanner; .zap/scan.sh fails the job when the
+      # import did not take, and when any FAIL rule in .zap/rules.tsv fires.
       - name: Run OWASP ZAP baseline scan
         run: |
           mkdir -p zap-report && chmod 777 zap-report
           cp .zap/rules.tsv docs/openapi.yaml zap-report/
-          # The API returns JSON with no links, so the spider alone would only
-          # see /health. Importing the OpenAPI spec puts every documented route
-          # in front of the passive scanner.
-          docker run --rm --network host -v "$PWD/zap-report:/zap/wrk:rw" "$ZAP_IMAGE" \
-            zap-baseline.py -t http://localhost:8080/api/v1/health \
-              -c rules.tsv -g gen.conf -I \
-              -z "-openapifile /zap/wrk/openapi.yaml -openapitargeturl http://localhost:8080/api/v1" \
-              -r report.html -J report.json -w report.md
+          .zap/scan.sh report openapi.yaml http://localhost:8080/api/v1/health http://localhost:8080/api/v1
 
       # Behind Protected, the scan above only ever sees 401s. This one signs in
       # as the seeded admin and has ZAP send the access token on every request
@@ -143,29 +138,42 @@ jobs:
       # devices", which would revoke the token halfway through the scan.
       - name: Run OWASP ZAP baseline scan (signed in)
         run: |
-          yq --version
           yq '.paths[] |= with_entries(select(.key == "get" or .key == "parameters")) | .paths |= with_entries(select(.value | has("get")))' \
             docs/openapi.yaml > zap-report/openapi-get.yaml
-          echo "GET operations: $(yq '[.paths[] | select(has("get"))] | length' zap-report/openapi-get.yaml)"
           token="$(curl -fsS -X POST http://localhost:8080/api/v1/auth/login \
             -H 'Content-Type: application/json' \
             -d "{\"email\":\"admin@opendefender.io\",\"password\":\"$INITIAL_ADMIN_PASSWORD\"}" \
             | jq -r '.token_pair.access_token // empty')"
           [ -n "$token" ] || { echo "❌ sign-in returned no access token"; exit 1; }
           echo "::add-mask::$token"
+          echo "token=$token" >> "$RUNNER_TEMP/dast.env"
           curl -fsS -o /dev/null -H "Authorization: Bearer $token" http://localhost:8080/api/v1/users/me \
             || { echo "❌ the token is refused"; exit 1; }
-          export ZAP_AUTH_HEADER_VALUE="Bearer $token"
-          docker run --rm --network host -e ZAP_AUTH_HEADER_VALUE \
-            -v "$PWD/zap-report:/zap/wrk:rw" "$ZAP_IMAGE" \
-            zap-baseline.py -t http://localhost:8080/api/v1/users/me \
-              -c rules.tsv -I \
-              -z "-openapifile /zap/wrk/openapi-get.yaml -openapitargeturl http://localhost:8080/api/v1" \
-              -r report-auth.html -J report-auth.json -w report-auth.md
+          ZAP_AUTH_HEADER_VALUE="Bearer $token" \
+            .zap/scan.sh report-auth openapi-get.yaml http://localhost:8080/api/v1/users/me http://localhost:8080/api/v1
           # Still live at the end, or most of the scan saw 401s and proved nothing.
           curl -fsS -o /dev/null -H "Authorization: Bearer $token" http://localhost:8080/api/v1/users/me \
             || { echo "❌ the token was revoked during the scan"; exit 1; }
-          echo "Authenticated responses: $(jq '[.site[].alerts[].instances[]] | length' zap-report/report-auth.json) alert instances"
+
+      # ZAP rates a missing Cache-Control as informational (10049), which no
+      # rule can fail on. Signed-in responses are tenant data, so the job
+      # checks the header itself on every GET route without a path parameter
+      # (#1124).
+      - name: Signed-in responses are not cacheable
+        run: |
+          token="$(sed -n 's/^token=//p' "$RUNNER_TEMP/dast.env")"
+          checked=0 bad=0
+          while read -r path; do
+            cc="$(curl -sS --max-time 5 -o /dev/null -D - -H "Authorization: Bearer $token" "http://localhost:8080/api/v1$path" \
+              | tr -d '\r' | sed -n 's/^[Cc]ache-[Cc]ontrol: *//p')"
+            checked=$((checked + 1))
+            case "$cc" in
+              *no-store*|*no-cache*) ;;
+              *) echo "❌ GET $path: Cache-Control '${cc:-<none>}'"; bad=$((bad + 1)) ;;
+            esac
+          done < <(yq '.paths | keys | .[] | select(test("\\{") | not)' zap-report/openapi-get.yaml)
+          echo "$checked GET routes checked, $bad cacheable"
+          [ "$checked" -gt 0 ] && [ "$bad" -eq 0 ]
 
       - name: ZAP report → job summary
         if: always()
@@ -190,6 +198,7 @@ jobs:
             zap-report/report-auth.html
             zap-report/report-auth.json
             zap-report/report-auth.md
-            zap-report/gen.conf
+            zap-report/report.log
+            zap-report/report-auth.log
           if-no-files-found: error
           retention-days: 30

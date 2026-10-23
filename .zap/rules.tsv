@@ -1,15 +1,16 @@
 # ZAP baseline rules for .github/workflows/dast.yml (#649).
 # Format: <rule id><TAB><WARN|FAIL|IGNORE><TAB><note>.
 #
-# Every passive rule of the pinned ZAP image (2.17.0) is FAIL. On the first
-# scan of the booted backend (146 URLs, run 39778823240) none of them fired;
-# the only alerts were informational, which zap-baseline does not count. So
-# any of these firing is a regression and fails the job.
+# Every passive rule of the pinned ZAP image (2.17.0) is FAIL. On the scans of
+# the booted backend (signed out and signed in, every documented route) none of
+# them fired; the only alerts were informational, which the classic
+# zap-baseline path does not count (.zap/scan.sh). So any of these firing is a
+# regression and fails the job.
 #
 # If one fires: fix it, or file an issue and move that rule to WARN with the
 # issue number in its note. Never IGNORE a rule to make the job green.
-# Upgrading the image: diff its gen.conf (uploaded with the report) against
-# this list and add the new rules.
+# Upgrading the image: run its zap-baseline.py with -g gen.conf once, diff
+# gen.conf against this list and add the new rules as FAIL.
 10003	FAIL	(Vulnerable JS Library (Powered by Retire.js))
 10009	FAIL	(In Page Banner Information Leak)
 10010	FAIL	(Cookie No HttpOnly Flag)
