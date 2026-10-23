@@ -512,3 +512,23 @@ func TestRevokeOtherSessionsE2E_ReauthenticatingCallerGetsNoCookie(t *testing.T)
 	issued := res.cookies[middleware.TrustedDeviceCookieName()]
 	assert.True(t, issued == nil || issued.Value == "", "no trusted-device cookie for a caller signed out too")
 }
+
+// An API client presenting a refresh token that names no live session (here,
+// one already rotated) keeps nothing: it is told to sign in again, and its
+// trusted-device cookie gets no fresh 90 days.
+func TestRevokeOtherSessionsE2E_StalePresentedSessionReauthenticates(t *testing.T) {
+	s := newSessionStack(t)
+	client := s.signIn(t, "ci-runner")
+	s.rotate(t, client) // client.RefreshToken is now spent
+	s.signIn(t, "phone")
+	cookies := browserCookies(s.legacyAccessToken(t))
+	cookies[middleware.TrustedDeviceCookieName()] = s.devices.Issue(s.userID)
+
+	res := s.send(t, http.MethodDelete, "/api/v1/auth/sessions/others", cookies,
+		map[string]string{middleware.CSRFHeader: "csrf-727", "X-Refresh-Token": client.RefreshToken})
+	require.Equal(t, http.StatusOK, res.status, res.body)
+	assert.Equal(t, true, res.body["reauthenticate"])
+	assert.Equal(t, int64(0), s.liveSessions(t), "nothing named a live session, so nothing survives")
+	issued := res.cookies[middleware.TrustedDeviceCookieName()]
+	assert.True(t, issued == nil || issued.Value == "", "no trusted-device cookie for a caller signed out too")
+}
