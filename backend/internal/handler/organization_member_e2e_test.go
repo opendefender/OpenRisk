@@ -305,6 +305,7 @@ func (f *orgFixture) buildApp(t *testing.T) *fiber.App {
 type reply struct {
 	status int
 	body   []byte
+	header http.Header
 }
 
 func (r reply) into(t *testing.T, v any) {
@@ -350,7 +351,7 @@ func (f *orgFixture) call(t *testing.T, actor, method, path string, body any) re
 	}
 	defer func() { _ = res.Body.Close() }()
 	raw, _ := io.ReadAll(res.Body)
-	return reply{status: res.StatusCode, body: raw}
+	return reply{status: res.StatusCode, body: raw, header: res.Header}
 }
 
 func (f *orgFixture) mustCall(t *testing.T, actor, method, path string, body any, want int) reply {
