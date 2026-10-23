@@ -86,7 +86,9 @@ func (h *ProfileHandler) GetAvatar(c *fiber.Ctx) error {
 	}
 	c.Set(fiber.HeaderContentType, a.ContentType)
 	c.Set("X-Content-Type-Options", "nosniff")
-	c.Set(fiber.HeaderCacheControl, "private, max-age=300")
+	// no-store, not a few minutes of private caching: a cached copy outlives
+	// sign-out and stays readable to the next account on the browser (#1124).
+	c.Set(fiber.HeaderCacheControl, "no-store")
 	c.Set("Content-Security-Policy", "default-src 'none'; sandbox")
 	return c.Send(a.Data)
 }

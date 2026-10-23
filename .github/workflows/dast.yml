@@ -1,0 +1,227 @@
+name: DAST
+
+# OWASP ZAP baseline scan of a running backend (#649).
+#
+# The old "DAST with OWASP ZAP" job in security.yml never scanned anything: it
+# died at setup on upload-artifact v3, which GitHub rejects, and the server it
+# started had no RS256 keys and no migrations, so it would have exited before
+# ZAP reached it.
+# #978 retired it. This job boots the backend the way e2e.yml does, checks that
+# it answers, and only then runs ZAP against it.
+#
+# The baseline scan is passive: it spiders the API and inspects the responses
+# (headers, cookies, disclosure), it does not attack. ZAP is run from its
+# pinned image rather than zaproxy/action-baseline, so no step holds a token
+# that can open issues, and the report goes up through the same pinned
+# upload-artifact as the rest of CI.
+#
+# Gate: a rule listed as FAIL in .zap/rules.tsv fails the job. Rules left at
+# WARN are reported but do not fail it; each open WARN has its own issue,
+# named in the rules file. Never move a rule to IGNORE to make this green.
+
+on:
+  push:
+    branches: [master, develop]
+  pull_request:
+    branches: [master, develop]
+  schedule:
+    - cron: '41 2 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dast-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  zap-baseline:
+    name: DAST with OWASP ZAP
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: openrisk
+          POSTGRES_PASSWORD: openrisk
+          POSTGRES_DB: openrisk_dast
+        options: >-
+          --health-cmd pg_isready --health-interval 10s --health-timeout 5s --health-retries 5
+        ports:
+          - 5432:5432
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping" --health-interval 10s --health-timeout 5s --health-retries 5
+        ports:
+          - 6379:6379
+
+    env:
+      DATABASE_URL: postgres://openrisk:openrisk@localhost:5432/openrisk_dast?sslmode=disable
+      DB_HOST: localhost
+      DB_PORT: '5432'
+      DB_USER: openrisk
+      DB_PASSWORD: openrisk
+      DB_NAME: openrisk_dast
+      REDIS_HOST: localhost
+      REDIS_PORT: '6379'
+      REDIS_URL: redis://localhost:6379
+      APP_ENV: test
+      PORT: '8080'
+      # The SQL migrations live at the repository root and the backend starts
+      # from backend/ (see e2e.yml, #297).
+      MIGRATIONS_DIR: ../migrations
+      CTI_SYNC_ENABLED: 'false'
+      PASSWORD_HIBP_DISABLED: 'true'
+      ZAP_IMAGE: ghcr.io/zaproxy/zaproxy:2.17.0
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Generate the admin password for this run
+        run: |
+          pw="$(openssl rand -hex 24)"
+          echo "::add-mask::$pw"
+          echo "INITIAL_ADMIN_PASSWORD=$pw" >> "$GITHUB_ENV"
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+
+      - name: Build backend
+        run: cd backend && go build -o openrisk ./cmd/server
+
+      # Generated per run in the runner's temp dir, never in the report dir.
+      - name: Generate ephemeral RS256 key pair
+        run: |
+          mkdir -p "$RUNNER_TEMP/dast-keys"
+          ( umask 077 && openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out "$RUNNER_TEMP/dast-keys/private.pem" 2>/dev/null )
+          openssl rsa -in "$RUNNER_TEMP/dast-keys/private.pem" -pubout -out "$RUNNER_TEMP/dast-keys/public.pem" 2>/dev/null
+          echo "RSA_PRIVATE_KEY_PATH=$RUNNER_TEMP/dast-keys/private.pem" >> "$GITHUB_ENV"
+          echo "RSA_PUBLIC_KEY_PATH=$RUNNER_TEMP/dast-keys/public.pem" >> "$GITHUB_ENV"
+
+      - name: Start backend (:8080)
+        run: |
+          cd backend && ./openrisk > "$RUNNER_TEMP/backend.log" 2>&1 &
+
+      - name: Wait for backend health
+        run: |
+          for i in $(seq 1 60); do
+            if curl -fsS http://localhost:8080/api/v1/health >/dev/null; then
+              echo "✅ backend ready"; exit 0
+            fi
+            echo "waiting for backend ($i/60)"; sleep 1
+          done
+          echo "❌ backend failed to start"; tail -n 50 "$RUNNER_TEMP/backend.log"; exit 1
+
+      # The API returns JSON with no links, so the spider alone would only see
+      # /health. Importing the OpenAPI spec puts every documented route in
+      # front of the passive scanner; .zap/scan.sh fails the job when the
+      # import did not take, and when any FAIL rule in .zap/rules.tsv fires.
+      - name: Run OWASP ZAP baseline scan
+        run: |
+          mkdir -p zap-report && chmod 777 zap-report
+          cp .zap/rules.tsv docs/openapi.yaml zap-report/
+          .zap/scan.sh report openapi.yaml http://localhost:8080/api/v1/health http://localhost:8080/api/v1
+
+      # Behind Protected, the scan above only ever sees 401s. This one signs in
+      # as the seeded admin and has ZAP send the access token on every request
+      # (ZAP_AUTH_HEADER_VALUE, read from the environment so the token is never
+      # on a command line), so the passive rules judge what a signed-in user
+      # really gets back.
+      #
+      # GET operations only: the import replays every operation in the spec,
+      # and with a live token that includes logout and "sign out other
+      # devices", which would revoke the token halfway through the scan.
+      - name: Run OWASP ZAP baseline scan (signed in)
+        run: |
+          yq '.paths[] |= with_entries(select(.key == "get" or .key == "parameters")) | .paths |= with_entries(select(.value | has("get")))' \
+            docs/openapi.yaml > zap-report/openapi-get.yaml
+          token="$(curl -fsS -X POST http://localhost:8080/api/v1/auth/login \
+            -H 'Content-Type: application/json' \
+            -d "{\"email\":\"admin@opendefender.io\",\"password\":\"$INITIAL_ADMIN_PASSWORD\"}" \
+            | jq -r '.token_pair.access_token // empty')"
+          [ -n "$token" ] || { echo "❌ sign-in returned no access token"; exit 1; }
+          echo "::add-mask::$token"
+          echo "token=$token" >> "$RUNNER_TEMP/dast.env"
+          curl -fsS -o /dev/null -H "Authorization: Bearer $token" http://localhost:8080/api/v1/users/me \
+            || { echo "❌ the token is refused"; exit 1; }
+          ZAP_AUTH_HEADER_VALUE="Bearer $token" \
+            .zap/scan.sh report-auth openapi-get.yaml http://localhost:8080/api/v1/users/me http://localhost:8080/api/v1
+          # Still live at the end, or most of the scan saw 401s and proved nothing.
+          curl -fsS -o /dev/null -H "Authorization: Bearer $token" http://localhost:8080/api/v1/users/me \
+            || { echo "❌ the token was revoked during the scan"; exit 1; }
+
+      # ZAP rates a missing Cache-Control as informational (10049), which no
+      # rule can fail on. Signed-in responses are tenant data, so the job
+      # checks the header itself on every GET route without a path parameter
+      # (#1124): no-store, or no-cache on an event stream, which is never
+      # stored. Errors carry the default too, so the 2xx count shows the
+      # token really reached the handlers.
+      - name: Signed-in responses are not cacheable
+        run: |
+          token="$(sed -n 's/^token=//p' "$RUNNER_TEMP/dast.env")"
+          checked=0 ok=0 bad=0
+          while read -r path; do
+            meta="$(curl -sS --max-time 5 -o /dev/null -D "$RUNNER_TEMP/h" -w '%{http_code} %{content_type}' \
+              -H "Authorization: Bearer $token" "http://localhost:8080/api/v1$path" || true)"
+            code="${meta%% *}" type="${meta#* }"
+            cc="$(tr -d '\r' < "$RUNNER_TEMP/h" | sed -n 's/^[Cc]ache-[Cc]ontrol: *//p' | tail -n1)"
+            checked=$((checked + 1))
+            case "$code" in 2??) ok=$((ok + 1)) ;; esac
+            case "$cc" in
+              *no-store*) ;;
+              *no-cache*) [[ "$type" == text/event-stream* ]] \
+                || { echo "❌ GET $path ($code, $type): no-cache stores the body, want no-store"; bad=$((bad + 1)); } ;;
+              *) echo "❌ GET $path ($code): Cache-Control '${cc:-<none>}'"; bad=$((bad + 1)) ;;
+            esac
+          done < <(yq '.paths | keys | .[] | select(test("\\{") | not)' zap-report/openapi-get.yaml)
+          echo "$checked GET routes checked, $ok answered 2xx, $bad cacheable"
+          [ "$bad" -eq 0 ] || exit 1
+          [ "$ok" -gt 0 ] && [ $((ok * 2)) -ge "$checked" ] \
+            || { echo "❌ only $ok of $checked routes answered 2xx: the token did not reach the handlers"; exit 1; }
+
+      # ::add-mask:: hides the token in the log, not in uploaded files.
+      - name: The token is in no file uploaded
+        if: always()
+        run: |
+          token="$(sed -n 's/^token=//p' "$RUNNER_TEMP/dast.env" 2>/dev/null || true)"
+          [ -n "$token" ] || exit 0
+          leaked="$(grep -rlF "$token" zap-report/ || true)"
+          if [ -n "$leaked" ]; then
+            # Removed before the summary and upload steps, which always run.
+            echo "$leaked" | xargs rm -f
+            echo "❌ these files contained the access token and were removed:"; echo "$leaked"; exit 1
+          fi
+          echo "✅ no uploaded file contains the token"
+
+      - name: ZAP report → job summary
+        if: always()
+        run: |
+          for r in report report-auth; do
+            if [ -f "zap-report/$r.md" ]; then
+              cat "zap-report/$r.md" >> "$GITHUB_STEP_SUMMARY"
+            else
+              echo "ZAP produced no $r." >> "$GITHUB_STEP_SUMMARY"
+            fi
+          done
+
+      - name: Upload ZAP report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: zap-report
+          path: |
+            zap-report/report.html
+            zap-report/report.json
+            zap-report/report.md
+            zap-report/report-auth.html
+            zap-report/report-auth.json
+            zap-report/report-auth.md
+            zap-report/report.log
+            zap-report/report-auth.log
+          if-no-files-found: error
+          retention-days: 30

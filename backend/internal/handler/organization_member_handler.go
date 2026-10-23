@@ -324,7 +324,10 @@ func (h *OrganizationMemberHandler) GetOrganizationLogo(c *fiber.Ctx) error {
 	}
 	c.Set(fiber.HeaderContentType, logo.ContentType)
 	c.Set("X-Content-Type-Options", "nosniff")
-	c.Set(fiber.HeaderCacheControl, "private, max-age=300")
+	// no-store, not a few minutes of private caching: every organization's
+	// logo lives at this one URL, so a cached copy is the previous
+	// organization's after a switch or a change of account (#1124).
+	c.Set(fiber.HeaderCacheControl, "no-store")
 	c.Set("Content-Security-Policy", "default-src 'none'; sandbox")
 	return c.Send(logo.Data)
 }

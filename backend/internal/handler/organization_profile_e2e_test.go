@@ -139,6 +139,11 @@ func TestOrganizationBranding_HTTP(t *testing.T) {
 	if r.status != http.StatusOK {
 		t.Fatalf("member logo read: %d", r.status)
 	}
+	// One URL for every organization's logo: a cached copy would be the
+	// previous organization's after a switch (#1124).
+	if cc := r.header.Get("Cache-Control"); cc != "no-store" {
+		t.Fatalf("logo Cache-Control = %q, want no-store", cc)
+	}
 	f.mustCall(t, "admin@a.io", http.MethodPut, "/api/v1/organization", map[string]any{"accent": "iris"}, 200)
 	f.mustCall(t, "admin@a.io", http.MethodPut, "/api/v1/organization", map[string]any{"accent": "#ff0000"}, 400)
 	var b membership.Branding

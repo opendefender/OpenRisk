@@ -7,6 +7,7 @@ package middleware
 
 import (
 	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 
@@ -181,4 +182,31 @@ func TestLoadSecurityHeadersConfig_EnvOverrides(t *testing.T) {
 			t.Error("invalid bool should keep the secure default")
 		}
 	})
+}
+
+// #1124: API responses are tenant data and must not be stored by a browser or
+// a proxy unless the handler says otherwise.
+func TestSecurityHeaders_DefaultsToNoStore(t *testing.T) {
+	resp := newHeaderProbe(t, SecurityHeaders(LoadSecurityHeadersConfig()))
+	if got := resp.Header.Get(fiber.HeaderCacheControl); got != "no-store" {
+		t.Fatalf("Cache-Control = %q, want no-store", got)
+	}
+}
+
+// A handler that sets its own policy keeps it: event streams send no-cache.
+func TestSecurityHeaders_HandlerCacheControlWins(t *testing.T) {
+	app := fiber.New()
+	app.Use(SecurityHeaders(LoadSecurityHeadersConfig()))
+	app.Get("/stream", func(c *fiber.Ctx) error {
+		c.Set(fiber.HeaderCacheControl, "no-cache")
+		return c.SendString("data")
+	})
+	resp, err := app.Test(httptest.NewRequest(http.MethodGet, "/stream", nil))
+	if err != nil {
+		t.Fatalf("request: %v", err)
+	}
+	defer resp.Body.Close()
+	if got := resp.Header.Values(fiber.HeaderCacheControl); len(got) != 1 || got[0] != "no-cache" {
+		t.Fatalf("Cache-Control = %q, want exactly [no-cache]", got)
+	}
 }

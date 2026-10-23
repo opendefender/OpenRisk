@@ -216,6 +216,9 @@ func TestProfileHTTP_Avatar(t *testing.T) {
 	if res.StatusCode != http.StatusOK || res.Header.Get("Content-Type") != "image/png" || res.Header.Get("X-Content-Type-Options") != "nosniff" {
 		t.Fatalf("same-tenant read: %d %v", res.StatusCode, res.Header)
 	}
+	if cc := res.Header.Get("Cache-Control"); cc != "no-store" {
+		t.Fatalf("avatar Cache-Control = %q, want no-store (#1124)", cc)
+	}
 
 	// Another tenant gets the same 404 as for a user that does not exist.
 	foreign := f.do(t, f.carol, httptest.NewRequest(http.MethodGet, "/api/v1/users/"+f.alice.String()+"/avatar", nil))
