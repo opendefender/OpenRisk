@@ -10,10 +10,12 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
@@ -25,6 +27,7 @@ import (
 
 	appauth "github.com/opendefender/openrisk/internal/application/auth"
 	coreauth "github.com/opendefender/openrisk/internal/auth"
+	"github.com/opendefender/openrisk/internal/domain"
 	authhandler "github.com/opendefender/openrisk/internal/handler/auth"
 	"github.com/opendefender/openrisk/internal/infrastructure/repository"
 	"github.com/opendefender/openrisk/internal/middleware"
@@ -48,9 +51,30 @@ type sessionStack struct {
 	keys   *authpkg.RSAKeys
 	userID uuid.UUID
 	orgID  uuid.UUID
+	// devices signs trusted-device cookies the way main.go's signer does.
+	devices *coreauth.DeviceCookieSigner
+}
+
+// usersTable reads the one column the trust check needs from the minimal
+// users table, which GormUserRepository's full model does not fit.
+type usersTable struct{ db *gorm.DB }
+
+func (u usersTable) GetByID(ctx context.Context, id uuid.UUID) (*domain.User, error) {
+	var row struct{ DevicesRevokedAt *time.Time }
+	if err := u.db.WithContext(ctx).Table("users").Select("devices_revoked_at").Where("id = ?", id).Take(&row).Error; err != nil {
+		return nil, err
+	}
+	return &domain.User{ID: id, DevicesRevokedAt: row.DevicesRevokedAt}, nil
 }
 
 func newSessionStack(t *testing.T) *sessionStack {
+	t.Helper()
+	return newSessionStackWithUsers(t, nil)
+}
+
+// newSessionStackWithUsers wires the trust check to users; nil reads the
+// stack's own users table.
+func newSessionStackWithUsers(t *testing.T, users authhandler.UserByIDReader) *sessionStack {
 	t.Helper()
 
 	dsn := "file:sessions_others_" + uuid.New().String() + "?mode=memory&cache=private"
@@ -74,7 +98,9 @@ func newSessionStack(t *testing.T) *sessionStack {
 	require.NoError(t, err)
 	keys := &authpkg.RSAKeys{PrivateKey: priv, PublicKey: &priv.PublicKey}
 
-	s := &sessionStack{db: db, keys: keys, userID: uuid.New(), orgID: uuid.New()}
+	s := &sessionStack{db: db, keys: keys, userID: uuid.New(), orgID: uuid.New(),
+		devices: coreauth.NewDeviceCookieSigner([]byte("test-device-key"))}
+	require.NoError(t, db.Exec(`INSERT INTO users (id) VALUES (?)`, s.userID.String()).Error)
 	s.tokens = coreauth.NewTokenManager(db, keys)
 	// What main.go's org resolver derives from an active membership, reduced to
 	// the one account these tests use.
@@ -82,13 +108,16 @@ func newSessionStack(t *testing.T) *sessionStack {
 		return &coreauth.SessionClaims{TenantID: orgID, OrgRoles: map[uuid.UUID]string{orgID: "user"}}, nil
 	})
 
+	if users == nil {
+		users = usersTable{db}
+	}
 	sessionRepo := repository.NewGormSessionRepository(db)
 	sessions := authhandler.NewSessionHandler(
 		appauth.NewListSessionsUseCase(sessionRepo),
 		appauth.NewRevokeSessionUseCase(sessionRepo),
 		appauth.NewRevokeOtherSessionsUseCase(sessionRepo),
 		nil,
-	)
+	).WithTrustedDevices(s.devices, users)
 	blacklist := authpkg.NewTokenBlacklistManager(&memoryBlacklist{keys: map[string]string{}})
 	logout := appauth.NewLogoutUseCase(s.tokens).WithAccessTokenRevocation(blacklist).WithSessionRevocation(s.tokens)
 	h := authhandler.NewHandler(nil, nil, appauth.NewRefreshTokenUseCase(s.tokens), logout, nil, nil).
@@ -362,4 +391,144 @@ func TestLogoutE2E_ForeignSidRevokesNothing(t *testing.T) {
 	assert.Equal(t, http.StatusOK, res.status, res.body)
 	assert.Equal(t, int64(1), s.liveSessions(t))
 	s.rotate(t, phone)
+}
+
+// #1118/#1119: "sign out other devices" re-issues the caller's trusted-device
+// cookie only when the caller holds one the account still trusts, on both the
+// sid path and the refresh-hash path.
+func TestRevokeOtherSessionsE2E_TrustedDeviceReissue(t *testing.T) {
+	trusted := middleware.TrustedDeviceCookieName()
+
+	type path struct {
+		cookies func(s *sessionStack) map[string]string
+		headers func(s *sessionStack) map[string]string
+	}
+	paths := map[string]func(t *testing.T, s *sessionStack) path{
+		"sid": func(t *testing.T, s *sessionStack) path {
+			laptop := s.signIn(t, "laptop")
+			return path{
+				cookies: func(*sessionStack) map[string]string { return browserCookies(laptop) },
+				headers: func(*sessionStack) map[string]string { return browserHeaders },
+			}
+		},
+		"refresh hash": func(t *testing.T, s *sessionStack) path {
+			client := s.signIn(t, "ci-runner")
+			legacy := s.legacyAccessToken(t)
+			return path{
+				cookies: func(*sessionStack) map[string]string { return browserCookies(legacy) },
+				headers: func(*sessionStack) map[string]string {
+					return map[string]string{middleware.CSRFHeader: "csrf-727", "X-Refresh-Token": client.RefreshToken}
+				},
+			}
+		},
+	}
+	cases := map[string]struct {
+		cookie func(t *testing.T, s *sessionStack) string
+		want   bool
+	}{
+		"a cookie the account trusts is re-issued": {
+			cookie: func(_ *testing.T, s *sessionStack) string { return s.devices.Issue(s.userID) },
+			want:   true,
+		},
+		"no cookie, none minted": {
+			cookie: func(*testing.T, *sessionStack) string { return "" },
+		},
+		"another user's cookie is not": {
+			cookie: func(_ *testing.T, s *sessionStack) string { return s.devices.Issue(uuid.New()) },
+		},
+		"a cookie an earlier revocation ended is not": {
+			cookie: func(t *testing.T, s *sessionStack) string {
+				c := s.devices.Issue(s.userID)
+				time.Sleep(2 * time.Millisecond)
+				require.NoError(t, s.db.Exec(`UPDATE users SET devices_revoked_at = ? WHERE id = ?`, time.Now(), s.userID.String()).Error)
+				return c
+			},
+		},
+	}
+	for pname, mk := range paths {
+		for cname, tc := range cases {
+			t.Run(pname+"/"+cname, func(t *testing.T) {
+				s := newSessionStack(t)
+				p := mk(t, s)
+				s.signIn(t, "phone")
+				cookies := p.cookies(s)
+				if v := tc.cookie(t, s); v != "" {
+					cookies[trusted] = v
+				}
+
+				res := s.send(t, http.MethodDelete, "/api/v1/auth/sessions/others", cookies, p.headers(s))
+				require.Equal(t, http.StatusOK, res.status, res.body)
+				issued := res.cookies[trusted]
+				if !tc.want {
+					assert.True(t, issued == nil || issued.Value == "", "no trusted-device cookie may be set")
+					return
+				}
+				require.NotNil(t, issued, "the caller's trusted-device cookie is re-issued")
+				d := s.devices.Verify(issued.Value)
+				require.NotNil(t, d)
+				var at *time.Time
+				require.NoError(t, s.db.Raw(`SELECT devices_revoked_at FROM users WHERE id = ?`, s.userID.String()).Scan(&at).Error)
+				assert.True(t, d.TrustsFor(&domain.User{ID: s.userID, DevicesRevokedAt: at}),
+					"the re-issued cookie survives the stamp this revocation set")
+			})
+		}
+	}
+}
+
+type failingUsers struct{}
+
+func (failingUsers) GetByID(context.Context, uuid.UUID) (*domain.User, error) {
+	return nil, errors.New("database unavailable")
+}
+
+// The trust check fails closed: when the user cannot be read, the revocation
+// still happens and no trusted-device cookie is re-issued.
+func TestRevokeOtherSessionsE2E_UnreadableUserReissuesNothing(t *testing.T) {
+	s := newSessionStackWithUsers(t, failingUsers{})
+	laptop := s.signIn(t, "laptop")
+	s.signIn(t, "phone")
+	cookies := browserCookies(laptop)
+	cookies[middleware.TrustedDeviceCookieName()] = s.devices.Issue(s.userID)
+
+	res := s.send(t, http.MethodDelete, "/api/v1/auth/sessions/others", cookies, browserHeaders)
+	require.Equal(t, http.StatusOK, res.status, res.body)
+	assert.EqualValues(t, 1, res.body["revoked"])
+	issued := res.cookies[middleware.TrustedDeviceCookieName()]
+	assert.True(t, issued == nil || issued.Value == "", "no trusted-device cookie on an unreadable user")
+}
+
+// A caller whose own session ends with the others (a legacy token naming no
+// session) gets no fresh 90 days on its cookie: it signs in again, and that
+// sign-in plants one.
+func TestRevokeOtherSessionsE2E_ReauthenticatingCallerGetsNoCookie(t *testing.T) {
+	s := newSessionStack(t)
+	s.signIn(t, "laptop")
+	cookies := browserCookies(s.legacyAccessToken(t))
+	cookies[middleware.TrustedDeviceCookieName()] = s.devices.Issue(s.userID)
+
+	res := s.send(t, http.MethodDelete, "/api/v1/auth/sessions/others", cookies, browserHeaders)
+	require.Equal(t, http.StatusOK, res.status, res.body)
+	assert.Equal(t, true, res.body["reauthenticate"])
+	issued := res.cookies[middleware.TrustedDeviceCookieName()]
+	assert.True(t, issued == nil || issued.Value == "", "no trusted-device cookie for a caller signed out too")
+}
+
+// An API client presenting a refresh token that names no live session (here,
+// one already rotated) keeps nothing: it is told to sign in again, and its
+// trusted-device cookie gets no fresh 90 days.
+func TestRevokeOtherSessionsE2E_StalePresentedSessionReauthenticates(t *testing.T) {
+	s := newSessionStack(t)
+	client := s.signIn(t, "ci-runner")
+	s.rotate(t, client) // client.RefreshToken is now spent
+	s.signIn(t, "phone")
+	cookies := browserCookies(s.legacyAccessToken(t))
+	cookies[middleware.TrustedDeviceCookieName()] = s.devices.Issue(s.userID)
+
+	res := s.send(t, http.MethodDelete, "/api/v1/auth/sessions/others", cookies,
+		map[string]string{middleware.CSRFHeader: "csrf-727", "X-Refresh-Token": client.RefreshToken})
+	require.Equal(t, http.StatusOK, res.status, res.body)
+	assert.Equal(t, true, res.body["reauthenticate"])
+	assert.Equal(t, int64(0), s.liveSessions(t), "nothing named a live session, so nothing survives")
+	issued := res.cookies[middleware.TrustedDeviceCookieName()]
+	assert.True(t, issued == nil || issued.Value == "", "no trusted-device cookie for a caller signed out too")
 }

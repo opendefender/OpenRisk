@@ -118,3 +118,19 @@ func TestUpdate_DoesNotUndoADeviceRevocation(t *testing.T) {
 	require.NoError(t, db.Model(&domain.User{}).Where("id = ? AND devices_revoked_at IS NOT NULL", id).Count(&stamped).Error)
 	assert.EqualValues(t, 1, stamped, "the revocation was overwritten")
 }
+
+// The sign-out-others trust check (#1118) reads devices_revoked_at through
+// GetByID. A Select or Omit that drops the column would make every cookie
+// look trusted, so the read is pinned here.
+func TestGetByID_ReadsDevicesRevokedAt(t *testing.T) {
+	repo, db := setupUserEmailRepo(t)
+	id := insertUser(t, db, "stamp@example.com", time.Now())
+	at := time.Now().UTC().Truncate(time.Microsecond)
+	require.NoError(t, db.Exec(`UPDATE users SET devices_revoked_at = ? WHERE id = ?`, at, id).Error)
+
+	user, err := repo.GetByID(context.Background(), id)
+	require.NoError(t, err)
+	require.NotNil(t, user)
+	require.NotNil(t, user.DevicesRevokedAt, "devices_revoked_at must be read")
+	assert.True(t, user.DevicesRevokedAt.Equal(at), "got %v, want %v", user.DevicesRevokedAt, at)
+}
