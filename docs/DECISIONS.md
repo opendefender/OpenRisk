@@ -5,7 +5,30 @@ recommends, and surfaces these in the daily brief. Run `/decide` to clear them.
 
 ## Open
 
-Nothing open.
+### D-077 — Automation notification channels on Free: keep them open while the rest of SOAR is gated? · raised 2026-10-23
+**Question** — D-075 gates automation on hosted plans, Pro and up. #783 mounts
+that gate on every `/automation/*` route except the four channel routes
+(`/automation/channels`, `/channels/catalogue`, `PUT /channels`,
+`/channels/test`). Those channels (Slack, Teams, webhook, SMS) are also how
+incidents alert their stakeholders: `internal/infrastructure/incident/notifier.go`
+sends only through the automation dispatcher. Incident management is not a
+paid line. Gating the channels would take incident alerting away from Free
+tenants, a capability `docs/PRICING.md` never sold as paid.
+
+**Options**
+- **A (shipped in #783's PR, recommended)** — channels stay open on every plan;
+  rules, SLA, history, templates, dry runs and replays are gated. The Automation
+  screen keeps its Channels tab usable on Free and blurs the other three.
+- **B** — gate the channels too. Free tenants can no longer configure where
+  incident alerts go (Slack, Teams, webhook, SMS, e-mail settings).
+
+**Cost of delay** — none for development: the PR ships A and can switch to B by
+adding `featAutomation` to four lines of `main.go` plus the route test. It
+matters before #783 merges, because B removes a capability from Free.
+
+**Also for the owner, from ADR 0007** — under D-075 Free and Pro hosted tenants
+lose the governance screens, including reading the audit trail (the trail is
+still recorded). #783 ships that as decided; say if it should change.
 
 
 ## Resolved
