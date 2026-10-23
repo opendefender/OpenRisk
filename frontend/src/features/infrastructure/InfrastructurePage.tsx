@@ -40,8 +40,19 @@ import { AgentDeployModal } from './AgentDeployModal';
 import { useScanConfigs, useScannerAgents, useScanJobs } from './useScanner';
 import { PROVIDERS, jobStatusColor, agentStatusColor, timeAgo, scheduleLabel } from './scannerMeta';
 import type { ScanConfig, ScannerProvider, CreateScanConfigInput } from './scannerService';
+import { FeatureGate } from '../../shared/FeatureGate';
 
+// The plan gate (#783, ADR 0007): the API refuses these routes with 402 on a
+// plan without scanner; the screen shows the upsell instead of the refusal.
 export function InfrastructurePage() {
+  return (
+    <FeatureGate feature="scanner">
+      <InfrastructurePageScreen />
+    </FeatureGate>
+  );
+}
+
+function InfrastructurePageScreen() {
   const L = useUIStrings();
   const lang = useUIStore((s) => s.lang);
   const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);

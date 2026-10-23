@@ -67,6 +67,8 @@ import {
   fmtMinutes,
 } from './automationMeta';
 import { RuleEditorModal } from './RuleEditorModal';
+import { FeatureGate } from '../../shared/FeatureGate';
+import { useFeature } from '../billing/useEntitlements';
 
 type Tab = 'rules' | 'sla' | 'history' | 'channels';
 
@@ -113,8 +115,13 @@ export function AutomationPage() {
   const [editorRule, setEditorRule] = useState<AutomationRule | null>(null);
   const [editorOpen, setEditorOpen] = useState(false);
 
-  const { data: rules = [], isLoading: rulesLoading } = useAutomationRules();
-  const { data: stats } = useSLAStats();
+  // Rules, SLA and history are the paid SOAR (#783); channels are not, because
+  // incident alerts go out through them on every plan. So the page stays open
+  // and only the SOAR tabs sit behind the gate.
+  const automation = useFeature('automation');
+  const soar = !automation.loading && !automation.locked;
+  const { data: rules = [], isLoading: rulesLoading } = useAutomationRules(soar);
+  const { data: stats } = useSLAStats(soar);
 
   const openNew = () => {
     setEditorRule(null);
@@ -129,9 +136,9 @@ export function AutomationPage() {
     <PageFrame wide>
       <PageHeader
         title={tr('Automatisation', 'Automation')}
-        count={`${rules.length} ${tr('règles', 'rules')}`}
+        count={soar ? `${rules.length} ${tr('règles', 'rules')}` : undefined}
         actions={
-          canWrite ? (
+          canWrite && soar ? (
             <Btn label={tr('Nouvelle règle', 'New rule')} icon={Plus} primary onClick={openNew} />
           ) : undefined
         }
@@ -144,7 +151,7 @@ export function AutomationPage() {
         value={tab}
         onChange={setTab}
         items={[
-          { id: 'rules', label: tr('Règles', 'Rules'), count: rules.length },
+          { id: 'rules', label: tr('Règles', 'Rules'), count: soar ? rules.length : undefined },
           {
             id: 'sla',
             label: tr('SLA en cours', 'Live SLA'),
@@ -160,18 +167,23 @@ export function AutomationPage() {
           {tr(TAB_PURPOSE[tab].fr, TAB_PURPOSE[tab].en)}
         </p>
 
-        {tab === 'rules' && (
-          <RulesView
-            rules={rules}
-            loading={rulesLoading}
-            canWrite={canWrite}
-            onEdit={openEdit}
-            onNew={openNew}
-          />
+        {tab === 'channels' ? (
+          <ChannelsView canWrite={canWrite} />
+        ) : (
+          <FeatureGate feature="automation">
+            {tab === 'rules' && (
+              <RulesView
+                rules={rules}
+                loading={rulesLoading}
+                canWrite={canWrite}
+                onEdit={openEdit}
+                onNew={openNew}
+              />
+            )}
+            {tab === 'sla' && <SLAView />}
+            {tab === 'history' && <HistoryView />}
+          </FeatureGate>
         )}
-        {tab === 'sla' && <SLAView />}
-        {tab === 'history' && <HistoryView />}
-        {tab === 'channels' && <ChannelsView canWrite={canWrite} />}
       </TabPanel>
 
       {editorOpen && (

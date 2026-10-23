@@ -59,6 +59,9 @@ export function ExecutiveDashboard() {
   const navigate = useNavigate();
   const now = new Date();
   const q = quarterOf(now);
+  // Pro has this dashboard but not governance (#783): the committee block reads
+  // the approval inbox, so it shows only where the plan includes approvals.
+  const governance = useFeature('governance');
 
   const exportReport = useMutation({
     mutationFn: () =>
@@ -111,7 +114,7 @@ export function ExecutiveDashboard() {
         <FrameworkBars className="flex-[1_1_360px]" />
       </div>
 
-      <CommitteeDecisions />
+      {!governance.loading && !governance.locked && <CommitteeDecisions />}
     </PageFrame>
   );
 }

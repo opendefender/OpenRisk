@@ -14,16 +14,20 @@ import { useI18n } from '../../hooks/useI18n';
 import { useAuthStore } from '../../hooks/useAuthStore';
 import { Button, Menu } from '../../shared/ds';
 import { scannerService, type ScanConfig } from '../infrastructure/scannerService';
+import { useFeature } from '../billing/useEntitlements';
 
 export function DiscoverButton() {
   const { t } = useI18n();
   const navigate = useNavigate();
   const canScan = useAuthStore((s) => s.hasPermission('scanner:scan'));
   const canRead = useAuthStore((s) => s.hasPermission('scanner:read'));
+  // Without the scanner on the plan (#783) the button still shows and leads to
+  // Infrastructure, where the upsell explains what discovery needs.
+  const scanner = useFeature('scanner');
   const configs = useQuery({
     queryKey: ['scanner', 'configs'],
     queryFn: scannerService.listConfigs,
-    enabled: canScan && canRead,
+    enabled: canScan && canRead && !scanner.loading && !scanner.locked,
     staleTime: 60_000,
   });
   const run = useMutation({

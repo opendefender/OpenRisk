@@ -37,10 +37,11 @@ const PLAN_PITCH: Record<PlanKey, string> = {
   enterprise: 'Grandes entreprises / secteurs régulés',
 };
 const PLAN_HIGHLIGHTS: Record<PlanKey, string[]> = {
-  free: ['2 utilisateurs', '50 risques', 'Conformité de base', 'Support communauté'],
+  free: ['2 utilisateurs', '50 risques', '1 référentiel actif', 'Support communauté'],
   pro: [
     '10 utilisateurs',
     '500 risques',
+    '3 référentiels actifs',
     'Quantification financière',
     'IA GRC · Automatisation',
     'Support e-mail',
@@ -48,7 +49,8 @@ const PLAN_HIGHLIGHTS: Record<PlanKey, string[]> = {
   business: [
     '50 utilisateurs',
     'Risques illimités',
-    'SSO · Gouvernance · CTI',
+    '10 référentiels actifs',
+    'Gouvernance · CTI',
     'SLA 99,5 %',
     'Support prioritaire',
   ],
@@ -73,6 +75,7 @@ const LIMIT_LABEL: Record<string, string> = {
   risks: 'Risques',
   assets: 'Actifs',
   integrations: 'Intégrations',
+  frameworks: 'Référentiels actifs',
 };
 
 export function BillingPanel() {

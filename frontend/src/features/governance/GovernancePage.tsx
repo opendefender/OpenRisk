@@ -56,6 +56,7 @@ import type {
   ApprovalWorkflow,
   WorkflowStep,
 } from './governanceService';
+import { FeatureGate } from '../../shared/FeatureGate';
 
 type Tab = 'audit' | 'approvals' | 'delegations' | 'workflows';
 
@@ -112,7 +113,17 @@ function fmt(ts?: string | null): string {
   return isNaN(d.getTime()) ? '—' : d.toLocaleString();
 }
 
+// The plan gate (#783, ADR 0007): the API refuses these routes with 402 on a
+// plan without governance; the screen shows the upsell instead of the refusal.
 export function GovernancePage() {
+  return (
+    <FeatureGate feature="governance">
+      <GovernancePageScreen />
+    </FeatureGate>
+  );
+}
+
+function GovernancePageScreen() {
   const lang = useUIStore((s) => s.lang);
   const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
   const isAdmin = useAuthStore((s) => s.hasPermission)('*');

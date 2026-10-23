@@ -15,8 +15,8 @@ import {
 
 const KEY = ['automation'];
 
-export function useAutomationRules() {
-  return useQuery({ queryKey: [...KEY, 'rules'], queryFn: automationService.listRules });
+export function useAutomationRules(enabled = true) {
+  return useQuery({ queryKey: [...KEY, 'rules'], queryFn: automationService.listRules, enabled });
 }
 
 export function useAutomationExecutions() {
@@ -35,11 +35,12 @@ export function useSLATrackers() {
   });
 }
 
-export function useSLAStats() {
+export function useSLAStats(enabled = true) {
   return useQuery({
     queryKey: [...KEY, 'sla', 'stats'],
     queryFn: automationService.slaStats,
     refetchInterval: 30_000,
+    enabled,
   });
 }
 
