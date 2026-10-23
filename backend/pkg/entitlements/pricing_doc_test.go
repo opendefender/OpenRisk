@@ -40,31 +40,36 @@ func pricingDocPath() string {
 
 // docLimits maps a row label in the published table to the limit it describes.
 var docLimits = map[string]LimitKey{
-	"Users":        LimitUsers,
-	"Risks":        LimitRisks,
-	"Assets":       LimitAssets,
-	"Integrations": LimitIntegrations,
+	"Users":                   LimitUsers,
+	"Risks":                   LimitRisks,
+	"Assets":                  LimitAssets,
+	"Integrations":            LimitIntegrations,
+	"Active frameworks":       LimitFrameworks,
+	"Active automation rules": LimitAutomationRules,
+	"Scan sources":            LimitScanSources,
+	"Scans per month":         LimitScansPerMonth,
+	"Approval workflows":      LimitApprovalWorkflows,
 }
 
 // docFeatures maps a row label to the feature it describes. Every entry of
 // AllFeatures must appear here, which is asserted below.
 var docFeatures = map[string]Feature{
-	"API":                            FeatAPI,
-	"Automation (SOAR)":              FeatAutomation,
-	"AI Advisor":                     FeatAIAdvisor,
-	"Financial quant. (Monte-Carlo)": FeatFinancialQuant,
-	"Smart risk score":               FeatSmartScore,
-	"Executive dashboard":            FeatExecutiveDashboard,
-	"Infra scanner":                  FeatScanner,
-	"Compliance":                     FeatCompliance,
-	"Threat intel (CTI)":             FeatCTI,
-	"Governance / approvals":         FeatGovernance,
-	"Vendor risk (TPRM)":             FeatVendorRisk,
-	"SSO / SAML":                     FeatSSO,
-	"Multi-tenant":                   FeatMultiTenant,
-	"On-premise":                     FeatOnPremise,
-	"SLA":                            FeatSLA,
-	"Support":                        FeatSupport,
+	"API":                    FeatAPI,
+	"Automation (SOAR)":      FeatAutomation,
+	"AI Advisor":             FeatAIAdvisor,
+	"Financial quant.":       FeatFinancialQuant,
+	"Smart risk score":       FeatSmartScore,
+	"Executive dashboard":    FeatExecutiveDashboard,
+	"Infra scanner":          FeatScanner,
+	"Compliance":             FeatCompliance,
+	"Threat intel (CTI)":     FeatCTI,
+	"Governance / approvals": FeatGovernance,
+	"Vendor risk (TPRM)":     FeatVendorRisk,
+	"SSO / SAML":             FeatSSO,
+	"Multi-tenant":           FeatMultiTenant,
+	"On-premise":             FeatOnPremise,
+	"SLA":                    FeatSLA,
+	"Support":                FeatSupport,
 }
 
 // docLevels is the vocabulary a feature cell may use. An unlisted word fails,

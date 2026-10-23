@@ -8,64 +8,26 @@
 //
 // This is presentation only. Authorization is enforced by the backend (402), so a
 // gate the user bypasses in the DOM still cannot reach the paid endpoint.
+//
+// The plan named in the copy is the one the snapshot reports for the feature, so
+// the wall cannot promise a plan the matrix does not grant it on.
 
 import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router';
 import { UpsellLock } from './UpsellLock';
-import { useFeature } from '../features/billing/useEntitlements';
+import { useI18n } from '../hooks/useI18n';
+import { useFeature, useFeatureAtLeast } from '../features/billing/useEntitlements';
+import type { PlanKey } from '../services/entitlementService';
 
-const BENEFITS: Record<string, { title: string; description: string }> = {
-  financial_quantification: {
-    title: 'Quantification financière Monte-Carlo',
-    description:
-      'Chiffrez votre exposition en XAF et justifiez vos budgets sécurité auprès de la direction. Disponible à partir du plan Pro.',
-  },
-  ai_advisor: {
-    title: 'Assistant IA GRC',
-    description:
-      "Suggestions de plans de traitement, détection des risques émergents et rédaction de rapports d'audit. Disponible à partir du plan Pro.",
-  },
-  smart_score: {
-    title: 'Score de risque intelligent',
-    description:
-      'Un score multifactoriel (exposition, vulnérabilités, menaces, valeur financière) au lieu du seul P×I. Disponible à partir du plan Pro.',
-  },
-  executive_dashboard: {
-    title: 'Tableau de bord exécutif',
-    description:
-      'Toute votre posture (cyber score, exposition financière, KRI) consolidée en un écran pour le COMEX. Disponible à partir du plan Pro.',
-  },
-  scanner: {
-    title: "Scanner d'infrastructure",
-    description:
-      'Découverte automatique de vos actifs et vulnérabilités. Disponible à partir du plan Pro.',
-  },
-  automation: {
-    title: 'Automatisation (SOAR)',
-    description:
-      'Enchaînez alertes, tickets et escalades SLA sans intervention manuelle. Disponible à partir du plan Pro.',
-  },
-  cti: {
-    title: 'Renseignement sur les menaces (CTI)',
-    description:
-      'Enrichissez vos vulnérabilités avec NVD, CISA-KEV et MITRE ATT&CK. Disponible à partir du plan Business.',
-  },
-  governance: {
-    title: 'Gouvernance & approbations',
-    description:
-      'Workflows Maker-Checker et piste d’audit infalsifiable. Disponible à partir du plan Business.',
-  },
-  sso: {
-    title: 'SSO / SAML',
-    description:
-      'Authentification centralisée via votre annuaire d’entreprise. Disponible à partir du plan Business.',
-  },
-  vendor_risk: {
-    title: 'Gestion des risques fournisseurs (TPRM)',
-    description:
-      'Registre fournisseurs, questionnaires envoyés par lien, score fournisseur et relances automatiques. Disponible à partir du plan Business.',
-  },
-};
+/** The features with benefit copy under `paywall.features` in the locales. */
+const DESCRIBED = new Set([
+  'financial_quantification',
+  'ai_advisor',
+  'smart_score',
+  'executive_dashboard',
+  'cti',
+  'vendor_risk',
+]);
 
 const PLAN_LABEL: Record<string, string> = {
   free: 'Free',
@@ -81,26 +43,47 @@ interface FeatureGateProps {
   title?: string;
   description?: string;
   moment?: string;
+  /** Gate on a depth rather than on the feature being on at all (e.g. the
+   *  Monte-Carlo views need "on" while Free has "basic"), with the plan that
+   *  reaches it. */
+  minLevel?: string;
+  minPlan?: PlanKey;
 }
 
-export function FeatureGate({ feature, children, title, description, moment }: FeatureGateProps) {
+export function FeatureGate({
+  feature,
+  children,
+  title,
+  description,
+  moment,
+  minLevel,
+  minPlan,
+}: FeatureGateProps) {
   const navigate = useNavigate();
-  const { enabled, requiredPlan, loading } = useFeature(feature);
+  const { t } = useI18n();
+  const any = useFeature(feature);
+  const deep = useFeatureAtLeast(feature, minLevel ?? 'limited', minPlan ?? any.requiredPlan);
+  const { enabled, requiredPlan, loading } = minLevel ? deep : any;
 
   // While loading, render the children optimistically (no flash of the wall).
   if (loading || enabled) return <>{children}</>;
 
-  const meta = BENEFITS[feature];
+  const plan = PLAN_LABEL[requiredPlan] ?? PLAN_LABEL.pro;
+  const described = DESCRIBED.has(feature);
+  const availableFrom = t('paywall.availableFrom', { plan });
   return (
     <UpsellLock
-      title={title ?? meta?.title ?? 'Fonctionnalité premium'}
+      title={
+        title ?? (described ? t(`paywall.features.${feature}.title`) : t('paywall.fallbackTitle'))
+      }
       description={
         description ??
-        meta?.description ??
-        `Disponible à partir du plan ${PLAN_LABEL[requiredPlan] ?? 'Pro'}.`
+        (described
+          ? `${t(`paywall.features.${feature}.description`)} ${availableFrom}`
+          : availableFrom)
       }
-      ctaLabel={`Passer au plan ${PLAN_LABEL[requiredPlan] ?? 'Pro'}`}
-      moment={moment ?? `Plan ${PLAN_LABEL[requiredPlan] ?? 'Pro'}`}
+      ctaLabel={t('paywall.cta', { plan })}
+      moment={moment ?? t('paywall.moment', { plan })}
       onUpgrade={() => navigate('/settings?tab=billing')}
     >
       {children}

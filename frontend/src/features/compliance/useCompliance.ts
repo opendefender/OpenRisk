@@ -7,6 +7,7 @@ import { useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { complianceService } from '../../services/complianceService';
 import { ACTIVATION_QUERY_KEY } from '../onboarding/useActivation';
+import { ENTITLEMENTS_KEY } from '../billing/useEntitlements';
 import type {
   ComplianceControl,
   ComplianceFramework,
@@ -64,6 +65,8 @@ export function useFrameworks() {
   const invalidateFrameworkLists = () => {
     queryClient.invalidateQueries({ queryKey: FRAMEWORKS_QUERY_KEY });
     queryClient.invalidateQueries({ queryKey: OVERVIEW_QUERY_KEY });
+    // The framework cap's usage lives in the entitlements snapshot (D-076).
+    queryClient.invalidateQueries({ queryKey: ENTITLEMENTS_KEY });
   };
 
   const createFramework = useMutation({
@@ -137,6 +140,7 @@ export function useImportCatalogAsFramework() {
       // The server recorded framework.imported; re-read the checklist so the
       // step ticks now rather than on the next full reload.
       queryClient.invalidateQueries({ queryKey: ACTIVATION_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: ENTITLEMENTS_KEY });
     },
   });
 }

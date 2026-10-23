@@ -37,18 +37,25 @@ const PLAN_PITCH: Record<PlanKey, string> = {
   enterprise: 'Grandes entreprises / secteurs régulés',
 };
 const PLAN_HIGHLIGHTS: Record<PlanKey, string[]> = {
-  free: ['2 utilisateurs', '50 risques', 'Conformité de base', 'Support communauté'],
+  // D-078: Free uses almost everything, in small quantities.
+  free: [
+    '2 utilisateurs · 30 risques',
+    '1 référentiel actif',
+    '2 règles d’automatisation · 4 scans/mois',
+    'Score, tableau exécutif, ALE',
+    'Support communauté',
+  ],
   pro: [
-    '10 utilisateurs',
-    '500 risques',
-    'Quantification financière',
-    'IA GRC · Automatisation',
+    '10 utilisateurs · 500 risques',
+    '3 référentiels actifs',
+    '20 règles · scans illimités',
+    'Monte-Carlo · IA GRC',
     'Support e-mail',
   ],
   business: [
-    '50 utilisateurs',
-    'Risques illimités',
-    'SSO · Gouvernance · CTI',
+    '50 utilisateurs · risques illimités',
+    '10 référentiels actifs',
+    'CTI · Fournisseurs (TPRM)',
     'SLA 99,5 %',
     'Support prioritaire',
   ],
@@ -73,6 +80,11 @@ const LIMIT_LABEL: Record<string, string> = {
   risks: 'Risques',
   assets: 'Actifs',
   integrations: 'Intégrations',
+  frameworks: 'Référentiels actifs',
+  automation_rules: 'Règles d’automatisation actives',
+  scan_sources: 'Sources de scan',
+  scans_per_month: 'Scans ce mois-ci',
+  approval_workflows: 'Circuits d’approbation',
 };
 
 export function BillingPanel() {

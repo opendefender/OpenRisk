@@ -10,6 +10,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/opendefender/openrisk/internal/domain"
+	ent "github.com/opendefender/openrisk/pkg/entitlements"
 )
 
 // RuleInput is the create/update payload for an automation rule.
@@ -27,7 +28,33 @@ type RuleInput struct {
 // RuleService holds the CRUD use cases for automation rules. Every method is
 // tenant-scoped and returns typed domain errors.
 type RuleService struct {
-	repo domain.AutomationRuleRepository
+	repo  domain.AutomationRuleRepository
+	quota Quota
+}
+
+// Quota reads a tenant's plan cap and usage (the entitlements service).
+// Optional (nil-safe): without it, rules are uncapped.
+type Quota interface {
+	Capacity(ctx context.Context, tenant uuid.UUID, key ent.LimitKey) (allowed bool, limit, used int, plan ent.Plan, err error)
+}
+
+// WithQuota caps the tenant's ENABLED rules by plan (D-078). The cap is checked
+// whenever a rule turns on — created enabled, updated to enabled, or resumed —
+// so it holds on every path, not only one route. Editing a rule that is
+// already on never counts against it.
+func (s *RuleService) WithQuota(q Quota) *RuleService { s.quota = q; return s }
+
+// ensureCanEnable refuses one more enabled rule when the plan is at its cap.
+// A quota read error fails OPEN, like the RequireCapacity gate.
+func (s *RuleService) ensureCanEnable(ctx context.Context, tenantID uuid.UUID) error {
+	if s.quota == nil {
+		return nil
+	}
+	allowed, limit, used, _, err := s.quota.Capacity(ctx, tenantID, ent.LimitAutomationRules)
+	if err != nil || allowed {
+		return nil
+	}
+	return domain.NewLimitReachedError(string(ent.LimitAutomationRules), limit, used)
 }
 
 // NewRuleService builds the rule CRUD service.
@@ -67,6 +94,11 @@ func (s *RuleService) Create(ctx context.Context, tenantID, createdBy uuid.UUID,
 	if err := rule.Validate(); err != nil {
 		return nil, err
 	}
+	if rule.Enabled {
+		if err := s.ensureCanEnable(ctx, tenantID); err != nil {
+			return nil, err
+		}
+	}
 	if err := s.repo.Create(ctx, rule); err != nil {
 		return nil, err
 	}
@@ -82,6 +114,12 @@ func (s *RuleService) Update(ctx context.Context, tenantID, id uuid.UUID, in Rul
 	trigger, err := domain.ParseAutomationTrigger(in.Trigger)
 	if err != nil {
 		return nil, err
+	}
+	// Check before touching the rule: turning it on is what costs a slot.
+	if in.Enabled != nil && *in.Enabled && !rule.Enabled {
+		if err := s.ensureCanEnable(ctx, tenantID); err != nil {
+			return nil, err
+		}
 	}
 	rule.Name = in.Name
 	rule.Description = in.Description

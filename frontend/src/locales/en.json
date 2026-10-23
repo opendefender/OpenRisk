@@ -2062,5 +2062,37 @@
       "lookup_disabled": "Online lookup is turned off for your organization: packages are listed but not checked.",
       "unknown": "The last check failed."
     }
+  },
+  "paywall": {
+    "cta": "Upgrade to {plan}",
+    "moment": "{plan} plan",
+    "availableFrom": "Available from the {plan} plan.",
+    "fallbackTitle": "Paid feature",
+    "features": {
+      "financial_quantification": {
+        "title": "Monte-Carlo financial quantification",
+        "description": "Put a figure on your exposure and justify your security budget to leadership."
+      },
+      "ai_advisor": {
+        "title": "GRC AI advisor",
+        "description": "Treatment plan suggestions, emerging risk detection and audit report drafting."
+      },
+      "smart_score": {
+        "title": "Smart risk score",
+        "description": "A multi-factor score (exposure, vulnerabilities, threats, financial value) instead of P×I alone."
+      },
+      "executive_dashboard": {
+        "title": "Executive dashboard",
+        "description": "Your whole posture (cyber score, financial exposure, KRIs) on one screen for the board."
+      },
+      "cti": {
+        "title": "Threat intelligence (CTI)",
+        "description": "Enrich your vulnerabilities with NVD, CISA-KEV and MITRE ATT&CK."
+      },
+      "vendor_risk": {
+        "title": "Vendor risk management (TPRM)",
+        "description": "Vendor register, questionnaires sent by link, vendor score and automatic reminders."
+      }
+    }
   }
 }
