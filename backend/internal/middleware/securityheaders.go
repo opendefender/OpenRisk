@@ -96,8 +96,8 @@ func LoadSecurityHeadersConfig() SecurityHeadersConfig {
 // It also defaults every response to Cache-Control: no-store (#1124). These
 // responses are tenant data, and with no directive a browser or a proxy may
 // keep them and hand them back after sign-out. The default is set before the
-// handler runs, so a handler that needs another policy (event streams, report
-// downloads) overrides it with c.Set. The server-side response cache
+// handler runs, so a handler that needs another policy (event streams send
+// no-cache) overrides it with c.Set. The server-side response cache
 // (pkg/cache) decides on status and body only, so this does not turn it off.
 func SecurityHeaders(cfg SecurityHeadersConfig) fiber.Handler {
 	h := helmet.New(helmet.Config{

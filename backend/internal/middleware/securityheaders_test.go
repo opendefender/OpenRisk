@@ -193,8 +193,7 @@ func TestSecurityHeaders_DefaultsToNoStore(t *testing.T) {
 	}
 }
 
-// A handler that sets its own policy keeps it: event streams and report
-// downloads send no-cache.
+// A handler that sets its own policy keeps it: event streams send no-cache.
 func TestSecurityHeaders_HandlerCacheControlWins(t *testing.T) {
 	app := fiber.New()
 	app.Use(SecurityHeaders(LoadSecurityHeadersConfig()))
