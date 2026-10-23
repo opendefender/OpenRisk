@@ -25,7 +25,24 @@ func NewGormAutomationRuleRepository(db *gorm.DB) *GormAutomationRuleRepository 
 var _ domain.AutomationRuleRepository = (*GormAutomationRuleRepository)(nil)
 
 func (r *GormAutomationRuleRepository) Create(ctx context.Context, rule *domain.AutomationRule) error {
-	return r.db.WithContext(ctx).Create(rule).Error
+	// enabled defaults to true in the schema, and GORM leaves a false bool out
+	// of the INSERT and then copies the default back into the struct, so a rule
+	// created disabled — a draft, or a template adopted suspended on purpose —
+	// was stored ACTIVE and started firing. It also slipped past the active-rule
+	// cap (D-078). Read the intent before the insert and write it explicitly.
+	enabled := rule.Enabled
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(rule).Error; err != nil {
+			return err
+		}
+		if !enabled {
+			rule.Enabled = false
+			return tx.Model(&domain.AutomationRule{}).
+				Where("id = ? AND tenant_id = ?", rule.ID, rule.TenantID).
+				Update("enabled", false).Error
+		}
+		return nil
+	})
 }
 
 func (r *GormAutomationRuleRepository) Update(ctx context.Context, rule *domain.AutomationRule) error {
