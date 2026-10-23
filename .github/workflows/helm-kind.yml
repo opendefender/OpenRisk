@@ -56,8 +56,8 @@ jobs:
         run: |
           openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out private.pem 2>/dev/null
           openssl rsa -in private.pem -pubout -out public.pem 2>/dev/null
-          # Every required secret is set, or lint stops at the first required
-          # value and never looks at the templates after it.
+          # Every required secret is set so lint reports on the chart rather
+          # than on missing values.
           helm lint --strict helm/openrisk -f helm/kind/values.yaml \
             --set-file secrets.inline.rsaPrivateKey=private.pem \
             --set-file secrets.inline.rsaPublicKey=public.pem \
@@ -80,13 +80,24 @@ jobs:
               || { echo "❌ render without $missing failed for another reason:"; echo "$out"; exit 1; }
             echo "✅ the render refuses a missing secrets.inline.$missing"
           done
+          # And the rendered chart must still wire them: the backend reads
+          # every key it references from openrisk-secrets, and that Secret
+          # holds each of them, the required ones included.
           helm template openrisk helm/openrisk -f helm/kind/values.yaml \
             --set-file secrets.inline.rsaPrivateKey=private.pem \
             --set-file secrets.inline.rsaPublicKey=public.pem \
             --set secrets.inline.mfaEncryptionKey=render-check \
-            --set secrets.inline.auditHashKey=render-check-audit-hash-key-000000 \
-            | grep -q '^  mfa-encryption-key:' \
-            || { echo "❌ openrisk-secrets carries no mfa-encryption-key"; exit 1; }
+            --set secrets.inline.auditHashKey=render-check-audit-hash-key-000000 > rendered.yaml
+          refs="$(yq -o=json -I=0 '[select(.kind == "Deployment" and .metadata.name == "backend") | .spec.template.spec.containers[].env[] | select(.valueFrom.secretKeyRef.name == "openrisk-secrets") | .valueFrom.secretKeyRef.key]' rendered.yaml | jq -sc 'add // []')"
+          held="$(yq -o=json -I=0 'select(.kind == "Secret" and .metadata.name == "openrisk-secrets") | .data | keys' rendered.yaml | jq -sc 'add // []')"
+          echo "backend reads: $refs"; echo "Secret holds:  $held"
+          missing="$(jq -nr --argjson r "$refs" --argjson h "$held" '($r - $h) | join(", ")')"
+          [ -z "$missing" ] || { echo "❌ the backend reads keys openrisk-secrets does not hold: $missing"; exit 1; }
+          for key in mfa-encryption-key audit-hash-key; do
+            jq -e --arg k "$key" 'index($k) != null' <<<"$refs" >/dev/null \
+              || { echo "❌ the backend no longer reads $key from openrisk-secrets"; exit 1; }
+          done
+          echo "✅ every key the backend reads is in openrisk-secrets"
           helm install openrisk helm/openrisk -f helm/kind/values.yaml \
             --set-file secrets.inline.rsaPrivateKey=private.pem \
             --set-file secrets.inline.rsaPublicKey=public.pem \
