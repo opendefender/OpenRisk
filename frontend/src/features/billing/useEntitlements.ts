@@ -8,6 +8,7 @@ import {
   entitlementService,
   telemetryService,
   orgDeletionService,
+  type LimitEntitlement,
   type PlanKey,
   type RegionKey,
 } from '../../services/entitlementService';
@@ -26,11 +27,17 @@ export function useEntitlements() {
 }
 
 /** Convenience: is a feature enabled on the current plan, and which plan unlocks
- *  it. Returns a safe default (locked) while loading. */
+ *  it. Returns a safe default (locked) while loading.
+ *
+ *  `locked` is true only when the snapshot is in and says the plan lacks the
+ *  feature. A screen that calls a gated API from outside its module skips the
+ *  call on `locked` (#783); an unreadable snapshot leaves it false, so the call
+ *  goes out and the server answers, rather than a block silently vanishing. */
 export function useFeature(feature: string): {
   enabled: boolean;
   requiredPlan: PlanKey;
   loading: boolean;
+  locked: boolean;
 } {
   const { data, isLoading } = useEntitlements();
   const f = data?.features?.[feature];
@@ -38,7 +45,31 @@ export function useFeature(feature: string): {
     enabled: f?.enabled ?? false,
     requiredPlan: (f?.required_plan ?? 'pro') as PlanKey,
     loading: isLoading,
+    locked: f !== undefined && !f.enabled,
   };
+}
+
+/** A plan cap and its usage, from the same snapshot. `reached` means one more
+ *  create would be refused (402 limit_reached); an unlimited cap never is. */
+export function useLimit(key: string): { limit: number; used: number; reached: boolean } {
+  const { data } = useEntitlements();
+  const l = data?.limits?.[key];
+  return {
+    limit: l?.limit ?? -1,
+    used: l?.used ?? 0,
+    reached: !!l && l.limit !== -1 && l.used >= l.limit,
+  };
+}
+
+/** The cap a refused create hit, when the server answered 402 limit_reached. */
+export function limitReachedOf(err: unknown): LimitEntitlement | null {
+  const res = (
+    err as {
+      response?: { status?: number; data?: { code?: string; limit?: number; used?: number } };
+    } | null
+  )?.response;
+  if (res?.status !== 402 || res.data?.code !== 'limit_reached') return null;
+  return { limit: res.data.limit ?? 0, used: res.data.used ?? 0 };
 }
 
 export function useBilling() {

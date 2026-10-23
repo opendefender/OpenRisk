@@ -2062,5 +2062,49 @@
       "lookup_disabled": "Recherche en ligne désactivée pour votre organisation : les paquets sont listés mais pas vérifiés.",
       "unknown": "La dernière vérification a échoué."
     }
+  },
+  "paywall": {
+    "cta": "Passer au plan {plan}",
+    "moment": "Plan {plan}",
+    "availableFrom": "Disponible à partir du plan {plan}.",
+    "fallbackTitle": "Fonctionnalité payante",
+    "features": {
+      "financial_quantification": {
+        "title": "Quantification financière Monte-Carlo",
+        "description": "Chiffrez votre exposition et justifiez vos budgets sécurité auprès de la direction."
+      },
+      "ai_advisor": {
+        "title": "Assistant IA GRC",
+        "description": "Suggestions de plans de traitement, détection des risques émergents et rédaction de rapports d’audit."
+      },
+      "smart_score": {
+        "title": "Score de risque intelligent",
+        "description": "Un score multifactoriel (exposition, vulnérabilités, menaces, valeur financière) au lieu du seul P×I."
+      },
+      "executive_dashboard": {
+        "title": "Tableau de bord exécutif",
+        "description": "Toute votre posture (cyber score, exposition financière, KRI) consolidée en un écran pour le COMEX."
+      },
+      "scanner": {
+        "title": "Scanner d’infrastructure",
+        "description": "Découverte automatique de vos actifs et de leurs vulnérabilités."
+      },
+      "automation": {
+        "title": "Automatisation (SOAR)",
+        "description": "Enchaînez alertes, tickets et escalades SLA sans intervention manuelle. Les canaux de notification restent configurables sur tous les plans."
+      },
+      "cti": {
+        "title": "Renseignement sur les menaces (CTI)",
+        "description": "Enrichissez vos vulnérabilités avec NVD, CISA-KEV et MITRE ATT&CK."
+      },
+      "governance": {
+        "title": "Gouvernance et approbations",
+        "description": "Workflows Maker-Checker, délégations et lecture de la piste d’audit infalsifiable. La piste reste enregistrée sur tous les plans."
+      },
+      "vendor_risk": {
+        "title": "Gestion des risques fournisseurs (TPRM)",
+        "description": "Registre fournisseurs, questionnaires envoyés par lien, score fournisseur et relances automatiques."
+      }
+    }
   }
 }
