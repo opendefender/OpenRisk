@@ -158,22 +158,45 @@ jobs:
       # ZAP rates a missing Cache-Control as informational (10049), which no
       # rule can fail on. Signed-in responses are tenant data, so the job
       # checks the header itself on every GET route without a path parameter
-      # (#1124).
+      # (#1124): no-store, or no-cache on an event stream, which is never
+      # stored. Errors carry the default too, so the 2xx count shows the
+      # token really reached the handlers.
       - name: Signed-in responses are not cacheable
         run: |
           token="$(sed -n 's/^token=//p' "$RUNNER_TEMP/dast.env")"
-          checked=0 bad=0
+          checked=0 ok=0 bad=0
           while read -r path; do
-            cc="$(curl -sS --max-time 5 -o /dev/null -D - -H "Authorization: Bearer $token" "http://localhost:8080/api/v1$path" \
-              | tr -d '\r' | sed -n 's/^[Cc]ache-[Cc]ontrol: *//p')"
+            meta="$(curl -sS --max-time 5 -o /dev/null -D "$RUNNER_TEMP/h" -w '%{http_code} %{content_type}' \
+              -H "Authorization: Bearer $token" "http://localhost:8080/api/v1$path" || true)"
+            code="${meta%% *}" type="${meta#* }"
+            cc="$(tr -d '\r' < "$RUNNER_TEMP/h" | sed -n 's/^[Cc]ache-[Cc]ontrol: *//p' | tail -n1)"
             checked=$((checked + 1))
+            case "$code" in 2??) ok=$((ok + 1)) ;; esac
             case "$cc" in
-              *no-store*|*no-cache*) ;;
-              *) echo "❌ GET $path: Cache-Control '${cc:-<none>}'"; bad=$((bad + 1)) ;;
+              *no-store*) ;;
+              *no-cache*) [[ "$type" == text/event-stream* ]] \
+                || { echo "❌ GET $path ($code, $type): no-cache stores the body, want no-store"; bad=$((bad + 1)); } ;;
+              *) echo "❌ GET $path ($code): Cache-Control '${cc:-<none>}'"; bad=$((bad + 1)) ;;
             esac
           done < <(yq '.paths | keys | .[] | select(test("\\{") | not)' zap-report/openapi-get.yaml)
-          echo "$checked GET routes checked, $bad cacheable"
-          [ "$checked" -gt 0 ] && [ "$bad" -eq 0 ]
+          echo "$checked GET routes checked, $ok answered 2xx, $bad cacheable"
+          [ "$bad" -eq 0 ] || exit 1
+          [ "$ok" -gt 0 ] && [ $((ok * 2)) -ge "$checked" ] \
+            || { echo "❌ only $ok of $checked routes answered 2xx: the token did not reach the handlers"; exit 1; }
+
+      # ::add-mask:: hides the token in the log, not in uploaded files.
+      - name: The token is in no file uploaded
+        if: always()
+        run: |
+          token="$(sed -n 's/^token=//p' "$RUNNER_TEMP/dast.env" 2>/dev/null || true)"
+          [ -n "$token" ] || exit 0
+          leaked="$(grep -rlF "$token" zap-report/ || true)"
+          if [ -n "$leaked" ]; then
+            # Removed before the summary and upload steps, which always run.
+            echo "$leaked" | xargs rm -f
+            echo "❌ these files contained the access token and were removed:"; echo "$leaked"; exit 1
+          fi
+          echo "✅ no uploaded file contains the token"
 
       - name: ZAP report → job summary
         if: always()
