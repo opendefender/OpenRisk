@@ -29,25 +29,35 @@ func TestPlanOrdering(t *testing.T) {
 	}
 }
 
-func TestFinancialQuant_OpensAtPro(t *testing.T) {
-	// Task §2: Monte-Carlo financial quantification is available "à partir du plan Pro".
-	if Has(PlanFree, FeatFinancialQuant) {
-		t.Fatal("financial quantification must NOT be on Free")
+func TestFinancialQuant_BasicOnFreeMonteCarloFromPro(t *testing.T) {
+	// D-078: Free reads the deterministic ALE (basic); task §2's Monte-Carlo
+	// engine stays "à partir du plan Pro".
+	if got := LevelOf(PlanFree, FeatFinancialQuant); got != LevelBasic {
+		t.Fatalf("Free financial quantification = %q, want basic", got)
 	}
 	for _, p := range []Plan{PlanPro, PlanBusiness, PlanEnterprise} {
-		if !Has(p, FeatFinancialQuant) {
-			t.Fatalf("financial quantification must be on %s", p)
+		if !LevelOf(p, FeatFinancialQuant).AtLeast(LevelOn) {
+			t.Fatalf("Monte-Carlo must be on %s", p)
 		}
 	}
-	if got := MinPlanFor(FeatFinancialQuant); got != PlanPro {
-		t.Fatalf("MinPlanFor(financial) = %s, want pro", got)
+	if got := MinPlanForLevel(FeatFinancialQuant, LevelOn); got != PlanPro {
+		t.Fatalf("Monte-Carlo opens at %s, want pro", got)
 	}
 }
 
 func TestFeatureGates_MatchMatrix(t *testing.T) {
 	// A few load-bearing rows from the matrix the UI and enforcement rely on.
-	if Has(PlanFree, FeatAutomation) || Has(PlanFree, FeatAIAdvisor) {
-		t.Fatal("Free must not have automation/AI")
+	// D-078: Free does almost everything, in small quantities.
+	for _, f := range []Feature{FeatAutomation, FeatScanner, FeatGovernance, FeatSmartScore, FeatExecutiveDashboard, FeatCompliance} {
+		if !Has(PlanFree, f) {
+			t.Fatalf("Free must have %s (D-078), capped by count", f)
+		}
+	}
+	// Until their own quotas ship, these keep a plan gate (D-078).
+	for _, f := range []Feature{FeatAIAdvisor, FeatCTI, FeatVendorRisk} {
+		if Has(PlanFree, f) {
+			t.Fatalf("Free must not have %s before its quota exists", f)
+		}
 	}
 	// No plan sells SSO while there is no tenant SSO to sell (#866, #1045).
 	for _, p := range AllPlans {
@@ -58,8 +68,28 @@ func TestFeatureGates_MatchMatrix(t *testing.T) {
 	if Has(PlanBusiness, FeatMultiTenant) || !Has(PlanEnterprise, FeatMultiTenant) {
 		t.Fatal("multi-tenant is Enterprise-only")
 	}
-	if LevelOf(PlanBusiness, FeatAutomation) != LevelAdvanced {
-		t.Fatal("Business automation should be advanced")
+}
+
+// TestCaps_D078 pins the owner's grid (D-078). Changing a number here is a
+// pricing change and needs the owner.
+func TestCaps_D078(t *testing.T) {
+	U := Unlimited
+	want := map[LimitKey][4]int{
+		LimitUsers:             {2, 10, 50, U},
+		LimitRisks:             {30, 500, U, U},
+		LimitAssets:            {30, U, U, U},
+		LimitFrameworks:        {1, 3, 10, U},
+		LimitAutomationRules:   {2, 20, U, U},
+		LimitScanSources:       {1, 10, U, U},
+		LimitScansPerMonth:     {4, U, U, U},
+		LimitApprovalWorkflows: {1, 3, U, U},
+	}
+	for k, caps := range want {
+		for i, p := range AllPlans {
+			if got := LimitOf(p, k); got != caps[i] {
+				t.Errorf("%s / %s = %d, want %d (D-078)", k, p, got, caps[i])
+			}
+		}
 	}
 }
 
@@ -85,7 +115,7 @@ func TestCompliance_IsOneModuleCappedByFrameworkCount(t *testing.T) {
 }
 
 func TestLimits(t *testing.T) {
-	if LimitOf(PlanFree, LimitUsers) != 2 || LimitOf(PlanFree, LimitRisks) != 50 {
+	if LimitOf(PlanFree, LimitUsers) != 2 || LimitOf(PlanFree, LimitRisks) != 30 {
 		t.Fatal("Free limits wrong")
 	}
 	if LimitOf(PlanPro, LimitAssets) != Unlimited {
@@ -230,9 +260,8 @@ func TestMinPlanForLevel(t *testing.T) {
 		{FeatCompliance, LevelOn, PlanFree},
 		{FeatCompliance, LevelAdvanced, PlanEnterprise},
 		{FeatAIAdvisor, LevelAdvanced, PlanBusiness},
-		{FeatFinancialQuant, LevelBasic, PlanPro},
+		{FeatFinancialQuant, LevelBasic, PlanFree},
 		{FeatFinancialQuant, LevelOn, PlanPro},
-		{FeatAutomation, LevelAdvanced, PlanBusiness},
 		{FeatAPI, LevelOn, PlanPro},
 	}
 	for _, tc := range cases {

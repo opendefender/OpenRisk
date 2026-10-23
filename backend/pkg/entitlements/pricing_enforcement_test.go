@@ -48,10 +48,8 @@ import (
 // deleting the line.
 var knownUnenforced = map[string]string{
 	"api:on":              "Free's Limited API is the same API as Pro's — no quota or scope reads the level",
-	"automation:advanced": "the automation routes gate on/off only (#783)",
-	"ai_advisor:advanced": "the AI routes gate on/off only",
-	"cti:advanced":        "the CTI routes gate on/off only (#783)",
-	"governance:advanced": "the governance routes gate on/off only (#783)",
+	"ai_advisor:advanced": "the AI routes gate on/off only; the AI quota issue replaces the depth (D-078)",
+	"cti:advanced":        "the CTI routes gate on/off only; the threat preview issue replaces the depth (D-078)",
 	"multi_tenant:on":     "no route reads FeatMultiTenant",
 	"on_premise:on":       "a deployment property, not a route — nothing to gate in the request path",
 }

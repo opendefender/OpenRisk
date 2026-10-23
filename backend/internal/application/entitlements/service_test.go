@@ -69,33 +69,34 @@ func TestEffectivePlan_CanceledSubFallsBackToFree(t *testing.T) {
 }
 
 func TestAllowed_FeatureGate(t *testing.T) {
+	// Threat intel keeps its Business gate under D-078.
 	s := NewService(fakeOrg{plan: "free"})
-	ok, _, req, _ := s.Allowed(context.Background(), uuid.New(), ent.FeatFinancialQuant)
+	ok, _, req, _ := s.Allowed(context.Background(), uuid.New(), ent.FeatCTI)
 	if ok {
-		t.Fatal("Free must not be allowed financial quant")
+		t.Fatal("Free must not be allowed threat intel")
 	}
-	if req != ent.PlanPro {
-		t.Fatalf("required plan should be pro, got %s", req)
+	if req != ent.PlanBusiness {
+		t.Fatalf("required plan should be business, got %s", req)
 	}
 
-	s2 := NewService(fakeOrg{plan: "pro"})
-	ok2, _, _, _ := s2.Allowed(context.Background(), uuid.New(), ent.FeatFinancialQuant)
+	s2 := NewService(fakeOrg{plan: "business"})
+	ok2, _, _, _ := s2.Allowed(context.Background(), uuid.New(), ent.FeatCTI)
 	if !ok2 {
-		t.Fatal("Pro must be allowed financial quant")
+		t.Fatal("Business must be allowed threat intel")
 	}
 }
 
 func TestCapacity(t *testing.T) {
-	s := NewService(fakeOrg{plan: "free"}).WithUsage(fakeUsage{ent.LimitRisks: 50})
+	s := NewService(fakeOrg{plan: "free"}).WithUsage(fakeUsage{ent.LimitRisks: 30})
 	ok, limit, used, _, _ := s.Capacity(context.Background(), uuid.New(), ent.LimitRisks)
-	if ok || limit != 50 || used != 50 {
-		t.Fatalf("at 50/50 must refuse; got ok=%v limit=%d used=%d", ok, limit, used)
+	if ok || limit != 30 || used != 30 {
+		t.Fatalf("at 30/30 must refuse; got ok=%v limit=%d used=%d", ok, limit, used)
 	}
 
 	s2 := NewService(fakeOrg{plan: "free"}).WithUsage(fakeUsage{ent.LimitRisks: 10})
 	ok2, _, _, _, _ := s2.Capacity(context.Background(), uuid.New(), ent.LimitRisks)
 	if !ok2 {
-		t.Fatal("10/50 must allow")
+		t.Fatal("10/30 must allow")
 	}
 
 	// Unlimited short-circuits without counting.
@@ -118,11 +119,11 @@ func TestResolve_ListsAllFeaturesAndPrices(t *testing.T) {
 	if !snap.Features[string(ent.FeatFinancialQuant)].Enabled {
 		t.Fatal("pro should enable financial quant")
 	}
-	if snap.Features[string(ent.FeatGovernance)].Enabled {
-		t.Fatal("pro should NOT enable governance")
+	if snap.Features[string(ent.FeatCTI)].Enabled {
+		t.Fatal("pro should NOT enable threat intel")
 	}
-	if snap.Features[string(ent.FeatGovernance)].RequiredPlan != string(ent.PlanBusiness) {
-		t.Fatal("governance required plan should be business")
+	if snap.Features[string(ent.FeatCTI)].RequiredPlan != string(ent.PlanBusiness) {
+		t.Fatal("threat intel required plan should be business")
 	}
 	if got := snap.Limits[string(ent.LimitFrameworks)]; got.Limit != 3 {
 		t.Fatalf("pro frameworks capped at 3 expected, got %+v", got)
@@ -184,9 +185,9 @@ func TestLevel_NotFound(t *testing.T) {
 func TestLevel_Unauthorized(t *testing.T) {
 	// A feature the plan does not grant is LevelOff — below every depth.
 	s := NewService(fakeOrg{plan: "free"})
-	lvl, plan, err := s.Level(context.Background(), uuid.New(), ent.FeatFinancialQuant)
+	lvl, plan, err := s.Level(context.Background(), uuid.New(), ent.FeatCTI)
 	if err != nil || lvl != ent.LevelOff || plan != ent.PlanFree {
-		t.Fatalf("free financial: got %q/%s err=%v, want off/free", lvl, plan, err)
+		t.Fatalf("free threat intel: got %q/%s err=%v, want off/free", lvl, plan, err)
 	}
 	if lvl.AtLeast(ent.LevelBasic) {
 		t.Fatal("off must not reach basic")

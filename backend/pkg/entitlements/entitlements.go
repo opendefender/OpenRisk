@@ -163,10 +163,21 @@ const (
 	// (D-076): every framework is available on every plan, the plan sets how
 	// many are active. A framework is active until it is deleted.
 	LimitFrameworks LimitKey = "frameworks"
+	// The D-078 caps: the feature is on every plan, the plan sets how much.
+	// LimitAutomationRules counts ENABLED rules: a suspended rule costs nothing,
+	// so a tenant at its cap can still draft and dry-run. LimitScansPerMonth
+	// counts scan jobs started since the first of the month (UTC).
+	LimitAutomationRules   LimitKey = "automation_rules"
+	LimitScanSources       LimitKey = "scan_sources"
+	LimitScansPerMonth     LimitKey = "scans_per_month"
+	LimitApprovalWorkflows LimitKey = "approval_workflows"
 )
 
 // AllLimits is every cap key.
-var AllLimits = []LimitKey{LimitUsers, LimitRisks, LimitAssets, LimitIntegrations, LimitFrameworks}
+var AllLimits = []LimitKey{
+	LimitUsers, LimitRisks, LimitAssets, LimitIntegrations, LimitFrameworks,
+	LimitAutomationRules, LimitScanSources, LimitScansPerMonth, LimitApprovalWorkflows,
+}
 
 // Unlimited is the sentinel for an uncapped limit.
 const Unlimited = -1
@@ -183,29 +194,44 @@ type PlanEntitlements struct {
 
 // matrix — THE plan matrix. Edit here to change the open-core split.
 //
-//	                Free      Pro        Business   Enterprise
-//	Users             2        10          50          ∞
-//	Risks            50       500          ∞           ∞
-//	Assets           50        ∞           ∞           ∞
-//	Integrations      1        10          ∞           Custom(∞)
-//	Frameworks        1         3          10          ∞
-//	API           Limited     On          On          On
-//	Automation      off       On       Advanced     Advanced
-//	AI Advisor      off       On       Advanced     Advanced
-//	Compliance       On       On          On          On
-//	SSO             off       off        off          off
-//	Multi-tenant    off       off        off           On
-//	On-premise      off       off        off           On
-//	SLA             off       off       99.5%         99.9%
-//	Support       Community   Email     Priority     Dedicated
+//	                     Free      Pro        Business   Enterprise
+//	Users                  2        10          50          ∞
+//	Risks                 30       500          ∞           ∞
+//	Assets                30        ∞           ∞           ∞
+//	Integrations           1        10          ∞           Custom(∞)
+//	Frameworks             1         3          10          ∞
+//	Automation rules       2        20          ∞           ∞
+//	Scan sources           1        10          ∞           ∞
+//	Scans per month        4         ∞          ∞           ∞
+//	Approval workflows     1         3          ∞           ∞
+//	API                 Limited     On          On          On
+//	Automation            On        On          On          On
+//	Infra scanner         On        On          On          On
+//	Governance            On        On          On          On
+//	Compliance            On        On          On          On
+//	Smart score           On        On          On          On
+//	Executive dashboard   On        On          On          On
+//	Financial quant.    Basic       On          On          On
+//	AI Advisor            off       On       Advanced     Advanced
+//	Threat intel          off       off         On        Advanced
+//	Vendor risk           off       off         On          On
+//	SSO                   off       off        off          off
+//	Multi-tenant          off       off        off           On
+//	On-premise            off       off        off           On
+//	SLA                   off       off       99.5%         99.9%
+//	Support            Community    Email     Priority     Dedicated
 //
-// financial_quantification / smart_score / executive_dashboard / scanner are the
-// marquee paid analytics; they open at Pro (task §2: "la quantification financière
-// Monte-Carlo est disponible à partir du plan Pro"). CTI and governance open at
-// Business, and so does vendor risk (TPRM), by owner decision D-044.
+// THE SHAPE IS THE PRICING MODEL (D-078): Free does almost everything, in
+// small quantities, so a free tenant sees what the product does and meets the
+// cap where it would want more. Automation, the scanner, governance, the smart
+// score and the executive dashboard are on every plan, sized by the counts
+// above. Financial quantification is the deterministic ALE on Free and the
+// Monte-Carlo engine from Pro (#613).
 //
-// Compliance is the same module on every plan (D-076): the plan caps how many
-// frameworks are active (LimitFrameworks), not which ones. SSO is granted by no
+// AI, threat intel and vendor risk keep a plan gate until their own quotas ship
+// (AI requests per month, a threat preview, a vendor count — D-078): the page
+// must not sell a quota the code does not apply. Compliance is the same module
+// on every plan, capped by active frameworks (D-076). SSO is granted by no
 // plan: SAML refuses every request since #866 and OAuth providers are set per
 // deployment, so there is no tenant SSO for a plan to sell. #1045 brings it back.
 //
@@ -213,17 +239,29 @@ type PlanEntitlements struct {
 // complete (D-040); #612 keeps it off this matrix's Free row.
 var matrix = map[Plan]PlanEntitlements{
 	PlanFree: {
-		Plan:   PlanFree,
-		Limits: map[LimitKey]int{LimitUsers: 2, LimitRisks: 50, LimitAssets: 50, LimitIntegrations: 1, LimitFrameworks: 1},
+		Plan: PlanFree,
+		Limits: map[LimitKey]int{
+			LimitUsers: 2, LimitRisks: 30, LimitAssets: 30, LimitIntegrations: 1, LimitFrameworks: 1,
+			LimitAutomationRules: 2, LimitScanSources: 1, LimitScansPerMonth: 4, LimitApprovalWorkflows: 1,
+		},
 		Features: map[Feature]Level{
-			FeatAPI:        LevelLimited,
-			FeatCompliance: LevelOn,
-			FeatSupport:    LevelCommunity,
+			FeatAPI:                LevelLimited,
+			FeatAutomation:         LevelOn,
+			FeatCompliance:         LevelOn,
+			FeatFinancialQuant:     LevelBasic, // deterministic ALE; Monte-Carlo is Pro+ (#613)
+			FeatSmartScore:         LevelOn,
+			FeatExecutiveDashboard: LevelOn,
+			FeatScanner:            LevelOn,
+			FeatGovernance:         LevelOn,
+			FeatSupport:            LevelCommunity,
 		},
 	},
 	PlanPro: {
-		Plan:   PlanPro,
-		Limits: map[LimitKey]int{LimitUsers: 10, LimitRisks: 500, LimitAssets: Unlimited, LimitIntegrations: 10, LimitFrameworks: 3},
+		Plan: PlanPro,
+		Limits: map[LimitKey]int{
+			LimitUsers: 10, LimitRisks: 500, LimitAssets: Unlimited, LimitIntegrations: 10, LimitFrameworks: 3,
+			LimitAutomationRules: 20, LimitScanSources: 10, LimitScansPerMonth: Unlimited, LimitApprovalWorkflows: 3,
+		},
 		Features: map[Feature]Level{
 			FeatAPI:                LevelOn,
 			FeatAutomation:         LevelOn,
@@ -233,15 +271,19 @@ var matrix = map[Plan]PlanEntitlements{
 			FeatSmartScore:         LevelOn,
 			FeatExecutiveDashboard: LevelOn,
 			FeatScanner:            LevelOn,
+			FeatGovernance:         LevelOn,
 			FeatSupport:            LevelEmail,
 		},
 	},
 	PlanBusiness: {
-		Plan:   PlanBusiness,
-		Limits: map[LimitKey]int{LimitUsers: 50, LimitRisks: Unlimited, LimitAssets: Unlimited, LimitIntegrations: Unlimited, LimitFrameworks: 10},
+		Plan: PlanBusiness,
+		Limits: map[LimitKey]int{
+			LimitUsers: 50, LimitRisks: Unlimited, LimitAssets: Unlimited, LimitIntegrations: Unlimited, LimitFrameworks: 10,
+			LimitAutomationRules: Unlimited, LimitScanSources: Unlimited, LimitScansPerMonth: Unlimited, LimitApprovalWorkflows: Unlimited,
+		},
 		Features: map[Feature]Level{
 			FeatAPI:                LevelOn,
-			FeatAutomation:         LevelAdvanced,
+			FeatAutomation:         LevelOn,
 			FeatAIAdvisor:          LevelAdvanced,
 			FeatCompliance:         LevelOn,
 			FeatFinancialQuant:     LevelOn,
@@ -256,11 +298,14 @@ var matrix = map[Plan]PlanEntitlements{
 		},
 	},
 	PlanEnterprise: {
-		Plan:   PlanEnterprise,
-		Limits: map[LimitKey]int{LimitUsers: Unlimited, LimitRisks: Unlimited, LimitAssets: Unlimited, LimitIntegrations: Unlimited, LimitFrameworks: Unlimited},
+		Plan: PlanEnterprise,
+		Limits: map[LimitKey]int{
+			LimitUsers: Unlimited, LimitRisks: Unlimited, LimitAssets: Unlimited, LimitIntegrations: Unlimited, LimitFrameworks: Unlimited,
+			LimitAutomationRules: Unlimited, LimitScanSources: Unlimited, LimitScansPerMonth: Unlimited, LimitApprovalWorkflows: Unlimited,
+		},
 		Features: map[Feature]Level{
 			FeatAPI:                LevelOn,
-			FeatAutomation:         LevelAdvanced,
+			FeatAutomation:         LevelOn,
 			FeatAIAdvisor:          LevelAdvanced,
 			FeatCompliance:         LevelOn,
 			FeatMultiTenant:        LevelOn,
@@ -270,7 +315,7 @@ var matrix = map[Plan]PlanEntitlements{
 			FeatExecutiveDashboard: LevelOn,
 			FeatScanner:            LevelOn,
 			FeatCTI:                LevelAdvanced,
-			FeatGovernance:         LevelAdvanced,
+			FeatGovernance:         LevelOn,
 			FeatVendorRisk:         LevelOn,
 			FeatSLA:                Level("99.9"),
 			FeatSupport:            LevelDedicated,

@@ -68,9 +68,11 @@ func TestRequireLevel_Success(t *testing.T) {
 }
 
 func TestRequireLevel_Insufficient(t *testing.T) {
-	t.Run("feature off on the plan", func(t *testing.T) {
+	t.Run("depth below the gate", func(t *testing.T) {
+		// Free has the deterministic ALE (basic, D-078), not the Monte-Carlo
+		// depth: the "on" gate refuses it and names Pro.
 		svc := entapp.NewService(levelTestOrg{plan: "free"})
-		app := levelApp(svc, uuid.New(), ent.FeatFinancialQuant, ent.LevelBasic, ent.LevelOn)
+		app := levelApp(svc, uuid.New(), ent.FeatFinancialQuant, ent.LevelOn, ent.LevelOn)
 
 		status, body := doLevel(t, app)
 		assert.Equal(t, fiber.StatusPaymentRequired, status)
@@ -81,24 +83,24 @@ func TestRequireLevel_Insufficient(t *testing.T) {
 	})
 
 	t.Run("feature on, depth too shallow", func(t *testing.T) {
-		// Pro has automation on; advanced is Business. RequireFeature would let
-		// this through — the level gate is what refuses it.
+		// Pro has the AI advisor on; advanced is Business. RequireFeature would
+		// let this through — the level gate is what refuses it.
 		svc := entapp.NewService(levelTestOrg{plan: "pro"})
-		app := levelApp(svc, uuid.New(), ent.FeatAutomation, ent.LevelAdvanced, ent.LevelAdvanced)
+		app := levelApp(svc, uuid.New(), ent.FeatAIAdvisor, ent.LevelAdvanced, ent.LevelAdvanced)
 
 		status, body := doLevel(t, app)
 		assert.Equal(t, fiber.StatusPaymentRequired, status)
-		assert.Equal(t, "automation", body["feature"])
+		assert.Equal(t, "ai_advisor", body["feature"])
 		assert.Equal(t, "pro", body["current_plan"])
 		assert.Equal(t, "business", body["required_plan"])
 		assert.Contains(t, body["message"], "Business")
 	})
 
 	t.Run("past the gate, below the probe", func(t *testing.T) {
-		// Pro automation is on: through an "on" gate, but the handler is told
+		// Pro's AI advisor is on: through an "on" gate, but the handler is told
 		// the plan does not reach advanced.
 		svc := entapp.NewService(levelTestOrg{plan: "pro"})
-		app := levelApp(svc, uuid.New(), ent.FeatAutomation, ent.LevelOn, ent.LevelAdvanced)
+		app := levelApp(svc, uuid.New(), ent.FeatAIAdvisor, ent.LevelOn, ent.LevelAdvanced)
 
 		status, body := doLevel(t, app)
 		assert.Equal(t, fiber.StatusOK, status)

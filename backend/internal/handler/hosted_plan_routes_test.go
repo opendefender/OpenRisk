@@ -14,63 +14,57 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestHostedPlanRoutes_EveryRouteCarriesItsGate ties #783's gates to the routes
-// in the composition root, the way the TPRM test does for featVendor.
+// TestHostedPlanRoutes_CapsAndGatesAreMounted ties #783's plan grid (D-078) to
+// the composition root, the way the TPRM test does for featVendor.
 //
-// The middleware tests prove a gate answers 402; the matrix tests prove which
-// plans it refuses. Neither proves anybody attached it to a route. This scans
-// main.go: every authenticated route under a gated prefix must carry its gate,
-// and the count is pinned so a new route cannot slip in ungated.
-func TestHostedPlanRoutes_EveryRouteCarriesItsGate(t *testing.T) {
+// The middleware tests prove a cap answers 402 at its limit; the matrix tests
+// prove the numbers. Neither proves anybody attached the cap to a route. This
+// scans main.go: each cap sits on the route that creates what it counts, the
+// two use-case quotas are wired, threat intel carries its gate on every route,
+// and automation, the scanner and governance carry no plan gate (D-078 opened
+// them to every plan).
+func TestHostedPlanRoutes_CapsAndGatesAreMounted(t *testing.T) {
 	raw, err := os.ReadFile(filepath.Join("..", "..", "cmd", "server", "main.go"))
 	require.NoError(t, err)
 	src := string(raw)
 
-	for _, decl := range []string{
-		`featAutomation := middleware.RequireFeature(entitlementService, ent.FeatAutomation)`,
-		`featScanner := middleware.RequireFeature(entitlementService, ent.FeatScanner)`,
+	for _, line := range []string{
 		`featCTI := middleware.RequireFeature(entitlementService, ent.FeatCTI)`,
-		`featGovernance := middleware.RequireFeature(entitlementService, ent.FeatGovernance)`,
+		`capUsers := middleware.RequireCapacity(entitlementService, ent.LimitUsers)`,
 		`capFrameworks := middleware.RequireCapacity(entitlementService, ent.LimitFrameworks)`,
+		`capScanSources := middleware.RequireCapacity(entitlementService, ent.LimitScanSources)`,
+		`capWorkflows := middleware.RequireCapacity(entitlementService, ent.LimitApprovalWorkflows)`,
+		`protected.Post("/compliance/frameworks", complianceFrameworkCreate, capFrameworks, complianceHandler.CreateFramework)`,
+		`protected.Post("/scanner/configs", scannerCreate, capScanSources, scannerHandler.CreateScanConfig)`,
+		`protected.Post("/governance/workflows", governanceAdmin, capWorkflows, governanceHandler.CreateWorkflow)`,
+		`protected.Post("/users", adminRole, capUsers, handlers.CreateUser)`,
+		`middleware.RequirePermission("organization:members:invite"), capUsers, memberHandler.CreateInvitation)`,
+		// Active rules and monthly scans are capped where every path passes.
+		`appauto.NewRuleService(automationRuleRepo).WithQuota(entitlementService),`,
+		`).WithQuota(entitlementService)`,
 	} {
-		require.Contains(t, src, decl)
+		require.Contains(t, src, line)
 	}
+	for _, c := range []string{"capFrameworks,", "capScanSources,", "capWorkflows,"} {
+		require.Equal(t, 1, strings.Count(src, c), "%s is mounted once", c)
+	}
+	require.Equal(t, 2, strings.Count(src, "capUsers,"), "capUsers sits on the two ways to add a member")
 
-	gates := []struct {
-		prefix string
-		gate   string
-		// exempt lists sub-prefixes that stay open, each for a stated reason.
-		exempt []string
-		count  int
-	}{
-		// Channels carry incident alerts too, and incidents are on every plan.
-		{`"/automation/`, "featAutomation", []string{`"/automation/channels`}, 19},
-		// The mitigation hook is the risk module's, not the scanner console's.
-		{`"/scanner/`, "featScanner", []string{`"/scanner/mitigations/`}, 12},
-		{`"/cti/`, "featCTI", nil, 8},
-		{`"/governance/`, "featGovernance", nil, 21},
-	}
-	for _, g := range gates {
-		var mounted int
-	lines:
-		for _, line := range strings.Split(src, "\n") {
-			if !strings.Contains(line, "protected.") || !strings.Contains(line, g.prefix) {
-				continue
-			}
-			for _, ex := range g.exempt {
-				if strings.Contains(line, ex) {
-					require.NotContains(t, line, g.gate, "an exempt route gained the gate: %s", strings.TrimSpace(line))
-					continue lines
-				}
-			}
-			mounted++
-			require.Contains(t, line, g.gate, "a %s route without its plan gate: %s", g.prefix, strings.TrimSpace(line))
+	var cti int
+	for _, line := range strings.Split(src, "\n") {
+		if !strings.Contains(line, "protected.") {
+			continue
 		}
-		require.Equal(t, g.count, mounted, "%s routes were added or removed; update this test and ADR 0007", g.prefix)
+		for _, open := range []string{`"/automation/`, `"/scanner/`, `"/governance/`} {
+			if strings.Contains(line, open) {
+				require.NotContains(t, line, "RequireFeature", "D-078 opened %s to every plan: %s", open, strings.TrimSpace(line))
+				require.NotRegexp(t, `feat[A-Z]\w*,`, line, "D-078 opened %s to every plan: %s", open, strings.TrimSpace(line))
+			}
+		}
+		if strings.Contains(line, `"/cti/`) {
+			cti++
+			require.Contains(t, line, "featCTI", "a threat intel route without its plan gate: %s", strings.TrimSpace(line))
+		}
 	}
-
-	// The framework cap sits on the one route that creates a framework.
-	require.Contains(t, src,
-		`protected.Post("/compliance/frameworks", complianceFrameworkCreate, capFrameworks, complianceHandler.CreateFramework)`)
-	require.Equal(t, 1, strings.Count(src, "capFrameworks,"), "capFrameworks is mounted once")
+	require.Equal(t, 8, cti, "threat intel routes were added or removed; update this test and ADR 0007")
 }

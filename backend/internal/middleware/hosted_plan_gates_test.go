@@ -17,18 +17,11 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-// The four hosted plan gates of #783 (D-075, ADR 0007), each with the plan that
-// opens it. Free is refused all four; the opening plan passes; for the two
-// Business gates, Pro is refused too.
-var hostedGates = []struct {
-	feature ent.Feature
-	opensAt string
-}{
-	{ent.FeatAutomation, "pro"},
-	{ent.FeatScanner, "pro"},
-	{ent.FeatCTI, "business"},
-	{ent.FeatGovernance, "business"},
-}
+// #783 under D-078: Free does almost everything, capped by count. The route
+// caps below are mounted in main.go (see handler/hosted_plan_routes_test.go);
+// each must admit a plan under its cap and refuse it at the cap, with the
+// numbers. Threat intel is the one remaining plan gate until its preview
+// quota ships.
 
 // gateApp mounts a gate in front of a handler that answers 200.
 func gateApp(tenant uuid.UUID, gate fiber.Handler) *fiber.App {
@@ -43,80 +36,92 @@ func gateApp(tenant uuid.UUID, gate fiber.Handler) *fiber.App {
 	return app
 }
 
-func TestHostedPlanGates_Success(t *testing.T) {
-	for _, g := range hostedGates {
-		for _, plan := range ent.AllPlans {
-			if !plan.AtLeast(ent.ParsePlan(g.opensAt)) {
-				continue
+type fixedUsage map[ent.LimitKey]int
+
+func (u fixedUsage) Count(_ context.Context, _ uuid.UUID, k ent.LimitKey) (int, error) {
+	return u[k], nil
+}
+
+// routeCaps are the caps mounted as middleware, with the D-078 grid per plan
+// (-1 = unlimited).
+var routeCaps = []struct {
+	key  ent.LimitKey
+	caps map[string]int
+}{
+	{ent.LimitUsers, map[string]int{"free": 2, "pro": 10, "business": 50, "enterprise": -1}},
+	{ent.LimitFrameworks, map[string]int{"free": 1, "pro": 3, "business": 10, "enterprise": -1}},
+	{ent.LimitScanSources, map[string]int{"free": 1, "pro": 10, "business": -1, "enterprise": -1}},
+	{ent.LimitApprovalWorkflows, map[string]int{"free": 1, "pro": 3, "business": -1, "enterprise": -1}},
+}
+
+func TestPlanCaps_Success(t *testing.T) {
+	for _, rc := range routeCaps {
+		for plan, limit := range rc.caps {
+			used := limit - 1
+			if limit < 0 {
+				used = 500
 			}
-			svc := entapp.NewService(levelTestOrg{plan: string(plan)})
-			status, _ := doLevel(t, gateApp(uuid.New(), RequireFeature(svc, g.feature)))
-			assert.Equal(t, fiber.StatusOK, status, "%s on %s", g.feature, plan)
+			svc := entapp.NewService(levelTestOrg{plan: plan}).WithUsage(fixedUsage{rc.key: used})
+			status, _ := doLevel(t, gateApp(uuid.New(), RequireCapacity(svc, rc.key)))
+			assert.Equal(t, fiber.StatusOK, status, "%s on %s with %d used", rc.key, plan, used)
 		}
 	}
 }
 
-func TestHostedPlanGates_Unauthorized(t *testing.T) {
-	for _, g := range hostedGates {
-		for _, plan := range ent.AllPlans {
-			if plan.AtLeast(ent.ParsePlan(g.opensAt)) {
+func TestPlanCaps_Unauthorized(t *testing.T) {
+	for _, rc := range routeCaps {
+		for plan, limit := range rc.caps {
+			if limit < 0 {
 				continue
 			}
-			svc := entapp.NewService(levelTestOrg{plan: string(plan)})
-			status, body := doLevel(t, gateApp(uuid.New(), RequireFeature(svc, g.feature)))
-			assert.Equal(t, fiber.StatusPaymentRequired, status, "%s on %s", g.feature, plan)
-			assert.Equal(t, "upgrade_required", body["code"])
-			assert.Equal(t, string(g.feature), body["feature"])
-			assert.Equal(t, string(plan), body["current_plan"])
-			assert.Equal(t, g.opensAt, body["required_plan"])
+			svc := entapp.NewService(levelTestOrg{plan: plan}).WithUsage(fixedUsage{rc.key: limit})
+			status, body := doLevel(t, gateApp(uuid.New(), RequireCapacity(svc, rc.key)))
+			assert.Equal(t, fiber.StatusPaymentRequired, status, "%s on %s at %d", rc.key, plan, limit)
+			assert.Equal(t, "limit_reached", body["code"])
+			assert.Equal(t, string(rc.key), body["limit_key"])
+			assert.EqualValues(t, limit, body["limit"])
+			assert.EqualValues(t, limit, body["used"])
 		}
 	}
 }
 
-func TestHostedPlanGates_NotFound(t *testing.T) {
-	// A tenant the resolver cannot read fails OPEN, like every entitlement
-	// gate: an infrastructure hiccup must not lock a paying tenant out.
-	for _, g := range hostedGates {
-		svc := entapp.NewService(levelTestOrg{err: domain.ErrNotFound})
-		status, _ := doLevel(t, gateApp(uuid.New(), RequireFeature(svc, g.feature)))
-		assert.Equal(t, fiber.StatusOK, status, "%s", g.feature)
+func TestPlanCaps_NotFound(t *testing.T) {
+	// An unreadable plan fails OPEN, like every entitlement gate.
+	for _, rc := range routeCaps {
+		svc := entapp.NewService(levelTestOrg{err: domain.ErrNotFound}).WithUsage(fixedUsage{rc.key: 99})
+		status, _ := doLevel(t, gateApp(uuid.New(), RequireCapacity(svc, rc.key)))
+		assert.Equal(t, fiber.StatusOK, status, "%s", rc.key)
 	}
 }
 
-type frameworkUsage int
-
-func (n frameworkUsage) Count(_ context.Context, _ uuid.UUID, k ent.LimitKey) (int, error) {
-	if k == ent.LimitFrameworks {
-		return int(n), nil
-	}
-	return 0, nil
-}
-
-// TestFrameworkCap_* drive RequireCapacity on LimitFrameworks, the gate
-// mounted on POST /compliance/frameworks (D-076).
-func TestFrameworkCap_Success(t *testing.T) {
-	for plan, used := range map[string]int{"free": 0, "pro": 2, "business": 9, "enterprise": 500} {
-		svc := entapp.NewService(levelTestOrg{plan: plan}).WithUsage(frameworkUsage(used))
-		status, _ := doLevel(t, gateApp(uuid.New(), RequireCapacity(svc, ent.LimitFrameworks)))
-		assert.Equal(t, fiber.StatusOK, status, "%s with %d frameworks", plan, used)
+func TestThreatIntelGate_Success(t *testing.T) {
+	for _, plan := range []string{"business", "enterprise"} {
+		svc := entapp.NewService(levelTestOrg{plan: plan})
+		status, _ := doLevel(t, gateApp(uuid.New(), RequireFeature(svc, ent.FeatCTI)))
+		assert.Equal(t, fiber.StatusOK, status, plan)
 	}
 }
 
-func TestFrameworkCap_Unauthorized(t *testing.T) {
-	for plan, limit := range map[string]int{"free": 1, "pro": 3, "business": 10} {
-		svc := entapp.NewService(levelTestOrg{plan: plan}).WithUsage(frameworkUsage(limit))
-		status, body := doLevel(t, gateApp(uuid.New(), RequireCapacity(svc, ent.LimitFrameworks)))
-		assert.Equal(t, fiber.StatusPaymentRequired, status, "%s at %d", plan, limit)
-		assert.Equal(t, "limit_reached", body["code"])
-		assert.Equal(t, "frameworks", body["limit_key"])
-		assert.EqualValues(t, limit, body["limit"])
-		assert.EqualValues(t, limit, body["used"])
-		assert.Contains(t, body["message"], "référentiels actifs")
+func TestThreatIntelGate_Unauthorized(t *testing.T) {
+	for _, plan := range []string{"free", "pro"} {
+		svc := entapp.NewService(levelTestOrg{plan: plan})
+		status, body := doLevel(t, gateApp(uuid.New(), RequireFeature(svc, ent.FeatCTI)))
+		assert.Equal(t, fiber.StatusPaymentRequired, status, plan)
+		assert.Equal(t, "upgrade_required", body["code"])
+		assert.Equal(t, "cti", body["feature"])
+		assert.Equal(t, "business", body["required_plan"])
 	}
 }
 
-func TestFrameworkCap_NotFound(t *testing.T) {
-	svc := entapp.NewService(levelTestOrg{err: domain.ErrNotFound}).WithUsage(frameworkUsage(99))
-	status, _ := doLevel(t, gateApp(uuid.New(), RequireCapacity(svc, ent.LimitFrameworks)))
+func TestThreatIntelGate_NotFound(t *testing.T) {
+	svc := entapp.NewService(levelTestOrg{err: domain.ErrNotFound})
+	status, _ := doLevel(t, gateApp(uuid.New(), RequireFeature(svc, ent.FeatCTI)))
 	assert.Equal(t, fiber.StatusOK, status)
+}
+
+// TestFrameworkCap_Message keeps the French copy the 402 carries.
+func TestFrameworkCap_Message(t *testing.T) {
+	svc := entapp.NewService(levelTestOrg{plan: "free"}).WithUsage(fixedUsage{ent.LimitFrameworks: 1})
+	_, body := doLevel(t, gateApp(uuid.New(), RequireCapacity(svc, ent.LimitFrameworks)))
+	assert.Contains(t, body["message"], "référentiels actifs")
 }
