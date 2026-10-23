@@ -48,6 +48,8 @@ import {
 } from './useGovernance';
 import { AuditIntegrityPanel } from './AuditIntegrityPanel';
 import { governanceService } from './governanceService';
+import { PlanCapNotice } from '../billing/PlanCapNotice';
+import { planCapErrorMessage } from '../billing/useEntitlements';
 import type {
   AuditEvent,
   AuditAction,
@@ -56,7 +58,6 @@ import type {
   ApprovalWorkflow,
   WorkflowStep,
 } from './governanceService';
-import { FeatureGate } from '../../shared/FeatureGate';
 
 type Tab = 'audit' | 'approvals' | 'delegations' | 'workflows';
 
@@ -113,17 +114,7 @@ function fmt(ts?: string | null): string {
   return isNaN(d.getTime()) ? '—' : d.toLocaleString();
 }
 
-// The plan gate (#783, ADR 0007): the API refuses these routes with 402 on a
-// plan without governance; the screen shows the upsell instead of the refusal.
 export function GovernancePage() {
-  return (
-    <FeatureGate feature="governance">
-      <GovernancePageScreen />
-    </FeatureGate>
-  );
-}
-
-function GovernancePageScreen() {
   const lang = useUIStore((s) => s.lang);
   const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
   const isAdmin = useAuthStore((s) => s.hasPermission)('*');
@@ -1318,7 +1309,9 @@ function CreateWorkflowModal({ onClose }: { onClose: () => void }) {
       onClose();
     } catch (err) {
       const e = err as { response?: { data?: { error?: string } } };
-      toast.error(e.response?.data?.error || tr('Échec', 'Failed'));
+      toast.error(
+        planCapErrorMessage(err, lang) ?? (e.response?.data?.error || tr('Échec', 'Failed')),
+      );
     }
   };
 
@@ -1329,6 +1322,8 @@ function CreateWorkflowModal({ onClose }: { onClose: () => void }) {
       onSubmit={submit}
       submitLabel={tr('Créer', 'Create')}
     >
+      {/* D-078: the plan caps approval workflows. */}
+      <PlanCapNotice limitKey="approval_workflows" showUsage />
       <Field
         label={tr('Nom', 'Name')}
         value={name}

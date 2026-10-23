@@ -14,6 +14,7 @@ import { Listbox } from '../../shared/ds';
 import { useUIStore } from '../../store/uiStore';
 import { PROVIDERS, CLOUD_CRED_FIELDS, SCOPE_HINTS } from './scannerMeta';
 import type { ScannerProvider, CreateScanConfigInput } from './scannerService';
+import { planCapErrorMessage } from '../billing/useEntitlements';
 
 const inputStyle: React.CSSProperties = {
   background: 'var(--bg-elevated)',
@@ -89,7 +90,9 @@ export function ScanConfigDrawer({
       await onCreate(input);
     } catch (e) {
       const msg = (e as { response?: { data?: { error?: string } } })?.response?.data?.error;
-      toast.error(msg ?? tr('Échec de la création', 'Creation failed'));
+      toast.error(
+        planCapErrorMessage(e, lang) ?? msg ?? tr('Échec de la création', 'Creation failed'),
+      );
     }
   };
 

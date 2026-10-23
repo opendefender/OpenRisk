@@ -12,6 +12,7 @@ import {
   type PlanKey,
   type RegionKey,
 } from '../../services/entitlementService';
+import { isPlanCapKey, planCapMessage } from './planCap';
 
 export const ENTITLEMENTS_KEY = ['entitlements'] as const;
 export const BILLING_KEY = ['billing'] as const;
@@ -49,6 +50,38 @@ export function useFeature(feature: string): {
   };
 }
 
+// The depth order of the backend's levelRank (pkg/entitlements): a feature can
+// be on at one depth and still short of the one a screen needs.
+const LEVEL_RANK: Record<string, number> = {
+  limited: 1,
+  basic: 2,
+  on: 3,
+  standard: 3,
+  advanced: 4,
+  custom: 5,
+};
+
+/** useFeature for a DEPTH: enabled only when the plan grants `min` or deeper.
+ *  Free has financial quantification at "basic" (the deterministic ALE, D-078)
+ *  while the portfolio views need the Monte-Carlo depth "on" from Pro. The
+ *  snapshot names the plan that OPENS a feature, not the one that reaches a
+ *  depth, so the caller names it (`minPlan`), as the backend's own test pins. */
+export function useFeatureAtLeast(
+  feature: string,
+  min: string,
+  minPlan: PlanKey,
+): { enabled: boolean; requiredPlan: PlanKey; loading: boolean; locked: boolean } {
+  const { data, isLoading } = useEntitlements();
+  const f = data?.features?.[feature];
+  const enabled = !!f && (LEVEL_RANK[f.level] ?? 0) >= (LEVEL_RANK[min] ?? 99);
+  return {
+    enabled,
+    requiredPlan: minPlan,
+    loading: isLoading,
+    locked: f !== undefined && !enabled,
+  };
+}
+
 /** A plan cap and its usage, from the same snapshot. `reached` means one more
  *  create would be refused (402 limit_reached); an unlimited cap never is. */
 export function useLimit(key: string): { limit: number; used: number; reached: boolean } {
@@ -62,14 +95,26 @@ export function useLimit(key: string): { limit: number; used: number; reached: b
 }
 
 /** The cap a refused create hit, when the server answered 402 limit_reached. */
-export function limitReachedOf(err: unknown): LimitEntitlement | null {
+export function limitReachedOf(err: unknown): (LimitEntitlement & { key: string }) | null {
   const res = (
     err as {
-      response?: { status?: number; data?: { code?: string; limit?: number; used?: number } };
+      response?: {
+        status?: number;
+        data?: { code?: string; limit_key?: string; limit?: number; used?: number };
+      };
     } | null
   )?.response;
   if (res?.status !== 402 || res.data?.code !== 'limit_reached') return null;
-  return { limit: res.data.limit ?? 0, used: res.data.used ?? 0 };
+  return { key: res.data.limit_key ?? '', limit: res.data.limit ?? 0, used: res.data.used ?? 0 };
+}
+
+/** The localised sentence for a 402 limit_reached, or null for any other error,
+ *  so a mutation's onError can say "2/2 rules — suspend one or upgrade" instead
+ *  of a generic failure. */
+export function planCapErrorMessage(err: unknown, lang: string): string | null {
+  const cap = limitReachedOf(err);
+  if (!cap || !isPlanCapKey(cap.key)) return null;
+  return planCapMessage(lang === 'fr', cap.key, cap.limit, cap.used);
 }
 
 export function useBilling() {

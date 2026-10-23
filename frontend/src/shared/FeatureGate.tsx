@@ -16,7 +16,8 @@ import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router';
 import { UpsellLock } from './UpsellLock';
 import { useI18n } from '../hooks/useI18n';
-import { useFeature } from '../features/billing/useEntitlements';
+import { useFeature, useFeatureAtLeast } from '../features/billing/useEntitlements';
+import type { PlanKey } from '../services/entitlementService';
 
 /** The features with benefit copy under `paywall.features` in the locales. */
 const DESCRIBED = new Set([
@@ -24,10 +25,7 @@ const DESCRIBED = new Set([
   'ai_advisor',
   'smart_score',
   'executive_dashboard',
-  'scanner',
-  'automation',
   'cti',
-  'governance',
   'vendor_risk',
 ]);
 
@@ -45,12 +43,27 @@ interface FeatureGateProps {
   title?: string;
   description?: string;
   moment?: string;
+  /** Gate on a depth rather than on the feature being on at all (e.g. the
+   *  Monte-Carlo views need "on" while Free has "basic"), with the plan that
+   *  reaches it. */
+  minLevel?: string;
+  minPlan?: PlanKey;
 }
 
-export function FeatureGate({ feature, children, title, description, moment }: FeatureGateProps) {
+export function FeatureGate({
+  feature,
+  children,
+  title,
+  description,
+  moment,
+  minLevel,
+  minPlan,
+}: FeatureGateProps) {
   const navigate = useNavigate();
   const { t } = useI18n();
-  const { enabled, requiredPlan, loading } = useFeature(feature);
+  const any = useFeature(feature);
+  const deep = useFeatureAtLeast(feature, minLevel ?? 'limited', minPlan ?? any.requiredPlan);
+  const { enabled, requiredPlan, loading } = minLevel ? deep : any;
 
   // While loading, render the children optimistically (no flash of the wall).
   if (loading || enabled) return <>{children}</>;

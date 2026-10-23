@@ -2085,21 +2085,9 @@
         "title": "Tableau de bord exécutif",
         "description": "Toute votre posture (cyber score, exposition financière, KRI) consolidée en un écran pour le COMEX."
       },
-      "scanner": {
-        "title": "Scanner d’infrastructure",
-        "description": "Découverte automatique de vos actifs et de leurs vulnérabilités."
-      },
-      "automation": {
-        "title": "Automatisation (SOAR)",
-        "description": "Enchaînez alertes, tickets et escalades SLA sans intervention manuelle. Les canaux de notification restent configurables sur tous les plans."
-      },
       "cti": {
         "title": "Renseignement sur les menaces (CTI)",
         "description": "Enrichissez vos vulnérabilités avec NVD, CISA-KEV et MITRE ATT&CK."
-      },
-      "governance": {
-        "title": "Gouvernance et approbations",
-        "description": "Workflows Maker-Checker, délégations et lecture de la piste d’audit infalsifiable. La piste reste enregistrée sur tous les plans."
       },
       "vendor_risk": {
         "title": "Gestion des risques fournisseurs (TPRM)",

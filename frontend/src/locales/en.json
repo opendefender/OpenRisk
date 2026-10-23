@@ -2085,21 +2085,9 @@
         "title": "Executive dashboard",
         "description": "Your whole posture (cyber score, financial exposure, KRIs) on one screen for the board."
       },
-      "scanner": {
-        "title": "Infrastructure scanner",
-        "description": "Automatic discovery of your assets and their vulnerabilities."
-      },
-      "automation": {
-        "title": "Automation (SOAR)",
-        "description": "Chain alerts, tickets and SLA escalations without manual work. Notification channels stay configurable on every plan."
-      },
       "cti": {
         "title": "Threat intelligence (CTI)",
         "description": "Enrich your vulnerabilities with NVD, CISA-KEV and MITRE ATT&CK."
-      },
-      "governance": {
-        "title": "Governance and approvals",
-        "description": "Maker-Checker workflows, delegations and reading the tamper-evident audit trail. The trail is still recorded on every plan."
       },
       "vendor_risk": {
         "title": "Vendor risk management (TPRM)",

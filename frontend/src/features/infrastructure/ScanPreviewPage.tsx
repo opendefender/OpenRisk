@@ -37,7 +37,6 @@ import { useAuthStore } from '../../hooks/useAuthStore';
 import { useScanPreview } from './useScanner';
 import { PROVIDERS, severityColor, criticalityFromFactor } from './scannerMeta';
 import type { AssetCriticality, ImportSelection } from './scannerService';
-import { FeatureGate } from '../../shared/FeatureGate';
 
 const CRITS: AssetCriticality[] = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
 const CRIT_COLOR: Record<AssetCriticality, string> = {
@@ -49,17 +48,7 @@ const CRIT_COLOR: Record<AssetCriticality, string> = {
 
 type Tab = 'assets' | 'findings' | 'mitigations';
 
-// The plan gate (#783, ADR 0007): the API refuses these routes with 402 on a
-// plan without scanner; the screen shows the upsell instead of the refusal.
 export function ScanPreviewPage() {
-  return (
-    <FeatureGate feature="scanner">
-      <ScanPreviewPageScreen />
-    </FeatureGate>
-  );
-}
-
-function ScanPreviewPageScreen() {
   const { jobId } = useParams<{ jobId: string }>();
   const navigate = useNavigate();
   const lang = useUIStore((s) => s.lang);

@@ -19,9 +19,9 @@ import {
   useImportCatalogAsFramework,
 } from './useCompliance';
 import type { ComplianceCatalogSummary } from '../../types/compliance';
-import { limitReachedOf, useLimit } from '../billing/useEntitlements';
-import { FrameworkCapNotice } from './FrameworkCapNotice';
-import { frameworkCapMessage } from './frameworkCap';
+import { planCapErrorMessage, useLimit } from '../billing/useEntitlements';
+import { PlanCapNotice } from '../billing/PlanCapNotice';
+import { planCapMessage } from '../billing/planCap';
 
 /* ------------------------------------------------------------------ */
 /* shared primitives                                                   */
@@ -41,8 +41,7 @@ function errMsg(err: unknown, fallback: string): string {
 // createErrMsg is errMsg for a framework create: a 402 limit_reached names the
 // plan's cap (D-076) instead of the server's French-only sentence.
 function createErrMsg(err: unknown, fallback: string, lang: string): string {
-  const cap = limitReachedOf(err);
-  return cap ? frameworkCapMessage(lang === 'fr', cap.limit, cap.used) : errMsg(err, fallback);
+  return planCapErrorMessage(err, lang) ?? errMsg(err, fallback);
 }
 
 export function ModalShell({
@@ -294,7 +293,7 @@ export function CreateFrameworkDialog({
   const submit = () => {
     // At the cap the server would refuse (402): say so without the round trip.
     if (cap.reached) {
-      toast.error(frameworkCapMessage(lang === 'fr', cap.limit, cap.used));
+      toast.error(planCapMessage(lang === 'fr', 'frameworks', cap.limit, cap.used));
       return;
     }
     const parsed = frameworkSchema.safeParse({ name, version, description });
@@ -336,7 +335,7 @@ export function CreateFrameworkDialog({
         />
       }
     >
-      <FrameworkCapNotice />
+      <PlanCapNotice limitKey="frameworks" />
       <Field
         label={tr('Nom', 'Name')}
         value={name}
@@ -419,7 +418,7 @@ export function ImportFrameworkDialog({
           'Pick a regulatory framework: its controls are imported into a new, ready-to-track framework.',
         )}
       </p>
-      <FrameworkCapNotice />
+      <PlanCapNotice limitKey="frameworks" />
       {isLoading ? (
         <div className="flex flex-col gap-2">
           {[0, 1, 2].map((i) => (

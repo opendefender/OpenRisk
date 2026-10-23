@@ -27,7 +27,7 @@ import { Button } from '../../shared/ds';
 import { bandTextColor } from '../../services/scoreService';
 import { complianceService } from '../../services/complianceService';
 import { boardService } from '../../services/boardService';
-import { useFeature } from '../billing/useEntitlements';
+import { useFeatureAtLeast } from '../billing/useEntitlements';
 import { useFinancialSummary } from '../financial/useFinancial';
 import { currencyLabel, millions, toDisplay } from '../financial/money';
 import { useDashboardStats } from '../dashboard/useCommandCenter';
@@ -59,9 +59,6 @@ export function ExecutiveDashboard() {
   const navigate = useNavigate();
   const now = new Date();
   const q = quarterOf(now);
-  // Pro has this dashboard but not governance (#783): the committee block reads
-  // the approval inbox, so it shows only where the plan includes approvals.
-  const governance = useFeature('governance');
 
   const exportReport = useMutation({
     mutationFn: () =>
@@ -114,7 +111,7 @@ export function ExecutiveDashboard() {
         <FrameworkBars className="flex-[1_1_360px]" />
       </div>
 
-      {!governance.loading && !governance.locked && <CommitteeDecisions />}
+      <CommitteeDecisions />
     </PageFrame>
   );
 }
@@ -131,8 +128,9 @@ function KpiStrip() {
   const score = useScore('tenant');
   const history = useScoreHistory(12);
   const stats = useDashboardStats(ALL_TIME);
-  const fin = useFeature('financial_quantification');
-  const finance = useFinancialSummary();
+  // Portfolio figures are Monte-Carlo (Pro+, D-078).
+  const fin = useFeatureAtLeast('financial_quantification', 'on', 'pro');
+  const finance = useFinancialSummary(!fin.loading && fin.enabled);
   const gaps = useQuery({
     queryKey: ['compliance', 'gap-analysis', 'all'],
     queryFn: () => complianceService.getGapAnalysis(),
@@ -257,8 +255,9 @@ function KpiStrip() {
 
 function TopExposures({ className = '' }: { className?: string }) {
   const { t, locale } = useI18n();
-  const fin = useFeature('financial_quantification');
-  const finance = useFinancialSummary();
+  // Portfolio figures are Monte-Carlo (Pro+, D-078).
+  const fin = useFeatureAtLeast('financial_quantification', 'on', 'pro');
+  const finance = useFinancialSummary(!fin.loading && fin.enabled);
   const f = finance.data;
   const top = (f?.top_risks ?? []).filter((r) => r.ale.xaf > 0).slice(0, 5);
   const max = Math.max(1, ...top.map((r) => r.ale.xaf));

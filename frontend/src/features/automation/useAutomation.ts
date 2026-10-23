@@ -12,11 +12,12 @@ import {
   type DryRunInput,
   type NotifyChannel,
 } from './automationService';
+import { ENTITLEMENTS_KEY } from '../billing/useEntitlements';
 
 const KEY = ['automation'];
 
-export function useAutomationRules(enabled = true) {
-  return useQuery({ queryKey: [...KEY, 'rules'], queryFn: automationService.listRules, enabled });
+export function useAutomationRules() {
+  return useQuery({ queryKey: [...KEY, 'rules'], queryFn: automationService.listRules });
 }
 
 export function useAutomationExecutions() {
@@ -35,12 +36,11 @@ export function useSLATrackers() {
   });
 }
 
-export function useSLAStats(enabled = true) {
+export function useSLAStats() {
   return useQuery({
     queryKey: [...KEY, 'sla', 'stats'],
     queryFn: automationService.slaStats,
     refetchInterval: 30_000,
-    enabled,
   });
 }
 
@@ -76,7 +76,11 @@ export function useAutomationTemplates() {
 
 export function useAutomationMutations() {
   const qc = useQueryClient();
-  const invalidate = () => qc.invalidateQueries({ queryKey: KEY });
+  // Rules turning on or off move the plan's active-rule counter (D-078).
+  const invalidate = () => {
+    void qc.invalidateQueries({ queryKey: KEY });
+    void qc.invalidateQueries({ queryKey: ENTITLEMENTS_KEY });
+  };
 
   const createRule = useMutation({
     mutationFn: (input: RuleInput) => automationService.createRule(input),

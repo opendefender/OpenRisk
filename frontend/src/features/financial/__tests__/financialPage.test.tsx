@@ -112,7 +112,9 @@ vi.mock('../../../lib/api', () => ({
       if (url === '/entitlements')
         return Promise.resolve({
           data: {
-            features: { financial_quantification: { enabled: true, required_plan: 'business' } },
+            features: {
+              financial_quantification: { enabled: true, level: 'on', required_plan: 'business' },
+            },
           },
         });
       if (url === '/analytics/financial')
