@@ -46,6 +46,7 @@ var limitLabels = map[LimitKey]string{
 	LimitRisks:        "Risks",
 	LimitAssets:       "Assets",
 	LimitIntegrations: "Integrations",
+	LimitFrameworks:   "Active compliance frameworks",
 }
 
 var featureLabels = map[Feature]string{

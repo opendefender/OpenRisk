@@ -77,6 +77,13 @@ func (r *GormEntitlementRepository) Count(ctx context.Context, tenant uuid.UUID,
 			return 0, err
 		}
 		n = vi + sc
+	case ent.LimitFrameworks:
+		// Active = not deleted (D-076): there is no activation flag, and a
+		// deleted framework frees its slot.
+		if err := db.Model(&domain.ComplianceFramework{}).
+			Where("tenant_id = ? AND deleted_at IS NULL", tenant).Count(&n).Error; err != nil {
+			return 0, err
+		}
 	default:
 		return 0, nil
 	}

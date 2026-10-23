@@ -119,8 +119,8 @@ func (l Level) Enabled() bool { return l != LevelOff }
 //	off < limited < basic < on = standard < advanced < custom
 //
 // "on" is the plain full grant of a feature that has no named tiers; it ranks
-// with "standard", the plain full grant of one that does (compliance). No row of
-// the matrix uses both, so the tie never has to break.
+// with "standard", the plain full grant of a tiered one. Compliance carried the
+// tiers until D-076 and no row uses "standard" today, so the tie never breaks.
 //
 // The support (community/email/priority/dedicated) and SLA (99.5/99.9) values
 // are DESCRIPTORS, not depths: they say what a plan includes, nothing gates on
@@ -159,10 +159,14 @@ const (
 	LimitRisks        LimitKey = "risks"
 	LimitAssets       LimitKey = "assets"
 	LimitIntegrations LimitKey = "integrations"
+	// LimitFrameworks caps the compliance frameworks a tenant holds at once
+	// (D-076): every framework is available on every plan, the plan sets how
+	// many are active. A framework is active until it is deleted.
+	LimitFrameworks LimitKey = "frameworks"
 )
 
 // AllLimits is every cap key.
-var AllLimits = []LimitKey{LimitUsers, LimitRisks, LimitAssets, LimitIntegrations}
+var AllLimits = []LimitKey{LimitUsers, LimitRisks, LimitAssets, LimitIntegrations, LimitFrameworks}
 
 // Unlimited is the sentinel for an uncapped limit.
 const Unlimited = -1
@@ -184,11 +188,12 @@ type PlanEntitlements struct {
 //	Risks            50       500          ∞           ∞
 //	Assets           50        ∞           ∞           ∞
 //	Integrations      1        10          ∞           Custom(∞)
+//	Frameworks        1         3          10          ∞
 //	API           Limited     On          On          On
 //	Automation      off       On       Advanced     Advanced
 //	AI Advisor      off       On       Advanced     Advanced
-//	Compliance     Basic    Standard   Advanced      Custom
-//	SSO             off       off         On         Advanced
+//	Compliance       On       On          On          On
+//	SSO             off       off        off          off
 //	Multi-tenant    off       off        off           On
 //	On-premise      off       off        off           On
 //	SLA             off       off       99.5%         99.9%
@@ -198,24 +203,32 @@ type PlanEntitlements struct {
 // marquee paid analytics; they open at Pro (task §2: "la quantification financière
 // Monte-Carlo est disponible à partir du plan Pro"). CTI and governance open at
 // Business, and so does vendor risk (TPRM), by owner decision D-044.
+//
+// Compliance is the same module on every plan (D-076): the plan caps how many
+// frameworks are active (LimitFrameworks), not which ones. SSO is granted by no
+// plan: SAML refuses every request since #866 and OAuth providers are set per
+// deployment, so there is no tenant SSO for a plan to sell. #1045 brings it back.
+//
+// These are HOSTED plans (D-075, ADR 0007). A self-hosted install is free and
+// complete (D-040); #612 keeps it off this matrix's Free row.
 var matrix = map[Plan]PlanEntitlements{
 	PlanFree: {
 		Plan:   PlanFree,
-		Limits: map[LimitKey]int{LimitUsers: 2, LimitRisks: 50, LimitAssets: 50, LimitIntegrations: 1},
+		Limits: map[LimitKey]int{LimitUsers: 2, LimitRisks: 50, LimitAssets: 50, LimitIntegrations: 1, LimitFrameworks: 1},
 		Features: map[Feature]Level{
 			FeatAPI:        LevelLimited,
-			FeatCompliance: LevelBasic,
+			FeatCompliance: LevelOn,
 			FeatSupport:    LevelCommunity,
 		},
 	},
 	PlanPro: {
 		Plan:   PlanPro,
-		Limits: map[LimitKey]int{LimitUsers: 10, LimitRisks: 500, LimitAssets: Unlimited, LimitIntegrations: 10},
+		Limits: map[LimitKey]int{LimitUsers: 10, LimitRisks: 500, LimitAssets: Unlimited, LimitIntegrations: 10, LimitFrameworks: 3},
 		Features: map[Feature]Level{
 			FeatAPI:                LevelOn,
 			FeatAutomation:         LevelOn,
 			FeatAIAdvisor:          LevelOn,
-			FeatCompliance:         LevelStandard,
+			FeatCompliance:         LevelOn,
 			FeatFinancialQuant:     LevelOn,
 			FeatSmartScore:         LevelOn,
 			FeatExecutiveDashboard: LevelOn,
@@ -225,13 +238,12 @@ var matrix = map[Plan]PlanEntitlements{
 	},
 	PlanBusiness: {
 		Plan:   PlanBusiness,
-		Limits: map[LimitKey]int{LimitUsers: 50, LimitRisks: Unlimited, LimitAssets: Unlimited, LimitIntegrations: Unlimited},
+		Limits: map[LimitKey]int{LimitUsers: 50, LimitRisks: Unlimited, LimitAssets: Unlimited, LimitIntegrations: Unlimited, LimitFrameworks: 10},
 		Features: map[Feature]Level{
 			FeatAPI:                LevelOn,
 			FeatAutomation:         LevelAdvanced,
 			FeatAIAdvisor:          LevelAdvanced,
-			FeatCompliance:         LevelAdvanced,
-			FeatSSO:                LevelOn,
+			FeatCompliance:         LevelOn,
 			FeatFinancialQuant:     LevelOn,
 			FeatSmartScore:         LevelOn,
 			FeatExecutiveDashboard: LevelOn,
@@ -245,13 +257,12 @@ var matrix = map[Plan]PlanEntitlements{
 	},
 	PlanEnterprise: {
 		Plan:   PlanEnterprise,
-		Limits: map[LimitKey]int{LimitUsers: Unlimited, LimitRisks: Unlimited, LimitAssets: Unlimited, LimitIntegrations: Unlimited},
+		Limits: map[LimitKey]int{LimitUsers: Unlimited, LimitRisks: Unlimited, LimitAssets: Unlimited, LimitIntegrations: Unlimited, LimitFrameworks: Unlimited},
 		Features: map[Feature]Level{
 			FeatAPI:                LevelOn,
 			FeatAutomation:         LevelAdvanced,
 			FeatAIAdvisor:          LevelAdvanced,
-			FeatCompliance:         LevelCustom,
-			FeatSSO:                LevelAdvanced,
+			FeatCompliance:         LevelOn,
 			FeatMultiTenant:        LevelOn,
 			FeatOnPremise:          LevelOn,
 			FeatFinancialQuant:     LevelOn,

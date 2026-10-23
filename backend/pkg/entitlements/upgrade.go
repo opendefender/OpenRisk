@@ -67,6 +67,7 @@ func LimitMessage(k LimitKey, limit int) string {
 		LimitRisks:        "risques",
 		LimitAssets:       "actifs",
 		LimitIntegrations: "intégrations",
+		LimitFrameworks:   "référentiels actifs",
 	}[k]
 	return fmt.Sprintf("Vous avez atteint la limite de %d %s de votre plan. Passez à un plan supérieur pour en ajouter davantage.", limit, label)
 }

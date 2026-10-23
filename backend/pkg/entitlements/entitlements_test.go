@@ -49,8 +49,11 @@ func TestFeatureGates_MatchMatrix(t *testing.T) {
 	if Has(PlanFree, FeatAutomation) || Has(PlanFree, FeatAIAdvisor) {
 		t.Fatal("Free must not have automation/AI")
 	}
-	if !Has(PlanBusiness, FeatSSO) || Has(PlanPro, FeatSSO) {
-		t.Fatal("SSO opens at Business")
+	// No plan sells SSO while there is no tenant SSO to sell (#866, #1045).
+	for _, p := range AllPlans {
+		if Has(p, FeatSSO) {
+			t.Fatalf("%s grants SSO, which no tenant can configure", p)
+		}
 	}
 	if Has(PlanBusiness, FeatMultiTenant) || !Has(PlanEnterprise, FeatMultiTenant) {
 		t.Fatal("multi-tenant is Enterprise-only")
@@ -58,8 +61,26 @@ func TestFeatureGates_MatchMatrix(t *testing.T) {
 	if LevelOf(PlanBusiness, FeatAutomation) != LevelAdvanced {
 		t.Fatal("Business automation should be advanced")
 	}
-	if LevelOf(PlanEnterprise, FeatCompliance) != LevelCustom {
-		t.Fatal("Enterprise compliance should be custom")
+}
+
+// TestCompliance_IsOneModuleCappedByFrameworkCount pins D-076: every plan gets
+// the same compliance module, with no tier, and the plan caps how many
+// frameworks are active at once. Changing a number here is a pricing change.
+func TestCompliance_IsOneModuleCappedByFrameworkCount(t *testing.T) {
+	want := map[Plan]int{PlanFree: 1, PlanPro: 3, PlanBusiness: 10, PlanEnterprise: Unlimited}
+	for _, p := range AllPlans {
+		if got := LevelOf(p, FeatCompliance); got != LevelOn {
+			t.Errorf("%s grants compliance at %q, want %q: D-076 removed the tiers", p, got, LevelOn)
+		}
+		if got := LimitOf(p, LimitFrameworks); got != want[p] {
+			t.Errorf("%s caps frameworks at %d, want %d (D-076)", p, got, want[p])
+		}
+	}
+	if !WithinLimit(PlanFree, LimitFrameworks, 0) || WithinLimit(PlanFree, LimitFrameworks, 1) {
+		t.Error("Free admits its first framework and refuses the second")
+	}
+	if !WithinLimit(PlanEnterprise, LimitFrameworks, 1000) {
+		t.Error("Enterprise is uncapped")
 	}
 }
 
@@ -140,8 +161,15 @@ func TestMatrixIntegrity(t *testing.T) {
 			}
 		}
 	}
-	// Every marquee feature must be reachable on some plan.
+	// Every marquee feature must be reachable on some plan, except the ones no
+	// plan sells yet, each with the reason.
+	notSold := map[Feature]string{
+		FeatSSO: "SAML is off since #866; tenant SSO comes back with #1045",
+	}
 	for _, f := range AllFeatures {
+		if _, ok := notSold[f]; ok {
+			continue
+		}
 		if MinPlanFor(f) == PlanEnterprise && !Has(PlanEnterprise, f) {
 			t.Errorf("feature %q is granted by no plan", f)
 		}
@@ -199,10 +227,9 @@ func TestMinPlanForLevel(t *testing.T) {
 		min  Level
 		want Plan
 	}{
-		{FeatCompliance, LevelBasic, PlanFree},
-		{FeatCompliance, LevelStandard, PlanPro},
-		{FeatCompliance, LevelAdvanced, PlanBusiness},
-		{FeatCompliance, LevelCustom, PlanEnterprise},
+		{FeatCompliance, LevelOn, PlanFree},
+		{FeatCompliance, LevelAdvanced, PlanEnterprise},
+		{FeatAIAdvisor, LevelAdvanced, PlanBusiness},
 		{FeatFinancialQuant, LevelBasic, PlanPro},
 		{FeatFinancialQuant, LevelOn, PlanPro},
 		{FeatAutomation, LevelAdvanced, PlanBusiness},

@@ -2906,6 +2906,8 @@ paths:
                 $ref: '#/components/schemas/ComplianceFramework'
         '400':
           description: Invalid input
+        '402':
+          description: The plan's cap on active frameworks is reached (limit_reached, D-076)
         '403':
           description: Forbidden — only Admin can create a global framework
         '409':

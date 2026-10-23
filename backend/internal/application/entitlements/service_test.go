@@ -118,11 +118,14 @@ func TestResolve_ListsAllFeaturesAndPrices(t *testing.T) {
 	if !snap.Features[string(ent.FeatFinancialQuant)].Enabled {
 		t.Fatal("pro should enable financial quant")
 	}
-	if snap.Features[string(ent.FeatSSO)].Enabled {
-		t.Fatal("pro should NOT enable SSO")
+	if snap.Features[string(ent.FeatGovernance)].Enabled {
+		t.Fatal("pro should NOT enable governance")
 	}
-	if snap.Features[string(ent.FeatSSO)].RequiredPlan != string(ent.PlanBusiness) {
-		t.Fatal("SSO required plan should be business")
+	if snap.Features[string(ent.FeatGovernance)].RequiredPlan != string(ent.PlanBusiness) {
+		t.Fatal("governance required plan should be business")
+	}
+	if got := snap.Limits[string(ent.LimitFrameworks)]; got.Limit != 3 {
+		t.Fatalf("pro frameworks capped at 3 expected, got %+v", got)
 	}
 	if snap.Limits[string(ent.LimitRisks)].Used != 12 || snap.Limits[string(ent.LimitRisks)].Limit != 500 {
 		t.Fatalf("pro risks 12/500 expected, got %+v", snap.Limits[string(ent.LimitRisks)])
@@ -148,9 +151,9 @@ func TestLevel_Success(t *testing.T) {
 	s := NewService(countingOrg{plan: "pro", calls: &calls})
 	tenant := uuid.New()
 
-	lvl, plan, err := s.Level(context.Background(), tenant, ent.FeatCompliance)
-	if err != nil || lvl != ent.LevelStandard || plan != ent.PlanPro {
-		t.Fatalf("pro compliance: got %q/%s err=%v, want standard/pro", lvl, plan, err)
+	lvl, plan, err := s.Level(context.Background(), tenant, ent.FeatAutomation)
+	if err != nil || lvl != ent.LevelOn || plan != ent.PlanPro {
+		t.Fatalf("pro automation: got %q/%s err=%v, want on/pro", lvl, plan, err)
 	}
 	lvl, _, _ = s.Level(context.Background(), tenant, ent.FeatFinancialQuant)
 	if lvl != ent.LevelOn {
@@ -187,5 +190,30 @@ func TestLevel_Unauthorized(t *testing.T) {
 	}
 	if lvl.AtLeast(ent.LevelBasic) {
 		t.Fatal("off must not reach basic")
+	}
+}
+
+// TestCapacity_FrameworkCapPerPlan pins D-076 through the resolver the
+// middleware calls: each hosted plan admits its last framework and refuses the
+// one after, Enterprise never refuses.
+func TestCapacity_FrameworkCapPerPlan(t *testing.T) {
+	for _, tc := range []struct {
+		plan string
+		cap  int
+	}{{"free", 1}, {"pro", 3}, {"business", 10}} {
+		under := NewService(fakeOrg{plan: tc.plan}).WithUsage(fakeUsage{ent.LimitFrameworks: tc.cap - 1})
+		ok, limit, _, _, err := under.Capacity(context.Background(), uuid.New(), ent.LimitFrameworks)
+		if err != nil || !ok || limit != tc.cap {
+			t.Errorf("%s at %d/%d must admit one more; got ok=%v limit=%d err=%v", tc.plan, tc.cap-1, tc.cap, ok, limit, err)
+		}
+		at := NewService(fakeOrg{plan: tc.plan}).WithUsage(fakeUsage{ent.LimitFrameworks: tc.cap})
+		ok, limit, used, _, err := at.Capacity(context.Background(), uuid.New(), ent.LimitFrameworks)
+		if err != nil || ok || limit != tc.cap || used != tc.cap {
+			t.Errorf("%s at %d/%d must refuse; got ok=%v limit=%d used=%d err=%v", tc.plan, tc.cap, tc.cap, ok, limit, used, err)
+		}
+	}
+	ent500 := NewService(fakeOrg{plan: "enterprise"}).WithUsage(fakeUsage{ent.LimitFrameworks: 500})
+	if ok, limit, _, _, _ := ent500.Capacity(context.Background(), uuid.New(), ent.LimitFrameworks); !ok || limit != ent.Unlimited {
+		t.Errorf("enterprise is uncapped; got ok=%v limit=%d", ok, limit)
 	}
 }

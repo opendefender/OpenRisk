@@ -1243,8 +1243,18 @@ func main() {
 	featExecutive := middleware.RequireFeature(entitlementService, ent.FeatExecutiveDashboard)
 	featAI := middleware.RequireFeature(entitlementService, ent.FeatAIAdvisor)
 	featVendor := middleware.RequireFeature(entitlementService, ent.FeatVendorRisk)
+	// Hosted plan gates (D-075, ADR 0007, #783). A self-hosted install is free and
+	// complete (D-040); #612 keeps it off the Free row, so these never cap it.
+	// Automation's channel routes stay open: incidents alert through the same
+	// channels, and incident management is on every plan.
+	featAutomation := middleware.RequireFeature(entitlementService, ent.FeatAutomation)
+	featScanner := middleware.RequireFeature(entitlementService, ent.FeatScanner)
+	featCTI := middleware.RequireFeature(entitlementService, ent.FeatCTI)
+	featGovernance := middleware.RequireFeature(entitlementService, ent.FeatGovernance)
 	capRisks := middleware.RequireCapacity(entitlementService, ent.LimitRisks)
 	capAssets := middleware.RequireCapacity(entitlementService, ent.LimitAssets)
+	// D-076: every framework on every plan, the plan caps how many are active.
+	capFrameworks := middleware.RequireCapacity(entitlementService, ent.LimitFrameworks)
 
 	// --- MFA disable (L4) ---
 	// Enrolment (setup/verify) is mounted before the Protected gate, see above.
@@ -1676,7 +1686,7 @@ func main() {
 	protected.Post("/compliance/frameworks/:frameworkId/import-catalog", complianceFrameworkCreate, complianceHandler.ImportCatalog)
 
 	protected.Get("/compliance/frameworks", complianceFrameworkRead, complianceHandler.ListFrameworks)
-	protected.Post("/compliance/frameworks", complianceFrameworkCreate, complianceHandler.CreateFramework)
+	protected.Post("/compliance/frameworks", complianceFrameworkCreate, capFrameworks, complianceHandler.CreateFramework)
 	protected.Get("/compliance/frameworks/:frameworkId", complianceFrameworkRead, complianceHandler.GetFramework)
 	protected.Delete("/compliance/frameworks/:frameworkId", complianceFrameworkDelete, complianceHandler.DeleteFramework)
 	protected.Get("/compliance/frameworks/:frameworkId/progress", complianceControlRead, complianceHandler.GetProgress)
@@ -3037,18 +3047,18 @@ func main() {
 	scannerScan := middleware.RequirePermission("scanner:scan")
 	scannerImport := middleware.RequirePermission("scanner:import")
 
-	protected.Get("/scanner/configs", scannerRead, scannerHandler.ListScanConfigs)
-	protected.Post("/scanner/configs", scannerCreate, scannerHandler.CreateScanConfig)
-	protected.Delete("/scanner/configs/:id", scannerDelete, scannerHandler.DeleteScanConfig)
-	protected.Post("/scanner/configs/:id/scan", scannerScan, scannerHandler.TriggerScan)
-	protected.Post("/scanner/configs/:id/registration-token", scannerCreate, scannerHandler.IssueRegistrationToken)
-	protected.Get("/scanner/agents", scannerRead, scannerHandler.ListAgents)
-	protected.Delete("/scanner/agents/:id", scannerDelete, scannerHandler.RevokeAgent)
-	protected.Get("/scanner/jobs", scannerRead, scannerHandler.ListScanJobs)
-	protected.Get("/scanner/jobs/:id/preview", scannerRead, scannerHandler.GetScanPreview)
-	protected.Post("/scanner/jobs/:id/import", scannerImport, scannerHandler.ImportPreview)
-	protected.Post("/scanner/jobs/:id/ignore", scannerImport, scannerHandler.IgnorePreview)
-	protected.Get("/scanner/events", scannerRead, scannerHandler.StreamScanEvents)
+	protected.Get("/scanner/configs", scannerRead, featScanner, scannerHandler.ListScanConfigs)
+	protected.Post("/scanner/configs", scannerCreate, featScanner, scannerHandler.CreateScanConfig)
+	protected.Delete("/scanner/configs/:id", scannerDelete, featScanner, scannerHandler.DeleteScanConfig)
+	protected.Post("/scanner/configs/:id/scan", scannerScan, featScanner, scannerHandler.TriggerScan)
+	protected.Post("/scanner/configs/:id/registration-token", scannerCreate, featScanner, scannerHandler.IssueRegistrationToken)
+	protected.Get("/scanner/agents", scannerRead, featScanner, scannerHandler.ListAgents)
+	protected.Delete("/scanner/agents/:id", scannerDelete, featScanner, scannerHandler.RevokeAgent)
+	protected.Get("/scanner/jobs", scannerRead, featScanner, scannerHandler.ListScanJobs)
+	protected.Get("/scanner/jobs/:id/preview", scannerRead, featScanner, scannerHandler.GetScanPreview)
+	protected.Post("/scanner/jobs/:id/import", scannerImport, featScanner, scannerHandler.ImportPreview)
+	protected.Post("/scanner/jobs/:id/ignore", scannerImport, featScanner, scannerHandler.IgnorePreview)
+	protected.Get("/scanner/events", scannerRead, featScanner, scannerHandler.StreamScanEvents)
 
 	// -------------------------------------------------------------------------
 	// Realtime event hub (W0-07) — the one stream every live surface reads.
@@ -3138,11 +3148,11 @@ func main() {
 
 	ctiRead := middleware.RequirePermission("risks:read")
 	ctiAdmin := middleware.RequireRole("admin", "root")
-	protected.Get("/cti/vulnerabilities", ctiRead, ctiHandler.List)
-	protected.Get("/cti/vulnerabilities/:cve", ctiRead, ctiHandler.Get)
-	protected.Get("/cti/stats", ctiRead, ctiHandler.Stats)
-	protected.Post("/cti/sync", ctiAdmin, ctiHandler.Sync)
-	protected.Post("/cti/match", ctiAdmin, ctiHandler.Match)
+	protected.Get("/cti/vulnerabilities", ctiRead, featCTI, ctiHandler.List)
+	protected.Get("/cti/vulnerabilities/:cve", ctiRead, featCTI, ctiHandler.Get)
+	protected.Get("/cti/stats", ctiRead, featCTI, ctiHandler.Stats)
+	protected.Post("/cti/sync", ctiAdmin, featCTI, ctiHandler.Sync)
+	protected.Post("/cti/match", ctiAdmin, featCTI, ctiHandler.Match)
 
 	// Threats (#911): the catalogue entries that touch this tenant's assets, by
 	// CPE or by a scanner finding, ranked by an explained relevance. "Not
@@ -3152,9 +3162,9 @@ func main() {
 		threatintel.NewListThreatsUseCase(threatRepo, ctiRepo),
 		threatintel.NewDismissThreatUseCase(threatRepo, ctiRepo),
 	)
-	protected.Get("/cti/threats", ctiRead, threatHandler.List)
-	protected.Put("/cti/threats/:cve/dismissal", riskUpdate, threatHandler.Dismiss)
-	protected.Delete("/cti/threats/:cve/dismissal", riskUpdate, threatHandler.Restore)
+	protected.Get("/cti/threats", ctiRead, featCTI, threatHandler.List)
+	protected.Put("/cti/threats/:cve/dismissal", riskUpdate, featCTI, threatHandler.Dismiss)
+	protected.Delete("/cti/threats/:cve/dismissal", riskUpdate, featCTI, threatHandler.Restore)
 
 	// =========================================================================
 	// Universal Search (UX-1) — one GET /search behind the ⌘K palette. Composes
@@ -3387,32 +3397,32 @@ func main() {
 	automationRead := middleware.RequirePermission("automation:read")
 	automationWrite := middleware.RequirePermission("automation:write")
 	automationAdmin := middleware.RequireRole("admin", "root")
-	protected.Get("/automation/rules", automationRead, automationHandler.ListRules)
-	protected.Post("/automation/rules", automationWrite, automationHandler.CreateRule)
+	protected.Get("/automation/rules", automationRead, featAutomation, automationHandler.ListRules)
+	protected.Post("/automation/rules", automationWrite, featAutomation, automationHandler.CreateRule)
 	// Static sub-paths before /:id so "executions"/"sla"/"channels" never parse as UUID.
-	protected.Get("/automation/executions", automationRead, automationHandler.ListExecutions)
-	protected.Get("/automation/sla", automationRead, automationHandler.ListSLA)
-	protected.Get("/automation/sla/stats", automationRead, automationHandler.SLAStats)
+	protected.Get("/automation/executions", automationRead, featAutomation, automationHandler.ListExecutions)
+	protected.Get("/automation/sla", automationRead, featAutomation, automationHandler.ListSLA)
+	protected.Get("/automation/sla/stats", automationRead, featAutomation, automationHandler.SLAStats)
 	protected.Get("/automation/channels", automationRead, automationHandler.GetChannels)
 	protected.Get("/automation/channels/catalogue", automationRead, automationHandler.ListChannelCatalogue)
 	protected.Put("/automation/channels", automationAdmin, automationHandler.SaveChannels)
 	protected.Post("/automation/channels/test", automationWrite, automationHandler.TestChannel)
-	protected.Get("/automation/state", automationRead, automationHandler.AutomationState)
-	protected.Get("/automation/templates", automationRead, automationHandler.ListTemplates)
-	protected.Post("/automation/templates/:key/adopt", automationWrite, automationHandler.CreateRuleFromTemplate)
-	protected.Get("/automation/dry-runs/:id", automationRead, automationHandler.GetDryRun)
-	protected.Post("/automation/dry-runs/:id/cancel", automationRead, automationHandler.CancelDryRun)
-	protected.Get("/automation/rules/:id", automationRead, automationHandler.GetRule)
-	protected.Put("/automation/rules/:id", automationWrite, automationHandler.UpdateRule)
-	protected.Delete("/automation/rules/:id", automationWrite, automationHandler.DeleteRule)
+	protected.Get("/automation/state", automationRead, featAutomation, automationHandler.AutomationState)
+	protected.Get("/automation/templates", automationRead, featAutomation, automationHandler.ListTemplates)
+	protected.Post("/automation/templates/:key/adopt", automationWrite, featAutomation, automationHandler.CreateRuleFromTemplate)
+	protected.Get("/automation/dry-runs/:id", automationRead, featAutomation, automationHandler.GetDryRun)
+	protected.Post("/automation/dry-runs/:id/cancel", automationRead, featAutomation, automationHandler.CancelDryRun)
+	protected.Get("/automation/rules/:id", automationRead, featAutomation, automationHandler.GetRule)
+	protected.Put("/automation/rules/:id", automationWrite, featAutomation, automationHandler.UpdateRule)
+	protected.Delete("/automation/rules/:id", automationWrite, featAutomation, automationHandler.DeleteRule)
 	// Dry run is a READ of what would happen — it touches no action port, so it
 	// only needs read permission. Running a rule for real is a write.
-	protected.Post("/automation/rules/:id/dry-run", automationRead, automationHandler.DryRunRule)
-	protected.Post("/automation/rules/:id/run", automationWrite, automationHandler.RunRuleNow)
-	protected.Post("/automation/rules/:id/enable", automationWrite, automationHandler.EnableRule)
-	protected.Post("/automation/rules/:id/suspend", automationWrite, automationHandler.SuspendRule)
-	protected.Get("/automation/rules/:id/executions", automationRead, automationHandler.ListRuleExecutions)
-	protected.Post("/automation/executions/:id/replay", automationWrite, automationHandler.ReplayExecution)
+	protected.Post("/automation/rules/:id/dry-run", automationRead, featAutomation, automationHandler.DryRunRule)
+	protected.Post("/automation/rules/:id/run", automationWrite, featAutomation, automationHandler.RunRuleNow)
+	protected.Post("/automation/rules/:id/enable", automationWrite, featAutomation, automationHandler.EnableRule)
+	protected.Post("/automation/rules/:id/suspend", automationWrite, featAutomation, automationHandler.SuspendRule)
+	protected.Get("/automation/rules/:id/executions", automationRead, featAutomation, automationHandler.ListRuleExecutions)
+	protected.Post("/automation/executions/:id/replay", automationWrite, featAutomation, automationHandler.ReplayExecution)
 
 	// Background workers: the SOAR engine (event-driven) and the SLA monitor (cadence).
 	automationWorker := workers.NewAutomationWorker(redisClientInstance, automationEngine, zeroLogger)
@@ -3484,12 +3494,12 @@ func main() {
 
 	// Audit trail — admin only (matches /audit-logs). Static sub-paths first
 	// (Fiber trap: /:id would otherwise swallow "export" and "verify").
-	protected.Get("/governance/audit-events/export", governanceAdmin, governanceHandler.ExportAuditEvents)
-	protected.Get("/governance/audit-events/verify", governanceAdmin, governanceHandler.VerifyAuditChain)
-	protected.Get("/governance/audit-events", governanceAdmin, governanceHandler.ListAuditEvents)
-	protected.Get("/governance/audit-retention", governanceAdmin, governanceHandler.GetAuditRetention)
-	protected.Put("/governance/audit-retention", governanceAdmin, governanceHandler.SetAuditRetention)
-	protected.Post("/governance/audit-retention/apply", governanceAdmin, governanceHandler.RunAuditRetention)
+	protected.Get("/governance/audit-events/export", governanceAdmin, featGovernance, governanceHandler.ExportAuditEvents)
+	protected.Get("/governance/audit-events/verify", governanceAdmin, featGovernance, governanceHandler.VerifyAuditChain)
+	protected.Get("/governance/audit-events", governanceAdmin, featGovernance, governanceHandler.ListAuditEvents)
+	protected.Get("/governance/audit-retention", governanceAdmin, featGovernance, governanceHandler.GetAuditRetention)
+	protected.Put("/governance/audit-retention", governanceAdmin, featGovernance, governanceHandler.SetAuditRetention)
+	protected.Post("/governance/audit-retention/apply", governanceAdmin, featGovernance, governanceHandler.RunAuditRetention)
 
 	// Nightly-ish retention sweep. No-op for every tenant that kept the default
 	// (keep forever) — nothing is deleted unless someone configured a window.
@@ -3502,29 +3512,29 @@ func main() {
 	// stay unguarded rather than an omission (#529): CreateDelegation refuses a
 	// delegator other than the actor unless the actor is an org admin, and
 	// RevokeDelegation admits only the delegator, the delegate or an admin.
-	protected.Get("/governance/delegations/effective", governanceHandler.EffectiveDelegatedPermissions)
-	protected.Get("/governance/delegations", governanceHandler.ListDelegations)
-	protected.Post("/governance/delegations", governanceHandler.CreateDelegation)
-	protected.Post("/governance/delegations/:id/revoke", governanceHandler.RevokeDelegation)
+	protected.Get("/governance/delegations/effective", featGovernance, governanceHandler.EffectiveDelegatedPermissions)
+	protected.Get("/governance/delegations", featGovernance, governanceHandler.ListDelegations)
+	protected.Post("/governance/delegations", featGovernance, governanceHandler.CreateDelegation)
+	protected.Post("/governance/delegations/:id/revoke", featGovernance, governanceHandler.RevokeDelegation)
 
 	// Approval workflows (config) — admin only.
-	protected.Get("/governance/request-types", governanceHandler.ListRequestTypes)
-	protected.Get("/governance/workflows", governanceHandler.ListWorkflows)
-	protected.Post("/governance/workflows", governanceAdmin, governanceHandler.CreateWorkflow)
-	protected.Put("/governance/workflows/:id", governanceAdmin, governanceHandler.UpdateWorkflow)
-	protected.Delete("/governance/workflows/:id", governanceAdmin, governanceHandler.DeleteWorkflow)
+	protected.Get("/governance/request-types", featGovernance, governanceHandler.ListRequestTypes)
+	protected.Get("/governance/workflows", featGovernance, governanceHandler.ListWorkflows)
+	protected.Post("/governance/workflows", governanceAdmin, featGovernance, governanceHandler.CreateWorkflow)
+	protected.Put("/governance/workflows/:id", governanceAdmin, featGovernance, governanceHandler.UpdateWorkflow)
+	protected.Delete("/governance/workflows/:id", governanceAdmin, featGovernance, governanceHandler.DeleteWorkflow)
 
 	// Approval requests (the Maker-Checker inbox) — any authenticated member,
 	// because who may act is a property of the REQUEST, not of the route:
 	// domain.CanSign checks the caller against the workflow step, and cancel is
 	// refused to anyone but the requester. Handler-enforced (#529).
-	protected.Get("/governance/approvals", governanceHandler.ListApprovals)
-	protected.Post("/governance/approvals", governanceHandler.SubmitApproval)
-	protected.Get("/governance/approvals/:id", governanceHandler.GetApproval)
-	protected.Post("/governance/approvals/:id/decide", governanceHandler.DecideApproval)
+	protected.Get("/governance/approvals", featGovernance, governanceHandler.ListApprovals)
+	protected.Post("/governance/approvals", featGovernance, governanceHandler.SubmitApproval)
+	protected.Get("/governance/approvals/:id", featGovernance, governanceHandler.GetApproval)
+	protected.Post("/governance/approvals/:id/decide", featGovernance, governanceHandler.DecideApproval)
 	// Defer to the next committee (#903): eligibility is the decide rule.
-	protected.Post("/governance/approvals/:id/defer", governanceHandler.DeferApproval)
-	protected.Post("/governance/approvals/:id/cancel", governanceHandler.CancelApproval)
+	protected.Post("/governance/approvals/:id/defer", featGovernance, governanceHandler.DeferApproval)
+	protected.Post("/governance/approvals/:id/cancel", featGovernance, governanceHandler.CancelApproval)
 	// Requests nobody decided in time close as EXPIRED — a distinct outcome from
 	// a refusal, because "nobody said no" and "someone said no" call for
 	// different next steps. Without this sweep, "expires in 48h" is a label.

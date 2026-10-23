@@ -40,10 +40,11 @@ func pricingDocPath() string {
 
 // docLimits maps a row label in the published table to the limit it describes.
 var docLimits = map[string]LimitKey{
-	"Users":        LimitUsers,
-	"Risks":        LimitRisks,
-	"Assets":       LimitAssets,
-	"Integrations": LimitIntegrations,
+	"Users":             LimitUsers,
+	"Risks":             LimitRisks,
+	"Assets":            LimitAssets,
+	"Integrations":      LimitIntegrations,
+	"Active frameworks": LimitFrameworks,
 }
 
 // docFeatures maps a row label to the feature it describes. Every entry of

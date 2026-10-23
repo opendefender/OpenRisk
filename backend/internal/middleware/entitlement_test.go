@@ -81,24 +81,24 @@ func TestRequireLevel_Insufficient(t *testing.T) {
 	})
 
 	t.Run("feature on, depth too shallow", func(t *testing.T) {
-		// Pro has compliance at standard; advanced is Business. RequireFeature
-		// would let this through — the level gate is what refuses it.
+		// Pro has automation on; advanced is Business. RequireFeature would let
+		// this through — the level gate is what refuses it.
 		svc := entapp.NewService(levelTestOrg{plan: "pro"})
-		app := levelApp(svc, uuid.New(), ent.FeatCompliance, ent.LevelAdvanced, ent.LevelAdvanced)
+		app := levelApp(svc, uuid.New(), ent.FeatAutomation, ent.LevelAdvanced, ent.LevelAdvanced)
 
 		status, body := doLevel(t, app)
 		assert.Equal(t, fiber.StatusPaymentRequired, status)
-		assert.Equal(t, "compliance", body["feature"])
+		assert.Equal(t, "automation", body["feature"])
 		assert.Equal(t, "pro", body["current_plan"])
 		assert.Equal(t, "business", body["required_plan"])
 		assert.Contains(t, body["message"], "Business")
 	})
 
 	t.Run("past the gate, below the probe", func(t *testing.T) {
-		// Free compliance is basic: through a basic gate, but the handler is told
-		// the plan does not reach standard.
-		svc := entapp.NewService(levelTestOrg{plan: "free"})
-		app := levelApp(svc, uuid.New(), ent.FeatCompliance, ent.LevelBasic, ent.LevelStandard)
+		// Pro automation is on: through an "on" gate, but the handler is told
+		// the plan does not reach advanced.
+		svc := entapp.NewService(levelTestOrg{plan: "pro"})
+		app := levelApp(svc, uuid.New(), ent.FeatAutomation, ent.LevelOn, ent.LevelAdvanced)
 
 		status, body := doLevel(t, app)
 		assert.Equal(t, fiber.StatusOK, status)

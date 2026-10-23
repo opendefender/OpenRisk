@@ -1,11 +1,17 @@
 # OpenRisk Plans & Pricing (open-core)
 
 OpenRisk is **open-core**: the Community Edition (this repository, AGPL-3.0) is
-free forever and self-hostable. Paid plans add commercial features and managed
-hosting. The matrix below is the single source of truth
+free forever and self-hostable, with every capability below and none of the
+caps (D-040, D-075). The plans below are the **hosted service** plans: they
+differ in what the hosted service includes, never in what the code can do
+([ADR 0007](adr/0007-plan-gates-are-hosted-only.md)).
+
+The matrix is the single source of truth
 [`backend/pkg/entitlements/entitlements.go`](../backend/pkg/entitlements/entitlements.go);
-edit it there to change what a plan grants — the backend enforces it and the
-frontend greys/explains from it.
+edit it there to change what a plan grants. The backend enforces it on every
+paid row, the frontend greys and explains from it, and
+[`pricing_doc_test.go`](../backend/pkg/entitlements/pricing_doc_test.go) fails
+the build when this page and the code disagree.
 
 ## Feature matrix
 
@@ -15,6 +21,7 @@ frontend greys/explains from it.
 | Risks            | 50       | 500       | ∞            | ∞              |
 | Assets           | 50       | ∞         | ∞            | ∞              |
 | Integrations     | 1        | 10        | ∞            | Custom         |
+| Active frameworks | 1       | 3         | 10           | ∞              |
 | API              | Limited  | ✓         | ✓            | ✓              |
 | Automation (SOAR)| —        | ✓         | Advanced     | Advanced       |
 | AI Advisor       | —        | ✓         | Advanced     | Advanced       |
@@ -22,15 +29,23 @@ frontend greys/explains from it.
 | Smart risk score | —        | ✓         | ✓            | ✓              |
 | Executive dashboard | —     | ✓         | ✓            | ✓              |
 | Infra scanner    | —        | ✓         | ✓            | ✓              |
-| Compliance       | Basic    | Standard  | Advanced     | Custom         |
+| Compliance       | ✓        | ✓         | ✓            | ✓              |
 | Threat intel (CTI) | —      | —         | ✓            | Advanced       |
 | Governance / approvals | —  | —         | ✓            | Advanced       |
 | Vendor risk (TPRM) | —      | —         | ✓            | ✓              |
-| SSO / SAML       | —        | —         | ✓            | Advanced       |
+| SSO / SAML       | —        | —         | —            | —              |
 | Multi-tenant     | —        | —         | —            | ✓              |
 | On-premise       | —        | —         | —            | ✓              |
 | SLA              | —        | —         | 99.5 %       | 99.9 %         |
 | Support          | Community| Email     | Priority     | Dedicated      |
+
+**Compliance.** Every framework in the catalogue is available on every plan.
+The plan sets how many frameworks a tenant keeps active at once (D-076); a
+deleted framework frees its slot.
+
+**SSO / SAML** is not sold on any plan today. SAML sign-in is switched off
+(#866) and OAuth providers are configured per deployment, so there is no
+tenant SSO for a plan to include. It returns with #1045.
 
 ## Pricing (PPP by zone)
 
@@ -60,12 +75,16 @@ Prices are purchasing-power adjusted by region. A trial of any paid plan runs
 - The **backend refuses** a premium route the plan does not include, returning
   `402 Payment Required` with an explaining body (feature, current plan, required
   plan). Creation routes are capped by plan limits the same way.
-- A depth (Basic, Standard, Advanced, Custom) is refused the same way when a
-  route requires more than the plan grants. Today that holds for financial
-  quantification only: a basic grant reads a risk's closed-form ALE, the
-  Monte-Carlo simulation needs ✓. The other depths in the table are not yet
-  told apart by the backend; the list of those gaps is kept, and checked
-  against the code, in
+- Every ✓ in a paid column has a gate on its routes: automation (except the
+  notification channels, which incident alerts also use), the infrastructure
+  scanner, threat intel, governance, financial quantification, the smart
+  score, the executive dashboard, the AI advisor and vendor risk.
+- A depth (Basic, Advanced) is refused the same way when a route requires more
+  than the plan grants. Today that holds for financial quantification only: a
+  basic grant reads a risk's closed-form ALE, the Monte-Carlo simulation needs
+  ✓. "Advanced" on automation, AI, threat intel and governance, and "Limited"
+  on the Free API, are not yet told apart from ✓ by the backend; the list of
+  those gaps is kept, and checked against the code, in
   [`pricing_enforcement_test.go`](../backend/pkg/entitlements/pricing_enforcement_test.go).
 - The **frontend never grants**. It greys the feature and explains the value with
   an upgrade CTA (`FeatureGate` / `UpsellLock`). A wall that explains converts; a
