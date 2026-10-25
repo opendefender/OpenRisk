@@ -188,13 +188,41 @@ func (uc *RevokeOtherSessionsUseCase) Execute(ctx context.Context, in RevokeOthe
 		return out, nil
 	}
 
-	out.Reauthenticate = in.CurrentHash == ""
-	n, err := uc.sessions.RevokeAllExcept(ctx, in.UserID, in.CurrentHash)
+	keep := in.CurrentHash
+	if keep != "" {
+		// A presented refresh token that names no live session (spent, revoked,
+		// expired) keeps nothing: everything is revoked, so the caller is signed
+		// out too and must be told, or it would carry on as if signed in.
+		live, err := uc.hasLiveHash(ctx, in.UserID, keep)
+		if err != nil {
+			return nil, fmt.Errorf("failed to check the current session: %w", err)
+		}
+		if !live {
+			keep = ""
+		}
+	}
+	out.Reauthenticate = keep == ""
+	n, err := uc.sessions.RevokeAllExcept(ctx, in.UserID, keep)
 	if err != nil {
 		return nil, fmt.Errorf("failed to revoke sessions: %w", err)
 	}
 	out.Revoked = n
 	return out, nil
+}
+
+// hasLiveHash reports whether hash is the token of one of the user's live
+// sessions. ListByUser returns live sessions only, scoped to the user.
+func (uc *RevokeOtherSessionsUseCase) hasLiveHash(ctx context.Context, userID uuid.UUID, hash string) (bool, error) {
+	records, err := uc.sessions.ListByUser(ctx, userID)
+	if err != nil {
+		return false, err
+	}
+	for _, r := range records {
+		if r.TokenHash == hash {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 // ---------------------------------------------------------------------------

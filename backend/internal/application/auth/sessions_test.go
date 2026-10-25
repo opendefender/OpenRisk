@@ -71,7 +71,7 @@ func TestRevokeOtherSessions_Success(t *testing.T) {
 
 // An API client on a token without sid that names its session keeps it.
 func TestRevokeOtherSessions_KeepsPresentedSession(t *testing.T) {
-	repo := &fakeSessionRepo{revoked: 1}
+	repo := &fakeSessionRepo{revoked: 1, records: []domain.SessionRecord{{TokenHash: "presented"}}}
 	out, err := NewRevokeOtherSessionsUseCase(repo).Execute(context.Background(),
 		RevokeOtherSessionsInput{UserID: uuid.New(), CurrentHash: "presented"})
 	if err != nil {
@@ -79,6 +79,20 @@ func TestRevokeOtherSessions_KeepsPresentedSession(t *testing.T) {
 	}
 	if repo.keepHash != "presented" || out.Reauthenticate {
 		t.Fatalf("want the presented session kept, got keep=%q %+v", repo.keepHash, out)
+	}
+}
+
+// A presented token that names no live session keeps nothing, so the caller
+// is signed out with the others and told to sign in again.
+func TestRevokeOtherSessions_StalePresentedSessionReauthenticates(t *testing.T) {
+	repo := &fakeSessionRepo{revoked: 2, records: []domain.SessionRecord{{TokenHash: "someone-else"}}}
+	out, err := NewRevokeOtherSessionsUseCase(repo).Execute(context.Background(),
+		RevokeOtherSessionsInput{UserID: uuid.New(), CurrentHash: "spent"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if repo.keepHash != "" || !out.Reauthenticate || out.Revoked != 2 {
+		t.Fatalf("want everything revoked and a re-authentication, got keep=%q %+v", repo.keepHash, out)
 	}
 }
 
