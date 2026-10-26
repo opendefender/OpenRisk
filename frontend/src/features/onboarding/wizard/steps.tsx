@@ -23,6 +23,8 @@ import { Field, StepShell } from './stepPrimitives';
 import { initialOrgName } from './orgName';
 import { inputCls, inputStyle, str, useStepNav, useStoredAnswers } from './stepNav';
 import type { LocaleCode } from '../../../i18n/locales';
+import { planCapErrorMessage } from '../../billing/useEntitlements';
+import { PlanCapNotice } from '../../billing/PlanCapNotice';
 
 // ---------------------------------------------------------------------------
 // Shared primitives
@@ -626,8 +628,14 @@ export function FrameworkStep() {
           ),
         );
       },
-      onError: () =>
-        toast.error(tr("L'import a échoué. Réessayez.", 'The import failed. Try again.')),
+      onError: (err) => {
+        // Free keeps one framework active (D-076): a second import is refused
+        // with the cap, which is not a failure to retry.
+        toast.error(
+          planCapErrorMessage(err, lang) ??
+            tr("L'import a échoué. Réessayez.", 'The import failed. Try again.'),
+        );
+      },
     });
   };
 
@@ -658,6 +666,8 @@ export function FrameworkStep() {
           {tr('Sélection des référentiels…', 'Selecting frameworks…')}
         </div>
       )}
+
+      <PlanCapNotice limitKey="frameworks" />
 
       <div className="flex flex-col gap-2.5">
         {offered.map((c) => {

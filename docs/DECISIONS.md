@@ -7,8 +7,80 @@ recommends, and surfaces these in the daily brief. Run `/decide` to clear them.
 
 Nothing open.
 
-
 ## Resolved
+
+### D-078 — Hosted plans: Free does almost everything, in small quantities · decided 2026-10-23
+**Decided (owner)** — In the owner's words: "je veux que le plan free permettent
+de quasiment tout faire pour voir la puissance de l'app mais qu'il soit limité
+et a envie de passer au plan superieur en voyant ce qu'il rate s'il ne le prend
+pas, je pense qu'il faut adopter cette philosophie a toutes les features". Then,
+on the proposed grid: "Pour free allons sur 1 utilisateur, 30 risques, 30
+actifs, un referentiel actif, pour le reste je suis d'accord." Then, the
+same day: "oui met 2 utilisateurs a free" — Free keeps 2 users.
+
+**The grid** — hosted plans only; self-hosted stays complete and uncapped
+(D-040, D-075).
+
+| | Free | Pro | Business | Enterprise |
+|---|---|---|---|---|
+| Users | 2 | 10 | 50 | ∞ |
+| Risks | 30 | 500 | ∞ | ∞ |
+| Assets | 30 | ∞ | ∞ | ∞ |
+| Active frameworks | 1 | 3 | 10 | ∞ |
+| Active automation rules | 2 | 20 | ∞ | ∞ |
+| Notification channels | ✓ | ✓ | ✓ | ✓ |
+| Scan sources | 1 | 10 | ∞ | ∞ |
+| Scans per month | 4 | ∞ | ∞ | ∞ |
+| Approval workflows | 1 | 3 | ∞ | ∞ |
+| Audit trail (read) | ✓ | ✓ | ✓ | ✓ |
+| Financial quantification | deterministic ALE | Monte-Carlo | Monte-Carlo | Monte-Carlo |
+| Smart score, executive dashboard | ✓ | ✓ | ✓ | ✓ |
+| Threat intel | 10 most relevant threats | full + enrichment | + manual sync/match | same |
+| AI advisor | 10 requests/month | 200 | 1 000 | ∞ |
+| Vendors (TPRM) | 3 | 25 | ∞ | ∞ |
+| SSO | — | — | — | — (until #1045) |
+
+**What it replaces** — D-075's reading that automation, the scanner and
+governance are locked below Pro or Business. They are on every plan, capped by
+count. D-077 is settled by it: channels stay open.
+
+**Delivery, as the owner asked** — #783 ships the caps that count rows that
+already exist (users, risks, assets, frameworks, automation rules, scan sources,
+scans per month, approval workflows). The AI quota, the threat intel preview
+and the vendor cap are separate issues; until each ships, that feature keeps
+its current gate (AI from Pro, threat intel and vendors from Business), so the
+pricing page never sells a quota the code does not apply.
+
+
+### D-077 — Automation notification channels on Free: keep them open while the rest of SOAR is gated? · decided 2026-10-23
+**Question** — D-075 gates automation on hosted plans, Pro and up. #783 mounts
+that gate on every `/automation/*` route except the four channel routes
+(`/automation/channels`, `/channels/catalogue`, `PUT /channels`,
+`/channels/test`). Those channels (Slack, Teams, webhook, SMS) are also how
+incidents alert their stakeholders: `internal/infrastructure/incident/notifier.go`
+sends only through the automation dispatcher. Incident management is not a
+paid line. Gating the channels would take incident alerting away from Free
+tenants, a capability `docs/PRICING.md` never sold as paid.
+
+**Options**
+- **A (shipped in #783's PR, recommended)** — channels stay open on every plan;
+  rules, SLA, history, templates, dry runs and replays are gated. The Automation
+  screen keeps its Channels tab usable on Free and blurs the other three.
+- **B** — gate the channels too. Free tenants can no longer configure where
+  incident alerts go (Slack, Teams, webhook, SMS, e-mail settings).
+
+**Cost of delay** — none for development: the PR ships A and can switch to B by
+adding `featAutomation` to four lines of `main.go` plus the route test. It
+matters before #783 merges, because B removes a capability from Free.
+
+**Also for the owner, from ADR 0007** — under D-075 Free and Pro hosted tenants
+lose the governance screens, including reading the audit trail (the trail is
+still recorded). #783 ships that as decided; say if it should change.
+
+**Decided (owner)** — superseded by D-078: automation is on every plan, the
+channels with it. Free is capped at 2 active rules instead of locked out.
+
+
 
 ### D-076 — Compliance on hosted plans: every framework on every plan, a cap on how many are active · decided 2026-10-22
 **Decided (owner)** — Option B, amended. In the owner's words: "D-076 : option B, tous les référentiels inclus partout, Mais avec un nombre de compliance defini selon le plan".

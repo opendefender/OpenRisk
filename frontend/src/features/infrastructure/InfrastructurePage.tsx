@@ -40,6 +40,8 @@ import { AgentDeployModal } from './AgentDeployModal';
 import { useScanConfigs, useScannerAgents, useScanJobs } from './useScanner';
 import { PROVIDERS, jobStatusColor, agentStatusColor, timeAgo, scheduleLabel } from './scannerMeta';
 import type { ScanConfig, ScannerProvider, CreateScanConfigInput } from './scannerService';
+import { PlanCapNotice } from '../billing/PlanCapNotice';
+import { planCapErrorMessage } from '../billing/useEntitlements';
 
 export function InfrastructurePage() {
   const L = useUIStrings();
@@ -102,7 +104,8 @@ export function InfrastructurePage() {
       onSuccess: () => toast.success(tr('Scan lancé', 'Scan started')),
       onError: (e) =>
         toast.error(
-          (e as { response?: { data?: { error?: string } } })?.response?.data?.error ??
+          planCapErrorMessage(e, lang) ??
+            (e as { response?: { data?: { error?: string } } })?.response?.data?.error ??
             tr('Échec du scan', 'Scan failed'),
         ),
     });
@@ -131,6 +134,12 @@ export function InfrastructurePage() {
           </>
         }
       />
+
+      {/* D-078: the plan caps scan sources and scans per month. */}
+      <div className="flex flex-col gap-2 mb-4">
+        <PlanCapNotice limitKey="scan_sources" showUsage />
+        <PlanCapNotice limitKey="scans_per_month" showUsage />
+      </div>
 
       {/* Provider cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5 mb-6">

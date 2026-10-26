@@ -29,42 +29,93 @@ func TestPlanOrdering(t *testing.T) {
 	}
 }
 
-func TestFinancialQuant_OpensAtPro(t *testing.T) {
-	// Task §2: Monte-Carlo financial quantification is available "à partir du plan Pro".
-	if Has(PlanFree, FeatFinancialQuant) {
-		t.Fatal("financial quantification must NOT be on Free")
+func TestFinancialQuant_BasicOnFreeMonteCarloFromPro(t *testing.T) {
+	// D-078: Free reads the deterministic ALE (basic); task §2's Monte-Carlo
+	// engine stays "à partir du plan Pro".
+	if got := LevelOf(PlanFree, FeatFinancialQuant); got != LevelBasic {
+		t.Fatalf("Free financial quantification = %q, want basic", got)
 	}
 	for _, p := range []Plan{PlanPro, PlanBusiness, PlanEnterprise} {
-		if !Has(p, FeatFinancialQuant) {
-			t.Fatalf("financial quantification must be on %s", p)
+		if !LevelOf(p, FeatFinancialQuant).AtLeast(LevelOn) {
+			t.Fatalf("Monte-Carlo must be on %s", p)
 		}
 	}
-	if got := MinPlanFor(FeatFinancialQuant); got != PlanPro {
-		t.Fatalf("MinPlanFor(financial) = %s, want pro", got)
+	if got := MinPlanForLevel(FeatFinancialQuant, LevelOn); got != PlanPro {
+		t.Fatalf("Monte-Carlo opens at %s, want pro", got)
 	}
 }
 
 func TestFeatureGates_MatchMatrix(t *testing.T) {
 	// A few load-bearing rows from the matrix the UI and enforcement rely on.
-	if Has(PlanFree, FeatAutomation) || Has(PlanFree, FeatAIAdvisor) {
-		t.Fatal("Free must not have automation/AI")
+	// D-078: Free does almost everything, in small quantities.
+	for _, f := range []Feature{FeatAutomation, FeatScanner, FeatGovernance, FeatSmartScore, FeatExecutiveDashboard, FeatCompliance} {
+		if !Has(PlanFree, f) {
+			t.Fatalf("Free must have %s (D-078), capped by count", f)
+		}
 	}
-	if !Has(PlanBusiness, FeatSSO) || Has(PlanPro, FeatSSO) {
-		t.Fatal("SSO opens at Business")
+	// Until their own quotas ship, these keep a plan gate (D-078).
+	for _, f := range []Feature{FeatAIAdvisor, FeatCTI, FeatVendorRisk} {
+		if Has(PlanFree, f) {
+			t.Fatalf("Free must not have %s before its quota exists", f)
+		}
+	}
+	// No plan sells SSO while there is no tenant SSO to sell (#866, #1045).
+	for _, p := range AllPlans {
+		if Has(p, FeatSSO) {
+			t.Fatalf("%s grants SSO, which no tenant can configure", p)
+		}
 	}
 	if Has(PlanBusiness, FeatMultiTenant) || !Has(PlanEnterprise, FeatMultiTenant) {
 		t.Fatal("multi-tenant is Enterprise-only")
 	}
-	if LevelOf(PlanBusiness, FeatAutomation) != LevelAdvanced {
-		t.Fatal("Business automation should be advanced")
+}
+
+// TestCaps_D078 pins the owner's grid (D-078). Changing a number here is a
+// pricing change and needs the owner.
+func TestCaps_D078(t *testing.T) {
+	U := Unlimited
+	want := map[LimitKey][4]int{
+		LimitUsers:             {2, 10, 50, U},
+		LimitRisks:             {30, 500, U, U},
+		LimitAssets:            {30, U, U, U},
+		LimitFrameworks:        {1, 3, 10, U},
+		LimitAutomationRules:   {2, 20, U, U},
+		LimitScanSources:       {1, 10, U, U},
+		LimitScansPerMonth:     {4, U, U, U},
+		LimitApprovalWorkflows: {1, 3, U, U},
 	}
-	if LevelOf(PlanEnterprise, FeatCompliance) != LevelCustom {
-		t.Fatal("Enterprise compliance should be custom")
+	for k, caps := range want {
+		for i, p := range AllPlans {
+			if got := LimitOf(p, k); got != caps[i] {
+				t.Errorf("%s / %s = %d, want %d (D-078)", k, p, got, caps[i])
+			}
+		}
+	}
+}
+
+// TestCompliance_IsOneModuleCappedByFrameworkCount pins D-076: every plan gets
+// the same compliance module, with no tier, and the plan caps how many
+// frameworks are active at once. Changing a number here is a pricing change.
+func TestCompliance_IsOneModuleCappedByFrameworkCount(t *testing.T) {
+	want := map[Plan]int{PlanFree: 1, PlanPro: 3, PlanBusiness: 10, PlanEnterprise: Unlimited}
+	for _, p := range AllPlans {
+		if got := LevelOf(p, FeatCompliance); got != LevelOn {
+			t.Errorf("%s grants compliance at %q, want %q: D-076 removed the tiers", p, got, LevelOn)
+		}
+		if got := LimitOf(p, LimitFrameworks); got != want[p] {
+			t.Errorf("%s caps frameworks at %d, want %d (D-076)", p, got, want[p])
+		}
+	}
+	if !WithinLimit(PlanFree, LimitFrameworks, 0) || WithinLimit(PlanFree, LimitFrameworks, 1) {
+		t.Error("Free admits its first framework and refuses the second")
+	}
+	if !WithinLimit(PlanEnterprise, LimitFrameworks, 1000) {
+		t.Error("Enterprise is uncapped")
 	}
 }
 
 func TestLimits(t *testing.T) {
-	if LimitOf(PlanFree, LimitUsers) != 2 || LimitOf(PlanFree, LimitRisks) != 50 {
+	if LimitOf(PlanFree, LimitUsers) != 2 || LimitOf(PlanFree, LimitRisks) != 30 {
 		t.Fatal("Free limits wrong")
 	}
 	if LimitOf(PlanPro, LimitAssets) != Unlimited {
@@ -140,8 +191,15 @@ func TestMatrixIntegrity(t *testing.T) {
 			}
 		}
 	}
-	// Every marquee feature must be reachable on some plan.
+	// Every marquee feature must be reachable on some plan, except the ones no
+	// plan sells yet, each with the reason.
+	notSold := map[Feature]string{
+		FeatSSO: "SAML is off since #866; tenant SSO comes back with #1045",
+	}
 	for _, f := range AllFeatures {
+		if _, ok := notSold[f]; ok {
+			continue
+		}
 		if MinPlanFor(f) == PlanEnterprise && !Has(PlanEnterprise, f) {
 			t.Errorf("feature %q is granted by no plan", f)
 		}
@@ -199,13 +257,11 @@ func TestMinPlanForLevel(t *testing.T) {
 		min  Level
 		want Plan
 	}{
-		{FeatCompliance, LevelBasic, PlanFree},
-		{FeatCompliance, LevelStandard, PlanPro},
-		{FeatCompliance, LevelAdvanced, PlanBusiness},
-		{FeatCompliance, LevelCustom, PlanEnterprise},
-		{FeatFinancialQuant, LevelBasic, PlanPro},
+		{FeatCompliance, LevelOn, PlanFree},
+		{FeatCompliance, LevelAdvanced, PlanEnterprise},
+		{FeatAIAdvisor, LevelAdvanced, PlanBusiness},
+		{FeatFinancialQuant, LevelBasic, PlanFree},
 		{FeatFinancialQuant, LevelOn, PlanPro},
-		{FeatAutomation, LevelAdvanced, PlanBusiness},
 		{FeatAPI, LevelOn, PlanPro},
 	}
 	for _, tc := range cases {

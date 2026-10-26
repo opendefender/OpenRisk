@@ -6,6 +6,7 @@
 package handler
 
 import (
+	"errors"
 	"fmt"
 	"github.com/opendefender/openrisk/pkg/monitoring"
 	"strings"
@@ -16,6 +17,7 @@ import (
 	"github.com/opendefender/openrisk/internal/application/compliance"
 	"github.com/opendefender/openrisk/internal/domain"
 	"github.com/opendefender/openrisk/internal/middleware"
+	ent "github.com/opendefender/openrisk/pkg/entitlements"
 	"github.com/opendefender/openrisk/pkg/report"
 	"github.com/opendefender/openrisk/pkg/validation"
 )
@@ -92,6 +94,19 @@ func NewComplianceHandler(
 }
 
 func writeAppError(c *fiber.Ctx, err error) error {
+	// A plan cap a use case enforced (D-078) answers with the same body as the
+	// RequireCapacity gate, so the client handles one shape of limit_reached.
+	var limitErr *domain.LimitReachedError
+	if errors.As(err, &limitErr) {
+		return c.Status(fiber.StatusPaymentRequired).JSON(fiber.Map{
+			"code":        "limit_reached",
+			"limit_key":   limitErr.Key,
+			"limit":       limitErr.Limit,
+			"used":        limitErr.Used,
+			"message":     ent.LimitMessage(ent.LimitKey(limitErr.Key), limitErr.Limit),
+			"upgrade_url": "/settings?tab=billing",
+		})
+	}
 	return c.Status(domain.HTTPStatusFromError(err)).JSON(fiber.Map{"error": domain.MessageFromError(err)})
 }
 
