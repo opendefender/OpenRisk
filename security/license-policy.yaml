@@ -1,8 +1,9 @@
 # Dependency licence policy — read by the Licence gate (#457, D-017).
 #
 # The gate checks every package of two trees:
-#   - npm  every entry of frontend/package-lock.json, dev dependencies included,
-#          with the licence npm recorded or the installed package.json declares
+#   - npm  every entry of frontend/package-lock.json and of the repo-root
+#          package-lock.json (e2e harness), dev dependencies included, with the
+#          licence npm recorded or the installed package.json declares
 #   - go   every module `go list -deps -test ./...` builds, in backend/ and
 #          agent/, with the licence Trivy classifies from its LICENSE file
 #
