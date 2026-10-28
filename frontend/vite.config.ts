@@ -145,7 +145,6 @@ export default defineConfig({
           // password-strength dictionaries (huge), and the edit-distance helper
           // @zxcvbn-ts/core depends on, which otherwise fell through to `vendor`.
           if (id.includes('@zxcvbn-ts') || id.includes('fastest-levenshtein')) return 'zxcvbn';
-          if (id.includes('leaflet')) return 'maps';
           if (
             id.includes('@hello-pangea') ||
             id.includes('react-grid-layout') ||

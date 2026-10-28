@@ -24,7 +24,7 @@ on:
 #   - OWASP ZAP: started a server with no keys and no migrations, so it never
 #     scanned a running app.
 #   - License Compliance Check: wrote a file and echoed success (D-017). The
-#     real licence gate is #457.
+#     real licence gate is license-gate.yml (#457).
 #   - Security Scan Summary: printed "all passed" whatever happened.
 # Dependency and image vulnerabilities are gated by dependency-gate.yml (#487).
 
