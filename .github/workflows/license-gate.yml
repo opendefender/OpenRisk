@@ -25,9 +25,9 @@ name: Licence gate
 
 on:
   push:
-    branches: [master, stag, develop]
+    branches: [master, stag, develop, scratch/457-licence-gate-red]
   pull_request:
-    branches: [master, stag, develop]
+    branches: [master, stag, develop, scratch/457-licence-gate-red]
   workflow_dispatch:
 
 permissions:
