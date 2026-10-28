@@ -167,10 +167,11 @@ export function bandColor(band: ScoreBand | undefined): string {
 /**
  * The band token for SMALL TEXT, as opposed to a fill.
  *
- * The low band's green (--risk-low, #1a7f3c) is a fill colour: as 12px text on
- * --surface-sunken it measures 4.29:1, just under AA. The design system already
- * carries --success-text (#15682f, 5.83:1) for text-weight green, which is what
- * this returns. The other three bands clear 4.5:1 on that surface unchanged, so
+ * The low band's green (--risk-low) was a fill colour: at #1a7f3c, as 12px text
+ * on --surface-sunken it measured 4.29:1, just under AA. #793 darkened it to
+ * #166b32 for the CritBadge chip, so this guard is now belt and braces. The
+ * design system already carries --success-text (#15682f, 5.83:1) for
+ * text-weight green, which is what this returns. The other three bands clear 4.5:1 on that surface unchanged, so
  * they are passed through — the scale itself is not redefined here.
  *
  * Use bandColor for bars, chips and fills; use this for a number or a label.
