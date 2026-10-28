@@ -5,7 +5,33 @@ recommends, and surfaces these in the daily brief. Run `/decide` to clear them.
 
 ## Open
 
-Nothing open.
+### D-079 — Licence gate: confirm three licences and two exceptions that arrived after the D-017 census · raised 2026-10-28
+**Context** — #457 built the licence gate D-017 asked for
+(`.github/workflows/license-gate.yml`, policy in `security/license-policy.yaml`).
+Its allowlist was written from the 2026-09-01 census. Re-running the census on
+2026-10-28 found licences that entered the tree in between. All are permissive,
+so the gate allowlists them to stay green, but the issue's Definition of Done
+says new licences are escalated rather than quietly accepted. They are:
+- `0BSD` — `tslib` (runtime and dev). OSI-approved, public-domain-equivalent.
+- `CC0-1.0` — three copies of `mdn-data`, and one OR branch of
+  `type-fest` (dev). Public-domain dedication, free per the FSF.
+- `BlueOak-1.0.0` — `lru-cache` (dev only). OSI-approved, with a patent grant.
+
+And two per-package exceptions, not allowlist entries:
+- `tween-functions` (via `react-confetti`) declares `"BSD"`, which is not an
+  SPDX id. Its LICENSE file is the three-clause text, so it is accepted as
+  `BSD-3-Clause`.
+- `caniuse-lite` is `CC-BY-4.0` (it was in the census). It is browser-support
+  data read at build time, never bundled. It is accepted by name only, so no
+  code package can use a content licence.
+
+**Options** — A: confirm as committed. B: remove one or more, which turns the
+gate red until the package that carries it is replaced.
+**Recommendation** — A. None restricts use or redistribution, and none is
+copyleft.
+**Cost of delay** — None. The gate is green either way; this only decides
+whether the list stays as it is.
+
 
 ## Resolved
 
@@ -2058,6 +2084,16 @@ than warn, or it reproduces the defect it replaces.
 **Not touched by #452 / PR #456**, which relicenses the design system and changes
 no dependency.
 **Unblocked** — #457 opened to execute both halves.
+**Outcome (2026-10-28, #457)** — `leaflet`, `react-leaflet` and the
+`leaflet.css` import are gone, along with the dead `maps` chunk rule in
+`vite.config.ts`. The CSS shipped shrinks from 116,160 to 100,553 bytes. The
+old job had already been deleted by #978, so nothing gated licences at all; the
+new `license-gate.yml` runs `backend/cmd/licensegate` over the npm tree (510
+packages, dev included) and the Go modules of `backend/` and `agent/`
+(classified by Trivy, already pinned for the vulnerability gate, so no new
+tool). It fails on any licence outside `security/license-policy.yaml`, on
+UNKNOWN, and on a stale exception. The licences found since the census are in
+D-079.
 
 ### D-016 — the Apache-2.0 boundary is both design-system directories · 2026-08-31
 **Decided** — Option A. "The design system" in D-014 means **`frontend/design-system/`

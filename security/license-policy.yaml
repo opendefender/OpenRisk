@@ -1,0 +1,103 @@
+# Dependency licence policy — read by the Licence gate (#457, D-017).
+#
+# The gate checks every package of two trees:
+#   - npm  every entry of frontend/package-lock.json, dev dependencies included,
+#          with the licence npm recorded or the installed package.json declares
+#   - go   every module `go list -deps -test ./...` builds, in backend/ and
+#          agent/, with the licence Trivy classifies from its LICENSE file
+#
+# A package passes when its SPDX expression is satisfied by the `allowed` list
+# below. OR needs one allowed side, AND needs both, "X WITH y" needs that exact
+# pair listed. Anything else FAILS the build, and so does:
+#   - a package whose licence cannot be resolved (UNKNOWN never passes);
+#   - an exception whose `declared` no longer matches the package metadata;
+#   - an exception that matches no package any more;
+#   - a malformed entry, a missing reason, an unknown key.
+#
+# What it rejects, concretely: every GPL, LGPL and AGPL variant, SSPL, BUSL,
+# Elastic, Commons Clause, the Hippocratic licence that started this (D-017),
+# CC-BY-NC/ND, and any licence nobody has reviewed yet. Adding an id here is
+# a licence decision: open an issue and escalate it in docs/DECISIONS.md,
+# never allowlist to turn the build green.
+#
+# The list was written from the census of 2026-09-01 (D-017) and re-run on
+# 2026-10-28 (#457). The three ids marked "since the census" entered the tree
+# between those dates; they are reported on #457 for the owner to confirm.
+
+allowed:
+  - id: MIT
+    reason: Permissive. Compatible with AGPL-3.0-only and with the commercial EE build.
+  - id: MIT-0
+    reason: MIT without the attribution clause. Permissive.
+  - id: ISC
+    reason: Functionally MIT. Permissive.
+  - id: 0BSD
+    reason: >-
+      Since the census (tslib). Public-domain-equivalent BSD, OSI-approved.
+      Permissive.
+  - id: BSD-2-Clause
+    reason: Permissive. Requires the notice in redistributions.
+  - id: BSD-3-Clause
+    reason: Permissive. Requires the notice; forbids endorsement by name.
+  - id: Apache-2.0
+    reason: >-
+      Permissive with a patent grant. Compatible with AGPL-3.0 (GPLv3 family);
+      requires the NOTICE file in redistributions.
+  - id: MPL-2.0
+    reason: >-
+      File-level weak copyleft. Compatible with AGPL-3.0 through its secondary
+      licence clause; only modified MPL files must stay MPL. We ship them
+      unmodified.
+  - id: Unlicense
+    reason: Public-domain dedication. Permissive.
+  - id: CC0-1.0
+    reason: >-
+      Since the census (mdn-data, type-fest's OR branch). Public-domain
+      dedication, free per the FSF. Permissive.
+  - id: BlueOak-1.0.0
+    reason: >-
+      Since the census (lru-cache, dev only). OSI-approved permissive licence
+      with a patent grant.
+  - id: Python-2.0
+    reason: >-
+      PSF licence, OSI-approved, permissive. In the census as argparse, a dev
+      dependency of the OpenAPI linter.
+
+# One entry per package the allowlist cannot judge on its metadata alone.
+# `declared` is what the metadata says, exactly as the gate prints it;
+# `license` is what a human established by reading the licence text.
+exceptions:
+  - ecosystem: npm
+    package: fast-shallow-equal
+    declared: UNKNOWN
+    license: Unlicense
+    reason: >-
+      package.json has no licence field; the LICENSE file is the Unlicense
+      public-domain text. Transitive through react-use.
+    issue: 457
+  - ecosystem: npm
+    package: react-universal-interface
+    declared: UNKNOWN
+    license: Unlicense
+    reason: >-
+      package.json has no licence field; the LICENSE file is the Unlicense
+      public-domain text. Transitive through react-use.
+    issue: 457
+  - ecosystem: npm
+    package: tween-functions
+    declared: BSD
+    license: BSD-3-Clause
+    reason: >-
+      "BSD" is not an SPDX id. The LICENSE file is the three-clause text
+      (notice, notice in binaries, no endorsement). Transitive through
+      react-confetti.
+    issue: 457
+  - ecosystem: npm
+    package: caniuse-lite
+    declared: CC-BY-4.0
+    license: CC-BY-4.0
+    reason: >-
+      Browser-support data, not code, read by browserslist at build time to
+      pick transpile targets. Dev only, never bundled. CC-BY-4.0 is a content
+      licence and stays out of the allowlist so no code package can use it.
+    issue: 457
