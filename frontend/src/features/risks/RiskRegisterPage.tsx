@@ -13,7 +13,7 @@
 // is unchanged.
 
 import { useFormat, usePreferredDate } from '../../hooks/useI18n';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
@@ -66,7 +66,13 @@ import {
   type Facet,
   type RowAction,
 } from '../../shared/datatable';
-import { RiskMatrix, TabPanel, Tabs, type MatrixBucket } from '../../shared/ds';
+import {
+  RiskMatrix,
+  TabPanel,
+  Tabs,
+  useDismissableLayer,
+  type MatrixBucket,
+} from '../../shared/ds';
 import { critColor } from '../../shared/riskColors';
 import type { Criticality } from '../../shared/riskColors';
 import { ImpactDialog } from '../../shared/ImpactDialog';
@@ -1384,6 +1390,10 @@ function RiskDrawer({
   // Editing is offered only to a member who may update the risk (#739); the
   // ownership pickers below already follow the same permission.
   const canUpdate = useAuthStore((s) => s.hasPermission('risks:update'));
+  // Escape closes, focus moves in on open and back to the row on close, and
+  // Tab stays inside, as for every shared overlay.
+  const panelRef = useRef<HTMLDivElement>(null);
+  useDismissableLayer(panelRef, { open: true, onClose });
   const tabDef: [typeof tab, string][] = [
     ['details', L.tab_details],
     ['lifecycle', tr('Cycle de vie', 'Lifecycle')],
@@ -1413,6 +1423,7 @@ function RiskDrawer({
       onClick={onClose}
     >
       <div
+        ref={panelRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby="risk-drawer-title"
