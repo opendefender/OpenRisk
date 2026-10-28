@@ -7845,7 +7845,8 @@ components:
           enum: [user, service_token, job, unattributed]
           description: >-
             How the audit trail recorded the actor. Absent on entries from the
-            supplementary journals (incident_timeline, asset_snapshot). A risk's
+            supplementary journals (incident_timeline, asset_snapshot), and on
+            audit entries recorded before actor kinds existed (#486). A risk's
             timeline reads the audit trail only.
     TimelineChange:
       type: object
