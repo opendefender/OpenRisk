@@ -127,3 +127,56 @@ func TestRiskTimeline_RecentChanges_ScopedToTenant(t *testing.T) {
 	require.Len(t, bChanges, 1)
 	require.Equal(t, riskB, bChanges[0].RiskID)
 }
+
+// TestRiskTimeline_NeverReturnsTheStoredActor covers #793. Rows written before
+// the fix carry the risk's creator as changed_by whoever made the change, so no
+// accessor may hand that value out as an author.
+func TestRiskTimeline_NeverReturnsTheStoredActor(t *testing.T) {
+	db := setupTimelineDB(t)
+	svc := &RiskTimelineService{db: db}
+	tenant := uuid.New()
+	risk := insertRisk(t, db, tenant)
+	creator := uuid.NewString()
+	for _, ct := range []string{"CREATE", "SCORE_CHANGE", "STATUS_CHANGE"} {
+		require.NoError(t, db.Exec(
+			`INSERT INTO risk_histories (id, risk_id, score, status, changed_by, change_type, created_at) VALUES (?,?,?,?,?,?,?)`,
+			uuid.NewString(), risk.String(), 5, "open", creator, ct, time.Now(),
+		).Error)
+	}
+
+	all, err := svc.GetRiskTimeline(tenant, risk)
+	require.NoError(t, err)
+	paged, _, err := svc.GetRiskTimelineWithPagination(tenant, risk, 50, 0)
+	require.NoError(t, err)
+	byType, err := svc.GetRiskChangesByType(tenant, risk, "CREATE")
+	require.NoError(t, err)
+	status, err := svc.GetStatusChanges(tenant, risk)
+	require.NoError(t, err)
+	score, err := svc.GetScoreChanges(tenant, risk)
+	require.NoError(t, err)
+	recent, err := svc.GetRecentChanges(tenant, 50)
+	require.NoError(t, err)
+
+	for name, rows := range map[string][]*domain.RiskHistory{
+		"timeline": all, "paginated": paged, "by type": byType,
+		"status": status, "score": score, "recent": recent,
+	} {
+		require.NotEmpty(t, rows, name)
+		for _, h := range rows {
+			require.Empty(t, h.ChangedBy, "%s returned the stored changed_by", name)
+		}
+	}
+}
+
+// TestRiskAfterSave_WritesNoActor: the hook cannot see who made the request, so
+// it no longer writes the creator into changed_by (#793).
+func TestRiskAfterSave_WritesNoActor(t *testing.T) {
+	db := setupTimelineDB(t)
+	r := &domain.Risk{ID: uuid.New(), CreatedBy: uuid.New(), Score: 7, Status: domain.RiskStatus("open")}
+	require.NoError(t, r.AfterSave(db))
+
+	var changedBy *string
+	require.NoError(t, db.Raw(`SELECT changed_by FROM risk_histories WHERE risk_id = ?`, r.ID.String()).Scan(&changedBy).Error)
+	require.NotNil(t, changedBy)
+	require.Equal(t, "", *changedBy)
+}

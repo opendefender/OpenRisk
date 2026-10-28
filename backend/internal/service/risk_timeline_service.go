@@ -33,6 +33,17 @@ func NewRiskTimelineService() *RiskTimelineService {
 	}
 }
 
+// withoutActor blanks ChangedBy on rows read from risk_histories (#793). The
+// stored value is the risk's creator whoever made the change, so it is never
+// returned as an author. The audit trail, read by GET /entities/risk/:id/timeline,
+// names the real actor.
+func withoutActor(history []*domain.RiskHistory) []*domain.RiskHistory {
+	for _, h := range history {
+		h.ChangedBy = ""
+	}
+	return history
+}
+
 // ownsRisk returns domain.ErrNotFound unless the risk exists within the tenant.
 func (s *RiskTimelineService) ownsRisk(tenantID, riskID uuid.UUID) error {
 	if tenantID == uuid.Nil {
@@ -61,7 +72,7 @@ func (s *RiskTimelineService) GetRiskTimeline(tenantID, riskID uuid.UUID) ([]*do
 		Find(&history).Error; err != nil {
 		return nil, fmt.Errorf("failed to get risk timeline: %w", err)
 	}
-	return history, nil
+	return withoutActor(history), nil
 }
 
 // GetRiskTimelineWithPagination retrieves paginated risk history (tenant-scoped)
@@ -85,7 +96,7 @@ func (s *RiskTimelineService) GetRiskTimelineWithPagination(tenantID, riskID uui
 		return nil, 0, fmt.Errorf("failed to get risk timeline: %w", err)
 	}
 
-	return history, total, nil
+	return withoutActor(history), total, nil
 }
 
 // GetRiskChangesByType retrieves history entries of a specific change type (tenant-scoped)
@@ -99,7 +110,7 @@ func (s *RiskTimelineService) GetRiskChangesByType(tenantID, riskID uuid.UUID, c
 		Find(&history).Error; err != nil {
 		return nil, fmt.Errorf("failed to get risk changes: %w", err)
 	}
-	return history, nil
+	return withoutActor(history), nil
 }
 
 // GetStatusChanges retrieves only status change events (tenant-scoped)
@@ -113,7 +124,7 @@ func (s *RiskTimelineService) GetStatusChanges(tenantID, riskID uuid.UUID) ([]*d
 		Find(&history).Error; err != nil {
 		return nil, err
 	}
-	return history, nil
+	return withoutActor(history), nil
 }
 
 // GetScoreChanges retrieves only score change events (tenant-scoped)
@@ -127,7 +138,7 @@ func (s *RiskTimelineService) GetScoreChanges(tenantID, riskID uuid.UUID) ([]*do
 		Find(&history).Error; err != nil {
 		return nil, err
 	}
-	return history, nil
+	return withoutActor(history), nil
 }
 
 // ComputeRiskTrend analyzes the risk score trend over time (tenant-scoped)
@@ -193,7 +204,7 @@ func (s *RiskTimelineService) GetRecentChanges(tenantID uuid.UUID, limit int) ([
 		Find(&history).Error; err != nil {
 		return nil, err
 	}
-	return history, nil
+	return withoutActor(history), nil
 }
 
 // GetChangesSince gets all changes since a specific time (tenant-scoped)
@@ -207,7 +218,7 @@ func (s *RiskTimelineService) GetChangesSince(tenantID, riskID uuid.UUID, sinceU
 		Find(&history).Error; err != nil {
 		return nil, err
 	}
-	return history, nil
+	return withoutActor(history), nil
 }
 
 // IsNotFound reports whether err is the tenant-scoped not-found sentinel, so
