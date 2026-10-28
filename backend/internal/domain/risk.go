@@ -407,6 +407,10 @@ func (r *Risk) BeforeSave(tx *gorm.DB) error {
 
 // AfterSave hook creates a history snapshot for audit trail and timeline
 // Called automatically by GORM after save is successful
+//
+// ChangedBy stays empty (#793). This hook cannot see who made the request, and
+// writing the risk's creator here credited every later change to them. The
+// chained audit trail (audit_events) records the real actor for the same change.
 func (r *Risk) AfterSave(tx *gorm.DB) error {
 	// Create a history snapshot for timeline and trends
 	history := RiskHistory{
@@ -416,7 +420,6 @@ func (r *Risk) AfterSave(tx *gorm.DB) error {
 		Impact:      r.ImpactLegacy,
 		Probability: r.ProbabilityLegacy,
 		Status:      r.Status,
-		ChangedBy:   r.CreatedBy.String(), // Use UUID string
 		ChangeType:  "UPDATE",
 		CreatedAt:   time.Now(),
 	}

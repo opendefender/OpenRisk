@@ -71,8 +71,9 @@ import { critColor } from '../../shared/riskColors';
 import type { Criticality } from '../../shared/riskColors';
 import { ImpactDialog } from '../../shared/ImpactDialog';
 import { ProgressState } from '../../shared/ProgressState';
-import { HistoryTimeline, type HistoryEntry } from '../../shared/HistoryTimeline';
-import { useRiskTimeline } from './useRiskTimeline';
+import { HistoryTimeline } from '../../shared/HistoryTimeline';
+import { useEntityTimeline } from '../entity-drawer/useEntityDrawer';
+import { toHistoryEntries } from './riskTimelineEntries';
 import { useUIStrings } from '../../shared/uiStrings';
 import { useUIStore } from '../../store/uiStore';
 import { useRiskStore, type RiskPhase } from '../../hooks/useRiskStore';
@@ -970,54 +971,24 @@ function RiskMatrixView({ risks, onOpen }: { risks: UiRisk[]; onOpen: (id: strin
 }
 
 /* ---------------- drawer ---------------- */
-// DrawerTimeline — the "Timeline" tab: real time-travel history for this risk
-// (who changed what, and when) from GET /risks/:id/timeline, rendered with the
-// shared HistoryTimeline primitive (UX-25). Replaces the former "coming soon".
-const NIL_UUID = '00000000-0000-0000-0000-000000000000';
+// DrawerTimeline — the "Timeline" tab: who changed this risk, and when, from
+// the merged entity timeline (GET /entities/risk/:id/timeline), rendered with the
+// shared HistoryTimeline primitive (UX-25).
+//
+// Every entry comes from the audit trail with its author (#793): a person, a
+// token's owner, or a job by name such as the Score Engine. That is the same
+// answer the score working gives. It used to read GET /risks/:id/timeline,
+// whose changed_by named the risk's creator for every change.
 function DrawerTimeline({ r }: { r: UiRisk }) {
   const lang = useUIStore((s) => s.lang);
   const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
-  const { data, isLoading, error } = useRiskTimeline(r.id);
+  const { data, isLoading, error, hasNextPage, isFetchingNextPage, fetchNextPage } =
+    useEntityTimeline('risk', r.id, true);
 
-  const kindOf = (t: string): string | undefined => {
-    const k = t.toUpperCase();
-    if (k === 'CREATE' || k === 'CREATED') return 'create';
-    if (k === 'MITIGATE' || k.startsWith('MITIGATION')) return 'mitigate';
-    if (k === 'DELETE' || k === 'DELETED') return 'delete';
-    if (k) return 'update';
-    return undefined;
-  };
-  const titleOf = (t: string): string => {
-    switch (kindOf(t)) {
-      case 'create':
-        return tr('Risque créé', 'Risk created');
-      case 'mitigate':
-        return tr('Mitigation appliquée', 'Mitigation applied');
-      case 'delete':
-        return tr('Risque supprimé', 'Risk deleted');
-      case 'update':
-        return tr('Mise à jour', 'Updated');
-      default:
-        return t;
-    }
-  };
-  const actorOf = (changedBy: string): string => {
-    if (!changedBy || changedBy === NIL_UUID || changedBy.toLowerCase() === 'system')
-      return tr('Système', 'System');
-    return changedBy.length > 12 ? changedBy.slice(0, 8) : changedBy;
-  };
-
-  const entries: HistoryEntry[] = (data ?? []).map((e) => ({
-    id: e.id,
-    kind: kindOf(e.change_type),
-    title: titleOf(e.change_type),
-    actor: actorOf(e.changed_by),
-    at: e.created_at,
-    fields: [
-      { label: tr('Score', 'Score'), value: (e.score ?? 0).toFixed(1) },
-      { label: tr('Statut', 'Status'), value: e.status },
-    ],
-  }));
+  const entries = toHistoryEntries(
+    (data?.pages ?? []).flatMap((p) => p.events),
+    tr,
+  );
 
   return (
     <div className="py-5 px-[22px]">
@@ -1032,6 +1003,16 @@ function DrawerTimeline({ r }: { r: UiRisk }) {
         errorLabel={tr('Chargement de l’historique impossible.', 'Could not load the history.')}
         formatDate={(iso) => relTime(iso, lang)}
       />
+      {hasNextPage && (
+        <div className="mt-3">
+          <Btn
+            label={
+              isFetchingNextPage ? tr('Chargement…', 'Loading…') : tr('Afficher plus', 'Show more')
+            }
+            onClick={() => void fetchNextPage()}
+          />
+        </div>
+      )}
     </div>
   );
 }

@@ -88,6 +88,8 @@ export interface EntityActor {
   id?: string;
   email?: string;
   label?: string;
+  /** How the audit trail recorded the actor (#793). Absent on journal rows. */
+  kind?: 'user' | 'service_token' | 'job' | 'unattributed';
 }
 
 export interface EntitySummary {

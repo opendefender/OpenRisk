@@ -233,7 +233,6 @@ func setupDrawer(t *testing.T, permissions []string) *drawerFixture {
 
 	relations := repository.NewGormEntityRelationRepository(db)
 	timeline := entity.NewTimelineService(repository.NewGormAuditEventRepository(db)).
-		WithSource(entity.TypeRisk, repository.NewRiskHistorySource(db)).
 		WithSource(entity.TypeIncident, repository.NewIncidentTimelineSource(db)).
 		WithSource(entity.TypeAsset, repository.NewAssetSnapshotSource(db))
 
@@ -452,10 +451,7 @@ func TestEntityDrawer_TimelineReadsTheCanonicalTrail(t *testing.T) {
 	events := body["events"].([]any)
 	require.NotEmpty(t, events, "the timeline read nothing")
 
-	// The trail entry seeded for THIS tenant must be there. (The risk's own
-	// AfterSave hook also writes a risk_histories row, so this stream is already
-	// two sources deep — which is the point of the merge, and is asserted
-	// separately below.)
+	// The trail entry seeded for THIS tenant must be there.
 	var sawAudit bool
 	for _, raw := range events {
 		ev := raw.(map[string]any)
@@ -477,47 +473,30 @@ func TestEntityDrawer_TimelineReadsTheCanonicalTrail(t *testing.T) {
 	}
 }
 
-// A risk's score movements come from risk_histories, which the trail never sees
-// because the score worker runs outside any request.
-func TestEntityDrawer_TimelineMergesTheScoreJournal(t *testing.T) {
+// A risk's timeline is the audit trail alone (#793). risk_histories snapshots
+// name no author, so they never reach it, not even for the caller's own risk,
+// and another tenant's risk is refused outright.
+func TestEntityDrawer_RiskTimelineLeavesOutTheScoreJournal(t *testing.T) {
 	f := setupDrawer(t, []string{"*"})
-	require.NoError(t, f.db.Create(&domain.RiskHistory{
-		ID: uuid.New(), RiskID: f.riskA.ID, Score: 25.65,
-		Status: domain.RiskStatus("open"), ChangedBy: "System", ChangeType: "UPDATE",
-		CreatedAt: time.Now().UTC().Add(-time.Hour),
-	}).Error)
-
-	status, body := f.get(t, "/entities/risk/"+f.riskA.ID.String()+"/timeline")
-	require.Equal(t, http.StatusOK, status)
-
-	var sawJournal bool
-	for _, raw := range body["events"].([]any) {
-		if raw.(map[string]any)["source"] == "risk_history" {
-			sawJournal = true
-		}
+	for _, riskID := range []uuid.UUID{f.riskA.ID, f.riskB.ID} {
+		require.NoError(t, f.db.Create(&domain.RiskHistory{
+			ID: uuid.New(), RiskID: riskID, Score: 99, Status: domain.RiskStatus("open"),
+			ChangedBy: "System", ChangeType: "UPDATE", CreatedAt: time.Now().UTC(),
+		}).Error)
 	}
-	require.True(t, sawJournal, "the score journal did not reach the timeline")
-}
 
-// The journals carry no tenant column of their own, so they are gated through
-// their parent. This proves the gate with a history row planted under a risk the
-// caller cannot read.
-func TestEntityDrawer_ScoreJournalIsGatedByItsParentRisk(t *testing.T) {
-	f := setupDrawer(t, []string{"*"})
-	require.NoError(t, f.db.Create(&domain.RiskHistory{
-		ID: uuid.New(), RiskID: f.riskB.ID, Score: 99, ChangedBy: "System",
-		ChangeType: "UPDATE", CreatedAt: time.Now().UTC(),
-	}).Error)
-
-	// Reading the other tenant's risk is refused outright.
 	status, _ := f.get(t, "/entities/risk/"+f.riskB.ID.String()+"/timeline")
 	require.Equal(t, http.StatusNotFound, status)
 
-	// And the caller's own risk timeline does not pick it up.
-	_, body := f.get(t, "/entities/risk/"+f.riskA.ID.String()+"/timeline")
+	status, body := f.get(t, "/entities/risk/"+f.riskA.ID.String()+"/timeline")
+	require.Equal(t, http.StatusOK, status)
 	for _, raw := range body["events"].([]any) {
 		ev := raw.(map[string]any)
-		require.NotContains(t, ev["summary"], "99", "the other risk's history bled into this timeline")
+		require.NotEqual(t, "risk_history", ev["source"], "a score snapshot reached the risk timeline")
+		require.NotContains(t, ev["summary"], "99")
+	}
+	for _, src := range body["sources"].([]any) {
+		require.NotEqual(t, "risk_history", src)
 	}
 }
 
@@ -781,4 +760,106 @@ func TestEntityContract_NoCollectionSerialisesAsNull(t *testing.T) {
 	status, body := f.get(t, "/entities")
 	require.Equal(t, http.StatusOK, status)
 	walk(t, "/entities", body)
+}
+
+// ---------------------------------------------------------------------------
+// Who changed a risk (#793)
+// ---------------------------------------------------------------------------
+
+// timelineEvents reads a risk's merged timeline as the drawer's Timeline tab does.
+func (f *drawerFixture) timelineEvents(t *testing.T, riskID uuid.UUID) []map[string]any {
+	t.Helper()
+	status, body := f.get(t, "/entities/risk/"+riskID.String()+"/timeline")
+	require.Equal(t, http.StatusOK, status)
+	var out []map[string]any
+	for _, raw := range body["events"].([]any) {
+		out = append(out, raw.(map[string]any))
+	}
+	return out
+}
+
+// Risk A was created by user A. User B edits it. The timeline names B for that
+// edit, and nothing in it credits A, even though risk_histories stored A as
+// changed_by on every row (that is what AfterSave wrote before #793).
+func TestRiskTimeline_Success(t *testing.T) {
+	f := setupDrawer(t, []string{"risks:read"})
+	userB := uuid.New()
+	now := time.Now().UTC()
+	require.NoError(t, f.db.Create(&domain.AuditEvent{
+		ID: uuid.New(), TenantID: f.tenantA, ActorID: &userB, ActorType: domain.AuditActorUser,
+		Action: domain.AuditActionUpdate, EntityType: "risk", EntityID: f.riskA.ID.String(),
+		Summary: "Updated risk by B", ChangedFields: domain.StringList{"impact"},
+		CreatedAt: now, Sequence: 2,
+	}).Error)
+	// A row as the old hook wrote it: the creator, whoever made the change.
+	require.NoError(t, f.db.Create(&domain.RiskHistory{
+		ID: uuid.New(), RiskID: f.riskA.ID, Score: 30, Status: domain.RiskStatus("open"),
+		ChangedBy: f.riskA.CreatedBy.String(), ChangeType: "UPDATE", CreatedAt: now,
+	}).Error)
+
+	var sawB bool
+	for _, ev := range f.timelineEvents(t, f.riskA.ID) {
+		actor, _ := ev["actor"].(map[string]any)
+		if ev["summary"] == "Updated risk by B" {
+			require.NotNil(t, actor, "B's edit carries no actor")
+			require.Equal(t, userB.String(), actor["id"])
+			require.Equal(t, "user", actor["kind"])
+			sawB = true
+		}
+		if actor != nil {
+			require.NotEqual(t, f.riskA.CreatedBy.String(), actor["id"],
+				"an entry credits the risk's creator: %v", ev)
+		}
+		require.NotEqual(t, "risk_history", ev["source"], "a snapshot without an author reached the timeline")
+	}
+	require.True(t, sawB, "B's edit did not reach the timeline")
+}
+
+// A Score Engine recompute is attributed to the job by name, the same answer the
+// score working gives for that change.
+func TestRiskTimeline_ScoreEngineRecomputeNamesTheJob(t *testing.T) {
+	f := setupDrawer(t, []string{"risks:read"})
+	ev := domain.ScoreEngineAuditEvent(f.tenantA, f.riskA.ID, 25.65, domain.ScoreEngineTerms{
+		Probability: 0.9, Impact: 9.5, AssetCriticality: 3, Score: 25.65,
+		Criticality: "critical", Explanation: "asset criticality raised",
+	})
+	ev.CreatedAt = time.Now().UTC()
+	ev.Sequence = 2
+	require.NoError(t, f.db.Create(ev).Error)
+
+	for _, e := range f.timelineEvents(t, f.riskA.ID) {
+		if e["id"] != ev.ID.String() {
+			continue
+		}
+		actor, _ := e["actor"].(map[string]any)
+		require.NotNil(t, actor, "the recompute shows no actor")
+		require.Equal(t, "job", actor["kind"])
+		require.Equal(t, domain.AuditJobScoreEngine, actor["label"])
+		require.Nil(t, actor["id"], "a job carries no user id")
+		return
+	}
+	t.Fatal("the Score Engine entry did not reach the timeline")
+}
+
+// An unknown risk and another tenant's risk are both 404, with no rows.
+func TestRiskTimeline_NotFound(t *testing.T) {
+	f := setupDrawer(t, []string{"risks:read"})
+	require.NoError(t, f.db.Create(&domain.RiskHistory{
+		ID: uuid.New(), RiskID: f.riskB.ID, Score: 4, ChangedBy: f.riskB.CreatedBy.String(),
+		ChangeType: "UPDATE", CreatedAt: time.Now().UTC(),
+	}).Error)
+
+	for _, id := range []uuid.UUID{uuid.New(), f.riskB.ID} {
+		status, body := f.get(t, "/entities/risk/"+id.String()+"/timeline")
+		require.Equal(t, http.StatusNotFound, status)
+		require.Nil(t, body["events"], "a refused timeline still carried events")
+	}
+}
+
+// Without risks:read the timeline is refused, even for the caller's own tenant.
+func TestRiskTimeline_Unauthorized(t *testing.T) {
+	f := setupDrawer(t, []string{"assets:read"})
+	status, body := f.get(t, "/entities/risk/"+f.riskA.ID.String()+"/timeline")
+	require.Equal(t, http.StatusForbidden, status)
+	require.Nil(t, body["events"])
 }

@@ -2559,9 +2559,9 @@ func main() {
 	entityTimeline := entity.NewTimelineService(auditChainRepo).
 		WithUserLookup(userRepo).
 		// The journals the canonical audit trail structurally cannot see: the
-		// score worker runs outside any request, and the incident service keeps
-		// its own log.
-		WithSource(entity.TypeRisk, repository.NewRiskHistorySource(database.DB)).
+		// incident service keeps its own log. A risk has none (#793): every
+		// change to it, the Score Engine's included, is in the trail with its
+		// author, and risk_histories snapshots name nobody.
 		WithSource(entity.TypeIncident, repository.NewIncidentTimelineSource(database.DB)).
 		WithSource(entity.TypeAsset, repository.NewAssetSnapshotSource(database.DB)).
 		WithSource(entity.TypeVendor, repository.NewAssetSnapshotSource(database.DB))
