@@ -14,7 +14,14 @@ import { apiErrorMessage } from '../../../lib/apiError';
 
 import { useRiskStore, type Risk } from '../../../hooks/useRiskStore';
 import { useAssetStore } from '../../../hooks/useAssetStore';
-import { Button, Field, Input, ScrollProgress, TagInput } from '../../../shared/ds';
+import {
+  Button,
+  Field,
+  Input,
+  ScrollProgress,
+  TagInput,
+  useDismissableLayer,
+} from '../../../shared/ds';
 import { useI18n } from '../../../hooks/useI18n';
 import { useRiskTagLabels } from '../useRiskTagLabels';
 
@@ -112,15 +119,11 @@ export const EditRiskModal = ({ isOpen, onClose, risk, onSuccess }: EditRiskModa
     return () => window.clearTimeout(t);
   }, [isOpen]);
 
-  // Close on Escape
-  useEffect(() => {
-    if (!isOpen) return;
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [isOpen, onClose]);
+  // Escape, the Tab trap and focus return come from the shared layer stack, so
+  // this modal sits above the risk drawer it opens from and Escape closes only
+  // the modal.
+  const panelRef = useRef<HTMLDivElement>(null);
+  useDismissableLayer(panelRef, { open: isOpen, onClose });
 
   const selectedAssetIds = watch('asset_ids') || [];
   const selectedFrameworks = watch('frameworks') || [];
@@ -183,6 +186,7 @@ export const EditRiskModal = ({ isOpen, onClose, risk, onSuccess }: EditRiskModa
           />
 
           <motion.div
+            ref={panelRef}
             {...dialogMotion}
             role="dialog"
             aria-modal="true"

@@ -6,6 +6,8 @@
 /** @vitest-environment jsdom */
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
+import { useRef } from 'react';
+import { useDismissableLayer } from '../../../shared/ds';
 
 const updateRiskMock = vi.fn(() => Promise.resolve());
 const fetchAssetsMock = vi.fn(() => Promise.resolve());
@@ -19,6 +21,18 @@ vi.mock('../../../hooks/useAssetStore', () => ({
 }));
 
 import { EditRiskModal } from '../components/EditRiskModal';
+
+// Stands in for the risk drawer the modal opens from: a layer on the shared
+// stack, already open underneath.
+function LayerBelow({ onClose }: { onClose: () => void }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useDismissableLayer(ref, { open: true, onClose });
+  return (
+    <div ref={ref} role="dialog" aria-label="drawer">
+      <button type="button">inside the drawer</button>
+    </div>
+  );
+}
 
 describe('EditRiskModal', () => {
   beforeEach(() => {
@@ -150,5 +164,40 @@ describe('EditRiskModal', () => {
         expect.objectContaining({ tags: ['cyber'] }),
       ),
     );
+  });
+
+  // #793: the modal opens over the risk drawer. Escape must close the modal
+  // and leave the drawer standing, and close the drawer on the next press.
+  it('closes itself on Escape and leaves the drawer below it open', () => {
+    const closeModal = vi.fn();
+    const closeDrawer = vi.fn();
+    const risk = {
+      id: '7',
+      title: 'Titre',
+      description: 'Description suffisamment longue',
+      impact: 5,
+      probability: 0.5,
+      tags: [],
+    };
+    const { rerender } = render(
+      <>
+        <LayerBelow onClose={closeDrawer} />
+        <EditRiskModal isOpen={true} onClose={closeModal} risk={risk} />
+      </>,
+    );
+
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(closeModal).toHaveBeenCalledTimes(1);
+    expect(closeDrawer).not.toHaveBeenCalled();
+
+    rerender(
+      <>
+        <LayerBelow onClose={closeDrawer} />
+        <EditRiskModal isOpen={false} onClose={closeModal} risk={risk} />
+      </>,
+    );
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(closeDrawer).toHaveBeenCalledTimes(1);
+    expect(closeModal).toHaveBeenCalledTimes(1);
   });
 });
