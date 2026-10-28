@@ -23,6 +23,51 @@ const plan = vi.hoisted(() => ({
   limits: {} as Record<string, { limit: number; used: number }>,
 }));
 const calls = vi.hoisted(() => [] as string[]);
+// An empty register, shaped as GET /analytics/financial returns it: the page
+// reads portfolio_loss as soon as the summary lands.
+const emptyPortfolio = vi.hoisted(() => {
+  const zero = { xaf: 0, usd: 0, value: 0, currency: 'XAF' };
+  const money = { xaf: 0, usd: 0 };
+  return {
+    currency: 'XAF',
+    fx_rate_xaf: 1,
+    fx_as_of: '2026-10-01T00:00:00Z',
+    xaf_per_usd: 600,
+    computed_at: '2026-10-09T08:00:00Z',
+    formula_version: 'fair-lite-1.0.0',
+    iterations: 10000,
+    total_risks: 0,
+    quantified_risks: 0,
+    data_status: 'ok',
+    min_quantified_risks: 1,
+    portfolio_loss: {
+      p10: zero,
+      p50: zero,
+      p90: zero,
+      p95: zero,
+      mean: zero,
+      iterations: 10000,
+      seed: 1,
+      formula_version: 'fair-lite-1.0.0',
+      lef: 0,
+    },
+    total_ale: money,
+    total_ale_worst: money,
+    total_ale_after: money,
+    total_risk_reduction: money,
+    total_remediation: money,
+    portfolio_rosi: 0,
+    portfolio_rosi_computable: false,
+    by_criticality: [],
+    top_risks: [],
+    portfolio_rosi_3y: 0,
+    portfolio_rosi_3y_computable: false,
+    treated_risks: 0,
+    loss_exceedance: null,
+    treatments: [],
+    risk_appetite_xaf: null,
+  };
+});
 
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 vi.mock('../../../lib/api', () => {
@@ -32,6 +77,7 @@ vi.mock('../../../lib/api', () => {
       return Promise.resolve({
         data: { plan: 'free', features: plan.features, limits: plan.limits },
       });
+    if (url === '/analytics/financial') return Promise.resolve({ data: emptyPortfolio });
     return Promise.resolve({ data: {} });
   };
   return {
@@ -120,6 +166,7 @@ describe('#783 — the Monte-Carlo portfolio on Free', () => {
     renderIt(<FinancialDashboard />);
 
     await waitFor(() => expect(calls).toContain('/analytics/financial'));
+    expect(await screen.findByTestId('fin-methodology')).toBeInTheDocument();
     expect(screen.queryByText(/Passer au plan/)).not.toBeInTheDocument();
   });
 });
