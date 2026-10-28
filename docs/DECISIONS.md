@@ -5,6 +5,26 @@ recommends, and surfaces these in the daily brief. Run `/decide` to clear them.
 
 ## Open
 
+### D-080 — Licence gate: what legal-counsel says the allowed set does not cover · raised 2026-10-28
+**Context** — #774 asked `legal-counsel` to review the allowed set in
+`security/license-policy.yaml`. Verdict: approved with notes, advisory only.
+The set itself is fine. Three points are outside what the gate can decide:
+- **MPL-2.0 in the EE build.** MPL files shipped in executable form still owe
+  their source (MPL §3.2), modified or not, and the AGPL path relies on no MPL
+  file carrying Exhibit B. The gate sees neither.
+- **No NOTICE / attribution inventory.** MIT, BSD and Apache-2.0 all require
+  the notice in redistributions. Nothing generates one for the CE and EE
+  binaries or the frontend bundle today.
+- **Not gated at all**: container base images, bundled fonts and assets,
+  bundled services (Redis, Postgres), vendored or copied code.
+
+**Options** — A: open one issue per point and have real counsel confirm the
+MPL/EE position before the first commercial sale. B: accept the gap for now.
+**Recommendation** — A. The NOTICE inventory can come from the SBOM the
+dependency gate already builds.
+**Cost of delay** — Low until a commercial build is distributed; then the
+MPL and notice obligations apply to every copy.
+
 ### D-079 — Licence gate: confirm three licences and two exceptions that arrived after the D-017 census · raised 2026-10-28
 **Context** — #457 built the licence gate D-017 asked for
 (`.github/workflows/license-gate.yml`, policy in `security/license-policy.yaml`).

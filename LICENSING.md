@@ -125,12 +125,13 @@ requires a Commercial Agreement.
 
 ## Third-party licenses
 
-Dependencies retain their own licenses. The AGPL applies to OpenRisk's own
-Community source, not to independently-licensed third-party libraries it uses.
+Third-party libraries remain under their own licenses; this project does not
+relicense them.
 
 Because the same tree also builds the commercial Enterprise Edition, a
 dependency may only carry a licence that both the AGPL core and a commercial
-build can ship: permissive licences, plus file-level MPL-2.0. GPL, LGPL, AGPL,
+build can ship: permissive licences and public-domain dedications, plus
+file-level MPL-2.0. GPL, LGPL, AGPL,
 SSPL, BUSL, Hippocratic and non-commercial licences are refused. The accepted
 list and its per-package exceptions are in
 [`security/license-policy.yaml`](security/license-policy.yaml); the Licence
