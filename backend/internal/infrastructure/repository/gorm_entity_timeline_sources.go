@@ -20,100 +20,22 @@ import (
 // The supplementary timeline journals.
 //
 // audit_events is the canonical trail and covers every mutating HTTP request.
-// These three exist because each records something that never travels through a
+// These two exist because each records something that never travels through a
 // request, or that predates the trail:
 //
-//   - risk_histories: the Score Engine recomputes a risk from a Redis event, in
-//     a worker. No request, no audit entry — and a risk's score moving is the
-//     single most interesting thing that happens to it, so a risk timeline
-//     without it would be quietly wrong.
 //   - incident_timelines: the incident service appends its own lifecycle entries.
 //   - asset_snapshots: point-in-time asset state with the actor who caused it,
 //     predating the trail and still written on every asset change.
 //
-// Each is tenant-gated through its PARENT entity, because none of the three has
-// a tenant column of its own — risk_histories is a child of a risk,
-// incident_timelines of an incident. Reading them without that gate is exactly
-// the leak this project fixed in RiskTimelineHandler on 2026-07-23, and the gate
-// is re-applied here rather than assumed.
-
-// =============================================================================
-// Risk history
-// =============================================================================
-
-type RiskHistorySource struct{ db *gorm.DB }
-
-func NewRiskHistorySource(db *gorm.DB) *RiskHistorySource { return &RiskHistorySource{db: db} }
-
-var _ entity.EventSource = (*RiskHistorySource)(nil)
-
-func (s *RiskHistorySource) Source() entity.TimelineSource { return entity.SourceRiskHistory }
-
-func (s *RiskHistorySource) Events(ctx context.Context, tenantID uuid.UUID, entityID string, before *time.Time, limit int) ([]entity.TimelineEvent, error) {
-	riskID, err := uuid.Parse(entityID)
-	if err != nil {
-		return nil, nil
-	}
-	// The tenant gate: join the parent risk rather than trusting the id.
-	q := s.db.WithContext(ctx).
-		Table("risk_histories AS h").
-		Select("CAST(h.id AS TEXT) AS id, h.score AS score, h.status AS status, h.change_type AS change_type, h.changed_by AS changed_by, h.created_at AS created_at").
-		Joins("JOIN risks AS r ON r.id = h.risk_id AND r.tenant_id = ?", tenantID).
-		Where("h.risk_id = ?", riskID)
-	if before != nil {
-		q = q.Where("h.created_at <= ?", *before)
-	}
-
-	var rows []struct {
-		ID         string
-		Score      float64
-		Status     string
-		ChangeType string
-		ChangedBy  string
-		CreatedAt  time.Time
-	}
-	if err := q.Order("h.created_at DESC").Limit(limit).Scan(&rows).Error; err != nil {
-		return nil, err
-	}
-
-	out := make([]entity.TimelineEvent, 0, len(rows))
-	for _, row := range rows {
-		ev := entity.TimelineEvent{
-			// Prefixed so a history id can never collide with an audit event id
-			// in the merged stream's cursor.
-			ID:         "risk_history:" + row.ID,
-			Kind:       normaliseChangeType(row.ChangeType),
-			OccurredAt: row.CreatedAt,
-			Target:     entity.Ref{Type: entity.TypeRisk, ID: entityID},
-			TargetURL:  entity.DeepLink(entity.TypeRisk, entityID),
-			Source:     entity.SourceRiskHistory,
-			Summary:    fmt.Sprintf("Score recorded at %s (status %s)", strconv.FormatFloat(row.Score, 'f', 2, 64), row.Status),
-		}
-		// ChangedBy is a user id OR the literal "System" for worker-made
-		// changes, so it is parsed rather than assumed to be an id.
-		if id, err := uuid.Parse(row.ChangedBy); err == nil && id != uuid.Nil {
-			ev.Actor = &entity.Actor{ID: id.String()}
-		} else if row.ChangedBy != "" {
-			ev.Actor = &entity.Actor{Label: row.ChangedBy}
-		}
-		out = append(out, ev)
-	}
-	return out, nil
-}
-
-// normaliseChangeType maps the history's verbs onto the timeline's.
-func normaliseChangeType(s string) string {
-	switch s {
-	case "CREATE", "create":
-		return "create"
-	case "MITIGATE", "mitigate":
-		return "mitigate"
-	case "":
-		return "update"
-	default:
-		return "update"
-	}
-}
+// risk_histories is deliberately not one of them (#793). Its snapshots name no
+// author, and every change they record is already in the trail with one: user
+// edits through the request, Score Engine recomputes as the score-engine job.
+//
+// Each is tenant-gated through its PARENT entity, because neither has a tenant
+// column of its own — incident_timelines is a child of an incident. Reading
+// them without that gate is exactly the leak this project fixed in
+// RiskTimelineHandler on 2026-07-23, and the gate is re-applied here rather than
+// assumed.
 
 // =============================================================================
 // Incident journal
