@@ -23,7 +23,11 @@ type RiskHistory struct {
 	Status      RiskStatus `json:"status"`
 
 	// Qui et Quand
-	ChangedBy  string    `json:"changed_by"`  // User ID ou "System" (SyncEngine)
+	// ChangedBy n'est plus écrit (#793) : AfterSave y mettait le créateur du
+	// risque, quel que soit l'auteur réel. Les anciennes lignes gardent cette
+	// valeur fausse ; elle n'est plus jamais lue comme un auteur. Le "qui" vient
+	// de audit_events.
+	ChangedBy  string    `json:"changed_by"`
 	ChangeType string    `json:"change_type"` // CREATE, UPDATE, MITIGATE
 	CreatedAt  time.Time `json:"created_at"`  // Timestamp du changement
 }

@@ -4187,8 +4187,13 @@ export interface components {
             /** Format: uuid */
             id?: string;
             email?: string;
-            /** @description Display name when the user has one, else the email. */
+            /** @description Display name when the user has one, else the email. For a job, the job name (for example score-engine). */
             label?: string;
+            /**
+             * @description How the audit trail recorded the actor. Absent on entries from the supplementary journals (incident_timeline, asset_snapshot), and on audit entries recorded before actor kinds existed (#486). A risk's timeline reads the audit trail only.
+             * @enum {string}
+             */
+            kind?: "user" | "service_token" | "job" | "unattributed";
         };
         TimelineChange: {
             field: string;

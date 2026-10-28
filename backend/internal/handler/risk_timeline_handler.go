@@ -255,6 +255,10 @@ type TimelineEvent struct {
 }
 
 // ConvertToTimelineEvent converts RiskHistory to TimelineEvent
+//
+// ChangedBy is always empty (#793). Stored rows carry the risk's creator, not
+// the person who made the change; the shape is kept for existing clients, and
+// GET /entities/risk/:id/timeline gives the actor from the audit trail.
 func ConvertToTimelineEvent(h *domain.RiskHistory) *TimelineEvent {
 	return &TimelineEvent{
 		ID:          h.ID,
@@ -264,7 +268,7 @@ func ConvertToTimelineEvent(h *domain.RiskHistory) *TimelineEvent {
 		Probability: h.Probability,
 		Status:      h.Status,
 		ChangeType:  h.ChangeType,
-		ChangedBy:   h.ChangedBy,
+		ChangedBy:   "",
 		CreatedAt:   h.CreatedAt.Unix(),
 	}
 }

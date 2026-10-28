@@ -539,8 +539,16 @@ func auditToTimeline(e domain.AuditEvent) TimelineEvent {
 		ev.Target.Type = t
 		ev.TargetURL = DeepLink(t, e.EntityID)
 	}
-	if e.ActorID != nil && *e.ActorID != uuid.Nil {
-		ev.Actor = &Actor{ID: e.ActorID.String(), Email: e.ActorEmail, Label: e.ActorEmail}
+	// The actor as the trail recorded it (#793), so the timeline gives the
+	// same answer as the score working: a person, a token's owner, a job by
+	// name, or a write that carried no identity.
+	switch {
+	case e.ActorID != nil && *e.ActorID != uuid.Nil:
+		ev.Actor = &Actor{ID: e.ActorID.String(), Email: e.ActorEmail, Label: e.ActorEmail, Kind: e.ActorType}
+	case e.ActorType == domain.AuditActorJob:
+		ev.Actor = &Actor{Label: e.ActorLabel, Kind: e.ActorType}
+	case e.ActorType == domain.AuditActorUnattributed:
+		ev.Actor = &Actor{Kind: e.ActorType}
 	}
 	for _, field := range e.ChangedFields {
 		ev.Changes = append(ev.Changes, Change{Field: field})

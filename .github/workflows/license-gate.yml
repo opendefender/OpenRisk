@@ -1,0 +1,107 @@
+name: Licence gate
+
+# The blocking gate on dependency LICENCES (#457, D-017), next to the
+# vulnerability gate in dependency-gate.yml. It replaces the old
+# "License Compliance Check" in security.yml, which wrote a file it never read
+# and echoed success, and let a Hippocratic-2.1 package (react-leaflet) sit in
+# the tree unnoticed.
+#
+# What it checks, and what fails the build:
+#   - npm: every package in frontend/package-lock.json, dev dependencies
+#     included, with the licence npm recorded or the installed package.json
+#     declares;
+#   - Go: every module `go list -deps -test ./...` builds in backend/ and
+#     agent/, with the licence Trivy classifies from the module's LICENSE file.
+#   A package FAILS unless its SPDX expression is satisfied by the `allowed`
+#   list in security/license-policy.yaml, or a per-package exception there
+#   covers it. A licence that cannot be resolved (UNKNOWN) fails. A stale or
+#   unused exception fails. The policy file's header lists what is rejected:
+#   GPL, LGPL, AGPL, SSPL, BUSL, Hippocratic, non-commercial and anything not
+#   reviewed yet.
+#
+# The tool is backend/cmd/licensegate; its tests are in backend/pkg/licensegate.
+# Every third-party action is pinned to a full commit SHA; the tag is in the
+# trailing comment.
+
+on:
+  push:
+    branches: [master, stag, develop]
+  pull_request:
+    branches: [master, stag, develop]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  TRIVY_VERSION: v0.74.0
+
+jobs:
+  gate:
+    name: Licence gate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5.6.0
+        with:
+          go-version: '1.26'
+          check-latest: true
+          cache-dependency-path: backend/go.sum
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - uses: aquasecurity/setup-trivy@81e514348e19b6112ce2a7e3ecbafe19c1e1f567 # v0.3.1
+        with:
+          version: ${{ env.TRIVY_VERSION }}
+          cache: true
+
+      # Scripts are not run: the gate reads package.json files, nothing a
+      # postinstall step produces.
+      - name: Install the npm tree
+        run: cd frontend && npm ci --ignore-scripts --no-audit --no-fund
+
+      # `go list` also fills the module cache, which is where Trivy reads each
+      # module's LICENSE file. A module it cannot classify comes out UNKNOWN
+      # in the gate, so a silent Trivy cannot turn into a pass.
+      - name: List the Go modules that are built
+        run: |
+          set -euo pipefail
+          mkdir -p gate-reports
+          fmt='{{with .Module}}{{if not .Main}}{{.Path}} {{.Version}}{{end}}{{end}}'
+          for mod in backend agent; do
+            (cd "$mod" && go list -deps -test -f "$fmt" ./...)
+          done | sort -u > gate-reports/go-modules.txt
+          wc -l < gate-reports/go-modules.txt
+
+      - name: Classify Go licences
+        run: |
+          set -euo pipefail
+          for mod in backend agent; do
+            trivy fs --scanners license --format json --skip-version-check \
+              --output "gate-reports/trivy-licenses-${mod}.json" "$mod"
+          done
+
+      - name: Gate
+        run: |
+          set -euo pipefail
+          cd backend
+          go run ./cmd/licensegate \
+            -policy ../security/license-policy.yaml \
+            -npm-lock ../frontend/package-lock.json \
+            -go-modules ../gate-reports/go-modules.txt \
+            -trivy ../gate-reports/trivy-licenses-backend.json \
+            -trivy ../gate-reports/trivy-licenses-agent.json
+
+      - name: Keep the reports
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: licence-gate-reports
+          path: gate-reports/
+          if-no-files-found: ignore
+          retention-days: 14
