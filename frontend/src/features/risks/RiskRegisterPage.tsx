@@ -1640,8 +1640,8 @@ function DrawerDetails({ r, onCreateMiti }: { r: UiRisk; onCreateMiti: () => voi
                 onClick={addMappings}
                 className="mt-2 rounded-full px-3 py-1.5 text-[12px] font-semibold"
                 style={{
-                  background: 'var(--accent)',
-                  color: 'var(--on-accent, var(--fg-primary))',
+                  background: 'var(--accent-solid)',
+                  color: 'var(--fg-on-solid)',
                 }}
               >
                 {tr('Rattacher', 'Map')}

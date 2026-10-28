@@ -53,14 +53,6 @@ interface UserPickerProps {
   className?: string;
 }
 
-/** Deterministic avatar tint — same input, same colour, across every screen. */
-function tintFor(id: string): string {
-  const tints = ['var(--accent)', 'var(--high)', 'var(--medium)', 'var(--low)', 'var(--critical)'];
-  let hash = 0;
-  for (let i = 0; i < id.length; i += 1) hash = (hash * 31 + id.charCodeAt(i)) >>> 0;
-  return tints[hash % tints.length];
-}
-
 function initialsFrom(email: string): string {
   const name = email.split('@')[0] ?? '';
   const parts = name.split(/[._-]+/).filter(Boolean);
@@ -68,11 +60,15 @@ function initialsFrom(email: string): string {
   return name.slice(0, 2).toUpperCase() || '?';
 }
 
-function AvatarDot({ id, initials, size = 24 }: { id: string; initials: string; size?: number }) {
+// The neutral initials disc UserAvatar uses. It was a per-user tint drawn from
+// the risk scale, with primary text on the full-strength colour: 2.57:1 on
+// --medium in light, 1.29:1 in dark (axe, #793). It also put a "critical" red
+// behind some people's initials.
+function AvatarDot({ initials, size = 24 }: { initials: string; size?: number }) {
   return (
     <span
-      className="inline-flex items-center justify-center rounded-full font-semibold text-fg-primary shrink-0"
-      style={{ width: size, height: size, fontSize: size * 0.42, background: tintFor(id) }}
+      className="inline-flex items-center justify-center rounded-full border border-border-default bg-surface-3 font-semibold text-fg-secondary shrink-0"
+      style={{ width: size, height: size, fontSize: size * 0.42 }}
       aria-hidden
     >
       {initials}
@@ -221,7 +217,7 @@ export function UserPicker({
         className={`flex w-full items-center gap-2 rounded-2xl border border-border bg-elevated ${pad} text-left text-ink transition hover:border-accent disabled:cursor-not-allowed disabled:opacity-60 ${className}`}
       >
         {value && triggerInitials ? (
-          <AvatarDot id={value} initials={triggerInitials} size={size === 'sm' ? 20 : 24} />
+          <AvatarDot initials={triggerInitials} size={size === 'sm' ? 20 : 24} />
         ) : (
           <span className="inline-flex h-6 w-6 items-center justify-center rounded-full border border-dashed border-border text-ink-muted shrink-0">
             <Users size={12} />
@@ -310,7 +306,7 @@ export function UserPicker({
                         i === activeIndex ? 'bg-app' : ''
                       }`}
                     >
-                      <AvatarDot id={u.user_id} initials={u.initials} />
+                      <AvatarDot initials={u.initials} />
                       <span className="min-w-0 flex-1">
                         <span className="block truncate text-[13px] text-ink">
                           {u.full_name || u.email}
