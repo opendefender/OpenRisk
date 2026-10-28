@@ -198,6 +198,10 @@ type Actor struct {
 	ID    string `json:"id,omitempty"`
 	Email string `json:"email,omitempty"`
 	Label string `json:"label,omitempty"`
+	// Kind is the audit trail's actor type on a timeline event (#793): user,
+	// service_token, job or unattributed. For a job, Label is the job name.
+	// Empty where the source has no such notion (an owner, a journal row).
+	Kind string `json:"kind,omitempty"`
 }
 
 // Summary is the normalised head of every drawer.
