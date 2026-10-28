@@ -212,6 +212,8 @@ const MARK_PAIRS = SURFACES.map((surface) => ({
  * therefore the contrast — is different on each.
  */
 const TINT_BACKDROPS = ['--surface-0', '--surface-1'];
+/** Where a chip inside a card, a drawer or a modal can land. */
+const CHIP_BACKDROPS = ['--surface-sunken', '--surface-1', '--surface-2'];
 
 const TINTS = [
   { tint: '--danger', alpha: 10, text: ['--danger-text', '--fg-secondary', '--fg-muted'] },
@@ -233,6 +235,16 @@ const TINTS = [
   { tint: '--surface-1', alpha: 50, text: ['--fg-primary', '--fg-muted'] },
   { tint: '--surface-2', alpha: 50, text: ['--fg-secondary'] },
   { tint: '--surface-3', alpha: 50, text: ['--fg-secondary'] },
+  // CritBadge: each risk colour as small text on its own 15% tint (#793). The
+  // badge also sits in the risk drawer, which is --surface-sunken, and in
+  // modals, so those are its backdrops rather than the default pair. axe caught
+  // --risk-high at 3.78:1 there while the plain --surface-2 pair above passed.
+  ...['--risk-low', '--risk-moderate', '--risk-high', '--risk-critical'].map((risk) => ({
+    tint: risk,
+    alpha: 15,
+    text: [risk],
+    over: CHIP_BACKDROPS,
+  })),
 ];
 
 /**
@@ -246,9 +258,9 @@ const TINTS = [
 const MARK_TINTS = [{ tint: '--accent', alpha: 10, text: ['--accent'] }];
 
 const TINT_PAIRS = [
-  ...TINTS.flatMap(({ tint, alpha, text }) =>
+  ...TINTS.flatMap(({ tint, alpha, text, over: backdrops = TINT_BACKDROPS }) =>
     text.flatMap((t) =>
-      TINT_BACKDROPS.map((over) => ({ text: t, surface: tint, tint: alpha, over, min: AA_NORMAL })),
+      backdrops.map((over) => ({ text: t, surface: tint, tint: alpha, over, min: AA_NORMAL })),
     ),
   ),
   ...MARK_TINTS.flatMap(({ tint, alpha, text }) =>
@@ -258,7 +270,19 @@ const TINT_PAIRS = [
   ),
 ];
 
-const ALL_PAIRS = [...PAIRS, ...NON_TEXT_PAIRS, ...MARK_PAIRS, ...TINT_PAIRS];
+const ALL_PAIRS = [
+  ...PAIRS,
+  ...NON_TEXT_PAIRS,
+  ...MARK_PAIRS,
+  ...TINT_PAIRS,
+  // The default variant's accent chip; the other variants run below.
+  ...CHIP_BACKDROPS.map((over) => ({
+    text: '--accent-500',
+    surface: '--accent-soft',
+    over,
+    min: AA_NORMAL,
+  })),
+];
 
 /**
  * The live accent, per theme AND per accent variant.
@@ -279,6 +303,14 @@ const ACCENT_PAIRS = [
   // default ultramarine while its rules and fills turned violet, so the variant
   // blocks declare both and this pair is what proves they did.
   ...SURFACES.map((surface) => ({ text: '--accent-500', surface, min: AA_NORMAL })),
+  // The accent chip (the risk drawer's phase pill, #793): the text step on the
+  // --accent-soft tint, wherever the chip can land.
+  ...CHIP_BACKDROPS.map((over) => ({
+    text: '--accent-500',
+    surface: '--accent-soft',
+    over,
+    min: AA_NORMAL,
+  })),
 ];
 
 const css = readFileSync(TOKENS, 'utf8');
@@ -319,6 +351,9 @@ for (const [themeName, scope] of Object.entries(themes)) {
     if (tint) {
       const backdrop = flatten(parseColor(resolveVar(scope[over], scope)), pageBg);
       bg = flatten([...bgRaw.slice(0, 3), tint / 100], backdrop);
+    } else if (over) {
+      // A translucent token (an rgba tint) drawn on a named surface.
+      bg = flatten(bgRaw, flatten(parseColor(resolveVar(scope[over], scope)), pageBg));
     } else {
       bg = flatten(bgRaw, pageBg);
     }
@@ -344,7 +379,7 @@ for (const [themeName, themeScope] of Object.entries(themes)) {
         : `:root[data-variant='${variant}']`;
     const scope = { ...themeScope, ...parseBlock(css, selector) };
 
-    for (const { text, surface, min } of ACCENT_PAIRS) {
+    for (const { text, surface, min, over } of ACCENT_PAIRS) {
       const fg = parseColor(resolveVar(scope[text], scope));
       const bgRaw = parseColor(resolveVar(scope[surface], scope));
       if (!fg || !bgRaw) {
@@ -353,13 +388,14 @@ for (const [themeName, themeScope] of Object.entries(themes)) {
         continue;
       }
       const pageBg = parseColor(resolveVar(scope['--surface-0'], scope));
-      const bg = flatten(bgRaw, pageBg);
+      const backdrop = over ? flatten(parseColor(resolveVar(scope[over], scope)), pageBg) : pageBg;
+      const bg = flatten(bgRaw, backdrop);
       const ratio = contrast(flatten(fg, bg), bg);
       checked++;
       if (ratio < min) {
         failures++;
         console.log(
-          `  FAIL ${text} (${variant}) on ${surface} in ${themeName}: ` +
+          `  FAIL ${text} (${variant}) on ${surface}${over ? ` over ${over}` : ''} in ${themeName}: ` +
             `${ratio.toFixed(2)}:1 (needs ${min}:1)`,
         );
       }

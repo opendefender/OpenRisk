@@ -1744,7 +1744,9 @@ function DrawerSmart({ r }: { r: UiRisk }) {
 /** State pill for the register row, from the single canonical lifecycle. */
 function PhasePill({ phase, lang }: { phase: RiskPhase; lang: LocaleCode }) {
   const closed = phase === 'closed';
-  const col = closed ? 'var(--fg-secondary)' : 'var(--accent)';
+  // The text step on the accent's own tint: --accent is the mark step and
+  // measured 4.43:1 here on the azure variant (#793).
+  const col = closed ? 'var(--fg-secondary)' : 'var(--accent-500)';
   const labels: Record<RiskPhase, [string, string]> = {
     identified: ['Identifié', 'Identified'],
     analyzed: ['Évalué', 'Assessed'],
@@ -1756,7 +1758,7 @@ function PhasePill({ phase, lang }: { phase: RiskPhase; lang: LocaleCode }) {
   return (
     <span
       className="inline-flex items-center gap-1.5 h-[22px] px-2.5 rounded-full text-[11.5px] font-semibold"
-      style={{ color: col, background: 'color-mix(in srgb,var(--accent) 12%,transparent)' }}
+      style={{ color: col, background: 'var(--accent-soft)' }}
     >
       <RouteIcon size={12} /> {labels[phase]?.[lang === 'fr' ? 0 : 1] ?? phase}
     </span>
