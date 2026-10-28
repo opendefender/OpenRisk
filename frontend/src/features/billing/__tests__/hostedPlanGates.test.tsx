@@ -21,6 +21,8 @@ type Feat = { enabled: boolean; level: string; required_plan: string };
 const plan = vi.hoisted(() => ({
   features: {} as Record<string, Feat>,
   limits: {} as Record<string, { limit: number; used: number }>,
+  // Bodies for the other routes; anything unlisted answers {}.
+  bodies: {} as Record<string, unknown>,
 }));
 const calls = vi.hoisted(() => [] as string[]);
 
@@ -32,7 +34,7 @@ vi.mock('../../../lib/api', () => {
       return Promise.resolve({
         data: { plan: 'free', features: plan.features, limits: plan.limits },
       });
-    return Promise.resolve({ data: {} });
+    return Promise.resolve({ data: plan.bodies[url] ?? {} });
   };
   return {
     api: {
@@ -48,6 +50,7 @@ vi.mock('../../../lib/api', () => {
 
 import { AutomationPage } from '../../automation/AutomationPage';
 import { FinancialDashboard } from '../../financial/FinancialDashboard';
+import { financialSummary } from '../../financial/__tests__/fixtures';
 import { PlanCapNotice } from '../PlanCapNotice';
 import { planCapErrorMessage } from '../useEntitlements';
 
@@ -82,6 +85,7 @@ beforeEach(() => {
   calls.length = 0;
   plan.features = FREE;
   plan.limits = {};
+  plan.bodies = {};
   window.history.replaceState(null, '', '/');
 });
 
@@ -117,9 +121,13 @@ describe('#783 — the Monte-Carlo portfolio on Free', () => {
 
   it('loads the portfolio on Pro', async () => {
     plan.features = { ...FREE, financial_quantification: on('on', 'free') };
+    plan.bodies = { '/analytics/financial': financialSummary() };
     renderIt(<FinancialDashboard />);
 
-    await waitFor(() => expect(calls).toContain('/analytics/financial'));
+    // The page renders the portfolio, so a crash in it fails here (#1140).
+    expect(await screen.findByTestId('fin-kpi-inherent-value')).toHaveTextContent('117,2');
+    expect(screen.getByTestId('fin-methodology')).toBeInTheDocument();
+    expect(calls).toContain('/analytics/financial');
     expect(screen.queryByText(/Passer au plan/)).not.toBeInTheDocument();
   });
 });
