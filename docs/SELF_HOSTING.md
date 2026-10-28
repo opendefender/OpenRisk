@@ -262,7 +262,8 @@ requests are deleted, and from then on every hour. This cannot be undone. If
 you must keep those hashes, back up the database before upgrading.
 
 With Helm, pass it as `--set secrets.inline.auditHashKey=...` (or in your
-values file).
+values file). The chart stores it in the `openrisk-secrets` Secret, and the
+render fails without it, so `helm upgrade` stops before any pod restarts.
 
 The MFA key goes the same way: `secrets.inline.mfaEncryptionKey`, stored in the
 `openrisk-secrets` Secret rather than in clear in the Deployment (#1057). It is
@@ -270,12 +271,10 @@ required (#1062): the render fails without it, and the backend refuses to boot
 in production without it or with the public development value. If you never
 set one, set any new random secret: at boot, two-factor secrets that were
 encrypted with the development key are re-encrypted with yours, and nobody has
-to enrol again. A
-values file that still sets `backend.env.MFA_ENCRYPTION_KEY` keeps working, and
-its value moves into the Secret on the next upgrade. Move it to the new place
-with **the same value**: once anyone has enrolled two-factor, a different key
-cannot decrypt their secrets and they are locked out of it. The chart stores it in the `openrisk-secrets` Secret, and the
-render fails without it, so `helm upgrade` stops before any pod restarts.
+to enrol again. A values file that still sets `backend.env.MFA_ENCRYPTION_KEY`
+keeps working, and its value moves into the Secret on the next upgrade. Move it
+to the new place with **the same value**: once anyone has enrolled two-factor, a
+different key cannot decrypt their secrets and they are locked out of it.
 
 `DEVICE_COOKIE_KEY` is optional (Helm: `secrets.inline.deviceCookieKey` and
 `deviceCookiePreviousKey`; compose: `.env`). It signs the cookie that lets a browser
