@@ -82,7 +82,7 @@ jobs:
         run: |
           set -euo pipefail
           for mod in backend agent; do
-            trivy fs --scanners license --format json \
+            trivy fs --scanners license --format json --skip-version-check \
               --output "gate-reports/trivy-licenses-${mod}.json" "$mod"
           done
 
