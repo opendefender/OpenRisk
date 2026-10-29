@@ -140,7 +140,7 @@ Git tags use the `vMAJOR.MINOR.PATCH[-rc.N]` convention; see [docs/VERSIONING.md
   the simulation; the simulation and financial dashboards need Pro. No shipped plan
   grants `basic`, so Free still gets 402.
 - **Notice e-mails queue in an outbox, grouped per item (#997).** Each e-mail is
-  stored and sent by a worker on every replica, retried for about seven hours, then
+  stored and sent by a worker on every replica, retried for about six hours, then
   marked failed and kept for a month; none is dropped once queued. The worker runs
   when an SMTP transport is configured. Later
   notices on the same item within the window join one digest that ends on the item's
@@ -153,7 +153,7 @@ Git tags use the `vMAJOR.MINOR.PATCH[-rc.N]` convention; see [docs/VERSIONING.md
 - **A licence gate (#457, #774).** Every npm tree and Go module is checked against
   `security/license-policy.yaml`; the build fails on a licence outside it.
 - **An API contract gate (#814, #1120).** `docs/openapi.yaml` is linted, the frontend
-  types must match it, and a registered route missing from it fails the build. The
+  types must match it, and a registered route missing from it fails the build.
   Every `/auth` route is now documented (22 added); 310 routes remain on a frozen
   baseline.
 
