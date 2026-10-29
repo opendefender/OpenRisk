@@ -21,11 +21,10 @@ binary gets hosted behaviour until they set the variable.
 - Either way, the Helm chart (`helm/openrisk`) should expose the value; it does
   not yet, because which values file the SaaS uses is not in the repo.
 
-**Also found live (#612)** — on Postgres, a newly registered organisation is not
-Free: `organizations.plan` defaults to `'starter'` (`backend/internal/domain/organization.go:47`)
-and `ParsePlan` reads it as legacy Pro. Hosted sign-ups therefore land on Pro
-caps with no subscription. That is the hosted matrix (#415 / #783), outside
-#612's scope; it needs its own issue before the D-078 caps re-land.
+**Settled in #612 (owner, 2026-10-29)** — `organizations.plan` defaulted to
+`'starter'`, read as legacy Pro, so every new organisation got Pro caps. New
+organisations are now Free, and every existing `'starter'` row moves to Free
+(`migrations/0082`, plus the boot backfill), since there are no customers yet.
 
 **Cost of delay** — none for #612: A is safe and reversible by changing the
 empty case in `ParseDeployment`. It matters before the D-078 caps re-land, since
