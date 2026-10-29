@@ -221,6 +221,24 @@ const (
 	ScanTimeout   ScanJobStatus = "timeout"   // exceeded the hard deadline
 )
 
+// ScanType is what an agent scan looks for (#1164). Cloud and API providers
+// have no choice to make: what they collect is set by the provider.
+type ScanType string
+
+const (
+	// ScanDiscovery is a fast network discovery: live hosts and service
+	// versions, no vulnerability scripts.
+	ScanDiscovery ScanType = "discovery"
+	// ScanVulnerability is the full scan (nmap --script vuln). It is the
+	// default, and what scheduled scans and older agents run.
+	ScanVulnerability ScanType = "vulnerability"
+)
+
+// Valid reports whether the scan type is one of the known constants.
+func (t ScanType) Valid() bool {
+	return t == ScanDiscovery || t == ScanVulnerability
+}
+
 // ScanJob is a single scan run for a ScanConfig. It is the coordination record
 // between the SaaS and the runner (cloud worker or on-prem agent). The job NEVER
 // persists assets/risks itself — on completion it points at a Redis preview key.
@@ -230,6 +248,10 @@ type ScanJob struct {
 	ConfigID uuid.UUID       `gorm:"type:uuid;not null;index" json:"config_id"`
 	Provider ScannerProvider `gorm:"size:20;not null" json:"provider"`
 	Status   ScanJobStatus   `gorm:"size:20;not null;default:'queued';index" json:"status"`
+
+	// ScanType is what the agent was asked to run. Rows from before #1164
+	// read as vulnerability, which is what every scan ran then.
+	ScanType ScanType `gorm:"size:16;not null;default:'vulnerability'" json:"scan_type"`
 
 	// Targets is a frozen snapshot of the config's targets at trigger time, so an
 	// agent runs exactly what was queued even if the config later changes.

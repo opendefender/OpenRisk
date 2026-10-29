@@ -51,7 +51,26 @@ func PrepareForAutoMigrate(db *gorm.DB) error {
 	if err := prepareMitigationOverdueReminder(db); err != nil {
 		return fmt.Errorf("mitigations: %w", err)
 	}
+	if err := prepareScanJobType(db); err != nil {
+		return fmt.Errorf("scan_jobs: %w", err)
+	}
 	return nil
+}
+
+// prepareScanJobType adds scan_jobs.scan_type (#1164) with its default, so
+// every job from before scan types existed reads as a vulnerability scan,
+// which is what it ran. AutoMigrate would add the same column, but the
+// default is the backfill and is stated here, next to migrations/0082, rather
+// than left to a model tag. Idempotent; a no-op outside Postgres and on a
+// fresh database.
+func prepareScanJobType(db *gorm.DB) error {
+	if db.Dialector.Name() != "postgres" {
+		return nil
+	}
+	if !db.Migrator().HasTable("scan_jobs") {
+		return nil
+	}
+	return db.Exec(`ALTER TABLE scan_jobs ADD COLUMN IF NOT EXISTS scan_type VARCHAR(16) NOT NULL DEFAULT 'vulnerability'`).Error
 }
 
 // prepareMitigationOverdueReminder adds the "deadline passed" stamp (#757) and
