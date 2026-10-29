@@ -52,7 +52,8 @@ import { useChannelConfig } from '../automation/useAutomation';
 import { useVulnIntegrations, useVulnTicketing } from '../vulnerabilities/useVulnIntegrations';
 import { PersonalizeCard } from '../onboarding/PersonalizeCard';
 import { BillingPanel, TelemetryCard } from '../billing/BillingPanel';
-import { useIsSelfHosted } from '../billing/useEntitlements';
+import { useEntitlements, useIsSelfHosted } from '../billing/useEntitlements';
+import { planDisplayName } from '../../components/layout/planNames';
 import { settingsTabShown, settingsTabVisible } from './settingsTabs';
 import { DangerZonePanel } from '../billing/DangerZonePanel';
 import { useOrganization } from '../organization/useOrganization';
@@ -478,6 +479,9 @@ function OrgsTab({ tr }: { tr: Tr }) {
 function GeneralTab({ tr }: { tr: Tr }) {
   const lang = useUIStore((s) => s.lang);
   const { data: org, isLoading, isError, refetch } = useOrganization();
+  // The plan the tenant actually gets (#612): on a self-hosted instance the
+  // stored column says "free" while every organisation is Self-hosted.
+  const { data: ent } = useEntitlements();
 
   if (isLoading) {
     return (
@@ -525,7 +529,10 @@ function GeneralTab({ tr }: { tr: Tr }) {
           className="grid gap-x-6 gap-y-[14px] mb-5"
           style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))' }}
         >
-          <ReadOnly label={tr('Plan', 'Plan')} value={org.plan} />
+          <ReadOnly
+            label={tr('Plan', 'Plan')}
+            value={(ent && planDisplayName(ent.plan)) ?? org.plan}
+          />
           <ReadOnly
             label={tr('Statut', 'Status')}
             value={org.is_active ? tr('Active', 'Active') : tr('Suspendue', 'Suspended')}
