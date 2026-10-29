@@ -105,7 +105,7 @@ instance then resolves to the **Self-hosted** set (decision D-040): no caps on
 users, risks, assets or integrations, and every capability that runs on your own
 hardware. The variable is a property of the deployment; no organisation, plan
 row or subscription can set it. An unknown value stops the backend at boot
-rather than silently falling back to Free. Without the variable the backend
+rather than silently running as the hosted service. Without the variable the backend
 behaves as the hosted service, where each organisation resolves by its plan.
 The resolution happens in
 [`backend/pkg/entitlements/entitlements.go`](../backend/pkg/entitlements/entitlements.go)
@@ -142,7 +142,7 @@ the code ever disagree. It is not a marketing table; it is the code.
 | SLA | — | — | — | 99.5% | 99.9% |
 | Support | community | community | email | priority | dedicated |
 
-With `OPENRISK_DEPLOYMENT=self_hosted`, every organisation of the instance resolves to **Self-hosted**: unlimited users, unlimited risks, unlimited assets, unlimited integrations, whatever plan its row stores. Without the variable the instance behaves as the hosted service and a new organisation resolves to **Free** (2 users, 50 risks).
+With `OPENRISK_DEPLOYMENT=self_hosted`, every organisation of the instance resolves to **Self-hosted**: unlimited users, unlimited risks, unlimited assets, unlimited integrations, whatever plan its row stores. Without the variable the instance behaves as the hosted service: each organisation resolves by its subscription, or by the plan its row stores.
 
 <!-- END GENERATED: entitlements matrix -->
 
