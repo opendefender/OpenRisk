@@ -215,8 +215,10 @@ type PlanEntitlements struct {
 // uncapped: each feature at the deepest level any hosted plan grants. The AI
 // advisor is on because it runs on the operator's own ANTHROPIC_API_KEY, or on
 // the no-LLM template fallback without one. SLA and beyond-community support are
-// services the owner renders, so they stay off. SSO stays off like everywhere
-// else until #1045; the superset test makes it follow when a plan grants it.
+// services the owner renders, so they stay off. SSO is on: the operator turns
+// it on and configures it with the OAUTH2_* variables of their own deployment
+// (Google, GitHub, Microsoft Entra; internal/handler/oauth2_handler.go). SAML is
+// still refused for everyone (#866) until #1045.
 var matrix = map[Plan]PlanEntitlements{
 	PlanFree: {
 		Plan:   PlanFree,
@@ -299,6 +301,7 @@ var matrix = map[Plan]PlanEntitlements{
 			FeatCTI:                LevelAdvanced,
 			FeatGovernance:         LevelAdvanced,
 			FeatVendorRisk:         LevelOn,
+			FeatSSO:                LevelOn,
 			FeatSupport:            LevelCommunity,
 		},
 	},

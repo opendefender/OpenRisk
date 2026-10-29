@@ -53,7 +53,7 @@ var featureLabels = map[Feature]string{
 	FeatAutomation:         "Automation rules",
 	FeatAIAdvisor:          "AI advisor",
 	FeatCompliance:         "Compliance frameworks",
-	FeatSSO:                "SSO (SAML / OIDC)",
+	FeatSSO:                "SSO (Google, GitHub, Microsoft Entra; SAML from #1045)",
 	FeatMultiTenant:        "Multi-tenant",
 	FeatOnPremise:          "On-premise entitlement",
 	FeatFinancialQuant:     "Financial quantification",
