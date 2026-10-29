@@ -296,15 +296,16 @@ export function jobStatusColor(s: ScanJobStatus): string {
 export function agentStatusColor(s: AgentStatus): string {
   switch (s) {
     case 'online':
-      return 'var(--low)';
+      return 'var(--success)';
     case 'scanning':
       return 'var(--info)';
     case 'error':
       return 'var(--critical)';
-    case 'revoked':
-      return 'var(--fg-muted)';
+    case 'offline':
+      // An agent that stopped reporting needs a look, as in the design.
+      return 'var(--warning)';
     default:
-      return 'var(--fg-muted)'; // offline
+      return 'var(--fg-muted)'; // revoked
   }
 }
 
@@ -359,4 +360,24 @@ export function timeAgo(iso: string | null | undefined, lang: LocaleCode): strin
   if (secs < 3600) return fmt(Math.floor(secs / 60), 'm');
   if (secs < 86400) return fmt(Math.floor(secs / 3600), 'h');
   return fmt(Math.floor(secs / 86400), 'd');
+}
+
+// The scan card's "Type" picks a family of configurations. A configuration
+// fixes what a scan does, so the family is read off its provider: there is no
+// separate scan type in the API.
+export type ScanFamily = 'network' | 'cloud' | 'discovery';
+
+export function scanFamily(p: ScannerProvider): ScanFamily {
+  if (p === 'nmap' || p === 'agent') return 'network';
+  if (p === 'aws' || p === 'azure' || p === 'gcp') return 'cloud';
+  return 'discovery';
+}
+
+// Scan jobs report a status, not a percentage. A queued job is at 0 and a
+// finished one at 100; in between the bar is indeterminate (null) rather than
+// a made-up figure.
+export function jobProgress(s: ScanJobStatus): number | null {
+  if (s === 'queued') return 0;
+  if (s === 'claimed' || s === 'running') return null;
+  return 100;
 }
