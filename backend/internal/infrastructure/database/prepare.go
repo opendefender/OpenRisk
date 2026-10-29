@@ -51,7 +51,23 @@ func PrepareForAutoMigrate(db *gorm.DB) error {
 	if err := prepareMitigationOverdueReminder(db); err != nil {
 		return fmt.Errorf("mitigations: %w", err)
 	}
+	if err := retireStarterPlan(db); err != nil {
+		return fmt.Errorf("organizations: %w", err)
+	}
 	return nil
+}
+
+// retireStarterPlan moves every organisation still on the legacy 'starter'
+// plan to Free (#612). 'starter' was the column default, and the resolver reads
+// it as Pro, so organisations created without a plan got Pro caps for free. No
+// customer holds it on purpose (owner, 2026-10-29). Mirrors migrations/0082 for
+// deployments that skip the SQL layer; AutoMigrate changes the column default.
+// Idempotent, and a no-op on a fresh database.
+func retireStarterPlan(db *gorm.DB) error {
+	if !db.Migrator().HasTable("organizations") {
+		return nil
+	}
+	return db.Exec("UPDATE organizations SET plan = 'free' WHERE plan = 'starter'").Error
 }
 
 // prepareMitigationOverdueReminder adds the "deadline passed" stamp (#757) and
