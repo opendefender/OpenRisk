@@ -3,7 +3,7 @@
 // This program is free software: you can redistribute it and/or modify it under
 // the terms of the GNU Affero General Public License v3.0 (see LICENSE).
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, dialogMotion, motion } from '../../shared/motion';
 import { useForm } from 'react-hook-form';
@@ -14,9 +14,8 @@ import { toast } from 'sonner';
 import { useNavigate } from 'react-router';
 import { mitigationService } from '../../services/mitigationService';
 import type { Mitigation } from '../../types/mitigation';
-import { Button, Field, Input } from '../../shared/ds';
+import { Button, Field, Input, useDismissableLayer } from '../../shared/ds';
 import { useI18n } from '../../hooks/useI18n';
-import { useEscapeToClose } from '../../shared/useBackTo';
 
 const createMitigationSchema = z.object({
   title: z.string().min(3, 'Le titre doit comporter au moins 3 caractères'),
@@ -41,8 +40,10 @@ export const CreateMitigationModal = ({
   onCreated,
   riskId,
 }: CreateMitigationModalProps) => {
-  // Esc closes this overlay (spec §2).
-  useEscapeToClose(isOpen, onClose);
+  // Esc closes this overlay (spec §2). The shared layer stack also traps Tab
+  // and returns focus, and keeps the risk drawer below it open on Escape.
+  const panelRef = useRef<HTMLDivElement>(null);
+  useDismissableLayer(panelRef, { open: isOpen, onClose });
   const { t } = useI18n();
 
   const {
@@ -129,6 +130,7 @@ export const CreateMitigationModal = ({
             {/* Announced as a dialog and named by its heading; the board behind
                 it stays in the accessibility tree otherwise. */}
             <div
+              ref={panelRef}
               role="dialog"
               aria-modal="true"
               aria-labelledby="create-mitigation-title"

@@ -64,11 +64,21 @@ const ALLOWED = {
     '--graph-node-stroke':
       'Resolves to --border-control: same role (a structural line that has to be ' +
       'seen), same bar, one value to keep in step.',
+    '--risk-critical':
+      'Canonical #ff453a measures 4.23:1 as the CritBadge label on its own 15% ' +
+      'chip over a modal (--surface-2). Lifted to clear 4.5:1 there. #793. ' +
+      'Asserted by check-contrast.mjs.',
   },
   ":root[data-theme='light']": {
     '--border-control': 'See the dark block: 2.92:1 against --surface-3.',
     '--graph-edge': 'See the dark block.',
     '--graph-node-stroke': 'See the dark block.',
+    '--risk-low':
+      'Canonical #1a7f3c measures 3.55:1 as the CritBadge label on its own 15% ' +
+      'chip in the risk drawer (--surface-sunken). Darkened to clear 4.5:1 on ' +
+      'every surface the chip lands on. #793. Asserted by check-contrast.mjs.',
+    '--risk-high': 'See --risk-low: canonical #9a5b00 measured 3.79:1; axe caught it.',
+    '--risk-critical': 'See --risk-low: canonical #c81e14 measured 3.84:1.',
   },
 };
 

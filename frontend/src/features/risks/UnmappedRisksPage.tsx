@@ -182,7 +182,7 @@ function InlineMapper({ riskId, onDone }: { riskId: string; onDone: () => void }
           onClick={save}
           disabled={drafts.length === 0 || create.isPending}
           className="inline-flex items-center gap-1.5 rounded-full px-3.5 py-2 text-[12.5px] font-semibold disabled:opacity-50"
-          style={{ background: 'var(--accent)', color: 'var(--on-accent, var(--fg-primary))' }}
+          style={{ background: 'var(--accent-solid)', color: 'var(--fg-on-solid)' }}
         >
           {create.isPending ? (
             <Loader2 size={13} className="animate-spin" />

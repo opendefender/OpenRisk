@@ -13,7 +13,7 @@
 // is unchanged.
 
 import { useFormat, usePreferredDate } from '../../hooks/useI18n';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
@@ -66,7 +66,13 @@ import {
   type Facet,
   type RowAction,
 } from '../../shared/datatable';
-import { RiskMatrix, TabPanel, Tabs, type MatrixBucket } from '../../shared/ds';
+import {
+  RiskMatrix,
+  TabPanel,
+  Tabs,
+  useDismissableLayer,
+  type MatrixBucket,
+} from '../../shared/ds';
 import { critColor } from '../../shared/riskColors';
 import type { Criticality } from '../../shared/riskColors';
 import { ImpactDialog } from '../../shared/ImpactDialog';
@@ -1384,6 +1390,10 @@ function RiskDrawer({
   // Editing is offered only to a member who may update the risk (#739); the
   // ownership pickers below already follow the same permission.
   const canUpdate = useAuthStore((s) => s.hasPermission('risks:update'));
+  // Escape closes, focus moves in on open and back to the row on close, and
+  // Tab stays inside, as for every shared overlay.
+  const panelRef = useRef<HTMLDivElement>(null);
+  useDismissableLayer(panelRef, { open: true, onClose });
   const tabDef: [typeof tab, string][] = [
     ['details', L.tab_details],
     ['lifecycle', tr('Cycle de vie', 'Lifecycle')],
@@ -1413,6 +1423,7 @@ function RiskDrawer({
       onClick={onClose}
     >
       <div
+        ref={panelRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby="risk-drawer-title"
@@ -1629,8 +1640,8 @@ function DrawerDetails({ r, onCreateMiti }: { r: UiRisk; onCreateMiti: () => voi
                 onClick={addMappings}
                 className="mt-2 rounded-full px-3 py-1.5 text-[12px] font-semibold"
                 style={{
-                  background: 'var(--accent)',
-                  color: 'var(--on-accent, var(--fg-primary))',
+                  background: 'var(--accent-solid)',
+                  color: 'var(--fg-on-solid)',
                 }}
               >
                 {tr('Rattacher', 'Map')}
@@ -1733,7 +1744,9 @@ function DrawerSmart({ r }: { r: UiRisk }) {
 /** State pill for the register row, from the single canonical lifecycle. */
 function PhasePill({ phase, lang }: { phase: RiskPhase; lang: LocaleCode }) {
   const closed = phase === 'closed';
-  const col = closed ? 'var(--fg-secondary)' : 'var(--accent)';
+  // The text step on the accent's own tint: --accent is the mark step and
+  // measured 4.43:1 here on the azure variant (#793).
+  const col = closed ? 'var(--fg-secondary)' : 'var(--accent-500)';
   const labels: Record<RiskPhase, [string, string]> = {
     identified: ['Identifié', 'Identified'],
     analyzed: ['Évalué', 'Assessed'],
@@ -1745,7 +1758,7 @@ function PhasePill({ phase, lang }: { phase: RiskPhase; lang: LocaleCode }) {
   return (
     <span
       className="inline-flex items-center gap-1.5 h-[22px] px-2.5 rounded-full text-[11.5px] font-semibold"
-      style={{ color: col, background: 'color-mix(in srgb,var(--accent) 12%,transparent)' }}
+      style={{ color: col, background: 'var(--accent-soft)' }}
     >
       <RouteIcon size={12} /> {labels[phase]?.[lang === 'fr' ? 0 : 1] ?? phase}
     </span>
