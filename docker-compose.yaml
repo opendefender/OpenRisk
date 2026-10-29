@@ -103,6 +103,8 @@ services:
       REDIS_PORT: 6379
       # Environment
       APP_ENV: ${APP_ENV:-development}
+      # Local dev is a self-hosted instance (#612). Set hosted to try the SaaS plans.
+      OPENRISK_DEPLOYMENT: ${OPENRISK_DEPLOYMENT:-self_hosted}
     ports:
       - "8080:8080"
     volumes:
