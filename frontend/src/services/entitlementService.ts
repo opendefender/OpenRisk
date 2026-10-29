@@ -8,6 +8,9 @@ import { api } from '../lib/api';
 // Mirror of the backend open-core matrix. The frontend NEVER grants — it only
 // greys and explains from this snapshot; the backend enforces on write.
 export type PlanKey = 'free' | 'pro' | 'business' | 'enterprise';
+// What a tenant resolves to: a hosted plan, or the self-hosted set every tenant
+// of a self-hosted deployment gets (#612). Nobody buys 'self_hosted'.
+export type ResolvedPlanKey = PlanKey | 'self_hosted';
 export type RegionKey = 'eu' | 'africa';
 
 export interface FeatureEntitlement {
@@ -35,7 +38,7 @@ export interface TrialInfo {
 }
 
 export interface Entitlements {
-  plan: PlanKey;
+  plan: ResolvedPlanKey;
   region: RegionKey;
   features: Record<string, FeatureEntitlement>;
   limits: Record<string, LimitEntitlement>;
