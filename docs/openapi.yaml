@@ -39,6 +39,8 @@ tags:
     description: Gamification and user profiles
   - name: Saved Views
     description: Named filter/sort/column views of a register (#580)
+  - name: Scanner
+    description: Scan configurations and scan jobs (cloud, API and on-prem agent scans)
 
 paths:
   /health:
@@ -4989,6 +4991,92 @@ paths:
         '404':
           description: No such view for this tenant.
 
+  /scanner/configs/{id}/scan:
+    post:
+      tags:
+        - Scanner
+      summary: Trigger a scan for a configuration
+      description: >
+        Queues a scan job. An agent configuration (provider nmap or agent) is
+        dispatched to the tenant's on-prem agents; any other provider runs in
+        the SaaS worker. The body is optional. Without one the scan is a
+        vulnerability scan, which is also what scheduled scans run (#1164).
+        `scan_type` is only accepted for agent configurations: what a cloud or
+        API provider collects is set by the provider, and sending a type for
+        one is refused.
+      operationId: triggerScan
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                scan_type:
+                  $ref: '#/components/schemas/ScanType'
+      responses:
+        '202':
+          description: The queued job
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScanJob'
+        '400':
+          description: >-
+            Invalid id or body, an unknown scan_type, a scan_type sent for a
+            cloud or API configuration, or a disabled configuration
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+        '403':
+          description: The caller lacks the scanner:scan permission
+        '404':
+          description: Configuration not found in the caller's tenant
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: A scan is already running for this configuration, or the tenant's concurrent-scan cap is reached
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /scanner/jobs:
+    get:
+      tags:
+        - Scanner
+      summary: List the tenant's scan jobs
+      operationId: listScanJobs
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: The tenant's scan jobs, newest first
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ScanJob'
+        '401':
+          description: Unauthorized
+        '403':
+          description: The caller lacks the scanner:read permission
+
 # ==================== COMPONENTS ====================
 components:
   securitySchemes:
@@ -7907,6 +7995,43 @@ components:
           items:
             type: string
             enum: [audit, risk_history, incident_timeline, asset_snapshot]
+    # ========== SCANNER (#1164) ==========
+    ScanType:
+      type: string
+      enum: [discovery, vulnerability]
+      description: >-
+        What an agent scan looks for. discovery finds live hosts and their
+        service versions; vulnerability also runs the nmap vulnerability
+        scripts. Jobs from before scan types existed read as vulnerability.
+    ScanJob:
+      type: object
+      required: [id, tenant_id, config_id, provider, status, scan_type, targets, assets_found, findings_found, triggered_by, created_at, updated_at]
+      properties:
+        id: { type: string, format: uuid }
+        tenant_id: { type: string, format: uuid }
+        config_id: { type: string, format: uuid }
+        provider:
+          type: string
+          description: The configuration's provider (aws, azure, gcp, nmap, agent, kubernetes, github, ...).
+        status:
+          type: string
+          enum: [queued, claimed, running, completed, failed, timeout]
+        scan_type:
+          $ref: '#/components/schemas/ScanType'
+        targets:
+          type: array
+          items: { type: string }
+        claimed_by_agent: { type: string, format: uuid }
+        preview_key: { type: string }
+        assets_found: { type: integer }
+        findings_found: { type: integer }
+        error: { type: string }
+        triggered_by: { type: string, format: uuid }
+        started_at: { type: string, format: date-time }
+        completed_at: { type: string, format: date-time }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
     ErrorResponse:
       type: object
       properties:
