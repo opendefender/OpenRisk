@@ -104,6 +104,8 @@ OAUTH2_GITHUB_REDIRECT_URI=https://openrisk.yourdomain.com/api/auth/oauth2/githu
 
 # Microsoft Azure AD
 OAUTH2_AZURE_ENABLED=true
+# Required: your directory's tenant ID or domain. Empty, common, organizations
+# and consumers leave Microsoft sign-in disabled (provider_not_configured).
 OAUTH2_AZURE_TENANT_ID=your-tenant-id
 OAUTH2_AZURE_CLIENT_ID=your-client-id
 OAUTH2_AZURE_CLIENT_SECRET=your-client-secret

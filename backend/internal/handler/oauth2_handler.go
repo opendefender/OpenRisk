@@ -21,6 +21,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/utils"
 	"github.com/google/uuid"
+	"github.com/rs/zerolog/log"
 
 	appauth "github.com/opendefender/openrisk/internal/application/auth"
 	coreauth "github.com/opendefender/openrisk/internal/auth"
@@ -168,16 +169,7 @@ func InitializeOAuth2() *OAuth2Config {
 			},
 			Endpoint: github.Endpoint,
 		},
-		AzureConfig: &oauth2.Config{
-			ClientID:     os.Getenv("OAUTH2_AZURE_CLIENT_ID"),
-			ClientSecret: os.Getenv("OAUTH2_AZURE_CLIENT_SECRET"),
-			RedirectURL:  redirectURI + "/azure",
-			// Microsoft Graph delegated scopes. ".default" asks for whatever the
-			// app registration was granted, which for a sign-in app is not
-			// guaranteed to include the profile — name these explicitly instead.
-			Scopes:   []string{"openid", "profile", "email", "User.Read"},
-			Endpoint: microsoft.AzureADEndpoint(os.Getenv("OAUTH2_AZURE_TENANT_ID")),
-		},
+		AzureConfig: azureConfig(redirectURI),
 	}
 
 	oauth2Config = cfg
@@ -202,6 +194,47 @@ type OAuth2UserInfo struct {
 	Picture       string
 	Provider      string
 	Groups        []string
+}
+
+// azureConfig builds the Microsoft sign-in configuration, pinned to one
+// directory (#1153).
+//
+// Without a specific tenant the endpoint is the multi-tenant one, and any Entra
+// directory can sign in, including one whose administrator set `mail` on their
+// own user to someone else's address. The address is only as trustworthy as the
+// directory it comes from, so Microsoft sign-in stays unconfigured (empty client
+// ID, answered with provider_not_configured) until the operator names theirs.
+func azureConfig(redirectURI string) *oauth2.Config {
+	clientID := os.Getenv("OAUTH2_AZURE_CLIENT_ID")
+	tenant := strings.TrimSpace(os.Getenv("OAUTH2_AZURE_TENANT_ID"))
+	if !isSpecificAzureTenant(tenant) {
+		if clientID != "" {
+			log.Warn().Str("provider", "azure").
+				Msg("Microsoft sign-in is disabled: set OAUTH2_AZURE_TENANT_ID to your directory's tenant ID")
+		}
+		clientID = ""
+	}
+	return &oauth2.Config{
+		ClientID:     clientID,
+		ClientSecret: os.Getenv("OAUTH2_AZURE_CLIENT_SECRET"),
+		RedirectURL:  redirectURI + "/azure",
+		// Microsoft Graph delegated scopes. ".default" asks for whatever the
+		// app registration was granted, which for a sign-in app is not
+		// guaranteed to include the profile — name these explicitly instead.
+		Scopes:   []string{"openid", "profile", "email", "User.Read"},
+		Endpoint: microsoft.AzureADEndpoint(tenant),
+	}
+}
+
+// isSpecificAzureTenant reports whether tenant names one directory. The empty
+// value falls back to "common"; "common", "organizations" and "consumers" all
+// admit accounts from directories the operator does not control.
+func isSpecificAzureTenant(tenant string) bool {
+	switch strings.ToLower(tenant) {
+	case "", "common", "organizations", "consumers":
+		return false
+	}
+	return true
 }
 
 func providerConfig(provider string) *oauth2.Config {
@@ -616,9 +649,9 @@ func getAzureUserInfo(ctx context.Context, token *oauth2.Token) (*OAuth2UserInfo
 	return &OAuth2UserInfo{
 		ID:    data.ID,
 		Email: email,
-		// Entra ID only issues these for addresses in a verified tenant domain;
-		// the directory is the authority, so a successful Graph call for a member
-		// account is the verification.
+		// Neither attribute is verified by Microsoft: a directory administrator
+		// can set `mail` to any address. The address is trusted only because
+		// azureConfig pins sign-in to the operator's own directory (#1153).
 		EmailVerified: email != "",
 		Name:          data.DisplayName,
 	}, nil
