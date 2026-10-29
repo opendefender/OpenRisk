@@ -220,7 +220,9 @@ forged request cannot use up the real user's flow.
 
 #### Enterprise SSO Setup
 
-See: [SAML2 Configuration Guide](./SAML2_SETUP.md)
+SAML2 is turned off (see above). Its return on a library that verifies signed
+assertions is tracked in #1045.
+For OAuth2 providers, see the [SSO integration guide](./SAML_OAUTH2_INTEGRATION.md).
 
 ---
 
