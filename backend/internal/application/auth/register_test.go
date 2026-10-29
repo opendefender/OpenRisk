@@ -138,6 +138,8 @@ func TestRegister_Success(t *testing.T) {
 	assert.Equal(t, accounts.user.ID, accounts.member.UserID)
 	assert.Equal(t, domain.RoleRoot, accounts.member.Role)
 	assert.True(t, accounts.member.IsActive)
+	// #612: a new organisation is Free, never the legacy 'starter' (read as Pro).
+	assert.Equal(t, domain.PlanFree, accounts.org.Plan)
 
 	assert.Equal(t, "karim@alpha.test", out.User.Email)
 	assert.Equal(t, "karim", out.User.Username) // derived from the local part
