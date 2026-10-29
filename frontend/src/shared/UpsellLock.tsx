@@ -38,10 +38,6 @@ export function UpsellLock({
         className="pointer-events-none select-none"
         style={{ filter: 'blur(7px)', opacity: 0.45 }}
         aria-hidden="true"
-        // aria-hidden alone leaves the preview's buttons in the tab order: a
-        // keyboard user would land on controls they cannot see (axe
-        // aria-hidden-focus). inert takes them out of focus and the a11y tree.
-        inert
       >
         {children}
       </div>

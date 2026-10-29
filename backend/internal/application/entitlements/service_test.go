@@ -69,34 +69,33 @@ func TestEffectivePlan_CanceledSubFallsBackToFree(t *testing.T) {
 }
 
 func TestAllowed_FeatureGate(t *testing.T) {
-	// Threat intel keeps its Business gate under D-078.
 	s := NewService(fakeOrg{plan: "free"})
-	ok, _, req, _ := s.Allowed(context.Background(), uuid.New(), ent.FeatCTI)
+	ok, _, req, _ := s.Allowed(context.Background(), uuid.New(), ent.FeatFinancialQuant)
 	if ok {
-		t.Fatal("Free must not be allowed threat intel")
+		t.Fatal("Free must not be allowed financial quant")
 	}
-	if req != ent.PlanBusiness {
-		t.Fatalf("required plan should be business, got %s", req)
+	if req != ent.PlanPro {
+		t.Fatalf("required plan should be pro, got %s", req)
 	}
 
-	s2 := NewService(fakeOrg{plan: "business"})
-	ok2, _, _, _ := s2.Allowed(context.Background(), uuid.New(), ent.FeatCTI)
+	s2 := NewService(fakeOrg{plan: "pro"})
+	ok2, _, _, _ := s2.Allowed(context.Background(), uuid.New(), ent.FeatFinancialQuant)
 	if !ok2 {
-		t.Fatal("Business must be allowed threat intel")
+		t.Fatal("Pro must be allowed financial quant")
 	}
 }
 
 func TestCapacity(t *testing.T) {
-	s := NewService(fakeOrg{plan: "free"}).WithUsage(fakeUsage{ent.LimitRisks: 30})
+	s := NewService(fakeOrg{plan: "free"}).WithUsage(fakeUsage{ent.LimitRisks: 50})
 	ok, limit, used, _, _ := s.Capacity(context.Background(), uuid.New(), ent.LimitRisks)
-	if ok || limit != 30 || used != 30 {
-		t.Fatalf("at 30/30 must refuse; got ok=%v limit=%d used=%d", ok, limit, used)
+	if ok || limit != 50 || used != 50 {
+		t.Fatalf("at 50/50 must refuse; got ok=%v limit=%d used=%d", ok, limit, used)
 	}
 
 	s2 := NewService(fakeOrg{plan: "free"}).WithUsage(fakeUsage{ent.LimitRisks: 10})
 	ok2, _, _, _, _ := s2.Capacity(context.Background(), uuid.New(), ent.LimitRisks)
 	if !ok2 {
-		t.Fatal("10/30 must allow")
+		t.Fatal("10/50 must allow")
 	}
 
 	// Unlimited short-circuits without counting.
@@ -119,14 +118,11 @@ func TestResolve_ListsAllFeaturesAndPrices(t *testing.T) {
 	if !snap.Features[string(ent.FeatFinancialQuant)].Enabled {
 		t.Fatal("pro should enable financial quant")
 	}
-	if snap.Features[string(ent.FeatCTI)].Enabled {
-		t.Fatal("pro should NOT enable threat intel")
+	if snap.Features[string(ent.FeatSSO)].Enabled {
+		t.Fatal("pro should NOT enable SSO")
 	}
-	if snap.Features[string(ent.FeatCTI)].RequiredPlan != string(ent.PlanBusiness) {
-		t.Fatal("threat intel required plan should be business")
-	}
-	if got := snap.Limits[string(ent.LimitFrameworks)]; got.Limit != 3 {
-		t.Fatalf("pro frameworks capped at 3 expected, got %+v", got)
+	if snap.Features[string(ent.FeatSSO)].RequiredPlan != string(ent.PlanBusiness) {
+		t.Fatal("SSO required plan should be business")
 	}
 	if snap.Limits[string(ent.LimitRisks)].Used != 12 || snap.Limits[string(ent.LimitRisks)].Limit != 500 {
 		t.Fatalf("pro risks 12/500 expected, got %+v", snap.Limits[string(ent.LimitRisks)])
@@ -152,9 +148,9 @@ func TestLevel_Success(t *testing.T) {
 	s := NewService(countingOrg{plan: "pro", calls: &calls})
 	tenant := uuid.New()
 
-	lvl, plan, err := s.Level(context.Background(), tenant, ent.FeatAutomation)
-	if err != nil || lvl != ent.LevelOn || plan != ent.PlanPro {
-		t.Fatalf("pro automation: got %q/%s err=%v, want on/pro", lvl, plan, err)
+	lvl, plan, err := s.Level(context.Background(), tenant, ent.FeatCompliance)
+	if err != nil || lvl != ent.LevelStandard || plan != ent.PlanPro {
+		t.Fatalf("pro compliance: got %q/%s err=%v, want standard/pro", lvl, plan, err)
 	}
 	lvl, _, _ = s.Level(context.Background(), tenant, ent.FeatFinancialQuant)
 	if lvl != ent.LevelOn {
@@ -185,36 +181,11 @@ func TestLevel_NotFound(t *testing.T) {
 func TestLevel_Unauthorized(t *testing.T) {
 	// A feature the plan does not grant is LevelOff — below every depth.
 	s := NewService(fakeOrg{plan: "free"})
-	lvl, plan, err := s.Level(context.Background(), uuid.New(), ent.FeatCTI)
+	lvl, plan, err := s.Level(context.Background(), uuid.New(), ent.FeatFinancialQuant)
 	if err != nil || lvl != ent.LevelOff || plan != ent.PlanFree {
-		t.Fatalf("free threat intel: got %q/%s err=%v, want off/free", lvl, plan, err)
+		t.Fatalf("free financial: got %q/%s err=%v, want off/free", lvl, plan, err)
 	}
 	if lvl.AtLeast(ent.LevelBasic) {
 		t.Fatal("off must not reach basic")
-	}
-}
-
-// TestCapacity_FrameworkCapPerPlan pins D-076 through the resolver the
-// middleware calls: each hosted plan admits its last framework and refuses the
-// one after, Enterprise never refuses.
-func TestCapacity_FrameworkCapPerPlan(t *testing.T) {
-	for _, tc := range []struct {
-		plan string
-		cap  int
-	}{{"free", 1}, {"pro", 3}, {"business", 10}} {
-		under := NewService(fakeOrg{plan: tc.plan}).WithUsage(fakeUsage{ent.LimitFrameworks: tc.cap - 1})
-		ok, limit, _, _, err := under.Capacity(context.Background(), uuid.New(), ent.LimitFrameworks)
-		if err != nil || !ok || limit != tc.cap {
-			t.Errorf("%s at %d/%d must admit one more; got ok=%v limit=%d err=%v", tc.plan, tc.cap-1, tc.cap, ok, limit, err)
-		}
-		at := NewService(fakeOrg{plan: tc.plan}).WithUsage(fakeUsage{ent.LimitFrameworks: tc.cap})
-		ok, limit, used, _, err := at.Capacity(context.Background(), uuid.New(), ent.LimitFrameworks)
-		if err != nil || ok || limit != tc.cap || used != tc.cap {
-			t.Errorf("%s at %d/%d must refuse; got ok=%v limit=%d used=%d err=%v", tc.plan, tc.cap, tc.cap, ok, limit, used, err)
-		}
-	}
-	ent500 := NewService(fakeOrg{plan: "enterprise"}).WithUsage(fakeUsage{ent.LimitFrameworks: 500})
-	if ok, limit, _, _, _ := ent500.Capacity(context.Background(), uuid.New(), ent.LimitFrameworks); !ok || limit != ent.Unlimited {
-		t.Errorf("enterprise is uncapped; got ok=%v limit=%d", ok, limit)
 	}
 }

@@ -125,36 +125,9 @@ func NewInternalError(detail string) *AppError {
 	}
 }
 
-// LimitReachedError is a create (or an enable) refused because the tenant's
-// plan cap is reached (D-078). It carries the numbers so the client can say
-// "2/2 rules" and the upgrade, and maps to 402 like the RequireCapacity gate.
-// Use cases return it where a cap must hold on every path, not only one route
-// (a scan started by the scheduler or by an automation rule).
-type LimitReachedError struct {
-	Key   string
-	Limit int
-	Used  int
-}
-
-func (e *LimitReachedError) Error() string {
-	return fmt.Sprintf("plan limit reached: %s (%d/%d)", e.Key, e.Used, e.Limit)
-}
-
-// Is lets errors.Is(err, ErrForbidden) hold: the caller may not do this now.
-func (e *LimitReachedError) Is(target error) bool { return target == ErrForbidden }
-
-// NewLimitReachedError builds the typed refusal for a reached plan cap.
-func NewLimitReachedError(key string, limit, used int) *LimitReachedError {
-	return &LimitReachedError{Key: key, Limit: limit, Used: used}
-}
-
 // HTTPStatusFromError extracts HTTP status code from an error.
 // Returns 500 if the error is not an AppError.
 func HTTPStatusFromError(err error) int {
-	var limitErr *LimitReachedError
-	if errors.As(err, &limitErr) {
-		return http.StatusPaymentRequired
-	}
 	var appErr *AppError
 	if errors.As(err, &appErr) {
 		return appErr.Code
@@ -164,10 +137,6 @@ func HTTPStatusFromError(err error) int {
 
 // MessageFromError extracts the user-facing message from an error.
 func MessageFromError(err error) string {
-	var limitErr *LimitReachedError
-	if errors.As(err, &limitErr) {
-		return "plan limit reached"
-	}
 	var appErr *AppError
 	if errors.As(err, &appErr) {
 		return appErr.Message

@@ -12,7 +12,6 @@ import {
   type SubmitApprovalInput,
   type DecideApprovalInput,
 } from './governanceService';
-import { ENTITLEMENTS_KEY } from '../billing/useEntitlements';
 
 const KEY = ['governance'];
 
@@ -71,11 +70,7 @@ export function useApprovals(params: { status?: string; mine?: boolean } = {}) {
 
 export function useGovernanceMutations() {
   const qc = useQueryClient();
-  // Workflows move the plan's approval-workflow counter (D-078).
-  const invalidate = () => {
-    void qc.invalidateQueries({ queryKey: KEY });
-    void qc.invalidateQueries({ queryKey: ENTITLEMENTS_KEY });
-  };
+  const invalidate = () => qc.invalidateQueries({ queryKey: KEY });
 
   const createDelegation = useMutation({
     mutationFn: (input: CreateDelegationInput) => governanceService.createDelegation(input),

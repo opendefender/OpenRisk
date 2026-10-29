@@ -42,15 +42,10 @@ func selfHostDocPath() string {
 // A key with no label here fails the test rather than printing a raw
 // identifier — adding a feature to the matrix must also name it for humans.
 var limitLabels = map[LimitKey]string{
-	LimitUsers:             "Users",
-	LimitRisks:             "Risks",
-	LimitAssets:            "Assets",
-	LimitIntegrations:      "Integrations",
-	LimitFrameworks:        "Active compliance frameworks",
-	LimitAutomationRules:   "Active automation rules",
-	LimitScanSources:       "Scan sources",
-	LimitScansPerMonth:     "Scans per month",
-	LimitApprovalWorkflows: "Approval workflows",
+	LimitUsers:        "Users",
+	LimitRisks:        "Risks",
+	LimitAssets:       "Assets",
+	LimitIntegrations: "Integrations",
 }
 
 var featureLabels = map[Feature]string{

@@ -59,8 +59,6 @@ import type {
 } from './organizationService';
 import { UserAvatar } from '../../shared/UserAvatar';
 import { usePreferredDate } from '../../hooks/useI18n';
-import { PlanCapNotice } from '../billing/PlanCapNotice';
-import { planCapErrorMessage } from '../billing/useEntitlements';
 
 type Tab = 'members' | 'invitations' | 'history';
 type Tr = (fr: string, en: string) => string;
@@ -888,10 +886,7 @@ function InviteDialog({ tr, onClose }: { tr: Tr; onClose: () => void }) {
     invite.mutate(input, {
       onSuccess: (res) => setResult(res),
       onError: (err) =>
-        setError(
-          planCapErrorMessage(err, lang) ??
-            apiMessage(err, tr("L'invitation a échoué.", 'The invitation failed.')),
-        ),
+        setError(apiMessage(err, tr("L'invitation a échoué.", 'The invitation failed.'))),
     });
   };
 
@@ -912,10 +907,6 @@ function InviteDialog({ tr, onClose }: { tr: Tr; onClose: () => void }) {
         >
           <X size={17} />
         </button>
-      </div>
-      {/* D-078: the plan caps active members; say so before the send fails. */}
-      <div className="mb-3">
-        <PlanCapNotice limitKey="users" showUsage />
       </div>
       <form onSubmit={submit}>
         <label className="block text-[12px] font-semibold text-ink-soft mb-1.5" htmlFor="inv-email">

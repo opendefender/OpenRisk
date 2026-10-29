@@ -16,7 +16,6 @@ import (
 
 	"github.com/opendefender/openrisk/internal/domain"
 	scanpkg "github.com/opendefender/openrisk/internal/scanner"
-	ent "github.com/opendefender/openrisk/pkg/entitlements"
 )
 
 func newTriggerUC(kv *fakeKV, configRepo *mockConfigRepo, jobRepo *mockJobRepo) *TriggerScanUseCase {
@@ -97,46 +96,4 @@ func TestTriggerScan_ConfigLockHeld(t *testing.T) {
 	_, err := uc.Execute(context.Background(), tenant, uuid.New(), cfg.ID)
 	require.Error(t, err)
 	assert.ErrorIs(t, err, domain.ErrConflict)
-}
-
-// fixedScanQuota answers the monthly scan cap with fixed numbers.
-type fixedScanQuota struct{ limit, used int }
-
-func (q fixedScanQuota) Capacity(_ context.Context, _ uuid.UUID, _ ent.LimitKey) (bool, int, int, ent.Plan, error) {
-	return q.used < q.limit, q.limit, q.used, ent.PlanFree, nil
-}
-
-// TestTriggerScanQuota_* (D-078): the monthly cap lives in the use case, so the
-// scheduler and automation, which call Execute directly, are held to it too.
-func TestTriggerScanQuota_Success(t *testing.T) {
-	tenant := uuid.New()
-	cfg := agentConfig(tenant)
-	configRepo := &mockConfigRepo{getByIDFunc: func(_ context.Context, _, _ uuid.UUID) (*domain.ScanConfig, error) { return cfg, nil }}
-	uc := newTriggerUC(newFakeKV(), configRepo, &mockJobRepo{}).WithQuota(fixedScanQuota{limit: 4, used: 3})
-
-	_, err := uc.Execute(context.Background(), tenant, uuid.New(), cfg.ID)
-	require.NoError(t, err)
-}
-
-func TestTriggerScanQuota_Unauthorized(t *testing.T) {
-	tenant := uuid.New()
-	cfg := agentConfig(tenant)
-	configRepo := &mockConfigRepo{getByIDFunc: func(_ context.Context, _, _ uuid.UUID) (*domain.ScanConfig, error) { return cfg, nil }}
-	kv := newFakeKV()
-	uc := newTriggerUC(kv, configRepo, &mockJobRepo{}).WithQuota(fixedScanQuota{limit: 4, used: 4})
-
-	_, err := uc.Execute(context.Background(), tenant, uuid.Nil, cfg.ID)
-	var lim *domain.LimitReachedError
-	require.ErrorAs(t, err, &lim)
-	assert.Equal(t, "scans_per_month", lim.Key)
-	assert.Equal(t, 4, lim.Limit)
-	assert.Equal(t, 0, kv.messages, "a refused scan dispatches nothing")
-}
-
-func TestTriggerScanQuota_NotFound(t *testing.T) {
-	// The config is looked up first: an unknown config is NotFound even at the cap.
-	configRepo := &mockConfigRepo{getByIDFunc: func(_ context.Context, _, _ uuid.UUID) (*domain.ScanConfig, error) { return nil, nil }}
-	uc := newTriggerUC(newFakeKV(), configRepo, &mockJobRepo{}).WithQuota(fixedScanQuota{limit: 4, used: 4})
-	_, err := uc.Execute(context.Background(), uuid.New(), uuid.New(), uuid.New())
-	assert.ErrorIs(t, err, domain.ErrNotFound)
 }

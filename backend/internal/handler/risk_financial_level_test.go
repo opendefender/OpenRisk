@@ -117,10 +117,9 @@ func TestGetRiskFinancial_OnServesTheSimulation(t *testing.T) {
 	require.NotNil(t, a.Display, "the simulated tier carries the same presented figures")
 }
 
-func TestGetRiskFinancial_ShippedFreeGetsTheClosedForm(t *testing.T) {
-	// D-078 ships Free at the basic depth: the deterministic ALE, never the
-	// simulation, which stays at Pro.
-	status, a := getFinancial(t, entapp.NewService(planOnlyOrg{plan: "free"}))
-	require.Equal(t, fiber.StatusOK, status)
-	assert.Nil(t, a.Distribution, "Free must not receive the Monte-Carlo distribution")
+func TestGetRiskFinancial_ShippedFreeIsRefused(t *testing.T) {
+	// The shipped matrix keeps financial quantification off on Free: the basic
+	// gate refuses it exactly as RequireFeature did before #613.
+	status, _ := getFinancial(t, entapp.NewService(planOnlyOrg{plan: "free"}))
+	assert.Equal(t, fiber.StatusPaymentRequired, status)
 }

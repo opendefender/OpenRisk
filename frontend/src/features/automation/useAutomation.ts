@@ -12,7 +12,6 @@ import {
   type DryRunInput,
   type NotifyChannel,
 } from './automationService';
-import { ENTITLEMENTS_KEY } from '../billing/useEntitlements';
 
 const KEY = ['automation'];
 
@@ -76,11 +75,7 @@ export function useAutomationTemplates() {
 
 export function useAutomationMutations() {
   const qc = useQueryClient();
-  // Rules turning on or off move the plan's active-rule counter (D-078).
-  const invalidate = () => {
-    void qc.invalidateQueries({ queryKey: KEY });
-    void qc.invalidateQueries({ queryKey: ENTITLEMENTS_KEY });
-  };
+  const invalidate = () => qc.invalidateQueries({ queryKey: KEY });
 
   const createRule = useMutation({
     mutationFn: (input: RuleInput) => automationService.createRule(input),

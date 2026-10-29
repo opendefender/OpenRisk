@@ -48,8 +48,19 @@ import (
 // deleting the line.
 var knownUnenforced = map[string]string{
 	"api:on":              "Free's Limited API is the same API as Pro's — no quota or scope reads the level",
-	"ai_advisor:advanced": "the AI routes gate on/off only; the AI quota issue replaces the depth (D-078)",
-	"cti:advanced":        "the CTI routes gate on/off only; the threat preview issue replaces the depth (D-078)",
+	"automation:on":       "no route reads FeatAutomation",
+	"automation:advanced": "no route reads FeatAutomation",
+	"ai_advisor:advanced": "the AI routes gate on/off only",
+	"scanner:on":          "no route reads FeatScanner",
+	"compliance:standard": "no route reads FeatCompliance; every plan gets the same compliance module",
+	"compliance:advanced": "no route reads FeatCompliance",
+	"compliance:custom":   "no route reads FeatCompliance",
+	"cti:on":              "no route reads FeatCTI",
+	"cti:advanced":        "no route reads FeatCTI",
+	"governance:on":       "no route reads FeatGovernance",
+	"governance:advanced": "no route reads FeatGovernance",
+	"sso:on":              "no route reads FeatSSO",
+	"sso:advanced":        "no route reads FeatSSO",
 	"multi_tenant:on":     "no route reads FeatMultiTenant",
 	"on_premise:on":       "a deployment property, not a route — nothing to gate in the request path",
 }

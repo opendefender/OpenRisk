@@ -109,32 +109,27 @@ the code ever disagree. It is not a marketing table; it is the code.
 | Capability | Free | Pro | Business | Enterprise |
 |---|---|---|---|---|
 | Users | 2 | 10 | 50 | unlimited |
-| Risks | 30 | 500 | unlimited | unlimited |
-| Assets | 30 | unlimited | unlimited | unlimited |
+| Risks | 50 | 500 | unlimited | unlimited |
+| Assets | 50 | unlimited | unlimited | unlimited |
 | Integrations | 1 | 10 | unlimited | unlimited |
-| Active compliance frameworks | 1 | 3 | 10 | unlimited |
-| Active automation rules | 2 | 20 | unlimited | unlimited |
-| Scan sources | 1 | 10 | unlimited | unlimited |
-| Scans per month | 4 | unlimited | unlimited | unlimited |
-| Approval workflows | 1 | 3 | unlimited | unlimited |
 | REST API | limited | yes | yes | yes |
-| Automation rules | yes | yes | yes | yes |
+| Automation rules | — | yes | advanced | advanced |
 | AI advisor | — | yes | advanced | advanced |
-| Compliance frameworks | yes | yes | yes | yes |
-| SSO (SAML / OIDC) | — | — | — | — |
+| Compliance frameworks | basic | standard | advanced | custom |
+| SSO (SAML / OIDC) | — | — | yes | advanced |
 | Multi-tenant | — | — | — | yes |
 | On-premise entitlement | — | — | — | yes |
-| Financial quantification | basic | yes | yes | yes |
-| SmartScore | yes | yes | yes | yes |
-| Executive dashboard | yes | yes | yes | yes |
-| Scanner | yes | yes | yes | yes |
+| Financial quantification | — | yes | yes | yes |
+| SmartScore | — | yes | yes | yes |
+| Executive dashboard | — | yes | yes | yes |
+| Scanner | — | yes | yes | yes |
 | Threat intelligence (CTI) | — | — | yes | advanced |
-| Governance | yes | yes | yes | yes |
+| Governance | — | — | yes | advanced |
 | Vendor risk (TPRM) | — | — | yes | yes |
 | SLA | — | — | 99.5% | 99.9% |
 | Support | community | email | priority | dedicated |
 
-A self-hosted instance registers its first organisation with no plan set, so it resolves to **Free**: 2 users, 30 risks, 30 assets, 1 integration(s).
+A self-hosted instance registers its first organisation with no plan set, so it resolves to **Free**: 2 users, 50 risks, 50 assets, 1 integration(s).
 
 <!-- END GENERATED: entitlements matrix -->
 
@@ -172,6 +167,38 @@ optional keys:
   [TELEMETRY.md](TELEMETRY.md)). Default: opt-in from the app.
 - **Public URL / CORS:** `APP_BASE_URL`, `CORS_ORIGINS`, `VITE_API_URL` when you
   put OpenRisk behind a real domain / reverse proxy.
+
+## Capabilities
+
+<!-- BEGIN GENERATED: entitlements matrix -->
+<!-- Generated from backend/pkg/entitlements/entitlements.go.
+     Do not edit by hand: `go test ./pkg/entitlements/ -run TestSelfHostDoc -update`. -->
+
+| Capability | Free | Pro | Business | Enterprise |
+|---|---|---|---|---|
+| Users | 2 | 10 | 50 | unlimited |
+| Risks | 50 | 500 | unlimited | unlimited |
+| Assets | 50 | unlimited | unlimited | unlimited |
+| Integrations | 1 | 10 | unlimited | unlimited |
+| REST API | limited | yes | yes | yes |
+| Automation rules | — | yes | advanced | advanced |
+| AI advisor | — | yes | advanced | advanced |
+| Compliance frameworks | basic | standard | advanced | custom |
+| SSO (SAML / OIDC) | — | — | yes | advanced |
+| Multi-tenant | — | — | — | yes |
+| On-premise entitlement | — | — | — | yes |
+| Financial quantification | — | yes | yes | yes |
+| SmartScore | — | yes | yes | yes |
+| Executive dashboard | — | yes | yes | yes |
+| Scanner | — | yes | yes | yes |
+| Threat intelligence (CTI) | — | — | yes | advanced |
+| Governance | — | — | yes | advanced |
+| SLA | — | — | 99.5% | 99.9% |
+| Support | community | email | priority | dedicated |
+
+A self-hosted instance registers its first organisation with no plan set, so it resolves to **Free**: 2 users, 50 risks, 50 assets, 1 integration(s).
+
+<!-- END GENERATED: entitlements matrix -->
 
 ## Upgrade
 
