@@ -70,7 +70,7 @@ type pushBody struct {
 
 // runJob runs a scan for a dispatched job and pushes the results.
 func (a *Agent) runJob(ctx context.Context, d jobDispatch) {
-	log.Printf("job %s: scanning %v", d.JobID, d.Targets)
+	log.Printf("job %s: %s scan of %v", d.JobID, scanTypeOf(d.ScanType), d.Targets)
 	_ = a.heartbeat("scanning")
 	defer func() { _ = a.heartbeat("online") }()
 
@@ -88,7 +88,7 @@ func (a *Agent) runJob(ctx context.Context, d jobDispatch) {
 	var findings []FindingDiscovery
 	if len(valid) > 0 {
 		sctx, cancel := context.WithTimeout(ctx, ScanTimeout)
-		xmlOut, err := runNmap(sctx, valid)
+		xmlOut, err := runNmap(sctx, d.ScanType, valid)
 		cancel()
 		if len(xmlOut) > 0 {
 			as, fs, perr := parseNmap(xmlOut)
@@ -114,12 +114,39 @@ func (a *Agent) runJob(ctx context.Context, d jobDispatch) {
 
 // --- nmap ------------------------------------------------------------------
 
-func runNmap(ctx context.Context, targets []string) ([]byte, error) {
-	args := []string{"-sV", "--script", "vuln", "-oX", "-", "--min-rate", "1000", "--max-retries", "3", "--host-timeout", "15m"}
-	if os.Geteuid() == 0 {
+// Scan types the SaaS sends (#1164). Anything else, including an absent type
+// from a server older than this agent, runs the vulnerability scan: that is
+// what every scan was before types existed.
+const (
+	scanDiscovery     = "discovery"
+	scanVulnerability = "vulnerability"
+)
+
+func scanTypeOf(t string) string {
+	if t == scanDiscovery {
+		return scanDiscovery
+	}
+	return scanVulnerability
+}
+
+// nmapArgs builds the nmap command line for a scan type. Discovery finds live
+// hosts and their service versions and stops there: no vulnerability scripts,
+// a lighter version probe and a shorter per-host cap.
+func nmapArgs(scanType string, root bool, targets []string) []string {
+	var args []string
+	if scanTypeOf(scanType) == scanDiscovery {
+		args = []string{"-sV", "--version-light", "-oX", "-", "--min-rate", "1000", "--max-retries", "2", "--host-timeout", "5m"}
+	} else {
+		args = []string{"-sV", "--script", "vuln", "-oX", "-", "--min-rate", "1000", "--max-retries", "3", "--host-timeout", "15m"}
+	}
+	if root {
 		args = append(args, "-O") // OS detection needs raw sockets (root)
 	}
-	args = append(args, targets...)
+	return append(args, targets...)
+}
+
+func runNmap(ctx context.Context, scanType string, targets []string) ([]byte, error) {
+	args := nmapArgs(scanType, os.Geteuid() == 0, targets)
 	var stdout, stderr bytes.Buffer
 	cmd := exec.CommandContext(ctx, "nmap", args...)
 	cmd.Stdout = &stdout
