@@ -64,6 +64,11 @@ var (
 	githubUserURL     = "https://api.github.com/user"
 	githubEmailsURL   = "https://api.github.com/user/emails"
 	graphMeURL        = "https://graph.microsoft.com/v1.0/me"
+	// graphOrganizationURL lists the directory's verified domains (#1154).
+	graphOrganizationURL = "https://graph.microsoft.com/v1.0/organization?$select=verifiedDomains"
+	// azureLoginBase is the Microsoft identity platform authority: the issuer of
+	// ID tokens and the host of tenant discovery documents.
+	azureLoginBase = "https://login.microsoftonline.com"
 )
 
 // oauthStateTTL bounds how long a started flow may sit unfinished.
@@ -147,6 +152,8 @@ func InitializeOAuth2() *OAuth2Config {
 	if redirectURI == "" {
 		redirectURI = "http://localhost:8080/api/v1/auth/oauth2/callback"
 	}
+
+	azureTenant = strings.TrimSpace(os.Getenv("OAUTH2_AZURE_TENANT_ID"))
 
 	cfg := &OAuth2Config{
 		GoogleConfig: &oauth2.Config{
@@ -375,6 +382,8 @@ func OAuth2Callback(c *fiber.Ctx) error {
 
 	userInfo, err := getOAuth2UserInfo(ctx, provider, token)
 	if err != nil {
+		// The error names the failed check, never a token.
+		log.Warn().Err(err).Str("provider", provider).Msg("oauth: could not read the provider identity")
 		return oauthFailure(c, "userinfo_failed", provider, locale)
 	}
 	userInfo.Provider = provider
@@ -524,7 +533,9 @@ func fetchJSON(ctx context.Context, url, authHeader string, out interface{}) err
 	if err != nil {
 		return err
 	}
-	req.Header.Set("Authorization", authHeader)
+	if authHeader != "" {
+		req.Header.Set("Authorization", authHeader)
+	}
 	req.Header.Set("Accept", "application/json")
 
 	client := &http.Client{Timeout: 10 * time.Second}
@@ -641,9 +652,19 @@ type azureUser struct {
 }
 
 func getAzureUserInfo(ctx context.Context, token *oauth2.Token) (*OAuth2UserInfo, error) {
+	// The ID token must come from the configured directory and name the same
+	// user Graph describes; otherwise nothing from Graph is used (#1154).
+	claims, err := verifyAzureIDToken(ctx, token)
+	if err != nil {
+		return nil, err
+	}
+
 	var data azureUser
 	if err := fetchJSON(ctx, graphMeURL, "Bearer "+token.AccessToken, &data); err != nil {
 		return nil, err
+	}
+	if data.ID == "" || !strings.EqualFold(data.ID, claims.ObjectID) {
+		return nil, errors.New("azure: Graph user does not match the ID token")
 	}
 
 	// Prefer `mail`; userPrincipalName is a directory identifier that merely
@@ -653,17 +674,25 @@ func getAzureUserInfo(ctx context.Context, token *oauth2.Token) (*OAuth2UserInfo
 		email = data.UserPrincipalName
 	}
 
-	// `mail` is admin-editable and unverified; the UPN suffix is a verified
-	// domain of the directory. Both are trusted only because azureConfig pins
-	// sign-in to the operator's own directory (#1153). A guest's address is not
-	// trusted at all: the inviter typed it, and the UPN (x_home.com#EXT#@...) is
-	// not a mailbox.
+	// `mail` is admin-editable, so neither attribute is taken on trust: the
+	// address counts as verified only when its domain is one the directory has
+	// proven it owns (#1154). A directory administrator can then only claim
+	// addresses on their own domains. A guest's address is never verified: the
+	// inviter typed it, and the UPN (x_home.com#EXT#@...) is not a mailbox.
 	guest := strings.Contains(strings.ToUpper(data.UserPrincipalName), "#EXT#")
+	verified := false
+	if email != "" && !guest {
+		domains, err := azureVerifiedDomains(ctx, token)
+		if err != nil {
+			return nil, err
+		}
+		verified = domains[emailDomain(email)]
+	}
 
 	return &OAuth2UserInfo{
 		ID:            data.ID,
 		Email:         email,
-		EmailVerified: email != "" && !guest,
+		EmailVerified: verified,
 		Name:          data.DisplayName,
 	}, nil
 }

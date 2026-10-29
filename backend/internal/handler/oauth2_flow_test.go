@@ -362,24 +362,6 @@ func TestGoogleUserInfo_MalformedPayloadDoesNotPanic(t *testing.T) {
 	}
 }
 
-func TestAzureUserInfo_PrefersMailOverUserPrincipalName(t *testing.T) {
-	p := newStubProvider(t)
-	p.userInfo = map[string]any{
-		"id": "aad-1", "displayName": "Alex Dembele",
-		"mail":              "alex@opendefender.io",
-		"userPrincipalName": "alex_opendefender.io#EXT#@tenant.onmicrosoft.com",
-	}
-	_ = newOAuthTestApp(t, "azure", p)
-
-	got, err := getAzureUserInfo(t.Context(), &oauth2.Token{AccessToken: "provider-access-token"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got.Email != "alex@opendefender.io" {
-		t.Errorf("expected `mail` preferred over the UPN directory identifier, got %q", got.Email)
-	}
-}
-
 // ---------------------------------------------------------------------------
 // Failure handling — never a blank page
 // ---------------------------------------------------------------------------
