@@ -49,8 +49,10 @@ func TestFeatureGates_MatchMatrix(t *testing.T) {
 	if Has(PlanFree, FeatAutomation) || Has(PlanFree, FeatAIAdvisor) {
 		t.Fatal("Free must not have automation/AI")
 	}
-	if !Has(PlanBusiness, FeatSSO) || Has(PlanPro, FeatSSO) {
-		t.Fatal("SSO opens at Business")
+	for _, p := range []Plan{PlanFree, PlanPro, PlanBusiness, PlanEnterprise} {
+		if Has(p, FeatSSO) {
+			t.Fatalf("SSO is sold on no plan until #1045, but %s has it", p)
+		}
 	}
 	if Has(PlanBusiness, FeatMultiTenant) || !Has(PlanEnterprise, FeatMultiTenant) {
 		t.Fatal("multi-tenant is Enterprise-only")
@@ -140,8 +142,15 @@ func TestMatrixIntegrity(t *testing.T) {
 			}
 		}
 	}
-	// Every marquee feature must be reachable on some plan.
+	// Every marquee feature must be reachable on some plan, except the ones no
+	// plan sells yet, each with the reason.
+	notSold := map[Feature]string{
+		FeatSSO: "SAML is off since #866; tenant SSO comes back with #1045",
+	}
 	for _, f := range AllFeatures {
+		if _, ok := notSold[f]; ok {
+			continue
+		}
 		if MinPlanFor(f) == PlanEnterprise && !Has(PlanEnterprise, f) {
 			t.Errorf("feature %q is granted by no plan", f)
 		}

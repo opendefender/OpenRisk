@@ -48,7 +48,7 @@ const PLAN_HIGHLIGHTS: Record<PlanKey, string[]> = {
   business: [
     '50 utilisateurs',
     'Risques illimités',
-    'SSO · Gouvernance · CTI',
+    'Gouvernance · CTI',
     'SLA 99,5 %',
     'Support prioritaire',
   ],

@@ -26,11 +26,15 @@ frontend greys/explains from it.
 | Threat intel (CTI) | —      | —         | ✓            | Advanced       |
 | Governance / approvals | —  | —         | ✓            | Advanced       |
 | Vendor risk (TPRM) | —      | —         | ✓            | ✓              |
-| SSO / SAML       | —        | —         | ✓            | Advanced       |
+| SSO / SAML       | —        | —         | —            | —              |
 | Multi-tenant     | —        | —         | —            | ✓              |
 | On-premise       | —        | —         | —            | ✓              |
 | SLA              | —        | —         | 99.5 %       | 99.9 %         |
 | Support          | Community| Email     | Priority     | Dedicated      |
+
+**SSO / SAML** is not sold on any plan today. SAML sign-in is switched off
+(#866) and OAuth providers are configured per deployment, so there is no
+tenant SSO for a plan to include. It returns with #1045.
 
 ## Pricing (PPP by zone)
 

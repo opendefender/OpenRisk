@@ -188,7 +188,7 @@ type PlanEntitlements struct {
 //	Automation      off       On       Advanced     Advanced
 //	AI Advisor      off       On       Advanced     Advanced
 //	Compliance     Basic    Standard   Advanced      Custom
-//	SSO             off       off         On         Advanced
+//	SSO             off       off        off          off
 //	Multi-tenant    off       off        off           On
 //	On-premise      off       off        off           On
 //	SLA             off       off       99.5%         99.9%
@@ -198,6 +198,10 @@ type PlanEntitlements struct {
 // marquee paid analytics; they open at Pro (task §2: "la quantification financière
 // Monte-Carlo est disponible à partir du plan Pro"). CTI and governance open at
 // Business, and so does vendor risk (TPRM), by owner decision D-044.
+//
+// SSO is granted by no plan: SAML refuses every request since #866 and OAuth
+// providers are set per deployment, so there is no tenant SSO for a plan to
+// sell. #1045 brings it back.
 var matrix = map[Plan]PlanEntitlements{
 	PlanFree: {
 		Plan:   PlanFree,
@@ -231,7 +235,6 @@ var matrix = map[Plan]PlanEntitlements{
 			FeatAutomation:         LevelAdvanced,
 			FeatAIAdvisor:          LevelAdvanced,
 			FeatCompliance:         LevelAdvanced,
-			FeatSSO:                LevelOn,
 			FeatFinancialQuant:     LevelOn,
 			FeatSmartScore:         LevelOn,
 			FeatExecutiveDashboard: LevelOn,
@@ -251,7 +254,6 @@ var matrix = map[Plan]PlanEntitlements{
 			FeatAutomation:         LevelAdvanced,
 			FeatAIAdvisor:          LevelAdvanced,
 			FeatCompliance:         LevelCustom,
-			FeatSSO:                LevelAdvanced,
 			FeatMultiTenant:        LevelOn,
 			FeatOnPremise:          LevelOn,
 			FeatFinancialQuant:     LevelOn,

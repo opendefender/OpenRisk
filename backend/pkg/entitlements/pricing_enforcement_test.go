@@ -59,8 +59,6 @@ var knownUnenforced = map[string]string{
 	"cti:advanced":        "no route reads FeatCTI",
 	"governance:on":       "no route reads FeatGovernance",
 	"governance:advanced": "no route reads FeatGovernance",
-	"sso:on":              "no route reads FeatSSO",
-	"sso:advanced":        "no route reads FeatSSO",
 	"multi_tenant:on":     "no route reads FeatMultiTenant",
 	"on_premise:on":       "a deployment property, not a route — nothing to gate in the request path",
 }
