@@ -15,6 +15,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"regexp"
 	"strings"
 	"time"
 
@@ -241,13 +242,19 @@ const consumersTenantID = "9188040d-6c67-4c5b-b112-36a304b66dad"
 // value falls back to "common"; "common", "organizations", "consumers" and the
 // consumers GUID all admit accounts from directories the operator does not
 // control.
+//
+// Anything else must look like a tenant ID or a domain name, so the value cannot
+// steer the authority URL it is pasted into.
 func isSpecificAzureTenant(tenant string) bool {
 	switch strings.ToLower(tenant) {
 	case "", "common", "organizations", "consumers", consumersTenantID:
 		return false
 	}
-	return true
+	return guidPattern.MatchString(tenant) || tenantDomainPattern.MatchString(tenant)
 }
+
+// tenantDomainPattern is a DNS name with at least one dot.
+var tenantDomainPattern = regexp.MustCompile(`^(?i)[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$`)
 
 func providerConfig(provider string) *oauth2.Config {
 	if oauth2Config == nil {
@@ -682,6 +689,9 @@ func getAzureUserInfo(ctx context.Context, token *oauth2.Token) (*OAuth2UserInfo
 	guest := strings.Contains(strings.ToUpper(data.UserPrincipalName), "#EXT#")
 	verified := false
 	if email != "" && !guest {
+		// Fails closed on purpose: without the domain list there is no basis to
+		// trust the address, and an unverified one could still sign in a linked
+		// identity. Sign-in waits for Graph rather than guess.
 		domains, err := azureVerifiedDomains(ctx, token)
 		if err != nil {
 			return nil, err

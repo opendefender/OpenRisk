@@ -91,7 +91,9 @@ func containsString(list []string, want string) bool {
 	return false
 }
 
-// azureTenantIDs caches the tenant ID a configured domain resolves to.
+// azureTenantIDs caches the tenant ID a configured domain resolves to. It never
+// expires: a domain only changes directory when it is moved, and a restart
+// clears it. A stale entry fails closed on the tid check.
 var azureTenantIDs sync.Map
 
 // resolveAzureTenantID returns the configured tenant as a tenant ID. A domain is

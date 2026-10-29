@@ -16,7 +16,7 @@ import (
 // Microsoft sign-in is pinned to the operator's directory (#1153).
 
 func TestAzureConfig_GenericTenantLeavesMicrosoftSignInUnconfigured(t *testing.T) {
-	for _, tenant := range []string{"", "  ", "common", "Common", "organizations", "consumers", "9188040D-6C67-4C5B-B112-36A304B66DAD"} {
+	for _, tenant := range []string{"", "  ", "common", "Common", "organizations", "consumers", "9188040D-6C67-4C5B-B112-36A304B66DAD", "x/../common", "evil.example/x", "localhost", "a b.example"} {
 		t.Run("tenant="+tenant, func(t *testing.T) {
 			t.Setenv("OAUTH2_AZURE_CLIENT_ID", "client-id")
 			t.Setenv("OAUTH2_AZURE_TENANT_ID", tenant)

@@ -173,32 +173,51 @@ func TestAzureUserInfo_GuestAddressIsNotVerified(t *testing.T) {
 }
 
 func TestAzureUserInfo_RefusesAnInvalidIDToken(t *testing.T) {
-	cases := map[string]func(f *azureFixture, c jwt.MapClaims){
-		"another directory": func(_ *azureFixture, c jwt.MapClaims) {
+	cases := map[string]struct {
+		mutate func(f *azureFixture, c jwt.MapClaims)
+		want   string
+	}{
+		"another directory": {func(_ *azureFixture, c jwt.MapClaims) {
 			c["tid"] = "11111111-2222-3333-4444-555555555555"
-		},
-		"another directory, matching issuer": func(f *azureFixture, c jwt.MapClaims) {
+		}, "another directory"},
+		"another directory, matching issuer": {func(f *azureFixture, c jwt.MapClaims) {
 			c["tid"] = "11111111-2222-3333-4444-555555555555"
 			c["iss"] = f.server.URL + "/11111111-2222-3333-4444-555555555555/v2.0"
-		},
-		"wrong issuer":        func(_ *azureFixture, c jwt.MapClaims) { c["iss"] = "https://evil.example/" + testTenantID + "/v2.0" },
-		"another application": func(_ *azureFixture, c jwt.MapClaims) { c["aud"] = "other-client" },
-		"expired":             func(_ *azureFixture, c jwt.MapClaims) { c["exp"] = time.Now().Add(-time.Hour).Unix() },
-		"no expiry":           func(_ *azureFixture, c jwt.MapClaims) { delete(c, "exp") },
-		"no user":             func(_ *azureFixture, c jwt.MapClaims) { delete(c, "oid") },
-		"another user":        func(_ *azureFixture, c jwt.MapClaims) { c["oid"] = "oid-2" },
+		}, "another directory"},
+		"wrong issuer": {func(_ *azureFixture, c jwt.MapClaims) {
+			c["iss"] = "https://evil.example/" + testTenantID + "/v2.0"
+		}, "issuer"},
+		"another application": {func(_ *azureFixture, c jwt.MapClaims) { c["aud"] = "other-client" }, "not for this application"},
+		"another application, array": {func(_ *azureFixture, c jwt.MapClaims) {
+			c["aud"] = []string{"other-client"}
+		}, "not for this application"},
+		"expired":      {func(_ *azureFixture, c jwt.MapClaims) { c["exp"] = time.Now().Add(-time.Hour).Unix() }, "expired"},
+		"no expiry":    {func(_ *azureFixture, c jwt.MapClaims) { delete(c, "exp") }, "expired"},
+		"no user":      {func(_ *azureFixture, c jwt.MapClaims) { delete(c, "oid") }, "names no user"},
+		"another user": {func(_ *azureFixture, c jwt.MapClaims) { c["oid"] = "oid-2" }, "does not match"},
 	}
-	for name, mutate := range cases {
+	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			f := newAzureFixture(t, testTenantID)
 			claims := f.claims()
-			mutate(f, claims)
+			tc.mutate(f, claims)
 
 			_, err := getAzureUserInfo(t.Context(), tokenWith(t, claims))
 
-			require.Error(t, err)
+			require.ErrorContains(t, err, tc.want)
 		})
 	}
+}
+
+func TestAzureUserInfo_AcceptsAnAudienceArray(t *testing.T) {
+	f := newAzureFixture(t, testTenantID)
+	claims := f.claims()
+	claims["aud"] = []string{"other-client", testClientID}
+
+	info, err := getAzureUserInfo(t.Context(), tokenWith(t, claims))
+
+	require.NoError(t, err)
+	require.True(t, info.EmailVerified)
 }
 
 func TestAzureUserInfo_RefusesAMissingOrMalformedIDToken(t *testing.T) {

@@ -171,6 +171,10 @@ curl -H "Authorization: Bearer orsk_a1b2c3d4_<secret>" \
      (`exp`) and name the user Graph returns (`oid`); otherwise the callback
      ends on `error=userinfo_failed`. The address counts as verified only when
      its domain is one of the directory's verified domains (exact match)
+   - Trust boundary: an Entra role that can edit users (User Administrator,
+     Exchange Administrator, or the on-premises directory for synced users)
+     can set any address on the directory's verified domains. Those roles are
+     trusted for those domains
    - Mints a `state` and a PKCE verifier, both kept server-side, and sets the
      `or_oauth_state` cookie (see below)
    - Optional `return_to`: a root-relative path to open after sign-in. Anything
