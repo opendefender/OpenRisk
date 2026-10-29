@@ -2062,5 +2062,102 @@
       "lookup_disabled": "Recherche en ligne désactivée pour votre organisation : les paquets sont listés mais pas vérifiés.",
       "unknown": "La dernière vérification a échoué."
     }
+  },
+  "infra": {
+    "title": "Infrastructure",
+    "subtitle": "Agents de collecte et scans planifiés.",
+    "topology": "Topologie",
+    "newConfig": "Nouvelle config",
+    "launch": {
+      "title": "Lancer un scan",
+      "target": "Cible",
+      "type": "Type",
+      "start": "Démarrer",
+      "noTarget": "Aucune configuration de ce type",
+      "empty": "Aucune configuration de scan pour l’instant. Ajoutez-en une plus bas, la cible apparaîtra ici.",
+      "family": {
+        "all": "Tous les types",
+        "network": "Réseau (agent sur site)",
+        "cloud": "Cloud",
+        "discovery": "Découverte par API"
+      }
+    },
+    "toast": {
+      "started": "Scan lancé sur {name}",
+      "queued": "Aucun agent en ligne : le scan est mis en file et part dès qu’un agent se connecte.",
+      "failed": "Le scan n’a pas pu être lancé",
+      "created": "Configuration créée",
+      "deleted": "Configuration supprimée",
+      "deleteFailed": "Suppression impossible",
+      "revoked": "Agent révoqué",
+      "revokeFailed": "Échec de la révocation"
+    },
+    "status": {
+      "queued": "En file",
+      "claimed": "Pris en charge",
+      "running": "En cours",
+      "completed": "Terminé",
+      "failed": "Échec",
+      "timeout": "Délai dépassé"
+    },
+    "scans": {
+      "title": "Scans",
+      "empty": "Aucun scan pour l’instant. Lancez-en un depuis la carte ci-dessus.",
+      "assets": {
+        "one": "{count} actif",
+        "other": "{count} actifs"
+      },
+      "findings": {
+        "one": "{count} constat",
+        "other": "{count} constats"
+      },
+      "progress": "Progression du scan",
+      "openPreview": "Ouvrir l’aperçu du scan"
+    },
+    "agents": {
+      "title": "Agents",
+      "empty": "Aucun agent connecté. Déployez-en un depuis une configuration réseau.",
+      "version": "agent {version}",
+      "lastSeen": "Vu {when}",
+      "revoke": "Révoquer {name}",
+      "revokeTitle": "Révoquer cet agent ?",
+      "revokeBody": "Son jeton est invalidé immédiatement. Il faudra redéployer l’agent pour qu’il scanne à nouveau.",
+      "revokeConfirm": "Révoquer",
+      "status": {
+        "online": "En ligne",
+        "offline": "Hors ligne",
+        "scanning": "Scan en cours",
+        "error": "Erreur",
+        "revoked": "Révoqué"
+      }
+    },
+    "providers": {
+      "title": "Fournisseurs",
+      "onPrem": "Sur site (Agent)",
+      "configs": {
+        "exact": {
+          "0": "Aucune configuration"
+        },
+        "one": "{count} configuration",
+        "other": "{count} configurations"
+      },
+      "add": "ajouter",
+      "online": "{count} en ligne"
+    },
+    "configs": {
+      "title": "Configurations de scan",
+      "emptyTitle": "Aucune configuration",
+      "emptyBody": "Ajoutez un cloud ou un scan sur site pour commencer.",
+      "noTargets": "aucune cible",
+      "allRegions": "toutes régions",
+      "next": "Prochain : {date}",
+      "deploy": "Déployer un agent",
+      "scan": "Scanner",
+      "scanNow": "Scanner {name} maintenant",
+      "delete": "Supprimer {name}",
+      "deleteTitle": "Supprimer cette configuration ?",
+      "deleteBody": "Les scans planifiés de « {name} » s’arrêtent. Les actifs déjà importés restent dans l’inventaire.",
+      "deleteConfirm": "Supprimer"
+    }
   }
 }
