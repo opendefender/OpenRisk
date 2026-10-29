@@ -51,7 +51,9 @@ import type { NotificationPreferencePatch } from '../notifications/notificationS
 import { useChannelConfig } from '../automation/useAutomation';
 import { useVulnIntegrations, useVulnTicketing } from '../vulnerabilities/useVulnIntegrations';
 import { PersonalizeCard } from '../onboarding/PersonalizeCard';
-import { BillingPanel } from '../billing/BillingPanel';
+import { BillingPanel, TelemetryCard } from '../billing/BillingPanel';
+import { useIsSelfHosted } from '../billing/useEntitlements';
+import { settingsTabShown, settingsTabVisible } from './settingsTabs';
 import { DangerZonePanel } from '../billing/DangerZonePanel';
 import { useOrganization } from '../organization/useOrganization';
 import { MFAPolicyPanel, MFAAccountPanel } from './MFAPolicyPanel';
@@ -303,6 +305,9 @@ export function SettingsScreen() {
     navigate(`${base}?tab=${k}`, { replace: !routed });
   };
 
+  const selfHosted = useIsSelfHosted();
+  const shownTab = settingsTabShown(tab, selfHosted, 'general');
+
   const tabs: [TabKey, string, LucideIcon][] = [
     // Your own profile first: it is the one tab every member can use (#719).
     ['profile', tr('Mon profil', 'My profile'), UserRound],
@@ -326,40 +331,47 @@ export function SettingsScreen() {
       <PageHeader title={L.setTitle} />
       <div className="flex gap-7 items-start flex-col md:flex-row">
         <div className="w-full md:w-[210px] shrink-0 flex md:block gap-1 overflow-x-auto">
-          {tabs.map(([k, lbl, Icon]) => (
-            <button
-              key={k}
-              data-testid={`settings-tab-${k}`}
-              onClick={() => selectTab(k)}
-              className="w-full flex items-center gap-2.5 px-3 py-[9px] rounded-[9px] mb-0.5 text-[13px] text-left whitespace-nowrap transition-colors"
-              style={{
-                background: tab === k ? 'var(--accent-soft)' : 'transparent',
-                color: tab === k ? 'var(--fg-primary)' : 'var(--fg-secondary)',
-                fontWeight: tab === k ? 600 : 500,
-              }}
-            >
-              <span
-                style={{ color: tab === k ? 'var(--accent)' : 'var(--fg-muted)' }}
-                className="flex"
+          {tabs
+            .filter(([k]) => settingsTabVisible(k, selfHosted))
+            .map(([k, lbl, Icon]) => (
+              <button
+                key={k}
+                data-testid={`settings-tab-${k}`}
+                onClick={() => selectTab(k)}
+                className="w-full flex items-center gap-2.5 px-3 py-[9px] rounded-[9px] mb-0.5 text-[13px] text-left whitespace-nowrap transition-colors"
+                style={{
+                  background: shownTab === k ? 'var(--accent-soft)' : 'transparent',
+                  color: shownTab === k ? 'var(--fg-primary)' : 'var(--fg-secondary)',
+                  fontWeight: shownTab === k ? 600 : 500,
+                }}
               >
-                <Icon size={17} />
-              </span>
-              {lbl}
-            </button>
-          ))}
+                <span
+                  style={{ color: shownTab === k ? 'var(--accent)' : 'var(--fg-muted)' }}
+                  className="flex"
+                >
+                  <Icon size={17} />
+                </span>
+                {lbl}
+              </button>
+            ))}
         </div>
         <div className="flex-1 min-w-0 w-full">
-          {tab === 'profile' && <ProfileTab tr={tr} />}
-          {tab === 'general' && <GeneralTab tr={tr} />}
-          {tab === 'members' && <MembersView />}
-          {tab === 'tokens' && <ApiTokensPanel tr={tr} lang={lang} />}
-          {tab === 'orgs' && <OrgsTab tr={tr} />}
-          {tab === 'fields' && <CustomFieldsTab tr={tr} />}
-          {tab === 'integrations' && <IntegrationsTab tr={tr} />}
-          {tab === 'notif' && <NotifTab tr={tr} />}
-          {tab === 'security' && <SecurityTab tr={tr} />}
-          {tab === 'billing' && <BillingTab tr={tr} />}
-          {tab === 'danger' && <DangerTab L={L} tr={tr} />}
+          {shownTab === 'profile' && <ProfileTab tr={tr} />}
+          {shownTab === 'general' && <GeneralTab tr={tr} />}
+          {shownTab === 'general' && selfHosted && (
+            <div className="mt-6">
+              <TelemetryCard />
+            </div>
+          )}
+          {shownTab === 'members' && <MembersView />}
+          {shownTab === 'tokens' && <ApiTokensPanel tr={tr} lang={lang} />}
+          {shownTab === 'orgs' && <OrgsTab tr={tr} />}
+          {shownTab === 'fields' && <CustomFieldsTab tr={tr} />}
+          {shownTab === 'integrations' && <IntegrationsTab tr={tr} />}
+          {shownTab === 'notif' && <NotifTab tr={tr} />}
+          {shownTab === 'security' && <SecurityTab tr={tr} />}
+          {shownTab === 'billing' && <BillingTab tr={tr} />}
+          {shownTab === 'danger' && <DangerTab L={L} tr={tr} />}
         </div>
       </div>
     </PageFrame>
