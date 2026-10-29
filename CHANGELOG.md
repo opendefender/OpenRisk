@@ -12,6 +12,195 @@ Git tags use the `vMAJOR.MINOR.PATCH[-rc.N]` convention; see [docs/VERSIONING.md
 - Board Report mensuel (IA, human-in-the-loop, FCFA) — the second half of M4
 - Mobile app (React Native)
 
+## [1.1.0-rc.8] - 2026-10-29
+
+> **Security release: fixes GHSA-xpwg-46r2-2rjr and GHSA-c27r-qq9m-jg54, both in
+> OAuth and Microsoft sign-in.**
+>
+> Beyond the two advisories, this release candidate hardens sign-up, sessions,
+> sign-out and secret keys, queues notice e-mails in an
+> outbox and fixes how a risk's Timeline names who changed it. Several changes stop
+> an existing install from booting or signing people in until you act, so read the
+> operator actions before upgrading.
+>
+> **Operator actions**
+> - An account now signs in with a password or with an identity provider, never
+>   both. OAuth sign-in no longer links to an account that has a password, so OAuth
+>   works only for identities linked before this release. Every account created
+>   today has a password; OAuth-only accounts are tracked in #1151 (#1150, PR #1152).
+> - Microsoft sign-in needs `OAUTH2_AZURE_TENANT_ID` set to the directory's tenant ID
+>   (GUID preferred) or its domain. Empty, `common`, `organizations` and `consumers`
+>   leave Microsoft sign-in disabled, as do the consumers tenant ID and a value that is
+>   not a tenant ID or a domain. Helm: `--set backend.env.OAUTH2_AZURE_TENANT_ID=...`;
+>   Compose: add it to the backend service's `environment:`. A guest of the directory
+>   is refused unless already linked (#1153, PR #1155).
+> - Microsoft sign-in checks the ID token and trusts only addresses on the directory's
+>   verified domains. If the Graph `/organization` call fails, sign-in fails (#1154,
+>   PR #1157).
+> - After upgrading, audit your accounts. Accounts that have both a password and a
+>   provider link, and every Microsoft link:
+>   ```sql
+>   SELECT u.id, u.email, u.created_at, p.provider, p.linked_at
+>     FROM users u JOIN user_oauth_providers p ON p.user_id = u.id
+>    WHERE u.password <> '';
+>
+>   SELECT user_id, email, provider_user_id, linked_at
+>     FROM user_oauth_providers WHERE provider = 'azure';
+>   ```
+> - In production, which includes an unset `APP_ENV`, the server refuses to boot
+>   without `AUDIT_HASH_KEY` (32 characters or more). With
+>   Compose, add it to `.env` (rerunning `install.sh` fills it, and never replaces an
+>   existing value); with Helm, pass `--set secrets.inline.auditHashKey=...`. Migration
+>   0079 is irreversible (#879, PR #1056).
+> - In production (an unset `APP_ENV` included), the server refuses to boot without
+>   `MFA_ENCRYPTION_KEY`, or with the public
+>   development value. An install that never set it must set one, any new random
+>   value, before upgrading: its two-factor secrets are moved onto it at boot, so
+>   nobody re-enrols. Compose: rerunning `install.sh` fills it when absent. Helm:
+>   `secrets.inline.mfaEncryptionKey`; a values file that
+>   sets `backend.env.MFA_ENCRYPTION_KEY` keeps working with the same value (#1062,
+>   #1057, PRs #1068, #1058).
+> - Run all replicas with the same `AUDIT_HASH_KEY` and `MFA_ENCRYPTION_KEY`. A replica
+>   that differs is reported in the logs and by `openrisk_key_fingerprint_mismatch`;
+>   no alert rule ships for it (#1063).
+> - Migrations 0079 to 0081 run at boot: 0079 cannot be undone, 0080 adds
+>   `users.devices_revoked_at`, 0081 adds the notice e-mail tables.
+> - `RATE_LIMIT_AUTH_DISABLED=true` switches off the per-IP sign-in limiters for test
+>   suites. It is ignored in production, including when `APP_ENV` is unset (#588).
+> - Notice e-mails are sent by a background worker, so they can arrive after a delay.
+>   `NOTICE_EMAIL_MAX_IN_FLIGHT` (default 8) bounds it (#997).
+
+### Security
+- **OAuth sign-in could link an identity to an account that has a password
+  (GHSA-xpwg-46r2-2rjr).** OAuth sign-in matched an existing account by e-mail
+  address and linked the identity to it, including an account that signs in with a
+  password. An account now uses a password or an identity provider, never both: an
+  account that has a password is refused (the sign-in page says why) and nothing is
+  linked. Identities already linked keep signing in. Every account created today has
+  a password, so OAuth works only for links made before this release (#1150).
+  **Operator action:** run the audit queries above for accounts that hold both.
+- **Microsoft sign-in accepted any directory (GHSA-c27r-qq9m-jg54).** Microsoft sign-in
+  was not restricted to one directory, and it reported guests of a directory with a
+  verified address. It now requires `OAUTH2_AZURE_TENANT_ID` and
+  admits only that directory. Guests of the directory are no longer reported with a
+  verified address, so an unlinked guest is refused and a linked one keeps signing
+  in (#1153). The ID token is then checked (tenant, issuer, audience, expiry, object
+  ID), the Graph user must be the one the token names, and an address is trusted
+  only on a verified domain of the directory. The stored subject is unchanged, so
+  existing links keep working (#1154).
+  **Operator actions:** set the variable; review Microsoft links with the query above.
+- **A password alone no longer opens routes behind the second factor (#944).** The
+  token issued after a correct password, which is meant only for the MFA challenge,
+  and the MFA enrolment token were accepted by every protected route. Protected
+  routes now refuse any token that is not a full access token; the enrolment routes
+  check the type themselves.
+- **Duplicate sign-up says so, and alerts the owner (#686).** `POST /auth/register`
+  with an address that already has an account still answers 409, now limited to 5
+  attempts per address per hour (then 429 `REGISTER_RATE_LIMITED`). The owner gets a
+  FR/EN e-mail, at most once per 24 h, with sign-in and reset links and no password.
+  Every attempt is audited. The sign-up screen offers "Sign in with this address"
+  and "Forgot password?". The username is checked before the address, so a taken
+  username reveals nothing about the address (D-073).
+- **Addresses are hashed with a server key (#879, D-065).** The hash used in the auth
+  audit trail, the Redis keys of the sign-in and sign-up limits and the reset limiter
+  is an HMAC under `AUDIT_HASH_KEY`. Migration 0079 redacts the old plain hashes in
+  `auth_audit_logs` and deletes expired reset requests; it cannot be undone (D-074).
+- **A locked address no longer locks out its owner's usual browser (#879, D-064).** A
+  sign-in that ends in a full session plants a signed `__Secure-or_trusted_device`
+  cookie (HttpOnly, 90 days). On a locked address, that browser gets its own budget
+  (5 failures per 15 min, 20 per hour across the account's devices); an unknown
+  browser stays locked. The cookie is revoked with the sessions, and only while the
+  account still trusts it (#1118). `DEVICE_COOKIE_KEY` is optional, derived from
+  `AUDIT_HASH_KEY` when unset; `DEVICE_COOKIE_PREVIOUS_KEY` handles rotation. When
+  set, each needs 32 characters or more in production.
+- **Sign-out really ends the session (#1061, #727, #1059, #1060).** Browser logout
+  revokes the session named by the access token, so a copy of its refresh token stops
+  working. "Sign out other devices" keeps the caller's session, refuses a caller whose
+  session was already signed out, and mints no session of its own: a token without a
+  session identifier is signed out everywhere and told to sign in again, for the
+  15 minutes after the upgrade.
+- **Personal access tokens can no longer mint a session (#1123).**
+  `POST /auth/switch-org` and `POST /auth/password/change` answer 403 to a personal
+  access token.
+- **API responses are no longer cacheable (#1124).** Every API response, including
+  the organization logo and user avatars, carries `Cache-Control: no-store`. A CDN or
+  reverse-proxy cache in front of the API stops caching them.
+- **The MFA key stays out of the Helm Deployment (#1057).** `MFA_ENCRYPTION_KEY` is
+  read from the `openrisk-secrets` Secret instead of a literal in the Deployment.
+- **Replicas on different secret keys are detected (#1063).** Each replica publishes
+  a non-reversible fingerprint of its keys and logs, and sets a metric, when they
+  differ.
+- **Dependencies (#1102, #1141).** `klauspost/compress` 1.18.7 (CVE-2026-63209),
+  `follow-redirects` 1.16.1 (CVE-2026-111755, CVE-2026-111756) and `zod` 4.6.6
+  (CVE-2023-54404).
+
+### Added
+- **Entitlement levels are enforced (#613).** `RequireLevel` tells depths apart.
+  `GET /risks/:id/financial` takes `basic` and serves the closed-form figures without
+  the simulation; the simulation and financial dashboards need Pro. No shipped plan
+  grants `basic`, so Free still gets 402.
+- **Notice e-mails queue in an outbox, grouped per item (#997).** Each e-mail is
+  stored and sent by a worker on every replica, retried for about six hours, then
+  marked failed and kept for a month; none is dropped once queued. The worker runs
+  when an SMTP transport is configured. Later
+  notices on the same item within the window join one digest that ends on the item's
+  current state. `GET/PUT /api/v1/notifications/email-policy` and Settings >
+  Notifications set the window (15, 30, 60, 240 or 1440 min; default 60).
+- **Risk Timeline names the real author (#793).** Each change shows who made it,
+  including the `score-engine` job; the tab reads the audit trail alone.
+- **A DAST gate (#649).** A workflow scans the booted backend with OWASP ZAP and fails
+  when any rule listed in `.zap/rules.tsv` fires.
+- **A licence gate (#457, #774).** Every npm tree and Go module is checked against
+  `security/license-policy.yaml`; the build fails on a licence outside it.
+- **An API contract gate (#814, #1120).** `docs/openapi.yaml` is linted, the frontend
+  types must match it, and a registered route missing from it fails the build.
+  Every `/auth` route is now documented (22 added); 310 routes remain on a frozen
+  baseline.
+
+### Changed
+- **Sign-in page and sign-up screen explain refusals (#1150, #686).**
+- **The live stream renews an expired session (#701).** The stream refreshes once and
+  reconnects, or sends the user to sign-in if refused.
+- **The risk drawer handles Escape and focus (#793).** Escape closes the top layer;
+  focus enters the drawer. Chip contrast now clears 4.5:1.
+- **SSO is sold on no plan, and the docs say SAML is off (#1159, #1148).** SAML
+  refuses every request since #866, so the plan matrix, `docs/PRICING.md`, the
+  self-hosting table and the billing panel no longer list SSO. It returns with #1045.
+
+### Fixed
+- **An automation rule created disabled is stored disabled.** A draft or an adopted
+  template was stored active and fired (#783, kept by #1159).
+- **Clearing a mitigation's owner, assignee, reviewer or due date works (#1104).**
+  `PATCH /mitigations/:id` with `null` answered 200 and kept the value. An invalid
+  date is a 400; a plan of another organization is a 404; moving a date restarts the
+  D-7 and D-1 reminders.
+- **`POST /users` works and keeps the role on the membership (#590).** It answered
+  404 "Role not found"; `role` is `admin` or `user` with an optional `business_role`.
+- **Settings > Sessions marks this device and lists live sessions once (#727).**
+
+### Internal
+- CI repairs and pins (#818), a restored build after a bad merge (#1115), Helm
+  required-secret checks (#1132), the e2e rate-limit switch (#588), decision records
+  and ADR 0007, and the `react-leaflet` removal (#457).
+
+### Honest remainders
+- The hosted plan gates of #783 (PR #1131) were merged during this cycle and are
+  reverted by #1159 (PR #1160) before this release: until #612 lands, they would
+  have capped self-hosted installs. #783 is reopened and re-lands after #612.
+- #1151: OAuth-only accounts do not exist yet, so OAuth sign-in has no path for new
+  users.
+- Some advertised plan depths are still not enforced (`knownUnenforced` in
+  `backend/pkg/entitlements/pricing_enforcement_test.go`).
+- Migration 0079 cannot be undone; rolling back leaves the data as it is.
+- No Prometheus alert rule on `openrisk_key_fingerprint_mismatch`.
+- With Redis down, the sign-up budget and its alert apply per replica.
+- Clearing a mitigation slot sends no notice to the person removed.
+- The four direct e-mail paths (scan-complete, risk-review, evidence-expiry,
+  acceptance-expiry) are outside the outbox (#1053).
+- The server's 10 s write timeout cuts the live stream before its first keepalive;
+  the client reconnects it about every 70 s (#962).
+- 310 routes are still undocumented in `docs/openapi.yaml` (epic #1121).
+
 ## [1.1.0-rc.7] - 2026-10-20
 
 > **Security release: fixes GHSA-6m8w-33j5-ff68, a cross-organisation role change.**
@@ -742,7 +931,8 @@ this is a release candidate, not a GA.
 
 ---
 
-[Unreleased]: https://github.com/opendefender/OpenRisk/compare/v1.1.0-rc.7...HEAD
+[Unreleased]: https://github.com/opendefender/OpenRisk/compare/v1.1.0-rc.8...HEAD
+[1.1.0-rc.8]: https://github.com/opendefender/OpenRisk/compare/v1.1.0-rc.7...v1.1.0-rc.8
 [1.1.0-rc.7]: https://github.com/opendefender/OpenRisk/compare/v1.1.0-rc.6...v1.1.0-rc.7
 [1.1.0-rc.6]: https://github.com/opendefender/OpenRisk/compare/v1.1.0-rc.5...v1.1.0-rc.6
 [1.1.0-rc.5]: https://github.com/opendefender/OpenRisk/compare/v1.1.0-rc.4...v1.1.0-rc.5
