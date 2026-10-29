@@ -11,16 +11,17 @@
 // it fails.
 
 import { useEntitlements } from '../../features/billing/useEntitlements';
-import type { PlanKey } from '../../services/entitlementService';
+import type { ResolvedPlanKey } from '../../services/entitlementService';
 import { useI18n } from '../../hooks/useI18n';
 
 // Plan names are product names and read the same in both languages; only the
 // word around them is translated (common.planName).
-const PLAN_NAME: Record<PlanKey, string> = {
+const PLAN_NAME: Record<ResolvedPlanKey, string> = {
   free: 'Free',
   pro: 'Pro',
   business: 'Business',
   enterprise: 'Enterprise',
+  self_hosted: 'Self-hosted',
 };
 
 export function OrgPlanLabel() {
