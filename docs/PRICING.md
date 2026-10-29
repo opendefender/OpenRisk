@@ -52,7 +52,9 @@ self-hosted set (decision D-040):
   answers without one;
 - community support only, and no SLA: those are services, not software.
 
-SSO is not on any column, self-hosted included, until #1045. The full generated
+SSO is included on self-hosted: the operator configures Google, GitHub or
+Microsoft Entra with the `OAUTH2_*` variables. Creating SSO accounts (through an
+invitation or an allowed domain) is #1165, and SAML is #1045. The full generated
 table is in [SELF_HOSTING.md](SELF_HOSTING.md#what-a-self-hosted-instance-includes).
 Nothing is paid for, and no licence key is involved.
 

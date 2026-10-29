@@ -33,7 +33,7 @@ func TestSelfHosted_MatchesD040(t *testing.T) {
 		FeatAIAdvisor:          LevelAdvanced, // operator's own key, or the template fallback
 		FeatSupport:            LevelCommunity,
 		FeatSLA:                LevelOff, // a service the owner renders
-		FeatSSO:                LevelOff, // no plan grants it until #1045
+		FeatSSO:                LevelOn,  // configured by the operator via OAUTH2_*; SAML stays off (#866)
 	}
 	for _, f := range AllFeatures {
 		w, ok := want[f]

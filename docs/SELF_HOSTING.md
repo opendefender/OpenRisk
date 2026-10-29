@@ -129,7 +129,7 @@ the code ever disagree. It is not a marketing table; it is the code.
 | Automation rules | advanced | — | yes | advanced | advanced |
 | AI advisor | advanced | — | yes | advanced | advanced |
 | Compliance frameworks | custom | basic | standard | advanced | custom |
-| SSO (SAML / OIDC) | — | — | — | — | — |
+| SSO (Google, GitHub, Microsoft Entra; SAML from #1045) | yes | — | — | — | — |
 | Multi-tenant | yes | — | — | — | yes |
 | On-premise entitlement | yes | — | — | — | yes |
 | Financial quantification | yes | — | yes | yes | yes |
@@ -154,7 +154,15 @@ Two rows are worth reading closely:
   your instance.
 - **SLA** and support beyond the community are services the OpenDefender team
   renders to hosted customers, not software, so a self-hosted instance does not
-  carry them. **SSO** is off on every column until #1045 brings tenant SSO back.
+  carry them.
+- **SSO** is on, and it is yours to turn on: register an OAuth application
+  with Google, GitHub or Microsoft Entra and set the `OAUTH2_*` variables of
+  `deploy/selfhost/.env.example`. Microsoft sign-in also needs
+  `OAUTH2_AZURE_TENANT_ID` set to your own directory; without it the backend
+  keeps Microsoft off rather than admit any Entra tenant. **Today a provider
+  signs in only accounts already linked to it**, and no screen creates such an
+  account yet. Accepting an invitation through SSO, and operator-allowed
+  domains, are #1165. SAML is off everywhere until #1045.
 
 ### Licensing
 
