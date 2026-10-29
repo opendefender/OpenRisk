@@ -42,6 +42,10 @@ type Service struct {
 	subs  SubscriptionReader
 	usage UsageCounter
 
+	// selfHosted makes every tenant resolve to ent.PlanSelfHosted. It comes from
+	// the deployment flag at boot (WithDeployment), never from a tenant.
+	selfHosted bool
+
 	// levelOf is the matrix Level reads; ent.LevelOf unless WithLevelSource.
 	levelOf func(ent.Plan, ent.Feature) ent.Level
 
@@ -74,6 +78,13 @@ func (s *Service) WithSubscriptions(r SubscriptionReader) *Service { s.subs = r;
 
 // WithUsage attaches the usage counter (makes limits enforceable, not advisory).
 func (s *Service) WithUsage(u UsageCounter) *Service { s.usage = u; return s }
+
+// WithDeployment sets who runs this instance. On a self-hosted deployment every
+// tenant resolves to ent.PlanSelfHosted (D-040); hosted resolves as before.
+func (s *Service) WithDeployment(d ent.Deployment) *Service {
+	s.selfHosted = d == ent.DeploymentSelfHosted
+	return s
+}
 
 // WithLevelSource replaces the matrix Level reads depths from. Production never
 // calls it; tests use it to drive a depth no shipped plan grants yet (a Free
@@ -109,10 +120,15 @@ func (s *Service) EffectivePlan(ctx context.Context, tenant uuid.UUID) (ent.Plan
 	region := ent.ParseRegion(regionStr)
 	var trial *TrialInfo
 
-	// A subscription, when present, is the source of truth: entitled → its plan;
-	// present-but-not-entitled (canceled/past-due) → fall back to Free. No
-	// subscription at all → the org's stored plan (dev/seeded/manual orgs).
-	if s.subs != nil {
+	if s.selfHosted {
+		// D-040: the operator's own install is complete and uncapped. A stored
+		// plan or a subscription row (left over, seeded, or written by the billing
+		// screen) does not narrow it.
+		plan = ent.PlanSelfHosted
+	} else if s.subs != nil {
+		// A subscription, when present, is the source of truth: entitled → its plan;
+		// present-but-not-entitled (canceled/past-due) → fall back to Free. No
+		// subscription at all → the org's stored plan (dev/seeded/manual orgs).
 		if sub, sErr := s.subs.GetByTenant(ctx, tenant); sErr == nil && sub != nil {
 			region = ent.ParseRegion(sub.Region)
 			if sub.Entitled(now) {

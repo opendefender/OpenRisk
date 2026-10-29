@@ -1186,9 +1186,17 @@ func main() {
 	// =========================================================================
 	entitlementRepo := repository.NewGormEntitlementRepository(database.DB)
 	billingRepo := repository.NewGormBillingRepository(database.DB)
+	// Who runs this instance, read once here (#612, D-040). self_hosted gives every
+	// tenant the complete, uncapped set; unset or "hosted" resolves by plan.
+	deployment, err := ent.ParseDeployment(os.Getenv(ent.DeploymentEnv))
+	if err != nil {
+		log.Fatalf("%v", err)
+	}
+	log.Printf("Deployment: %s (%s)", deployment, ent.DeploymentEnv)
 	entitlementService := entapp.NewService(entitlementRepo).
 		WithSubscriptions(billingRepo).
-		WithUsage(entitlementRepo)
+		WithUsage(entitlementRepo).
+		WithDeployment(deployment)
 
 	billingRegistry := pkgbilling.NewRegistry(
 		pkgbilling.NewStripeGateway(os.Getenv("STRIPE_SECRET_KEY")),
