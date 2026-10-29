@@ -118,11 +118,11 @@ func TestResolve_ListsAllFeaturesAndPrices(t *testing.T) {
 	if !snap.Features[string(ent.FeatFinancialQuant)].Enabled {
 		t.Fatal("pro should enable financial quant")
 	}
-	if snap.Features[string(ent.FeatSSO)].Enabled {
-		t.Fatal("pro should NOT enable SSO")
+	if snap.Features[string(ent.FeatCTI)].Enabled {
+		t.Fatal("pro should NOT enable threat intel")
 	}
-	if snap.Features[string(ent.FeatSSO)].RequiredPlan != string(ent.PlanBusiness) {
-		t.Fatal("SSO required plan should be business")
+	if snap.Features[string(ent.FeatCTI)].RequiredPlan != string(ent.PlanBusiness) {
+		t.Fatal("threat intel required plan should be business")
 	}
 	if snap.Limits[string(ent.LimitRisks)].Used != 12 || snap.Limits[string(ent.LimitRisks)].Limit != 500 {
 		t.Fatalf("pro risks 12/500 expected, got %+v", snap.Limits[string(ent.LimitRisks)])
