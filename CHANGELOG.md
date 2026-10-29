@@ -30,8 +30,10 @@ Git tags use the `vMAJOR.MINOR.PATCH[-rc.N]` convention; see [docs/VERSIONING.md
 >   today has a password; OAuth-only accounts are tracked in #1151 (#1150, PR #1152).
 > - Microsoft sign-in needs `OAUTH2_AZURE_TENANT_ID` set to the directory's tenant ID
 >   (GUID preferred) or its domain. Empty, `common`, `organizations` and `consumers`
->   leave Microsoft sign-in disabled. A guest of the directory is refused unless
->   already linked (#1153, PR #1155).
+>   leave Microsoft sign-in disabled, as do the consumers tenant ID and a value that is
+>   not a tenant ID or a domain. Helm: `--set backend.env.OAUTH2_AZURE_TENANT_ID=...`;
+>   Compose: add it to the backend service's `environment:`. A guest of the directory
+>   is refused unless already linked (#1153, PR #1155).
 > - Microsoft sign-in checks the ID token and trusts only addresses on the directory's
 >   verified domains. If the Graph `/organization` call fails, sign-in fails (#1154,
 >   PR #1157).
@@ -45,14 +47,17 @@ Git tags use the `vMAJOR.MINOR.PATCH[-rc.N]` convention; see [docs/VERSIONING.md
 >   SELECT user_id, email, provider_user_id, linked_at
 >     FROM user_oauth_providers WHERE provider = 'azure';
 >   ```
-> - Production refuses to boot without `AUDIT_HASH_KEY` (32 characters or more). With
+> - In production, which includes an unset `APP_ENV`, the server refuses to boot
+>   without `AUDIT_HASH_KEY` (32 characters or more). With
 >   Compose, add it to `.env` (rerunning `install.sh` fills it, and never replaces an
 >   existing value); with Helm, pass `--set secrets.inline.auditHashKey=...`. Migration
 >   0079 is irreversible (#879, PR #1056).
-> - Production refuses to boot without `MFA_ENCRYPTION_KEY`, or with the public
+> - In production (an unset `APP_ENV` included), the server refuses to boot without
+>   `MFA_ENCRYPTION_KEY`, or with the public
 >   development value. An install that never set it must set one, any new random
 >   value, before upgrading: its two-factor secrets are moved onto it at boot, so
->   nobody re-enrols. Helm: `secrets.inline.mfaEncryptionKey`; a values file that
+>   nobody re-enrols. Compose: rerunning `install.sh` fills it when absent. Helm:
+>   `secrets.inline.mfaEncryptionKey`; a values file that
 >   sets `backend.env.MFA_ENCRYPTION_KEY` keeps working with the same value (#1062,
 >   #1057, PRs #1068, #1058).
 > - Run all replicas with the same `AUDIT_HASH_KEY` and `MFA_ENCRYPTION_KEY`. A replica
@@ -106,7 +111,8 @@ Git tags use the `vMAJOR.MINOR.PATCH[-rc.N]` convention; see [docs/VERSIONING.md
   (5 failures per 15 min, 20 per hour across the account's devices); an unknown
   browser stays locked. The cookie is revoked with the sessions, and only while the
   account still trusts it (#1118). `DEVICE_COOKIE_KEY` is optional, derived from
-  `AUDIT_HASH_KEY` when unset; `DEVICE_COOKIE_PREVIOUS_KEY` handles rotation.
+  `AUDIT_HASH_KEY` when unset; `DEVICE_COOKIE_PREVIOUS_KEY` handles rotation. When
+  set, each needs 32 characters or more in production.
 - **Sign-out really ends the session (#1061, #727, #1059, #1060).** Browser logout
   revokes the session named by the access token, so a copy of its refresh token stops
   working. "Sign out other devices" keeps the caller's session, refuses a caller whose
@@ -116,6 +122,9 @@ Git tags use the `vMAJOR.MINOR.PATCH[-rc.N]` convention; see [docs/VERSIONING.md
 - **Personal access tokens can no longer mint a session (#1123).**
   `POST /auth/switch-org` and `POST /auth/password/change` answer 403 to a personal
   access token.
+- **API responses are no longer cacheable (#1124).** Every API response, including
+  the organization logo and user avatars, carries `Cache-Control: no-store`. A CDN or
+  reverse-proxy cache in front of the API stops caching them.
 - **The MFA key stays out of the Helm Deployment (#1057).** `MFA_ENCRYPTION_KEY` is
   read from the `openrisk-secrets` Secret instead of a literal in the Deployment.
 - **Replicas on different secret keys are detected (#1063).** Each replica publishes
@@ -131,19 +140,22 @@ Git tags use the `vMAJOR.MINOR.PATCH[-rc.N]` convention; see [docs/VERSIONING.md
   the simulation; the simulation and financial dashboards need Pro. No shipped plan
   grants `basic`, so Free still gets 402.
 - **Notice e-mails queue in an outbox, grouped per item (#997).** Each e-mail is
-  stored, sent by a worker on every replica with retries, and none is dropped. Later
+  stored and sent by a worker on every replica, retried for about seven hours, then
+  marked failed and kept for a month; none is dropped once queued. The worker runs
+  when an SMTP transport is configured. Later
   notices on the same item within the window join one digest that ends on the item's
   current state. `GET/PUT /api/v1/notifications/email-policy` and Settings >
   Notifications set the window (15, 30, 60, 240 or 1440 min; default 60).
 - **Risk Timeline names the real author (#793).** Each change shows who made it,
   including the `score-engine` job; the tab reads the audit trail alone.
 - **A DAST gate (#649).** A workflow scans the booted backend with OWASP ZAP and fails
-  on any rule firing.
+  when any rule listed in `.zap/rules.tsv` fires.
 - **A licence gate (#457, #774).** Every npm tree and Go module is checked against
   `security/license-policy.yaml`; the build fails on a licence outside it.
 - **An API contract gate (#814, #1120).** `docs/openapi.yaml` is linted, the frontend
   types must match it, and a registered route missing from it fails the build. The
-  22 `/auth` routes are documented; 310 routes remain on a frozen baseline.
+  Every `/auth` route is now documented (22 added); 310 routes remain on a frozen
+  baseline.
 
 ### Changed
 - **Sign-in page and sign-up screen explain refusals (#1150, #686).**
@@ -185,7 +197,8 @@ Git tags use the `vMAJOR.MINOR.PATCH[-rc.N]` convention; see [docs/VERSIONING.md
 - Clearing a mitigation slot sends no notice to the person removed.
 - The four direct e-mail paths (scan-complete, risk-review, evidence-expiry,
   acceptance-expiry) are outside the outbox (#1053).
-- The live stream is recycled every 70 s by a server write timeout (#962).
+- The server's 10 s write timeout cuts the live stream before its first keepalive;
+  the client reconnects it about every 70 s (#962).
 - 310 routes are still undocumented in `docs/openapi.yaml` (epic #1121).
 
 ## [1.1.0-rc.7] - 2026-10-20
