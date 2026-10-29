@@ -226,12 +226,17 @@ func azureConfig(redirectURI string) *oauth2.Config {
 	}
 }
 
+// consumersTenantID is the fixed directory of personal Microsoft accounts. Named
+// by GUID it admits anyone with a Microsoft account, exactly like "consumers".
+const consumersTenantID = "9188040d-6c67-4c5b-b112-36a304b66dad"
+
 // isSpecificAzureTenant reports whether tenant names one directory. The empty
-// value falls back to "common"; "common", "organizations" and "consumers" all
-// admit accounts from directories the operator does not control.
+// value falls back to "common"; "common", "organizations", "consumers" and the
+// consumers GUID all admit accounts from directories the operator does not
+// control.
 func isSpecificAzureTenant(tenant string) bool {
 	switch strings.ToLower(tenant) {
-	case "", "common", "organizations", "consumers":
+	case "", "common", "organizations", "consumers", consumersTenantID:
 		return false
 	}
 	return true
@@ -646,13 +651,17 @@ func getAzureUserInfo(ctx context.Context, token *oauth2.Token) (*OAuth2UserInfo
 		email = data.UserPrincipalName
 	}
 
+	// `mail` is admin-editable and unverified; the UPN suffix is a verified
+	// domain of the directory. Both are trusted only because azureConfig pins
+	// sign-in to the operator's own directory (#1153). A guest's address is not
+	// trusted at all: the inviter typed it, and the UPN (x_home.com#EXT#@...) is
+	// not a mailbox.
+	guest := strings.Contains(strings.ToUpper(data.UserPrincipalName), "#EXT#")
+
 	return &OAuth2UserInfo{
-		ID:    data.ID,
-		Email: email,
-		// Neither attribute is verified by Microsoft: a directory administrator
-		// can set `mail` to any address. The address is trusted only because
-		// azureConfig pins sign-in to the operator's own directory (#1153).
-		EmailVerified: email != "",
+		ID:            data.ID,
+		Email:         email,
+		EmailVerified: email != "" && !guest,
 		Name:          data.DisplayName,
 	}, nil
 }

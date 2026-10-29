@@ -11,12 +11,13 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"golang.org/x/oauth2"
 )
 
 // Microsoft sign-in is pinned to the operator's directory (#1153).
 
 func TestAzureConfig_GenericTenantLeavesMicrosoftSignInUnconfigured(t *testing.T) {
-	for _, tenant := range []string{"", "  ", "common", "Common", "organizations", "consumers"} {
+	for _, tenant := range []string{"", "  ", "common", "Common", "organizations", "consumers", "9188040D-6C67-4C5B-B112-36A304B66DAD"} {
 		t.Run("tenant="+tenant, func(t *testing.T) {
 			t.Setenv("OAUTH2_AZURE_CLIENT_ID", "client-id")
 			t.Setenv("OAUTH2_AZURE_TENANT_ID", tenant)
@@ -83,4 +84,36 @@ func TestInitializeOAuth2_GoogleAndGitHubAreUnaffectedByTheAzureTenant(t *testin
 	require.Equal(t, "google-id", cfg.GoogleConfig.ClientID)
 	require.Equal(t, "github-id", cfg.GitHubConfig.ClientID)
 	require.Empty(t, cfg.AzureConfig.ClientID)
+}
+
+func TestAzureUserInfo_GuestAddressIsNotVerified(t *testing.T) {
+	prev := graphMeURL
+	t.Cleanup(func() { graphMeURL = prev })
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"id":"oid-1","displayName":"Guest","mail":"ceo@victim.example","userPrincipalName":"ceo_victim.example#EXT#@operator.onmicrosoft.com"}`))
+	}))
+	t.Cleanup(srv.Close)
+	graphMeURL = srv.URL
+
+	info, err := getAzureUserInfo(t.Context(), &oauth2.Token{AccessToken: "token"})
+	require.NoError(t, err)
+
+	require.Equal(t, "ceo@victim.example", info.Email)
+	require.False(t, info.EmailVerified, "a guest's address was typed by the inviter, not verified")
+}
+
+func TestAzureUserInfo_MemberAddressIsVerified(t *testing.T) {
+	prev := graphMeURL
+	t.Cleanup(func() { graphMeURL = prev })
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"id":"oid-2","displayName":"Member","mail":"","userPrincipalName":"member@operator.example"}`))
+	}))
+	t.Cleanup(srv.Close)
+	graphMeURL = srv.URL
+
+	info, err := getAzureUserInfo(t.Context(), &oauth2.Token{AccessToken: "token"})
+	require.NoError(t, err)
+
+	require.Equal(t, "member@operator.example", info.Email)
+	require.True(t, info.EmailVerified)
 }
