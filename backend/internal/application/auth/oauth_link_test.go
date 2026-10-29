@@ -296,3 +296,59 @@ func TestResolveOAuth_EmailMatchIsCaseInsensitive(t *testing.T) {
 		t.Error("address matching must be case-insensitive")
 	}
 }
+
+// ---------------------------------------------------------------------------
+// An account signs in with a password or with a provider, never both (#1150)
+// ---------------------------------------------------------------------------
+
+func TestResolveOAuth_PasswordAccountIsNeverLinked(t *testing.T) {
+	user := activeUser("member@opendefender.io")
+	user.Password = "$argon2id$v=19$m=65536,t=3,p=2$c2FsdA$aGFzaA"
+	links := &fakeLinks{}
+
+	uc := NewResolveOAuthIdentityUseCase(newFakeResetUsers(user), links)
+	out, err := uc.Execute(context.Background(), verifiedIdentity("google", "google-sub-9", user.Email))
+
+	if !errors.Is(err, ErrOAuthPasswordAccount) {
+		t.Fatalf("expected ErrOAuthPasswordAccount, got %v", err)
+	}
+	if out != nil {
+		t.Errorf("a refused sign-in must resolve no account, got %+v", out)
+	}
+	if len(links.rows) != 0 {
+		t.Fatal("no link may be written on a password account")
+	}
+}
+
+func TestResolveOAuth_PasswordAccountIsNotLinkedOnASecondSubjectEither(t *testing.T) {
+	// A password account that already carries a link from before #1150 gains no
+	// further one.
+	user := activeUser("member@opendefender.io")
+	user.Password = "$argon2id$v=19$m=65536,t=3,p=2$c2FsdA$aGFzaA"
+	links := &fakeLinks{rows: []domain.OAuthProvider{{
+		ID: uuid.New(), UserID: user.ID, Provider: "google", ProviderUserID: "google-sub-old",
+	}}}
+
+	uc := NewResolveOAuthIdentityUseCase(newFakeResetUsers(user), links)
+	_, err := uc.Execute(context.Background(), verifiedIdentity("google", "google-sub-new", user.Email))
+
+	if !errors.Is(err, ErrOAuthPasswordAccount) {
+		t.Fatalf("expected ErrOAuthPasswordAccount, got %v", err)
+	}
+	if len(links.rows) != 1 {
+		t.Error("no second link may be written on a password account")
+	}
+}
+
+func TestResolveOAuth_DisabledPasswordAccountReportsDisabled(t *testing.T) {
+	user := activeUser("member@opendefender.io")
+	user.Password = "$argon2id$v=19$m=65536,t=3,p=2$c2FsdA$aGFzaA"
+	user.IsActive = false
+
+	uc := NewResolveOAuthIdentityUseCase(newFakeResetUsers(user), &fakeLinks{})
+	_, err := uc.Execute(context.Background(), verifiedIdentity("google", "google-sub-9", user.Email))
+
+	if !errors.Is(err, ErrOAuthAccountDisabled) {
+		t.Fatalf("expected ErrOAuthAccountDisabled, got %v", err)
+	}
+}

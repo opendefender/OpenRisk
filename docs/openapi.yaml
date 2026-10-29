@@ -892,7 +892,7 @@ paths:
         is a 302 to /login with an `error` code: `access_denied`, `consent_required`, `provider_error`,
         `state_missing`, `state_invalid`, `code_missing`, `unsupported_provider`, `exchange_failed`,
         `userinfo_failed`, `email_unverified`, `no_email`, `account_disabled`, `no_account`,
-        `internal`, or `provider_conflict` with `existing_provider` naming the provider that
+        `password_account`, `internal`, or `provider_conflict` with `existing_provider` naming the provider that
         already owns the address.
       operationId: oauth2Callback
       security: []

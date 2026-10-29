@@ -125,6 +125,7 @@ describe('auth copy', () => {
       'no_email',
       'account_disabled',
       'no_account',
+      'password_account',
       'provider_conflict',
       'internal',
     ];

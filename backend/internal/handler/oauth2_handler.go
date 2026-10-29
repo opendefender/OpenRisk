@@ -412,6 +412,8 @@ func oauthResolveFailure(c *fiber.Ctx, err error, provider, locale string) error
 		return oauthFailure(c, "account_disabled", provider, locale)
 	case errors.Is(err, appauth.ErrOAuthNoAccount):
 		return oauthFailure(c, "no_account", provider, locale)
+	case errors.Is(err, appauth.ErrOAuthPasswordAccount):
+		return oauthFailure(c, "password_account", provider, locale)
 	default:
 		return oauthFailure(c, "internal", provider, locale)
 	}
