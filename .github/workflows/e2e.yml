@@ -60,6 +60,9 @@ jobs:
       REDIS_HOST: localhost
       REDIS_PORT: '6379'
       APP_ENV: test
+      # One instance, run by us: self-hosted, so sign-ups made by the suite get
+      # the complete set rather than Free's caps (#612).
+      OPENRISK_DEPLOYMENT: self_hosted
       PORT: '8080'
       CORS_ORIGINS: http://localhost:5173
       # The backend starts from backend/, and MIGRATIONS_DIR defaults to
@@ -220,6 +223,9 @@ jobs:
       REDIS_HOST: localhost
       REDIS_PORT: '6379'
       APP_ENV: test
+      # One instance, run by us: self-hosted, so sign-ups made by the suite get
+      # the complete set rather than Free's caps (#612).
+      OPENRISK_DEPLOYMENT: self_hosted
       PORT: '8080'
       CORS_ORIGINS: http://localhost:5173
       # The backend starts from backend/, and MIGRATIONS_DIR defaults to
