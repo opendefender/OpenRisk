@@ -44,6 +44,54 @@ func TestTriggerScan_Success_AgentDispatches(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, domain.ScanQueued, job.Status)
 	assert.Equal(t, 1, kv.messages) // dispatched to agents over SSE
+	// No type asked for: the vulnerability scan every scan ran before #1164.
+	assert.Equal(t, domain.ScanVulnerability, job.ScanType)
+	assert.Equal(t, "vulnerability", kv.last.(scanpkg.AgentJobDispatch).ScanType)
+}
+
+func TestTriggerScan_Success_BothTypes(t *testing.T) {
+	for _, st := range []domain.ScanType{domain.ScanDiscovery, domain.ScanVulnerability} {
+		t.Run(string(st), func(t *testing.T) {
+			tenant := uuid.New()
+			cfg := agentConfig(tenant)
+			kv := newFakeKV()
+			configRepo := &mockConfigRepo{getByIDFunc: func(_ context.Context, _, _ uuid.UUID) (*domain.ScanConfig, error) { return cfg, nil }}
+			var created *domain.ScanJob
+			jobRepo := &mockJobRepo{createFunc: func(_ context.Context, j *domain.ScanJob) error { created = j; return nil }}
+			uc := newTriggerUC(kv, configRepo, jobRepo)
+
+			job, err := uc.ExecuteWithType(context.Background(), tenant, uuid.New(), cfg.ID, st)
+			require.NoError(t, err)
+			assert.Equal(t, st, job.ScanType)
+			require.NotNil(t, created)
+			assert.Equal(t, st, created.ScanType) // persisted, not only returned
+			assert.Equal(t, string(st), kv.last.(scanpkg.AgentJobDispatch).ScanType)
+		})
+	}
+}
+
+func TestTriggerScan_InvalidType(t *testing.T) {
+	tenant := uuid.New()
+	cfg := agentConfig(tenant)
+	configRepo := &mockConfigRepo{getByIDFunc: func(_ context.Context, _, _ uuid.UUID) (*domain.ScanConfig, error) { return cfg, nil }}
+	uc := newTriggerUC(newFakeKV(), configRepo, &mockJobRepo{})
+	_, err := uc.ExecuteWithType(context.Background(), tenant, uuid.New(), cfg.ID, "compliance")
+	require.Error(t, err)
+	assert.ErrorIs(t, err, domain.ErrValidation)
+}
+
+func TestTriggerScan_TypeOnCloudProvider(t *testing.T) {
+	tenant := uuid.New()
+	cfg := &domain.ScanConfig{ID: uuid.New(), TenantID: tenant, Provider: domain.ProviderAWS, Enabled: true}
+	configRepo := &mockConfigRepo{getByIDFunc: func(_ context.Context, _, _ uuid.UUID) (*domain.ScanConfig, error) { return cfg, nil }}
+	jobRepo := &mockJobRepo{createFunc: func(_ context.Context, _ *domain.ScanJob) error {
+		t.Fatal("no job may be created when the type is refused")
+		return nil
+	}}
+	uc := newTriggerUC(newFakeKV(), configRepo, jobRepo)
+	_, err := uc.ExecuteWithType(context.Background(), tenant, uuid.New(), cfg.ID, domain.ScanDiscovery)
+	require.Error(t, err)
+	assert.ErrorIs(t, err, domain.ErrValidation)
 }
 
 func TestTriggerScan_Unauthorized(t *testing.T) {
