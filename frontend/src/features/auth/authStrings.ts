@@ -378,7 +378,7 @@ const fr: AuthCopy = {
     no_account:
       "Aucun compte OpenRisk n'est associé à cette adresse. Demandez une invitation à votre administrateur.",
     password_account:
-      'Cette adresse se connecte avec un mot de passe. Utilisez votre mot de passe.',
+      'Ce compte se connecte avec un mot de passe. Utilisez votre adresse e-mail et votre mot de passe.',
     provider_conflict: 'Cette adresse est déjà associée à un autre fournisseur.',
     internal: 'Une erreur est survenue pendant la connexion. Réessayez dans un instant.',
   },
@@ -502,7 +502,7 @@ const en: AuthCopy = {
     account_disabled: 'This account is disabled. Contact your administrator.',
     no_account:
       'No OpenRisk account is linked to this address. Ask your administrator for an invitation.',
-    password_account: 'This address signs in with a password. Please use your password.',
+    password_account: 'This account signs in with a password. Use your email address and password.',
     provider_conflict: 'This address is already linked to a different provider.',
     internal: 'Something went wrong during sign-in. Please try again shortly.',
   },

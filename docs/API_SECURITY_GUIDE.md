@@ -168,8 +168,9 @@ curl -H "Authorization: Bearer orsk_a1b2c3d4_<secret>" \
 3. Callback to: `GET /api/v1/auth/oauth2/callback/:provider`
    - Refused with `error=state_invalid` unless the `or_oauth_state` cookie
      matches the `state` query parameter
-4. OpenRisk signs in the account linked to that provider identity. An account
-   signs in with a password or with a provider, never both: an address that
+4. OpenRisk signs in the account linked to that provider identity, or links an
+   account without a password whose address the provider has verified. An
+   account signs in with a password or with a provider, never both: an address that
    belongs to an account with a password is refused with
    `error=password_account`, and no link is written
 5. The session is set in cookies, exactly as for password login: `or_access`
