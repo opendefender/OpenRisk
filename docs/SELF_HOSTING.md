@@ -93,8 +93,21 @@ does: change the password from the app.
 
 Self-hosting gives you **the whole codebase**, not a crippled build: there is no
 feature flag in this repository that a paid licence unlocks and a self-hoster
-cannot. What differs is the **plan** your organisation resolves to, which is the
-same open-core matrix the SaaS applies — enforced in
+cannot. An instance declares itself self-hosted with one environment variable,
+read once at boot:
+
+```
+OPENRISK_DEPLOYMENT=self_hosted
+```
+
+`deploy/selfhost/docker-compose.yml` sets it for you. Every organisation of that
+instance then resolves to the **Self-hosted** set (decision D-040): no caps on
+users, risks, assets or integrations, and every capability that runs on your own
+hardware. The variable is a property of the deployment; no organisation, plan
+row or subscription can set it. An unknown value stops the backend at boot
+rather than silently falling back to Free. Without the variable the backend
+behaves as the hosted service, where each organisation resolves by its plan.
+The resolution happens in
 [`backend/pkg/entitlements/entitlements.go`](../backend/pkg/entitlements/entitlements.go)
 and in the middleware, not in the frontend.
 
@@ -106,41 +119,42 @@ the code ever disagree. It is not a marketing table; it is the code.
 <!-- Generated from backend/pkg/entitlements/entitlements.go.
      Do not edit by hand: `go test ./pkg/entitlements/ -run TestSelfHostDoc -update`. -->
 
-| Capability | Free | Pro | Business | Enterprise |
-|---|---|---|---|---|
-| Users | 2 | 10 | 50 | unlimited |
-| Risks | 50 | 500 | unlimited | unlimited |
-| Assets | 50 | unlimited | unlimited | unlimited |
-| Integrations | 1 | 10 | unlimited | unlimited |
-| REST API | limited | yes | yes | yes |
-| Automation rules | — | yes | advanced | advanced |
-| AI advisor | — | yes | advanced | advanced |
-| Compliance frameworks | basic | standard | advanced | custom |
-| SSO (SAML / OIDC) | — | — | — | — |
-| Multi-tenant | — | — | — | yes |
-| On-premise entitlement | — | — | — | yes |
-| Financial quantification | — | yes | yes | yes |
-| SmartScore | — | yes | yes | yes |
-| Executive dashboard | — | yes | yes | yes |
-| Scanner | — | yes | yes | yes |
-| Threat intelligence (CTI) | — | — | yes | advanced |
-| Governance | — | — | yes | advanced |
-| Vendor risk (TPRM) | — | — | yes | yes |
-| SLA | — | — | 99.5% | 99.9% |
-| Support | community | email | priority | dedicated |
+| Capability | Self-hosted | Free | Pro | Business | Enterprise |
+|---|---|---|---|---|---|
+| Users | unlimited | 2 | 10 | 50 | unlimited |
+| Risks | unlimited | 50 | 500 | unlimited | unlimited |
+| Assets | unlimited | 50 | unlimited | unlimited | unlimited |
+| Integrations | unlimited | 1 | 10 | unlimited | unlimited |
+| REST API | yes | limited | yes | yes | yes |
+| Automation rules | advanced | — | yes | advanced | advanced |
+| AI advisor | advanced | — | yes | advanced | advanced |
+| Compliance frameworks | custom | basic | standard | advanced | custom |
+| SSO (SAML / OIDC) | — | — | — | — | — |
+| Multi-tenant | yes | — | — | — | yes |
+| On-premise entitlement | yes | — | — | — | yes |
+| Financial quantification | yes | — | yes | yes | yes |
+| SmartScore | yes | — | yes | yes | yes |
+| Executive dashboard | yes | — | yes | yes | yes |
+| Scanner | yes | — | yes | yes | yes |
+| Threat intelligence (CTI) | advanced | — | — | yes | advanced |
+| Governance | advanced | — | — | yes | advanced |
+| Vendor risk (TPRM) | yes | — | — | yes | yes |
+| SLA | — | — | — | 99.5% | 99.9% |
+| Support | community | community | email | priority | dedicated |
 
-A self-hosted instance registers its first organisation with no plan set, so it resolves to **Free**: 2 users, 50 risks, 50 assets, 1 integration(s).
+With `OPENRISK_DEPLOYMENT=self_hosted`, every organisation of the instance resolves to **Self-hosted**: unlimited users, unlimited risks, unlimited assets, unlimited integrations, whatever plan its row stores. Without the variable the instance behaves as the hosted service and a new organisation resolves to **Free** (2 users, 50 risks).
 
 <!-- END GENERATED: entitlements matrix -->
 
-To lift those caps on an instance you run yourself, set the organisation's plan
-in the database or attach a subscription; the entitlement service reads the
-subscription first and the organisation's stored plan otherwise
-(`backend/internal/application/entitlements/service.go`). **Whether a
-self-hosted instance should default to something other than Free is an open
-question for the owner — D-040 in [DECISIONS.md](DECISIONS.md).** Until it is
-answered, this page describes what the code does today rather than what the
-offer might become.
+Two rows are worth reading closely:
+
+- **AI advisor** is on, and runs on **your** `ANTHROPIC_API_KEY`. Without a key
+  it answers from the built-in templates, with no language model involved
+  (`backend/pkg/ai/template_advisor.go`). The project pays for no inference on
+  your instance.
+- **SLA** and support beyond the community are services the OpenDefender team
+  renders to hosted customers, not software, so a self-hosted instance does not
+  carry them. **SSO** is off on every column until #1045 brings tenant SSO back.
 
 ### Licensing
 

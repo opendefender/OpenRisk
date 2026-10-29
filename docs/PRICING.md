@@ -36,6 +36,26 @@ frontend greys/explains from it.
 (#866) and OAuth providers are configured per deployment, so there is no
 tenant SSO for a plan to include. It returns with #1045.
 
+## Self-hosting is not the Free plan
+
+The table above is the **hosted (SaaS)** offer. A self-hosted instance, started
+with `OPENRISK_DEPLOYMENT=self_hosted` (set by `deploy/selfhost/docker-compose.yml`),
+does not resolve to any of these columns. Every organisation on it gets the
+self-hosted set (decision D-040):
+
+- no cap on users, risks, assets or integrations;
+- every capability that runs on your own hardware: smart risk score, financial
+  quantification, executive dashboard, infra scanner, threat intel (NVD and CISA
+  KEV are free public feeds), compliance, automation, governance, vendor risk,
+  REST API and multi-tenant;
+- the AI advisor, on your own `ANTHROPIC_API_KEY`, or on the built-in template
+  answers without one;
+- community support only, and no SLA: those are services, not software.
+
+SSO is not on any column, self-hosted included, until #1045. The full generated
+table is in [SELF_HOSTING.md](SELF_HOSTING.md#what-a-self-hosted-instance-includes).
+Nothing is paid for, and no licence key is involved.
+
 ## Pricing (PPP by zone)
 
 Prices are purchasing-power adjusted by region. A trial of any paid plan runs

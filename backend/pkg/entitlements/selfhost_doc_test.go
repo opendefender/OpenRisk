@@ -99,9 +99,13 @@ func renderSelfHostMatrix(t *testing.T) string {
 	b.WriteString("<!-- Generated from backend/pkg/entitlements/entitlements.go.\n")
 	b.WriteString("     Do not edit by hand: `go test ./pkg/entitlements/ -run TestSelfHostDoc -update`. -->\n\n")
 
+	// Self-hosted first: it is what this page's reader gets. The hosted plans
+	// follow so the difference with the SaaS is visible.
+	columns := append([]Plan{PlanSelfHosted}, AllPlans...)
+
 	header := "| Capability |"
 	rule := "|---|"
-	for _, p := range AllPlans {
+	for _, p := range columns {
 		header += " " + planTitle(p) + " |"
 		rule += "---|"
 	}
@@ -113,7 +117,7 @@ func renderSelfHostMatrix(t *testing.T) string {
 			t.Fatalf("limit %q has no human label in limitLabels — name it before shipping it", k)
 		}
 		row := "| " + label + " |"
-		for _, p := range AllPlans {
+		for _, p := range columns {
 			row += " " + limitCell(p, k) + " |"
 		}
 		b.WriteString(row + "\n")
@@ -125,7 +129,7 @@ func renderSelfHostMatrix(t *testing.T) string {
 			t.Fatalf("feature %q has no human label in featureLabels — name it before shipping it", f)
 		}
 		row := "| " + label + " |"
-		for _, p := range AllPlans {
+		for _, p := range columns {
 			row += " " + levelCell(p, f) + " |"
 		}
 		b.WriteString(row + "\n")
@@ -133,13 +137,18 @@ func renderSelfHostMatrix(t *testing.T) string {
 
 	b.WriteString("\n")
 	b.WriteString(fmt.Sprintf(
-		"A self-hosted instance registers its first organisation with no plan set, "+
-			"so it resolves to **%s**: %s users, %s risks, %s assets, %s integration(s).\n",
+		"With `%s=%s`, every organisation of the instance resolves to **%s**: "+
+			"%s users, %s risks, %s assets, %s integrations, whatever plan its row "+
+			"stores. Without the variable the instance behaves as the hosted service "+
+			"and a new organisation resolves to **%s** (%s users, %s risks).\n",
+		DeploymentEnv, DeploymentSelfHosted, planTitle(PlanSelfHosted),
+		limitCell(PlanSelfHosted, LimitUsers),
+		limitCell(PlanSelfHosted, LimitRisks),
+		limitCell(PlanSelfHosted, LimitAssets),
+		limitCell(PlanSelfHosted, LimitIntegrations),
 		planTitle(PlanFree),
 		limitCell(PlanFree, LimitUsers),
 		limitCell(PlanFree, LimitRisks),
-		limitCell(PlanFree, LimitAssets),
-		limitCell(PlanFree, LimitIntegrations),
 	))
 	b.WriteString("\n")
 	b.WriteString(docEndMarker)
@@ -147,6 +156,9 @@ func renderSelfHostMatrix(t *testing.T) string {
 }
 
 func planTitle(p Plan) string {
+	if p == PlanSelfHosted {
+		return "Self-hosted"
+	}
 	s := string(p)
 	if s == "" {
 		return "Free"
