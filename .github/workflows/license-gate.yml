@@ -7,7 +7,8 @@ name: Licence gate
 # the tree unnoticed.
 #
 # What it checks, and what fails the build:
-#   - npm: every package in frontend/package-lock.json, dev dependencies
+#   - npm: every package in frontend/package-lock.json and in the repo-root
+#     package-lock.json (the Playwright e2e harness, #774), dev dependencies
 #     included, with the licence npm recorded or the installed package.json
 #     declares;
 #   - Go: every module `go list -deps -test ./...` builds in backend/ and
@@ -53,7 +54,9 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
-          cache-dependency-path: frontend/package-lock.json
+          cache-dependency-path: |
+            frontend/package-lock.json
+            package-lock.json
 
       - uses: aquasecurity/setup-trivy@81e514348e19b6112ce2a7e3ecbafe19c1e1f567 # v0.3.1
         with:
@@ -62,8 +65,11 @@ jobs:
 
       # Scripts are not run: the gate reads package.json files, nothing a
       # postinstall step produces.
-      - name: Install the npm tree
-        run: cd frontend && npm ci --ignore-scripts --no-audit --no-fund
+      - name: Install the npm trees
+        run: |
+          set -euo pipefail
+          (cd frontend && npm ci --ignore-scripts --no-audit --no-fund)
+          npm ci --ignore-scripts --no-audit --no-fund
 
       # `go list` also fills the module cache, which is where Trivy reads each
       # module's LICENSE file. A module it cannot classify comes out UNKNOWN
@@ -93,6 +99,7 @@ jobs:
           go run ./cmd/licensegate \
             -policy ../security/license-policy.yaml \
             -npm-lock ../frontend/package-lock.json \
+            -npm-lock ../package-lock.json \
             -go-modules ../gate-reports/go-modules.txt \
             -trivy ../gate-reports/trivy-licenses-backend.json \
             -trivy ../gate-reports/trivy-licenses-agent.json

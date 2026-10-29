@@ -8,11 +8,12 @@
 // cannot be read.
 //
 //	licensegate -policy security/license-policy.yaml \
-//	    -npm-lock frontend/package-lock.json \
+//	    -npm-lock frontend/package-lock.json -npm-lock package-lock.json \
 //	    -go-modules go-modules.txt -trivy backend-licenses.json
 //
-// Both trees are required: a run over one of them would report the other
-// tree's exceptions as unused.
+// Every tree is required: a run over part of them would report the other
+// trees' exceptions as unused. A package installed in two npm trees at the
+// same version is checked once.
 package main
 
 import (
@@ -37,16 +38,16 @@ func main() {
 func run(args []string, stdout, stderr io.Writer) int {
 	fs := flag.NewFlagSet("licensegate", flag.ContinueOnError)
 	fs.SetOutput(stderr)
-	var trivy fileList
+	var trivy, npmLocks fileList
 	policyPath := fs.String("policy", "security/license-policy.yaml", "licence policy file")
-	npmLock := fs.String("npm-lock", "", "package-lock.json of an installed npm tree")
+	fs.Var(&npmLocks, "npm-lock", "package-lock.json of an installed npm tree (repeatable)")
 	goMods := fs.String("go-modules", "", "`go list -deps -test` module list, one \"path version\" per line")
 	fs.Var(&trivy, "trivy", "Trivy licence report (JSON) for the Go tree (repeatable)")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
-	if *npmLock == "" || *goMods == "" || len(trivy) == 0 {
-		fmt.Fprintln(stderr, "licensegate: -npm-lock, -go-modules and at least one -trivy are required")
+	if len(npmLocks) == 0 || *goMods == "" || len(trivy) == 0 {
+		fmt.Fprintln(stderr, "licensegate: at least one -npm-lock, -go-modules and at least one -trivy are required")
 		return 2
 	}
 
@@ -62,10 +63,22 @@ func run(args []string, stdout, stderr io.Writer) int {
 		return 2
 	}
 
-	npm, skipped, err := licensegate.NPMTree(*npmLock)
-	if err != nil {
-		fmt.Fprintf(stderr, "licensegate: %v\n", err)
-		return 2
+	var npm []licensegate.Dependency
+	skipped := 0
+	seen := map[string]bool{}
+	for _, p := range npmLocks {
+		tree, n, err := licensegate.NPMTree(p)
+		if err != nil {
+			fmt.Fprintf(stderr, "licensegate: %v\n", err)
+			return 2
+		}
+		skipped += n
+		for _, d := range tree {
+			if k := d.Name + "@" + d.Version; !seen[k] {
+				seen[k] = true
+				npm = append(npm, d)
+			}
+		}
 	}
 
 	mf, err := os.Open(*goMods)
