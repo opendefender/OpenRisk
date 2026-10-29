@@ -163,8 +163,9 @@ curl -H "Authorization: Bearer orsk_a1b2c3d4_<secret>" \
    - `azure` is available only when `OAUTH2_AZURE_TENANT_ID` names your
      directory, preferably by its tenant ID (GUID). Empty, `common`,
      `organizations`, `consumers` and the consumers tenant ID leave it
-     unconfigured, because those endpoints admit any directory. Guest
-     accounts of your directory sign in with an unverified address
+     unconfigured, because those endpoints admit any directory. Guest (B2B)
+     accounts are refused unless their Microsoft identity is already linked:
+     their address was typed by the inviter, not verified
    - Mints a `state` and a PKCE verifier, both kept server-side, and sets the
      `or_oauth_state` cookie (see below)
    - Optional `return_to`: a root-relative path to open after sign-in. Anything
