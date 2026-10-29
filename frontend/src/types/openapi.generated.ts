@@ -330,7 +330,7 @@ export interface paths {
         };
         /**
          * Finish an OAuth2 sign-in
-         * @description The provider's redirect back. The state cookie is checked and cleared first, so a flow gets one try. On success the session cookies are set and the browser is sent to the SPA's SSO completion page (with `next` when a safe `return_to` was given). Every failure is a 302 to /login with an `error` code: `access_denied`, `consent_required`, `provider_error`, `state_missing`, `state_invalid`, `code_missing`, `unsupported_provider`, `exchange_failed`, `userinfo_failed`, `email_unverified`, `no_email`, `account_disabled`, `no_account`, `internal`, or `provider_conflict` with `existing_provider` naming the provider that already owns the address.
+         * @description The provider's redirect back. The state cookie is checked and cleared first, so a flow gets one try. On success the session cookies are set and the browser is sent to the SPA's SSO completion page (with `next` when a safe `return_to` was given). Every failure is a 302 to /login with an `error` code: `access_denied`, `consent_required`, `provider_error`, `state_missing`, `state_invalid`, `code_missing`, `unsupported_provider`, `exchange_failed`, `userinfo_failed`, `email_unverified`, `no_email`, `account_disabled`, `no_account`, `password_account`, `internal`, or `provider_conflict` with `existing_provider` naming the provider that already owns the address.
          */
         get: operations["oauth2Callback"];
         put?: never;

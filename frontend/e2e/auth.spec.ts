@@ -157,6 +157,7 @@ test.describe('OAuth providers', () => {
       'no_email',
       'account_disabled',
       'no_account',
+      'password_account',
       'internal',
     ];
 

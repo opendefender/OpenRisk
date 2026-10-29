@@ -72,6 +72,10 @@ var (
 
 	// ErrOAuthNoAccount — no account, and auto-provisioning is off.
 	ErrOAuthNoAccount = errors.New("no account for this identity")
+
+	// ErrOAuthPasswordAccount — the address belongs to an account that signs in
+	// with a password. An account signs in one way, never both (#1150).
+	ErrOAuthPasswordAccount = errors.New("account signs in with a password")
 )
 
 // OAuthProviderConflictError carries which provider already owns the address, so
@@ -140,6 +144,11 @@ func (uc *ResolveOAuthIdentityUseCase) WithProvisioner(p UserProvisioner) *Resol
 //     If that account already signs in through a DIFFERENT provider, we stop and
 //     say so rather than quietly adding a second door to it.
 //
+//     If that account signs in with a password, we stop too (#1150). An account
+//     signs in one way: a password, or a provider. The address on a password
+//     account was never proven, so a provider vouching for it today says nothing
+//     about who chose that password.
+//
 //  3. No account → provision, if a provisioner is wired.
 func (uc *ResolveOAuthIdentityUseCase) Execute(ctx context.Context, identity OAuthIdentity) (*ResolveOAuthIdentityOutput, error) {
 	if identity.Provider == "" || identity.Subject == "" {
@@ -186,6 +195,9 @@ func (uc *ResolveOAuthIdentityUseCase) Execute(ctx context.Context, identity OAu
 		}
 		if !existing.IsActive {
 			return nil, ErrOAuthAccountDisabled
+		}
+		if existing.Password != "" {
+			return nil, ErrOAuthPasswordAccount
 		}
 
 		// Does this account already sign in through some other provider?
