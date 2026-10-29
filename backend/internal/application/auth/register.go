@@ -174,6 +174,7 @@ func (uc *RegisterUseCase) Execute(ctx context.Context, input RegisterInput) (*R
 		ID:        uuid.New(),
 		Name:      input.CompanyName,
 		Slug:      slug,
+		Plan:      domain.PlanFree,
 		OwnerID:   userID,
 		IsActive:  true,
 		CreatedAt: now,
