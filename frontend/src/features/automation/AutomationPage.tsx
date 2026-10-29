@@ -67,8 +67,6 @@ import {
   fmtMinutes,
 } from './automationMeta';
 import { RuleEditorModal } from './RuleEditorModal';
-import { PlanCapNotice } from '../billing/PlanCapNotice';
-import { planCapErrorMessage } from '../billing/useEntitlements';
 
 type Tab = 'rules' | 'sla' | 'history' | 'channels';
 
@@ -138,11 +136,6 @@ export function AutomationPage() {
           ) : undefined
         }
       />
-
-      {/* D-078: the plan caps ACTIVE rules; drafts and suspended rules are free. */}
-      <div className="mb-3">
-        <PlanCapNotice limitKey="automation_rules" showUsage />
-      </div>
 
       <Tabs<Tab>
         id="automation"
@@ -276,8 +269,8 @@ function RulesView({
         await enableRule.mutateAsync(r.id);
         toast.success(tr('Règle activée', 'Rule enabled'));
       }
-    } catch (err) {
-      toast.error(planCapErrorMessage(err, lang) ?? tr('Échec', 'Failed'));
+    } catch {
+      toast.error(tr('Échec', 'Failed'));
     }
   };
 

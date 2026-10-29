@@ -28,8 +28,8 @@ func (r *GormAutomationRuleRepository) Create(ctx context.Context, rule *domain.
 	// enabled defaults to true in the schema, and GORM leaves a false bool out
 	// of the INSERT and then copies the default back into the struct, so a rule
 	// created disabled — a draft, or a template adopted suspended on purpose —
-	// was stored ACTIVE and started firing. It also slipped past the active-rule
-	// cap (D-078). Read the intent before the insert and write it explicitly.
+	// was stored ACTIVE and started firing. Read the intent before the insert and
+	// write it explicitly.
 	enabled := rule.Enabled
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := tx.Create(rule).Error; err != nil {

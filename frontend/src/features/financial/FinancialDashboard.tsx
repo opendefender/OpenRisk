@@ -20,7 +20,7 @@ import { formatNumber } from '../../i18n/format';
 import { FeatureGate } from '../../shared/FeatureGate';
 import { Listbox } from '../../shared/ds';
 import { PageFrame, PageHeader } from '../../shared/ui';
-import { useFeatureAtLeast } from '../billing/useEntitlements';
+import { useFeature } from '../billing/useEntitlements';
 import { BlockEmpty, BlockError, BlockSkeleton, Panel } from '../dashboard/console/Panel';
 import {
   SUPPORTED_CURRENCIES,
@@ -38,10 +38,8 @@ import { useFinancialSummary, useSetCurrency } from './useFinancial';
 
 export function FinancialDashboard() {
   const { t, locale } = useI18n();
-  // The portfolio views are Monte-Carlo (Pro+); Free's deterministic ALE lives
-  // on each risk (D-078).
-  const fin = useFeatureAtLeast('financial_quantification', 'on', 'pro');
-  const summary = useFinancialSummary(!fin.loading && fin.enabled);
+  const fin = useFeature('financial_quantification');
+  const summary = useFinancialSummary();
   const [methodology, setMethodology] = useState<Methodology | null>(null);
   const data = summary.data;
   const cur = currencyLabel(data?.currency);
@@ -51,7 +49,7 @@ export function FinancialDashboard() {
     return (
       <PageFrame>
         <PageHeader title={t('financial.title')} />
-        <FeatureGate feature="financial_quantification" minLevel="on" minPlan="pro">
+        <FeatureGate feature="financial_quantification">
           <BlockSkeleton lines={6} height={40} />
         </FeatureGate>
       </PageFrame>

@@ -97,6 +97,10 @@ and the vendor cap are separate issues; until each ships, that feature keeps
 its current gate (AI from Pro, threat intel and vendors from Business), so the
 pricing page never sells a quota the code does not apply.
 
+**Revert (owner, 2026-10-29)** — PR #1131, which shipped these caps, was
+merged before #612 and capped self-hosted installs; #1159 reverts it on master
+(SSO stays off every plan). The caps re-land after #612.
+
 
 ### D-077 — Automation notification channels on Free: keep them open while the rest of SOAR is gated? · decided 2026-10-23
 **Question** — D-075 gates automation on hosted plans, Pro and up. #783 mounts

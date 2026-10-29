@@ -63,17 +63,10 @@ func upgradeMessage(f Feature, p Plan) string {
 // LimitMessage builds the copy for a reached resource cap.
 func LimitMessage(k LimitKey, limit int) string {
 	label := map[LimitKey]string{
-		LimitUsers:             "utilisateurs",
-		LimitRisks:             "risques",
-		LimitAssets:            "actifs",
-		LimitIntegrations:      "intégrations",
-		LimitFrameworks:        "référentiels actifs",
-		LimitAutomationRules:   "règles d'automatisation actives",
-		LimitScanSources:       "sources de scan",
-		LimitApprovalWorkflows: "circuits d'approbation",
+		LimitUsers:        "utilisateurs",
+		LimitRisks:        "risques",
+		LimitAssets:       "actifs",
+		LimitIntegrations: "intégrations",
 	}[k]
-	if k == LimitScansPerMonth {
-		return fmt.Sprintf("Vous avez utilisé les %d scans de ce mois inclus dans votre plan. Le compteur repart le 1er du mois ; passez à un plan supérieur pour scanner sans limite.", limit)
-	}
 	return fmt.Sprintf("Vous avez atteint la limite de %d %s de votre plan. Passez à un plan supérieur pour en ajouter davantage.", limit, label)
 }

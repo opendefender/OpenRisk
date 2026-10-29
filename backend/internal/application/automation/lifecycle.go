@@ -34,17 +34,6 @@ const (
 
 // Enable resumes a suspended rule.
 func (s *RuleService) Enable(ctx context.Context, tenantID, id, actorID uuid.UUID) (*domain.AutomationRule, error) {
-	if s.quota != nil {
-		rule, err := s.repo.GetByID(ctx, id, tenantID)
-		if err != nil {
-			return nil, err
-		}
-		if !rule.Enabled {
-			if err := s.ensureCanEnable(ctx, tenantID); err != nil {
-				return nil, err
-			}
-		}
-	}
 	if err := s.repo.SetEnabled(ctx, id, tenantID, true, actorID, "", time.Now().UTC()); err != nil {
 		return nil, err
 	}

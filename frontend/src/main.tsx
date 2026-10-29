@@ -32,11 +32,7 @@ const queryClient = new QueryClient({
       networkMode: 'offlineFirst',
       staleTime: 30_000,
       gcTime: 24 * 60 * 60 * 1000, // keep cache a day so a reload offline still paints
-      // A 402 is the plan saying no (#783): asking again cannot change the
-      // answer, and a gated preview behind FeatureGate would ask three times.
-      retry: (failures, err) =>
-        (err as { response?: { status?: number } } | null)?.response?.status !== 402 &&
-        failures < 2,
+      retry: 2,
       refetchOnReconnect: true,
     },
     mutations: {

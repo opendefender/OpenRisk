@@ -32,21 +32,10 @@ import {
   visibleThreats,
   type ThreatMode,
 } from './threatMeta';
-import { FeatureGate } from '../../shared/FeatureGate';
 
 const MODES: readonly ThreatMode[] = ['all', 'high'];
 
-// The plan gate (#783, ADR 0007): the API refuses these routes with 402 on a
-// plan without cti; the screen shows the upsell instead of the refusal.
 export function ThreatsPage() {
-  return (
-    <FeatureGate feature="cti">
-      <ThreatsPageScreen />
-    </FeatureGate>
-  );
-}
-
-function ThreatsPageScreen() {
   const { t } = useI18n();
   const [mode, setMode] = useState<ThreatMode>('all');
   const threats = useThreats();

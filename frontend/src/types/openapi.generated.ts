@@ -7625,13 +7625,6 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description The plan's cap on active frameworks is reached (limit_reached, D-076) */
-            402: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
             /** @description Forbidden — only Admin can create a global framework */
             403: {
                 headers: {

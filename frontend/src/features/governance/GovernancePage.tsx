@@ -48,8 +48,6 @@ import {
 } from './useGovernance';
 import { AuditIntegrityPanel } from './AuditIntegrityPanel';
 import { governanceService } from './governanceService';
-import { PlanCapNotice } from '../billing/PlanCapNotice';
-import { planCapErrorMessage } from '../billing/useEntitlements';
 import type {
   AuditEvent,
   AuditAction,
@@ -1309,9 +1307,7 @@ function CreateWorkflowModal({ onClose }: { onClose: () => void }) {
       onClose();
     } catch (err) {
       const e = err as { response?: { data?: { error?: string } } };
-      toast.error(
-        planCapErrorMessage(err, lang) ?? (e.response?.data?.error || tr('Échec', 'Failed')),
-      );
+      toast.error(e.response?.data?.error || tr('Échec', 'Failed'));
     }
   };
 
@@ -1322,8 +1318,6 @@ function CreateWorkflowModal({ onClose }: { onClose: () => void }) {
       onSubmit={submit}
       submitLabel={tr('Créer', 'Create')}
     >
-      {/* D-078: the plan caps approval workflows. */}
-      <PlanCapNotice limitKey="approval_workflows" showUsage />
       <Field
         label={tr('Nom', 'Name')}
         value={name}

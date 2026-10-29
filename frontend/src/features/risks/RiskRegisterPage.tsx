@@ -106,7 +106,6 @@ import { OwnershipFields } from '../../shared/UserPicker';
 import { ownershipPatch, type OwnershipRole } from '../../services/ownershipService';
 import { mappingHref, mappingLabel } from '../../services/taxonomyService';
 import { ctiService } from '../cti/ctiService';
-import { useFeature } from '../billing/useEntitlements';
 import { useQueryClient } from '@tanstack/react-query';
 import type { LocaleCode } from '../../i18n/locales';
 
@@ -1043,14 +1042,11 @@ function DrawerCTI({ r }: { r: UiRisk }) {
   const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
   const navigate = useNavigate();
   const cve = r.raw.source_cve_id ?? '';
-  // The advisory comes from the CTI routes, which open at Business (#783). On a
-  // plan without them the tab names the CVE and says what would show it.
-  const cti = useFeature('cti');
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['cti', 'vulnerability', cve],
     queryFn: () => ctiService.get(cve),
-    enabled: !!cve && !cti.loading && !cti.locked,
+    enabled: !!cve,
   });
 
   if (!cve) {
@@ -1074,29 +1070,7 @@ function DrawerCTI({ r }: { r: UiRisk }) {
     );
   }
 
-  if (cti.locked) {
-    const plan = cti.requiredPlan.charAt(0).toUpperCase() + cti.requiredPlan.slice(1);
-    return (
-      <div className="py-8 px-[22px]">
-        <EmptyState
-          icon={Bug}
-          title={cve}
-          description={tr(
-            `Ce risque est rattaché à ${cve}. L’avis complet (CVSS, CISA-KEV, MITRE ATT&CK) vient du renseignement sur les menaces, disponible à partir du plan ${plan}.`,
-            `This risk is linked to ${cve}. The full advisory (CVSS, CISA-KEV, MITRE ATT&CK) comes from threat intelligence, available from the ${plan} plan.`,
-          )}
-          primaryAction={
-            <Btn
-              label={tr('Voir les plans', 'See plans')}
-              onClick={() => navigate('/settings?tab=billing')}
-            />
-          }
-        />
-      </div>
-    );
-  }
-
-  if (isLoading || cti.loading)
+  if (isLoading)
     return (
       <div className="py-5 px-[22px]">
         <SkeletonRows rows={4} />

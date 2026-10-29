@@ -57,12 +57,6 @@ vi.mock('../../../lib/api', () => ({
 
 import { ThreatsPage } from '../ThreatsPage';
 
-// Threat intel opens at Business (#783): these tests run on a plan that has it.
-const BUSINESS = {
-  plan: 'business',
-  features: { cti: { enabled: true, required_plan: 'business' } },
-};
-
 function threat(over: Partial<Threat>): Threat {
   return {
     cve_id: 'CVE-2026-21873',
@@ -134,11 +128,7 @@ beforeEach(() => {
   };
   get.mockReset();
   get.mockImplementation((url: string) =>
-    url === '/cti/threats'
-      ? Promise.resolve({ data: body })
-      : url === '/entitlements'
-        ? Promise.resolve({ data: BUSINESS })
-        : Promise.resolve({ data: {} }),
+    url === '/cti/threats' ? Promise.resolve({ data: body }) : Promise.resolve({ data: {} }),
   );
   put.mockReset();
   del.mockReset();
@@ -238,11 +228,7 @@ describe('ThreatsPage', () => {
   });
 
   it('offers a retry when the list fails', async () => {
-    get.mockImplementation((url: string) =>
-      url === '/entitlements'
-        ? Promise.resolve({ data: BUSINESS })
-        : Promise.reject(new Error('down')),
-    );
+    get.mockRejectedValue(new Error('down'));
     renderPage();
     expect(await screen.findByRole('alert')).toBeInTheDocument();
   });

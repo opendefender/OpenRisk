@@ -17,7 +17,6 @@ import {
   type OrganizationProfilePatch,
   type OrganizationView,
 } from './organizationService';
-import { ENTITLEMENTS_KEY } from '../billing/useEntitlements';
 
 export const ORG_KEY = ['organization'] as const;
 export const ORG_COUNTS_KEY = ['organization', 'counts'] as const;
@@ -36,8 +35,6 @@ function useInvalidateMembership() {
     void qc.invalidateQueries({ queryKey: INVITATIONS_KEY });
     void qc.invalidateQueries({ queryKey: MEMBER_AUDIT_KEY });
     void qc.invalidateQueries({ queryKey: ORG_KEY });
-    // Members move the plan's user counter (D-078).
-    void qc.invalidateQueries({ queryKey: ENTITLEMENTS_KEY });
   };
 }
 
