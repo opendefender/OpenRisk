@@ -30,6 +30,20 @@ organisations are now Free, and every existing `'starter'` row moves to Free
 empty case in `ParseDeployment`. It matters before the D-078 caps re-land, since
 those caps are what a self-hoster without the variable would then hit.
 
+**Critical path (po-openrisk, 2026-10-30)** — #612 has merged (PR #1167), so
+this decision is now the only thing blocking #783, the P1 re-land of the D-078
+caps. #783 stays `status:blocked` until it is ruled. Under A as shipped, a Helm,
+hand-written compose or bare-binary install would go from today's Free caps
+(users, risks, assets) to 1 framework, 2 active rules, 1 scan source, 4 scans a
+month, 1 approval workflow and no threat intel: the #1131 incident again.
+**Option C (added)** — unset refuses to boot, like a typo already does, and
+names the variable in the error; both compose files, the Helm chart (#1185) and
+the SaaS set it explicitly. Neither side can be wrong silently. Cost: an
+existing install outside the official compose adds one line on upgrade, and
+the error tells them which.
+**Recommendation** — C, or B if a boot failure on upgrade is not acceptable.
+Not A: it keeps the silent cap for every self-hoster the compose file misses.
+
 ### D-080 — Licence gate: what legal-counsel says the allowed set does not cover · raised 2026-10-28
 **Context** — #774 asked `legal-counsel` to review the allowed set in
 `security/license-policy.yaml`. Verdict: approved with notes, advisory only.
