@@ -131,6 +131,16 @@ func main() {
 		return
 	}
 
+	// Who runs this instance (#612, D-040), read before anything touches the
+	// database: an instance that refuses to boot must not have migrated first.
+	// self_hosted gives every tenant the complete, uncapped set; "hosted"
+	// resolves by plan. Unset refuses to boot (D-081 C): no default is safe.
+	deployment, deployErr := ent.ParseDeployment(os.Getenv(ent.DeploymentEnv))
+	if deployErr != nil {
+		log.Fatalf("%v", deployErr)
+	}
+	log.Printf("Deployment: %s (%s)", deployment, ent.DeploymentEnv)
+
 	// =========================================================================
 	// 1. CONFIGURATION & INFRASTRUCTURE
 	// =========================================================================
@@ -1186,14 +1196,6 @@ func main() {
 	// =========================================================================
 	entitlementRepo := repository.NewGormEntitlementRepository(database.DB)
 	billingRepo := repository.NewGormBillingRepository(database.DB)
-	// Who runs this instance, read once here (#612, D-040). self_hosted gives every
-	// tenant the complete, uncapped set; "hosted" resolves by plan. Unset refuses
-	// to boot (D-081 C): there is no safe default either way.
-	deployment, err := ent.ParseDeployment(os.Getenv(ent.DeploymentEnv))
-	if err != nil {
-		log.Fatalf("%v", err)
-	}
-	log.Printf("Deployment: %s (%s)", deployment, ent.DeploymentEnv)
 	entitlementService := entapp.NewService(entitlementRepo).
 		WithSubscriptions(billingRepo).
 		WithUsage(entitlementRepo).
