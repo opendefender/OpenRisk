@@ -39,8 +39,9 @@ tenant SSO for a plan to include. It returns with #1045.
 ## Self-hosting is not the Free plan
 
 The table above is the **hosted (SaaS)** offer. A self-hosted instance, started
-with `OPENRISK_DEPLOYMENT=self_hosted` (set by `deploy/selfhost/docker-compose.yml`),
-does not resolve to any of these columns. Every organisation on it gets the
+with `OPENRISK_DEPLOYMENT=self_hosted` (set by `deploy/selfhost/docker-compose.yml`
+and every deployment file in this repository; the backend refuses to boot
+without the variable, D-081), does not resolve to any of these columns. Every organisation on it gets the
 self-hosted set (decision D-040):
 
 - no cap on users, risks, assets or integrations;
