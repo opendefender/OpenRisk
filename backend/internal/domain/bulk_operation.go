@@ -38,13 +38,13 @@ type BulkOperation struct {
 	Status        BulkOperationStatus `gorm:"type:varchar(20);default:'pending'" json:"status"`
 
 	// Filter & Scope
-	FilterQuery    map[string]interface{} `gorm:"type:jsonb" json:"filter_query,omitempty"` // Query to select resources
-	ResourceCount  int                    `json:"resource_count"`                           // Total resources to process
-	ProcessedCount int                    `json:"processed_count"`                          // Resources processed so far
+	FilterQuery    map[string]interface{} `gorm:"type:jsonb;serializer:json" json:"filter_query,omitempty"` // Query to select resources
+	ResourceCount  int                    `json:"resource_count"`                                           // Total resources to process
+	ProcessedCount int                    `json:"processed_count"`                                          // Resources processed so far
 
 	// Operation details
-	UpdateData   map[string]interface{} `gorm:"type:jsonb" json:"update_data,omitempty"` // Data to update (for update operations)
-	ExportFormat string                 `json:"export_format,omitempty"`                 // json, csv, pdf (for export)
+	UpdateData   map[string]interface{} `gorm:"type:jsonb;serializer:json" json:"update_data,omitempty"` // Data to update (for update operations)
+	ExportFormat string                 `json:"export_format,omitempty"`                                 // json, csv, pdf (for export)
 
 	// Results & Error handling
 	ResultURL    string `json:"result_url,omitempty"` // URL to download result (for exports)
