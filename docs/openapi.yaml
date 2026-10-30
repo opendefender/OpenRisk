@@ -888,7 +888,10 @@ paths:
       description: >-
         The provider's redirect back. The state cookie is checked and cleared first, so a flow
         gets one try. On success the session cookies are set and the browser is sent to the
-        SPA's SSO completion page (with `next` when a safe `return_to` was given). Every failure
+        SPA's SSO completion page (with `next` when a safe `return_to` was given). When the
+        account owes a second factor (an enrolled authenticator, or a role whose MFA grace is
+        over) no session is set: the MFA step goes into an HttpOnly cookie for POST /auth/sso/mfa
+        and the completion page gets `mfa=1`. Every failure
         is a 302 to /login with an `error` code: `access_denied`, `consent_required`, `provider_error`,
         `state_missing`, `state_invalid`, `code_missing`, `unsupported_provider`, `exchange_failed`,
         `userinfo_failed`, `email_unverified`, `no_email`, `account_disabled`, `no_account`,
@@ -929,6 +932,44 @@ paths:
             Location:
               schema:
                 type: string
+        '429':
+          $ref: '#/components/responses/QuotaExceeded'
+  /auth/sso/mfa:
+    post:
+      tags:
+        - Authentication
+      summary: Collect the MFA step an SSO sign-in stopped at
+      description: >-
+        Reads the HttpOnly cookie the OAuth2 callback set when the account owes a second factor,
+        and clears it, so the step is handed over once. The body has the shape /auth/login gives
+        for the same two cases: `mfa_required` with an MFA_REQUIRED token for /auth/mfa/challenge,
+        or `mfa_enrollment_required` with an MFA_ENROLLMENT token for /auth/mfa/setup and
+        /auth/mfa/verify. Shares the per-IP bucket of /auth/mfa/challenge.
+      operationId: ssoMfaStep
+      security: []
+      responses:
+        '200':
+          description: The pending step
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - mfa_token
+                properties:
+                  mfa_required:
+                    type: boolean
+                  mfa_enrollment_required:
+                    type: boolean
+                  mfa_token:
+                    type: string
+                    description: Short-lived, permission-less MFA token
+        '404':
+          description: No pending step (`SSO_MFA_NOT_FOUND`)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthError'
         '429':
           $ref: '#/components/responses/QuotaExceeded'
   /auth/saml2/login:

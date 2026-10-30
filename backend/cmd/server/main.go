@@ -897,6 +897,8 @@ func main() {
 	// rejected) and are audited with the full field set.
 	handlers.InitializeOAuth2()
 	handlers.SetSSOTokenManager(tokenManager, authAudit, userRepo, orgRepo)
+	// GHSA-rv5c-pr27-gpxh — SSO passes the same MFA gate as password login.
+	handlers.SetSSOSecondFactor(loginUseCase)
 
 	// --- Routes Publiques ---
 	// Public status endpoint (task §4) — probes the critical dependencies so the
@@ -980,6 +982,10 @@ func main() {
 	// --- SAML2 Routes ---
 	api.Get("/auth/saml2/login", handlers.SAML2InitiateLogin)
 	api.Post("/auth/saml2/acs", handlers.SAML2ACS)
+
+	// The MFA step an OAuth2/SAML sign-in stopped at, read once from its
+	// HttpOnly cookie (GHSA-rv5c-pr27-gpxh). Same per-IP bucket as the challenge.
+	api.Post("/auth/sso/mfa", authLimits.MFAChallenge, handlers.SSOMFAStep)
 	api.Get("/auth/saml2/metadata", handlers.SAMLMetadata)
 
 	// --- MFA challenge (L4, second login leg) ---

@@ -73,6 +73,8 @@ func (r *recordingAuditRepo) count(action coreauth.AuditAction) int {
 // ssoFixture is a user with a tenant, and the SSO globals pointed at a real
 // TokenManager over sqlite.
 type ssoFixture struct {
+	tm    *coreauth.TokenManager
+	keys  *authpkg.RSAKeys
 	db    *gorm.DB
 	user  *domain.User
 	orgID uuid.UUID
@@ -85,10 +87,10 @@ type ssoFixture struct {
 func setupSSOSession(t *testing.T, resolverErr error) *ssoFixture {
 	t.Helper()
 
-	prevTM, prevAudit, prevRepo := ssoTokenManager, ssoAudit, ssoUserRepo
+	prevTM, prevAudit, prevRepo, prevGate := ssoTokenManager, ssoAudit, ssoUserRepo, ssoSecondFactor
 	prevDB, prevBase := database.DB, oauthAppBaseURL
 	t.Cleanup(func() {
-		ssoTokenManager, ssoAudit, ssoUserRepo = prevTM, prevAudit, prevRepo
+		ssoTokenManager, ssoAudit, ssoUserRepo, ssoSecondFactor = prevTM, prevAudit, prevRepo, prevGate
 		database.DB, oauthAppBaseURL = prevDB, prevBase
 	})
 
@@ -101,7 +103,8 @@ func setupSSOSession(t *testing.T, resolverErr error) *ssoFixture {
 
 	priv, err := rsa.GenerateKey(rand.Reader, 2048)
 	require.NoError(t, err)
-	tm := coreauth.NewTokenManager(db, &authpkg.RSAKeys{PrivateKey: priv, PublicKey: &priv.PublicKey})
+	keys := &authpkg.RSAKeys{PrivateKey: priv, PublicKey: &priv.PublicKey}
+	tm := coreauth.NewTokenManager(db, keys)
 	tm.SetSessionResolver(func(_ context.Context, uid uuid.UUID) (*coreauth.SessionClaims, error) {
 		if resolverErr != nil {
 			return nil, resolverErr
@@ -113,10 +116,14 @@ func setupSSOSession(t *testing.T, resolverErr error) *ssoFixture {
 	ssoTokenManager = tm
 	ssoAudit = coreauth.NewAuditService(audit)
 	ssoUserRepo = nil
+	// No second factor owed unless a test says otherwise (sso_mfa_test.go).
+	ssoSecondFactor = fixedSecondFactor{out: &appauth.SecondFactorOutcome{}}
 	database.DB = db
 	oauthAppBaseURL = ssoTestBase
 
 	return &ssoFixture{
+		tm:    tm,
+		keys:  keys,
 		db:    db,
 		user:  &domain.User{ID: userID, Email: "member@opendefender.io", Username: "member", IsActive: true, DefaultOrgID: &orgID},
 		orgID: orgID,
