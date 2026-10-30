@@ -5,73 +5,6 @@ recommends, and surfaces these in the daily brief. Run `/decide` to clear them.
 
 ## Open
 
-### D-082 — Branch protection on master: which checks block a merge, and does a PR need an approval · raised 2026-10-30
-**Context** — #1199. On 2026-10-30, `gh api repos/opendefender/OpenRisk/branches/master/protection`
-returned one required context, `Licence gate`, with `strict: false` and
-`required_approving_review_count: 0`. A PR that fails the Go tests, the tenant isolation
-gate or the dependency gate shows a green merge button. Only the owner can change the
-setting.
-
-Every check below runs on `pull_request` against `master` with no path filter, so
-requiring it cannot leave a PR waiting on a check that never starts. On the last 19 PRs
-into master (#1137 to #1186, sampled 2026-10-30) the check names are exactly these, all
-from the GitHub Actions app (id 15368):
-
-| Context | Workflow | What it covers | Red on the 19 PRs |
-|---|---|---|---|
-| `CI Status` | `ci.yml` | Fails unless backend lint, unit, integration, frontend lint, typecheck, unit and both builds pass. Typecheck holds the OpenAPI lint and the API types drift gate (#814). | 3 |
-| `Tenant Isolation Coverage Gate` | `security.yml` | Tenant isolation suite | 0 |
-| `Dependency gate` | `dependency-gate.yml` | Vulnerable dependencies | 5 |
-| `Licence gate` | `license-gate.yml` | Licence allow-list (already required) | 0 |
-| `E2E (chromium + Mobile Chrome)` | `e2e.yml` | The curated PR set from D-043 | 0 |
-| `Signed-off-by trailer` | `dco.yml` | DCO, made a required check by D-015 but never switched on | 5 |
-| `Frontend Design Tokens` | `ci.yml` | Token and design-system checks. `CI Status` does **not** wait on it. | 1 (#1186, open) |
-| `Secret Detection` | `security-scanning.yml` | Secret scan | 0 |
-| `SAST Analysis` | `security-scanning.yml` | SAST | 0 |
-
-**Options — required checks**
-- **A (recommended)** — the four contexts #1199 asks for (`CI Status`, which also carries the
-  OpenAPI drift gate, `Tenant Isolation Coverage Gate`, `Dependency gate`, `Licence gate`), plus
-  `E2E (chromium + Mobile Chrome)` (D-043 already made it the PR gate and it was green 19/19),
-  `Signed-off-by trailer` (D-015 decided it), `Frontend Design Tokens` and `Secret Detection`.
-  Eight contexts.
-- **B** — the four from #1199 only. E2E, DCO, tokens and secrets stay advisory.
-- `SAST Analysis` and `DAST with OWASP ZAP` are left advisory in both options: their
-  findings need triage and a false positive would hold every PR.
-
-**`strict: true`** — #1199 asks for it. The cost is that a PR must be rebased on master
-before it can merge, so with several agent PRs open at once, each merge makes the others
-re-run CI. Recommended anyway: it is what stops two green PRs from merging into a red master.
-
-**Options — approvals**
-- **A (recommended)** — stay at 0 for now. Every PR is opened from `alex-dembele`, GitHub
-  does not let an author approve their own PR, and `alex-dembele` is already listed under
-  `bypass_pull_request_allowances`. Requiring 1 approval would add a step the only
-  maintainer bypasses every time. Revisit when a second person gets write access.
-- **B** — require 1 approval now and rely on the bypass.
-
-**Command for option A** (run by the owner; it replaces only the status-check part):
-```
-gh api -X PATCH repos/opendefender/OpenRisk/branches/master/protection/required_status_checks \
-  --input - <<'JSON'
-{"strict": true, "checks": [
-  {"context": "CI Status", "app_id": 15368},
-  {"context": "Tenant Isolation Coverage Gate", "app_id": 15368},
-  {"context": "Dependency gate", "app_id": 15368},
-  {"context": "Licence gate", "app_id": 15368},
-  {"context": "E2E (chromium + Mobile Chrome)", "app_id": 15368},
-  {"context": "Signed-off-by trailer", "app_id": 15368},
-  {"context": "Frontend Design Tokens", "app_id": 15368},
-  {"context": "Secret Detection", "app_id": 15368}
-]}
-JSON
-```
-Check: `gh api repos/opendefender/OpenRisk/branches/master/protection --jq '{checks:[.required_status_checks.checks[].context],strict:.required_status_checks.strict,reviews:.required_pull_request_reviews.required_approving_review_count}'`.
-
-**Cost of delay** — every merge until then is gated by the licence check alone. Open PRs
-with a red required check (today #1186, red on `Frontend Design Tokens`) will stop being
-mergeable the moment the setting changes, which is the point.
-
 ### D-081 — Self-hosted flag: what an instance that never sets OPENRISK_DEPLOYMENT gets · raised 2026-10-29
 **Question** — #612 adds `OPENRISK_DEPLOYMENT` (`self_hosted` | `hosted`), read
 once at boot. Unset currently means **hosted**, so nothing changes for the
@@ -146,6 +79,79 @@ whether the list stays as it is.
 
 
 ## Resolved
+
+### D-082 — Branch protection on master: which checks block a merge, and does a PR need an approval · decided 2026-10-30
+**Decided (owner, 2026-10-30)** — option A on checks, `strict: true`, approvals stay at 0.
+Applied the same day with the command below. `gh api repos/opendefender/OpenRisk/branches/master/protection`
+now returns `{"checks":["Licence gate","CI Status","Tenant Isolation Coverage Gate","Dependency gate",
+"E2E (chromium + Mobile Chrome)","Signed-off-by trailer","Frontend Design Tokens","Secret Detection"],
+"reviews":0,"strict":true}`. Approvals are revisited when a second person gets write access.
+
+**Context** — #1199. On 2026-10-30, `gh api repos/opendefender/OpenRisk/branches/master/protection`
+returned one required context, `Licence gate`, with `strict: false` and
+`required_approving_review_count: 0`. A PR that fails the Go tests, the tenant isolation
+gate or the dependency gate shows a green merge button. Only the owner can change the
+setting.
+
+Every check below runs on `pull_request` against `master` with no path filter, so
+requiring it cannot leave a PR waiting on a check that never starts. On the last 19 PRs
+into master (#1137 to #1186, sampled 2026-10-30) the check names are exactly these, all
+from the GitHub Actions app (id 15368):
+
+| Context | Workflow | What it covers | Red on the 19 PRs |
+|---|---|---|---|
+| `CI Status` | `ci.yml` | Fails unless backend lint, unit, integration, frontend lint, typecheck, unit and both builds pass. Typecheck holds the OpenAPI lint and the API types drift gate (#814). | 3 |
+| `Tenant Isolation Coverage Gate` | `security.yml` | Tenant isolation suite | 0 |
+| `Dependency gate` | `dependency-gate.yml` | Vulnerable dependencies | 5 |
+| `Licence gate` | `license-gate.yml` | Licence allow-list (already required) | 0 |
+| `E2E (chromium + Mobile Chrome)` | `e2e.yml` | The curated PR set from D-043 | 0 |
+| `Signed-off-by trailer` | `dco.yml` | DCO, made a required check by D-015 but never switched on | 5 |
+| `Frontend Design Tokens` | `ci.yml` | Token and design-system checks. `CI Status` does **not** wait on it. | 1 (#1186, open) |
+| `Secret Detection` | `security-scanning.yml` | Secret scan | 0 |
+| `SAST Analysis` | `security-scanning.yml` | SAST | 0 |
+
+**Options — required checks**
+- **A (recommended)** — the four contexts #1199 asks for (`CI Status`, which also carries the
+  OpenAPI drift gate, `Tenant Isolation Coverage Gate`, `Dependency gate`, `Licence gate`), plus
+  `E2E (chromium + Mobile Chrome)` (D-043 already made it the PR gate and it was green 19/19),
+  `Signed-off-by trailer` (D-015 decided it), `Frontend Design Tokens` and `Secret Detection`.
+  Eight contexts.
+- **B** — the four from #1199 only. E2E, DCO, tokens and secrets stay advisory.
+- `SAST Analysis` and `DAST with OWASP ZAP` are left advisory in both options: their
+  findings need triage and a false positive would hold every PR.
+
+**`strict: true`** — #1199 asks for it. The cost is that a PR must be rebased on master
+before it can merge, so with several agent PRs open at once, each merge makes the others
+re-run CI. Recommended anyway: it is what stops two green PRs from merging into a red master.
+
+**Options — approvals**
+- **A (recommended)** — stay at 0 for now. Every PR is opened from `alex-dembele`, GitHub
+  does not let an author approve their own PR, and `alex-dembele` is already listed under
+  `bypass_pull_request_allowances`. Requiring 1 approval would add a step the only
+  maintainer bypasses every time. Revisit when a second person gets write access.
+- **B** — require 1 approval now and rely on the bypass.
+
+**Command for option A** (run by the owner; it replaces only the status-check part):
+```
+gh api -X PATCH repos/opendefender/OpenRisk/branches/master/protection/required_status_checks \
+  --input - <<'JSON'
+{"strict": true, "checks": [
+  {"context": "CI Status", "app_id": 15368},
+  {"context": "Tenant Isolation Coverage Gate", "app_id": 15368},
+  {"context": "Dependency gate", "app_id": 15368},
+  {"context": "Licence gate", "app_id": 15368},
+  {"context": "E2E (chromium + Mobile Chrome)", "app_id": 15368},
+  {"context": "Signed-off-by trailer", "app_id": 15368},
+  {"context": "Frontend Design Tokens", "app_id": 15368},
+  {"context": "Secret Detection", "app_id": 15368}
+]}
+JSON
+```
+Check: `gh api repos/opendefender/OpenRisk/branches/master/protection --jq '{checks:[.required_status_checks.checks[].context],strict:.required_status_checks.strict,reviews:.required_pull_request_reviews.required_approving_review_count}'`.
+
+**Cost of delay** — every merge until then is gated by the licence check alone. Open PRs
+with a red required check (today #1186, red on `Frontend Design Tokens`) will stop being
+mergeable the moment the setting changes, which is the point.
 
 ### D-078 — Hosted plans: Free does almost everything, in small quantities · decided 2026-10-23
 **Decided (owner)** — In the owner's words: "je veux que le plan free permettent
