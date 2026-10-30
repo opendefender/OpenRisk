@@ -175,6 +175,26 @@ upgrade note), which merges before #783. The SaaS value lives outside this
 repo: setting `OPENRISK_DEPLOYMENT=hosted` there, before the #1185 release
 reaches it, is an owner/ops action.
 
+**Helm value mandatory (owner, 2026-10-30)** — "fais corriger #1185 pour que le
+chart rende la valeur obligatoire". `backend.deployment` has no default in
+`helm/openrisk/values.yaml`; the chart uses `required`, so a render without it
+fails and names the value and both allowed strings. No silent default anywhere,
+in the binary or in the chart.
+
+**SaaS versus anyone (owner, 2026-10-30)** — "Faut bien différencier le Saas
+deployment du local deployment par n'importe qui". Asked to settle it, the owner
+answered:
+- The SaaS config, the only place that says `hosted`, lives outside the public
+  repo (private repo or OpenDefender infra secrets). The AGPL repo carries no
+  `hosted` deployment file.
+- The SaaS does not deploy from `helm/values-prod.yaml`,
+  `helm/values-staging.yaml` or `docker-compose.staging.yaml`; they are examples
+  for third parties.
+
+So every deployment path in this repo (compose files, Helm values files, `.env`
+examples, CI) declares `self_hosted` explicitly, staging included, and a grep
+check in #1185 fails if a `hosted` deployment file appears.
+
 ### D-078 — Hosted plans: Free does almost everything, in small quantities · decided 2026-10-23
 **Decided (owner)** — In the owner's words: "je veux que le plan free permettent
 de quasiment tout faire pour voir la puissance de l'app mais qu'il soit limité
