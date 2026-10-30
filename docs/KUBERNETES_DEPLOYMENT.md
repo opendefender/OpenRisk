@@ -142,9 +142,14 @@ secrets:
 
 ### 5. Install Helm Chart
 
+`backend.deployment` is required and has no default (D-081): `self_hosted` for
+your own cluster. See
+[Self-hosted or the OpenDefender service](SELF_HOSTING.md#self-hosted-or-the-opendefender-service).
+
 ```bash
 helm install openrisk ./helm/openrisk \
   -f values-prod.yaml \
+  --set backend.deployment=self_hosted \
   --set-string secrets.inline.databaseUrl="$DATABASE_URL" \
   --set-file secrets.inline.rsaPrivateKey=private.pem \
   --set-file secrets.inline.rsaPublicKey=public.pem
@@ -319,7 +324,8 @@ helm values openrisk -n openrisk > values-current.yaml
 # Upgrade release
 helm upgrade openrisk ./helm/openrisk \
   -n openrisk \
-  -f values-current.yaml
+  -f values-current.yaml \
+  --set backend.deployment=self_hosted
 
 # Monitor upgrade
 kubectl rollout status deployment/backend -n openrisk
@@ -563,7 +569,7 @@ kubectl top pods -n openrisk
 
 # Monthly: Review and update
 helm fetch opendefender/openrisk --untar
-helm upgrade openrisk ./openrisk -n openrisk -f values.yaml
+helm upgrade openrisk ./openrisk -n openrisk -f values.yaml --set backend.deployment=self_hosted
 
 # Quarterly: Full backup
 kubectl exec -i -n openrisk postgres-0 -- pg_dump -U openrisk openrisk > backup.sql
