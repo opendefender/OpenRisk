@@ -199,13 +199,21 @@ func (r *GormMFARepository) GetUnusedBackupCodes(ctx context.Context, userID, te
 	return codes, nil
 }
 
-// MarkBackupCodeAsUsed marks a backup code as used (Tenant-scoped)
-func (r *GormMFARepository) MarkBackupCodeAsUsed(ctx context.Context, codeID uuid.UUID) error {
-	now := time.Now()
-	return r.db.WithContext(ctx).
+// MarkBackupCodeAsUsed spends one backup code of one user, and reports false
+// when it was already spent or does not belong to that user and tenant (#946).
+//
+// Like ConsumeTOTPStep, one conditional UPDATE does the check and the write:
+// two challenges racing with the same code both read it as unused, but only
+// one UPDATE still finds used_at IS NULL once Postgres serialises them.
+func (r *GormMFARepository) MarkBackupCodeAsUsed(ctx context.Context, codeID, userID, tenantID uuid.UUID) (bool, error) {
+	res := r.db.WithContext(ctx).
 		Model(&domain.MFABackupCode{}).
-		Where("id = ?", codeID).
-		Update("used_at", now).Error
+		Where("id = ? AND user_id = ? AND tenant_id = ? AND used_at IS NULL", codeID, userID, tenantID).
+		Update("used_at", time.Now())
+	if res.Error != nil {
+		return false, res.Error
+	}
+	return res.RowsAffected == 1, nil
 }
 
 // DeleteBackupCodes deletes all backup codes for user (Tenant-scoped)

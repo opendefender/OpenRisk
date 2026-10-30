@@ -512,9 +512,15 @@ func (uc *ChallengeMFAUseCase) verify(ctx context.Context, input ChallengeMFAInp
 
 	for _, code := range codes {
 		if err := bcrypt.CompareHashAndPassword([]byte(code.CodeHash), []byte(input.Code)); err == nil {
-			// Backup code matched, mark as used
-			if err := uc.mfaRepo.MarkBackupCodeAsUsed(ctx, code.ID); err != nil {
+			// The code matched. Spending it is what accepts it: a concurrent
+			// challenge may have spent it since the read, and then this one
+			// is a replay, refused and counted like a wrong code (#946).
+			spent, err := uc.mfaRepo.MarkBackupCodeAsUsed(ctx, code.ID, input.UserID, input.TenantID)
+			if err != nil {
 				return nil, fmt.Errorf("failed to mark backup code as used: %w", err)
+			}
+			if !spent {
+				return nil, errMFACodeMismatch
 			}
 
 			return &ChallengeMFAOutput{
