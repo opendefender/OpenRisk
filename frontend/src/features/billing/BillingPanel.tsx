@@ -21,14 +21,15 @@ import {
   useTelemetry,
   useSetTelemetry,
 } from './useEntitlements';
-import type { PlanKey, Price } from '../../services/entitlementService';
+import type { PlanKey, Price, ResolvedPlanKey } from '../../services/entitlementService';
 
 const PLANS: PlanKey[] = ['free', 'pro', 'business', 'enterprise'];
-const PLAN_LABEL: Record<PlanKey, string> = {
+const PLAN_LABEL: Record<ResolvedPlanKey, string> = {
   free: 'Free',
   pro: 'Pro',
   business: 'Business',
   enterprise: 'Enterprise',
+  self_hosted: 'Self-hosted',
 };
 const PLAN_PITCH: Record<PlanKey, string> = {
   free: 'Découvrir OpenRisk',
@@ -325,7 +326,9 @@ export function BillingPanel() {
   );
 }
 
-function TelemetryCard() {
+// Exported for the General tab: a self-hosted instance has no billing tab, and
+// the telemetry consent must stay reachable there (#612).
+export function TelemetryCard() {
   const { data } = useTelemetry();
   const setTelemetry = useSetTelemetry();
   if (!data) return null;

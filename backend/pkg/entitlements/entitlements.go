@@ -17,8 +17,9 @@ package entitlements
 
 import "strings"
 
-// Plan is a subscription tier. Free is the always-available open-core (self-hosted
-// Community) plan; the paid tiers are Pro, Business and Enterprise.
+// Plan is a subscription tier. Free, Pro, Business and Enterprise are the hosted
+// (SaaS) plans. PlanSelfHosted is not a subscription: it is what every tenant of
+// a self-hosted deployment gets (D-040), chosen at boot by OPENRISK_DEPLOYMENT.
 type Plan string
 
 const (
@@ -26,12 +27,15 @@ const (
 	PlanPro        Plan = "pro"
 	PlanBusiness   Plan = "business"
 	PlanEnterprise Plan = "enterprise"
+	PlanSelfHosted Plan = "self_hosted"
 )
 
-// AllPlans is the ordered list from least to most capable.
+// AllPlans is the ordered list of hosted plans, from least to most capable. It
+// leaves out PlanSelfHosted on purpose: nobody buys it, so it has no price, no
+// upgrade copy and no column in the pricing page.
 var AllPlans = []Plan{PlanFree, PlanPro, PlanBusiness, PlanEnterprise}
 
-var planRank = map[Plan]int{PlanFree: 0, PlanPro: 1, PlanBusiness: 2, PlanEnterprise: 3}
+var planRank = map[Plan]int{PlanFree: 0, PlanPro: 1, PlanBusiness: 2, PlanEnterprise: 3, PlanSelfHosted: 4}
 
 // Rank returns the ordinal of a plan (higher = more capable).
 func (p Plan) Rank() int { return planRank[p] }
@@ -43,6 +47,10 @@ func (p Plan) AtLeast(other Plan) bool { return p.Rank() >= other.Rank() }
 // (the Organization.plan column historically used free/starter/professional/
 // enterprise). Unknown or empty strings degrade to Free — the safe default: an
 // unrecognised plan grants nothing paid.
+//
+// It never returns PlanSelfHosted, not even for the string "self_hosted": a
+// stored or tenant-supplied value must not reach the self-hosted set (#612). Only
+// the deployment flag does, through the application service.
 func ParsePlan(s string) Plan {
 	switch strings.ToLower(strings.TrimSpace(s)) {
 	case "free", "community", "ce":
@@ -202,6 +210,15 @@ type PlanEntitlements struct {
 // SSO is granted by no plan: SAML refuses every request since #866 and OAuth
 // providers are set per deployment, so there is no tenant SSO for a plan to
 // sell. #1045 brings it back.
+//
+// PlanSelfHosted (D-040) is every capability the operator's own hardware runs,
+// uncapped: each feature at the deepest level any hosted plan grants. The AI
+// advisor is on because it runs on the operator's own ANTHROPIC_API_KEY, or on
+// the no-LLM template fallback without one. SLA and beyond-community support are
+// services the owner renders, so they stay off. SSO is on: the operator turns
+// it on and configures it with the OAUTH2_* variables of their own deployment
+// (Google, GitHub, Microsoft Entra; internal/handler/oauth2_handler.go). SAML is
+// still refused for everyone (#866) until #1045.
 var matrix = map[Plan]PlanEntitlements{
 	PlanFree: {
 		Plan:   PlanFree,
@@ -265,6 +282,27 @@ var matrix = map[Plan]PlanEntitlements{
 			FeatVendorRisk:         LevelOn,
 			FeatSLA:                Level("99.9"),
 			FeatSupport:            LevelDedicated,
+		},
+	},
+	PlanSelfHosted: {
+		Plan:   PlanSelfHosted,
+		Limits: map[LimitKey]int{LimitUsers: Unlimited, LimitRisks: Unlimited, LimitAssets: Unlimited, LimitIntegrations: Unlimited},
+		Features: map[Feature]Level{
+			FeatAPI:                LevelOn,
+			FeatAutomation:         LevelAdvanced,
+			FeatAIAdvisor:          LevelAdvanced,
+			FeatCompliance:         LevelCustom,
+			FeatMultiTenant:        LevelOn,
+			FeatOnPremise:          LevelOn,
+			FeatFinancialQuant:     LevelOn,
+			FeatSmartScore:         LevelOn,
+			FeatExecutiveDashboard: LevelOn,
+			FeatScanner:            LevelOn,
+			FeatCTI:                LevelAdvanced,
+			FeatGovernance:         LevelAdvanced,
+			FeatVendorRisk:         LevelOn,
+			FeatSSO:                LevelOn,
+			FeatSupport:            LevelCommunity,
 		},
 	},
 }

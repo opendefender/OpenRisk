@@ -11,17 +11,8 @@
 // it fails.
 
 import { useEntitlements } from '../../features/billing/useEntitlements';
-import type { PlanKey } from '../../services/entitlementService';
+import { planDisplayName } from './planNames';
 import { useI18n } from '../../hooks/useI18n';
-
-// Plan names are product names and read the same in both languages; only the
-// word around them is translated (common.planName).
-const PLAN_NAME: Record<PlanKey, string> = {
-  free: 'Free',
-  pro: 'Pro',
-  business: 'Business',
-  enterprise: 'Enterprise',
-};
 
 export function OrgPlanLabel() {
   const { t } = useI18n();
@@ -37,7 +28,7 @@ export function OrgPlanLabel() {
     );
   }
 
-  const name = data ? PLAN_NAME[data.plan] : undefined;
+  const name = data ? planDisplayName(data.plan) : undefined;
   // Failed to load, or a plan key this build does not know: no line. A
   // defaulted plan is exactly the defect this component replaces.
   if (!name) return null;

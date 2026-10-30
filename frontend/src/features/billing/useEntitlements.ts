@@ -25,6 +25,13 @@ export function useEntitlements() {
   });
 }
 
+/** True on a self-hosted instance (#612): nothing is billed there, so billing UI
+ *  stays hidden. False while loading and on the hosted service. */
+export function useIsSelfHosted(): boolean {
+  const { data } = useEntitlements();
+  return data?.plan === 'self_hosted';
+}
+
 /** Convenience: is a feature enabled on the current plan, and which plan unlocks
  *  it. Returns a safe default (locked) while loading. */
 export function useFeature(feature: string): {

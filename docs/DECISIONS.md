@@ -5,6 +5,31 @@ recommends, and surfaces these in the daily brief. Run `/decide` to clear them.
 
 ## Open
 
+### D-081 — Self-hosted flag: what an instance that never sets OPENRISK_DEPLOYMENT gets · raised 2026-10-29
+**Question** — #612 adds `OPENRISK_DEPLOYMENT` (`self_hosted` | `hosted`), read
+once at boot. Unset currently means **hosted**, so nothing changes for the
+OpenDefender SaaS on upgrade. `deploy/selfhost/docker-compose.yml` sets
+`self_hosted`, but a self-hoster on Helm, a hand-written compose file or a bare
+binary gets hosted behaviour until they set the variable.
+
+**Options**
+- **A (shipped in #612)** — unset = hosted. The SaaS cannot be opened up by a
+  missed variable. A self-hoster outside the official compose has to set one line.
+- **B** — unset = self_hosted, and the SaaS deployment sets `hosted`. The open
+  source promise holds with zero configuration, but a SaaS deploy that misses the
+  variable gives every hosted tenant the full uncapped set.
+- Either way, the Helm chart (`helm/openrisk`) should expose the value; it does
+  not yet, because which values file the SaaS uses is not in the repo.
+
+**Settled in #612 (owner, 2026-10-29)** — `organizations.plan` defaulted to
+`'starter'`, read as legacy Pro, so every new organisation got Pro caps. New
+organisations are now Free, and every existing `'starter'` row moves to Free
+(`migrations/0082`, plus the boot backfill), since there are no customers yet.
+
+**Cost of delay** — none for #612: A is safe and reversible by changing the
+empty case in `ParseDeployment`. It matters before the D-078 caps re-land, since
+those caps are what a self-hoster without the variable would then hit.
+
 ### D-080 — Licence gate: what legal-counsel says the allowed set does not cover · raised 2026-10-28
 **Context** — #774 asked `legal-counsel` to review the allowed set in
 `security/license-policy.yaml`. Verdict: approved with notes, advisory only.

@@ -41,11 +41,14 @@ type Organization struct {
 	LogoURL string    `json:"logo_url,omitempty"`
 	// LogoKey is the storage key of an uploaded logo (#718). Internal: the
 	// logo is read through GET /organization/logo, never by its key.
-	LogoKey  string    `gorm:"type:text" json:"-"`
-	Industry string    `json:"industry,omitempty"`
-	Size     OrgSize   `json:"size,omitempty"`
-	Plan     OrgPlan   `gorm:"default:'starter'" json:"plan"`
-	OwnerID  uuid.UUID `gorm:"index" json:"owner_id"`
+	LogoKey  string  `gorm:"type:text" json:"-"`
+	Industry string  `json:"industry,omitempty"`
+	Size     OrgSize `json:"size,omitempty"`
+	// Plan defaults to free (#612). It used to default to 'starter', which
+	// ParsePlan reads as the legacy name of Pro, so every new organisation
+	// landed on Pro caps without a subscription.
+	Plan    OrgPlan   `gorm:"default:'free'" json:"plan"`
+	OwnerID uuid.UUID `gorm:"index" json:"owner_id"`
 	// constraint:- : registration creates the Organization row with a placeholder OwnerID
 	// before the owning User row exists (see application/auth/register.go), and this is also
 	// the other half of a circular belongsTo with User.DefaultOrg — no DB-level FK either side.

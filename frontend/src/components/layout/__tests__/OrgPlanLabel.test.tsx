@@ -59,6 +59,16 @@ describe('OrgPlanLabel', () => {
     await waitFor(() => expect(screen.getByTestId('org-plan')).toHaveTextContent('Plan Pro'));
   });
 
+  // #612 — a self-hosted instance resolves to its own set, not to Free.
+  it('shows Self-hosted on a self-hosted instance, never Free', async () => {
+    getEntitlements.mockResolvedValue(withPlan('self_hosted'));
+    renderLabel();
+    await waitFor(() =>
+      expect(screen.getByTestId('org-plan')).toHaveTextContent('Self-hosted plan'),
+    );
+    expect(screen.queryByText(/Free/)).toBeNull();
+  });
+
   it('shows a skeleton while loading, not a guessed plan', () => {
     getEntitlements.mockReturnValue(new Promise(() => {}));
     renderLabel();
