@@ -64,6 +64,9 @@ services:
       API_PORT: 8080
       WEBSOCKET_ENABLED: "true"
       WEBSOCKET_HEARTBEAT_INTERVAL: "30s"
+      # Every file in this repository is a self-hosted deployment (D-081). The
+      # OpenDefender SaaS sets "hosted" from its own private configuration.
+      OPENRISK_DEPLOYMENT: self_hosted
     ports:
       - "8080:8080"
     depends_on:
