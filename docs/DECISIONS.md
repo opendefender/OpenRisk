@@ -5,6 +5,28 @@ recommends, and surfaces these in the daily brief. Run `/decide` to clear them.
 
 ## Open
 
+### D-082 — SSO and MFA: may an identity provider's own MFA stand in for the OpenRisk factor? · raised 2026-10-30
+**Question** — GHSA-rv5c-pr27-gpxh: an OAuth2 sign-in issued a full session
+with no MFA step, so an authenticator enrolled in OpenRisk was never asked for
+and the role policy (`MFA_REQUIRED_ROLES`, `/security/mfa-policy`) never
+applied. The fix routes SSO through the password sign-in's gate unchanged
+(`LoginUseCase.SSOSecondFactor`). Whether a provider-asserted MFA (OIDC `amr`,
+SAML `AuthnContextClassRef`) may satisfy the gate is an auth-design choice.
+
+**Options**
+- **A (shipped in the fix)** — no. The OpenRisk factor is asked for after every
+  SSO sign-in exactly as after a password. A user with MFA at Google and in
+  OpenRisk types two codes; a privileged role with nothing enrolled in OpenRisk
+  is sent to enrolment once its grace window is over.
+- **B** — trust the provider's claim when it says MFA was used, per tenant
+  opt-in. One code instead of two, but OpenRisk then trusts a claim from a
+  provider account it does not control, which is the scenario the advisory is
+  about. Google's userinfo carries no `amr`; Microsoft and most SAML IdPs do.
+  Needs a new tenant setting and per-provider parsing.
+
+**Cost of delay** — none: A is the fail-closed behaviour and B can be added on
+top later without changing it for tenants that do not opt in.
+
 ### D-081 — Self-hosted flag: what an instance that never sets OPENRISK_DEPLOYMENT gets · raised 2026-10-29
 **Question** — #612 adds `OPENRISK_DEPLOYMENT` (`self_hosted` | `hosted`), read
 once at boot. Unset currently means **hosted**, so nothing changes for the
