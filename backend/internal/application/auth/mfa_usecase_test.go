@@ -114,17 +114,17 @@ func (m *MockMFARepository) GetUnusedBackupCodes(ctx context.Context, userID, te
 	return unused, nil
 }
 
-func (m *MockMFARepository) MarkBackupCodeAsUsed(ctx context.Context, codeID uuid.UUID) error {
-	for key := range m.codes {
-		for _, code := range m.codes[key] {
-			if code.ID == codeID {
-				now := time.Now()
-				code.UsedAt = &now
-				return nil
-			}
+// MarkBackupCodeAsUsed honours the GORM contract: only an unused code of that
+// user and tenant is spent, and false reports that nothing was.
+func (m *MockMFARepository) MarkBackupCodeAsUsed(ctx context.Context, codeID, userID, tenantID uuid.UUID) (bool, error) {
+	for _, code := range m.codes[userID.String()+":"+tenantID.String()] {
+		if code.ID == codeID && code.UserID == userID && code.TenantID == tenantID && !code.IsUsed() {
+			now := time.Now()
+			code.UsedAt = &now
+			return true, nil
 		}
 	}
-	return nil
+	return false, nil
 }
 
 func (m *MockMFARepository) DeleteBackupCodes(ctx context.Context, userID, tenantID uuid.UUID) error {
