@@ -90,8 +90,20 @@ func TestSSOSecondFactor_NotFound(t *testing.T) {
 	assert.ErrorIs(t, err, domain.ErrValidation, "no organisation is a typed refusal")
 }
 
-// A store that cannot answer must refuse the sign-in, never wave it through.
+// A revoked membership is refused before any code is asked for.
 func TestSSOSecondFactor_Unauthorized(t *testing.T) {
+	uc, users, mfaRepo, _ := newLoginHarness(t, domain.RoleAdmin)
+	enrolVerifiedMFA(t, mfaRepo, users.user.ID, users.org.ID)
+	users.member.IsActive = false
+
+	out, err := uc.SSOSecondFactor(context.Background(), users.user.ID)
+	require.Error(t, err)
+	assert.ErrorIs(t, err, domain.ErrValidation)
+	assert.Nil(t, out, "no MFA token for an organisation that withdrew access")
+}
+
+// A store that cannot answer must refuse the sign-in, never wave it through.
+func TestSSOSecondFactor_StoreFailureRefuses(t *testing.T) {
 	uc, users, mfaRepo, _ := newLoginHarness(t, domain.RoleAdmin)
 	uc.WithMFA(failingMFASecrets{mfaRepo})
 

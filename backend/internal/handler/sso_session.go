@@ -159,6 +159,8 @@ func issueSSOSession(c *fiber.Ctx, user *domain.User, provider, returnTo, locale
 	if gate.Step != appauth.SecondFactorNone {
 		return redirectToSSOMFA(c, user, gate, returnTo)
 	}
+	// A step left over from an abandoned attempt has nothing left to finish.
+	middleware.ClearSSOMFACookie(c)
 
 	pair, err := ssoTokenManager.IssueSession(c.UserContext(), user.ID, coreauth.DeviceContext{
 		Fingerprint: c.Get("X-Device-Fingerprint"),

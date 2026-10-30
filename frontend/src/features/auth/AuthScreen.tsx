@@ -362,10 +362,13 @@ const UNKNOWN_LOCK_MS = 60_000;
 
 export function MFAChallenge({
   token,
+  next = null,
   onCancel,
   onRestart,
 }: {
   token: string;
+  /** Where to go once signed in, already checked by safeNextPath. */
+  next?: string | null;
   onCancel: () => void;
   /** The sign-in attempt is over; only the password can start another one. */
   onRestart: (message: string) => void;
@@ -419,7 +422,7 @@ export function MFAChallenge({
       if (result.token_pair?.access_token) {
         await adoptSession(result.token_pair.access_token);
       }
-      navigate(landingForBusinessRole(useAuthStore.getState().user?.business_role));
+      navigate(next ?? landingForBusinessRole(useAuthStore.getState().user?.business_role));
     } catch (err) {
       const refusal = classifyChallengeRefusal(err);
       switch (refusal.kind) {
@@ -531,9 +534,12 @@ export function MFAChallenge({
  */
 export function MFAEnrollment({
   token,
+  next = null,
   onRestart,
 }: {
   token: string;
+  /** Where to go once signed in, already checked by safeNextPath. */
+  next?: string | null;
   /** The enrolment token is spent or expired; only the password gets a new one. */
   onRestart: (message: string) => void;
 }) {
@@ -597,7 +603,7 @@ export function MFAEnrollment({
       if (result.token_pair?.access_token) {
         await adoptSession(result.token_pair.access_token);
       }
-      navigate(landingForBusinessRole(useAuthStore.getState().user?.business_role));
+      navigate(next ?? landingForBusinessRole(useAuthStore.getState().user?.business_role));
     } catch (err) {
       // The enrolment token lives 15 minutes. Past that, every code is refused
       // whatever it is, so "incorrect code" would be a lie (#872).

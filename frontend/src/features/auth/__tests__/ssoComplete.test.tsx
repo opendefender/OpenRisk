@@ -21,8 +21,16 @@ vi.mock('../authService', () => ({
 // The real challenge and enrolment screens are AuthScreen's and tested there;
 // here only which one is shown, with which token, and where a restart goes.
 vi.mock('../AuthScreen', () => ({
-  MFAChallenge: ({ token, onRestart }: { token: string; onRestart: (m: string) => void }) => (
-    <button data-testid="mfa-challenge" onClick={() => onRestart('expired')}>
+  MFAChallenge: ({
+    token,
+    next,
+    onRestart,
+  }: {
+    token: string;
+    next?: string | null;
+    onRestart: (m: string) => void;
+  }) => (
+    <button data-testid="mfa-challenge" data-next={next ?? ''} onClick={() => onRestart('expired')}>
       {token}
     </button>
   ),
@@ -128,7 +136,10 @@ describe('SSOCompleteScreen with a second factor owed (GHSA-rv5c-pr27-gpxh)', ()
 
     renderAt('/auth/sso/complete?mfa=1&next=/risks');
 
-    expect(await screen.findByTestId('mfa-challenge')).toHaveTextContent('mfa-tok');
+    const challenge = await screen.findByTestId('mfa-challenge');
+    expect(challenge).toHaveTextContent('mfa-tok');
+    // The page the sign-in started from survives the second factor.
+    expect(challenge).toHaveAttribute('data-next', '/risks');
     expect(claimSSOMFAStep).toHaveBeenCalledTimes(1);
     expect(claimSSOSession).not.toHaveBeenCalled();
     expect(adoptSession).not.toHaveBeenCalled();

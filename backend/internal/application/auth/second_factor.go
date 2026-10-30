@@ -55,6 +55,11 @@ func (uc *LoginUseCase) SSOSecondFactor(ctx context.Context, userID uuid.UUID) (
 	if err != nil {
 		return nil, fmt.Errorf("failed to get organization membership: %w", err)
 	}
+	// Refused before any factor is asked for, as password login does: a code
+	// prompt the session resolver would then refuse anyway is a dead end.
+	if member != nil && !member.IsActive {
+		return nil, domain.NewValidationError("your access to this organization has been revoked")
+	}
 	out, err := uc.secondFactor(ctx, userID, org.ID, member)
 	if err != nil {
 		return nil, err

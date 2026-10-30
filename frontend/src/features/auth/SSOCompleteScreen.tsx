@@ -1,7 +1,7 @@
 // Copyright (c) 2026 OpenDefender Contributors
 // SPDX-License-Identifier: AGPL-3.0-only
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 
 import { useAuthStore } from '../../hooks/useAuthStore';
@@ -63,16 +63,23 @@ export function SSOCompleteScreen() {
     })();
   }, [adoptSession, navigate, params]);
 
+  // A spent or refused step can only be replaced by a new sign-in. Stable, so
+  // the enrolment screen's setup effect does not run again on a re-render.
+  const restart = useCallback(
+    () => navigate('/login?error=mfa_restart', { replace: true }),
+    [navigate],
+  );
+
   if (mfa) {
-    // A spent or refused step can only be replaced by a new sign-in.
-    const restart = () => navigate('/login?error=mfa_restart', { replace: true });
+    const next = safeNextPath(params.get('next'));
     return (
       <AuthLayout>
         {mfa.enrolling ? (
-          <MFAEnrollment token={mfa.token} onRestart={restart} />
+          <MFAEnrollment token={mfa.token} next={next} onRestart={restart} />
         ) : (
           <MFAChallenge
             token={mfa.token}
+            next={next}
             onCancel={() => navigate('/login', { replace: true })}
             onRestart={restart}
           />
