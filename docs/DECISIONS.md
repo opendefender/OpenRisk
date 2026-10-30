@@ -171,7 +171,7 @@ Not A: it keeps the silent cap for every self-hoster the compose file misses.
 An instance that never sets `OPENRISK_DEPLOYMENT` refuses to boot, and the error
 names the variable. Both compose files, the Helm chart and the SaaS deployment
 set it explicitly. Delivered by #1185 (`ParseDeployment`, compose, CI, chart,
-upgrade note), which merges before #783. The SaaS value lives outside this
+upgrade note), merged on 2026-10-30 through PR #1211, before #783. The SaaS value lives outside this
 repo: setting `OPENRISK_DEPLOYMENT=hosted` there, before the #1185 release
 reaches it, is an owner/ops action.
 
