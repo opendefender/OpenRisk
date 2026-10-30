@@ -515,5 +515,18 @@ new_repo s5; gate "$R" s5; add_func "$R" 'func broken() int { return "x" }'
 grep -q "gate=green" "$R/.claude/STATE.md"; expect "s5 starts green" 0 $?
 gate "$R" s5; grep -q "gate=red (attempt 1/3)" "$R/.claude/STATE.md"; expect "a blocked attempt replaces an older green" 0 $? "$(cat "$R/.claude/STATE.md")"
 
+# --- no embedded copies (#1227) --------------------------------------------
+# bootstrap-openrisk-agents.sh carried heredoc copies of the hooks and wrote
+# them over the tracked ones, so a run downgraded the guards. Each hook's
+# header line must appear in no other tracked file outside the hooks and the
+# agent memories, so a stale installer cannot come back through a merge.
+COPIES=""
+for h in "$HOOKS"/*.sh; do
+  line=$(sed -n 2p "$h")
+  found=$(git -C "$HOOKS" grep -lF -e "$line" -- ':/' ':/!.claude/hooks/' ':/!.claude/agent-memory/')
+  [ -n "$found" ] && COPIES="$COPIES$(basename "$h") copied in: $found"$'\n'
+done
+[ -z "$COPIES" ]; expect "no tracked file embeds a copy of a hook" 0 $? "$COPIES"
+
 echo; echo "$PASS passed, $FAILS failed"
 [ "$FAILS" -eq 0 ]
