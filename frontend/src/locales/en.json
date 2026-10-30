@@ -2073,14 +2073,17 @@
       "target": "Target",
       "type": "Type",
       "start": "Start",
-      "noTarget": "No configuration of this type",
+      "noTarget": "Pick a configuration",
       "empty": "No scan configuration yet. Add one below and its target shows up here.",
-      "family": {
-        "all": "All types",
-        "network": "Network (on-prem agent)",
-        "cloud": "Cloud",
-        "discovery": "API discovery"
+      "providerType": "Set by the provider",
+      "typeHint": {
+        "discovery": "Live hosts and service versions, no vulnerability checks",
+        "vulnerability": "Discovery plus the nmap vulnerability scripts, slower"
       }
+    },
+    "scanType": {
+      "discovery": "Network discovery",
+      "vulnerability": "Vulnerabilities"
     },
     "toast": {
       "started": "Scan started on {name}",

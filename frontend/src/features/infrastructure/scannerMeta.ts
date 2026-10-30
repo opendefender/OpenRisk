@@ -362,17 +362,6 @@ export function timeAgo(iso: string | null | undefined, lang: LocaleCode): strin
   return fmt(Math.floor(secs / 86400), 'd');
 }
 
-// The scan card's "Type" picks a family of configurations. A configuration
-// fixes what a scan does, so the family is read off its provider: there is no
-// separate scan type in the API.
-export type ScanFamily = 'network' | 'cloud' | 'discovery';
-
-export function scanFamily(p: ScannerProvider): ScanFamily {
-  if (p === 'nmap' || p === 'agent') return 'network';
-  if (p === 'aws' || p === 'azure' || p === 'gcp') return 'cloud';
-  return 'discovery';
-}
-
 // Scan jobs report a status, not a percentage. A queued job is at 0 and a
 // finished one at 100; in between the bar is indeterminate (null) rather than
 // a made-up figure.

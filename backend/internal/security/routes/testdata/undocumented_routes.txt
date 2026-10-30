@@ -261,9 +261,7 @@ GET /scanner/configs
 POST /scanner/configs
 DELETE /scanner/configs/:id
 POST /scanner/configs/:id/registration-token
-POST /scanner/configs/:id/scan
 GET /scanner/events
-GET /scanner/jobs
 POST /scanner/jobs/:id/ignore
 POST /scanner/jobs/:id/import
 GET /scanner/jobs/:id/preview

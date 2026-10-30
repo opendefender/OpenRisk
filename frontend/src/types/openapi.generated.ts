@@ -2448,6 +2448,43 @@ export interface paths {
         patch: operations["updateSavedView"];
         trace?: never;
     };
+    "/scanner/configs/{id}/scan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Trigger a scan for a configuration
+         * @description Queues a scan job. An agent configuration (provider nmap or agent) is dispatched to the tenant's on-prem agents; any other provider runs in the SaaS worker. The body is optional. Without one the scan is a vulnerability scan, which is also what scheduled scans run (#1164). `scan_type` is only accepted for agent configurations: what a cloud or API provider collects is set by the provider, and sending a type for one is refused.
+         */
+        post: operations["triggerScan"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/scanner/jobs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List the tenant's scan jobs */
+        get: operations["listScanJobs"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -4233,6 +4270,41 @@ export interface components {
             next_cursor?: string;
             /** @description Which journals were consulted, even when one added nothing. */
             sources: ("audit" | "risk_history" | "incident_timeline" | "asset_snapshot")[];
+        };
+        /**
+         * @description What an agent scan looks for. discovery finds live hosts and their service versions; vulnerability also runs the nmap vulnerability scripts. Jobs from before scan types existed read as vulnerability.
+         * @enum {string}
+         */
+        ScanType: "discovery" | "vulnerability";
+        ScanJob: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            tenant_id: string;
+            /** Format: uuid */
+            config_id: string;
+            /** @description The configuration's provider (aws, azure, gcp, nmap, agent, kubernetes, github, ...). */
+            provider: string;
+            /** @enum {string} */
+            status: "queued" | "claimed" | "running" | "completed" | "failed" | "timeout";
+            scan_type: components["schemas"]["ScanType"];
+            targets: string[];
+            /** Format: uuid */
+            claimed_by_agent?: string;
+            preview_key?: string;
+            assets_found: number;
+            findings_found: number;
+            error?: string;
+            /** Format: uuid */
+            triggered_by: string;
+            /** Format: date-time */
+            started_at?: string;
+            /** Format: date-time */
+            completed_at?: string;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
         };
         ErrorResponse: {
             /** @example Invalid input */
@@ -10306,6 +10378,109 @@ export interface operations {
             };
             /** @description This user already has another view of that name on that register. */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    triggerScan: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": {
+                    scan_type?: components["schemas"]["ScanType"];
+                };
+            };
+        };
+        responses: {
+            /** @description The queued job */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScanJob"];
+                };
+            };
+            /** @description Invalid id or body, an unknown scan_type, a scan_type sent for a cloud or API configuration, or a disabled configuration */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The caller lacks the scanner:scan permission */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Configuration not found in the caller's tenant */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description A scan is already running for this configuration, or the tenant's concurrent-scan cap is reached */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    listScanJobs: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The tenant's scan jobs, newest first */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScanJob"][];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The caller lacks the scanner:read permission */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };

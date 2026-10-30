@@ -2073,14 +2073,17 @@
       "target": "Cible",
       "type": "Type",
       "start": "Démarrer",
-      "noTarget": "Aucune configuration de ce type",
+      "noTarget": "Choisissez une configuration",
       "empty": "Aucune configuration de scan pour l’instant. Ajoutez-en une plus bas, la cible apparaîtra ici.",
-      "family": {
-        "all": "Tous les types",
-        "network": "Réseau (agent sur site)",
-        "cloud": "Cloud",
-        "discovery": "Découverte par API"
+      "providerType": "Défini par le fournisseur",
+      "typeHint": {
+        "discovery": "Hôtes actifs et versions des services, sans test de vulnérabilité",
+        "vulnerability": "Découverte plus les scripts de vulnérabilité nmap, plus long"
       }
+    },
+    "scanType": {
+      "discovery": "Découverte réseau",
+      "vulnerability": "Vulnérabilités"
     },
     "toast": {
       "started": "Scan lancé sur {name}",
