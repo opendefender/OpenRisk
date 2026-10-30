@@ -5,7 +5,10 @@
 
 package entitlements
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 // TestSelfHosted_MatchesD040 asserts the self-hosted set row by row against the
 // table of #612 / D-040, not a spot check: every limit and every feature in
@@ -82,7 +85,6 @@ func TestSelfHosted_Unauthorized(t *testing.T) {
 
 func TestParseDeployment_Success(t *testing.T) {
 	cases := map[string]Deployment{
-		"":              DeploymentHosted,
 		"hosted":        DeploymentHosted,
 		"SaaS":          DeploymentHosted,
 		"self_hosted":   DeploymentSelfHosted,
@@ -93,6 +95,23 @@ func TestParseDeployment_Success(t *testing.T) {
 		got, err := ParseDeployment(in)
 		if err != nil || got != want {
 			t.Errorf("ParseDeployment(%q) = %q, %v; want %q", in, got, err, want)
+		}
+	}
+}
+
+// TestParseDeployment_Empty: an instance that never declared who runs it refuses
+// to boot (D-081 C). Neither reading is safe as a default: hosted caps a
+// self-hoster at Free, self_hosted opens the SaaS to every tenant.
+func TestParseDeployment_Empty(t *testing.T) {
+	for _, in := range []string{"", "   ", "\t\n"} {
+		_, err := ParseDeployment(in)
+		if err == nil {
+			t.Fatalf("ParseDeployment(%q) accepted an unset deployment", in)
+		}
+		for _, want := range []string{DeploymentEnv, string(DeploymentSelfHosted), string(DeploymentHosted)} {
+			if !strings.Contains(err.Error(), want) {
+				t.Errorf("ParseDeployment(%q) error %q does not name %q", in, err, want)
+			}
 		}
 	}
 }

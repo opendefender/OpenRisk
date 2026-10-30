@@ -10,6 +10,10 @@ global:
 
 # Backend API configuration
 backend:
+  # Who runs this instance (D-081). Required, no default: the render fails
+  # without it. self_hosted is your own install (complete and uncapped, D-040).
+  # hosted is the OpenDefender service only, set from its private configuration.
+  deployment: ""
   replicaCount: 3
   image:
     repository: ghcr.io/alex-dembele/openrisk-backend
