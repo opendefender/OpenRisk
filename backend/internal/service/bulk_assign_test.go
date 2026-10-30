@@ -63,8 +63,19 @@ func (f *fakeMitigationStore) List(string, map[string]interface{}) ([]domain.Mit
 }
 func (f *fakeMitigationStore) Update(string, *domain.Mitigation) error { return nil }
 func (f *fakeMitigationStore) Delete(string, uuid.UUID) error          { return nil }
-func (f *fakeMitigationStore) ListByRiskID(string, uuid.UUID) ([]domain.Mitigation, error) {
-	return nil, nil
+func (f *fakeMitigationStore) ListByRiskID(tenantID string, riskID uuid.UUID) ([]domain.Mitigation, error) {
+	var out []domain.Mitigation
+	for _, m := range f.byID {
+		if m.TenantID.String() == tenantID && m.RiskID == riskID {
+			out = append(out, *m)
+		}
+	}
+	for _, m := range f.created {
+		if m.TenantID.String() == tenantID && m.RiskID == riskID {
+			out = append(out, *m)
+		}
+	}
+	return out, nil
 }
 func (f *fakeMitigationStore) RecalculateProgress(string, uuid.UUID) (int, error) { return 0, nil }
 
@@ -234,4 +245,46 @@ func TestBulkAssign_Unauthorized(t *testing.T) {
 		OperationType: domain.BulkOperationTypeAssign,
 	})
 	require.ErrorIs(t, err, domain.ErrValidation)
+}
+
+// Running the same job twice must not stack a second copy on every risk; a
+// risk that already holds a plan with the template's title is skipped.
+func TestBulkAssign_RerunIsIdempotent(t *testing.T) {
+	db := setupBulkAssignDB(t)
+	tenant, author := uuid.New(), uuid.New()
+	riskWithTemplate := seedRiskID(t, db, tenant)
+	seedRiskID(t, db, tenant)
+	seedRiskID(t, db, tenant)
+
+	tpl := templatePlan(tenant)
+	tpl.RiskID = riskWithTemplate // the template already sits on one of the risks
+	store := newFakeMitigationStore(tpl)
+	s := NewBulkOperationService()
+	s.mitigations = store
+
+	run := func() *domain.BulkOperation {
+		op := &domain.BulkOperation{
+			ID:            insertOp(t, db, tenant, author),
+			OperationType: domain.BulkOperationTypeAssign,
+			UpdateData:    map[string]interface{}{"mitigation_id": tpl.ID.String()},
+			TenantID:      tenant,
+			CreatedBy:     author,
+		}
+		require.NoError(t, s.processBulkAssign(op))
+		return op
+	}
+
+	first := run()
+	assert.Len(t, store.created, 2, "the template's own risk is not given a copy of itself")
+	assert.Equal(t, 3, first.ProcessedCount)
+
+	second := run()
+	assert.Len(t, store.created, 2, "a re-run writes nothing new")
+	assert.Equal(t, 3, second.ProcessedCount)
+	assert.Equal(t, 0, second.ErrorCount)
+
+	var skipped int64
+	require.NoError(t, db.Table("bulk_operation_logs").
+		Where("bulk_operation_id = ? AND status = ?", second.ID.String(), "skipped").Count(&skipped).Error)
+	assert.Equal(t, int64(3), skipped, "every risk of the re-run is logged as skipped")
 }

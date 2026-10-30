@@ -245,6 +245,9 @@ func (s *BulkOperationService) processBulkExport(op *domain.BulkOperation) error
 // plan. A mitigation belongs to exactly one risk, so "assign M to N risks" means
 // N plans. Each one goes through CreateMitigationPlanUseCase with the job's
 // tenant and the user who started the job as creator (#1213).
+//
+// Re-running the same job must not stack duplicates: a risk that already has a
+// live plan with the template's title is skipped and logged as such.
 func (s *BulkOperationService) processBulkAssign(op *domain.BulkOperation) error {
 	raw, _ := op.UpdateData["mitigation_id"].(string)
 	templateID, err := uuid.Parse(raw)
@@ -265,15 +268,27 @@ func (s *BulkOperationService) processBulkAssign(op *domain.BulkOperation) error
 
 	createPlan := mitigationapp.NewCreateMitigationPlanUseCase(s.mitigations, nil)
 	for _, risk := range risks {
-		if _, err := createPlan.ExecuteContext(context.Background(), mitigationapp.CreateMitigationPlanInput{
-			TenantID:    op.TenantID,
-			RiskID:      risk.ID,
-			Title:       template.Title,
-			Description: template.Description,
-			Priority:    template.Priority,
-			CreatedBy:   op.CreatedBy,
-			Source:      domain.SourceManual,
-		}); err != nil {
+		has, err := s.hasPlanTitled(op.TenantID, risk.ID, template.Title)
+		if err == nil && has {
+			s.logBulkOperationSkipped(op.ID, risk.ID, "risk", "a plan with this title already exists on the risk")
+			s.mu.Lock()
+			op.ProcessedCount++
+			s.db.Model(op).Update("processed_count", op.ProcessedCount)
+			s.mu.Unlock()
+			continue
+		}
+		if err == nil {
+			_, err = createPlan.ExecuteContext(context.Background(), mitigationapp.CreateMitigationPlanInput{
+				TenantID:    op.TenantID,
+				RiskID:      risk.ID,
+				Title:       template.Title,
+				Description: template.Description,
+				Priority:    template.Priority,
+				CreatedBy:   op.CreatedBy,
+				Source:      domain.SourceManual,
+			})
+		}
+		if err != nil {
 			s.logBulkOperationError(op.ID, risk.ID, "risk", err.Error())
 			s.mu.Lock()
 			op.ErrorCount++
@@ -290,6 +305,21 @@ func (s *BulkOperationService) processBulkAssign(op *domain.BulkOperation) error
 	}
 
 	return nil
+}
+
+// hasPlanTitled reports whether the risk already has a live plan with this
+// title in the tenant: the identity bulk assign uses to stay idempotent.
+func (s *BulkOperationService) hasPlanTitled(tenantID, riskID uuid.UUID, title string) (bool, error) {
+	plans, err := s.mitigations.ListByRiskID(tenantID.String(), riskID)
+	if err != nil {
+		return false, err
+	}
+	for _, plan := range plans {
+		if plan.Title == title {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 // assignTemplateID reads the template plan's id from the request: the
@@ -399,6 +429,19 @@ func (s *BulkOperationService) logBulkOperationError(opID, resourceID uuid.UUID,
 		ResourceType:    resourceType,
 		Status:          "failed",
 		ErrorMessage:    errMsg,
+		CreatedAt:       time.Now(),
+	})
+}
+
+// logBulkOperationSkipped logs a resource left unchanged on purpose
+func (s *BulkOperationService) logBulkOperationSkipped(opID, resourceID uuid.UUID, resourceType, reason string) {
+	s.db.Create(&domain.BulkOperationLog{
+		ID:              uuid.New(),
+		BulkOperationID: opID,
+		ResourceID:      resourceID,
+		ResourceType:    resourceType,
+		Status:          "skipped",
+		ErrorMessage:    reason,
 		CreatedAt:       time.Now(),
 	})
 }
