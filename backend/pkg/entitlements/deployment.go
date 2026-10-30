@@ -25,13 +25,16 @@ const (
 // DeploymentEnv is the environment variable that declares the deployment.
 const DeploymentEnv = "OPENRISK_DEPLOYMENT"
 
-// ParseDeployment reads the DeploymentEnv value. Empty means hosted, which keeps
-// an instance that never set the variable resolving exactly as before. Any other
-// unknown value is an error: a typo silently read as hosted would cap a
-// self-hoster at Free, so the server refuses to boot instead.
+// ParseDeployment reads the DeploymentEnv value. There is no default (D-081 C):
+// an empty value is an error, because reading it as hosted caps a self-hoster at
+// Free and reading it as self_hosted opens the SaaS to every tenant. An unknown
+// value is an error for the same reason. Either way the server refuses to boot.
 func ParseDeployment(s string) (Deployment, error) {
 	switch strings.ToLower(strings.TrimSpace(s)) {
-	case "", "hosted", "saas":
+	case "":
+		return "", fmt.Errorf("%s is not set: set it to %q for your own install, or %q for the OpenDefender hosted service",
+			DeploymentEnv, DeploymentSelfHosted, DeploymentHosted)
+	case "hosted", "saas":
 		return DeploymentHosted, nil
 	case "self_hosted", "self-hosted", "selfhosted":
 		return DeploymentSelfHosted, nil
