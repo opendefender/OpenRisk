@@ -305,59 +305,35 @@ func (uc *LoginUseCase) Execute(ctx context.Context, input LoginInput) (*LoginOu
 		businessRole = member.BusinessRole
 	}
 
-	// L4 — MFA enforcement. If the user has a verified MFA secret, do NOT issue a
-	// full session yet: hand back a short-lived MFA_REQUIRED token that only
-	// /auth/mfa/challenge accepts. The real pair is minted after code validation.
-	//
-	// A deployment that wired no MFA repository at all cannot enrol or enforce
-	// anything, so the honest resolved state is "recommended" — the banner is all
-	// there is to say. Seeding it here means the field is never the empty string,
-	// which the SPA would have to special-case.
-	mfaStatus := domain.DecideMFA(domain.MFADecisionInput{GraceDays: domain.MFAGraceDaysDefault, Now: uc.clock()})
-	if uc.mfaRepo != nil {
-		mfaSecret, mErr := uc.mfaRepo.GetMFASecret(ctx, user.ID, org.ID)
-		if mErr != nil {
-			return nil, fmt.Errorf("failed to check MFA status: %w", mErr)
-		}
-		enrolled := mfaSecret != nil && mfaSecret.IsVerified
-
-		if enrolled {
-			mfaToken, tErr := uc.tokenManager.GenerateMFAChallengeToken(user.ID, org.ID)
-			if tErr != nil {
-				return nil, fmt.Errorf("failed to issue MFA challenge: %w", tErr)
-			}
-			return &LoginOutput{
-				User:         user,
-				Organization: org,
-				MFARequired:  true,
-				MFAToken:     mfaToken,
-				// Reported for completeness; no session is issued on this leg, so
-				// nothing reads it until the challenge succeeds.
-				MFAStatus: uc.decideMFA(ctx, member, org.ID, true),
-			}, nil
-		}
-
-		// OR26-03 — nothing enrolled. Whether that stops the login is now a
-		// POLICY question, not a role check: an ordinary member is let in with a
-		// banner, and a privileged one is let in until their grace window runs
-		// out. Only past the deadline does login stop short, and then it stops
-		// exactly as before — no session, an enrolment token, nothing else.
-		mfaStatus = uc.decideMFA(ctx, member, org.ID, false)
-		if mfaStatus.Required {
-			enrollToken, tErr := uc.tokenManager.GenerateMFAEnrollmentToken(user.ID, org.ID)
-			if tErr != nil {
-				return nil, fmt.Errorf("failed to issue MFA enrollment token: %w", tErr)
-			}
-			return &LoginOutput{
-				User:                  user,
-				Organization:          org,
-				MFAEnrollmentRequired: true,
-				MFAToken:              enrollToken,
-				BusinessRole:          businessRole,
-				MFAStatus:             mfaStatus,
-			}, nil
-		}
+	// L4 — MFA enforcement, shared with SSO (see secondFactor). A verified
+	// secret stops the login at a challenge; a privileged role past its grace
+	// window with nothing enrolled stops it at enrolment. No session either way.
+	gate, err := uc.secondFactor(ctx, user.ID, org.ID, member)
+	if err != nil {
+		return nil, err
 	}
+	switch gate.Step {
+	case SecondFactorChallenge:
+		return &LoginOutput{
+			User:         user,
+			Organization: org,
+			MFARequired:  true,
+			MFAToken:     gate.MFAToken,
+			// Reported for completeness; no session is issued on this leg, so
+			// nothing reads it until the challenge succeeds.
+			MFAStatus: gate.MFAStatus,
+		}, nil
+	case SecondFactorEnrollment:
+		return &LoginOutput{
+			User:                  user,
+			Organization:          org,
+			MFAEnrollmentRequired: true,
+			MFAToken:              gate.MFAToken,
+			BusinessRole:          businessRole,
+			MFAStatus:             gate.MFAStatus,
+		}, nil
+	}
+	mfaStatus := gate.MFAStatus
 
 	// Generate token pair
 	tokenPair, err := uc.tokenManager.GenerateTokenPair(
