@@ -360,7 +360,7 @@ function LoginForm({
 /** Disables the field this long when the server gave no wait (per-address limit). */
 const UNKNOWN_LOCK_MS = 60_000;
 
-function MFAChallenge({
+export function MFAChallenge({
   token,
   onCancel,
   onRestart,
@@ -529,7 +529,7 @@ function MFAChallenge({
  * completes the login in the same step, so the user is not asked for the
  * password they typed a minute ago.
  */
-function MFAEnrollment({
+export function MFAEnrollment({
   token,
   onRestart,
 }: {

@@ -258,6 +258,7 @@ export type OAuthErrorCode =
   | 'no_account'
   | 'password_account'
   | 'provider_conflict'
+  | 'mfa_restart'
   | 'internal';
 
 const fr: AuthCopy = {
@@ -380,6 +381,8 @@ const fr: AuthCopy = {
     password_account:
       'Ce compte se connecte avec un mot de passe. Utilisez votre adresse e-mail et votre mot de passe.',
     provider_conflict: 'Cette adresse est déjà associée à un autre fournisseur.',
+    mfa_restart:
+      'Cette étape de vérification a expiré ou a été refusée. Relancez la connexion depuis cette page.',
     internal: 'Une erreur est survenue pendant la connexion. Réessayez dans un instant.',
   },
   oauthConflictWith: (existing) =>
@@ -504,6 +507,8 @@ const en: AuthCopy = {
       'No OpenRisk account is linked to this address. Ask your administrator for an invitation.',
     password_account: 'This account signs in with a password. Use your email address and password.',
     provider_conflict: 'This address is already linked to a different provider.',
+    mfa_restart:
+      'This verification step expired or was refused. Start the sign-in again from this page.',
     internal: 'Something went wrong during sign-in. Please try again shortly.',
   },
   oauthConflictWith: (existing) =>
