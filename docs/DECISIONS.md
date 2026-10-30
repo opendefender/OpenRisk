@@ -123,6 +123,37 @@ whether the list stays as it is.
 
 ## Resolved
 
+### D-086 — Mitigations: a schema constraint tying a plan's risk to its tenant, and what to do with rows written across tenants · raised 2026-10-30 · decided 2026-11-03
+**Decided (owner, 2026-11-03)** — option A, as recommended, delivered after the
+advisory is published: the constraint and the quarantine migration go in a public
+issue opened then, not in the advisory fix.
+**Context** — GHSA-2w75-9qj8-fwwp: `POST /risks/:id/mitigations` never checked
+that the risk belonged to the caller's tenant. The fix gates the create
+transaction in the repository and scopes every `Preload("Risk")` /
+`Preload("Mitigations")` by tenant. That closes the hole in code, but nothing in
+the schema stops a future write path from doing it again, and any plan written
+cross-tenant before the fix is still in the database. Since the fix those rows
+stay inside the attacker's own tenant: they no longer resolve the victim's
+risk, no longer appear under it, and no longer reach its audit trail (proved
+live on Postgres 16). They still carry the victim's risk UUID.
+Detection query:
+`SELECT m.id, m.tenant_id, r.tenant_id FROM mitigations m JOIN risks r ON r.id = m.risk_id WHERE m.tenant_id <> r.tenant_id`.
+
+**Options** —
+- A: add `UNIQUE (id, tenant_id)` on `risks` and a composite FK
+  `mitigations (risk_id, tenant_id) → risks (id, tenant_id)`, preceded by a
+  data migration that moves mismatched rows into a `mitigations_quarantine`
+  table (kept, not deleted). The schema comes from AutoMigrate today, so the
+  constraint must also go in `PrepareForAutoMigrate`, not only in `migrations/`.
+- B: quarantine the rows only, no constraint.
+- C: leave both; rely on the code gate and the scoped preloads.
+
+**Recommendation** — A. It touches the tenant-isolation design and moves user
+data, which is why it is here and not in the fix. Track it in a private issue
+until the advisory is published.
+**Cost of delay** — Low after the fix: no cross-tenant read or write remains.
+The gap is one unscoped query away from reopening.
+
 ### D-083 — Canonical model ADR (#541): the GRC slice first, or all 17 entities at once · decided 2026-10-30
 **Decided (owner, 2026-10-30)** — option A, as recommended. The ADR on #541 specifies the
 envelope, the relationship vocabulary and the slice `Requirement`, `Control`,
