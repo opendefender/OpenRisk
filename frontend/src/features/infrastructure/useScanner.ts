@@ -11,7 +11,9 @@ import {
   scannerService,
   type CreateScanConfigInput,
   type ImportSelection,
+  type ScanConfig,
   type ScanJob,
+  type ScannerAgent,
 } from './scannerService';
 
 const CONFIGS_KEY = ['scanner', 'configs'];
@@ -29,12 +31,27 @@ export function useScanConfigs() {
     mutationFn: (input: CreateScanConfigInput) => scannerService.createConfig(input),
     onSettled: invalidate,
   });
+  // The row leaves the list at once and comes back if the server refuses.
   const deleteConfig = useMutation({
     mutationFn: (id: string) => scannerService.deleteConfig(id),
+    onMutate: async (id: string) => {
+      await qc.cancelQueries({ queryKey: CONFIGS_KEY });
+      const previous = qc.getQueryData<ScanConfig[]>(CONFIGS_KEY);
+      qc.setQueryData<ScanConfig[]>(CONFIGS_KEY, (list) => list?.filter((c) => c.id !== id));
+      return { previous };
+    },
+    onError: (_e, _id, ctx) => qc.setQueryData(CONFIGS_KEY, ctx?.previous),
     onSettled: invalidate,
   });
+  // The new job is in the response; put it at the head of the list so the
+  // scans block shows it before the next poll.
   const triggerScan = useMutation({
     mutationFn: (id: string) => scannerService.triggerScan(id),
+    onSuccess: (job) =>
+      qc.setQueryData<ScanJob[]>(JOBS_KEY, (list) => [
+        job,
+        ...(list ?? []).filter((j) => j.id !== job.id),
+      ]),
     onSettled: invalidate,
   });
 
@@ -42,6 +59,7 @@ export function useScanConfigs() {
     configs: query.data ?? [],
     isLoading: query.isLoading,
     error: query.error,
+    refetch: query.refetch,
     createConfig,
     deleteConfig,
     triggerScan,
@@ -58,9 +76,24 @@ export function useScannerAgents() {
   });
   const revokeAgent = useMutation({
     mutationFn: (id: string) => scannerService.revokeAgent(id),
+    onMutate: async (id: string) => {
+      await qc.cancelQueries({ queryKey: AGENTS_KEY });
+      const previous = qc.getQueryData<ScannerAgent[]>(AGENTS_KEY);
+      qc.setQueryData<ScannerAgent[]>(AGENTS_KEY, (list) =>
+        list?.map((a) => (a.id === id ? { ...a, status: 'revoked' } : a)),
+      );
+      return { previous };
+    },
+    onError: (_e, _id, ctx) => qc.setQueryData(AGENTS_KEY, ctx?.previous),
     onSettled: () => qc.invalidateQueries({ queryKey: AGENTS_KEY }),
   });
-  return { agents: query.data ?? [], isLoading: query.isLoading, error: query.error, revokeAgent };
+  return {
+    agents: query.data ?? [],
+    isLoading: query.isLoading,
+    error: query.error,
+    refetch: query.refetch,
+    revokeAgent,
+  };
 }
 
 export function useScanJobs() {
@@ -73,7 +106,12 @@ export function useScanJobs() {
       return jobs.some((j) => IN_FLIGHT.includes(j.status)) ? 4000 : false;
     },
   });
-  return { jobs: query.data ?? [], isLoading: query.isLoading, error: query.error };
+  return {
+    jobs: query.data ?? [],
+    isLoading: query.isLoading,
+    error: query.error,
+    refetch: query.refetch,
+  };
 }
 
 export function useScanPreview(jobId: string | undefined) {

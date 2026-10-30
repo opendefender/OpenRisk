@@ -2062,5 +2062,102 @@
       "lookup_disabled": "Online lookup is turned off for your organization: packages are listed but not checked.",
       "unknown": "The last check failed."
     }
+  },
+  "infra": {
+    "title": "Infrastructure",
+    "subtitle": "Collection agents and scheduled scans.",
+    "topology": "Topology",
+    "newConfig": "New config",
+    "launch": {
+      "title": "Run a scan",
+      "target": "Target",
+      "type": "Type",
+      "start": "Start",
+      "noTarget": "No configuration of this type",
+      "empty": "No scan configuration yet. Add one below and its target shows up here.",
+      "family": {
+        "all": "All types",
+        "network": "Network (on-prem agent)",
+        "cloud": "Cloud",
+        "discovery": "API discovery"
+      }
+    },
+    "toast": {
+      "started": "Scan started on {name}",
+      "queued": "No agent online: the scan is queued and runs once an agent connects.",
+      "failed": "The scan could not be started",
+      "created": "Configuration created",
+      "deleted": "Configuration deleted",
+      "deleteFailed": "Could not delete",
+      "revoked": "Agent revoked",
+      "revokeFailed": "Revoke failed"
+    },
+    "status": {
+      "queued": "Queued",
+      "claimed": "Claimed",
+      "running": "Running",
+      "completed": "Completed",
+      "failed": "Failed",
+      "timeout": "Timed out"
+    },
+    "scans": {
+      "title": "Scans",
+      "empty": "No scans yet. Run one from the card above.",
+      "assets": {
+        "one": "{count} asset",
+        "other": "{count} assets"
+      },
+      "findings": {
+        "one": "{count} finding",
+        "other": "{count} findings"
+      },
+      "progress": "Scan progress",
+      "openPreview": "Open the scan preview"
+    },
+    "agents": {
+      "title": "Agents",
+      "empty": "No agent connected. Deploy one from a network configuration.",
+      "version": "agent {version}",
+      "lastSeen": "Seen {when}",
+      "revoke": "Revoke {name}",
+      "revokeTitle": "Revoke this agent?",
+      "revokeBody": "Its token is invalidated immediately. The agent has to be redeployed before it scans again.",
+      "revokeConfirm": "Revoke",
+      "status": {
+        "online": "Online",
+        "offline": "Offline",
+        "scanning": "Scanning",
+        "error": "Error",
+        "revoked": "Revoked"
+      }
+    },
+    "providers": {
+      "title": "Providers",
+      "onPrem": "On-premise (Agent)",
+      "configs": {
+        "exact": {
+          "0": "No configuration"
+        },
+        "one": "{count} configuration",
+        "other": "{count} configurations"
+      },
+      "add": "add",
+      "online": "{count} online"
+    },
+    "configs": {
+      "title": "Scan configurations",
+      "emptyTitle": "No configurations yet",
+      "emptyBody": "Add a cloud or on-prem scan to get started.",
+      "noTargets": "no targets",
+      "allRegions": "all regions",
+      "next": "Next: {date}",
+      "deploy": "Deploy an agent",
+      "scan": "Scan",
+      "scanNow": "Scan {name} now",
+      "delete": "Delete {name}",
+      "deleteTitle": "Delete this configuration?",
+      "deleteBody": "Scheduled scans of “{name}” stop. Assets already imported stay in the inventory.",
+      "deleteConfirm": "Delete"
+    }
   }
 }
