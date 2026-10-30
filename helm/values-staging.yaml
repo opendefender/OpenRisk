@@ -7,6 +7,9 @@ global:
   domain: staging-openrisk.example.com
 
 backend:
+  # An example for your own install, so self_hosted (D-081). Never layer this
+  # file under the OpenDefender service config: its self_hosted would win.
+  deployment: self_hosted
   replicaCount: 2
   image:
     repository: ghcr.io/alex-dembele/openrisk-backend

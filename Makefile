@@ -255,7 +255,7 @@ dev:
 	@echo ""
 	@sleep 1
 	@echo "Starting backend (in background)..."
-	cd backend && go run ./cmd/server &
+	cd backend && OPENRISK_DEPLOYMENT=$${OPENRISK_DEPLOYMENT:-self_hosted} go run ./cmd/server &
 	@sleep 2
 	@echo ""
 	@echo "Starting frontend..."

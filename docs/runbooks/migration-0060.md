@@ -110,6 +110,7 @@ caused by 0060, but it decides the probe settings below.
 
    ```bash
    helm upgrade openrisk ./helm/openrisk -n openrisk \
+     --set backend.deployment=self_hosted \
      --set backend.replicaCount=1 \
      --set backend.livenessProbe.initialDelaySeconds=1800 \
      --set backend.readinessProbe.initialDelaySeconds=60
