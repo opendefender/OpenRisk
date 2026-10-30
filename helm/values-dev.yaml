@@ -7,6 +7,8 @@ global:
   domain: openrisk.local
 
 backend:
+  # An example for your own install, so self_hosted (D-081).
+  deployment: self_hosted
   replicaCount: 1
   image:
     repository: openrisk-backend

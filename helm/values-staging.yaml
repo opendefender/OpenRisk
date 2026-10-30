@@ -7,6 +7,8 @@ global:
   domain: staging-openrisk.example.com
 
 backend:
+  # An example for your own install, so self_hosted (D-081).
+  deployment: self_hosted
   replicaCount: 2
   image:
     repository: ghcr.io/alex-dembele/openrisk-backend
