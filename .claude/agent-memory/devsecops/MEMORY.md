@@ -7,3 +7,4 @@
 - [Notification e-mail posture](notification-email-posture.md) — #757 2026-10-15: dispatcher tenant gate, Subject CRLF not injectable, LogService logs addresses
 - [Transcript tooling posture](transcript-tooling-posture.md) — #1003 token_usage.py 2026-10-15: printed channels, meta.json task text, PASS after LOW fixes
 - [Reviewer routing posture](reviewer-routing-posture.md) — #1005 2026-10-18 r1 BLOCK -> r2 PASS; runner must pass --labels (#1008)
+- [Bulk operations posture](bulk-operations-posture.md) — #1215 2026-10-30 PASS; open debts: Get not owner-scoped, assign nil-tenant mitigation, no validation
