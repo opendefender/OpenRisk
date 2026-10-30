@@ -6,6 +6,8 @@
 package service
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"log"
 	"sync"
@@ -14,20 +16,27 @@ import (
 	"github.com/google/uuid"
 	"gorm.io/gorm"
 
+	mitigationapp "github.com/opendefender/openrisk/internal/application/mitigation"
 	"github.com/opendefender/openrisk/internal/domain"
 	"github.com/opendefender/openrisk/internal/infrastructure/database"
+	"github.com/opendefender/openrisk/internal/infrastructure/repository"
 )
 
 // BulkOperationService handles async bulk operations
 type BulkOperationService struct {
 	db *gorm.DB
-	mu sync.Mutex // Protects concurrent updates to bulk operations
+	// mitigations is the repository assign_mitigation writes through, via
+	// CreateMitigationPlanUseCase, so bulk plans get the same tenant and
+	// creator checks as a plan created one at a time (#1213).
+	mitigations repository.MitigationRepository
+	mu          sync.Mutex // Protects concurrent updates to bulk operations
 }
 
 // NewBulkOperationService creates a new bulk operation service
 func NewBulkOperationService() *BulkOperationService {
 	return &BulkOperationService{
-		db: database.DB,
+		db:          database.DB,
+		mitigations: repository.NewGormMitigationRepository(database.DB),
 	}
 }
 
@@ -43,6 +52,25 @@ func (s *BulkOperationService) CreateBulkOperation(userID, tenantID uuid.UUID, r
 		return nil, fmt.Errorf("invalid operation type: %s", req.OperationType)
 	}
 
+	// assign_mitigation copies an existing plan onto every matching risk. The
+	// template is resolved now, in the caller's tenant, so a missing or foreign
+	// mitigation_id is refused here rather than failing later in the worker.
+	updateData := req.UpdateData
+	if req.OperationType == domain.BulkOperationTypeAssign {
+		templateID, err := assignTemplateID(req)
+		if err != nil {
+			return nil, err
+		}
+		if _, err := s.assignTemplate(tenantID, templateID); err != nil {
+			return nil, err
+		}
+		updateData = make(map[string]interface{}, len(req.UpdateData)+1)
+		for k, v := range req.UpdateData {
+			updateData[k] = v
+		}
+		updateData["mitigation_id"] = templateID.String()
+	}
+
 	// Count matching resources (tenant-scoped)
 	count := int64(0)
 	if err := s.countResourcesByFilter(&count, tenantID, req.FilterQuery); err != nil {
@@ -56,7 +84,7 @@ func (s *BulkOperationService) CreateBulkOperation(userID, tenantID uuid.UUID, r
 		Status:        domain.BulkOperationStatusPending,
 		FilterQuery:   req.FilterQuery,
 		ResourceCount: int(count),
-		UpdateData:    req.UpdateData,
+		UpdateData:    updateData,
 		ExportFormat:  req.ExportFormat,
 		TenantID:      tenantID,
 		CreatedBy:     userID,
@@ -213,23 +241,38 @@ func (s *BulkOperationService) processBulkExport(op *domain.BulkOperation) error
 	return nil
 }
 
-// processBulkAssign handles bulk mitigation assignment
+// processBulkAssign gives every matching risk its own copy of the template
+// plan. A mitigation belongs to exactly one risk, so "assign M to N risks" means
+// N plans. Each one goes through CreateMitigationPlanUseCase with the job's
+// tenant and the user who started the job as creator (#1213).
 func (s *BulkOperationService) processBulkAssign(op *domain.BulkOperation) error {
+	raw, _ := op.UpdateData["mitigation_id"].(string)
+	templateID, err := uuid.Parse(raw)
+	if err != nil || templateID == uuid.Nil {
+		return fmt.Errorf("%w: mitigation_id required for assign operation", domain.ErrValidation)
+	}
+	// Read again under the tenant: the template may have been deleted since
+	// the job was queued.
+	template, err := s.assignTemplate(op.TenantID, templateID)
+	if err != nil {
+		return err
+	}
+
 	risks, err := s.getRisksByFilter(op.TenantID, op.FilterQuery)
 	if err != nil {
 		return err
 	}
 
-	// Get mitigation ID from update data
-	mitigationID, ok := op.UpdateData["mitigation_id"].(string)
-	if !ok {
-		return fmt.Errorf("mitigation_id required for assign operation")
-	}
-
+	createPlan := mitigationapp.NewCreateMitigationPlanUseCase(s.mitigations, nil)
 	for _, risk := range risks {
-		// Create risk-mitigation association
-		if err := s.db.Model(risk).Association("Mitigations").Append(&domain.Mitigation{
-			Title: "Assigned via bulk operation",
+		if _, err := createPlan.ExecuteContext(context.Background(), mitigationapp.CreateMitigationPlanInput{
+			TenantID:    op.TenantID,
+			RiskID:      risk.ID,
+			Title:       template.Title,
+			Description: template.Description,
+			Priority:    template.Priority,
+			CreatedBy:   op.CreatedBy,
+			Source:      domain.SourceManual,
 		}); err != nil {
 			s.logBulkOperationError(op.ID, risk.ID, "risk", err.Error())
 			s.mu.Lock()
@@ -246,8 +289,34 @@ func (s *BulkOperationService) processBulkAssign(op *domain.BulkOperation) error
 		s.mu.Unlock()
 	}
 
-	_ = mitigationID // Use the ID as needed
 	return nil
+}
+
+// assignTemplateID reads the template plan's id from the request: the
+// top-level mitigation_id field first, then update_data.mitigation_id.
+func assignTemplateID(req *domain.CreateBulkOperationRequest) (uuid.UUID, error) {
+	if req.MitigationID != uuid.Nil {
+		return req.MitigationID, nil
+	}
+	raw, _ := req.UpdateData["mitigation_id"].(string)
+	id, err := uuid.Parse(raw)
+	if err != nil || id == uuid.Nil {
+		return uuid.Nil, fmt.Errorf("%w: mitigation_id is required for assign_mitigation", domain.ErrValidation)
+	}
+	return id, nil
+}
+
+// assignTemplate loads the template plan inside the tenant. A plan from
+// another tenant is reported exactly like a missing one.
+func (s *BulkOperationService) assignTemplate(tenantID, templateID uuid.UUID) (*domain.Mitigation, error) {
+	template, err := s.mitigations.GetByID(tenantID.String(), templateID)
+	if err != nil {
+		if errors.Is(err, domain.ErrNotFound) {
+			return nil, fmt.Errorf("mitigation %s: %w", templateID, domain.ErrNotFound)
+		}
+		return nil, fmt.Errorf("failed to load mitigation: %w", err)
+	}
+	return template, nil
 }
 
 // getRisksByFilter retrieves risks matching a filter, always scoped to the tenant
