@@ -104,9 +104,21 @@ OPENRISK_DEPLOYMENT=self_hosted
 instance then resolves to the **Self-hosted** set (decision D-040): no caps on
 users, risks, assets or integrations, and every capability that runs on your own
 hardware. The variable is a property of the deployment; no organisation, plan
-row or subscription can set it. An unknown value stops the backend at boot
-rather than silently running as the hosted service. Without the variable the backend
-behaves as the hosted service, where each organisation resolves by its plan.
+row or subscription can set it. The variable is required (D-081): without it,
+or with a value it does not know, the backend stops at boot and the log names
+the variable and its two values. It never guesses, because either guess is
+wrong for someone: read as hosted, your install would be capped at Free; read
+as self-hosted, the OpenDefender service would be open to every organisation.
+### Self-hosted or the OpenDefender service
+
+Every deployment file in this repository is a self-hosted deployment and
+declares `self_hosted`: the compose files, the Helm values files
+(`helm/values-*.yaml`), the `.env` examples and the CI workflows. Copy any of
+them for your own install. The OpenDefender hosted service sets `hosted` from
+its own private configuration, which is not part of this repository. No file
+here says `hosted`, so none of them can close your instance down to the Free
+plan.
+
 The resolution happens in
 [`backend/pkg/entitlements/entitlements.go`](../backend/pkg/entitlements/entitlements.go)
 and in the middleware, not in the frontend.
@@ -142,7 +154,7 @@ the code ever disagree. It is not a marketing table; it is the code.
 | SLA | — | — | — | 99.5% | 99.9% |
 | Support | community | community | email | priority | dedicated |
 
-With `OPENRISK_DEPLOYMENT=self_hosted`, every organisation of the instance resolves to **Self-hosted**: unlimited users, unlimited risks, unlimited assets, unlimited integrations, whatever plan its row stores. Without the variable the instance behaves as the hosted service: each organisation resolves by its subscription, or by the plan its row stores.
+With `OPENRISK_DEPLOYMENT=self_hosted`, every organisation of the instance resolves to **Self-hosted**: unlimited users, unlimited risks, unlimited assets, unlimited integrations, whatever plan its row stores. Without the variable the backend refuses to boot (D-081): it never guesses whether it is your install or the OpenDefender service.
 
 <!-- END GENERATED: entitlements matrix -->
 
@@ -200,6 +212,20 @@ cd deploy/selfhost
 docker compose pull || true         # if using prebuilt images
 docker compose up -d --build        # rebuild + restart; migrations run on boot
 ```
+
+`OPENRISK_DEPLOYMENT` is required from this release on (D-081). The official
+`deploy/selfhost/docker-compose.yml` already sets it. If you run your own
+compose file or the binary and the backend stops at boot with
+`OPENRISK_DEPLOYMENT is not set`, add this line to its environment (or `.env`):
+
+```
+OPENRISK_DEPLOYMENT=self_hosted
+```
+
+With Helm, `helm upgrade` fails at render time, before any pod restarts, until
+`backend.deployment` is set: add `--set backend.deployment=self_hosted`, or put
+`deployment: self_hosted` under `backend:` in your values file. The repository's
+`helm/values-*.yaml` files already carry it.
 
 Schema migrations run automatically on backend start: GORM AutoMigrate, then
 the SQL migrations in `migrations/`, which the backend image carries. The log
@@ -367,6 +393,17 @@ A maintained chart lives in [`helm/openrisk`](../helm/openrisk) with
 ARM64 nodes when you provide ARM64 images (above). Provide the same secrets
 (`RSA_*`, `MFA_ENCRYPTION_KEY`, `SCANNER_CREDENTIAL_KEY`, `AUDIT_EXPORT_KEY`) and
 optional payment/telemetry env via the chart's `values` / a `Secret`.
+
+`backend.deployment` has no default and the render fails without it (D-081).
+The repository's values files set it to `self_hosted`; with your own values
+file, pass it explicitly:
+
+```bash
+helm install openrisk ./helm/openrisk -f my-values.yaml \
+  --set backend.deployment=self_hosted
+```
+
+See [Self-hosted or the OpenDefender service](#self-hosted-or-the-opendefender-service).
 
 ## Integrations on a private network
 
