@@ -50,3 +50,7 @@ things before `status:ready`: every path it names exists (`ls`), every dependenc
 it assumes is in the manifest (`grep package.json`), every component it says is
 broken exists (`grep -rn` the repo, and check `ROADMAP.md` for a PLANNED row),
 and every issue number it cites is the one that actually does the work.
+
+Third case, 2026-10-22 (#783 / D-075): the issue said option (a) would break self-hosted installs because they resolve to PlanFree. D-040 had already ruled self-hosted free and complete, and #612 fixes the resolution, so the break only exists if (a) ships before #612. Before drafting any decision, grep DECISIONS.md Resolved for a prior ruling on the same premise.
+
+Fourth case, 2026-10-22 (#783 refinement): my own D-075 wording said "gate SSO configuration", but master has no per-tenant SSO config route (OAuth is env, SAML refuses everything since #866). Owner decisions inherit my premises; before turning a decision into criteria, grep that every route it names exists, and grep frontend for cross-module callers of the APIs being gated (three were found).
