@@ -7,3 +7,4 @@
 - [Red CI gates are not gates](red-ci-gates-are-not-gates.md) — security jobs were red on master and non-required (#487); check runs + branch protection before drafting
 - [Owner overrides on scope and polish](owner-overrides-on-scope-and-polish.md) — owner rejects scope cuts/less-motion recs (D-054, D-058, D-060), follows security/licence recs; bring burn-down data
 - [Large refactor design gate](large-refactor-design-gate.md) — #991/#992 precedent: ready ADR issue + spike, parent stays needs-refinement, owner tripwires; recount on origin/master
+- [Owner-decided spec content](owner-decided-spec-content.md) — narrowing a scope a D-entry fixed (D-030 "17 entities") is a D-entry (D-083); refine the rest, park only that
