@@ -515,7 +515,9 @@ export function MFAChallenge({
       </div>
 
       <div className="text-center text-[13px] text-ink-soft mt-[18px]" style={cascade(3, reduced)}>
-        <button type="button" onClick={onCancel} className="font-semibold">
+        {/* Not while a code is in flight: its session would land after the user
+            chose to leave, and override that choice. */}
+        <button type="button" onClick={onCancel} disabled={busy} className="font-semibold">
           {cancelLabel ?? copy.backToSignIn}
         </button>
       </div>
@@ -714,7 +716,7 @@ export function MFAEnrollment({
 
       {onCancel && (
         <div className="text-center text-[13px] text-ink-soft mt-[18px]">
-          <button type="button" onClick={onCancel} className="font-semibold">
+          <button type="button" onClick={onCancel} disabled={busy} className="font-semibold">
             {cancelLabel ?? copy.backToSignIn}
           </button>
         </div>

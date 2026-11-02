@@ -180,6 +180,16 @@ describe('MFA challenge refusals (#872)', () => {
     expect(screen.getByTestId('mfa-code')).toBeDisabled();
   });
 
+  // GHSA-45mr-j2w6-m4jv live check: leaving while a code is in flight let the
+  // late session override the user's choice to stay.
+  it('cannot be left while a code is being checked', async () => {
+    const user = await reachChallenge();
+    challengeMFA.mockReturnValueOnce(new Promise(() => {}));
+    await submitCode(user);
+
+    expect(screen.getByRole('button', { name: copy().backToSignIn })).toBeDisabled();
+  });
+
   it('speaks English to an English session', async () => {
     useUIStore.getState().setLang('en');
     const user = await reachChallenge();
