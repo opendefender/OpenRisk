@@ -44,7 +44,7 @@ vi.mock('../../../hooks/useAuthStore', () => {
   return { useAuthStore };
 });
 
-import { AuthScreen } from '../AuthScreen';
+import { AuthScreen, MFAEnrollment } from '../AuthScreen';
 
 function refused(status: number, data: unknown): AxiosError {
   const response = {
@@ -263,5 +263,51 @@ describe('mandated enrolment with an expired token (#872)', () => {
 
     expect(await screen.findByTestId('auth-error')).toHaveTextContent(copy().mfaInvalid);
     expect(screen.getByTestId('mfa-enrol-code')).toBeInTheDocument();
+  });
+});
+
+// GHSA-45mr-j2w6-m4jv: the enrolment of an organisation switch has a way back,
+// and, like the challenge, it cannot be taken while a code is being verified.
+describe('mandated enrolment with a way back', () => {
+  beforeEach(() => {
+    setupMFA.mockReset();
+    setupMFA.mockResolvedValue({ secret: 'ABCDEF', qr_code: '/9j/raw', backup_codes: [] });
+  });
+
+  function renderEnrolment(onCancel = vi.fn()) {
+    render(
+      <MemoryRouter>
+        <MFAEnrollment
+          token="enrol-token"
+          onCancel={onCancel}
+          cancelLabel="Stay"
+          onRestart={vi.fn()}
+        />
+      </MemoryRouter>,
+    );
+    return onCancel;
+  }
+
+  it('offers the way back while no code is in flight', async () => {
+    const user = userEvent.setup();
+    const onCancel = renderEnrolment();
+    await screen.findByTestId('mfa-enrol-code');
+
+    await user.click(screen.getByRole('button', { name: 'Stay' }));
+    expect(onCancel).toHaveBeenCalledTimes(1);
+  });
+
+  it('cannot be left while a code is being verified', async () => {
+    const user = userEvent.setup();
+    verifyMFA.mockReturnValueOnce(new Promise(() => {}));
+    const onCancel = renderEnrolment();
+    await user.click(await screen.findByTestId('mfa-enrol-code'));
+    await user.paste('123456');
+
+    await waitFor(() => expect(verifyMFA).toHaveBeenCalled());
+    const stay = screen.getByRole('button', { name: 'Stay' });
+    expect(stay).toBeDisabled();
+    await user.click(stay);
+    expect(onCancel).not.toHaveBeenCalled();
   });
 });
