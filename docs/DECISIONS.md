@@ -80,6 +80,67 @@ whether the list stays as it is.
 
 ## Resolved
 
+### D-083 — Canonical model ADR (#541): the GRC slice first, or all 17 entities at once · decided 2026-10-30
+**Decided (owner, 2026-10-30)** — option A, as recommended. The ADR on #541 specifies the
+envelope, the relationship vocabulary and the slice `Requirement`, `Control`,
+`ControlImplementation`, `ControlTest`, `Evidence`, `Risk`, `Finding`; it adopts ADR 0004's
+`Vendor` and `Assessment` by reference. The canonical list is now 19 entities. The other ten
+are out of scope for v1 and held by a follow-up ADR issue in the same milestone. D-030 stands
+otherwise: no code before the ADR is accepted, #542 after it.
+
+**Question** — D-030 wrote the ADR's content as "17 entities". The 2026-09-25 audit on #541
+proposes that the ADR specify only the slice the Evidence Fabric (#553 → #554 → #555) needs,
+and declare the rest out of scope for v1 inside the ADR. That rewrites what an owner decision
+said the ADR contains, so it is not a spec-wording call.
+
+**A second gap the audit did not name.** The slice it lists is `Requirement`, `Control`,
+`ControlImplementation`, `ControlTest`, `Evidence`, `Risk`, `Finding`. Two of those,
+`ControlImplementation` and `ControlTest`, are **not** in D-030's list of 17. #553 (the
+Requirement → Control → Implementation → Test → Evidence chain) needs them as first-class
+records. Either the list grows to 19, or they are modelled inside `Control`.
+
+**Context, read on `origin/master` 6a0d855e**
+- #541 has been `status:needs-refinement` since 2026-09-04, eight weeks. The audit put it in
+  launch Sprint 3 (27 Oct – 7 Nov), which is now. #553, #554, #555 are all
+  `status:needs-refinement` behind it; #542 cannot land before it (D-030).
+- Precedent: D-044 already specified a slice first (`Vendor`, `Assessment`, ADR 0004, accepted
+  in D-045). The owner took that route once.
+- `domain.Evidence` (`backend/internal/domain/evidence.go:134`), `domain.Risk`
+  (`risk.go:186`) and `domain.Control` (`integration_models.go:36`) exist.
+  No `Requirement`, `ControlImplementation` or `ControlTest` type exists.
+- 30 files in `backend/internal/domain` import GORM or Fiber today, so the canonical types need
+  a package of their own for the purity criterion to be testable. Spec detail, decided on the
+  issue, not here.
+- Neither "Release 1.2 — Risk Data Plane" nor "Release 1.4 — Evidence Fabric" has a due date.
+
+**Options**
+- **A — the slice first, the list grows to 19.** The ADR specifies the envelope, the
+  relationship vocabulary, and `Requirement`, `Control`, `ControlImplementation`, `ControlTest`,
+  `Evidence`, `Risk`, `Finding`. It adopts ADR 0004's `Vendor` and `Assessment` by reference. The
+  other ten (`Asset`, `Threat`, `Incident`, `Mitigation`, `Action`, `Owner`, `System`,
+  `Service`, `Policy`, `Signal`) are named out of scope for v1, each with the reason, and a
+  follow-up ADR issue holds them. Verbs pointing at them (`Finding --affects--> Asset`) are kept,
+  and only their target's shape waits. One ADR of medium size. #553 can be refined straight after.
+- **B — all 17 now, as D-030 wrote, and still decide on the two extra entities.** The full
+  target in one document. Roughly three times the specification work. Every Evidence Fabric
+  issue waits for the last of the 17, including `Signal` and `Incident`, which it never touches.
+- **C — the slice first, the list stays at 17.** As A, but implementation and test are folded
+  into `Control` as sub-records rather than entities. The count D-030 published holds, but #553's
+  chain loses two first-class records, and the envelope (`source`, `observed_at`, `confidence`)
+  on a test result is what the Evidence Fabric needs most.
+
+**Recommendation** — **A.** This is sequencing, not a cut. The 17 stay the target, and the
+remaining ten get their own issue in the same milestone, the way D-044 handled TPRM. With
+11 weeks to the proposed 18 January launch, B puts the Evidence Fabric's whole chain behind
+ten entities it does not use. C saves a number and costs the Evidence Fabric the provenance on
+test results.
+
+**Cost of delay** — High. Each week is a week that #553, #554, #555 and #542 cannot be
+refined. The Evidence Fabric is option A of D-054's launch analysis, and it has no
+specification yet.
+
+**Blocks** — #541 (`status:ready`), then #553, #542 and, through them, #554, #555.
+
 ### D-082 — Branch protection on master: which checks block a merge, and does a PR need an approval · decided 2026-10-30
 **Decided (owner, 2026-10-30)** — option A on checks, `strict: true`, approvals stay at 0.
 Applied the same day with the command below. `gh api repos/opendefender/OpenRisk/branches/master/protection`

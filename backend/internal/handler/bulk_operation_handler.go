@@ -6,6 +6,8 @@
 package handler
 
 import (
+	"errors"
+
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 
@@ -89,7 +91,11 @@ func (h *BulkOperationHandler) CreateBulkOperation(c *fiber.Ctx) error {
 	// Create bulk operation
 	op, err := h.service.CreateBulkOperation(userClaims.Sub, rc.OrganizationID, req)
 	if err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+		status := fiber.StatusBadRequest
+		if errors.Is(err, domain.ErrNotFound) {
+			status = fiber.StatusNotFound
+		}
+		return c.Status(status).JSON(fiber.Map{
 			"error": err.Error(),
 		})
 	}
