@@ -33,8 +33,14 @@ codes lock code entry for the whole account for 15 minutes
 same session holder got straight into that organisation, so this is a far
 smaller exposure, and code guessing stays capped by the same lock. Capping
 token minting per session would not help (five wrong codes per token, two
-tokens reach ten). Closing it means a separate lock counter for switch-minted
-challenges, which is lock design and is left here.
+tokens reach ten). Because the lock is per user, it also blocks the victim's
+own MFA sign-ins in every organisation for as long as it is re-armed, so a
+victim whose default organisation has an authenticator cannot sign in to revoke
+the stolen session; an administrator still can, and the lock notice tells the
+owner. Closing it means changing the lock, for example binding the session
+family into a switch-minted MFA_REQUIRED token and revoking that session when
+its challenge fails, rather than locking the account. That is lock design and
+is left here. devsecops rates it LOW and asks for a tracking issue.
 
 **Related** — while #897 is open, `mfa_secrets.user_id` is unique: a member
 holds one secret, under the organisation where they enrolled. A privileged
