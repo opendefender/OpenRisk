@@ -49,7 +49,9 @@ switch and cannot complete it (setup answers 409). The request-time guard
 already refuses them in B today, so the switch adds no new lockout; #897 lifts it.
 The enrolment screen says so and goes back to the current organisation.
 
-### D-082 — SSO and MFA: may an identity provider's own MFA stand in for the OpenRisk factor? · raised 2026-10-30
+### D-085 — SSO and MFA: may an identity provider's own MFA stand in for the OpenRisk factor? · raised 2026-10-30
+*Raised as D-082 in the GHSA-rv5c-pr27-gpxh commits; renumbered because master's resolved D-082 (branch protection) holds that number.*
+
 **Question** — GHSA-rv5c-pr27-gpxh: an OAuth2 sign-in issued a full session
 with no MFA step, so an authenticator enrolled in OpenRisk was never asked for
 and the role policy (`MFA_REQUIRED_ROLES`, `/security/mfa-policy`) never
