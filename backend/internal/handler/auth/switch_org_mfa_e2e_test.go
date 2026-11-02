@@ -227,3 +227,21 @@ func TestSwitchOrgMFAE2E_MembershipRevokedBeforeEnrolmentIssuesNoSession(t *test
 	assert.NotEqual(t, http.StatusOK, status, "%v", body)
 	assert.Nil(t, body["token_pair"])
 }
+
+// #807: a sign-in whose default organisation withdrew access falls back to
+// another one. The challenge issues the session for that organisation, the one
+// whose factor was checked, rather than for the revoked default.
+func TestSwitchOrgMFAE2E_FallbackSignInChallengeIssuesSessionForFallbackOrg(t *testing.T) {
+	f, inB := newSwitchMFAStack(t, domain.RoleUser, time.Now())
+	stack := &challengeStack{deferredFixture: f}
+	plain := stack.enrolWithSecret(t, inB)
+	require.NoError(t, f.db.Model(&domain.OrganizationMember{}).Where("id = ?", f.memberA.ID).Update("is_active", false).Error)
+
+	body, _ := f.login(t, f.memberA.User.Email)
+	mfaToken, _ := body["mfa_token"].(string)
+	require.NotEmpty(t, mfaToken, "the fallback organisation's factor must be asked for: %v", body)
+
+	status, body := f.do(t, http.MethodPost, challengePath, mfaToken, jsonBody{"code": liveCode(t, plain)})
+	require.Equal(t, http.StatusOK, status, "%v", body)
+	assert.Equal(t, f.tenantB, accessTenant(t, f, body))
+}

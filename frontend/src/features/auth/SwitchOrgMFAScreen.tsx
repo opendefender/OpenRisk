@@ -44,7 +44,12 @@ export function SwitchOrgMFAScreen() {
   return (
     <AuthLayout>
       {step.enrolling ? (
-        <MFAEnrollment token={step.token} onRestart={restart} />
+        <MFAEnrollment
+          token={step.token}
+          onCancel={back}
+          cancelLabel={copy.mfaSwitchCancel}
+          onRestart={restart}
+        />
       ) : (
         <MFAChallenge
           token={step.token}

@@ -25,11 +25,23 @@ target's is an auth-design choice.
 
 **Cost of delay** — none: A is the fail-closed behaviour and B can be added later.
 
+**Accepted with A, for the owner to confirm** — a session alone can now trigger
+the account-wide challenge lock. Each switch into an organisation with an
+authenticator mints a fresh MFA_REQUIRED token, without the password; ten wrong
+codes lock code entry for the whole account for 15 minutes
+(`mfa_limits.go`, keyed per user), and it can be repeated. Before the fix the
+same session holder got straight into that organisation, so this is a far
+smaller exposure, and code guessing stays capped by the same lock. Capping
+token minting per session would not help (five wrong codes per token, two
+tokens reach ten). Closing it means a separate lock counter for switch-minted
+challenges, which is lock design and is left here.
+
 **Related** — while #897 is open, `mfa_secrets.user_id` is unique: a member
 holds one secret, under the organisation where they enrolled. A privileged
 member enrolled in A whose role in B mandates MFA is sent to enrolment by the
-switch and cannot complete it (`409 already_enabled`). The request-time guard
+switch and cannot complete it (setup answers 409). The request-time guard
 already refuses them in B today, so the switch adds no new lockout; #897 lifts it.
+The enrolment screen says so and goes back to the current organisation.
 
 ### D-082 — SSO and MFA: may an identity provider's own MFA stand in for the OpenRisk factor? · raised 2026-10-30
 **Question** — GHSA-rv5c-pr27-gpxh: an OAuth2 sign-in issued a full session

@@ -221,6 +221,9 @@ export interface AuthCopy {
   mfaLocked: (minutes: number) => string;
   mfaLockedUnknown: string;
   mfaSetupFailed: string;
+  /** Setup refused with 409: another organisation holds the account's only
+   *  authenticator until #897. Retrying cannot help. */
+  mfaSetupUnavailable: string;
   mfaEnrolTitle: string;
   mfaEnrolSubtitle: string;
   mfaEnrolScan: string;
@@ -347,6 +350,8 @@ const fr: AuthCopy = {
   // Telling the user their sign-up failed sends them back to create it again.
   mfaSetupFailed:
     'Impossible de préparer la double authentification. Votre compte est créé — rechargez la page pour réessayer.',
+  mfaSetupUnavailable:
+    'Cette organisation exige son propre second facteur, qui ne peut pas encore être ajouté à votre compte. Contactez votre administrateur.',
   mfaEnrolTitle: 'Activez la double authentification',
   mfaEnrolSubtitle:
     'Votre rôle donne accès aux données de toute l’organisation : un second facteur est obligatoire.',
@@ -477,6 +482,8 @@ const en: AuthCopy = {
   mfaLockedUnknown: 'Too many attempts. Try again in a few minutes.',
   mfaSetupFailed:
     'Could not set up two-factor authentication. Your account exists — reload the page to try again.',
+  mfaSetupUnavailable:
+    'This organisation requires its own second factor, which cannot be added to your account yet. Contact your administrator.',
   mfaEnrolTitle: 'Turn on two-factor authentication',
   mfaEnrolSubtitle:
     'Your role can reach data across the whole organisation, so a second factor is required.',

@@ -233,6 +233,18 @@ describe('mandated enrolment with an expired token (#872)', () => {
     expect(setupMFA).toHaveBeenCalledTimes(1);
   });
 
+  // #897: the account's one authenticator belongs to another organisation.
+  // Setup answers 409 every time, so retrying is not offered.
+  it('goes back with the reason when setup answers 409', async () => {
+    setupMFA.mockReset();
+    setupMFA.mockRejectedValueOnce(refused(409, { error: 'MFA is already enabled' }));
+    await reachEnrolment();
+
+    expect(await screen.findByTestId('login-password')).toBeInTheDocument();
+    expect(screen.getByTestId('auth-error')).toHaveTextContent(copy().mfaSetupUnavailable);
+    expect(setupMFA).toHaveBeenCalledTimes(1);
+  });
+
   it('still says "incorrect code" for a wrong code on a live token', async () => {
     const user = await reachEnrolment();
     verifyMFA.mockRejectedValueOnce(refused(400, { error: 'invalid code' }));

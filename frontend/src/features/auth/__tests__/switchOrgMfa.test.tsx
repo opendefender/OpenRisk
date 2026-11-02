@@ -32,7 +32,20 @@ vi.mock('../AuthScreen', () => ({
       <button onClick={() => onRestart('expired')}>restart</button>
     </div>
   ),
-  MFAEnrollment: ({ token }: { token: string }) => <p data-testid="mfa-enrolment">{token}</p>,
+  MFAEnrollment: ({
+    token,
+    cancelLabel,
+    onCancel,
+  }: {
+    token: string;
+    cancelLabel?: string;
+    onCancel?: () => void;
+  }) => (
+    <div data-testid="mfa-enrolment">
+      <span>{token}</span>
+      <button onClick={onCancel}>{cancelLabel}</button>
+    </div>
+  ),
 }));
 vi.mock('../AuthLayout', () => ({
   AuthLayout: ({ children }: { children: React.ReactNode }) => <>{children}</>,
@@ -82,6 +95,9 @@ describe('SwitchOrgMFAScreen', () => {
     renderScreen();
 
     expect(screen.getByTestId('mfa-enrolment')).toHaveTextContent('enrol-in-b');
+    // An enrolment that cannot finish must not trap the user outside the app.
+    fireEvent.click(screen.getByRole('button', { name: 'Stay in the current organisation' }));
+    expect(screen.getByText('current organization')).toBeInTheDocument();
   });
 
   it('goes back with the reason when the step is spent', () => {

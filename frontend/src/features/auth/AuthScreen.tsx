@@ -538,11 +538,16 @@ export function MFAChallenge({
 export function MFAEnrollment({
   token,
   next = null,
+  onCancel,
+  cancelLabel,
   onRestart,
 }: {
   token: string;
   /** Where to go once signed in, already checked by safeNextPath. */
   next?: string | null;
+  /** Shown where there is a session to go back to, as after a switch. */
+  onCancel?: () => void;
+  cancelLabel?: string;
   /** The enrolment token is spent or expired; only the password gets a new one. */
   onRestart: (message: string) => void;
 }) {
@@ -582,12 +587,18 @@ export function MFAEnrollment({
           onRestart(copy.mfaExpired);
           return;
         }
+        // 409: the account's one authenticator belongs to another organisation
+        // (#897). Every retry would get the same answer.
+        if (axios.isAxiosError(err) && err.response?.status === 409) {
+          onRestart(copy.mfaSetupUnavailable);
+          return;
+        }
         // A setup failure is not a registration failure: the account is already
         // created. Say what actually went wrong, and allow another attempt.
         requested.current = null;
         setError(copy.mfaSetupFailed);
       });
-  }, [token, copy.mfaSetupFailed, copy.mfaExpired, onRestart]);
+  }, [token, copy.mfaSetupFailed, copy.mfaExpired, copy.mfaSetupUnavailable, onRestart]);
 
   const qrSrc = qr.startsWith('data:') ? qr : `data:image/jpeg;base64,${qr}`;
 
@@ -700,6 +711,14 @@ export function MFAEnrollment({
       >
         {busy ? copy.signingIn : copy.mfaEnrolConfirm}
       </button>
+
+      {onCancel && (
+        <div className="text-center text-[13px] text-ink-soft mt-[18px]">
+          <button type="button" onClick={onCancel} className="font-semibold">
+            {cancelLabel ?? copy.backToSignIn}
+          </button>
+        </div>
+      )}
     </form>
   );
 }

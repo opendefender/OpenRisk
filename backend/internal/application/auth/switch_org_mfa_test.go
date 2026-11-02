@@ -108,8 +108,9 @@ func TestSwitchOrganization_Unauthorized_FactorOfAnotherOrgDoesNotSatisfyTargetP
 }
 
 // The gate is asked after the membership check: a non-member learns nothing
-// about the target's MFA posture.
-func TestSwitchOrganization_NotFound_NonMemberIsRefusedBeforeTheGate(t *testing.T) {
+// about the target's MFA posture. A missing membership answers Forbidden, like
+// a deactivated one, on purpose.
+func TestSwitchOrganization_Forbidden_NonMemberIsRefusedBeforeTheGate(t *testing.T) {
 	stub := &memberStub{byOrg: map[uuid.UUID]*domain.OrganizationMember{}}
 	uc := NewSwitchOrganizationUseCase(stub, newSwitchTokenManager(t), failingSecondFactor{})
 	_, err := uc.Execute(context.Background(), SwitchOrganizationInput{UserID: uuid.New(), TargetOrgID: uuid.New()})
