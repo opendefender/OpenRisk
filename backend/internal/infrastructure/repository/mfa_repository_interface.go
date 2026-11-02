@@ -31,7 +31,9 @@ type MFARepository interface {
 	// Backup Codes
 	SaveBackupCodes(ctx context.Context, codes []*domain.MFABackupCode) error
 	GetUnusedBackupCodes(ctx context.Context, userID, tenantID uuid.UUID) ([]*domain.MFABackupCode, error)
-	MarkBackupCodeAsUsed(ctx context.Context, codeID uuid.UUID) error
+	// MarkBackupCodeAsUsed spends one unused code of the user; false means it
+	// was already spent or is not theirs, i.e. a replay (#946).
+	MarkBackupCodeAsUsed(ctx context.Context, codeID, userID, tenantID uuid.UUID) (bool, error)
 	DeleteBackupCodes(ctx context.Context, userID, tenantID uuid.UUID) error
 }
 

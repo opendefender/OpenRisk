@@ -27,6 +27,7 @@ import (
 // the #689 limits wired to in-memory fakes.
 type challengeFixture struct {
 	uc       *ChallengeMFAUseCase
+	repo     *MockMFARepository
 	userID   uuid.UUID
 	tenantID uuid.UUID
 	secret   string
@@ -87,6 +88,7 @@ func newChallengeFixture(t *testing.T) *challengeFixture {
 	key := make([]byte, 32)
 	repo := NewMockMFARepository()
 	f := &challengeFixture{
+		repo:     repo,
 		userID:   uuid.New(),
 		tenantID: uuid.New(),
 		store:    authmfa.NewMemoryAttemptStore(),
