@@ -573,6 +573,8 @@ export interface paths {
         /**
          * Switch the session to another organization
          * @description The server re-checks active membership of the target organization before minting anything, so editing a tenant id in a token, cookie or body cannot move a user. A non-member and a deactivated member get the same 403. On success new session cookies scoped to the target organization are set.
+         *
+         *     The target organization's own MFA posture applies, as at sign-in: when an authenticator is enrolled there, or its role policy requires one past the grace window, no session and no cookie are issued. The body then has the shape /auth/login gives for the same two cases, `mfa_required` with an MFA_REQUIRED token for /auth/mfa/challenge, or `mfa_enrollment_required` with an MFA_ENROLLMENT token for /auth/mfa/setup and /auth/mfa/verify. Either token names the target organization, and the session those endpoints issue is for it. The current session is left as it is.
          */
         post: operations["switchOrganization"];
         delete?: never;
@@ -5995,7 +5997,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description A session in the target organization */
+            /** @description A session in the target organization, or the second-factor step the target organization asks for first */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -6007,6 +6009,10 @@ export interface operations {
                         role?: components["schemas"]["MemberRole"];
                         business_role?: string;
                         csrf_token?: string;
+                        mfa_required?: boolean;
+                        mfa_enrollment_required?: boolean;
+                        /** @description Short-lived, permission-less MFA token for the target organization */
+                        mfa_token?: string;
                     };
                 };
             };

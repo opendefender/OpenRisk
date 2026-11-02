@@ -24,14 +24,31 @@ export interface MembershipSummary {
   is_default: boolean;
 }
 
-/** What `POST /auth/switch-org` answers. The session cookies are re-issued on
- *  the same response; the body repeats the access token for the client claims. */
-export interface SwitchResult {
+/** What `POST /auth/switch-org` answers when the switch is done. The session
+ *  cookies are re-issued on the same response; the body repeats the access
+ *  token for the client claims. */
+export interface SwitchSession {
   token_pair: { access_token: string; refresh_token: string; expires_in: number };
   /** Can be null: the server does not always load the organization row. */
   organization: { id: string; name: string } | null;
   role: MemberRole;
   business_role?: string;
+}
+
+/** What it answers when the target organization asks for its own second factor
+ *  (GHSA-45mr-j2w6-m4jv). No session and no cookie: the current session stays,
+ *  and the one for the target is issued by the challenge or the enrolment. */
+export interface SwitchSecondFactor {
+  mfa_required?: true;
+  mfa_enrollment_required?: true;
+  mfa_token: string;
+  organization: { id: string; name: string } | null;
+}
+
+export type SwitchResult = SwitchSession | SwitchSecondFactor;
+
+export function isSecondFactorStep(r: SwitchResult): r is SwitchSecondFactor {
+  return 'mfa_token' in r && typeof r.mfa_token === 'string' && r.mfa_token !== '';
 }
 
 export const orgSwitchService = {

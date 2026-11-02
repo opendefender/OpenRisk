@@ -39,6 +39,7 @@ vi.mock('../../../services/entitlementService', async () => {
 });
 
 import { OrgSwitcher } from '../OrgSwitcher';
+import { clearSwitchStep, peekSwitchStep } from '../../../features/organization/pendingSwitchStep';
 
 const ORG_A = 'org-a';
 const ORG_B = 'org-b';
@@ -80,6 +81,7 @@ function renderSwitcher(onSwitched = vi.fn()) {
         <Routes>
           <Route path="/risks" element={<OrgSwitcher orgName="Org A" onSwitched={onSwitched} />} />
           <Route path="/settings" element={<div>settings page</div>} />
+          <Route path="/auth/switch-org/mfa" element={<div>switch code step</div>} />
         </Routes>
       </MemoryRouter>
     </QueryClientProvider>,
@@ -124,13 +126,42 @@ describe('OrgSwitcher', () => {
 
   it('switches to another organization, then hands over to the reload', async () => {
     listMine.mockResolvedValue(rows);
-    switchOrganization.mockResolvedValue(undefined);
+    switchOrganization.mockResolvedValue({ status: 'switched' });
     const { onSwitched } = renderSwitcher();
     await userEvent.click(trigger());
     await userEvent.click(await screen.findByRole('menuitemradio', { name: /Org B/ }));
 
     await waitFor(() => expect(onSwitched).toHaveBeenCalledTimes(1));
     expect(switchOrganization).toHaveBeenCalledWith(ORG_B, 'Org B');
+  });
+
+  // GHSA-45mr-j2w6-m4jv — the target organization asks for its own factor.
+  it('goes to the code step, without the reload, when the target asks for a second factor', async () => {
+    listMine.mockResolvedValue(rows);
+    switchOrganization.mockResolvedValue({ status: 'mfa_required', mfa_token: 'mfa-for-b' });
+    const { onSwitched } = renderSwitcher();
+    await userEvent.click(trigger());
+    await userEvent.click(await screen.findByRole('menuitemradio', { name: /Org B/ }));
+
+    expect(await screen.findByText('switch code step')).toBeInTheDocument();
+    expect(onSwitched).not.toHaveBeenCalled();
+    expect(peekSwitchStep()).toEqual({ token: 'mfa-for-b', enrolling: false });
+    clearSwitchStep();
+  });
+
+  it('hands an enrolment step over as one', async () => {
+    listMine.mockResolvedValue(rows);
+    switchOrganization.mockResolvedValue({
+      status: 'mfa_enrollment_required',
+      mfa_token: 'enrol-in-b',
+    });
+    renderSwitcher();
+    await userEvent.click(trigger());
+    await userEvent.click(await screen.findByRole('menuitemradio', { name: /Org B/ }));
+
+    expect(await screen.findByText('switch code step')).toBeInTheDocument();
+    expect(peekSwitchStep()).toEqual({ token: 'enrol-in-b', enrolling: true });
+    clearSwitchStep();
   });
 
   it('does not switch when the current organization is picked', async () => {

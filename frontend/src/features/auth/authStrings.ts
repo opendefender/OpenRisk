@@ -208,6 +208,8 @@ export interface AuthCopy {
 
   // MFA
   mfaTitle: string;
+  /** Leaves the code step of an organization switch for the current one. */
+  mfaSwitchCancel: string;
   mfaSubtitle: string;
   mfaCode: string;
   mfaSubmit: string;
@@ -329,6 +331,7 @@ const fr: AuthCopy = {
   strengthBreached: 'Ce mot de passe figure dans des fuites de données connues.',
 
   mfaTitle: 'Vérification en deux étapes',
+  mfaSwitchCancel: 'Rester dans l’organisation actuelle',
   mfaSubtitle: 'Saisissez le code à 6 chiffres de votre application d’authentification.',
   mfaCode: 'Code de vérification',
   mfaSubmit: 'Vérifier',
@@ -461,6 +464,7 @@ const en: AuthCopy = {
   strengthBreached: 'This password appears in known data breaches.',
 
   mfaTitle: 'Two-step verification',
+  mfaSwitchCancel: 'Stay in the current organisation',
   mfaSubtitle: 'Enter the 6-digit code from your authenticator app.',
   mfaCode: 'Verification code',
   mfaSubmit: 'Verify',

@@ -29,6 +29,7 @@ import {
   orgSwitchService,
   type MembershipSummary,
 } from '../../features/organization/orgSwitchService';
+import { holdSwitchStep } from '../../features/organization/pendingSwitchStep';
 import { OrgPlanLabel } from './OrgPlanLabel';
 
 const MY_ORGANIZATIONS_KEY = ['auth', 'organizations'] as const;
@@ -88,7 +89,20 @@ export function OrgSwitcher({
 
   const doSwitch = useMutation({
     mutationFn: (org: MembershipSummary) => switchOrganization(org.organization_id, org.name),
-    onSuccess: () => onSwitched(),
+    onSuccess: (outcome) => {
+      if (outcome.status === 'switched') {
+        onSwitched();
+        return;
+      }
+      // The target organization asks for its own second factor. The session
+      // here is untouched; the code screen issues the one for the target.
+      holdSwitchStep({
+        token: outcome.mfa_token,
+        enrolling: outcome.status === 'mfa_enrollment_required',
+      });
+      setOpen(false);
+      navigate('/auth/switch-org/mfa');
+    },
   });
 
   const close = (returnFocus: boolean) => {

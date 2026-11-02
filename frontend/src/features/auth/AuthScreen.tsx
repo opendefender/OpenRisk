@@ -364,12 +364,15 @@ export function MFAChallenge({
   token,
   next = null,
   onCancel,
+  cancelLabel,
   onRestart,
 }: {
   token: string;
   /** Where to go once signed in, already checked by safeNextPath. */
   next?: string | null;
   onCancel: () => void;
+  /** Replaces "Back to sign in" where there is a session to go back to. */
+  cancelLabel?: string;
   /** The sign-in attempt is over; only the password can start another one. */
   onRestart: (message: string) => void;
 }) {
@@ -513,7 +516,7 @@ export function MFAChallenge({
 
       <div className="text-center text-[13px] text-ink-soft mt-[18px]" style={cascade(3, reduced)}>
         <button type="button" onClick={onCancel} className="font-semibold">
-          {copy.backToSignIn}
+          {cancelLabel ?? copy.backToSignIn}
         </button>
       </div>
     </form>
