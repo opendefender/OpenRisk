@@ -17,13 +17,23 @@ CMD=$(json_get "$INPUT" '.tool_input.command')
 [ -z "$CMD" ] && exit 0
 block() { echo "BLOCKED by OpenRisk policy: $1" >&2; exit 2; }
 
-printf '%s' "$CMD" | grep -qE 'git[[:space:]]+push[[:space:]]+(-f|--force)'   && block "force push"
+# Options may sit before the subcommand (git -C dir push, kubectl -n prod
+# delete, terraform -chdir=x apply) and after it (git push origin main --force).
+# OPTS only accepts dash options with an optional value between the tool and
+# its verb, so "git commit -m 'push -f'" is not a push. ARGS stops at ; & |
+# so a later "&& rm -f tmp" is not read as a push flag (#1224).
+OPTS='([[:space:]]+-[^[:space:]]+([[:space:]]+[^-;&|[:space:]][^;&|[:space:]]*)?)*'
+ARGS='[^;&|]*'
+
+printf '%s' "$CMD" | grep -qE "git${OPTS}[[:space:]]+push${ARGS}[[:space:]](--force|-[a-zA-Z]*f[a-zA-Z]*([[:space:]]|\$)|[\"']?\+[^[:space:]])" \
+  && block "force push"
 printf '%s' "$CMD" | grep -qE 'gh[[:space:]]+pr[[:space:]]+merge'             && block "merging is the owner's decision"
 printf '%s' "$CMD" | grep -qE 'gh[[:space:]]+release[[:space:]]+(create|delete)' && block "releases are the owner's decision"
 printf '%s' "$CMD" | grep -qE 'rm[[:space:]]+-[a-z]*r[a-z]*f?[[:space:]]+(/|~|\$HOME)([[:space:]]|$)' && block "destructive rm"
-printf '%s' "$CMD" | grep -qE 'terraform[[:space:]]+apply'                    && block "terraform apply needs human approval"
-printf '%s' "$CMD" | grep -qE 'kubectl[[:space:]]+delete'                     && block "kubectl delete needs human approval"
-printf '%s' "$CMD" | grep -qiE 'DROP[[:space:]]+(TABLE|DATABASE|SCHEMA)'      && block "destructive DDL"
+printf '%s' "$CMD" | grep -qE "terraform${OPTS}[[:space:]]+(apply|destroy)"   && block "terraform apply/destroy needs human approval"
+printf '%s' "$CMD" | grep -qE "kubectl${OPTS}[[:space:]]+delete"              && block "kubectl delete needs human approval"
+# TRUNCATE must be followed by a name: coreutils truncate always takes -s or -r.
+printf '%s' "$CMD" | grep -qiE 'DROP[[:space:]]+(TABLE|DATABASE|SCHEMA)|TRUNCATE[[:space:]]+["[:alpha:]_]' && block "destructive DDL"
 # gh api -f (long form --raw-field) never expands @file: it posts the literal
 # path, answers 200, and has overwritten issue bodies and checkpoint comments
 # that way. -F (long form --field) reads the file and stays allowed.
