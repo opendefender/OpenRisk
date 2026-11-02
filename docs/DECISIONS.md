@@ -5,31 +5,6 @@ recommends, and surfaces these in the daily brief. Run `/decide` to clear them.
 
 ## Open
 
-### D-081 — Self-hosted flag: what an instance that never sets OPENRISK_DEPLOYMENT gets · raised 2026-10-29
-**Question** — #612 adds `OPENRISK_DEPLOYMENT` (`self_hosted` | `hosted`), read
-once at boot. Unset currently means **hosted**, so nothing changes for the
-OpenDefender SaaS on upgrade. `deploy/selfhost/docker-compose.yml` sets
-`self_hosted`, but a self-hoster on Helm, a hand-written compose file or a bare
-binary gets hosted behaviour until they set the variable.
-
-**Options**
-- **A (shipped in #612)** — unset = hosted. The SaaS cannot be opened up by a
-  missed variable. A self-hoster outside the official compose has to set one line.
-- **B** — unset = self_hosted, and the SaaS deployment sets `hosted`. The open
-  source promise holds with zero configuration, but a SaaS deploy that misses the
-  variable gives every hosted tenant the full uncapped set.
-- Either way, the Helm chart (`helm/openrisk`) should expose the value; it does
-  not yet, because which values file the SaaS uses is not in the repo.
-
-**Settled in #612 (owner, 2026-10-29)** — `organizations.plan` defaulted to
-`'starter'`, read as legacy Pro, so every new organisation got Pro caps. New
-organisations are now Free, and every existing `'starter'` row moves to Free
-(`migrations/0082`, plus the boot backfill), since there are no customers yet.
-
-**Cost of delay** — none for #612: A is safe and reversible by changing the
-empty case in `ParseDeployment`. It matters before the D-078 caps re-land, since
-those caps are what a self-hoster without the variable would then hit.
-
 ### D-080 — Licence gate: what legal-counsel says the allowed set does not cover · raised 2026-10-28
 **Context** — #774 asked `legal-counsel` to review the allowed set in
 `security/license-policy.yaml`. Verdict: approved with notes, advisory only.
@@ -79,6 +54,67 @@ whether the list stays as it is.
 
 
 ## Resolved
+
+### D-083 — Canonical model ADR (#541): the GRC slice first, or all 17 entities at once · decided 2026-10-30
+**Decided (owner, 2026-10-30)** — option A, as recommended. The ADR on #541 specifies the
+envelope, the relationship vocabulary and the slice `Requirement`, `Control`,
+`ControlImplementation`, `ControlTest`, `Evidence`, `Risk`, `Finding`; it adopts ADR 0004's
+`Vendor` and `Assessment` by reference. The canonical list is now 19 entities. The other ten
+are out of scope for v1 and held by a follow-up ADR issue in the same milestone. D-030 stands
+otherwise: no code before the ADR is accepted, #542 after it.
+
+**Question** — D-030 wrote the ADR's content as "17 entities". The 2026-09-25 audit on #541
+proposes that the ADR specify only the slice the Evidence Fabric (#553 → #554 → #555) needs,
+and declare the rest out of scope for v1 inside the ADR. That rewrites what an owner decision
+said the ADR contains, so it is not a spec-wording call.
+
+**A second gap the audit did not name.** The slice it lists is `Requirement`, `Control`,
+`ControlImplementation`, `ControlTest`, `Evidence`, `Risk`, `Finding`. Two of those,
+`ControlImplementation` and `ControlTest`, are **not** in D-030's list of 17. #553 (the
+Requirement → Control → Implementation → Test → Evidence chain) needs them as first-class
+records. Either the list grows to 19, or they are modelled inside `Control`.
+
+**Context, read on `origin/master` 6a0d855e**
+- #541 has been `status:needs-refinement` since 2026-09-04, eight weeks. The audit put it in
+  launch Sprint 3 (27 Oct – 7 Nov), which is now. #553, #554, #555 are all
+  `status:needs-refinement` behind it; #542 cannot land before it (D-030).
+- Precedent: D-044 already specified a slice first (`Vendor`, `Assessment`, ADR 0004, accepted
+  in D-045). The owner took that route once.
+- `domain.Evidence` (`backend/internal/domain/evidence.go:134`), `domain.Risk`
+  (`risk.go:186`) and `domain.Control` (`integration_models.go:36`) exist.
+  No `Requirement`, `ControlImplementation` or `ControlTest` type exists.
+- 30 files in `backend/internal/domain` import GORM or Fiber today, so the canonical types need
+  a package of their own for the purity criterion to be testable. Spec detail, decided on the
+  issue, not here.
+- Neither "Release 1.2 — Risk Data Plane" nor "Release 1.4 — Evidence Fabric" has a due date.
+
+**Options**
+- **A — the slice first, the list grows to 19.** The ADR specifies the envelope, the
+  relationship vocabulary, and `Requirement`, `Control`, `ControlImplementation`, `ControlTest`,
+  `Evidence`, `Risk`, `Finding`. It adopts ADR 0004's `Vendor` and `Assessment` by reference. The
+  other ten (`Asset`, `Threat`, `Incident`, `Mitigation`, `Action`, `Owner`, `System`,
+  `Service`, `Policy`, `Signal`) are named out of scope for v1, each with the reason, and a
+  follow-up ADR issue holds them. Verbs pointing at them (`Finding --affects--> Asset`) are kept,
+  and only their target's shape waits. One ADR of medium size. #553 can be refined straight after.
+- **B — all 17 now, as D-030 wrote, and still decide on the two extra entities.** The full
+  target in one document. Roughly three times the specification work. Every Evidence Fabric
+  issue waits for the last of the 17, including `Signal` and `Incident`, which it never touches.
+- **C — the slice first, the list stays at 17.** As A, but implementation and test are folded
+  into `Control` as sub-records rather than entities. The count D-030 published holds, but #553's
+  chain loses two first-class records, and the envelope (`source`, `observed_at`, `confidence`)
+  on a test result is what the Evidence Fabric needs most.
+
+**Recommendation** — **A.** This is sequencing, not a cut. The 17 stay the target, and the
+remaining ten get their own issue in the same milestone, the way D-044 handled TPRM. With
+11 weeks to the proposed 18 January launch, B puts the Evidence Fabric's whole chain behind
+ten entities it does not use. C saves a number and costs the Evidence Fabric the provenance on
+test results.
+
+**Cost of delay** — High. Each week is a week that #553, #554, #555 and #542 cannot be
+refined. The Evidence Fabric is option A of D-054's launch analysis, and it has no
+specification yet.
+
+**Blocks** — #541 (`status:ready`), then #553, #542 and, through them, #554, #555.
 
 ### D-082 — Branch protection on master: which checks block a merge, and does a PR need an approval · decided 2026-10-30
 **Decided (owner, 2026-10-30)** — option A on checks, `strict: true`, approvals stay at 0.
@@ -152,6 +188,73 @@ Check: `gh api repos/opendefender/OpenRisk/branches/master/protection --jq '{che
 **Cost of delay** — every merge until then is gated by the licence check alone. Open PRs
 with a red required check (today #1186, red on `Frontend Design Tokens`) will stop being
 mergeable the moment the setting changes, which is the point.
+
+### D-081 — Self-hosted flag: what an instance that never sets OPENRISK_DEPLOYMENT gets · raised 2026-10-29 · decided 2026-10-30
+**Question** — #612 adds `OPENRISK_DEPLOYMENT` (`self_hosted` | `hosted`), read
+once at boot. Unset currently means **hosted**, so nothing changes for the
+OpenDefender SaaS on upgrade. `deploy/selfhost/docker-compose.yml` sets
+`self_hosted`, but a self-hoster on Helm, a hand-written compose file or a bare
+binary gets hosted behaviour until they set the variable.
+
+**Options**
+- **A (shipped in #612)** — unset = hosted. The SaaS cannot be opened up by a
+  missed variable. A self-hoster outside the official compose has to set one line.
+- **B** — unset = self_hosted, and the SaaS deployment sets `hosted`. The open
+  source promise holds with zero configuration, but a SaaS deploy that misses the
+  variable gives every hosted tenant the full uncapped set.
+- Either way, the Helm chart (`helm/openrisk`) should expose the value; it does
+  not yet, because which values file the SaaS uses is not in the repo.
+
+**Settled in #612 (owner, 2026-10-29)** — `organizations.plan` defaulted to
+`'starter'`, read as legacy Pro, so every new organisation got Pro caps. New
+organisations are now Free, and every existing `'starter'` row moves to Free
+(`migrations/0082`, plus the boot backfill), since there are no customers yet.
+
+**Cost of delay** — none for #612: A is safe and reversible by changing the
+empty case in `ParseDeployment`. It matters before the D-078 caps re-land, since
+those caps are what a self-hoster without the variable would then hit.
+
+**Critical path (po-openrisk, 2026-10-30)** — #612 has merged (PR #1167), so
+this decision is now the only thing blocking #783, the P1 re-land of the D-078
+caps. #783 stays `status:blocked` until it is ruled. Under A as shipped, a Helm,
+hand-written compose or bare-binary install would go from today's Free caps
+(users, risks, assets) to 1 framework, 2 active rules, 1 scan source, 4 scans a
+month, 1 approval workflow and no threat intel: the #1131 incident again.
+**Option C (added)** — unset refuses to boot, like a typo already does, and
+names the variable in the error; both compose files, the Helm chart (#1185) and
+the SaaS set it explicitly. Neither side can be wrong silently. Cost: an
+existing install outside the official compose adds one line on upgrade, and
+the error tells them which.
+**Recommendation** — C, or B if a boot failure on upgrade is not acceptable.
+Not A: it keeps the silent cap for every self-hoster the compose file misses.
+
+**Decided (owner, 2026-10-30)** — In the owner's words: "Je choisis C".
+An instance that never sets `OPENRISK_DEPLOYMENT` refuses to boot, and the error
+names the variable. Both compose files, the Helm chart and the SaaS deployment
+set it explicitly. Delivered by #1185 (`ParseDeployment`, compose, CI, chart,
+upgrade note), merged on 2026-10-30 through PR #1211, before #783. The SaaS value lives outside this
+repo: setting `OPENRISK_DEPLOYMENT=hosted` there, before the #1185 release
+reaches it, is an owner/ops action.
+
+**Helm value mandatory (owner, 2026-10-30)** — "fais corriger #1185 pour que le
+chart rende la valeur obligatoire". `backend.deployment` has no default in
+`helm/openrisk/values.yaml`; the chart uses `required`, so a render without it
+fails and names the value and both allowed strings. No silent default anywhere,
+in the binary or in the chart.
+
+**SaaS versus anyone (owner, 2026-10-30)** — "Faut bien différencier le Saas
+deployment du local deployment par n'importe qui". Asked to settle it, the owner
+answered:
+- The SaaS config, the only place that says `hosted`, lives outside the public
+  repo (private repo or OpenDefender infra secrets). The AGPL repo carries no
+  `hosted` deployment file.
+- The SaaS does not deploy from `helm/values-prod.yaml`,
+  `helm/values-staging.yaml` or `docker-compose.staging.yaml`; they are examples
+  for third parties.
+
+So every deployment path in this repo (compose files, Helm values files, `.env`
+examples, CI) declares `self_hosted` explicitly, staging included, and a grep
+check in #1185 fails if a `hosted` deployment file appears.
 
 ### D-078 — Hosted plans: Free does almost everything, in small quantities · decided 2026-10-23
 **Decided (owner)** — In the owner's words: "je veux que le plan free permettent

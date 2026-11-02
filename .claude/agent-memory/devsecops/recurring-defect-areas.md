@@ -16,6 +16,7 @@ Areas that keep producing findings, updated 2026-10-14:
 - Byte-slicing caps (`s[:n]`) split UTF-8, and Postgres then rejects the row. Also SUBSTR counts characters while Go `len` counts bytes.
 - Agent tooling (.claude/hooks): heuristic regex gates that agents treat as proof. Every revision so far has had trivial bypasses. See [[agent-hooks-posture]].
 - CI gate config: branch protection required checks drift from real job names; agent/ module and committed binaries escape the dependency gate. See [[ci-security-gates-posture]].
+- Bulk operations (backend/internal/service/bulk_operation_service.go): legacy service builds GORM writes directly. #1213 (2026-10-30, PASS) moved assign_mitigation onto CreateMitigationPlanUseCase + tenant GetByID. Still open: assign is gated by mitigations:update while it creates plans (per-entity route needs mitigations:create, reachable only by custom roles); non-NotFound errors echoed via err.Error() at 400; no audit entries for bulk-created plans.
 - Test seams (injected HTTPDoer) that skip validation. So far only tests set them. Check that production wiring never does.
 
 **Why:** these patterns keep coming back with each new connector.

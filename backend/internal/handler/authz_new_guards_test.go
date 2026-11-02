@@ -360,7 +360,9 @@ func TestBulkOperation_AdmitsTheVerbTheCallerMayPerform(t *testing.T) {
 			}, h.CreateBulkOperation)
 
 			req := httptest.NewRequest("POST", "/bulk-operations",
-				strings.NewReader(`{"operation_type":"`+tc.operation+`","resource_type":"risk"}`))
+				// mitigation_id is ignored by the other verbs; assign_mitigation
+				// refuses a job without one (#1213), which would be a 400 here.
+				strings.NewReader(`{"operation_type":"`+tc.operation+`","resource_type":"risk","mitigation_id":"`+uuid.NewString()+`"}`))
 			req.Header.Set("Content-Type", "application/json")
 			resp, err := app.Test(req)
 			require.NoError(t, err)
