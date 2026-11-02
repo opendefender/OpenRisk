@@ -59,6 +59,7 @@ jobs:
           # Every required secret is set so lint reports on the chart rather
           # than on missing values.
           helm lint --strict helm/openrisk -f helm/kind/values.yaml \
+            --set backend.deployment=self_hosted \
             --set-file secrets.inline.rsaPrivateKey=private.pem \
             --set-file secrets.inline.rsaPublicKey=public.pem \
             --set secrets.inline.mfaEncryptionKey=lint-only-mfa-key \
@@ -68,7 +69,7 @@ jobs:
           # render must refuse (#1062, D-065). A merge once dropped the MFA key
           # from the Secret and nothing here noticed (#1115).
           for missing in mfaEncryptionKey auditHashKey; do
-            args=(-f helm/kind/values.yaml
+            args=(-f helm/kind/values.yaml --set backend.deployment=self_hosted
               --set-file secrets.inline.rsaPrivateKey=private.pem
               --set-file secrets.inline.rsaPublicKey=public.pem)
             [ "$missing" = mfaEncryptionKey ] || args+=(--set secrets.inline.mfaEncryptionKey=render-check)
@@ -80,10 +81,38 @@ jobs:
               || { echo "❌ render without $missing failed for another reason:"; echo "$out"; exit 1; }
             echo "✅ the render refuses a missing secrets.inline.$missing"
           done
+          # backend.deployment has no default (D-081): missing or misspelt, the
+          # render refuses and names both values; each valid one reaches the
+          # backend as OPENRISK_DEPLOYMENT. The "hosted" case below is a render
+          # check only: no deployment file in this repo says hosted.
+          base=(-f helm/kind/values.yaml
+            --set-file secrets.inline.rsaPrivateKey=private.pem
+            --set-file secrets.inline.rsaPublicKey=public.pem
+            --set secrets.inline.mfaEncryptionKey=render-check
+            --set secrets.inline.auditHashKey=render-check-audit-hash-key-000000)
+          for bad in "" selfhosted-typo; do
+            args=("${base[@]}")
+            [ -z "$bad" ] || args+=(--set "backend.deployment=$bad")
+            if out="$(helm template openrisk helm/openrisk "${args[@]}" 2>&1)"; then
+              echo "❌ the chart renders with backend.deployment='$bad'"; exit 1
+            fi
+            for want in backend.deployment self_hosted hosted; do
+              echo "$out" | grep -q "$want" \
+                || { echo "❌ render with backend.deployment='$bad' does not name $want:"; echo "$out"; exit 1; }
+            done
+            echo "✅ the render refuses backend.deployment='$bad'"
+          done
+          for good in self_hosted hosted; do
+            got="$(helm template openrisk helm/openrisk "${base[@]}" --set "backend.deployment=$good" \
+              | yq 'select(.kind == "Deployment" and .metadata.name == "backend") | .spec.template.spec.containers[0].env[] | select(.name == "OPENRISK_DEPLOYMENT") | .value')"
+            [ "$got" = "$good" ] || { echo "❌ backend.deployment=$good rendered OPENRISK_DEPLOYMENT='$got'"; exit 1; }
+            echo "✅ backend.deployment=$good renders OPENRISK_DEPLOYMENT=$good"
+          done
           # And the rendered chart must still wire them: the backend reads
           # every key it references from openrisk-secrets, and that Secret
           # holds each of them, the required ones included.
           helm template openrisk helm/openrisk -f helm/kind/values.yaml \
+            --set backend.deployment=self_hosted \
             --set-file secrets.inline.rsaPrivateKey=private.pem \
             --set-file secrets.inline.rsaPublicKey=public.pem \
             --set secrets.inline.mfaEncryptionKey=render-check \
@@ -99,6 +128,7 @@ jobs:
           done
           echo "✅ every key the backend reads is in openrisk-secrets"
           helm install openrisk helm/openrisk -f helm/kind/values.yaml \
+            --set backend.deployment=self_hosted \
             --set-file secrets.inline.rsaPrivateKey=private.pem \
             --set-file secrets.inline.rsaPublicKey=public.pem \
             --set backend.env.INITIAL_ADMIN_PASSWORD="Kind-$(openssl rand -hex 12)" \

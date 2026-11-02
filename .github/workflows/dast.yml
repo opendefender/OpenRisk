@@ -104,6 +104,8 @@ jobs:
           echo "RSA_PUBLIC_KEY_PATH=$RUNNER_TEMP/dast-keys/public.pem" >> "$GITHUB_ENV"
 
       - name: Start backend (:8080)
+        env:
+          OPENRISK_DEPLOYMENT: self_hosted
         run: |
           cd backend && ./openrisk > "$RUNNER_TEMP/backend.log" 2>&1 &
 

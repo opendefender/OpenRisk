@@ -56,6 +56,8 @@ spec:
           value: {{ $value | quote }}
         {{- end }}
         {{- end }}
+        - name: OPENRISK_DEPLOYMENT
+          value: {{ include "openrisk.deployment" . | quote }}
         - name: MFA_ENCRYPTION_KEY
           valueFrom:
             secretKeyRef:

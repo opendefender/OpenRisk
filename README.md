@@ -252,6 +252,7 @@ docker compose up -d
 ### Production Deployment
 ```bash
 # See docs/PRODUCTION_RUNBOOK.md
+# values-prod.yaml sets backend.deployment: self_hosted, which the chart requires (D-081)
 helm install openrisk ./helm/openrisk \
   -f helm/values-prod.yaml \
   --namespace openrisk

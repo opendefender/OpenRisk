@@ -139,8 +139,8 @@ func renderSelfHostMatrix(t *testing.T) string {
 	b.WriteString(fmt.Sprintf(
 		"With `%s=%s`, every organisation of the instance resolves to **%s**: "+
 			"%s users, %s risks, %s assets, %s integrations, whatever plan its row "+
-			"stores. Without the variable the instance behaves as the hosted service: "+
-			"each organisation resolves by its subscription, or by the plan its row stores.\n",
+			"stores. Without the variable the backend refuses to boot (D-081): it never "+
+			"guesses whether it is your install or the OpenDefender service.\n",
 		DeploymentEnv, DeploymentSelfHosted, planTitle(PlanSelfHosted),
 		limitCell(PlanSelfHosted, LimitUsers),
 		limitCell(PlanSelfHosted, LimitRisks),

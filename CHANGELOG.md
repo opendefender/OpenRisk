@@ -8,6 +8,9 @@ Git tags use the `vMAJOR.MINOR.PATCH[-rc.N]` convention; see [docs/VERSIONING.md
 
 ## [Unreleased]
 
+### Breaking
+- `OPENRISK_DEPLOYMENT` is required: the backend refuses to boot without it, and the log names the variable and its two values (#1185, D-081). The official `deploy/selfhost/docker-compose.yml` already sets it. Own compose file or binary: add `OPENRISK_DEPLOYMENT=self_hosted`. Helm: `backend.deployment` has no default and `helm upgrade` fails at render time, before any pod restarts, until you pass `--set backend.deployment=self_hosted` or set it in your values file (the repository's `helm/values-*.yaml` already do).
+
 ### Planned
 - Board Report mensuel (IA, human-in-the-loop, FCFA) — the second half of M4
 - Mobile app (React Native)

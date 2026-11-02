@@ -66,6 +66,7 @@ services:
       REDIS_URL: redis://test_redis:6379/0
       ENVIRONMENT: test
       API_PORT: 8081
+      OPENRISK_DEPLOYMENT: self_hosted
       # No APP_ENV here, so the backend runs as production and needs a key
       # (D-065). Never a literal in this file: generate one per run.
       AUDIT_HASH_KEY: ${TEST_AUDIT_HASH_KEY:?set TEST_AUDIT_HASH_KEY, e.g. export TEST_AUDIT_HASH_KEY="$$(openssl rand -base64 32)"}

@@ -214,7 +214,10 @@ Located in `.github/workflows/ci.yml`
 Runs on `ubuntu-latest`
 
 ### Status Checks
-- Must pass all checks before merge
+- Only the checks listed as required in the `master` branch protection block a merge.
+  The list is an owner decision (D-082 in `docs/DECISIONS.md`, #1199). See what GitHub
+  enforces today with
+  `gh api repos/opendefender/OpenRisk/branches/master/protection --jq '[.required_status_checks.checks[].context]'`.
 - Coverage reports uploaded to Codecov
 - Docker image pushed to GHCR on main/stag
 
