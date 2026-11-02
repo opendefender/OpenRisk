@@ -66,8 +66,9 @@ describe('switchOrganization', () => {
       },
     });
 
-    await useAuthStore.getState().switchOrganization(ORG_B, 'Org B');
+    const outcome = await useAuthStore.getState().switchOrganization(ORG_B, 'Org B');
 
+    expect(outcome).toEqual({ status: 'switched' });
     expect(post).toHaveBeenCalledWith('/auth/switch-org', { organization_id: ORG_B });
     expect(clearSessionScope).toHaveBeenCalledTimes(1);
     expect(setAccessToken).toHaveBeenCalledWith(token);
@@ -93,6 +94,36 @@ describe('switchOrganization', () => {
     await useAuthStore.getState().switchOrganization(ORG_B, 'Org B');
 
     expect(useAuthStore.getState().user?.org_name).toBe('Org B');
+  });
+
+  // GHSA-45mr-j2w6-m4jv — the target organization keeps its own MFA posture.
+  it('TestSwitchOrganization_Unauthorized — a second factor owed in the target changes nothing yet', async () => {
+    vi.spyOn(api, 'post').mockResolvedValueOnce({
+      data: {
+        mfa_required: true,
+        mfa_token: 'mfa-for-b',
+        organization: { id: ORG_B, name: 'Org B' },
+      },
+    });
+
+    const outcome = await useAuthStore.getState().switchOrganization(ORG_B, 'Org B');
+
+    expect(outcome).toEqual({ status: 'mfa_required', mfa_token: 'mfa-for-b' });
+    expect(clearSessionScope).not.toHaveBeenCalled();
+    expect(setAccessToken).not.toHaveBeenCalled();
+    expect(useAuthStore.getState().user).toEqual(viewerInA);
+    expect(useAuthStore.getState().token).toBe('old');
+  });
+
+  it('reports an enrolment owed in the target as one', async () => {
+    vi.spyOn(api, 'post').mockResolvedValueOnce({
+      data: { mfa_enrollment_required: true, mfa_token: 'enrol-in-b', organization: null },
+    });
+
+    const outcome = await useAuthStore.getState().switchOrganization(ORG_B, 'Org B');
+
+    expect(outcome).toEqual({ status: 'mfa_enrollment_required', mfa_token: 'enrol-in-b' });
+    expect(setAccessToken).not.toHaveBeenCalled();
   });
 
   it('TestSwitchOrganization_Unauthorized — a refused switch changes nothing', async () => {

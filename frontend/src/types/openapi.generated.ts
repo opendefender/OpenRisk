@@ -330,11 +330,31 @@ export interface paths {
         };
         /**
          * Finish an OAuth2 sign-in
-         * @description The provider's redirect back. The state cookie is checked and cleared first, so a flow gets one try. On success the session cookies are set and the browser is sent to the SPA's SSO completion page (with `next` when a safe `return_to` was given). Every failure is a 302 to /login with an `error` code: `access_denied`, `consent_required`, `provider_error`, `state_missing`, `state_invalid`, `code_missing`, `unsupported_provider`, `exchange_failed`, `userinfo_failed`, `email_unverified`, `no_email`, `account_disabled`, `no_account`, `password_account`, `internal`, or `provider_conflict` with `existing_provider` naming the provider that already owns the address.
+         * @description The provider's redirect back. The state cookie is checked and cleared first, so a flow gets one try. On success the session cookies are set and the browser is sent to the SPA's SSO completion page (with `next` when a safe `return_to` was given). When the account owes a second factor (an enrolled authenticator, or a role whose MFA grace is over) no session is set: the MFA step goes into an HttpOnly cookie for POST /auth/sso/mfa and the completion page gets `mfa=1`. Every failure is a 302 to /login with an `error` code: `access_denied`, `consent_required`, `provider_error`, `state_missing`, `state_invalid`, `code_missing`, `unsupported_provider`, `exchange_failed`, `userinfo_failed`, `email_unverified`, `no_email`, `account_disabled`, `no_account`, `password_account`, `internal`, or `provider_conflict` with `existing_provider` naming the provider that already owns the address.
          */
         get: operations["oauth2Callback"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/sso/mfa": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Collect the MFA step an SSO sign-in stopped at
+         * @description Reads the HttpOnly cookie the OAuth2 callback set when the account owes a second factor, and clears it, so the step is handed over once. The body has the shape /auth/login gives for the same two cases: `mfa_required` with an MFA_REQUIRED token for /auth/mfa/challenge, or `mfa_enrollment_required` with an MFA_ENROLLMENT token for /auth/mfa/setup and /auth/mfa/verify. Shares the per-IP bucket of /auth/mfa/challenge.
+         */
+        post: operations["ssoMfaStep"];
         delete?: never;
         options?: never;
         head?: never;
@@ -553,6 +573,8 @@ export interface paths {
         /**
          * Switch the session to another organization
          * @description The server re-checks active membership of the target organization before minting anything, so editing a tenant id in a token, cookie or body cannot move a user. A non-member and a deactivated member get the same 403. On success new session cookies scoped to the target organization are set.
+         *
+         *     The target organization's own MFA posture applies, as at sign-in: when an authenticator is enrolled there, or its role policy requires one past the grace window, no session and no cookie are issued. The body then has the shape /auth/login gives for the same two cases, `mfa_required` with an MFA_REQUIRED token for /auth/mfa/challenge, or `mfa_enrollment_required` with an MFA_ENROLLMENT token for /auth/mfa/setup and /auth/mfa/verify. Either token names the target organization, and the session those endpoints issue is for it. The current session is left as it is.
          */
         post: operations["switchOrganization"];
         delete?: never;
@@ -5398,6 +5420,41 @@ export interface operations {
             429: components["responses"]["QuotaExceeded"];
         };
     };
+    ssoMfaStep: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The pending step */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        mfa_required?: boolean;
+                        mfa_enrollment_required?: boolean;
+                        /** @description Short-lived, permission-less MFA token */
+                        mfa_token: string;
+                    };
+                };
+            };
+            /** @description No pending step (`SSO_MFA_NOT_FOUND`) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthError"];
+                };
+            };
+            429: components["responses"]["QuotaExceeded"];
+        };
+    };
     saml2Login: {
         parameters: {
             query?: never;
@@ -5940,7 +5997,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description A session in the target organization */
+            /** @description A session in the target organization, or the second-factor step the target organization asks for first */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -5952,6 +6009,10 @@ export interface operations {
                         role?: components["schemas"]["MemberRole"];
                         business_role?: string;
                         csrf_token?: string;
+                        mfa_required?: boolean;
+                        mfa_enrollment_required?: boolean;
+                        /** @description Short-lived, permission-less MFA token for the target organization */
+                        mfa_token?: string;
                     };
                 };
             };

@@ -7,14 +7,37 @@
 
 import { StrictMode } from 'react';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
 
 const claimSSOSession = vi.fn<() => Promise<string>>();
+const claimSSOMFAStep = vi.fn<() => Promise<{ token: string; enrolling: boolean }>>();
 const adoptSession = vi.fn<(token: string) => Promise<void>>();
 
 vi.mock('../authService', () => ({
   claimSSOSession: () => claimSSOSession(),
+  claimSSOMFAStep: () => claimSSOMFAStep(),
+}));
+// The real challenge and enrolment screens are AuthScreen's and tested there;
+// here only which one is shown, with which token, and where a restart goes.
+vi.mock('../AuthScreen', () => ({
+  MFAChallenge: ({
+    token,
+    next,
+    onRestart,
+  }: {
+    token: string;
+    next?: string | null;
+    onRestart: (m: string) => void;
+  }) => (
+    <button data-testid="mfa-challenge" data-next={next ?? ''} onClick={() => onRestart('expired')}>
+      {token}
+    </button>
+  ),
+  MFAEnrollment: ({ token }: { token: string }) => <p data-testid="mfa-enrolment">{token}</p>,
+}));
+vi.mock('../AuthLayout', () => ({
+  AuthLayout: ({ children }: { children: React.ReactNode }) => <>{children}</>,
 }));
 vi.mock('../../../hooks/useAuthStore', () => {
   const state = {
@@ -52,6 +75,7 @@ function renderAt(url: string) {
 
 beforeEach(() => {
   claimSSOSession.mockReset();
+  claimSSOMFAStep.mockReset();
   adoptSession.mockReset();
 });
 
@@ -103,6 +127,49 @@ describe('SSOCompleteScreen', () => {
 
     expect(await screen.findByTestId('where')).toHaveTextContent('/login?error=internal');
     expect(adoptSession).not.toHaveBeenCalled();
+  });
+});
+
+describe('SSOCompleteScreen with a second factor owed (GHSA-rv5c-pr27-gpxh)', () => {
+  it('asks for the enrolled authenticator and claims no session', async () => {
+    claimSSOMFAStep.mockResolvedValue({ token: 'mfa-tok', enrolling: false });
+
+    renderAt('/auth/sso/complete?mfa=1&next=/risks');
+
+    const challenge = await screen.findByTestId('mfa-challenge');
+    expect(challenge).toHaveTextContent('mfa-tok');
+    // The page the sign-in started from survives the second factor.
+    expect(challenge).toHaveAttribute('data-next', '/risks');
+    expect(claimSSOMFAStep).toHaveBeenCalledTimes(1);
+    expect(claimSSOSession).not.toHaveBeenCalled();
+    expect(adoptSession).not.toHaveBeenCalled();
+  });
+
+  it('shows enrolment when the role mandates MFA', async () => {
+    claimSSOMFAStep.mockResolvedValue({ token: 'enrol-tok', enrolling: true });
+
+    renderAt('/auth/sso/complete?mfa=1');
+
+    expect(await screen.findByTestId('mfa-enrolment')).toHaveTextContent('enrol-tok');
+    expect(claimSSOSession).not.toHaveBeenCalled();
+  });
+
+  it('sends a spent step back to the login screen', async () => {
+    claimSSOMFAStep.mockResolvedValue({ token: 'mfa-tok', enrolling: false });
+
+    renderAt('/auth/sso/complete?mfa=1');
+    fireEvent.click(await screen.findByTestId('mfa-challenge'));
+
+    expect(await screen.findByTestId('where')).toHaveTextContent('/login?error=mfa_restart');
+  });
+
+  it('falls back to the generic error when the step cannot be read', async () => {
+    claimSSOMFAStep.mockRejectedValue(new Error('HTTP 404'));
+
+    renderAt('/auth/sso/complete?mfa=1');
+
+    expect(await screen.findByTestId('where')).toHaveTextContent('/login?error=internal');
+    expect(claimSSOSession).not.toHaveBeenCalled();
   });
 });
 

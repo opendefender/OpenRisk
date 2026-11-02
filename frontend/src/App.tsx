@@ -95,6 +95,9 @@ const ForgotPasswordScreen = lazyScreen(() =>
 const SSOCompleteScreen = lazyScreen(() =>
   import('./features/auth/SSOCompleteScreen').then((m) => ({ default: m.SSOCompleteScreen })),
 );
+const SwitchOrgMFAScreen = lazyScreen(() =>
+  import('./features/auth/SwitchOrgMFAScreen').then((m) => ({ default: m.SwitchOrgMFAScreen })),
+);
 const ResetPasswordScreen = lazyScreen(() =>
   import('./features/auth/ResetPasswordScreen').then((m) => ({ default: m.ResetPasswordScreen })),
 );
@@ -632,6 +635,10 @@ function App() {
             SPA has no profile yet, so ProtectedRoute would bounce them to /login.
             The screen loads the session from the cookies and moves on. */}
           <Route path="/auth/sso/complete" element={<SSOCompleteScreen />} />
+          {/* The code step of an organization switch (GHSA-45mr-j2w6-m4jv).
+            Outside the shell, like sign-in: the session it ends with belongs to
+            another organization, and nothing the shell mounted may outlive it. */}
+          <Route path="/auth/switch-org/mfa" element={<SwitchOrgMFAScreen />} />
           {/* Public status page (task §4) — reachable without a session. */}
           <Route path="/status" element={<StatusPage />} />
           {/* Invitation acceptance. Public by necessity: the person following the

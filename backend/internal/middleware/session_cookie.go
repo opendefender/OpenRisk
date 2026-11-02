@@ -144,3 +144,43 @@ func ClearSessionCookies(c *fiber.Ctx) {
 		})
 	}
 }
+
+// SSOMFACookie carries the MFA step an SSO sign-in stopped at
+// (GHSA-rv5c-pr27-gpxh) from the callback redirect to the SPA.
+//
+// The callback answers a top-level navigation, so the short-lived MFA token
+// cannot travel in a JSON body, and a URL would put it in the history and in
+// access logs. HttpOnly, scoped to the one endpoint that hands it to the SPA,
+// and spent by that endpoint on first read.
+const (
+	SSOMFACookie     = "or_sso_mfa"
+	SSOMFACookiePath = "/api/v1/auth/sso/mfa"
+)
+
+// IssueSSOMFACookie stores the pending MFA step for at most ttl.
+func IssueSSOMFACookie(c *fiber.Ctx, value string, ttl time.Duration) {
+	c.Cookie(&fiber.Cookie{
+		Name:     SSOMFACookie,
+		Value:    value,
+		Path:     SSOMFACookiePath,
+		Expires:  time.Now().Add(ttl),
+		MaxAge:   int(ttl.Seconds()),
+		HTTPOnly: true,
+		Secure:   secureCookies(),
+		SameSite: fiber.CookieSameSiteLaxMode,
+	})
+}
+
+// ClearSSOMFACookie expires the pending MFA step, with the Path it was set with.
+func ClearSSOMFACookie(c *fiber.Ctx) {
+	c.Cookie(&fiber.Cookie{
+		Name:     SSOMFACookie,
+		Value:    "",
+		Path:     SSOMFACookiePath,
+		Expires:  time.Now().Add(-time.Hour),
+		MaxAge:   -1,
+		HTTPOnly: true,
+		Secure:   secureCookies(),
+		SameSite: fiber.CookieSameSiteLaxMode,
+	})
+}

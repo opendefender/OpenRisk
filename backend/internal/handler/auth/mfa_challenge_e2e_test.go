@@ -89,6 +89,14 @@ func newChallengeStack(t *testing.T, ipLimit int) *challengeStack {
 			OrgRoles: map[uuid.UUID]string{f.tenantA: string(domain.RoleUser)},
 		}, nil
 	})
+	// The challenge issues the session for the organisation its token names
+	// (GHSA-45mr-j2w6-m4jv), through the org resolver.
+	tokens.SetOrgSessionResolver(func(_ context.Context, _ uuid.UUID, orgID uuid.UUID) (*coreauth.SessionClaims, error) {
+		return &coreauth.SessionClaims{
+			TenantID: orgID,
+			OrgRoles: map[uuid.UUID]string{orgID: string(domain.RoleUser)},
+		}, nil
+	})
 	orgRoles, businessRoles := domain.DefaultMFAPrivilegeRoles()
 
 	blacklist := authpkg.NewTokenBlacklistManager(&memoryBlacklist{keys: map[string]string{}})

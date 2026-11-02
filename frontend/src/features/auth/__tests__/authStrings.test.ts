@@ -127,6 +127,7 @@ describe('auth copy', () => {
       'no_account',
       'password_account',
       'provider_conflict',
+      'mfa_restart',
       'internal',
     ];
 

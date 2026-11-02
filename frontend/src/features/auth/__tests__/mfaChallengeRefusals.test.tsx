@@ -44,7 +44,7 @@ vi.mock('../../../hooks/useAuthStore', () => {
   return { useAuthStore };
 });
 
-import { AuthScreen } from '../AuthScreen';
+import { AuthScreen, MFAEnrollment } from '../AuthScreen';
 
 function refused(status: number, data: unknown): AxiosError {
   const response = {
@@ -180,6 +180,16 @@ describe('MFA challenge refusals (#872)', () => {
     expect(screen.getByTestId('mfa-code')).toBeDisabled();
   });
 
+  // GHSA-45mr-j2w6-m4jv live check: leaving while a code is in flight let the
+  // late session override the user's choice to stay.
+  it('cannot be left while a code is being checked', async () => {
+    const user = await reachChallenge();
+    challengeMFA.mockReturnValueOnce(new Promise(() => {}));
+    await submitCode(user);
+
+    expect(screen.getByRole('button', { name: copy().backToSignIn })).toBeDisabled();
+  });
+
   it('speaks English to an English session', async () => {
     useUIStore.getState().setLang('en');
     const user = await reachChallenge();
@@ -233,6 +243,18 @@ describe('mandated enrolment with an expired token (#872)', () => {
     expect(setupMFA).toHaveBeenCalledTimes(1);
   });
 
+  // #897: the account's one authenticator belongs to another organisation.
+  // Setup answers 409 every time, so retrying is not offered.
+  it('goes back with the reason when setup answers 409', async () => {
+    setupMFA.mockReset();
+    setupMFA.mockRejectedValueOnce(refused(409, { error: 'MFA is already enabled' }));
+    await reachEnrolment();
+
+    expect(await screen.findByTestId('login-password')).toBeInTheDocument();
+    expect(screen.getByTestId('auth-error')).toHaveTextContent(copy().mfaSetupUnavailable);
+    expect(setupMFA).toHaveBeenCalledTimes(1);
+  });
+
   it('still says "incorrect code" for a wrong code on a live token', async () => {
     const user = await reachEnrolment();
     verifyMFA.mockRejectedValueOnce(refused(400, { error: 'invalid code' }));
@@ -241,5 +263,51 @@ describe('mandated enrolment with an expired token (#872)', () => {
 
     expect(await screen.findByTestId('auth-error')).toHaveTextContent(copy().mfaInvalid);
     expect(screen.getByTestId('mfa-enrol-code')).toBeInTheDocument();
+  });
+});
+
+// GHSA-45mr-j2w6-m4jv: the enrolment of an organisation switch has a way back,
+// and, like the challenge, it cannot be taken while a code is being verified.
+describe('mandated enrolment with a way back', () => {
+  beforeEach(() => {
+    setupMFA.mockReset();
+    setupMFA.mockResolvedValue({ secret: 'ABCDEF', qr_code: '/9j/raw', backup_codes: [] });
+  });
+
+  function renderEnrolment(onCancel = vi.fn()) {
+    render(
+      <MemoryRouter>
+        <MFAEnrollment
+          token="enrol-token"
+          onCancel={onCancel}
+          cancelLabel="Stay"
+          onRestart={vi.fn()}
+        />
+      </MemoryRouter>,
+    );
+    return onCancel;
+  }
+
+  it('offers the way back while no code is in flight', async () => {
+    const user = userEvent.setup();
+    const onCancel = renderEnrolment();
+    await screen.findByTestId('mfa-enrol-code');
+
+    await user.click(screen.getByRole('button', { name: 'Stay' }));
+    expect(onCancel).toHaveBeenCalledTimes(1);
+  });
+
+  it('cannot be left while a code is being verified', async () => {
+    const user = userEvent.setup();
+    verifyMFA.mockReturnValueOnce(new Promise(() => {}));
+    const onCancel = renderEnrolment();
+    await user.click(await screen.findByTestId('mfa-enrol-code'));
+    await user.paste('123456');
+
+    await waitFor(() => expect(verifyMFA).toHaveBeenCalled());
+    const stay = screen.getByRole('button', { name: 'Stay' });
+    expect(stay).toBeDisabled();
+    await user.click(stay);
+    expect(onCancel).not.toHaveBeenCalled();
   });
 });

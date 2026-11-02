@@ -360,13 +360,19 @@ function LoginForm({
 /** Disables the field this long when the server gave no wait (per-address limit). */
 const UNKNOWN_LOCK_MS = 60_000;
 
-function MFAChallenge({
+export function MFAChallenge({
   token,
+  next = null,
   onCancel,
+  cancelLabel,
   onRestart,
 }: {
   token: string;
+  /** Where to go once signed in, already checked by safeNextPath. */
+  next?: string | null;
   onCancel: () => void;
+  /** Replaces "Back to sign in" where there is a session to go back to. */
+  cancelLabel?: string;
   /** The sign-in attempt is over; only the password can start another one. */
   onRestart: (message: string) => void;
 }) {
@@ -419,7 +425,7 @@ function MFAChallenge({
       if (result.token_pair?.access_token) {
         await adoptSession(result.token_pair.access_token);
       }
-      navigate(landingForBusinessRole(useAuthStore.getState().user?.business_role));
+      navigate(next ?? landingForBusinessRole(useAuthStore.getState().user?.business_role));
     } catch (err) {
       const refusal = classifyChallengeRefusal(err);
       switch (refusal.kind) {
@@ -509,8 +515,10 @@ function MFAChallenge({
       </div>
 
       <div className="text-center text-[13px] text-ink-soft mt-[18px]" style={cascade(3, reduced)}>
-        <button type="button" onClick={onCancel} className="font-semibold">
-          {copy.backToSignIn}
+        {/* Not while a code is in flight: its session would land after the user
+            chose to leave, and override that choice. */}
+        <button type="button" onClick={onCancel} disabled={busy} className="font-semibold">
+          {cancelLabel ?? copy.backToSignIn}
         </button>
       </div>
     </form>
@@ -529,11 +537,19 @@ function MFAChallenge({
  * completes the login in the same step, so the user is not asked for the
  * password they typed a minute ago.
  */
-function MFAEnrollment({
+export function MFAEnrollment({
   token,
+  next = null,
+  onCancel,
+  cancelLabel,
   onRestart,
 }: {
   token: string;
+  /** Where to go once signed in, already checked by safeNextPath. */
+  next?: string | null;
+  /** Shown where there is a session to go back to, as after a switch. */
+  onCancel?: () => void;
+  cancelLabel?: string;
   /** The enrolment token is spent or expired; only the password gets a new one. */
   onRestart: (message: string) => void;
 }) {
@@ -573,12 +589,18 @@ function MFAEnrollment({
           onRestart(copy.mfaExpired);
           return;
         }
+        // 409: the account's one authenticator belongs to another organisation
+        // (#897). Every retry would get the same answer.
+        if (axios.isAxiosError(err) && err.response?.status === 409) {
+          onRestart(copy.mfaSetupUnavailable);
+          return;
+        }
         // A setup failure is not a registration failure: the account is already
         // created. Say what actually went wrong, and allow another attempt.
         requested.current = null;
         setError(copy.mfaSetupFailed);
       });
-  }, [token, copy.mfaSetupFailed, copy.mfaExpired, onRestart]);
+  }, [token, copy.mfaSetupFailed, copy.mfaExpired, copy.mfaSetupUnavailable, onRestart]);
 
   const qrSrc = qr.startsWith('data:') ? qr : `data:image/jpeg;base64,${qr}`;
 
@@ -597,7 +619,7 @@ function MFAEnrollment({
       if (result.token_pair?.access_token) {
         await adoptSession(result.token_pair.access_token);
       }
-      navigate(landingForBusinessRole(useAuthStore.getState().user?.business_role));
+      navigate(next ?? landingForBusinessRole(useAuthStore.getState().user?.business_role));
     } catch (err) {
       // The enrolment token lives 15 minutes. Past that, every code is refused
       // whatever it is, so "incorrect code" would be a lie (#872).
@@ -691,6 +713,14 @@ function MFAEnrollment({
       >
         {busy ? copy.signingIn : copy.mfaEnrolConfirm}
       </button>
+
+      {onCancel && (
+        <div className="text-center text-[13px] text-ink-soft mt-[18px]">
+          <button type="button" onClick={onCancel} disabled={busy} className="font-semibold">
+            {cancelLabel ?? copy.backToSignIn}
+          </button>
+        </div>
+      )}
     </form>
   );
 }

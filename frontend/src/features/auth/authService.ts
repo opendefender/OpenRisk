@@ -285,6 +285,30 @@ export async function claimSSOSession(): Promise<string> {
   return token;
 }
 
+/**
+ * The second factor an SSO sign-in still owes (GHSA-rv5c-pr27-gpxh).
+ *
+ * The callback cannot hand the SPA a token through a redirect without putting
+ * it in the URL, so it leaves it in an HttpOnly cookie that this call reads and
+ * spends. The answer has the shape /auth/login gives for the same two cases.
+ */
+export interface SSOMFAStep {
+  token: string;
+  enrolling: boolean;
+}
+
+export async function claimSSOMFAStep(): Promise<SSOMFAStep> {
+  const { data } = await api.post<{
+    mfa_required?: boolean;
+    mfa_enrollment_required?: boolean;
+    mfa_token?: string;
+  }>('/auth/sso/mfa');
+  if (!data.mfa_token || (!data.mfa_required && !data.mfa_enrollment_required)) {
+    throw new Error('no pending SSO sign-in step');
+  }
+  return { token: data.mfa_token, enrolling: Boolean(data.mfa_enrollment_required) };
+}
+
 export interface MFAChallengeResult {
   token_pair?: { access_token: string; refresh_token: string };
   csrf_token?: string;

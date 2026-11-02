@@ -215,6 +215,43 @@ describe('api interceptor — requests with their own credential keep their 401s
 
 // #701 — the realtime client renews in the background and must not sign a user
 // out over a refresh that never reached the server.
+describe('api interceptor — a request with its own credential keeps it (GHSA-45mr-j2w6-m4jv)', () => {
+  // An organisation switch reaches the MFA step while a session token is in
+  // memory. The MFA token must be the one the server sees.
+  it('does not replace the MFA token with the session token', async () => {
+    setAccessToken('session-token-for-a');
+    let sent: unknown;
+    api.defaults.adapter = (async (config: { headers: { Authorization?: string } }) => {
+      sent = config.headers.Authorization;
+      return ok(config, {});
+    }) as never;
+
+    await api.post(
+      '/auth/mfa/setup',
+      {},
+      {
+        headers: { Authorization: 'Bearer mfa-token-for-b' },
+        ownCredential: true,
+      },
+    );
+
+    expect(sent).toBe('Bearer mfa-token-for-b');
+  });
+
+  it('still sends the session token on an ordinary request', async () => {
+    setAccessToken('session-token-for-a');
+    let sent: unknown;
+    api.defaults.adapter = (async (config: { headers: { Authorization?: string } }) => {
+      sent = config.headers.Authorization;
+      return ok(config, {});
+    }) as never;
+
+    await api.get('/risks');
+
+    expect(sent).toBe('Bearer session-token-for-a');
+  });
+});
+
 describe('refreshSessionOutcome', () => {
   it('reports a refusal when the server answers', async () => {
     const err = Object.assign(new axios.AxiosError('401'), {

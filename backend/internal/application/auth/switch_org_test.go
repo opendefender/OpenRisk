@@ -67,7 +67,7 @@ func TestSwitchOrganization_Success(t *testing.T) {
 			Organization: &domain.Organization{ID: orgB, Name: "Org B", Slug: "org-b"}},
 	}, defaultOrg: &orgA}
 
-	uc := NewSwitchOrganizationUseCase(stub, newSwitchTokenManager(t))
+	uc := NewSwitchOrganizationUseCase(stub, newSwitchTokenManager(t), noSecondFactor{})
 	out, err := uc.Execute(context.Background(), SwitchOrganizationInput{UserID: userID, TargetOrgID: orgB})
 	require.NoError(t, err)
 	require.NotNil(t, out.TokenPair)
@@ -80,7 +80,7 @@ func TestSwitchOrganization_NonMember_Forbidden(t *testing.T) {
 	userID, orgB := uuid.New(), uuid.New()
 	stub := &memberStub{byOrg: map[uuid.UUID]*domain.OrganizationMember{}} // no membership
 
-	uc := NewSwitchOrganizationUseCase(stub, newSwitchTokenManager(t))
+	uc := NewSwitchOrganizationUseCase(stub, newSwitchTokenManager(t), noSecondFactor{})
 	_, err := uc.Execute(context.Background(), SwitchOrganizationInput{UserID: userID, TargetOrgID: orgB})
 	require.Error(t, err)
 	appErr, ok := err.(*domain.AppError)
@@ -94,7 +94,7 @@ func TestSwitchOrganization_InactiveMember_Forbidden(t *testing.T) {
 		orgB: {UserID: userID, OrganizationID: orgB, Role: domain.RoleUser, IsActive: false},
 	}}
 
-	uc := NewSwitchOrganizationUseCase(stub, newSwitchTokenManager(t))
+	uc := NewSwitchOrganizationUseCase(stub, newSwitchTokenManager(t), noSecondFactor{})
 	_, err := uc.Execute(context.Background(), SwitchOrganizationInput{UserID: userID, TargetOrgID: orgB})
 	require.Error(t, err)
 	appErr, ok := err.(*domain.AppError)
@@ -103,7 +103,7 @@ func TestSwitchOrganization_InactiveMember_Forbidden(t *testing.T) {
 }
 
 func TestSwitchOrganization_MissingOrg_Validation(t *testing.T) {
-	uc := NewSwitchOrganizationUseCase(&memberStub{}, newSwitchTokenManager(t))
+	uc := NewSwitchOrganizationUseCase(&memberStub{}, newSwitchTokenManager(t), noSecondFactor{})
 	_, err := uc.Execute(context.Background(), SwitchOrganizationInput{UserID: uuid.New()})
 	require.Error(t, err)
 	appErr, ok := err.(*domain.AppError)
@@ -152,7 +152,7 @@ func TestSwitchOrganization_NamesTheOrganization(t *testing.T) {
 		},
 	}
 
-	uc := NewSwitchOrganizationUseCase(stub, newSwitchTokenManager(t))
+	uc := NewSwitchOrganizationUseCase(stub, newSwitchTokenManager(t), noSecondFactor{})
 	out, err := uc.Execute(context.Background(), SwitchOrganizationInput{UserID: userID, TargetOrgID: orgB})
 	require.NoError(t, err)
 	require.NotNil(t, out.Organization)

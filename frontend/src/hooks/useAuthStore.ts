@@ -8,7 +8,7 @@ import { api } from '../lib/api';
 import { decodeAccessToken, permitted } from '../lib/jwt';
 import { setAccessToken } from '../lib/session';
 import { clearSessionScope } from '../lib/sessionScope';
-import { orgSwitchService } from '../features/organization/orgSwitchService';
+import { isSecondFactorStep, orgSwitchService } from '../features/organization/orgSwitchService';
 
 interface User {
   id: string;
@@ -55,6 +55,16 @@ export type LoginOutcome =
   | { status: 'mfa_required'; mfa_token: string }
   | { status: 'mfa_enrollment_required'; mfa_token: string };
 
+/**
+ * What a switch answered. Like login, it can stop short of a session: the
+ * target organization keeps its own MFA posture (GHSA-45mr-j2w6-m4jv), so an
+ * authenticator enrolled there, or its role policy, is asked for again.
+ */
+export type SwitchOutcome =
+  | { status: 'switched' }
+  | { status: 'mfa_required'; mfa_token: string }
+  | { status: 'mfa_enrollment_required'; mfa_token: string };
+
 interface AuthStore {
   user: User | null;
   token: string | null;
@@ -78,8 +88,12 @@ interface AuthStore {
    *
    * `orgName` is the switcher row's name, used when the response omits the
    * organization.
+   *
+   * When the target organization asks for a second factor, nothing local is
+   * touched either: the outcome carries the token for the challenge or the
+   * enrolment, which issue the session for that organization.
    */
-  switchOrganization: (organizationId: string, orgName?: string) => Promise<void>;
+  switchOrganization: (organizationId: string, orgName?: string) => Promise<SwitchOutcome>;
   logout: () => void;
   refreshToken: () => Promise<void>;
   hasPermission: (permission: string) => boolean;
@@ -186,6 +200,11 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     // The request comes first: a refusal throws here, before anything local is
     // touched, so a failed switch leaves the user where they were.
     const data = await orgSwitchService.switchTo(organizationId);
+    if (isSecondFactorStep(data)) {
+      return data.mfa_enrollment_required
+        ? { status: 'mfa_enrollment_required', mfa_token: data.mfa_token }
+        : { status: 'mfa_required', mfa_token: data.mfa_token };
+    }
 
     // A tenant boundary, exactly like a sign-in: nothing the previous
     // organization cached may survive into this one.
@@ -211,6 +230,7 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
       expiresIn: data.token_pair.expires_in,
       isAuthenticated: true,
     });
+    return { status: 'switched' };
   },
 
   logout: () => {

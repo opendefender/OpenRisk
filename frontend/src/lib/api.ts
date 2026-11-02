@@ -46,8 +46,12 @@ api.interceptors.request.use((config) => {
   // split-origin deployment where the cookie cannot be attached. The token is
   // held in memory only — never in localStorage, which is the exposure this
   // migration removes.
+  //
+  // A request with its own credential keeps it. Overwriting the MFA token with
+  // the session's sent an organisation switch's enrolment to the current
+  // organisation and its challenge to a 401 (GHSA-45mr-j2w6-m4jv).
   const token = getAccessToken();
-  if (token) {
+  if (token && !config.ownCredential) {
     config.headers.Authorization = `Bearer ${token}`;
   }
 

@@ -5,6 +5,74 @@ recommends, and surfaces these in the daily brief. Run `/decide` to clear them.
 
 ## Open
 
+### D-084 — Organisation switch and MFA: does a factor proved for one organisation count in another? · raised 2026-11-02
+**Question** — GHSA-45mr-j2w6-m4jv: switching organisation issued a session for
+the target without asking for the authenticator enrolled there or applying its
+role policy. The fix runs the sign-in gate for the target organisation on every
+switch (`SwitchOrganizationUseCase` → `LoginUseCase.SecondFactorForOrg`), and the
+challenge or enrolment issues the session for the organisation its token names.
+Whether a factor already proved in the current session may stand in for the
+target's is an auth-design choice.
+
+**Options**
+- **A (shipped in the fix)** — no. Each organisation keeps its own posture, as
+  D-066 decided. A member with an authenticator in B types B's code on every
+  switch into B, including a switch back to an organisation they left a minute
+  ago, because the session records no factor.
+- **B** — remember in the session which organisations' factors were proved, and
+  skip the challenge for those. Fewer codes for MSP-style accounts, at the cost
+  of a new session claim and its revocation rules.
+
+**Cost of delay** — none: A is the fail-closed behaviour and B can be added later.
+
+**Accepted with A, for the owner to confirm** — a session alone can now trigger
+the account-wide challenge lock. Each switch into an organisation with an
+authenticator mints a fresh MFA_REQUIRED token, without the password; ten wrong
+codes lock code entry for the whole account for 15 minutes
+(`mfa_limits.go`, keyed per user), and it can be repeated. Before the fix the
+same session holder got straight into that organisation, so this is a far
+smaller exposure, and code guessing stays capped by the same lock. Capping
+token minting per session would not help (five wrong codes per token, two
+tokens reach ten). Because the lock is per user, it also blocks the victim's
+own MFA sign-ins in every organisation for as long as it is re-armed, so a
+victim whose default organisation has an authenticator cannot sign in to revoke
+the stolen session; an administrator still can, and the lock notice tells the
+owner. Closing it means changing the lock, for example binding the session
+family into a switch-minted MFA_REQUIRED token and revoking that session when
+its challenge fails, rather than locking the account. That is lock design and
+is left here. devsecops rates it LOW and asks for a tracking issue.
+
+**Related** — while #897 is open, `mfa_secrets.user_id` is unique: a member
+holds one secret, under the organisation where they enrolled. A privileged
+member enrolled in A whose role in B mandates MFA is sent to enrolment by the
+switch and cannot complete it (setup answers 409). The request-time guard
+already refuses them in B today, so the switch adds no new lockout; #897 lifts it.
+The enrolment screen says so and goes back to the current organisation.
+
+### D-085 — SSO and MFA: may an identity provider's own MFA stand in for the OpenRisk factor? · raised 2026-10-30
+*Raised as D-082 in the GHSA-rv5c-pr27-gpxh commits; renumbered because master's resolved D-082 (branch protection) holds that number.*
+
+**Question** — GHSA-rv5c-pr27-gpxh: an OAuth2 sign-in issued a full session
+with no MFA step, so an authenticator enrolled in OpenRisk was never asked for
+and the role policy (`MFA_REQUIRED_ROLES`, `/security/mfa-policy`) never
+applied. The fix routes SSO through the password sign-in's gate unchanged
+(`LoginUseCase.SSOSecondFactor`). Whether a provider-asserted MFA (OIDC `amr`,
+SAML `AuthnContextClassRef`) may satisfy the gate is an auth-design choice.
+
+**Options**
+- **A (shipped in the fix)** — no. The OpenRisk factor is asked for after every
+  SSO sign-in exactly as after a password. A user with MFA at Google and in
+  OpenRisk types two codes; a privileged role with nothing enrolled in OpenRisk
+  is sent to enrolment once its grace window is over.
+- **B** — trust the provider's claim when it says MFA was used, per tenant
+  opt-in. One code instead of two, but OpenRisk then trusts a claim from a
+  provider account it does not control, which is the scenario the advisory is
+  about. Google's userinfo carries no `amr`; Microsoft and most SAML IdPs do.
+  Needs a new tenant setting and per-provider parsing.
+
+**Cost of delay** — none: A is the fail-closed behaviour and B can be added on
+top later without changing it for tenants that do not opt in.
+
 ### D-080 — Licence gate: what legal-counsel says the allowed set does not cover · raised 2026-10-28
 **Context** — #774 asked `legal-counsel` to review the allowed set in
 `security/license-policy.yaml`. Verdict: approved with notes, advisory only.

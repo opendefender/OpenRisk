@@ -7,6 +7,7 @@ package auth
 
 import (
 	"context"
+	"errors"
 
 	"github.com/google/uuid"
 
@@ -90,12 +91,28 @@ type SwitchOrganizationInput struct {
 }
 
 // SwitchOrganizationOutput is the result of a successful switch.
+//
+// When the target organisation asks for a second factor, TokenPair is nil and
+// SecondFactor carries the MFA_REQUIRED or MFA_ENROLLMENT token, scoped to the
+// target organisation. The session is issued by /auth/mfa/challenge or by the
+// enrolment, never by the switch.
 type SwitchOrganizationOutput struct {
 	TokenPair    *auth.TokenPair
+	SecondFactor *SecondFactorOutcome
 	Organization *domain.Organization
 	Role         domain.MemberRole
 	BusinessRole domain.BusinessRoleKey
 }
+
+// SecondFactorGate is the sign-in MFA gate, asked for the organisation a
+// session moves into. LoginUseCase implements it.
+type SecondFactorGate interface {
+	SecondFactorForOrg(ctx context.Context, userID, orgID uuid.UUID, member *domain.OrganizationMember) (*SecondFactorOutcome, error)
+}
+
+// errNoSecondFactorGate refuses a switch on a deployment that wired no gate:
+// without it the switch would mint a session no factor was asked for.
+var errNoSecondFactorGate = errors.New("organization switch: no second-factor gate configured")
 
 // SwitchOrganizationUseCase issues a session scoped to a DIFFERENT organization
 // the user is an active member of. It is the server-authorized half of org
@@ -105,11 +122,13 @@ type SwitchOrganizationOutput struct {
 type SwitchOrganizationUseCase struct {
 	members      MembershipRepository
 	tokenManager *auth.TokenManager
+	secondFactor SecondFactorGate
 }
 
-// NewSwitchOrganizationUseCase creates the use case.
-func NewSwitchOrganizationUseCase(members MembershipRepository, tokenManager *auth.TokenManager) *SwitchOrganizationUseCase {
-	return &SwitchOrganizationUseCase{members: members, tokenManager: tokenManager}
+// NewSwitchOrganizationUseCase creates the use case. The gate is required: a
+// nil one refuses every switch.
+func NewSwitchOrganizationUseCase(members MembershipRepository, tokenManager *auth.TokenManager, secondFactor SecondFactorGate) *SwitchOrganizationUseCase {
+	return &SwitchOrganizationUseCase{members: members, tokenManager: tokenManager, secondFactor: secondFactor}
 }
 
 // Execute validates active membership in the target org and mints a session for
@@ -134,6 +153,25 @@ func (uc *SwitchOrganizationUseCase) Execute(ctx context.Context, input SwitchOr
 		return nil, domain.NewForbiddenError("you are not an active member of this organization")
 	}
 
+	// The target organisation's own MFA posture, as at sign-in
+	// (GHSA-45mr-j2w6-m4jv). An authenticator enrolled there is asked for, and
+	// its role policy applies, whatever the session proved for the current one.
+	if uc.secondFactor == nil {
+		return nil, errNoSecondFactorGate
+	}
+	gate, err := uc.secondFactor.SecondFactorForOrg(ctx, input.UserID, input.TargetOrgID, member)
+	if err != nil {
+		return nil, err
+	}
+	if gate.Step != SecondFactorNone {
+		return &SwitchOrganizationOutput{
+			SecondFactor: gate,
+			Organization: uc.organizationOfMember(ctx, input.UserID, input.TargetOrgID, member),
+			Role:         member.Role,
+			BusinessRole: member.BusinessRole,
+		}, nil
+	}
+
 	pair, err := uc.tokenManager.IssueSessionForOrg(ctx, input.UserID, input.TargetOrgID, auth.DeviceContext{
 		Fingerprint: input.DeviceFingerprint,
 		IP:          input.IP,
@@ -143,17 +181,21 @@ func (uc *SwitchOrganizationUseCase) Execute(ctx context.Context, input SwitchOr
 		return nil, err
 	}
 
-	out := &SwitchOrganizationOutput{
+	return &SwitchOrganizationOutput{
 		TokenPair:    pair,
+		Organization: uc.organizationOfMember(ctx, input.UserID, input.TargetOrgID, member),
 		Role:         member.Role,
 		BusinessRole: member.BusinessRole,
-	}
+	}, nil
+}
+
+// organizationOfMember is the membership's preloaded organization, or the
+// best-effort lookup below when it was not preloaded.
+func (uc *SwitchOrganizationUseCase) organizationOfMember(ctx context.Context, userID, orgID uuid.UUID, member *domain.OrganizationMember) *domain.Organization {
 	if member.Organization != nil {
-		out.Organization = member.Organization
-	} else {
-		out.Organization = uc.organizationOf(ctx, input.UserID, input.TargetOrgID)
+		return member.Organization
 	}
-	return out, nil
+	return uc.organizationOf(ctx, userID, orgID)
 }
 
 // organizationOf names the organization the session was just minted for.

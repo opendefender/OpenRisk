@@ -153,7 +153,7 @@ func (h *MFAHandler) Verify(c *fiber.Ctx) error {
 	// Voluntary enrolment from Settings arrives with a full access token and keeps
 	// the session it already has; issuing a second one would pointlessly rotate it.
 	if enrolling, _ := c.Locals("mfa_enrollment_token").(bool); enrolling {
-		return h.issueSessionResponse(c, userID, "")
+		return h.issueSessionResponse(c, userID, tenantID, "")
 	}
 
 	return c.JSON(out)
@@ -162,12 +162,16 @@ func (h *MFAHandler) Verify(c *fiber.Ctx) error {
 // issueSessionResponse mints the access+refresh pair and sets the session
 // cookies. Shared by the MFA challenge and by mandated enrolment so both produce
 // a response byte-identical to /auth/login.
-func (h *MFAHandler) issueSessionResponse(c *fiber.Ctx, userID uuid.UUID, deviceFingerprint string) error {
+//
+// The session is for the organisation the MFA token names, whose factor was
+// just proved: the default one after a sign-in, the target after a switch
+// (GHSA-45mr-j2w6-m4jv). The org resolver re-checks the membership.
+func (h *MFAHandler) issueSessionResponse(c *fiber.Ctx, userID, tenantID uuid.UUID, deviceFingerprint string) error {
 	fp := deviceFingerprint
 	if fp == "" {
 		fp = c.Get("X-Device-Fingerprint")
 	}
-	pair, err := h.tokens.IssueSession(c.UserContext(), userID, coreauth.DeviceContext{
+	pair, err := h.tokens.IssueSessionForOrg(c.UserContext(), userID, tenantID, coreauth.DeviceContext{
 		Fingerprint: fp,
 		IP:          c.IP(),
 		UserAgent:   c.Get("User-Agent"),
@@ -319,7 +323,8 @@ func (h *MFAHandler) Challenge(c *fiber.Ctx) error {
 	if fp == "" {
 		fp = c.Get("X-Device-Fingerprint")
 	}
-	pair, err := h.tokens.IssueSession(c.UserContext(), userID, coreauth.DeviceContext{
+	// For the organisation the token names, as issueSessionResponse does.
+	pair, err := h.tokens.IssueSessionForOrg(c.UserContext(), userID, tenantID, coreauth.DeviceContext{
 		Fingerprint: fp,
 		IP:          c.IP(),
 		UserAgent:   c.Get("User-Agent"),

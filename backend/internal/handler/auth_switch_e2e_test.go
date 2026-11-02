@@ -81,6 +81,14 @@ func boolToInt(b bool) int {
 	return 0
 }
 
+// switchNoSecondFactor asks for nothing: these tests are about membership.
+// The MFA gate on the switch is covered in handler/auth/switch_org_mfa_e2e_test.go.
+type switchNoSecondFactor struct{}
+
+func (switchNoSecondFactor) SecondFactorForOrg(context.Context, uuid.UUID, uuid.UUID, *domain.OrganizationMember) (*appauth.SecondFactorOutcome, error) {
+	return &appauth.SecondFactorOutcome{}, nil
+}
+
 func buildSwitchApp(t *testing.T, db *gorm.DB, actingUser uuid.UUID) *fiber.App {
 	t.Helper()
 	userRepo := repository.NewGormUserRepository(db)
@@ -102,7 +110,7 @@ func buildSwitchApp(t *testing.T, db *gorm.DB, actingUser uuid.UUID) *fiber.App 
 
 	h := authhandler.NewSwitchHandler(
 		appauth.NewListOrganizationsUseCase(userRepo),
-		appauth.NewSwitchOrganizationUseCase(userRepo, tm),
+		appauth.NewSwitchOrganizationUseCase(userRepo, tm, switchNoSecondFactor{}),
 		nil,
 	)
 

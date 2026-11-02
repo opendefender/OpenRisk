@@ -208,6 +208,8 @@ export interface AuthCopy {
 
   // MFA
   mfaTitle: string;
+  /** Leaves the code step of an organization switch for the current one. */
+  mfaSwitchCancel: string;
   mfaSubtitle: string;
   mfaCode: string;
   mfaSubmit: string;
@@ -219,6 +221,9 @@ export interface AuthCopy {
   mfaLocked: (minutes: number) => string;
   mfaLockedUnknown: string;
   mfaSetupFailed: string;
+  /** Setup refused with 409: another organisation holds the account's only
+   *  authenticator until #897. Retrying cannot help. */
+  mfaSetupUnavailable: string;
   mfaEnrolTitle: string;
   mfaEnrolSubtitle: string;
   mfaEnrolScan: string;
@@ -258,6 +263,7 @@ export type OAuthErrorCode =
   | 'no_account'
   | 'password_account'
   | 'provider_conflict'
+  | 'mfa_restart'
   | 'internal';
 
 const fr: AuthCopy = {
@@ -328,6 +334,7 @@ const fr: AuthCopy = {
   strengthBreached: 'Ce mot de passe figure dans des fuites de données connues.',
 
   mfaTitle: 'Vérification en deux étapes',
+  mfaSwitchCancel: 'Rester dans l’organisation actuelle',
   mfaSubtitle: 'Saisissez le code à 6 chiffres de votre application d’authentification.',
   mfaCode: 'Code de vérification',
   mfaSubmit: 'Vérifier',
@@ -343,6 +350,8 @@ const fr: AuthCopy = {
   // Telling the user their sign-up failed sends them back to create it again.
   mfaSetupFailed:
     'Impossible de préparer la double authentification. Votre compte est créé — rechargez la page pour réessayer.',
+  mfaSetupUnavailable:
+    'Cette organisation exige son propre second facteur, qui ne peut pas encore être ajouté à votre compte. Contactez votre administrateur.',
   mfaEnrolTitle: 'Activez la double authentification',
   mfaEnrolSubtitle:
     'Votre rôle donne accès aux données de toute l’organisation : un second facteur est obligatoire.',
@@ -380,6 +389,8 @@ const fr: AuthCopy = {
     password_account:
       'Ce compte se connecte avec un mot de passe. Utilisez votre adresse e-mail et votre mot de passe.',
     provider_conflict: 'Cette adresse est déjà associée à un autre fournisseur.',
+    mfa_restart:
+      'Cette étape de vérification a expiré ou a été refusée. Relancez la connexion depuis cette page.',
     internal: 'Une erreur est survenue pendant la connexion. Réessayez dans un instant.',
   },
   oauthConflictWith: (existing) =>
@@ -458,6 +469,7 @@ const en: AuthCopy = {
   strengthBreached: 'This password appears in known data breaches.',
 
   mfaTitle: 'Two-step verification',
+  mfaSwitchCancel: 'Stay in the current organisation',
   mfaSubtitle: 'Enter the 6-digit code from your authenticator app.',
   mfaCode: 'Verification code',
   mfaSubmit: 'Verify',
@@ -470,6 +482,8 @@ const en: AuthCopy = {
   mfaLockedUnknown: 'Too many attempts. Try again in a few minutes.',
   mfaSetupFailed:
     'Could not set up two-factor authentication. Your account exists — reload the page to try again.',
+  mfaSetupUnavailable:
+    'This organisation requires its own second factor, which cannot be added to your account yet. Contact your administrator.',
   mfaEnrolTitle: 'Turn on two-factor authentication',
   mfaEnrolSubtitle:
     'Your role can reach data across the whole organisation, so a second factor is required.',
@@ -504,6 +518,8 @@ const en: AuthCopy = {
       'No OpenRisk account is linked to this address. Ask your administrator for an invitation.',
     password_account: 'This account signs in with a password. Use your email address and password.',
     provider_conflict: 'This address is already linked to a different provider.',
+    mfa_restart:
+      'This verification step expired or was refused. Start the sign-in again from this page.',
     internal: 'Something went wrong during sign-in. Please try again shortly.',
   },
   oauthConflictWith: (existing) =>

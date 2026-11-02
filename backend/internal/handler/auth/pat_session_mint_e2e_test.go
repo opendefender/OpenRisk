@@ -69,6 +69,14 @@ func (r *mintPATRepo) DeleteByOwner(context.Context, uuid.UUID, uuid.UUID, uuid.
 // about, so a refusal can only come from the credential, never the membership.
 type mintMembers struct{}
 
+// mintNoSecondFactor asks for nothing: these tests are about the PAT refusal,
+// which comes before the switch reaches the gate.
+type mintNoSecondFactor struct{}
+
+func (mintNoSecondFactor) SecondFactorForOrg(context.Context, uuid.UUID, uuid.UUID, *domain.OrganizationMember) (*appauth.SecondFactorOutcome, error) {
+	return &appauth.SecondFactorOutcome{}, nil
+}
+
 func (mintMembers) ListActiveMemberships(context.Context, uuid.UUID) ([]*domain.OrganizationMember, error) {
 	return nil, nil
 }
@@ -112,7 +120,7 @@ func newMintStack(t *testing.T) *mintStack {
 	}
 
 	users := &mintUsers{u: &domain.User{ID: s.userID, Email: "a@x.io", IsActive: true, Password: "h:" + mintTestPassword}}
-	switcher := authhandler.NewSwitchHandler(nil, appauth.NewSwitchOrganizationUseCase(mintMembers{}, s.tokens), nil)
+	switcher := authhandler.NewSwitchHandler(nil, appauth.NewSwitchOrganizationUseCase(mintMembers{}, s.tokens, mintNoSecondFactor{}), nil)
 	password := authhandler.NewPasswordHandler(nil, nil, pwpolicy.New(), "", nil).
 		WithChangePassword(appauth.NewChangePasswordUseCase(users, mintHasher{}, pwpolicy.New(), s.tokens, nil))
 
