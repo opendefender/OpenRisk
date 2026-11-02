@@ -863,7 +863,7 @@ func main() {
 	// session via the org resolver wired above, so membership is re-checked at mint
 	// time and a forged org id can never yield a session.
 	listOrgsUseCase := auth.NewListOrganizationsUseCase(userRepo)
-	switchOrgUseCase := auth.NewSwitchOrganizationUseCase(userRepo, tokenManager)
+	switchOrgUseCase := auth.NewSwitchOrganizationUseCase(userRepo, tokenManager, loginUseCase)
 	switchHandler := authhandler.NewSwitchHandler(listOrgsUseCase, switchOrgUseCase, authAudit)
 
 	// Initialize Clean Architecture auth handler

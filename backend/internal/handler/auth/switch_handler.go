@@ -103,6 +103,25 @@ func (h *SwitchHandler) SwitchOrganization(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "failed to switch organization"})
 	}
 
+	// The target organisation asks for a second factor (GHSA-45mr-j2w6-m4jv).
+	// No session and no cookie: the caller keeps the session it has, and the
+	// one for the target is issued by /auth/mfa/challenge or by the enrolment,
+	// for the organisation the token names. Same body shape as /auth/login.
+	if gate := result.SecondFactor; gate != nil {
+		body := fiber.Map{
+			"mfa_token":    gate.MFAToken,
+			"organization": result.Organization,
+		}
+		reason := "mfa_required"
+		if gate.Step == appauth.SecondFactorEnrollment {
+			reason = "mfa_enrollment_required"
+			body["mfa"] = gate.MFAStatus
+		}
+		body[reason] = true
+		h.audit_(c, &mwCtx.UserID, &targetOrg, true, strptr(reason))
+		return c.JSON(body)
+	}
+
 	// Re-issue the HttpOnly session cookies for the new org so a browser client
 	// carries the new tenant context without ever touching the raw tokens.
 	csrfToken, cErr := middleware.IssueSessionCookies(

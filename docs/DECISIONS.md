@@ -5,6 +5,32 @@ recommends, and surfaces these in the daily brief. Run `/decide` to clear them.
 
 ## Open
 
+### D-084 — Organisation switch and MFA: does a factor proved for one organisation count in another? · raised 2026-11-02
+**Question** — GHSA-45mr-j2w6-m4jv: switching organisation issued a session for
+the target without asking for the authenticator enrolled there or applying its
+role policy. The fix runs the sign-in gate for the target organisation on every
+switch (`SwitchOrganizationUseCase` → `LoginUseCase.SecondFactorForOrg`), and the
+challenge or enrolment issues the session for the organisation its token names.
+Whether a factor already proved in the current session may stand in for the
+target's is an auth-design choice.
+
+**Options**
+- **A (shipped in the fix)** — no. Each organisation keeps its own posture, as
+  D-066 decided. A member with an authenticator in B types B's code on every
+  switch into B, including a switch back to an organisation they left a minute
+  ago, because the session records no factor.
+- **B** — remember in the session which organisations' factors were proved, and
+  skip the challenge for those. Fewer codes for MSP-style accounts, at the cost
+  of a new session claim and its revocation rules.
+
+**Cost of delay** — none: A is the fail-closed behaviour and B can be added later.
+
+**Related** — while #897 is open, `mfa_secrets.user_id` is unique: a member
+holds one secret, under the organisation where they enrolled. A privileged
+member enrolled in A whose role in B mandates MFA is sent to enrolment by the
+switch and cannot complete it (`409 already_enabled`). The request-time guard
+already refuses them in B today, so the switch adds no new lockout; #897 lifts it.
+
 ### D-082 — SSO and MFA: may an identity provider's own MFA stand in for the OpenRisk factor? · raised 2026-10-30
 **Question** — GHSA-rv5c-pr27-gpxh: an OAuth2 sign-in issued a full session
 with no MFA step, so an authenticator enrolled in OpenRisk was never asked for

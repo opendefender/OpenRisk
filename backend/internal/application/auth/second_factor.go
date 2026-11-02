@@ -67,6 +67,19 @@ func (uc *LoginUseCase) SSOSecondFactor(ctx context.Context, userID uuid.UUID) (
 	return &out, nil
 }
 
+// SecondFactorForOrg runs the same gate for a session moving into another
+// organisation (GHSA-45mr-j2w6-m4jv). Secrets and policies are kept per
+// membership (D-066), so the factor proved for the organisation the caller
+// left says nothing about this one. The caller has already checked that the
+// membership is active.
+func (uc *LoginUseCase) SecondFactorForOrg(ctx context.Context, userID, orgID uuid.UUID, member *domain.OrganizationMember) (*SecondFactorOutcome, error) {
+	out, err := uc.secondFactor(ctx, userID, orgID, member)
+	if err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
 // secondFactor is the MFA gate every sign-in passes, whatever proved the first
 // factor.
 //

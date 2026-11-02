@@ -1472,6 +1472,15 @@ paths:
         so editing a tenant id in a token, cookie or body cannot move a user. A non-member and
         a deactivated member get the same 403. On success new session cookies scoped to the
         target organization are set.
+
+
+        The target organization's own MFA posture applies, as at sign-in: when an authenticator
+        is enrolled there, or its role policy requires one past the grace window, no session and
+        no cookie are issued. The body then has the shape /auth/login gives for the same two
+        cases, `mfa_required` with an MFA_REQUIRED token for /auth/mfa/challenge, or
+        `mfa_enrollment_required` with an MFA_ENROLLMENT token for /auth/mfa/setup and
+        /auth/mfa/verify. Either token names the target organization, and the session those
+        endpoints issue is for it. The current session is left as it is.
       operationId: switchOrganization
       security:
         - bearerAuth: []
@@ -1489,7 +1498,9 @@ paths:
                   format: uuid
       responses:
         '200':
-          description: A session in the target organization
+          description: >-
+            A session in the target organization, or the second-factor step the target
+            organization asks for first
           content:
             application/json:
               schema:
@@ -1505,6 +1516,13 @@ paths:
                     type: string
                   csrf_token:
                     type: string
+                  mfa_required:
+                    type: boolean
+                  mfa_enrollment_required:
+                    type: boolean
+                  mfa_token:
+                    type: string
+                    description: Short-lived, permission-less MFA token for the target organization
         '400':
           description: Malformed body or an invalid organization id
           content:
