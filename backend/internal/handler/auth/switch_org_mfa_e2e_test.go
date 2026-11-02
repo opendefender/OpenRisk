@@ -192,3 +192,38 @@ func TestSwitchOrgMFAE2E_NothingOwedInTargetSwitchesAtOnce(t *testing.T) {
 	assert.True(t, cookies)
 	assert.Equal(t, f.tenantB, accessTenant(t, f, body))
 }
+
+// The membership is re-checked when the session is issued: one revoked between
+// the switch and the code gets no session in B.
+func TestSwitchOrgMFAE2E_MembershipRevokedBeforeChallengeIssuesNoSession(t *testing.T) {
+	f, inB := newSwitchMFAStack(t, domain.RoleUser, time.Now())
+	stack := &challengeStack{deferredFixture: f}
+	plain := stack.enrolWithSecret(t, inB)
+	_, tokenA := f.login(t, f.memberA.User.Email)
+
+	_, body, _ := switchTo(t, f, tokenA, f.tenantB)
+	mfaToken, _ := body["mfa_token"].(string)
+	require.NotEmpty(t, mfaToken, "%v", body)
+	require.NoError(t, f.db.Model(&domain.OrganizationMember{}).Where("id = ?", inB.ID).Update("is_active", false).Error)
+
+	status, body := f.do(t, http.MethodPost, challengePath, mfaToken, jsonBody{"code": liveCode(t, plain)})
+	assert.NotEqual(t, http.StatusOK, status, "%v", body)
+	assert.Nil(t, body["token_pair"])
+}
+
+func TestSwitchOrgMFAE2E_MembershipRevokedBeforeEnrolmentIssuesNoSession(t *testing.T) {
+	f, inB := newSwitchMFAStack(t, domain.RoleAdmin, time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC))
+	_, tokenA := f.login(t, f.memberA.User.Email)
+
+	_, body, _ := switchTo(t, f, tokenA, f.tenantB)
+	mfaToken, _ := body["mfa_token"].(string)
+	require.NotEmpty(t, mfaToken, "%v", body)
+	status, body := f.do(t, http.MethodPost, "/api/v1/auth/mfa/setup", mfaToken, nil)
+	require.Equal(t, http.StatusOK, status, "%v", body)
+	secret, _ := body["secret"].(string)
+	require.NoError(t, f.db.Model(&domain.OrganizationMember{}).Where("id = ?", inB.ID).Update("is_active", false).Error)
+
+	status, body = f.do(t, http.MethodPost, "/api/v1/auth/mfa/verify", mfaToken, jsonBody{"code": liveCode(t, secret)})
+	assert.NotEqual(t, http.StatusOK, status, "%v", body)
+	assert.Nil(t, body["token_pair"])
+}
