@@ -55,10 +55,20 @@ func (r *GormEntitlementRepository) Count(ctx context.Context, tenant uuid.UUID,
 	var n int64
 	switch key {
 	case ent.LimitUsers:
+		// A seat is an active member or a pending invitation that can still be
+		// accepted. Counting members alone let a tenant at 1 of 2 send any
+		// number of invitations, each checked against 1, and all be accepted.
+		var members, pending int64
 		if err := db.Model(&domain.OrganizationMember{}).
-			Where("organization_id = ? AND is_active = ?", tenant, true).Count(&n).Error; err != nil {
+			Where("organization_id = ? AND is_active = ?", tenant, true).Count(&members).Error; err != nil {
 			return 0, err
 		}
+		if err := db.Model(&domain.Invitation{}).
+			Where("organization_id = ? AND status = ? AND expires_at > ?", tenant, domain.InvitationPending, time.Now().UTC()).
+			Count(&pending).Error; err != nil {
+			return 0, err
+		}
+		n = members + pending
 	case ent.LimitRisks:
 		if err := db.Model(&domain.Risk{}).
 			Where("tenant_id = ? AND deleted_at IS NULL", tenant).Count(&n).Error; err != nil {

@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	entapp "github.com/opendefender/openrisk/internal/application/entitlements"
 	"github.com/opendefender/openrisk/internal/domain"
 	scanpkg "github.com/opendefender/openrisk/internal/scanner"
 	ent "github.com/opendefender/openrisk/pkg/entitlements"
@@ -140,3 +141,54 @@ func TestTriggerScanQuota_NotFound(t *testing.T) {
 	_, err := uc.Execute(context.Background(), uuid.New(), uuid.New(), uuid.New())
 	assert.ErrorIs(t, err, domain.ErrNotFound)
 }
+
+// TestTriggerScanQuota_EveryCaller_Unauthorized (#783 criterion 6): the console
+// passes the user; the scheduler (workers.systemUser) and the automation scan
+// action both pass uuid.Nil. Each at 4/4 is refused before a job row is written.
+func TestTriggerScanQuota_EveryCaller_Unauthorized(t *testing.T) {
+	for caller, actor := range map[string]uuid.UUID{
+		"console":                uuid.New(),
+		"scheduler / automation": uuid.Nil,
+	} {
+		tenant := uuid.New()
+		cfg := agentConfig(tenant)
+		configRepo := &mockConfigRepo{getByIDFunc: func(_ context.Context, _, _ uuid.UUID) (*domain.ScanConfig, error) { return cfg, nil }}
+		created := 0
+		jobRepo := &mockJobRepo{createFunc: func(context.Context, *domain.ScanJob) error { created++; return nil }}
+		uc := newTriggerUC(newFakeKV(), configRepo, jobRepo).WithQuota(fixedScanQuota{limit: 4, used: 4})
+
+		_, err := uc.Execute(context.Background(), tenant, actor, cfg.ID)
+		var lim *domain.LimitReachedError
+		require.ErrorAs(t, err, &lim, caller)
+		assert.Equal(t, 0, created, "%s: a refused scan writes no job row", caller)
+	}
+}
+
+// TestTriggerScanQuota_SelfHosted_Success (#783 criterion 8): through the real
+// entitlements service, a self-hosted install is never held to Free's four.
+func TestTriggerScanQuota_SelfHosted_Success(t *testing.T) {
+	tenant := uuid.New()
+	cfg := agentConfig(tenant)
+	configRepo := &mockConfigRepo{getByIDFunc: func(_ context.Context, _, _ uuid.UUID) (*domain.ScanConfig, error) { return cfg, nil }}
+	svc := entapp.NewService(freeOrg{}).WithUsage(scanUsage(10000)).WithDeployment(ent.DeploymentSelfHosted)
+	uc := newTriggerUC(newFakeKV(), configRepo, &mockJobRepo{}).WithQuota(svc)
+
+	_, err := uc.Execute(context.Background(), tenant, uuid.New(), cfg.ID)
+	require.NoError(t, err)
+
+	hosted := newTriggerUC(newFakeKV(), configRepo, &mockJobRepo{}).
+		WithQuota(entapp.NewService(freeOrg{}).WithUsage(scanUsage(4)))
+	_, err = hosted.Execute(context.Background(), tenant, uuid.New(), cfg.ID)
+	var lim *domain.LimitReachedError
+	require.ErrorAs(t, err, &lim, "the same stored Free plan, hosted, is refused at 4")
+}
+
+type freeOrg struct{}
+
+func (freeOrg) PlanAndRegion(context.Context, uuid.UUID) (string, string, error) {
+	return "free", "eu", nil
+}
+
+type scanUsage int
+
+func (u scanUsage) Count(context.Context, uuid.UUID, ent.LimitKey) (int, error) { return int(u), nil }

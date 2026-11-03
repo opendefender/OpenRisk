@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+	entapp "github.com/opendefender/openrisk/internal/application/entitlements"
 	"github.com/opendefender/openrisk/internal/domain"
 	ent "github.com/opendefender/openrisk/pkg/entitlements"
 )
@@ -104,5 +105,42 @@ func TestRuleQuota_NotFound(t *testing.T) {
 	_, err := svc.Enable(context.Background(), uuid.New(), uuid.New(), uuid.New())
 	if !errors.Is(err, domain.ErrNotFound) {
 		t.Fatalf("want ErrNotFound, got %v", err)
+	}
+}
+
+type freeOrg struct{}
+
+func (freeOrg) PlanAndRegion(context.Context, uuid.UUID) (string, string, error) {
+	return "free", "eu", nil
+}
+
+type ruleUsage int
+
+func (u ruleUsage) Count(context.Context, uuid.UUID, ent.LimitKey) (int, error) { return int(u), nil }
+
+// TestRuleQuota_SelfHosted_Success (#783 criterion 8): through the real
+// entitlements service, a self-hosted install enables rules past every hosted
+// cap on each path, while the same stored Free plan, hosted, is refused.
+func TestRuleQuota_SelfHosted_Success(t *testing.T) {
+	ctx, tenant := context.Background(), uuid.New()
+	self := entapp.NewService(freeOrg{}).WithUsage(ruleUsage(10000)).WithDeployment(ent.DeploymentSelfHosted)
+	repo := newMockRuleRepo()
+	svc := NewRuleService(repo).WithQuota(self)
+
+	draft, err := svc.Create(ctx, tenant, uuid.New(), quotaRule(false))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := svc.Create(ctx, tenant, uuid.New(), quotaRule(true)); err != nil {
+		t.Fatalf("self-hosted create enabled: %v", err)
+	}
+	if _, err := svc.Update(ctx, tenant, draft.ID, quotaRule(true)); err != nil {
+		t.Fatalf("self-hosted update to enabled: %v", err)
+	}
+
+	hosted := NewRuleService(repo).WithQuota(entapp.NewService(freeOrg{}).WithUsage(ruleUsage(2)))
+	var lim *domain.LimitReachedError
+	if _, err := hosted.Create(ctx, tenant, uuid.New(), quotaRule(true)); !errors.As(err, &lim) {
+		t.Fatalf("hosted Free at 2 must refuse, got %v", err)
 	}
 }

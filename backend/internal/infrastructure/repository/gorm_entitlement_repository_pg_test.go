@@ -37,7 +37,10 @@ func TestCountPlanCaps_Postgres(t *testing.T) {
 
 	rollback := errors.New("rollback")
 	err = db.Transaction(func(tx *gorm.DB) error {
-		for _, table := range []string{"automation_rules", "scan_configs", "scan_jobs", "approval_workflows"} {
+		for _, table := range []string{
+			"automation_rules", "scan_configs", "scan_jobs", "approval_workflows",
+			"compliance_frameworks", "organization_members", "invitations",
+		} {
 			require.NoError(t, tx.Exec(`CREATE TEMP TABLE `+table+` (LIKE public.`+table+` INCLUDING ALL) ON COMMIT DROP`).Error, table)
 		}
 		repo := NewGormEntitlementRepository(tx)
@@ -54,6 +57,9 @@ func TestCountPlanCaps_Postgres(t *testing.T) {
 		rule(tenant, true)
 		rule(tenant, false) // a suspended rule costs nothing
 		rule(other, true)
+		deletedRule := domain.AutomationRule{TenantID: tenant, Name: "gone", Trigger: domain.TriggerVulnerabilityDetected}
+		require.NoError(t, tx.Create(&deletedRule).Error)
+		require.NoError(t, tx.Delete(&deletedRule).Error) // soft-deleted, even enabled, costs nothing
 
 		cfg := func(tid uuid.UUID) uuid.UUID {
 			c := domain.ScanConfig{TenantID: tid, Name: "s", Provider: domain.ProviderAgent}
@@ -63,6 +69,40 @@ func TestCountPlanCaps_Postgres(t *testing.T) {
 		mine := cfg(tenant)
 		theirs := cfg(other)
 		cfg(other)
+		goneCfg := domain.ScanConfig{TenantID: tenant, Name: "gone", Provider: domain.ProviderAgent}
+		require.NoError(t, tx.Create(&goneCfg).Error)
+		require.NoError(t, tx.Delete(&goneCfg).Error)
+
+		fw := func(tid uuid.UUID, name string) *domain.ComplianceFramework {
+			f := domain.ComplianceFramework{TenantID: tid, Name: name}
+			require.NoError(t, tx.Create(&f).Error)
+			return &f
+		}
+		fw(tenant, "iso")
+		require.NoError(t, tx.Delete(fw(tenant, "deleted")).Error) // a deleted framework frees its slot
+		fw(other, "theirs")
+
+		// Seats: active members plus invitations that can still be accepted.
+		member := func(org uuid.UUID, active bool) {
+			m := domain.OrganizationMember{ID: uuid.New(), OrganizationID: org, UserID: uuid.New(), Role: domain.RoleUser, IsActive: true}
+			require.NoError(t, tx.Create(&m).Error)
+			require.NoError(t, tx.Model(&m).Update("is_active", active).Error)
+		}
+		member(tenant, true)
+		member(tenant, false)
+		member(other, true)
+		invite := func(org uuid.UUID, status domain.InvitationStatus, expires time.Time) {
+			inv := domain.Invitation{
+				ID: uuid.New(), OrganizationID: org, Email: uuid.NewString() + "@example.test", Role: domain.RoleUser,
+				TokenHash: uuid.NewString(), Status: status, ExpiresAt: expires, InvitedByID: uuid.New(), LastSentAt: time.Now(),
+			}
+			require.NoError(t, tx.Create(&inv).Error)
+		}
+		later := time.Now().Add(24 * time.Hour)
+		invite(tenant, domain.InvitationPending, later)
+		invite(tenant, domain.InvitationPending, time.Now().Add(-time.Hour)) // expired: no seat
+		invite(tenant, domain.InvitationAccepted, later)                     // the member row counts it
+		invite(other, domain.InvitationPending, later)
 
 		now := time.Now().UTC()
 		lastMonth := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.UTC).Add(-time.Hour)
@@ -86,6 +126,8 @@ func TestCountPlanCaps_Postgres(t *testing.T) {
 			ent.LimitScanSources:       1,
 			ent.LimitScansPerMonth:     2,
 			ent.LimitApprovalWorkflows: 1,
+			ent.LimitFrameworks:        1,
+			ent.LimitUsers:             2,
 		} {
 			n, err := repo.Count(ctx, tenant, key)
 			require.NoError(t, err, key)

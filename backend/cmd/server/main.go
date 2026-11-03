@@ -1205,7 +1205,8 @@ func main() {
 	entitlementService := entapp.NewService(entitlementRepo).
 		WithSubscriptions(billingRepo).
 		WithUsage(entitlementRepo).
-		WithDeployment(deployment)
+		WithDeployment(deployment).
+		WithLogger(zeroLogger)
 
 	billingRegistry := pkgbilling.NewRegistry(
 		pkgbilling.NewStripeGateway(os.Getenv("STRIPE_SECRET_KEY")),
