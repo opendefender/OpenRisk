@@ -126,8 +126,9 @@ Prices are purchasing-power adjusted by region. A trial of any paid plan runs
   `402 Payment Required` with an explaining body (feature, current plan, required
   plan). Creation routes are capped by plan limits the same way.
 - Every cap is applied where the thing it counts is created: users on
-  invitation and user creation, risks, assets and frameworks on create and
-  import, scan sources and approval workflows on create. Active automation
+  invitation, user creation, reactivation and the resend of an expired
+  invitation, risks (the onboarding starter risks included), assets and
+  frameworks on create and import, scan sources and approval workflows on create. Active automation
   rules and scans per month are applied in their use cases, so a rule turned
   on by any route and a scan started by the scheduler or an automation rule
   count the same. **Integrations is counted but not yet enforced**: its route
