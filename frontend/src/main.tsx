@@ -19,6 +19,7 @@ import { loadCatalog } from './i18n/catalog';
 import { lazyScreen } from './i18n/lazyScreen';
 import { useUIStore } from './store/uiStore';
 import { ListboxI18nProvider } from './shared/ListboxI18n';
+import { retryUnlessPlanRefusal } from './lib/retryPolicy';
 
 // Unstable-connectivity tolerance (task §2). Queries are offline-first: they serve
 // the cached value immediately and revalidate when the network allows (SWR), and
@@ -32,16 +33,14 @@ const queryClient = new QueryClient({
       networkMode: 'offlineFirst',
       staleTime: 30_000,
       gcTime: 24 * 60 * 60 * 1000, // keep cache a day so a reload offline still paints
-      // A 402 is the plan saying no (#783): asking again cannot change the
-      // answer, and a gated preview behind FeatureGate would ask three times.
-      retry: (failures, err) =>
-        (err as { response?: { status?: number } } | null)?.response?.status !== 402 &&
-        failures < 2,
+      // Never a 402 (#783): a gated preview behind FeatureGate would ask three times.
+      retry: retryUnlessPlanRefusal(2),
       refetchOnReconnect: true,
     },
     mutations: {
       networkMode: 'online',
-      retry: 3,
+      // Never a 402 either: a capped create would wait ~14 s before its notice.
+      retry: retryUnlessPlanRefusal(3),
       retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 15_000),
     },
   },
