@@ -1037,7 +1037,7 @@ function DrawerTimeline({ r }: { r: UiRisk }) {
 //     date, MITRE tactics/techniques, remediation, with a link into Threat Intel;
 //   - the risk names none   → says so, and explains what would populate it,
 //     instead of implying the whole tab is unbuilt.
-function DrawerCTI({ r }: { r: UiRisk }) {
+export function DrawerCTI({ r }: { r: UiRisk }) {
   const lang = useUIStore((s) => s.lang);
   const when = usePreferredDate();
   const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);

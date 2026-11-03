@@ -53,6 +53,10 @@ import { FinancialDashboard } from '../../financial/FinancialDashboard';
 import { financialSummary } from '../../financial/__tests__/fixtures';
 import { PlanCapNotice } from '../PlanCapNotice';
 import { planCapErrorMessage } from '../useEntitlements';
+import { ThreatsPage } from '../../cti/ThreatsPage';
+import { ThreatIntel } from '../../cti/ThreatIntel';
+import { DrawerCTI } from '../../risks/RiskRegisterPage';
+import type { UiRisk } from '../../risks/riskMap';
 
 const on = (level = 'on', required = 'free'): Feat => ({
   enabled: true,
@@ -172,5 +176,45 @@ describe('#783 — plan caps (D-078)', () => {
         'fr',
       ),
     ).toBeNull();
+  });
+});
+
+describe('#783 — threat intel below Business (criteria 15, 16)', () => {
+  // The two screens, on the two plans that do not have threat intel.
+  const screens: [string, () => ReactNode][] = [
+    ['threats list', () => <ThreatsPage />],
+    ['threat map', () => <ThreatIntel />],
+  ];
+  for (const planName of ['free', 'pro']) {
+    for (const [name, Screen] of screens) {
+      it(`${name} on ${planName}: blurred preview with the upsell, focus never enters it`, async () => {
+        plan.features = { ...FREE, cti: { enabled: false, level: '', required_plan: 'business' } };
+        renderIt(<Screen />);
+
+        const cta = await screen.findByRole('button', { name: 'Passer au plan Business' });
+        // `inert` is what keeps keyboard focus out of the preview in a browser
+        // (jsdom does not apply it to Tab, so the attribute is asserted here and
+        // the keyboard pass is done live). The way out sits outside it.
+        const preview = document.querySelector('[inert]');
+        expect(preview).not.toBeNull();
+        expect(preview?.contains(cta)).toBe(false);
+      });
+    }
+  }
+
+  it('the risk drawer CTI tab on Pro explains the plan and never calls /cti', async () => {
+    plan.features = {
+      ...FREE,
+      financial_quantification: on('on', 'free'),
+      cti: { enabled: false, level: '', required_plan: 'business' },
+    };
+    const risk = { id: 'r-1', raw: { source_cve_id: 'CVE-2024-3094' } } as unknown as UiRisk;
+    renderIt(<DrawerCTI r={risk} />);
+
+    expect(
+      await screen.findByText(/disponible à partir du plan Business/),
+    ).toHaveTextContent('CVE-2024-3094');
+    await waitFor(() => expect(calls).toContain('/entitlements'));
+    expect(calls.filter((u) => u.startsWith('/cti'))).toEqual([]);
   });
 });
