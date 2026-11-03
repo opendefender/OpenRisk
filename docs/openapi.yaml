@@ -2003,6 +2003,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '402':
+          description: The plan's cap on risks is reached (limit_reached, D-078)
 
   /risks/{id}:
     get:
@@ -3727,6 +3729,8 @@ paths:
           description: Invalid input
         '401':
           description: Unauthorized
+        '402':
+          description: The plan's cap on assets is reached (limit_reached, D-078)
 
   /assets/{id}:
     get:
