@@ -123,6 +123,9 @@ interface Delta {
   color: string;
 }
 
+// The plan that opens the portfolio figures, as the plan grid names it.
+const planLabel = (plan: string) => plan.charAt(0).toUpperCase() + plan.slice(1);
+
 function KpiStrip() {
   const { t, locale } = useI18n();
   const score = useScore('tenant');
@@ -191,7 +194,7 @@ function KpiStrip() {
       unit: `M ${currencyLabel(f?.currency)}`,
       color: 'var(--fg-primary)',
       delta: locked
-        ? { text: t('executive.kpi.locked', { plan: 'Business' }), color: 'var(--fg-muted)' }
+        ? { text: t('executive.kpi.locked', { plan: planLabel(fin.requiredPlan) }), color: 'var(--fg-muted)' }
         : thin
           ? { text: t('dashboard.counters.unquantified'), color: 'var(--fg-muted)' }
           : delta(ale, baseAle, true, (d) => `${millions(Math.abs(d), locale)} M`),
@@ -267,7 +270,7 @@ function TopExposures({ className = '' }: { className?: string }) {
     <Panel testId="exec-top" className={`px-5 py-[18px] ${className}`}>
       <PanelTitle className="mb-3.5" title={t('executive.top.title')} />
       {!fin.loading && !fin.enabled ? (
-        <BlockEmpty>{t('dashboard.exposure.locked', { plan: 'Business' })}</BlockEmpty>
+        <BlockEmpty>{t('dashboard.exposure.locked', { plan: planLabel(fin.requiredPlan) })}</BlockEmpty>
       ) : finance.isLoading || fin.loading ? (
         <BlockSkeleton lines={5} height={22} />
       ) : finance.isError || !f ? (
