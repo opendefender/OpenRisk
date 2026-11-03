@@ -3289,7 +3289,7 @@ func main() {
 		// a second path to the repository: risk creation owns the lifecycle state
 		// machine, the ownership fallback and the synchronous banding, and a
 		// bypass would drift from all three silently.
-		WithStarterRisks(appactivation.NewStarterRisksUseCase(activationRepo, createRiskUseCase))
+		WithStarterRisks(appactivation.NewStarterRisksUseCase(activationRepo, createRiskUseCase).WithQuota(entitlementService))
 	// Readable by any authenticated member: the get-started panel is not a
 	// privileged view, and gating it behind a permission would hide the product's
 	// own instructions from exactly the people who need them most.
