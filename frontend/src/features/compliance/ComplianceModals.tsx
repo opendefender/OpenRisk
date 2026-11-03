@@ -19,6 +19,9 @@ import {
   useImportCatalogAsFramework,
 } from './useCompliance';
 import type { ComplianceCatalogSummary } from '../../types/compliance';
+import { planCapErrorMessage, useLimit } from '../billing/useEntitlements';
+import { PlanCapNotice } from '../billing/PlanCapNotice';
+import { planCapMessage } from '../billing/planCap';
 
 /* ------------------------------------------------------------------ */
 /* shared primitives                                                   */
@@ -33,6 +36,12 @@ function useTr() {
 function errMsg(err: unknown, fallback: string): string {
   const e = err as { response?: { data?: { error?: string } } };
   return e?.response?.data?.error || fallback;
+}
+
+// createErrMsg is errMsg for a framework create: a 402 limit_reached names the
+// plan's cap (D-076) instead of the server's French-only sentence.
+function createErrMsg(err: unknown, fallback: string, lang: string): string {
+  return planCapErrorMessage(err, lang) ?? errMsg(err, fallback);
 }
 
 export function ModalShell({
@@ -273,13 +282,20 @@ export function CreateFrameworkDialog({
   onCreated?: (id: string) => void;
 }) {
   const tr = useTr();
+  const lang = useUIStore((s) => s.lang);
   const { createFramework } = useFrameworks();
+  const cap = useLimit('frameworks');
   const [name, setName] = useState('');
   const [version, setVersion] = useState('');
   const [description, setDescription] = useState('');
   const [error, setError] = useState('');
 
   const submit = () => {
+    // At the cap the server would refuse (402): say so without the round trip.
+    if (cap.reached) {
+      toast.error(planCapMessage(lang === 'fr', 'frameworks', cap.limit, cap.used));
+      return;
+    }
     const parsed = frameworkSchema.safeParse({ name, version, description });
     if (!parsed.success) {
       setError(
@@ -299,7 +315,8 @@ export function CreateFrameworkDialog({
           onCreated?.(fw.id);
           onClose();
         },
-        onError: (err) => toast.error(errMsg(err, tr('Création échouée', 'Creation failed'))),
+        onError: (err) =>
+          toast.error(createErrMsg(err, tr('Création échouée', 'Creation failed'), lang)),
       },
     );
   };
@@ -318,6 +335,7 @@ export function CreateFrameworkDialog({
         />
       }
     >
+      <PlanCapNotice limitKey="frameworks" />
       <Field
         label={tr('Nom', 'Name')}
         value={name}
@@ -358,6 +376,7 @@ export function ImportFrameworkDialog({
   onImported?: (id: string) => void;
 }) {
   const tr = useTr();
+  const lang = useUIStore((s) => s.lang);
   const { data, isLoading, error } = useCatalogs();
   // Only surface importable catalogs — hide "coming soon" placeholders (e.g. the
   // Cameroon personal-data framework, whose source text isn't available yet).
@@ -373,7 +392,7 @@ export function ImportFrameworkDialog({
         onImported?.(framework.id);
         onClose();
       },
-      onError: (err) => toast.error(errMsg(err, tr('Import échoué', 'Import failed'))),
+      onError: (err) => toast.error(createErrMsg(err, tr('Import échoué', 'Import failed'), lang)),
     });
   };
 
@@ -399,6 +418,7 @@ export function ImportFrameworkDialog({
           'Pick a regulatory framework: its controls are imported into a new, ready-to-track framework.',
         )}
       </p>
+      <PlanCapNotice limitKey="frameworks" />
       {isLoading ? (
         <div className="flex flex-col gap-2">
           {[0, 1, 2].map((i) => (

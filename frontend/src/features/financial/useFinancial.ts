@@ -15,10 +15,13 @@ import {
 export const FINANCIAL_SUMMARY_KEY = ['financial', 'summary'] as const;
 
 /** Tenant-wide financial summary (CFO/CISO dashboard). */
-export function useFinancialSummary() {
+// The portfolio summary needs the Monte-Carlo depth (Pro+); a caller on a plan
+// that only reaches the deterministic ALE passes enabled=false (D-078).
+export function useFinancialSummary(enabled = true) {
   return useQuery({
     queryKey: FINANCIAL_SUMMARY_KEY,
     queryFn: financialService.getSummary,
+    enabled,
   });
 }
 

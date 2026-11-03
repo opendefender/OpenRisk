@@ -14,9 +14,10 @@ import { useI18n } from '../../hooks/useI18n';
 import { useAuthStore } from '../../hooks/useAuthStore';
 import { Button, Menu } from '../../shared/ds';
 import { scannerService, type ScanConfig } from '../infrastructure/scannerService';
+import { planCapErrorMessage } from '../billing/useEntitlements';
 
 export function DiscoverButton() {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const navigate = useNavigate();
   const canScan = useAuthStore((s) => s.hasPermission('scanner:scan'));
   const canRead = useAuthStore((s) => s.hasPermission('scanner:read'));
@@ -36,7 +37,9 @@ export function DiscoverButton() {
           onClick: () => navigate(`/infrastructure/scans/${job.id}`),
         },
       }),
-    onError: () => toast.error(t('inventory.discover.failed')),
+    // Free has 4 scans a month (D-078): say so rather than "failed".
+    onError: (err) =>
+      toast.error(planCapErrorMessage(err, locale) ?? t('inventory.discover.failed')),
   });
 
   if (!canScan || !canRead) return null;

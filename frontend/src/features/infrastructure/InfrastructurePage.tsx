@@ -22,6 +22,8 @@ import { BlockEmpty, BlockError, BlockSkeleton } from '../dashboard/console/Pane
 import { ScanConfigDrawer } from './ScanConfigDrawer';
 import { AgentDeployModal } from './AgentDeployModal';
 import { useScanConfigs, useScannerAgents, useScanJobs } from './useScanner';
+import { PlanCapNotice } from '../billing/PlanCapNotice';
+import { planCapErrorMessage } from '../billing/useEntitlements';
 import {
   PROVIDERS,
   agentStatusColor,
@@ -165,7 +167,7 @@ export function InfrastructurePage() {
     if (isOnPrem(cfg.provider) && onlineAgents.length === 0) toast(t('infra.toast.queued'));
     triggerScan.mutate(cfg.id, {
       onSuccess: () => toast.success(t('infra.toast.started', { name: cfg.name })),
-      onError: (e) => toast.error(apiError(e) ?? t('infra.toast.failed')),
+      onError: (e) => toast.error(planCapErrorMessage(e, locale) ?? apiError(e) ?? t('infra.toast.failed')),
     });
   };
 
@@ -206,6 +208,12 @@ export function InfrastructurePage() {
           </div>
         }
       />
+
+      {/* D-078: the plan caps scan sources and scans per month. */}
+      <div className="flex flex-col gap-2 mb-4">
+        <PlanCapNotice limitKey="scan_sources" showUsage />
+        <PlanCapNotice limitKey="scans_per_month" showUsage />
+      </div>
 
       {canWrite && (
         <section

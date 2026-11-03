@@ -17,6 +17,7 @@ import (
 
 	"github.com/opendefender/openrisk/internal/domain"
 	scanpkg "github.com/opendefender/openrisk/internal/scanner"
+	ent "github.com/opendefender/openrisk/pkg/entitlements"
 )
 
 // CloudScanTimeout bounds an in-process cloud scan (mirrors the Agent's 15-minute
@@ -39,6 +40,21 @@ type TriggerScanUseCase struct {
 	cipher     *CredentialCipher
 	kv         scanpkg.KV
 	logger     zerolog.Logger
+	quota      ScanQuota
+}
+
+// ScanQuota reads a tenant's plan cap and usage (the entitlements service).
+type ScanQuota interface {
+	Capacity(ctx context.Context, tenant uuid.UUID, key ent.LimitKey) (allowed bool, limit, used int, plan ent.Plan, err error)
+}
+
+// WithQuota caps the scans a tenant starts per calendar month (D-078). It sits
+// here rather than on the route because a scan also starts from the scheduler
+// and from an automation rule; all three must count and all three must stop.
+// A quota read error fails OPEN, like the RequireCapacity gate.
+func (uc *TriggerScanUseCase) WithQuota(q ScanQuota) *TriggerScanUseCase {
+	uc.quota = q
+	return uc
 }
 
 func NewTriggerScanUseCase(
@@ -70,6 +86,14 @@ func (uc *TriggerScanUseCase) Execute(ctx context.Context, tenantID, triggeredBy
 	}
 	if !cfg.Enabled {
 		return nil, domain.NewValidationError("scan config is disabled")
+	}
+
+	// Plan cap on scans this month.
+	if uc.quota != nil {
+		allowed, limit, used, _, qErr := uc.quota.Capacity(ctx, tenantID, ent.LimitScansPerMonth)
+		if qErr == nil && !allowed {
+			return nil, domain.NewLimitReachedError(string(ent.LimitScansPerMonth), limit, used)
+		}
 	}
 
 	// Per-tenant concurrency cap.

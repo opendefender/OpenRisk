@@ -23,6 +23,7 @@ import type { CTIVulnerability } from './ctiService';
 import { CveDetailDrawer } from './CveDetailDrawer';
 import { HeaderLink } from '../dashboard/console/Panel';
 import { useI18n } from '../../hooks/useI18n';
+import { FeatureGate } from '../../shared/FeatureGate';
 
 const sevToCrit = (s: string): Criticality => {
   switch ((s || '').toUpperCase()) {
@@ -48,7 +49,17 @@ function relTime(iso: string, tr: (fr: string, en: string) => string): string {
   return tr(`il y a ${d} j`, `${d}d ago`);
 }
 
+// The plan gate (#783, ADR 0007): the API refuses these routes with 402 on a
+// plan without cti; the screen shows the upsell instead of the refusal.
 export function ThreatIntel() {
+  return (
+    <FeatureGate feature="cti">
+      <ThreatIntelScreen />
+    </FeatureGate>
+  );
+}
+
+function ThreatIntelScreen() {
   const L = useUIStrings();
   const { t } = useI18n();
   const lang = useUIStore((s) => s.lang);
