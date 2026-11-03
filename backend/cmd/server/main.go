@@ -2759,6 +2759,9 @@ func main() {
 	// =========================================================================
 	membershipSvc := membership.NewService(membershipRepo, userRepo).
 		WithOrganizations(orgRepo).
+		// D-078: reactivating a member or reviving an expired invitation takes a
+		// seat without passing the capUsers route gate.
+		WithSeatQuota(entitlementService).
 		WithOrganizationWriter(orgRepo).
 		WithBlobStore(fileStorage).
 		// The recorder feeds the request collector, so a membership action lands

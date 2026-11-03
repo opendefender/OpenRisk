@@ -207,6 +207,13 @@ func (s *Service) SetStatus(ctx context.Context, tenantID uuid.UUID, in SetStatu
 	}); err != nil {
 		return nil, err
 	}
+	// Reactivating takes a seat back: without this, deactivate B, invite C,
+	// reactivate B put a tenant one past its cap, as often as it liked.
+	if !current.GrantsAccess() && in.Status.GrantsAccess() {
+		if err := s.ensureSeat(ctx, tenantID); err != nil {
+			return nil, err
+		}
+	}
 
 	if !m.SetStatus(in.Status, s.clock()) {
 		// CheckStatusChange already refused every illegal move, so reaching here
