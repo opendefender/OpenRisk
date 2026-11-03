@@ -54,6 +54,7 @@ Le test à poser sur chaque issue, et désormais dans le gabarit d'issue (#563) 
 
 1. **Stabiliser** — multi-tenancy, RBAC, auth, piste d'audit, intégrité des données, sécurité, CI → `trust-v1`
 2. **Risk Data Plane** — schéma canonique, bus d'événements, normalisation, provenance, corrélation, graphe d'entités → `Release 1.2`
+   - Modèle canonique v1 : ADR 0008 **proposé** (#541, en attente de D-087). Enveloppe, vocabulaire des relations et tranche GRC spécifiés ; aucun code avant acceptation (D-030).
 3. **Deux killer workflows** — Signal → Risque → Action → Preuve · Contrôle → Test → Preuve → Écart → Risque → Remédiation → `Release 1.3` et `Release 1.4`
 4. **IA gouvernée** — l'IA propose, l'humain approuve, le système enregistre → `Release 1.5`
 5. **Evidence fabric** — preuve continue, historique immuable, portail auditeur, dossier d'audit → `Release 1.4`
