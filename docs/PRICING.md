@@ -48,6 +48,9 @@ the build when this page and the code disagree.
 | SLA              | —        | —         | 99.5 %       | 99.9 %         |
 | Support          | Community| Email     | Priority     | Dedicated      |
 
+**Users.** A seat is an active member or a pending invitation that has not
+expired yet: revoking an invitation, or letting it expire, frees its seat.
+
 **Financial quantification.** Free computes each risk's deterministic
 annualised loss expectancy; the Monte-Carlo simulation, the portfolio loss
 curve and the appetite drawn on it start at Pro (#613).
