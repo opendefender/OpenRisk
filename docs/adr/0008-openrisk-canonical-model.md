@@ -1,8 +1,8 @@
 # 0008 — OpenRisk Canonical Model v1: the envelope, the relationship vocabulary, the GRC slice
 
-Status: **proposed**
+Status: **accepted**
 Proposed: 2026-11-03, on #541
-Accepted: — (pending the owner, D-087 in `docs/DECISIONS.md`)
+Accepted: 2026-11-03 by the owner, as written — D-087 (`docs/DECISIONS.md`)
 Decided by: D-030 (a canonical model, ADR before code, schema after), D-044 and D-045 (the
 `Vendor`/`Assessment` slice in ADR 0004), D-056 (`control_evidences` is retired), D-083 (option
 A: the GRC slice first, 19 entities)

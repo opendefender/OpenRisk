@@ -5,39 +5,6 @@ recommends, and surfaces these in the daily brief. Run `/decide` to clear them.
 
 ## Open
 
-### D-087 — Accept ADR 0008, the Canonical Model v1 (#541) · raised 2026-11-03
-**Question** — Accept `docs/adr/0008-openrisk-canonical-model.md` as written, accept it with
-changes, or send it back. D-030 forbids code on the canonical model until this ADR is accepted,
-and #542 (the published schema, the irreversible step) cannot start before it.
-
-**Context** — The ADR specifies the envelope (D2), the source registry and the confidence scale
-(D3), the time rule (D4), 18 relationship rows in a closed vocabulary (D5), the seven entities of
-the GRC slice (D6), a column-by-column mapping from today's models (D7), and adopts ADR 0004's
-`Vendor` and `Assessment` without superseding a field (D8). It changes no table and no code.
-
-**What needs the owner, specifically**
-1. **The confidence defaults (D3).** User-entered 0.70 (0.90 once a second person reviews),
-   scanner 0.80, threat intelligence 0.40, connector import 0.60, regulatory catalogue 0.90,
-   vendor questionnaire 0.50 (ADR 0004, unchanged), derived = the minimum of its inputs. These
-   are judgements. Every freshness and correlation figure of the Evidence Fabric inherits them.
-2. **The `compliance_controls` split (D7).** One row becomes a `Requirement` and a `Control`.
-   Every screen that shows "a control" will show both after #553.
-3. **`ControlTestResult` as a sub-record (D1)**, not a twentieth entity.
-
-**Options**
-- **A — accept as written.** The follow-up issue for the Go types and tests opens, `#553` and
-  `#1217` can be refined, and #542 can start.
-- **B — accept with changes** named in the ruling; the ADR is amended in a PR before code starts.
-- **C — send back.** Nothing downstream moves.
-
-**Recommendation** — **A**, or B if a confidence default is wrong in the owner's experience.
-The values are versioned (`confidence/1`), so changing one later is a rule change, not a
-migration, until #542 publishes them.
-
-**Cost of delay** — High: #553, #554, #555, #542 and #1217 all wait on it.
-
-**Blocks** — the follow-up implementation issue · #542 · #553 · #1217.
-
 ### D-084 — Organisation switch and MFA: does a factor proved for one organisation count in another? · raised 2026-11-02
 **Question** — GHSA-45mr-j2w6-m4jv: switching organisation issued a session for
 the target without asking for the authenticator enrolled there or applying its
@@ -155,6 +122,44 @@ whether the list stays as it is.
 
 
 ## Resolved
+
+### D-087 — Accept ADR 0008, the Canonical Model v1 (#541) · decided 2026-11-03
+**Decided (owner, 2026-11-03)** — option A, as recommended. ADR 0008 is accepted as written,
+with the confidence defaults of D3 (`confidence/1`), the `compliance_controls` split of D7 and
+`ControlTestResult` as a sub-record. D-030 is satisfied for the slice: the Go types and tests may
+now be specified in the follow-up issue, and #542 may start.
+
+**Question** — Accept `docs/adr/0008-openrisk-canonical-model.md` as written, accept it with
+changes, or send it back. D-030 forbids code on the canonical model until this ADR is accepted,
+and #542 (the published schema, the irreversible step) cannot start before it.
+
+**Context** — The ADR specifies the envelope (D2), the source registry and the confidence scale
+(D3), the time rule (D4), 18 relationship rows in a closed vocabulary (D5), the seven entities of
+the GRC slice (D6), a column-by-column mapping from today's models (D7), and adopts ADR 0004's
+`Vendor` and `Assessment` without superseding a field (D8). It changes no table and no code.
+
+**What needs the owner, specifically**
+1. **The confidence defaults (D3).** User-entered 0.70 (0.90 once a second person reviews),
+   scanner 0.80, threat intelligence 0.40, connector import 0.60, regulatory catalogue 0.90,
+   vendor questionnaire 0.50 (ADR 0004, unchanged), derived = the minimum of its inputs. These
+   are judgements. Every freshness and correlation figure of the Evidence Fabric inherits them.
+2. **The `compliance_controls` split (D7).** One row becomes a `Requirement` and a `Control`.
+   Every screen that shows "a control" will show both after #553.
+3. **`ControlTestResult` as a sub-record (D1)**, not a twentieth entity.
+
+**Options**
+- **A — accept as written.** The follow-up issue for the Go types and tests opens, `#553` and
+  `#1217` can be refined, and #542 can start.
+- **B — accept with changes** named in the ruling; the ADR is amended in a PR before code starts.
+- **C — send back.** Nothing downstream moves.
+
+**Recommendation** — **A**, or B if a confidence default is wrong in the owner's experience.
+The values are versioned (`confidence/1`), so changing one later is a rule change, not a
+migration, until #542 publishes them.
+
+**Cost of delay** — High: #553, #554, #555, #542 and #1217 all wait on it.
+
+**Blocks** — the follow-up implementation issue · #542 · #553 · #1217.
 
 ### D-083 — Canonical model ADR (#541): the GRC slice first, or all 17 entities at once · decided 2026-10-30
 **Decided (owner, 2026-10-30)** — option A, as recommended. The ADR on #541 specifies the
