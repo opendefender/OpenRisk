@@ -9,6 +9,32 @@ recommends, and surfaces these in the daily brief. Run `/decide` to clear them.
 
 ## Resolved
 
+### D-091 — How develop, staging and master are protected · decided 2026-11-04
+**Decided (agent: devops-sre, 2026-11-04)** — for #1244, under D-089.
+1. **Rulesets, not classic branch protection.** The classic protection API cannot require a
+   merge queue; rulesets can. `develop`, `staging` and `master` each get a ruleset that requires
+   the eight contexts of D-082 (`strict`) and blocks deletion and force pushes.
+2. **`develop`**: changes only through a PR and the merge queue. Merge method **merge** (not
+   squash), all-green grouping. **No bypass actor at all.** Every agent acts through the owner's
+   account, which is an admin, so an admin bypass would let any agent push straight to
+   `develop`.
+3. **`staging` and `master`**: no PR and no push from people or agents. The only bypass actor is
+   a **deploy key** used by the promotion workflows (#1255, #1256). Its private half lives only in
+   an Actions secret, so no agent session holds it. Until those workflows exist, promotion is a
+   fast-forward pushed with that key from a manual `workflow_dispatch`.
+4. **No required linear history.** Promotion fast-forwards `develop`'s commits, which include the
+   queue's merge commits. Linear history would reject every promotion.
+5. **Required checks also run on `merge_group`** (ci, dependency-gate, license-gate, security,
+   security-scanning, e2e, dco), and on pushes to `develop` and `staging`. Without that the queue
+   would wait forever (ADR 0009 context, point 3).
+
+**Options considered** — classic protection with an admin bypass (rejected: agents are admins);
+squash merges in the queue (rejected: the squash commit is GitHub's, and the DCO check could not
+vouch for it); a GitHub App as bypass actor (equivalent, but heavier to set up than a deploy key).
+
+**Reason** — the queue keeps `develop` green under concurrent agent PRs. The deploy key makes
+promotion the only path to `staging` and `master`, and keeps that path out of every agent's hands.
+
 ### D-090 — Sprint length on the delivery board · decided 2026-11-04
 **Decided (agent: po-openrisk, 2026-11-04)** — one-week sprints, Monday to Sunday, the first
 starting 2026-11-02 (#1266). Sprint planning on Monday, review and retro on Friday (#1268).

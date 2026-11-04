@@ -1,12 +1,14 @@
 name: Tenant Isolation
 
 on:
+  merge_group:
+    types: [checks_requested]
   push:
     # `master` is this repository's default branch. `main` is kept for forks
     # that renamed it.
-    branches: [master, main, stag, develop]
+    branches: [master, main, develop, staging]
   pull_request:
-    branches: [master, main, stag, develop]
+    branches: [master, main, develop, staging]
   schedule:
     - cron: '0 2 * * *'
 

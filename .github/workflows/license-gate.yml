@@ -25,10 +25,12 @@ name: Licence gate
 # trailing comment.
 
 on:
+  merge_group:
+    types: [checks_requested]
   push:
-    branches: [master, stag, develop]
+    branches: [master, develop, staging]
   pull_request:
-    branches: [master, stag, develop]
+    branches: [master, develop, staging]
   workflow_dispatch:
 
 permissions:

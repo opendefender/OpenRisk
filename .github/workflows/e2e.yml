@@ -7,10 +7,12 @@ name: E2E Tests
 # uses.
 
 on:
+  merge_group:
+    types: [checks_requested]
   push:
-    branches: [master, develop]
+    branches: [master, develop, staging]
   pull_request:
-    branches: [master, develop]
+    branches: [master, develop, staging]
   schedule:
     # Nightly cross-browser + weekly onboarding guard (UX-33 runs every night too).
     - cron: '17 3 * * *'
