@@ -1,0 +1,74 @@
+{
+  "owner": "opendefender",
+  "repo": "OpenRisk",
+  "projectNumber": 3,
+  "projectId": "PVT_kwDODnXbzs4BqMrj",
+  "url": "https://github.com/orgs/opendefender/projects/3",
+  "branches": {
+    "dev": "master",
+    "staging": null
+  },
+  "releaseTags": "^v\\d+\\.\\d+\\.\\d+$",
+  "ownerLabels": [
+    "status:needs-owner",
+    "needs-owner"
+  ],
+  "fields": {
+    "Status": {
+      "id": "PVTSSF_lADODnXbzs4BqMrjzhok2oM",
+      "options": {
+        "Inbox": "264a8ac6",
+        "Refinement": "5cbb26e2",
+        "Ready": "2d28c808",
+        "In progress": "eb83bf96",
+        "In review": "74fa39d4",
+        "On dev": "0b41f296",
+        "On staging": "c11c901a",
+        "Released": "da20d04b",
+        "Blocked": "f59b0424",
+        "Needs owner": "a5395122"
+      }
+    },
+    "Priority": {
+      "id": "PVTSSF_lADODnXbzs4BqMrjzhok2uw",
+      "options": {
+        "P0-critical": "6536856c",
+        "P1-high": "945f1c11",
+        "P2-medium": "fa2ec6b4",
+        "P3-low": "b5306f3f"
+      }
+    },
+    "Tier": {
+      "id": "PVTSSF_lADODnXbzs4BqMrjzhok2wA",
+      "options": {
+        "0-trust": "ca1c5abd",
+        "1-product-engine": "c45e41cb",
+        "2-killer-workflow": "16b249e2",
+        "3-ecosystem": "55c8e9ed",
+        "4-ux": "6bd0709c",
+        "5-deferred": "c10de801"
+      }
+    },
+    "Size": {
+      "id": "PVTSSF_lADODnXbzs4BqMrjzhok2wc",
+      "options": {
+        "S": "5db44ff3",
+        "M": "7e5e09a8",
+        "L": "cbb22fb6"
+      }
+    },
+    "Risk class": {
+      "id": "PVTSSF_lADODnXbzs4BqMrjzhok2wg",
+      "options": {
+        "green": "c90eeb17",
+        "red": "9b078681"
+      }
+    },
+    "Agent": {
+      "id": "PVTF_lADODnXbzs4BqMrjzhok2wo"
+    },
+    "Tokens": {
+      "id": "PVTF_lADODnXbzs4BqMrjzhok2xk"
+    }
+  }
+}
