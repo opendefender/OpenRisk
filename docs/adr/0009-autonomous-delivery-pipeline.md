@@ -229,5 +229,9 @@ On staging / Released columns carry the rest.
 
 1. #1243 (no dependency, can start now), #1249, #1247, #1253.
 2. On acceptance: #1244, #1250, #1245, #1246.
-3. #1251, #1248, #1252, #1254.
+3. #1251, #1248, #1252, #1270 (automatic refinement, so the runner never runs out of Ready
+   work), #1254.
 4. #1255, #1256, #1257, #1258.
+
+Added on 2026-11-04 at the owner's request: #1266 (sprints), #1267 (backlog triage), #1268 (team
+operating model), #1270 (automatic refinement).
