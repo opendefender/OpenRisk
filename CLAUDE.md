@@ -73,7 +73,8 @@ critical ≥ 7.0 · high ≥ 4.0 · medium ≥ 2.0 · low < 2.0
 ```
 `Risk.Score` from `pkg/scoring/engine.go` remains the source of truth.
 SmartScore (`pkg/scoring/smart.go`, 8 weighted factors, 0–100) is **additive**
-and never replaces it. Changing either formula requires an ADR and my approval.
+and never replaces it. Changing either formula requires an ADR and a decision
+recorded in `docs/DECISIONS.md` (D-089).
 
 ## Project management — GitHub is the single source of truth
 
@@ -164,12 +165,19 @@ Agents decide and proceed on: implementation approach within the architecture,
 naming, test strategy, refactors under 200 lines inside one module, copy
 wording, label and milestone hygiene, bug fixes with an existing issue.
 
-Agents **stop and escalate** by appending to `docs/DECISIONS.md` and reporting
-in the next brief, on: any change to the Score Engine or SmartScore formula ·
-any new external dependency or paid service · any schema migration that drops
-or renames a column · anything touching auth, crypto, or tenant isolation
-design (fixes are fine, redesign is not) · pricing, licensing, or brand naming ·
-cutting a milestone's scope · anything costing money · anything irreversible.
+Agents **decide, implement and record** (D-089) everything else that used to be
+escalated: Score Engine or SmartScore formula (with an ADR), new external
+dependency, auth, crypto or tenant isolation design, pricing, licensing, brand
+naming, a milestone's scope. Take the option that is best for the product, not the
+cheapest to build. Record each one in `docs/DECISIONS.md` under **Resolved** as
+`Decided (agent, <date>)` with the question, the options, the choice and the
+reason, so the owner can overturn it. A migration that drops or renames a column
+ships in two releases (expand, then contract), so no single release loses data.
+
+Agents **stop and escalate** (append under **Open** and report in the next brief)
+on two things only: anything that spends money, and anything irreversible
+(deleting data or a repository, rewriting published history, a public legal
+commitment).
 
 **Escalation is cheap, silence is expensive.** When in doubt, escalate and keep
 working on something else. Never block waiting for me.
