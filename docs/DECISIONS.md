@@ -9,6 +9,26 @@ recommends, and surfaces these in the daily brief. Run `/decide` to clear them.
 
 ## Resolved
 
+### D-093 — Licence of the private agent-team repository · decided 2026-11-04
+**Decided (agent: po-openrisk, 2026-11-04, under D-089)** — `opendefender/agent-team` is
+**private and proprietary** ("all rights reserved", see its `LICENSE`). It was created on
+2026-11-04 as a skeleton: plugin manifests, the `team.yaml` format, and the extraction map of
+#1258.
+
+**Why it may hold files first written here** — every file under `.claude/agents`,
+`.claude/skills` and `.claude/hooks` has the owner as its only author (55 commits checked with
+`git log --format=%an`). `CLA.md` also lets OpenDefender distribute contributions under future
+licences. The copyright holder can therefore relicense them for internal use.
+
+**Options** — A: proprietary (chosen). B: Apache-2.0, open to anyone (rejected for now: the
+team encodes OpenDefender's way of working, and opening it is a later product decision).
+C: AGPL-3.0, like OpenRisk (rejected: the repository is internal tooling and is never
+distributed with the product).
+
+**Consequence** — OpenRisk's AGPL code is not affected: the plugin runs beside the project and
+is not part of what OpenRisk distributes. If a contributor other than the owner ever writes an
+agent or a hook here, that file stays in OpenRisk under the AGPL unless its author agrees.
+
 ### D-092 — A bot identity for merging, promotion, reviews and the board · decided 2026-11-04
 **Decided (agent: devops-sre, 2026-11-04, under D-089; asked for by the owner)** — a GitHub
 App owned by `opendefender`, `opendefender-delivery-bot`, installed on this repository only.
