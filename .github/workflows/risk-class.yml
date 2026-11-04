@@ -7,8 +7,9 @@ name: Risk class
 #
 # Two results:
 # - check "Risk class": fails only when a change to the gates drops a required context;
-# - commit status "Red gate": success on green; pending on red until the stricter review
-#   (#1271: devsecops + tech-lead, full suites) passes it.
+# - commit status "Red gate", written by the delivery bot (D-095: the gates believe only
+#   the bot): success on green; pending on red until the stricter review (#1271:
+#   devsecops + tech-lead on this commit) passes it.
 #
 # The classifier runs from the default branch, never from the PR head: the PR's commits are
 # fetched as data and diffed, not executed.
@@ -21,7 +22,6 @@ on:
 
 permissions:
   contents: read
-  statuses: write
 
 jobs:
   classify:
@@ -71,11 +71,21 @@ jobs:
           FLAG=""; [ "$FORK" = "true" ] && FLAG="--fork"
           node scripts/risk/check.mjs "${{ steps.refs.outputs.base }}" "${{ steps.refs.outputs.head }}" $FLAG
 
-      - name: Red gate status
+      - name: Bot token
+        id: bot
         if: always() && steps.risk.outputs.class != 'unknown' && steps.risk.outputs.class != ''
-        continue-on-error: true   # a fork's token cannot write statuses; a fork is never auto-merged anyway
+        continue-on-error: true   # no secrets reach a fork PR; a fork is never auto-merged anyway
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          app-id: ${{ secrets.BOT_APP_ID }}
+          private-key: ${{ secrets.BOT_PRIVATE_KEY }}
+          owner: opendefender
+          repositories: OpenRisk
+
+      - name: Red gate status
+        if: always() && steps.bot.outputs.token != ''
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ steps.bot.outputs.token }}
           SHA: ${{ steps.refs.outputs.head }}
           CLS: ${{ steps.risk.outputs.class }}
         run: |
