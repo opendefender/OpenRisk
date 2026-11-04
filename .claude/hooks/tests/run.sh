@@ -283,6 +283,11 @@ guard 'gh issue edit 5 --add-label status:ready'; expect "guard lets labels be a
 guard 'gh issue close 12'; expect "guard blocks gh issue close (7.3)" 2 $?
 guard 'gh api -X PATCH repos/o/r/issues/12 -f state=closed'; expect "guard blocks closing an issue via the API (7.3)" 2 $?
 guard 'gh api -X PATCH repos/o/r/issues/12 -F body=@b.md'; expect "guard lets an issue body be updated (7.3)" 0 $?
+guard "gh api graphql -f query='mutation { enqueuePullRequest(input: {pullRequestId: \"x\"}) { clientMutationId } }'"; expect "guard blocks a raw enqueue (3.2)" 2 $?
+guard "gh api graphql -f query='mutation { mergePullRequest(input: {pullRequestId: \"x\"}) { clientMutationId } }'"; expect "guard blocks a raw merge mutation (3.2)" 2 $?
+guard 'gh api -X PUT repos/o/r/pulls/12/merge'; expect "guard blocks the REST merge endpoint (3.2)" 2 $?
+guard 'node scripts/merge/enqueue.mjs --pr 12 --dry-run'; expect "guard lets the enqueue dry run through (3.2)" 0 $?
+guard 'gh api repos/o/r/pulls/12/files'; expect "guard lets PR files be read (3.2)" 0 $?
 
 gedit() { python3 -c 'import json,sys;print(json.dumps({"tool_input":{"file_path":sys.argv[1]}}))' "$1" | bash "$HOOKS/guard-edit.sh" 2>/dev/null; }
 gedit '/repo/CLAUDE.md'; expect "edit guard blocks CLAUDE.md (5.1)" 2 $?
