@@ -1,0 +1,94 @@
+name: Board sync
+
+# Keeps the delivery board (https://github.com/orgs/opendefender/projects/3) in line
+# with the repository (#1247, #1248, ADR 0009 D6).
+#
+# Every run recomputes every item from the facts — labels, closing PRs, branches,
+# merge commits, tags — so the event only says "something changed". A missed or
+# failed run is repaired by the next one, and the schedule is the safety net.
+#
+# Security:
+# - The job runs the sync script from the default branch, never from the PR head.
+# - A fork PR gets no secret and is skipped; the schedule picks up its effect.
+# - GITHUB_TOKEN cannot write an organisation project, so the job needs BOARD_TOKEN:
+#   a fine-grained token, resource owner opendefender, "Projects: read and write",
+#   and on this repository "Contents", "Issues", "Pull requests" and "Metadata" read.
+#   Without it the job prints a notice and succeeds.
+#
+# Every third-party action is pinned to a full commit SHA; the tag is in the
+# trailing comment.
+
+on:
+  issues:
+    types: [opened, reopened, closed, edited, labeled, unlabeled, transferred, deleted]
+  pull_request:
+    types: [opened, reopened, closed, edited, ready_for_review, converted_to_draft]
+  create:
+  delete:
+  push:
+    branches: [master, develop, staging]
+    tags: ['v*']
+  schedule:
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Print the changes without writing them'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+# One sync at a time; a queued run replaces an older queued one, which is fine
+# because each run recomputes everything.
+concurrency:
+  group: board-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    name: Board sync
+    if: >-
+      github.repository == 'opendefender/OpenRisk' &&
+      (github.event_name != 'pull_request' ||
+       github.event.pull_request.head.repo.full_name == github.repository)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          fetch-depth: 0
+          filter: blob:none
+          persist-credentials: false
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+
+      - name: Sync
+        env:
+          BOARD_TOKEN: ${{ secrets.BOARD_TOKEN }}
+          DRY_RUN: ${{ inputs.dry_run && '--dry-run' || '' }}
+        run: |
+          # The script runs from the default branch; until it is merged there, skip.
+          if [ ! -f scripts/board/sync.mjs ]; then
+            echo "::notice::scripts/board/sync.mjs is not on the default branch yet; skipped."
+            exit 0
+          fi
+          node scripts/board/sync.mjs $DRY_RUN
+
+  test:
+    name: Board scripts tests
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+      - run: node --test scripts/board/*.test.mjs
