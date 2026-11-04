@@ -82,5 +82,9 @@ printf '%s' "$CMD" | grep -qE 'gh[[:space:]]+label[[:space:]]+delete|gh[[:space:
 # 7.3 Issues are closed by a merge, or by refinement with proof (#1270), not by hand.
 printf '%s' "$CMD" | grep -qE 'gh[[:space:]]+issue[[:space:]]+close|gh[[:space:]]+api[^;&|]*/issues/[0-9]+[^;&|]*state=closed' \
   && block "closing an issue by hand; a merge closes it (rule 7.3)"
+# 3.2 Merges go through the queue, enqueued by scripts/merge/enqueue.mjs run as the bot
+# (#1280, D-092). No agent merges or enqueues from the shell, by any API.
+printf '%s' "$CMD" | grep -qE '(enqueuePullRequest|mergePullRequest|enablePullRequestAutoMerge|gh[[:space:]]+api[^;&|]*/pulls/[0-9]+/merge([[:space:]]|$))' \
+  && block "merging or enqueuing from the shell; the merge workflow does it as the bot (rule 3.2, #1280)"
 printf '%s' "$CMD" | grep -qE '^[[:space:]]*(ls[[:space:]]+-[a-zA-Z]*R|find[[:space:]]+/[[:space:]])' && block "full-tree scan wastes context — use rg or gh instead"
 exit 0
