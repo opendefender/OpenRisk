@@ -4,9 +4,11 @@ on:
   merge_group:
     types: [checks_requested]
   push:
+    # Not develop: its commits come only from the merge queue, which already ran this
+    # workflow on the same commit (#1291).
     # `master` is this repository's default branch. `main` is kept for forks
     # that renamed it.
-    branches: [master, main, develop, staging]
+    branches: [master, main, staging]
   pull_request:
     branches: [master, main, develop, staging]
   schedule:
@@ -36,6 +38,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Scheduled runs test staging, the next release, never develop (#1291).
+          ref: ${{ github.event_name == 'schedule' && 'staging' || '' }}
       - uses: actions/setup-go@v5
         with:
           go-version: '1.26'

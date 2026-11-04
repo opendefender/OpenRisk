@@ -4,7 +4,9 @@ on:
   merge_group:
     types: [checks_requested]
   push:
-    branches: [master, develop, staging]
+    # Not develop: its commits come only from the merge queue, which already ran this
+    # workflow on the same commit (#1291).
+    branches: [master, staging]
   pull_request:
     branches: [master, develop, staging]
 

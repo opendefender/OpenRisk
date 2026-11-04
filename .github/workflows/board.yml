@@ -24,7 +24,6 @@ on:
   pull_request:
     types: [opened, synchronize, reopened, closed, edited, ready_for_review, converted_to_draft]
   create:
-  delete:
   push:
     branches: [master, develop, staging]
     tags: ['v*']

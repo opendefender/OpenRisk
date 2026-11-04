@@ -1,0 +1,70 @@
+name: Nightly watch
+
+# A failed scheduled run never stays a red mark nobody owns (#1291, #1254). When a nightly
+# workflow fails (they test `staging`, the next release), the delivery bot opens one
+# `type:bug` / `priority:P1-high` issue per workflow, in the Ready format, or adds the new run
+# to the open one. Refinement and the agent runner then take it like any other issue, and
+# promotion to master waits until it is fixed (#1256).
+#
+# Every third-party action is pinned to a full commit SHA; the tag is in the trailing comment.
+
+on:
+  workflow_run:
+    workflows: ['E2E Tests', 'DAST', 'Dependency gate', 'Tenant Isolation', 'Security Scanning']
+    types: [completed]
+
+permissions:
+  contents: read
+
+jobs:
+  report:
+    name: Nightly failure report
+    if: github.event.workflow_run.event == 'schedule' && github.event.workflow_run.conclusion == 'failure'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Bot token
+        id: bot
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          app-id: ${{ secrets.BOT_APP_ID }}
+          private-key: ${{ secrets.BOT_PRIVATE_KEY }}
+          owner: opendefender
+          repositories: OpenRisk
+      - name: Open or update the issue
+        env:
+          GH_TOKEN: ${{ steps.bot.outputs.token }}
+          REPO: ${{ github.repository }}
+          WF: ${{ github.event.workflow_run.name }}
+          URL: ${{ github.event.workflow_run.html_url }}
+          SHA: ${{ github.event.workflow_run.head_sha }}
+          BRANCH: ${{ github.event.workflow_run.head_branch }}
+        run: |
+          TITLE="bug(nightly): $WF failed on the scheduled run"
+          N=$(gh api -X GET search/issues -f q="repo:$REPO is:issue is:open in:title \"$TITLE\"" --jq '.items[0].number // empty')
+          if [ -n "$N" ]; then
+            gh api "repos/$REPO/issues/$N/comments" -f body="Failed again: $URL (commit \`${SHA:0:8}\`)." --jq .html_url
+            exit 0
+          fi
+          MS=$(gh api "repos/$REPO/milestones?state=open&per_page=50" --jq '.[]|select(.title=="Autonomous delivery")|.number')
+          BODY=$(cat <<EOT
+          ## Problem
+
+          The scheduled run of **$WF** failed: $URL, on commit \`${SHA:0:8}\` (${BRANCH:-default branch}). Scheduled runs test \`staging\`, the next release (#1291), so the next promotion to \`master\` must not happen until this is understood and fixed.
+
+          ## Acceptance criteria
+
+          1. The cause is found and stated: a real defect, a new vulnerability, a test that is wrong, or an environment problem.
+          2. A real defect or vulnerability is fixed in a PR that goes through the merge queue.
+          3. A flaky test is fixed so that it no longer depends on timing or order (rule 8.3). It is not quarantined if it covers tenant isolation or authorisation.
+          4. The scheduled workflow is run again (workflow_dispatch, on staging) and passes.
+
+          ## Definition of Done
+
+          The fix PR is merged, and the rerun passes, with its link pasted on this issue.
+          EOT
+          )
+          gh api "repos/$REPO/issues" -f title="$TITLE" -f body="$BODY" \
+            -f "labels[]=type:bug" -f "labels[]=priority:P1-high" -f "labels[]=priority:P1" \
+            -f "labels[]=area:infra" -f "labels[]=area:quality" -f "labels[]=tier:0-trust" \
+            -F milestone="$MS" --jq .html_url
