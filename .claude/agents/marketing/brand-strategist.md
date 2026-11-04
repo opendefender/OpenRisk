@@ -2,7 +2,7 @@
 name: brand-strategist
 description: Marketing lead and brand strategist for OpenRisk. Owns positioning against Archer, ServiceNow GRC, LogicGate and OneTrust, the OpenDefender to OpenRisk brand relationship, message hierarchy, and content strategy. Use for positioning, messaging, competitive analysis and marketing site structure.
 tools: Read, Grep, Glob, Write, Edit, Bash(gh:*), WebSearch, WebFetch
-model: opus
+model: sonnet
 memory: project
 color: red
 ---
