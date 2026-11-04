@@ -9,6 +9,38 @@ recommends, and surfaces these in the daily brief. Run `/decide` to clear them.
 
 ## Resolved
 
+### D-092 — A bot identity for merging, promotion, reviews and the board · decided 2026-11-04
+**Decided (agent: devops-sre, 2026-11-04, under D-089; asked for by the owner)** — a GitHub
+App owned by `opendefender`, `opendefender-delivery-bot`, installed on this repository only.
+It is free, needs no seat, and its actions show as the bot, not as the owner.
+
+**What it does**
+- **Merging (#1280)**: `scripts/merge/enqueue.mjs` runs in GitHub Actions with the bot's
+  installation token and enqueues green PRs. No model and no agent session holds the bot's
+  key; the `merge-steward` agent only prepares PRs and calls the workflow.
+- **Promotion (#1255, #1256)**: the bot is the rulesets' only bypass actor on `staging` and
+  `master`, replacing the deploy key of D-091 point 3. Same guarantee, one credential fewer.
+- **Reviews (#1271)**: the review gate posts real GitHub reviews (approve or request
+  changes) as the bot, which is possible because the bot is not the PR author. The
+  `agent-review` status stays as the machine-readable verdict.
+- **Board (#1248)**: the sync uses the bot's token with Projects read and write, and the
+  owner's personal `BOARD_TOKEN` can be revoked.
+
+**Permissions** — repository: Contents read and write, Pull requests read and write, Issues read
+and write, Commit statuses read and write, Checks read, Actions read, Merge queues read and write,
+Metadata read. Organization: Projects read and write. No webhook. Installation token minted per
+job by `actions/create-github-app-token` (GitHub's own action, a new dependency, pinned by SHA),
+valid one hour.
+
+**Options considered** — keep the owner's account plus a deploy key and a PAT (works, but every
+action looks like the owner's, and the account cannot approve its own PRs); a second "machine"
+user account (works, but it is a person-shaped account to maintain, with its own password and
+2FA); a hosted merge service such as Mergify (rejected: GitHub's merge queue already does the
+merging, and it would be an outside service with access to the code).
+
+**Owner's part** — create the App and store its two secrets (`BOT_APP_ID`, `BOT_PRIVATE_KEY`).
+Steps on #1280. An agent cannot create an App: GitHub requires the browser for that.
+
 ### D-091 — How develop, staging and master are protected · decided 2026-11-04
 **Decided (agent: devops-sre, 2026-11-04)** — for #1244, under D-089.
 1. **Rulesets, not classic branch protection.** The classic protection API cannot require a
