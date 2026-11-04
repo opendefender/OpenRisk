@@ -9,6 +9,17 @@ recommends, and surfaces these in the daily brief. Run `/decide` to clear them.
 
 ## Resolved
 
+### D-094 — Every issue is refined before the runner implements it · decided 2026-11-04
+**Decided (owner, 2026-11-04)** — "Les tickets passent d'abord par l'affinage automatique
+(#1270) avant d'être pris par le runner." The scripted Ready gate (#1249) checks the
+structure of an issue. Refinement checks its substance: problem in user terms, testable
+criteria, size, duplicates, split and obsolescence. The runner (#1252) implements only an
+issue that carries the refinement marker `<!-- refined: <date> <agent> -->`. That holds for
+the 98 issues the gate promoted and for older Ready issues too. A material edit of the
+criteria after refinement clears the marker.
+
+**Consequence** — #1270 lands with #1252, not after it. Rulebook rule 2.1 is amended.
+
 ### D-093 — Licence of the private agent-team repository · decided 2026-11-04
 **Decided (agent: po-openrisk, 2026-11-04, under D-089)** — `opendefender/agent-team` is
 **private and proprietary** ("all rights reserved", see its `LICENSE`). It was created on
