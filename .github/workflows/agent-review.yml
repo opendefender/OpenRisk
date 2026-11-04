@@ -1,34 +1,48 @@
 name: Agent review
 
-# The PR review gate (#1271). Two halves:
-# - on every PR push: route the reviewers of the head commit (route-reviewers.sh + the risk
-#   class) and set the commit status `agent-review` to pending;
-# - whenever a reviewer records a verdict (status `agent-review/<role>`, written by
-#   scripts/review/verdict.mjs): recompute `agent-review`, and on a failure send the work
-#   back to an implementer, or block the issue after the last round.
+# The PR review gate (#1271, D-095). The reviewers are agents, and they run HERE, so that a
+# verdict can be trusted. Every agent on the owner's machine acts through the owner's
+# account, and a verdict sent from there could not prove who wrote it. The delivery bot
+# (D-092) posts what this workflow produced, and the gates believe only the bot.
 #
-# The reviewers themselves are agents run by the agent runner (#1252). This workflow only
-# routes and aggregates, with no model. It runs the default branch's scripts; the PR's
-# commits are fetched as data. It acts as the delivery bot (D-092).
+#   route      on every PR push: record the required reviewers of the head commit
+#              (route-reviewers.sh + risk class), set `agent-review` pending
+#   plan       when CI Pipeline is green on a PR: which roles still have to review it
+#   review     one job per role: run the reviewer, then the bot records its verdict
+#   aggregate  on every `agent-review/<role>` status: recompute `agent-review` and
+#              `Red gate`, send back or block on failure
+#
+# Containment of the reviewer (D-095):
+# - Its working copy is the PR head with `.claude/`, `CLAUDE.md` and `.mcp.json` renamed
+#   or removed, so the PR cannot configure it; HOME is empty.
+# - It gets read-only tools only, and never the bot's token.
+# - Its prompt is built from the default branch, with the PR quoted as data.
+# - Its answer must be a structured verdict, validated by scripts/review/record.mjs.
+# - Fork PRs never reach it.
 #
 # Every third-party action is pinned to a full commit SHA; the tag is in the trailing comment.
+# The agent CLI is pinned to an exact version published at least two weeks earlier.
 
 on:
   pull_request:
     types: [opened, synchronize, reopened, ready_for_review]
+  workflow_run:
+    workflows: ['CI Pipeline']
+    types: [completed]
   status:
   workflow_dispatch:
     inputs:
       pr:
-        description: 'PR number to re-aggregate'
+        description: 'PR number: plan and run its due reviews, then re-aggregate'
         required: true
 
 permissions:
   contents: read
 
-concurrency:
-  group: agent-review-${{ github.event.pull_request.number || inputs.pr || github.event.sha }}
-  cancel-in-progress: false
+env:
+  AGENT_CLI: '@anthropic-ai/claude-code@2.1.307'
+  REVIEW_MODEL: sonnet
+  REVIEW_MAX_TURNS: '40'
 
 jobs:
   route:
@@ -38,6 +52,9 @@ jobs:
       github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    concurrency:
+      group: agent-review-route-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -45,11 +62,9 @@ jobs:
           fetch-depth: 0
           filter: blob:none
           persist-credentials: false
-
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: '22'
-
       - name: Bot token
         id: bot
         uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
@@ -58,7 +73,6 @@ jobs:
           private-key: ${{ secrets.BOT_PRIVATE_KEY }}
           owner: opendefender
           repositories: OpenRisk
-
       - name: Route
         env:
           BOARD_TOKEN: ${{ steps.bot.outputs.token }}
@@ -66,30 +80,85 @@ jobs:
           REPO_URL: ${{ github.server_url }}/${{ github.repository }}
         run: |
           if [ ! -f scripts/review/route.mjs ]; then
-            echo "::notice::scripts/review/route.mjs is not on the default branch yet; skipped."
-            exit 0
+            echo "::notice::scripts/review/route.mjs is not on the default branch yet; skipped."; exit 0
           fi
           git fetch --quiet --filter=blob:none "$REPO_URL" "+refs/pull/$PR/head:refs/remotes/pr/head"
           git worktree add --quiet --detach "$RUNNER_TEMP/pr-head" refs/remotes/pr/head
           node scripts/review/route.mjs --pr "$PR" --worktree "$RUNNER_TEMP/pr-head"
 
-  aggregate:
-    name: Agent review aggregate
+  plan:
+    name: Agent review plan
     if: >-
-      (github.event_name == 'status' && startsWith(github.event.context, 'agent-review/')) ||
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'pull_request' &&
+       github.event.workflow_run.head_repository.full_name == github.repository) ||
       github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    outputs:
+      pr: ${{ steps.plan.outputs.pr }}
+      sha: ${{ steps.plan.outputs.sha }}
+      roles: ${{ steps.plan.outputs.roles }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
           ref: ${{ github.event.repository.default_branch }}
           persist-credentials: false
-
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: '22'
+      - name: Bot token
+        id: bot
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          app-id: ${{ secrets.BOT_APP_ID }}
+          private-key: ${{ secrets.BOT_PRIVATE_KEY }}
+          owner: opendefender
+          repositories: OpenRisk
+      - name: Plan
+        id: plan
+        env:
+          BOARD_TOKEN: ${{ steps.bot.outputs.token }}
+          GH_TOKEN: ${{ steps.bot.outputs.token }}
+          PR_INPUT: ${{ inputs.pr }}
+          RUN_PRS: ${{ toJSON(github.event.workflow_run.pull_requests) }}
+          HAS_AGENT_TOKEN: ${{ secrets.AGENT_OAUTH_TOKEN != '' }}
+        run: |
+          if [ ! -f scripts/review/plan.mjs ] || [ "$HAS_AGENT_TOKEN" != "true" ]; then
+            echo "::notice::reviewer jobs not available (scripts not on the default branch, or AGENT_OAUTH_TOKEN not set)."
+            echo 'roles=[]' >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          PR="$PR_INPUT"
+          [ -z "$PR" ] && PR=$(printf '%s' "$RUN_PRS" | jq -r '.[0].number // empty')
+          if [ -z "$PR" ]; then echo 'roles=[]' >> "$GITHUB_OUTPUT"; exit 0; fi
+          ROLES=$(node scripts/review/plan.mjs --pr "$PR")
+          SHA=$(gh api "repos/${{ github.repository }}/pulls/$PR" --jq .head.sha)
+          { echo "pr=$PR"; echo "sha=$SHA"; echo "roles=$ROLES"; } >> "$GITHUB_OUTPUT"
 
+  review:
+    name: Agent review (${{ matrix.role }})
+    needs: plan
+    if: needs.plan.outputs.roles != '' && needs.plan.outputs.roles != '[]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        role: ${{ fromJSON(needs.plan.outputs.roles) }}
+    concurrency:
+      group: agent-review-${{ needs.plan.outputs.pr }}-${{ needs.plan.outputs.sha }}-${{ matrix.role }}
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          fetch-depth: 0
+          filter: blob:none
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
       - name: Bot token
         id: bot
         uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
@@ -99,6 +168,81 @@ jobs:
           owner: opendefender
           repositories: OpenRisk
 
+      - name: Prepare the PR as data
+        env:
+          PR: ${{ needs.plan.outputs.pr }}
+          SHA: ${{ needs.plan.outputs.sha }}
+          REPO_URL: ${{ github.server_url }}/${{ github.repository }}
+        run: |
+          git fetch --quiet --filter=blob:none "$REPO_URL" "+refs/pull/$PR/head:refs/remotes/pr/head"
+          [ "$(git rev-parse refs/remotes/pr/head)" = "$SHA" ] || { echo "head moved; this review is stale"; exit 1; }
+          git worktree add --quiet --detach "$RUNNER_TEMP/pr-data" "$SHA"
+          cd "$RUNNER_TEMP/pr-data"
+          # The PR must not be able to configure its own reviewer.
+          [ -e .claude ] && mv .claude .claude.pr-under-review
+          [ -e CLAUDE.md ] && mv CLAUDE.md CLAUDE.pr-under-review.md
+          rm -f .mcp.json
+          mkdir -p "$RUNNER_TEMP/home"
+
+      - name: Build the prompt
+        env:
+          BOARD_TOKEN: ${{ steps.bot.outputs.token }}
+        run: |
+          node scripts/review/prompt.mjs --pr "${{ needs.plan.outputs.pr }}" --role "${{ matrix.role }}" \
+            --sha "${{ needs.plan.outputs.sha }}" --data "$RUNNER_TEMP/pr-data" > "$RUNNER_TEMP/prompt.txt"
+          wc -c "$RUNNER_TEMP/prompt.txt"
+
+      - name: Review
+        continue-on-error: true   # a crash becomes an `error` status in the next step, never an approval
+        timeout-minutes: 20
+        working-directory: ${{ runner.temp }}/pr-data
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.AGENT_OAUTH_TOKEN }}
+          HOME: ${{ runner.temp }}/home
+        run: |
+          npx --yes "$AGENT_CLI" -p --output-format json --model "$REVIEW_MODEL" --max-turns "$REVIEW_MAX_TURNS" \
+            --allowedTools "Read,Grep,Glob" \
+            --disallowedTools "Bash,Edit,Write,MultiEdit,NotebookEdit,WebFetch,WebSearch,Task" \
+            < "$RUNNER_TEMP/prompt.txt" > "$RUNNER_TEMP/out.json"
+          jq -r '.result // empty' "$RUNNER_TEMP/out.json" > "$RUNNER_TEMP/answer.txt"
+          jq -c '{turns: .num_turns, cost_usd: .total_cost_usd, duration_ms: .duration_ms, usage: .usage}' "$RUNNER_TEMP/out.json" || true
+
+      - name: Record the verdict (as the bot)
+        if: always()
+        env:
+          BOARD_TOKEN: ${{ steps.bot.outputs.token }}
+        run: |
+          touch "$RUNNER_TEMP/answer.txt"
+          node scripts/review/record.mjs --pr "${{ needs.plan.outputs.pr }}" --role "${{ matrix.role }}" \
+            --sha "${{ needs.plan.outputs.sha }}" --file "$RUNNER_TEMP/answer.txt"
+
+  aggregate:
+    name: Agent review aggregate
+    needs: [review]
+    # always(): `review` is skipped on status events, and a skipped need would skip this job.
+    if: >-
+      always() && (
+      (github.event_name == 'status' && startsWith(github.event.context, 'agent-review/') &&
+       github.event.sender.login == 'opendefender-delivery-bot[bot]') ||
+      github.event_name == 'workflow_dispatch')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+      - name: Bot token
+        id: bot
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          app-id: ${{ secrets.BOT_APP_ID }}
+          private-key: ${{ secrets.BOT_PRIVATE_KEY }}
+          owner: opendefender
+          repositories: OpenRisk
       - name: Aggregate
         env:
           BOARD_TOKEN: ${{ steps.bot.outputs.token }}
@@ -107,8 +251,7 @@ jobs:
           PR_INPUT: ${{ inputs.pr }}
         run: |
           if [ ! -f scripts/review/aggregate.mjs ]; then
-            echo "::notice::scripts/review/aggregate.mjs is not on the default branch yet; skipped."
-            exit 0
+            echo "::notice::scripts/review/aggregate.mjs is not on the default branch yet; skipped."; exit 0
           fi
           if [ -n "$PR_INPUT" ]; then PRS="$PR_INPUT"
           else PRS=$(gh api "repos/${{ github.repository }}/commits/$SHA/pulls" --jq '.[] | select(.state=="open") | .number'); fi

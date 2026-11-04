@@ -19,15 +19,27 @@ export async function rest(method, path, body) {
 export const setStatus = (sha, context, state, description, url) =>
   rest('POST', `${R}/statuses/${sha}`, { state, context, description: description.slice(0, 140), ...(url ? { target_url: url } : {}) });
 
-// Latest status per context on a SHA: { context: state }.
-export async function statuses(sha) {
+// The only account whose statuses the gates believe (D-095). Everyone else's are ignored,
+// so an approval written from an agent session, which runs as the owner, counts for nothing.
+export const BOT_LOGIN = process.env.BOT_LOGIN || 'opendefender-delivery-bot[bot]';
+
+// Latest status per context on a SHA: { context: state }, newest first.
+// With { onlyFrom }, statuses created by any other account are dropped first.
+export async function statuses(sha, { onlyFrom } = {}) {
   const all = await restAll(`${R}/commits/${sha}/statuses`);
   const out = {};
-  for (const s of all) if (!(s.context in out)) out[s.context] = s.state; // newest first
+  for (const s of all) {
+    if (onlyFrom && s.creator?.login !== onlyFrom) continue;
+    if (!(s.context in out)) out[s.context] = s.state;
+  }
   return out;
 }
 
 export const comments = (n) => restAll(`${R}/issues/${n}/comments`);
+// Comments written by the bot only (D-095): the required-roles record, the verdicts and the
+// round count are read from these, so a comment posted from an agent session cannot shrink
+// the reviewer list, fake a verdict or burn a round.
+export const botComments = async (n) => (await comments(n)).filter((c) => c.user?.login === BOT_LOGIN);
 
 export async function swapLabels(issue, { add, remove }) {
   for (const l of add) await rest('POST', `${R}/issues/${issue}/labels`, { labels: [l] });

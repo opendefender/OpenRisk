@@ -25,10 +25,14 @@ export function requiredRoles({ routed = [], cls = 'red', files = [] }) {
 // → { state: 'success'|'failure'|'pending', description }
 export function aggregate(required, statuses) {
   if (!required.length) return { state: 'failure', description: 'no required reviewers recorded (fail closed)' };
+  const errored = required.filter((r) => statuses[r] === 'error');
   const failed = required.filter((r) => statuses[r] === 'failure');
   const passed = required.filter((r) => statuses[r] === 'success');
-  const waiting = required.filter((r) => !failed.includes(r) && !passed.includes(r));
+  const waiting = required.filter((r) => !failed.includes(r) && !passed.includes(r) && !errored.includes(r));
   if (failed.length) return { state: 'failure', description: `changes requested by ${failed.join(', ')}` };
+  // A reviewer that crashed or answered nonsense is not a rejection: it is rerun, and it
+  // does not count as a review round.
+  if (errored.length) return { state: 'pending', description: `reviewer error (${errored.join(', ')}): rerun the review` };
   if (waiting.length) return { state: 'pending', description: `waiting for ${waiting.join(', ')}` };
   return { state: 'success', description: `approved by ${passed.join(', ')}` };
 }
@@ -89,4 +93,20 @@ export function afterAggregate(state, failedRounds) {
 export function closingIssue(body) {
   const m = /\b(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)\s+#(\d+)\b/i.exec(body || '');
   return m ? Number(m[1]) : null;
+}
+
+// The reviewer agent ends its answer with one fenced JSON block:
+//   {"verdict": "pass"|"fail", "blocking": <int>, "findings": "<markdown>"}
+// parseAgentVerdict(text) → { ok: true, verdict, blocking, findings } | { ok: false, error }
+export function parseAgentVerdict(text) {
+  const blocks = [...String(text || '').matchAll(/```json\s*([\s\S]*?)```/g)];
+  if (!blocks.length) return { ok: false, error: 'no fenced json block in the reviewer answer' };
+  let v;
+  try { v = JSON.parse(blocks[blocks.length - 1][1]); } catch (e) { return { ok: false, error: `invalid json: ${e.message}` }; }
+  if (!['pass', 'fail'].includes(v.verdict)) return { ok: false, error: 'verdict must be "pass" or "fail"' };
+  if (!Number.isInteger(v.blocking) || v.blocking < 0) return { ok: false, error: 'blocking must be a non-negative integer' };
+  if (typeof v.findings !== 'string' || !v.findings.trim()) return { ok: false, error: 'findings must be a non-empty string, even on a pass' };
+  if (v.verdict === 'pass' && v.blocking > 0) return { ok: false, error: 'a pass cannot have blocking findings' };
+  if (v.verdict === 'fail' && v.blocking === 0) return { ok: false, error: 'a fail needs at least one blocking finding; nits never fail' };
+  return { ok: true, verdict: v.verdict, blocking: v.blocking, findings: v.findings };
 }

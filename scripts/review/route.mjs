@@ -15,7 +15,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { requiredRoles, requiredComment, REQUIRED_MARKER, closingIssue } from './lib.mjs';
 import { classify, parseDiff } from '../risk/classify.mjs';
-import { R, rest, comments, arg } from './gh.mjs';
+import { R, rest, botComments, arg } from './gh.mjs';
 import { aggregatePr } from './aggregate.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -68,7 +68,7 @@ if (process.argv.includes('--dry-run')) {
   console.log(text);
   process.exit(0);
 }
-const mine = (await comments(pr)).filter((c) => c.body?.includes(REQUIRED_MARKER));
+const mine = (await botComments(pr)).filter((c) => c.body?.includes(REQUIRED_MARKER));
 if (!mine.some((c) => c.body === text)) await rest('POST', `${R}/issues/${pr}/comments`, { body: text });
 const agg = await aggregatePr(pr);
 console.log(`#${pr} ${sha.slice(0, 8)}: required ${roles.join(', ')} → agent-review ${agg.state}`);

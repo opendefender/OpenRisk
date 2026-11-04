@@ -6,15 +6,15 @@
 //   node scripts/review/aggregate.mjs --pr <n> [--dry-run]
 
 import { aggregate, parseRequired, rounds, afterAggregate, closingIssue, MAX_ROUNDS } from './lib.mjs';
-import { R, rest, setStatus, statuses, comments, swapLabels, arg } from './gh.mjs';
+import { R, rest, setStatus, statuses, botComments, swapLabels, arg, BOT_LOGIN } from './gh.mjs';
 
 export async function aggregatePr(pr, { dry = false } = {}) {
   const p = await rest('GET', `${R}/pulls/${pr}`);
   if (!p || p.state !== 'open') return { pr, skipped: 'not open' };
   const sha = p.head.sha;
-  const bodies = (await comments(pr)).map((c) => c.body);
+  const bodies = (await botComments(pr)).map((c) => c.body);
   const req = parseRequired(bodies);
-  const st = await statuses(sha);
+  const st = await statuses(sha, { onlyFrom: BOT_LOGIN }); // D-095: only the bot's statuses count
 
   let result;
   if (!req || req.sha !== sha) result = { state: 'pending', description: 'reviewers not routed for this commit yet' };
@@ -29,6 +29,16 @@ export async function aggregatePr(pr, { dry = false } = {}) {
   if (dry) return out;
 
   if (st['agent-review'] !== result.state) await setStatus(sha, 'agent-review', result.state, result.description);
+  // A red-class PR (devsecops required) passes its Red gate (#1250) once the stricter review
+  // passed: devsecops and tech-lead both approved this commit, on top of the required checks.
+  if (req && req.sha === sha && req.roles.includes('devsecops') && req.roles.includes('tech-lead')) {
+    const red = result.state === 'success' ? 'success' : 'pending';
+    if (st['Red gate'] !== red) {
+      await setStatus(sha, 'Red gate', red, red === 'success'
+        ? 'red class: devsecops and tech-lead approved this commit'
+        : 'red class: waiting for devsecops + tech-lead review (#1271)');
+    }
+  }
 
   // Act once per commit: the marker in the comment makes a rerun a no-op.
   const marker = `<!-- agent-review:after sha=${sha} action=${next.action} -->`;
