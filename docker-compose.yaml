@@ -1,3 +1,21 @@
+# Development stack (#1243). Runs the `develop` branch: what the merge queue has
+# merged, before promotion (ADR 0009). The pull deployer (#1246) keeps it on the
+# latest `develop` image.
+#
+# `name:` gives this stack its own Compose project, so it never shares containers,
+# networks or volumes with the staging stack (docker-compose.staging.yaml,
+# project openrisk-staging) on the same machine. Host ports are overridable
+# (OPENRISK_DEV_*_PORT) and none is published by the staging file.
+#
+# The named volumes keep their pre-#1243 names (openrisk_openrisk_*), so an
+# existing dev database survives the rename. OPENRISK_DEV_VOLUMES changes the
+# prefix, e.g. for a throwaway copy of the stack.
+#
+# Upgrading from a stack started before #1243: stop it once with
+#   docker compose -p openrisk down        # no -v: the volumes are kept
+# then start this one as usual with `docker compose up -d`.
+name: openrisk-dev
+
 services:
   # =========================================================================
   # DATABASES
@@ -6,13 +24,12 @@ services:
   # Production/Development Database
   db:
     image: postgres:15-alpine
-    container_name: openrisk_db
     environment:
       POSTGRES_USER: ${DB_USER:-openrisk}
       POSTGRES_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env, see .env.example}
       POSTGRES_DB: ${DB_NAME:-openrisk}
     ports:
-      - "5434:5432"
+      - "${OPENRISK_DEV_DB_PORT:-5434}:5432"
     volumes:
       - openrisk_data:/var/lib/postgresql/data
     healthcheck:
@@ -27,13 +44,12 @@ services:
   # Test Database (for integration tests)
   test_db:
     image: postgres:15-alpine
-    container_name: openrisk_test_db
     environment:
       POSTGRES_USER: test
       POSTGRES_PASSWORD: test
       POSTGRES_DB: openrisk_test
     ports:
-      - "5435:5432"
+      - "${OPENRISK_DEV_TEST_DB_PORT:-5435}:5432"
     volumes:
       - openrisk_test_data:/var/lib/postgresql/data
     healthcheck:
@@ -52,9 +68,8 @@ services:
   # Redis for caching and session management
   redis:
     image: redis:7-alpine
-    container_name: openrisk_redis
     ports:
-      - "6380:6379"
+      - "${OPENRISK_DEV_REDIS_PORT:-6380}:6379"
     command: redis-server --appendonly yes --requirepass ""
     volumes:
       - openrisk_redis_data:/data
@@ -76,7 +91,6 @@ services:
       # Repository root: the image carries ../migrations (#1001).
       context: .
       dockerfile: backend/Dockerfile
-    container_name: openrisk_backend
     depends_on:
       db:
         condition: service_healthy
@@ -106,7 +120,7 @@ services:
       # Local dev is a self-hosted instance (#612). Set hosted to try the SaaS plans.
       OPENRISK_DEPLOYMENT: ${OPENRISK_DEPLOYMENT:-self_hosted}
     ports:
-      - "8080:8080"
+      - "${OPENRISK_DEV_BACKEND_PORT:-8080}:8080"
     volumes:
       - openrisk_secrets:/app/secrets
     networks:
@@ -135,7 +149,6 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    container_name: openrisk_frontend
     depends_on:
       - backend
     environment:
@@ -147,7 +160,7 @@ services:
       # what keeps the session cookies first-party. Splitting the origins needs
       # a build arg AND an HTTPS story; see frontend/nginx.conf.
     ports:
-      - "5173:5173"
+      - "${OPENRISK_DEV_FRONTEND_PORT:-5173}:5173"
     networks:
       - openrisk_network
     restart: unless-stopped
@@ -163,9 +176,13 @@ services:
 
 volumes:
   openrisk_data:
+    name: ${OPENRISK_DEV_VOLUMES:-openrisk}_openrisk_data
   openrisk_test_data:
+    name: ${OPENRISK_DEV_VOLUMES:-openrisk}_openrisk_test_data
   openrisk_redis_data:
+    name: ${OPENRISK_DEV_VOLUMES:-openrisk}_openrisk_redis_data
   openrisk_secrets:
+    name: ${OPENRISK_DEV_VOLUMES:-openrisk}_openrisk_secrets
 
 networks:
   openrisk_network:
