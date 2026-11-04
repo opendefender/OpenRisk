@@ -1,10 +1,12 @@
 name: Security Scanning
 
 on:
+  merge_group:
+    types: [checks_requested]
   push:
-    branches: [master, develop]
+    branches: [master, develop, staging]
   pull_request:
-    branches: [master, develop]
+    branches: [master, develop, staging]
   schedule:
     - cron: '0 2 * * *'  # Daily at 2 AM
 
