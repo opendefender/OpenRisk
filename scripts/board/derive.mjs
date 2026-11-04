@@ -72,3 +72,23 @@ export function deriveTier(labels) {
   const t = labels.map((l) => /^tier:(.+)$/.exec(l)?.[1]).filter((x) => TIERS.includes(x)).sort();
   return t.length ? t[0] : null;
 }
+
+// Sprint rules (#1266). Returns the iteration id to set, or undefined to leave it.
+//   status:  the Status just derived for the item
+//   item:    { state, sprint: null | { id, startDate, duration } }
+//   current: { id, startDate, duration } | null   the sprint containing today
+//   today:   'YYYY-MM-DD'
+// 1. Open work started (In progress, In review) with no sprint → the current sprint.
+// 2. Open work not delivered whose sprint has ended → the current sprint (carry-over).
+// Everything else is left: planning sets future sprints, delivered work keeps its sprint.
+const STARTED = new Set(['In progress', 'In review']);
+const DONE = new Set(['On dev', 'On staging', 'Released']);
+export function sprintEnd(s) {
+  return new Date(Date.parse(`${s.startDate}T00:00:00Z`) + s.duration * 86400e3).toISOString().slice(0, 10);
+}
+export function deriveSprint(status, item, current, today) {
+  if (!current || item.state !== 'OPEN' || DONE.has(status)) return undefined;
+  if (!item.sprint) return STARTED.has(status) ? current.id : undefined;
+  if (item.sprint.id !== current.id && sprintEnd(item.sprint) <= today) return current.id;
+  return undefined;
+}
