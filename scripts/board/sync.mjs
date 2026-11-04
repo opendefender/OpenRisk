@@ -8,22 +8,64 @@
 //   node scripts/board/sync.mjs             apply
 //   node scripts/board/sync.mjs --dry-run   print the changes and the counts
 
-import { gql, lit, loadConfig, mutateBatched, token } from './lib.mjs';
-import { deriveStatus, derivePriority, deriveTier, ARCHIVE } from './derive.mjs';
+import { gql, lit, loadConfig, mutateBatched, token, restAll, git, gitOk } from './lib.mjs';
+import { deriveStatus, deliveryStage, branchIssueNumbers, derivePriority, deriveTier, ARCHIVE } from './derive.mjs';
 
 const DRY = process.argv.includes('--dry-run');
 const cfg = loadConfig();
 
 const ISSUE_FIELDS = `id number title state stateReason
   repository { nameWithOwner }
-  labels(first: 50) { nodes { name } }`;
+  labels(first: 50) { nodes { name } }
+  closedByPullRequestsReferences(first: 10, includeClosedPrs: true) {
+    nodes { number state isDraft baseRefName mergeCommit { oid } } }
+  timelineItems(itemTypes: [CLOSED_EVENT], last: 1) { nodes { ... on ClosedEvent {
+    closer { __typename ... on PullRequest { mergeCommit { oid } } ... on Commit { oid } } } } }`;
+
+// --- where commits are, from git (the checkout in CI, the clone on a laptop) ---
+const DEV = cfg.branches.dev;
+const STAGING = cfg.branches.staging;
+const RELEASE = new RegExp(cfg.releaseTags);
+function fetchRefs() {
+  const refs = [DEV, STAGING].filter(Boolean).map((b) => `+refs/heads/${b}:refs/remotes/origin/${b}`);
+  if (!gitOk(['fetch', '--quiet', '--tags', '--force', 'origin', ...refs])) {
+    console.log('::warning::git fetch failed; delivery stages use the refs already present.');
+  }
+}
+const memo = (fn) => { const m = new Map(); return (k) => (m.has(k) ? m.get(k) : (m.set(k, fn(k)), m.get(k))); };
+const known = memo((sha) => gitOk(['cat-file', '-e', `${sha}^{commit}`]));
+const onRef = (ref) => memo((sha) => !!ref && known(sha) && gitOk(['merge-base', '--is-ancestor', sha, `refs/remotes/origin/${ref}`]));
+const stagePredicates = {
+  onDev: onRef(DEV),
+  onStaging: onRef(STAGING),
+  released: memo((sha) => known(sha) && git(['tag', '--contains', sha]).split('\n').some((t) => RELEASE.test(t))),
+};
+
+let branchNumbers = new Set();
 
 function facts(issue) {
+  const prs = issue.closedByPullRequestsReferences?.nodes ?? [];
+  const merged = prs.filter((p) => p.state === 'MERGED' && p.mergeCommit);
+  let sha = null;
+  if (issue.state === 'CLOSED') {
+    const closer = issue.timelineItems?.nodes?.[0]?.closer;
+    sha = closer?.mergeCommit?.oid ?? closer?.oid ?? merged[0]?.mergeCommit.oid ?? null;
+  } else {
+    // While develop is not the default branch, a merge into it leaves the issue open.
+    sha = merged.find((p) => p.baseRefName === DEV)?.mergeCommit.oid ?? null;
+  }
+  let delivered = deliveryStage(sha, stagePredicates);
+  // Merged but the commit is not on the dev branch (merged elsewhere, or not fetched):
+  // a closed issue still counts as delivered to dev, never further.
+  if (!delivered && sha && issue.state === 'CLOSED') delivered = 'dev';
   return {
     number: issue.number,
     state: issue.state,
     stateReason: issue.stateReason,
     labels: issue.labels.nodes.map((l) => l.name),
+    delivered,
+    openPr: prs.some((p) => p.state === 'OPEN'),
+    hasBranch: branchNumbers.has(issue.number),
   };
 }
 
@@ -76,7 +118,13 @@ async function main() {
     return;
   }
   const started = Date.now();
-  const [items, issues] = await Promise.all([boardItems(), openIssues()]);
+  fetchRefs();
+  const [items, issues, refs] = await Promise.all([
+    boardItems(),
+    openIssues(),
+    restAll(`/repos/${cfg.owner}/${cfg.repo}/git/matching-refs/heads/`),
+  ]);
+  branchNumbers = branchIssueNumbers(refs.map((r) => r.ref));
   const byNumber = new Map(items.map((i) => [i.content.number, i]));
 
   // 1. Every open issue is on the board.
@@ -99,7 +147,13 @@ async function main() {
   const counts = {};
   const archive = [];
   const unarchive = [];
+  const releasedId = F.Status.options.Released;
   for (const item of byNumber.values()) {
+    // Released is final for a closed issue: skip the git work.
+    if (item.content.state === 'CLOSED' && item.fieldValues.nodes.some((v) => v.optionId === releasedId)) {
+      counts.Released = (counts.Released || 0) + 1;
+      continue;
+    }
     const f = facts(item.content);
     if (item.isArchived) {
       // A reopened issue comes back; anything else archived stays archived.
