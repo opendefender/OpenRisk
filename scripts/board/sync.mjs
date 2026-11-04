@@ -127,6 +127,24 @@ const setOption = (itemId, field, optionId) =>
 const clearField = (itemId, field) =>
   `clearProjectV2ItemFieldValue(input: { projectId: ${lit(cfg.projectId)}, itemId: ${lit(itemId)}, fieldId: ${lit(field)} }) { clientMutationId }`;
 
+// Says which resource the token cannot reach, instead of one opaque error mid-run.
+async function checkAccess() {
+  const probes = [
+    ['repository issues (Issues: read)', `query { repository(owner: ${lit(cfg.owner)}, name: ${lit(cfg.repo)}) { issues(first: 1) { totalCount } } }`],
+    ['pull requests (Pull requests: read)', `query { repository(owner: ${lit(cfg.owner)}, name: ${lit(cfg.repo)}) { pullRequests(first: 1) { totalCount } } }`],
+    [`organization project #${cfg.projectNumber} (Projects: read and write, resource owner ${cfg.owner})`, `query { organization(login: ${lit(cfg.owner)}) { projectV2(number: ${cfg.projectNumber}) { id } } }`],
+  ];
+  const failed = [];
+  for (const [what, q] of probes) {
+    try { await gql(q); } catch (e) { failed.push(`${what}: ${e.message}`); }
+  }
+  if (failed.length) {
+    for (const f of failed) console.log(`::error::token cannot reach ${f}`);
+    throw new Error(`token check failed on ${failed.length} resource(s)`);
+  }
+  console.log('token check: issues, pull requests and project reachable');
+}
+
 async function main() {
   if (!token({ required: false })) {
     // In CI the secret is optional until the owner creates it (#1248).
@@ -134,6 +152,7 @@ async function main() {
     return;
   }
   const started = Date.now();
+  await checkAccess();
   fetchRefs();
   const since = new Date(Date.now() - (cfg.closedLookbackDays ?? 30) * 86400e3).toISOString();
   const [items, issues, recentlyClosed, refs] = await Promise.all([
