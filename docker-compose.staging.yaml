@@ -1,4 +1,6 @@
-# Staging stack (#1243, ADR 0009 D4).
+# Staging stack (#1243, ADR 0009 D4). Runs the `staging` branch: a `develop` commit
+# promoted once e2e and smoke passed on dev. The pull deployer (#1246) keeps it on
+# the image the `staging` branch points at.
 #
 # Runs next to the development stack (docker-compose.yaml, project openrisk-dev)
 # on the same machine: its own Compose project, network and volumes, and host

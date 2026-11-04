@@ -1,4 +1,6 @@
-# Development stack (#1243).
+# Development stack (#1243). Runs the `develop` branch: what the merge queue has
+# merged, before promotion (ADR 0009). The pull deployer (#1246) keeps it on the
+# latest `develop` image.
 #
 # `name:` gives this stack its own Compose project, so it never shares containers,
 # networks or volumes with the staging stack (docker-compose.staging.yaml,
