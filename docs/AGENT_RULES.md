@@ -30,7 +30,7 @@ constitution; this file is its operating detail (#1277).
 
 | # | Rule | Enforced by | Status |
 |---|---|---|---|
-| 2.1 | No work without an issue that passed the Ready gate. | runner picks only `status:ready`; Ready gate script | 🔧 #1249, #1252 |
+| 2.1 | No work without an issue that passed the Ready gate **and** the automatic refinement (D-094). | runner picks only `status:ready` issues with the `<!-- refined: … -->` marker; Ready gate script | 🔧 #1249, #1252, #1270 |
 | 2.2 | One issue → one branch `<type>/<n>-<slug>` → one PR with `Closes #<n>`. | CI check on the PR (title, branch name, closing reference) | 🔧 #1251 |
 | 2.3 | Smallest correct change. No refactor or cleanup outside the issue. | review | 📝 needs judgement |
 | 2.4 | An issue found on the way becomes a new issue, never extra commits on the current PR. | review | 📝 needs judgement |
