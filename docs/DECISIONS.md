@@ -9,6 +9,34 @@ recommends, and surfaces these in the daily brief. Run `/decide` to clear them.
 
 ## Resolved
 
+### D-095 — Review verdicts are produced in GitHub Actions and posted by the bot · decided 2026-11-04
+**Decided (owner, 2026-11-04; design by devops-sre under D-089)** — "Faire poser les verdicts
+par le bot, depuis GitHub Actions, et n'accepter que les statuts écrits par le bot."
+
+**Why the reviewers move into Actions** — every agent on the owner's machine acts through the
+owner's account. A verdict sent from there cannot prove which agent wrote it: an implementer
+could approve its own work. So the reviewer agents of #1271 run **in the `Agent review`
+workflow**, one job per required role, after CI is green on the head commit. The bot then
+posts what the job produced: the review comment and the `agent-review/<role>` status.
+`agent-review`, `Red gate` and every condition of `enqueue.mjs` read **only statuses whose
+creator is `opendefender-delivery-bot[bot]`**. A status written by anyone else is ignored, so
+a forged approval changes nothing.
+
+**How the reviewer is contained**
+- It gets read-only tools (Read, Grep, Glob) and no repository token.
+- The PR's content is given to it as data, never as instructions.
+- It must answer with a structured verdict (pass/fail, blocking count, numbered findings), which a script validates before the bot posts it.
+- Fork PRs are never reviewed this way: no secret reaches them.
+- The deterministic gates (CI, risk class) still apply whatever the reviewer says.
+- A red-class PR always needs two reviewers.
+
+**Cost** — no new spending. The jobs use a token of the owner's existing subscription, a
+secret the owner creates once, and draw on the same usage quota as the local runner. Actions
+minutes are free for this public repository. The agent CLI is pinned to an exact version.
+
+**Changes** — #1271: reviewers in Actions, verdict posted by the bot, bot-only statuses.
+#1250: `Red gate` written by the bot. #1280: bot-only statuses in `enqueue.mjs`.
+
 ### D-094 — Every issue is refined before the runner implements it · decided 2026-11-04
 **Decided (owner, 2026-11-04)** — "Les tickets passent d'abord par l'affinage automatique
 (#1270) avant d'être pris par le runner." The scripted Ready gate (#1249) checks the
