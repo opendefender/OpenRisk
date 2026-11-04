@@ -123,36 +123,43 @@ whether the list stays as it is.
 
 ## Resolved
 
-### D-086 — Mitigations: a schema constraint tying a plan's risk to its tenant, and what to do with rows written across tenants · raised 2026-10-30 · decided 2026-11-03
-**Decided (owner, 2026-11-03)** — option A, as recommended, delivered after the
-advisory is published: the constraint and the quarantine migration go in a public
-issue opened then, not in the advisory fix.
-**Context** — GHSA-2w75-9qj8-fwwp: `POST /risks/:id/mitigations` never checked
-that the risk belonged to the caller's tenant. The fix gates the create
-transaction in the repository and scopes every `Preload("Risk")` /
-`Preload("Mitigations")` by tenant. That closes the hole in code, but nothing in
-the schema stops a future write path from doing it again, and any plan written
-cross-tenant before the fix is still in the database. Since the fix those rows
-stay inside the attacker's own tenant: they no longer resolve the victim's
-risk, no longer appear under it, and no longer reach its audit trail (proved
-live on Postgres 16). They still carry the victim's risk UUID.
-Detection query:
-`SELECT m.id, m.tenant_id, r.tenant_id FROM mitigations m JOIN risks r ON r.id = m.risk_id WHERE m.tenant_id <> r.tenant_id`.
+### D-087 — Accept ADR 0008, the Canonical Model v1 (#541) · decided 2026-11-03
+**Decided (owner, 2026-11-03)** — option A, as recommended. ADR 0008 is accepted as written,
+with the confidence defaults of D3 (`confidence/1`), the `compliance_controls` split of D7 and
+`ControlTestResult` as a sub-record. D-030 is satisfied for the slice: the Go types and tests may
+now be specified in the follow-up issue, and #542 may start.
 
-**Options** —
-- A: add `UNIQUE (id, tenant_id)` on `risks` and a composite FK
-  `mitigations (risk_id, tenant_id) → risks (id, tenant_id)`, preceded by a
-  data migration that moves mismatched rows into a `mitigations_quarantine`
-  table (kept, not deleted). The schema comes from AutoMigrate today, so the
-  constraint must also go in `PrepareForAutoMigrate`, not only in `migrations/`.
-- B: quarantine the rows only, no constraint.
-- C: leave both; rely on the code gate and the scoped preloads.
+**Question** — Accept `docs/adr/0008-openrisk-canonical-model.md` as written, accept it with
+changes, or send it back. D-030 forbids code on the canonical model until this ADR is accepted,
+and #542 (the published schema, the irreversible step) cannot start before it.
 
-**Recommendation** — A. It touches the tenant-isolation design and moves user
-data, which is why it is here and not in the fix. Track it in a private issue
-until the advisory is published.
-**Cost of delay** — Low after the fix: no cross-tenant read or write remains.
-The gap is one unscoped query away from reopening.
+**Context** — The ADR specifies the envelope (D2), the source registry and the confidence scale
+(D3), the time rule (D4), 18 relationship rows in a closed vocabulary (D5), the seven entities of
+the GRC slice (D6), a column-by-column mapping from today's models (D7), and adopts ADR 0004's
+`Vendor` and `Assessment` without superseding a field (D8). It changes no table and no code.
+
+**What needs the owner, specifically**
+1. **The confidence defaults (D3).** User-entered 0.70 (0.90 once a second person reviews),
+   scanner 0.80, threat intelligence 0.40, connector import 0.60, regulatory catalogue 0.90,
+   vendor questionnaire 0.50 (ADR 0004, unchanged), derived = the minimum of its inputs. These
+   are judgements. Every freshness and correlation figure of the Evidence Fabric inherits them.
+2. **The `compliance_controls` split (D7).** One row becomes a `Requirement` and a `Control`.
+   Every screen that shows "a control" will show both after #553.
+3. **`ControlTestResult` as a sub-record (D1)**, not a twentieth entity.
+
+**Options**
+- **A — accept as written.** The follow-up issue for the Go types and tests opens, `#553` and
+  `#1217` can be refined, and #542 can start.
+- **B — accept with changes** named in the ruling; the ADR is amended in a PR before code starts.
+- **C — send back.** Nothing downstream moves.
+
+**Recommendation** — **A**, or B if a confidence default is wrong in the owner's experience.
+The values are versioned (`confidence/1`), so changing one later is a rule change, not a
+migration, until #542 publishes them.
+
+**Cost of delay** — High: #553, #554, #555, #542 and #1217 all wait on it.
+
+**Blocks** — the follow-up implementation issue · #542 · #553 · #1217.
 
 ### D-083 — Canonical model ADR (#541): the GRC slice first, or all 17 entities at once · decided 2026-10-30
 **Decided (owner, 2026-10-30)** — option A, as recommended. The ADR on #541 specifies the
