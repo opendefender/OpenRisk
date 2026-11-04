@@ -57,6 +57,16 @@ function renderPanel() {
   );
 }
 
+// The spinbutton exists for one frame holding '' before the effect seeds it from
+// the server. Clearing it on that frame fires no change event, so `touched` stays
+// false, the seed then lands, and typing appends to it ('7' + '3' = 73): that was
+// the flaky failure of #1273. Edit only once the seeded value is there.
+async function seededInput(value: number): Promise<HTMLInputElement> {
+  const input = (await screen.findByRole('spinbutton')) as HTMLInputElement;
+  await waitFor(() => expect(input.value).toBe(String(value)));
+  return input;
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   hasPermission.mockReturnValue(true);
@@ -85,9 +95,10 @@ describe('MFAPolicyPanel', () => {
     saveMFAPolicy.mockResolvedValue(policy({ grace_days: 3, configured: true }));
     renderPanel();
 
-    const input = await screen.findByRole('spinbutton');
+    const input = await seededInput(7);
     await userEvent.clear(input);
     await userEvent.type(input, '3');
+    expect(input.value).toBe('3');
     await userEvent.click(screen.getByRole('button', { name: /save|enregistrer/i }));
 
     await waitFor(() => expect(saveMFAPolicy).toHaveBeenCalledWith(3));
@@ -99,9 +110,10 @@ describe('MFAPolicyPanel', () => {
     fetchMFAPolicy.mockResolvedValue(policy({ min_days: 0, max_days: 30 }));
     renderPanel();
 
-    const input = await screen.findByRole('spinbutton');
+    const input = await seededInput(7);
     await userEvent.clear(input);
     await userEvent.type(input, '45');
+    expect(input.value).toBe('45');
 
     expect(screen.getByRole('alert').textContent).toMatch(/between 0 and 30|entre 0 et 30/i);
     expect(screen.getByRole('button', { name: /save|enregistrer/i })).toBeDisabled();
