@@ -1,8 +1,10 @@
 # 0009 — Autonomous delivery: develop → staging → master, merges without the owner on green, pull deploys
 
-Status: **proposed**
+Status: **accepted**
 Proposed: 2026-11-04, on #1242
-Decision: D-088 (`docs/DECISIONS.md`)
+Accepted: 2026-11-04 by the owner, with amendments — D-088 (`docs/DECISIONS.md`). D3 and
+D5 below are written as amended; the proposed text of D3 (red PRs wait for the owner) was not
+retained.
 Builds on: D-082 (required checks on `master`), D-043 (E2E as the PR gate), D-015 (DCO), D-003 and
 D-032 (labels), #1005 (`route-reviewers.sh`)
 Milestone: Autonomous delivery (#1242 to #1258)
@@ -76,7 +78,7 @@ A PR into `develop` is green when all of these hold on its head commit and again
 Every workflow that provides a required check also runs on `merge_group`. A flaky test may be
 quarantined by the rule of #1254, never the tenant isolation suite or the authz matrix tests.
 
-### D3 — The red class always waits for the owner
+### D3 — The red class merges through a stricter gate (amended by D-088)
 
 A PR is red when its diff touches any of: authentication, MFA, sessions or OAuth
 (`backend/pkg/auth/`, `backend/pkg/otp/`, `backend/pkg/oauthpkce/`,
@@ -88,9 +90,19 @@ licensing (`LICENSE`, `LICENSE.commercial`), pricing or entitlements (`docs/PRIC
 `CLAUDE.md`, or the agents, skills and hooks (`.claude/`).
 
 The list is the escalation list of CLAUDE.md turned into paths. It lives in one committed file
-that is itself red. The classifier fails closed: anything it cannot read is red. A red PR gets
-the label agreed in D-088 and is merged only by the owner. Fixes inside a red path are still red:
-CLAUDE.md lets agents write them, not merge them.
+that is itself red. The classifier fails closed: anything it cannot read is red.
+
+**A red PR does not wait for the owner** (D-088). It merges automatically when, on top of D2:
+the security review (devsecops) and the tech-lead review approve the head commit; the full Go
+suite on Postgres, the tenant isolation suite, the authz matrix and the full e2e suite pass; and
+no review finding is open. A red PR that touches `.github/workflows/`, the risk rules or
+`scripts/board/` must also pass a gate-integrity check: every required context still runs,
+from the base branch's definition. Branch protection itself lives in the repository settings,
+which no PR can change.
+
+What needs a decision still needs one first: a change to the Score Engine or SmartScore formula,
+a paid service, pricing, licensing or anything irreversible is raised in `docs/DECISIONS.md`
+before the work. Once decided, its implementation merges like any other red PR.
 
 **A PR from a fork is red whatever its diff.** It is never enqueued by automation, and no job
 that holds a secret or acts on the owner's machine runs on it. The repository is public and
@@ -116,13 +128,13 @@ Issues: #1243, #1245, #1246.
 ### D5 — Promotion and release rules
 
 - **develop → staging**, automatically, when the commit runs on dev and the full e2e suite and a
-  smoke suite pass against the dev stack, and no `priority:P0-critical` issue is open.
-- **staging → master**, automatically, when the commit has run on staging for a soak period
-  (recommended 24 h) with no rollback and no new P0/P1 bug, at least one `feat` or `fix` landed
+  smoke suite pass again against the dev stack, pulled from the merged commit (not the PR's CI
+  run), and no `priority:P0-critical` issue is open.
+- **staging → master**, automatically, when the commit has run on staging for **48 h** (D-088) with no rollback and no new P0/P1 bug, at least one `feat` or `fix` landed
   since the last tag, and no P0 or P1 issue is open in the active milestone.
 - **Tag**: version and changelog come from Conventional Commits since the last tag, and must
   update `VERSION` so `release.yml`'s guard passes. release-please does this, and it is a new
-  third-party action: D-088 asks for it explicitly. `selfhost-install.yml` runs on the candidate
+  third-party action, accepted by D-088 and pinned by SHA. `selfhost-install.yml` runs on the candidate
   before the tag. Release notes in `fr` and `en` are drafted by the release-notes role and
   checked by `product-verifier` against the claim matrix; a claim it cannot prove blocks the
   release (CLAUDE.md rule 12).
@@ -154,8 +166,7 @@ Issues: #1247, #1248, #1249.
   L issues, arbitration and ADRs. Target: at most four agents on `opus`.
 - Context is read once per issue (the `scout` brief), reviews are proportional to the routed
   risk, and tokens are recorded per issue.
-- A failed deploy reverts its PR through the queue and opens a P1 bug, except for a red PR, where
-  it opens the bug with the owner label and waits.
+- A failed deploy reverts its PR through the queue and opens a P1 bug, red PRs included (D-088).
 
 Issues: #1252, #1253, #1254, #1257.
 
@@ -175,14 +186,15 @@ Line 111 today:
 
 > - **Never merge a PR.** Merging is the owner's decision.
 
-Proposed:
+Accepted (D-088):
 
-> - **Never merge a PR by hand.** The `develop` merge queue merges a PR whose checks, risk class
->   and routed reviews are green (ADR 0009). A red-class PR, and any PR from a fork, is merged
->   only by the owner.
+> - **Never merge a PR by hand.** The `develop` merge queue merges a PR once every acceptance
+>   criterion of its issue is ✅, every required check is green and no review finding is open;
+>   a red-class PR also needs the stricter gate of ADR 0009 D3. A PR from a fork is never
+>   merged automatically.
 
-And one addition to the escalation list (line 167): "any change to the risk-class rules, the
-auto-merge conditions or the promotion rules".
+The escalation list (line 167) is unchanged: it governs what needs a decision before the work,
+not who merges.
 
 Line 148, "Never close an issue. The merge closes it.", is unchanged. With `develop` as the
 default branch, `Closes #<n>` closes the issue on the `develop` merge, and the board's On dev /
@@ -199,8 +211,8 @@ On staging / Released columns carry the rest.
 
 ## Consequences
 
-- The owner stops being the bottleneck for green-class work and sees red-class work in one
-  column (Needs owner).
+- The owner is no longer on the merge path at all, except for fork PRs. The board's Needs owner
+  column holds only issues waiting on a D-0xx entry.
 - `develop` becomes the default branch. Anyone cloning without a tag gets `develop`; the install
   docs must point at tags or `master` (#1244 checks them).
 - A bad green-class change reaches dev before anyone looks at it. The containment is the queue,
@@ -209,7 +221,7 @@ On staging / Released columns carry the rest.
 - The quality of "green" now carries the project. A gap in a required check is no longer caught
   by the owner reading the PR. #1250 and the `merge_group` triggers are the first things to build
   after the Compose fix.
-- One more third-party action (release-please) if D-088 accepts it.
+- One more third-party action (release-please), accepted by D-088.
 - Running cost moves from the largest model to the default one for most work; the figures are
   measured in #1253 and #1257, not assumed here.
 
