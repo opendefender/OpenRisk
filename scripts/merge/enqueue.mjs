@@ -58,6 +58,9 @@ async function one(pr) {
   const v = mayEnqueue(f);
   if (!v.ok) return { pr, result: 'refused', reasons: v.reasons };
   if (DRY) return { pr, result: 'would enqueue' };
+  // Only the Merge workflow enqueues, as the bot (D-092, D-095). Run anywhere else, this
+  // script would enqueue with the caller's account; an agent asks the workflow instead.
+  if (!process.env.GITHUB_ACTIONS) return { pr, result: 'refused', reasons: ['enqueue runs only in the Merge workflow; use `gh workflow run merge.yml -f pr=<n> -f dry_run=false`'] };
   await gql(`mutation($id: ID!) { enqueuePullRequest(input: { pullRequestId: $id }) { mergeQueueEntry { position } } }`, { id: p.node_id });
   return { pr, result: 'enqueued' };
 }
