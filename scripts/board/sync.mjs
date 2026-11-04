@@ -136,6 +136,46 @@ const setOption = (itemId, field, optionId) =>
 const clearField = (itemId, field) =>
   `clearProjectV2ItemFieldValue(input: { projectId: ${lit(cfg.projectId)}, itemId: ${lit(itemId)}, fieldId: ${lit(field)} }) { clientMutationId }`;
 
+// Says which resource the token cannot reach, instead of one opaque error mid-run.
+async function checkAccess() {
+  const probes = [
+    ['repository issues (Issues: read)', `query { repository(owner: ${lit(cfg.owner)}, name: ${lit(cfg.repo)}) { issues(first: 1) { totalCount } } }`],
+    ['pull requests (Pull requests: read)', `query { repository(owner: ${lit(cfg.owner)}, name: ${lit(cfg.repo)}) { pullRequests(first: 1) { totalCount } } }`],
+    [`organization project #${cfg.projectNumber} (Projects: read and write, resource owner ${cfg.owner})`, `query { organization(login: ${lit(cfg.owner)}) { projectV2(number: ${cfg.projectNumber}) { id } } }`],
+  ];
+  const failed = [];
+  for (const [what, q] of probes) {
+    try { await gql(q); } catch (e) { failed.push(`${what}: ${e.message}`); }
+  }
+  if (failed.length) {
+    for (const f of failed) console.log(`::error::token cannot reach ${f}`);
+    throw new Error(`token check failed on ${failed.length} resource(s)`);
+  }
+  console.log('token check: issues, pull requests and project reachable');
+}
+
+// Field and option ids are read from the live project on every run; .github/board.json is
+// only the fallback. A stale id there (options recreated on 2026-11-04) made every write fail.
+async function refreshFieldIds() {
+  const d = await gql(`query($p: ID!) { node(id: $p) { ... on ProjectV2 { fields(first: 50) { nodes {
+    ... on ProjectV2Field { id name }
+    ... on ProjectV2SingleSelectField { id name options { id name } }
+    ... on ProjectV2IterationField { id name } } } } } }`, { p: cfg.projectId });
+  let stale = 0;
+  for (const f of d.node.fields.nodes) {
+    const known = cfg.fields[f.name];
+    if (!known) continue;
+    if (known.id !== f.id) stale += 1;
+    known.id = f.id;
+    if (f.options) {
+      const live = Object.fromEntries(f.options.map((o) => [o.name, o.id]));
+      if (JSON.stringify(live) !== JSON.stringify(known.options)) stale += 1;
+      known.options = live;
+    }
+  }
+  if (stale) console.log(`::warning::.github/board.json has ${stale} stale field id(s); using the live ones. Run scripts/board/setup.mjs to refresh it.`);
+}
+
 async function main() {
   if (!token({ required: false })) {
     // In CI the secret is optional until the owner creates it (#1248).
@@ -143,6 +183,8 @@ async function main() {
     return;
   }
   const started = Date.now();
+  await checkAccess();
+  await refreshFieldIds();
   fetchRefs();
   const since = new Date(Date.now() - (cfg.closedLookbackDays ?? 30) * 86400e3).toISOString();
   const [items, issues, recentlyClosed, refs] = await Promise.all([

@@ -22,7 +22,7 @@ on:
   issues:
     types: [opened, reopened, closed, edited, labeled, unlabeled, transferred, deleted]
   pull_request:
-    types: [opened, reopened, closed, edited, ready_for_review, converted_to_draft]
+    types: [opened, synchronize, reopened, closed, edited, ready_for_review, converted_to_draft]
   create:
   delete:
   push:
@@ -66,6 +66,27 @@ jobs:
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: '22'
+
+      # Names the resource the token cannot reach, so a permission problem reads as one.
+      - name: Token check
+        env:
+          BOARD_TOKEN: ${{ secrets.BOARD_TOKEN }}
+        run: |
+          if [ -z "$BOARD_TOKEN" ]; then echo "::notice::BOARD_TOKEN is not set."; exit 0; fi
+          probe() {
+            out=$(curl -sS -H "Authorization: bearer $BOARD_TOKEN" -H 'Content-Type: application/json' \
+              -d "{\"query\":\"$2\"}" https://api.github.com/graphql)
+            if echo "$out" | jq -e '.errors' >/dev/null; then
+              echo "::error::token cannot reach $1: $(echo "$out" | jq -r '[.errors[].message]|join("; ")')"; return 1
+            fi
+            echo "ok: $1"
+          }
+          fail=0
+          probe "repository issues (Issues: read)" "query { repository(owner: \\\"opendefender\\\", name: \\\"OpenRisk\\\") { issues(first: 1) { totalCount } } }" || fail=1
+          probe "pull requests (Pull requests: read)" "query { repository(owner: \\\"opendefender\\\", name: \\\"OpenRisk\\\") { pullRequests(first: 1) { totalCount } } }" || fail=1
+          probe "organization project 3 (Organization > Projects: read and write)" "query { organization(login: \\\"opendefender\\\") { projectV2(number: 3) { title } } }" || fail=1
+          echo "token owner: $(curl -sS -H "Authorization: bearer $BOARD_TOKEN" https://api.github.com/user | jq -r .login)"
+          exit $fail
 
       - name: Sync
         env:
