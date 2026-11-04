@@ -110,3 +110,26 @@ export function parseAgentVerdict(text) {
   if (v.verdict === 'fail' && v.blocking === 0) return { ok: false, error: 'a fail needs at least one blocking finding; nits never fail' };
   return { ok: true, verdict: v.verdict, blocking: v.blocking, findings: v.findings };
 }
+
+// D-096 (owner): after a fix, only the roles that refused review again; a role that
+// approved the previous reviewed commit keeps its approval, and the carry-over is said.
+// allRequiredBodies: every bot comment body; current: the head SHA being routed.
+// → the previous routing ({ sha, roles }) before `current`, or null.
+export function previousRouting(bodies, current) {
+  const seen = [];
+  const re = new RegExp(`<!-- ${REQUIRED_MARKER} sha=([0-9a-f]{7,40}) roles=([a-z0-9,-]*) -->`);
+  for (const b of bodies) {
+    const m = re.exec(b || '');
+    if (m && m[1] !== current) seen.push({ sha: m[1], roles: m[2] ? m[2].split(',') : [] });
+  }
+  return seen.length ? seen[seen.length - 1] : null;
+}
+
+// carryOver(roles, prevStatuses) → { carried: [], review: [] }
+// prevStatuses: the bot's `agent-review/<role>` states on the previous routed commit.
+// Carried: the role was required before and approved that commit. Everything else is
+// reviewed: roles that refused, errored, never answered, or are newly required.
+export function carryOver(roles, prevStatuses, prevRoles = []) {
+  const carried = roles.filter((r) => prevRoles.includes(r) && prevStatuses[r] === 'success');
+  return { carried, review: roles.filter((r) => !carried.includes(r)) };
+}

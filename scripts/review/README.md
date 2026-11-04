@@ -29,6 +29,7 @@ The gates read **only the bot's statuses and comments**. A status or a marker co
 | Result | What follows |
 |---|---|
 | All required roles pass on the head commit | `agent-review` is success, a condition of the merge (#1280) |
+| A fix pushed after a failure | Only the roles that refused, errored or are newly required review the new commit. A role that approved the previous commit keeps its approval: the bot writes it as *carried over, not re-reviewed*, and the routing comment lists both groups (D-096). |
 | A failure | The issue goes back to `status:in-progress`, and the runner gives the blocking findings to an implementer, who pushes fixes and answers each finding. The new commit is routed again. |
 | A dispute | tech-lead arbitrates once; its verdict is final |
 | Failures on 3 different commits | The issue is `status:blocked` and the PR gets a summary |

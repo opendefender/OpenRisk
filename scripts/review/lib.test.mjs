@@ -72,3 +72,18 @@ test('aggregate: a reviewer error waits for a rerun instead of rejecting', () =>
   assert.equal(r.state, 'pending');
   assert.match(r.description, /reviewer error/);
 });
+
+import { previousRouting, carryOver } from './lib.mjs';
+
+test('D-096: approvals carry over, refusals and new roles are reviewed again', () => {
+  const old = 'b'.repeat(40);
+  const bodies = [requiredComment('c'.repeat(40), ['tech-lead']), requiredComment(old, ['devsecops', 'tech-lead']), requiredComment(SHA, ['devsecops', 'qa-automation', 'tech-lead'])];
+  assert.deepEqual(previousRouting(bodies, SHA), { sha: old, roles: ['devsecops', 'tech-lead'] });
+  assert.equal(previousRouting([requiredComment(SHA, ['tech-lead'])], SHA), null);
+  const r = carryOver(['devsecops', 'qa-automation', 'tech-lead'], { 'tech-lead': 'success', devsecops: 'failure' }, ['devsecops', 'tech-lead']);
+  assert.deepEqual(r, { carried: ['tech-lead'], review: ['devsecops', 'qa-automation'] });
+  // An error or a missing answer is never carried.
+  assert.deepEqual(carryOver(['tech-lead'], { 'tech-lead': 'error' }, ['tech-lead']).carried, []);
+  // A role approved before but not required now is simply not carried (and not reviewed).
+  assert.deepEqual(carryOver(['tech-lead'], { devsecops: 'success', 'tech-lead': 'success' }, ['devsecops', 'tech-lead']), { carried: ['tech-lead'], review: [] });
+});

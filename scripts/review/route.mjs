@@ -13,9 +13,9 @@ import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { requiredRoles, requiredComment, REQUIRED_MARKER, closingIssue } from './lib.mjs';
+import { requiredRoles, requiredComment, REQUIRED_MARKER, closingIssue, previousRouting, carryOver } from './lib.mjs';
 import { classify, parseDiff } from '../risk/classify.mjs';
-import { R, rest, botComments, arg } from './gh.mjs';
+import { R, rest, botComments, statuses, setStatus, arg, BOT_LOGIN } from './gh.mjs';
 import { aggregatePr } from './aggregate.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -63,6 +63,20 @@ try {
 }
 
 const roles = requiredRoles({ routed, cls, files });
+
+// D-096: after a fix, a role that approved the previous routed commit is not asked again.
+// Its approval is carried to this commit by the bot and said plainly; the roles that
+// refused, errored or are newly required review again.
+const prior = (await botComments(pr)).map((c) => c.body);
+const prev = previousRouting(prior, sha);
+let carried = [];
+if (prev) {
+  const prevSt = await statuses(prev.sha, { onlyFrom: BOT_LOGIN });
+  const per = Object.fromEntries(prev.roles.map((r) => [r, prevSt[`agent-review/${r}`]]));
+  ({ carried } = carryOver(roles, per, prev.roles));
+  const review = roles.filter((r) => !carried.includes(r));
+  reasons.push(`after the fix (previous review on \`${prev.sha.slice(0, 8)}\`): **reviewing again** ${review.length ? review.map((r) => `\`${r}\``).join(', ') : 'nobody'}; **approval carried over, not re-reviewed** ${carried.length ? carried.map((r) => `\`${r}\``).join(', ') : 'none'} (D-096)`);
+}
 const text = requiredComment(sha, roles, reasons);
 if (process.argv.includes('--dry-run')) {
   console.log(text);
@@ -70,5 +84,8 @@ if (process.argv.includes('--dry-run')) {
 }
 const mine = (await botComments(pr)).filter((c) => c.body?.includes(REQUIRED_MARKER));
 if (!mine.some((c) => c.body === text)) await rest('POST', `${R}/issues/${pr}/comments`, { body: text });
+for (const r of carried) {
+  await setStatus(sha, `agent-review/${r}`, 'success', `${r}: approval carried over from ${prev.sha.slice(0, 8)}, not re-reviewed (D-096)`);
+}
 const agg = await aggregatePr(pr);
 console.log(`#${pr} ${sha.slice(0, 8)}: required ${roles.join(', ')} → agent-review ${agg.state}`);
