@@ -9,6 +9,27 @@ recommends, and surfaces these in the daily brief. Run `/decide` to clear them.
 
 ## Resolved
 
+### D-089 — What agents decide alone, and what still reaches the owner · decided 2026-11-04
+**Decided (owner, 2026-11-04)** — "Implement it yourself, but record your decisions in
+`DECISIONS.md`; always take the best decision for our app, to have the best app possible."
+Agents decide, implement and record everything CLAUDE.md used to escalate: the Score Engine or
+SmartScore formula (with an ADR), a new external dependency, auth, crypto or tenant isolation
+design, pricing, licensing, brand naming, a milestone's scope. The criterion is the best option
+for the product, not the cheapest to build. Each one is written under **Resolved** as
+`Decided (agent, <date>)`, with the question, the options, the choice and the reason, so the
+owner can overturn it.
+
+**Kept with the owner, as the agent's recommendation (the owner may remove it)** — two things:
+anything that spends money (agents have no budget), and anything irreversible (deleting data or
+a repository, rewriting published history, a public legal commitment). A migration that drops or
+renames a column is made reversible by shipping it in two releases (expand, then contract), so
+agents decide it too.
+
+**Not yet applied** — CLAUDE.md's "Autonomy" section (lines 161-175) and line 76 ("requires an
+ADR and my approval") still say the old rule. The agent's edit of CLAUDE.md was refused by its
+own safety check on self-modification, so the owner applies the text proposed on #1242, or
+grants the edit. Until then CLAUDE.md is the rule that runs, and this entry is the intent.
+
 ### D-088 — Accept ADR 0009: merges without the owner on green, develop → staging → master, pull deploys · decided 2026-11-04
 **Decided (owner, 2026-11-04)** — ADR 0009 accepted, amended by the owner's answers. (1) Green PRs merge automatically once everything on the issue is done: every acceptance criterion ✅ in the mandatory progress comment, every required check green, no open review finding. (2) **The red class does not wait for the owner.** A red PR (auth, crypto, tenant isolation design, destructive migrations, Score Engine and SmartScore, licence, pricing, entitlements, workflows, `CLAUDE.md`, `.claude/`) merges automatically too, but through a stricter gate: the security review (devsecops) and tech-lead review approve the head commit, the full Go suite on Postgres, the tenant isolation suite, the authz matrix and the full e2e suite pass, and no finding is open. (3) **Fork PRs are never auto-merged** and never run on the owner's machine. (4) Flow: merge into `develop` → deployed to dev → pulled and tested again on dev (e2e + smoke) → only then fast-forwarded to `staging`. (5) release-please is accepted as a new dependency, pinned by SHA. (6) Soak on staging before `master` and the tag: **48 h**. (7) `status:needs-owner` is not needed for red PRs; it is not created, and the board's Needs owner column stays for issues waiting on a D-0xx entry (`ownerLabels` in `.github/board.json`). (8) The licence of `opendefender/agent-team` stays open until #1258.
 
