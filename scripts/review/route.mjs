@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Routes the reviewers of a PR's head commit (#1271) and records them in one comment.
-// It sets `agent-review` to pending, and the reviewers then record their verdicts with
-// verdict.mjs.
+// It sets `agent-review` to pending, and the reviewer jobs then record their verdicts with
+// record.mjs, in the Agent review workflow (D-095).
 //
 //   node scripts/review/route.mjs --pr <n> --worktree <dir with the PR head checked out> [--dry-run]
 //
