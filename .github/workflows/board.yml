@@ -45,7 +45,8 @@ permissions:
 # because each run recomputes everything.
 concurrency:
   group: board-sync
-  cancel-in-progress: false
+  # A newer run supersedes an older one: each run recomputes everything (#1289).
+  cancel-in-progress: true
 
 jobs:
   sync:
