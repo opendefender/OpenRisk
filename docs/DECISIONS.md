@@ -9,6 +9,21 @@ recommends, and surfaces these in the daily brief. Run `/decide` to clear them.
 
 ## Resolved
 
+### D-096 — After a fix, only the refusing reviewers review again, and the carry-over is said · decided 2026-11-05
+**Decided (owner, 2026-11-05)** — "Limiter la relance aux rôles qui avaient refusé et signaler."
+When an implementer pushes a fix after the review gate sent the PR back (#1271):
+- A role that **approved the previous reviewed commit** keeps its approval on the new commit. The bot writes it as `approval carried over from <sha>, not re-reviewed`.
+- A role that **refused, errored or never answered**, and any role **newly required** by the fix (for example devsecops when the fix touches a red path), reviews the new commit.
+- The routing comment on the PR lists both groups, so a reader sees which approvals were not re-checked.
+
+**Why** — fewer review runs per fix, so fewer tokens. A role that refused is the one whose
+concern the fix addresses.
+
+**Residual risk, accepted** — a fix can break something a carried role approved. The required
+checks still run on every commit, and a new risk class still adds its reviewers. The role
+lists are recomputed from the new diff each time, so a fix that reaches a new area is always
+reviewed by that area's role.
+
 ### D-095 — Review verdicts are produced in GitHub Actions and posted by the bot · decided 2026-11-04
 **Decided (owner, 2026-11-04; design by devops-sre under D-089)** — "Faire poser les verdicts
 par le bot, depuis GitHub Actions, et n'accepter que les statuts écrits par le bot."
