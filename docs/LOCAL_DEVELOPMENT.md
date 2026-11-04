@@ -50,14 +50,22 @@ docker-compose logs -f
 # Check all services are running
 docker-compose ps
 
-# Expected output:
-# NAME                    STATUS
-# openrisk_db             Up (healthy)
-# openrisk_test_db       Up (healthy)
-# openrisk_redis         Up (healthy)
-# openrisk_backend       Up (healthy)
-# openrisk_frontend      Up (healthy)
+# Expected output (the Compose project is openrisk-dev):
+# NAME                       STATUS
+# openrisk-dev-db-1          Up (healthy)
+# openrisk-dev-test_db-1     Up (healthy)
+# openrisk-dev-redis-1       Up (healthy)
+# openrisk-dev-backend-1     Up (healthy)
+# openrisk-dev-frontend-1    Up (healthy)
 ```
+
+The dev and staging stacks run side by side on one machine (#1243): each has its
+own Compose project, network, volumes and host ports. Staging is started with
+`docker compose -f docker-compose.staging.yaml --env-file .env.staging up -d --build`
+(see `.env.staging.example`); its backend answers on http://localhost:8082/api/v1/health.
+
+If your dev stack was started before #1243, stop it once with
+`docker compose -p openrisk down` (no `-v`, your data is kept), then `docker compose up -d`.
 
 ### 5. Access the Application
 
