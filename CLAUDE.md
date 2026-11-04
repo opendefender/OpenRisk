@@ -184,6 +184,7 @@ working on something else. Never block waiting for me.
 
 ## Agent operating rules
 
+- The full rulebook, with what enforces each rule, is `docs/AGENT_RULES.md`.
 - Read before you write. Never assume file content.
 - Smallest correct change. No opportunistic refactors.
 - Ambiguity: state it, state your chosen interpretation, proceed.
