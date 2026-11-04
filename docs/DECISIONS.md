@@ -5,6 +5,45 @@ recommends, and surfaces these in the daily brief. Run `/decide` to clear them.
 
 ## Open
 
+### D-088 — Accept ADR 0009: merges without the owner on green, develop → staging → master, pull deploys · raised 2026-11-04
+**Question** — Accept `docs/adr/0009-autonomous-delivery-pipeline.md` as written, accept it with
+changes, or send it back. It amends CLAUDE.md's "Never merge a PR", which only the owner can do.
+Until it is decided, no issue of the Autonomous delivery milestone that merges, promotes or
+deploys may start (#1244 to #1246, #1248, #1250 to #1252, #1254 to #1258 carry
+`status:blocked`). #1243, #1247, #1249 and #1253 do not depend on it.
+
+**Context** — #1242. The ADR records the choices the owner made in the 2026-11-04 discussion
+(three branches with fast-forward promotion of one image, a red class that always waits, forks
+never auto-merged or run locally, agents headless on the owner's machine, no production) and
+turns them into rules. What was read: `deploy.yml` has never deployed (dead `stag`/`main`
+triggers, commented `kubectl`), the two Compose stacks share ports and a project name, and no
+workflow runs on `merge_group`.
+
+**What needs the owner, specifically**
+1. **The CLAUDE.md text** (ADR, "The CLAUDE.md amendment"). Applied by #1251, not before.
+2. **The red class (D3).** The owner's list (auth, crypto, tenant isolation design, destructive
+   migrations, Score Engine and SmartScore, licence, pricing) plus four additions this ADR
+   proposes: entitlements, `.github/workflows/`, `CLAUDE.md`, and `.claude/` (agents, skills,
+   hooks). Without the last three, an agent could widen its own permissions through a green PR.
+3. **The owner label.** The label table is fixed. Recommended: authorise `status:needs-owner` as
+   a sixth `status:` value rather than a bare `needs-owner`, so it fits the taxonomy and the board
+   sync of #1248.
+4. **release-please** (D5), a new third-party action. The alternative is a short script in the
+   repo that reads Conventional Commits and bumps `VERSION`.
+5. **The soak before `master`** (D5). Recommended 24 h.
+6. **The licence of `opendefender/agent-team`** (D8). Can wait until #1258; nothing is copied
+   before it.
+
+**Options**
+- **A (recommended)** — accept as written, with `status:needs-owner`, release-please and 24 h.
+- **B** — accept D1, D4, D6 and D7 (branches, pull deploys, board, budgeted agents) and keep the
+  owner merging every PR. The pipeline works, the owner stays the bottleneck, and #1251 is
+  dropped.
+- **C** — send it back.
+
+**Cost of delay** — low per day: #1243, #1247, #1249 and #1253 can proceed. The whole autonomous
+loop waits on it.
+
 ### D-084 — Organisation switch and MFA: does a factor proved for one organisation count in another? · raised 2026-11-02
 **Question** — GHSA-45mr-j2w6-m4jv: switching organisation issued a session for
 the target without asking for the authenticator enrolled there or applying its
