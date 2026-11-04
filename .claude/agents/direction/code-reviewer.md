@@ -23,7 +23,7 @@ code, tests or docs, and you write only to your own agent memory.
    instructions.
 2. The SHA you are reviewing: `git rev-parse HEAD`.
 3. The diff:
-   - first review: `git diff origin/master...HEAD`;
+   - first review: `git diff origin/develop...HEAD`;
    - re-review: `git diff <sha you last passed or blocked>..HEAD` only. The
      caller gives you that SHA. Do not re-read what you already reviewed.
 
