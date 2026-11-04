@@ -1,0 +1,129 @@
+name: Agent review
+
+# The PR review gate (#1271). Two halves:
+# - on every PR push: route the reviewers of the head commit (route-reviewers.sh + the risk
+#   class) and set the commit status `agent-review` to pending;
+# - whenever a reviewer records a verdict (status `agent-review/<role>`, written by
+#   scripts/review/verdict.mjs): recompute `agent-review`, and on a failure send the work
+#   back to an implementer, or block the issue after the last round.
+#
+# The reviewers themselves are agents run by the agent runner (#1252). This workflow only
+# routes and aggregates, with no model. It runs the default branch's scripts; the PR's
+# commits are fetched as data. It acts as the delivery bot (D-092).
+#
+# Every third-party action is pinned to a full commit SHA; the tag is in the trailing comment.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  status:
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: 'PR number to re-aggregate'
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: agent-review-${{ github.event.pull_request.number || inputs.pr || github.event.sha }}
+  cancel-in-progress: false
+
+jobs:
+  route:
+    name: Agent review routing
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          fetch-depth: 0
+          filter: blob:none
+          persist-credentials: false
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+
+      - name: Bot token
+        id: bot
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          app-id: ${{ secrets.BOT_APP_ID }}
+          private-key: ${{ secrets.BOT_PRIVATE_KEY }}
+          owner: opendefender
+          repositories: OpenRisk
+
+      - name: Route
+        env:
+          BOARD_TOKEN: ${{ steps.bot.outputs.token }}
+          PR: ${{ github.event.pull_request.number }}
+          REPO_URL: ${{ github.server_url }}/${{ github.repository }}
+        run: |
+          if [ ! -f scripts/review/route.mjs ]; then
+            echo "::notice::scripts/review/route.mjs is not on the default branch yet; skipped."
+            exit 0
+          fi
+          git fetch --quiet --filter=blob:none "$REPO_URL" "+refs/pull/$PR/head:refs/remotes/pr/head"
+          git worktree add --quiet --detach "$RUNNER_TEMP/pr-head" refs/remotes/pr/head
+          node scripts/review/route.mjs --pr "$PR" --worktree "$RUNNER_TEMP/pr-head"
+
+  aggregate:
+    name: Agent review aggregate
+    if: >-
+      (github.event_name == 'status' && startsWith(github.event.context, 'agent-review/')) ||
+      github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+
+      - name: Bot token
+        id: bot
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          app-id: ${{ secrets.BOT_APP_ID }}
+          private-key: ${{ secrets.BOT_PRIVATE_KEY }}
+          owner: opendefender
+          repositories: OpenRisk
+
+      - name: Aggregate
+        env:
+          BOARD_TOKEN: ${{ steps.bot.outputs.token }}
+          GH_TOKEN: ${{ steps.bot.outputs.token }}
+          SHA: ${{ github.event.sha }}
+          PR_INPUT: ${{ inputs.pr }}
+        run: |
+          if [ ! -f scripts/review/aggregate.mjs ]; then
+            echo "::notice::scripts/review/aggregate.mjs is not on the default branch yet; skipped."
+            exit 0
+          fi
+          if [ -n "$PR_INPUT" ]; then PRS="$PR_INPUT"
+          else PRS=$(gh api "repos/${{ github.repository }}/commits/$SHA/pulls" --jq '.[] | select(.state=="open") | .number'); fi
+          for pr in $PRS; do node scripts/review/aggregate.mjs --pr "$pr"; done
+
+  test:
+    name: Agent review tests
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+      - run: node --test scripts/review/*.test.mjs
