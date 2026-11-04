@@ -145,6 +145,28 @@ async function checkAccess() {
   console.log('token check: issues, pull requests and project reachable');
 }
 
+// Field and option ids are read from the live project on every run; .github/board.json is
+// only the fallback. A stale id there (options recreated on 2026-11-04) made every write fail.
+async function refreshFieldIds() {
+  const d = await gql(`query($p: ID!) { node(id: $p) { ... on ProjectV2 { fields(first: 50) { nodes {
+    ... on ProjectV2Field { id name }
+    ... on ProjectV2SingleSelectField { id name options { id name } }
+    ... on ProjectV2IterationField { id name } } } } } }`, { p: cfg.projectId });
+  let stale = 0;
+  for (const f of d.node.fields.nodes) {
+    const known = cfg.fields[f.name];
+    if (!known) continue;
+    if (known.id !== f.id) stale += 1;
+    known.id = f.id;
+    if (f.options) {
+      const live = Object.fromEntries(f.options.map((o) => [o.name, o.id]));
+      if (JSON.stringify(live) !== JSON.stringify(known.options)) stale += 1;
+      known.options = live;
+    }
+  }
+  if (stale) console.log(`::warning::.github/board.json has ${stale} stale field id(s); using the live ones. Run scripts/board/setup.mjs to refresh it.`);
+}
+
 async function main() {
   if (!token({ required: false })) {
     // In CI the secret is optional until the owner creates it (#1248).
@@ -153,6 +175,7 @@ async function main() {
   }
   const started = Date.now();
   await checkAccess();
+  await refreshFieldIds();
   fetchRefs();
   const since = new Date(Date.now() - (cfg.closedLookbackDays ?? 30) * 86400e3).toISOString();
   const [items, issues, recentlyClosed, refs] = await Promise.all([
