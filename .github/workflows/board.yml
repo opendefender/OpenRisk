@@ -39,6 +39,7 @@ on:
 
 permissions:
   contents: read
+  pull-requests: read
 
 # One sync at a time; a queued run replaces an older queued one, which is fine
 # because each run recomputes everything.
@@ -63,12 +64,29 @@ jobs:
           filter: blob:none
           persist-credentials: false
 
+      # A PR that changes the sync itself would be judged by the old copy on the default
+      # branch, which proves nothing. Its own code is checked by the test job; the board
+      # is brought up to date by the run that follows the merge.
+      - name: Skip when the PR changes the sync
+        id: gate
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          if [ -n "$PR" ] && gh api "repos/${{ github.repository }}/pulls/$PR/files" --paginate --jq '.[].filename' \
+               | grep -qE '^(scripts/board/|\.github/board\.json$|\.github/workflows/board\.yml$)'; then
+            echo "::notice::This PR changes the board sync; the sync runs after the merge."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
+
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        if: steps.gate.outputs.skip != 'true'
         with:
           node-version: '22'
 
       # Names the resource the token cannot reach, so a permission problem reads as one.
       - name: Token check
+        if: steps.gate.outputs.skip != 'true'
         env:
           BOARD_TOKEN: ${{ secrets.BOARD_TOKEN }}
         run: |
@@ -89,6 +107,7 @@ jobs:
           exit $fail
 
       - name: Sync
+        if: steps.gate.outputs.skip != 'true'
         env:
           BOARD_TOKEN: ${{ secrets.BOARD_TOKEN }}
           DRY_RUN: ${{ inputs.dry_run && '--dry-run' || '' }}
