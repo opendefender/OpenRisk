@@ -3,24 +3,58 @@
 
 export const ARCHIVE = 'ARCHIVE';
 
+// How far the commit that delivers an issue has gone. Computed by sync.mjs from git.
+export const DELIVERED = { dev: 'On dev', staging: 'On staging', released: 'Released' };
+
 const has = (labels, name) => labels.includes(name);
 
-// facts: { state: 'OPEN' | 'CLOSED', stateReason, labels: string[] }
-// cfg:   { ownerLabels: string[] }
-// Returns a Status option name, ARCHIVE, or null (leave the item as it is).
+// facts: {
+//   state: 'OPEN' | 'CLOSED', stateReason, labels: string[],
+//   delivered: null | 'dev' | 'staging' | 'released'   closing commit merged, and how far it went
+//   openPr: boolean      an open PR says it closes the issue
+//   hasBranch: boolean   a <type>/<n>-* branch exists
+// }
+// cfg: { ownerLabels: string[] }
+// Returns a Status option name, or ARCHIVE.
+//
+// Precedence, first match wins:
+//   closed : not planned / duplicate → archive; delivered → how far; otherwise archive
+//            (closed by hand with no merged change: nothing left to track).
+//   open   : Needs owner, Blocked, delivered (merged into the dev branch while the issue
+//            stays open), In review, In progress, Ready, Refinement, Inbox.
 export function deriveStatus(facts, cfg) {
   const labels = facts.labels || [];
   if (facts.state === 'CLOSED') {
     if (facts.stateReason === 'NOT_PLANNED' || facts.stateReason === 'DUPLICATE') return ARCHIVE;
-    return null;
+    return facts.delivered ? DELIVERED[facts.delivered] : ARCHIVE;
   }
   if ((cfg.ownerLabels || []).some((l) => has(labels, l))) return 'Needs owner';
   if (has(labels, 'status:blocked')) return 'Blocked';
-  if (has(labels, 'status:in-review')) return 'In review';
-  if (has(labels, 'status:in-progress')) return 'In progress';
+  if (facts.delivered) return DELIVERED[facts.delivered];
+  if (facts.openPr || has(labels, 'status:in-review')) return 'In review';
+  if (facts.hasBranch || has(labels, 'status:in-progress')) return 'In progress';
   if (has(labels, 'status:ready')) return 'Ready';
   if (has(labels, 'status:needs-refinement')) return 'Refinement';
   return 'Inbox';
+}
+
+// The furthest stage a commit has reached, from three predicates on the sha.
+export function deliveryStage(sha, { onDev, onStaging, released }) {
+  if (!sha) return null;
+  if (released(sha)) return 'released';
+  if (onStaging(sha)) return 'staging';
+  if (onDev(sha)) return 'dev';
+  return null;
+}
+
+// Issue numbers that have a working branch: `<type>/<n>-<slug>` (CLAUDE.md).
+export function branchIssueNumbers(refs) {
+  const out = new Set();
+  for (const r of refs) {
+    const m = /^refs\/heads\/[a-z]+\/(\d+)-/.exec(r);
+    if (m) out.add(Number(m[1]));
+  }
+  return out;
 }
 
 // Both label families (D-003): `priority:P1-high` and the wave family's `priority:P1`.
