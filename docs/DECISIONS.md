@@ -5,7 +5,97 @@ recommends, and surfaces these in the daily brief. Run `/decide` to clear them.
 
 ## Open
 
-### D-084 — Organisation switch and MFA: does a factor proved for one organisation count in another? · raised 2026-11-02
+*No open decision on 2026-11-04.*
+
+## Resolved
+
+### D-090 — Sprint length on the delivery board · decided 2026-11-04
+**Decided (agent: po-openrisk, 2026-11-04)** — one-week sprints, Monday to Sunday, the first
+starting 2026-11-02 (#1266). Sprint planning on Monday, review and retro on Friday (#1268).
+
+**Options** — A: one week. B: two weeks, the usual company default. C: no sprints, flow only.
+
+**Reason** — agents work issues in hours, not days, so a two-week sprint would hide a stuck
+issue for too long. One week matches the weekly report (`/report`) and the weekly DORA and token
+figures (#1257), so the cadence and the measurement agree. Carry-over is automatic (the sync
+moves unfinished work to the current sprint and counts it), so a short sprint costs no manual
+work. Overturn by changing `SPRINT` in `scripts/board/setup.mjs`; past sprints keep their dates.
+
+### D-089 — What agents decide alone, and what still reaches the owner · decided 2026-11-04
+**Decided (owner, 2026-11-04)** — "Implement it yourself, but record your decisions in
+`DECISIONS.md`; always take the best decision for our app, to have the best app possible."
+Agents decide, implement and record everything CLAUDE.md used to escalate: the Score Engine or
+SmartScore formula (with an ADR), a new external dependency, auth, crypto or tenant isolation
+design, pricing, licensing, brand naming, a milestone's scope. The criterion is the best option
+for the product, not the cheapest to build. Each one is written under **Resolved** as
+`Decided (agent, <date>)`, with the question, the options, the choice and the reason, so the
+owner can overturn it.
+
+**Kept with the owner, as the agent's recommendation (the owner may remove it)** — two things:
+anything that spends money (agents have no budget), and anything irreversible (deleting data or
+a repository, rewriting published history, a public legal commitment). A migration that drops or
+renames a column is made reversible by shipping it in two releases (expand, then contract), so
+agents decide it too.
+
+**Not yet applied** — CLAUDE.md's "Autonomy" section (lines 161-175) and line 76 ("requires an
+ADR and my approval") still say the old rule. The agent's edit of CLAUDE.md was refused by its
+own safety check on self-modification, so the owner applies the text proposed on #1242, or
+grants the edit. Until then CLAUDE.md is the rule that runs, and this entry is the intent.
+
+### D-088 — Accept ADR 0009: merges without the owner on green, develop → staging → master, pull deploys · decided 2026-11-04
+**Decided (owner, 2026-11-04)** — ADR 0009 accepted, amended by the owner's answers. (1) Green PRs merge automatically once everything on the issue is done: every acceptance criterion ✅ in the mandatory progress comment, every required check green, no open review finding. (2) **The red class does not wait for the owner.** A red PR (auth, crypto, tenant isolation design, destructive migrations, Score Engine and SmartScore, licence, pricing, entitlements, workflows, `CLAUDE.md`, `.claude/`) merges automatically too, but through a stricter gate: the security review (devsecops) and tech-lead review approve the head commit, the full Go suite on Postgres, the tenant isolation suite, the authz matrix and the full e2e suite pass, and no finding is open. (3) **Fork PRs are never auto-merged** and never run on the owner's machine. (4) Flow: merge into `develop` → deployed to dev → pulled and tested again on dev (e2e + smoke) → only then fast-forwarded to `staging`. (5) release-please is accepted as a new dependency, pinned by SHA. (6) Soak on staging before `master` and the tag: **48 h**. (7) `status:needs-owner` is not needed for red PRs; it is not created, and the board's Needs owner column stays for issues waiting on a D-0xx entry (`ownerLabels` in `.github/board.json`). (8) The licence of `opendefender/agent-team` stays open until #1258.
+
+**Rationale** — the owner wants the loop to resolve problems without waiting for them, and accepts that the guarantee for sensitive code is the strength of the tests and reviews rather than a human merge.
+
+**Interpretation recorded, for the owner to correct if wrong** — this changes who merges, not what needs a decision. Changing the Score Engine or SmartScore formula, adding a paid service, pricing, licensing, brand and anything irreversible still go to `docs/DECISIONS.md` *before* the work, as CLAUDE.md says; once decided, the implementation merges on green like the rest.
+
+**Risk accepted with it** — a green PR can edit a workflow or the risk rules that judge it. Branch protection (the required contexts) lives in the repository settings, which no PR can change, and #1250 adds a gate-integrity check: a PR that touches `.github/workflows/`, the risk rules or `scripts/board/` must still produce every required context from the base branch's definition.
+
+**Unblocked** — #1244, #1245, #1246, #1250, #1251, #1252, #1254, #1255, #1256, #1257, #1258 (`status:blocked` → `status:ready`; their own dependencies still apply). #1250, #1251, #1254 and #1256 were edited to match.
+
+**Question** — Accept `docs/adr/0009-autonomous-delivery-pipeline.md` as written, accept it with
+changes, or send it back. It amends CLAUDE.md's "Never merge a PR", which only the owner can do.
+Until it is decided, no issue of the Autonomous delivery milestone that merges, promotes or
+deploys may start (#1244 to #1246, #1248, #1250 to #1252, #1254 to #1258 carry
+`status:blocked`). #1243, #1247, #1249 and #1253 do not depend on it.
+
+**Context** — #1242. The ADR records the choices the owner made in the 2026-11-04 discussion
+(three branches with fast-forward promotion of one image, a red class that always waits, forks
+never auto-merged or run locally, agents headless on the owner's machine, no production) and
+turns them into rules. What was read: `deploy.yml` has never deployed (dead `stag`/`main`
+triggers, commented `kubectl`), the two Compose stacks share ports and a project name, and no
+workflow runs on `merge_group`.
+
+**What needs the owner, specifically**
+1. **The CLAUDE.md text** (ADR, "The CLAUDE.md amendment"). Applied by #1251, not before.
+2. **The red class (D3).** The owner's list (auth, crypto, tenant isolation design, destructive
+   migrations, Score Engine and SmartScore, licence, pricing) plus four additions this ADR
+   proposes: entitlements, `.github/workflows/`, `CLAUDE.md`, and `.claude/` (agents, skills,
+   hooks). Without the last three, an agent could widen its own permissions through a green PR.
+3. **The owner label.** The label table is fixed. Recommended: authorise `status:needs-owner` as
+   a sixth `status:` value rather than a bare `needs-owner`, so it fits the taxonomy and the board
+   sync of #1248.
+4. **release-please** (D5), a new third-party action. The alternative is a short script in the
+   repo that reads Conventional Commits and bumps `VERSION`.
+5. **The soak before `master`** (D5). Recommended 24 h.
+6. **The licence of `opendefender/agent-team`** (D8). Can wait until #1258; nothing is copied
+   before it.
+
+**Options**
+- **A (recommended)** — accept as written, with `status:needs-owner`, release-please and 24 h.
+- **B** — accept D1, D4, D6 and D7 (branches, pull deploys, board, budgeted agents) and keep the
+  owner merging every PR. The pipeline works, the owner stays the bottleneck, and #1251 is
+  dropped.
+- **C** — send it back.
+
+**Cost of delay** — low per day: #1243, #1247, #1249 and #1253 can proceed. The whole autonomous
+loop waits on it.
+
+### D-084 — Organisation switch and MFA: does a factor proved for one organisation count in another? · decided 2026-11-04
+**Decided (owner, 2026-11-04)** — option B. A factor proved for an organisation in the current session is remembered, and a switch back into that organisation does not ask again. A factor proved in A never counts for B (D-066 holds). **Limited in time** (owner, same day): a remembered factor expires after 15 minutes by default, configurable up to 30, counted from the proof and never extended by use or refresh. Implementation: #1262, with the clearing events (sign-out, revocation, password change, factor reset, policy change) as acceptance criteria. The account-wide lock question in the paragraph below is not decided by this and stays with #1233.
+
+**Rationale** — members of several organisations should not type a code on every switch back.
+
 **Question** — GHSA-45mr-j2w6-m4jv: switching organisation issued a session for
 the target without asking for the authenticator enrolled there or applying its
 role policy. The fix runs the sign-in gate for the target organisation on every
@@ -49,7 +139,11 @@ switch and cannot complete it (setup answers 409). The request-time guard
 already refuses them in B today, so the switch adds no new lockout; #897 lifts it.
 The enrolment screen says so and goes back to the current organisation.
 
-### D-085 — SSO and MFA: may an identity provider's own MFA stand in for the OpenRisk factor? · raised 2026-10-30
+### D-085 — SSO and MFA: may an identity provider's own MFA stand in for the OpenRisk factor? · decided 2026-11-04
+**Decided (owner, 2026-11-04)** — option A, as shipped. The OpenRisk factor is asked for after every SSO sign-in; a provider's own MFA claim does not stand in for it. Can be revisited as a per-tenant opt-in.
+
+**Rationale** — fail-closed; trusting a claim from a provider account OpenRisk does not control is the scenario of GHSA-rv5c-pr27-gpxh.
+
 *Raised as D-082 in the GHSA-rv5c-pr27-gpxh commits; renumbered because master's resolved D-082 (branch protection) holds that number.*
 
 **Question** — GHSA-rv5c-pr27-gpxh: an OAuth2 sign-in issued a full session
@@ -73,7 +167,11 @@ SAML `AuthnContextClassRef`) may satisfy the gate is an auth-design choice.
 **Cost of delay** — none: A is the fail-closed behaviour and B can be added on
 top later without changing it for tenants that do not opt in.
 
-### D-080 — Licence gate: what legal-counsel says the allowed set does not cover · raised 2026-10-28
+### D-080 — Licence gate: what legal-counsel says the allowed set does not cover · decided 2026-11-04
+**Decided (owner, 2026-11-04)** — option A. One issue per point: #1263 (MPL-2.0 in the EE build), #1264 (third-party notices from the SBOM), #1265 (base images, fonts, assets, bundled services). The MPL/EE position is confirmed by real counsel before the first commercial sale.
+
+**Rationale** — the obligations apply to every distributed copy once a commercial build ships.
+
 **Context** — #774 asked `legal-counsel` to review the allowed set in
 `security/license-policy.yaml`. Verdict: approved with notes, advisory only.
 The set itself is fine. Three points are outside what the gate can decide:
@@ -93,7 +191,11 @@ dependency gate already builds.
 **Cost of delay** — Low until a commercial build is distributed; then the
 MPL and notice obligations apply to every copy.
 
-### D-079 — Licence gate: confirm three licences and two exceptions that arrived after the D-017 census · raised 2026-10-28
+### D-079 — Licence gate: confirm three licences and two exceptions that arrived after the D-017 census · decided 2026-11-04
+**Decided (owner, 2026-11-04)** — option A. The three licences and the two exceptions stay as committed in `security/license-policy.yaml`.
+
+**Rationale** — none restricts use or redistribution and none is copyleft.
+
 **Context** — #457 built the licence gate D-017 asked for
 (`.github/workflows/license-gate.yml`, policy in `security/license-policy.yaml`).
 Its allowlist was written from the 2026-09-01 census. Re-running the census on
@@ -120,8 +222,6 @@ copyleft.
 **Cost of delay** — None. The gate is green either way; this only decides
 whether the list stays as it is.
 
-
-## Resolved
 
 ### D-087 — Accept ADR 0008, the Canonical Model v1 (#541) · decided 2026-11-03
 **Decided (owner, 2026-11-03)** — option A, as recommended. ADR 0008 is accepted as written,
