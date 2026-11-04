@@ -1,0 +1,15 @@
+{
+  "_doc": "Agent runner (#1252). Read at every batch; a change takes effect at the next timer tick. Kill switch: create ~/.config/openrisk-runner/disabled.",
+  "repo": "opendefender/OpenRisk",
+  "base": "develop",
+  "milestone": null,
+  "batch": { "refine": 5, "implement": 2, "fix": 2, "steward": 1 },
+  "turns": { "refine": 30, "fix": 60, "steward": 40, "implement": { "S": 40, "M": 90, "L": 160 } },
+  "models": { "refine": "sonnet", "implement": "sonnet", "fix": "sonnet", "steward": "sonnet", "large": "opus" },
+  "cli": "claude",
+  "worktrees": "../OpenRisk-runner-wt",
+  "usageBackoffMinutes": 60,
+  "implementTools": "Read,Edit,Write,MultiEdit,Glob,Grep,Bash,TodoWrite",
+  "refineTools": "Read,Glob,Grep,Bash(gh:*),Bash(git log:*),Bash(git show:*),Bash(node scripts/ready/gate.mjs:*),Bash(node scripts/refine/close.mjs:*)",
+  "stewardTools": "Read,Glob,Grep,Bash"
+}
