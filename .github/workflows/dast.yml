@@ -21,9 +21,9 @@ name: DAST
 
 on:
   push:
-    branches: [master, develop]
+    branches: [master, develop, staging]
   pull_request:
-    branches: [master, develop]
+    branches: [master, develop, staging]
   schedule:
     - cron: '41 2 * * *'
   workflow_dispatch:
