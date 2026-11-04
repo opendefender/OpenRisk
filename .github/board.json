@@ -5,8 +5,8 @@
   "projectId": "PVT_kwDODnXbzs4BqMrj",
   "url": "https://github.com/orgs/opendefender/projects/3",
   "branches": {
-    "dev": "master",
-    "staging": null
+    "dev": "develop",
+    "staging": "staging"
   },
   "releaseTags": "^v\\d+\\.\\d+\\.\\d+$",
   "ownerLabels": [
