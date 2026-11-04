@@ -20,9 +20,9 @@ name: DAST
 # named in the rules file. Never move a rule to IGNORE to make this green.
 
 on:
+  # Not on every PR (#1289): DAST boots the whole stack and is advisory (D-082), so it
+  # runs on every push to the long-lived branches, nightly and on demand.
   push:
-    branches: [master, develop, staging]
-  pull_request:
     branches: [master, develop, staging]
   schedule:
     - cron: '41 2 * * *'
