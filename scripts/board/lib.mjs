@@ -60,7 +60,17 @@ export async function gql(query, variables = {}, attempt = 0) {
     await sleep(after * 1000);
     return gql(query, variables, attempt + 1);
   }
-  const body = await res.json().catch(() => ({}));
+  const raw = await res.text();
+  let body = {};
+  try { body = JSON.parse(raw); } catch { /* not JSON: handled below */ }
+  if (res.ok && !body.errors && !body.data) {
+    // A 200 with no data and no errors was seen under load on 2026-11-04: retry it like a 502.
+    if (attempt < 4) {
+      await sleep(2 ** attempt * 2000);
+      return gql(query, variables, attempt + 1);
+    }
+    throw new Error(`GraphQL: empty response (HTTP ${res.status}): ${raw.slice(0, 200)}`);
+  }
   if (!res.ok || body.errors) {
     const msg = (body.errors || []).map((e) => e.message).join('; ') || `HTTP ${res.status}`;
     if (/rate limit|abuse|secondary/i.test(msg) && attempt < 6) {

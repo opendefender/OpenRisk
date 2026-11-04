@@ -9,7 +9,7 @@
 //   node scripts/board/sync.mjs --dry-run   print the changes and the counts
 
 import { gql, lit, loadConfig, mutateBatched, token, restAll, git, gitOk } from './lib.mjs';
-import { deriveStatus, deliveryStage, branchIssueNumbers, derivePriority, deriveTier, ARCHIVE } from './derive.mjs';
+import { deriveStatus, deriveSprint, sprintEnd, deliveryStage, branchIssueNumbers, derivePriority, deriveTier, ARCHIVE } from './derive.mjs';
 
 const DRY = process.argv.includes('--dry-run');
 const cfg = loadConfig();
@@ -22,8 +22,17 @@ const ISSUE_FIELDS = `id number title state stateReason
   timelineItems(itemTypes: [CLOSED_EVENT], last: 1) { nodes { ... on ClosedEvent {
     closer { __typename ... on PullRequest { mergeCommit { oid } } ... on Commit { oid } } } } }`;
 
-const FIELD_VALUES = `fieldValues(first: 20) { nodes { ... on ProjectV2ItemFieldSingleSelectValue {
-  optionId field { ... on ProjectV2SingleSelectField { id } } } } }`;
+const FIELD_VALUES = `fieldValues(first: 20) { nodes {
+  ... on ProjectV2ItemFieldSingleSelectValue { optionId field { ... on ProjectV2SingleSelectField { id } } }
+  ... on ProjectV2ItemFieldIterationValue { iterationId startDate duration field { ... on ProjectV2IterationField { id } } } } }`;
+
+// The sprint containing today, from the Sprint field's configuration.
+async function currentSprint(today) {
+  if (!cfg.fields.Sprint) return null;
+  const d = await gql(`query($id: ID!) { node(id: $id) { ... on ProjectV2IterationField {
+    configuration { iterations { id startDate duration } } } } }`, { id: cfg.fields.Sprint.id });
+  return d.node.configuration.iterations.find((i) => i.startDate <= today && sprintEnd(i) > today) ?? null;
+}
 
 // The board as seen from each issue. ProjectV2.items does not return every item
 // (on 2026-11-04 it listed 395 of 460, the missing ones present on the issue side),
@@ -185,6 +194,9 @@ async function main() {
     restAll(`/repos/${cfg.owner}/${cfg.repo}/git/matching-refs/heads/`),
   ]);
   branchNumbers = branchIssueNumbers(refs.map((r) => r.ref));
+  const today = new Date().toISOString().slice(0, 10);
+  const sprintNow = await currentSprint(today);
+  let carried = 0;
   const byNumber = new Map(items.map((i) => [i.content.number, i]));
   for (const issue of [...issues, ...recentlyClosed]) {
     const it = itemOf(issue);
@@ -245,9 +257,19 @@ async function main() {
       ops.push(optionId === null ? clearField(item.id, field) : setOption(item.id, field, optionId));
       if (field === F.Status.id) changes.push(`#${f.number} → ${status}`);
     }
+    if (F.Sprint && sprintNow) {
+      const v = item.fieldValues.nodes.find((n) => n.field?.id === F.Sprint.id && n.iterationId);
+      const sprint = v ? { id: v.iterationId, startDate: v.startDate, duration: v.duration } : null;
+      const next = deriveSprint(statusName, { state: f.state, sprint }, sprintNow, today);
+      if (next) {
+        ops.push(`updateProjectV2ItemFieldValue(input: { projectId: ${lit(cfg.projectId)}, itemId: ${lit(item.id)}, fieldId: ${lit(F.Sprint.id)}, value: { iterationId: ${lit(next)} } }) { clientMutationId }`);
+        if (sprint) carried += 1;
+        changes.push(`#${f.number} sprint → current${sprint ? ' (carried over)' : ''}`);
+      }
+    }
   }
 
-  console.log(`${DRY ? 'would write' : 'write'} ${ops.length} field value(s), archive ${archive.length}`);
+  console.log(`${DRY ? 'would write' : 'write'} ${ops.length} field value(s), archive ${archive.length}, carried over ${carried}`);
   for (const c of changes.slice(0, 200)) console.log(`  ${c}`);
   if (changes.length > 200) console.log(`  … ${changes.length - 200} more`);
   if (!DRY) {

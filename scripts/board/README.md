@@ -21,6 +21,23 @@ closing PR merged into the `dev` branch → **On dev** (and further) · an open 
 **In progress** · `status:ready` → **Ready** · `status:needs-refinement` → **Refinement** ·
 otherwise **Inbox**.
 
+## Sprints (#1266, D-090)
+
+One-week sprints from Monday, in the iteration field **Sprint**. Sprint planning sets the sprint
+of Ready issues. The sync adds two rules: work that starts (In progress, In review) with no
+sprint joins the current one, and open work not delivered whose sprint has ended moves to the
+current sprint (carry-over, counted in the output). Delivered work keeps its sprint. Re-run
+`setup.mjs` to keep six future sprints.
+
+Views: Board, Current sprint, Table, By milestone, Roadmap, Needs owner, Blocked.
+
+## Options are never recreated
+
+`setup.mjs` compares field options by name and sends existing ones back with their id. An option
+sent without its id is a new option and the values of the old one are lost: on 2026-11-04 an
+order-sensitive comparison recreated the Status options and cleared every Status until the next
+sync.
+
 Branch names live in `.github/board.json`: today `dev` is `master` and there is no staging
 branch. #1244 changes them to `develop` and `staging`.
 
