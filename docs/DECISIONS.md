@@ -9,6 +9,18 @@ recommends, and surfaces these in the daily brief. Run `/decide` to clear them.
 
 ## Resolved
 
+### D-090 — Sprint length on the delivery board · decided 2026-11-04
+**Decided (agent: po-openrisk, 2026-11-04)** — one-week sprints, Monday to Sunday, the first
+starting 2026-11-02 (#1266). Sprint planning on Monday, review and retro on Friday (#1268).
+
+**Options** — A: one week. B: two weeks, the usual company default. C: no sprints, flow only.
+
+**Reason** — agents work issues in hours, not days, so a two-week sprint would hide a stuck
+issue for too long. One week matches the weekly report (`/report`) and the weekly DORA and token
+figures (#1257), so the cadence and the measurement agree. Carry-over is automatic (the sync
+moves unfinished work to the current sprint and counts it), so a short sprint costs no manual
+work. Overturn by changing `SPRINT` in `scripts/board/setup.mjs`; past sprints keep their dates.
+
 ### D-089 — What agents decide alone, and what still reaches the owner · decided 2026-11-04
 **Decided (owner, 2026-11-04)** — "Implement it yourself, but record your decisions in
 `DECISIONS.md`; always take the best decision for our app, to have the best app possible."
