@@ -22,6 +22,20 @@ const ISSUE_FIELDS = `id number title state stateReason
   timelineItems(itemTypes: [CLOSED_EVENT], last: 1) { nodes { ... on ClosedEvent {
     closer { __typename ... on PullRequest { mergeCommit { oid } } ... on Commit { oid } } } } }`;
 
+const FIELD_VALUES = `fieldValues(first: 20) { nodes { ... on ProjectV2ItemFieldSingleSelectValue {
+  optionId field { ... on ProjectV2SingleSelectField { id } } } } }`;
+
+// The board as seen from each issue. ProjectV2.items does not return every item
+// (on 2026-11-04 it listed 395 of 460, the missing ones present on the issue side),
+// so the issue side is the reference and the project listing only adds stragglers.
+const ISSUE_WITH_ITEM = `${ISSUE_FIELDS}
+  projectItems(first: 20, includeArchived: true) { nodes { id isArchived project { id } ${FIELD_VALUES} } }`;
+
+function itemOf(issue) {
+  const it = issue.projectItems?.nodes?.find((n) => n.project?.id === cfg.projectId);
+  return it ? { id: it.id, isArchived: it.isArchived, content: issue, fieldValues: it.fieldValues } : null;
+}
+
 // --- where commits are, from git (the checkout in CI, the clone on a laptop) ---
 const DEV = cfg.branches.dev;
 const STAGING = cfg.branches.staging;
@@ -79,8 +93,7 @@ async function boardItems() {
         nodes {
           id isArchived
           content { __typename ... on Issue { ${ISSUE_FIELDS} } }
-          fieldValues(first: 20) { nodes { ... on ProjectV2ItemFieldSingleSelectValue {
-            optionId field { ... on ProjectV2SingleSelectField { id } } } } }
+          ${FIELD_VALUES}
         }
       } } } }`, { p: cfg.projectId, after });
     const page = d.node.items;
@@ -90,14 +103,17 @@ async function boardItems() {
   return items.filter((i) => i.content?.__typename === 'Issue' && i.content.repository.nameWithOwner === `${cfg.owner}/${cfg.repo}`);
 }
 
-async function openIssues() {
+// Open issues, plus closed issues updated in the last `closedLookbackDays`
+// (so a close is seen even when the project listing misses the item).
+async function repoIssues(states, since) {
   const out = [];
   let after = null;
+  const filter = since ? `, filterBy: { since: ${lit(since)} }` : '';
   do {
     const d = await gql(`query($after: String) { repository(owner: ${lit(cfg.owner)}, name: ${lit(cfg.repo)}) {
-      issues(states: OPEN, first: 50, after: $after) {
+      issues(states: ${states}, first: 50, after: $after${filter}) {
         pageInfo { hasNextPage endCursor }
-        nodes { ${ISSUE_FIELDS} }
+        nodes { ${ISSUE_WITH_ITEM} }
       } } }`, { after });
     const page = d.repository.issues;
     out.push(...page.nodes);
@@ -119,13 +135,19 @@ async function main() {
   }
   const started = Date.now();
   fetchRefs();
-  const [items, issues, refs] = await Promise.all([
+  const since = new Date(Date.now() - (cfg.closedLookbackDays ?? 30) * 86400e3).toISOString();
+  const [items, issues, recentlyClosed, refs] = await Promise.all([
     boardItems(),
-    openIssues(),
+    repoIssues('OPEN'),
+    repoIssues('CLOSED', since),
     restAll(`/repos/${cfg.owner}/${cfg.repo}/git/matching-refs/heads/`),
   ]);
   branchNumbers = branchIssueNumbers(refs.map((r) => r.ref));
   const byNumber = new Map(items.map((i) => [i.content.number, i]));
+  for (const issue of [...issues, ...recentlyClosed]) {
+    const it = itemOf(issue);
+    if (it) byNumber.set(issue.number, it);
+  }
 
   // 1. Every open issue is on the board.
   const missing = issues.filter((i) => !byNumber.has(i.number));
