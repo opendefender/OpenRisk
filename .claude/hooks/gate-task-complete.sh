@@ -56,12 +56,12 @@ run() { # run <label> <dir> <cmd...>
 }
 existing() { while IFS= read -r f; do [ -f "$f" ] && printf '%s\n' "$f"; done; }
 
-# Check one checkout: what its branch changed against master, with what CI runs.
+# Check one checkout: what its branch changed against develop (master before #1244), with what CI runs.
 check_root() {
   local ROOT="$1" BASE CHANGED GO_FILES FE_FILES REL PKGS UNFORMATTED TRIP LINT f out
   cd "$ROOT" || return
-  if ! BASE=$(git merge-base HEAD origin/master 2>/dev/null || git merge-base HEAD master 2>/dev/null); then
-    FAIL+=$'\n'"✗ $ROOT: no origin/master or master to compare against, so the branch cannot be checked. Run git fetch origin."$'\n'
+  if ! BASE=$(git merge-base HEAD origin/develop 2>/dev/null || git merge-base HEAD develop 2>/dev/null || git merge-base HEAD origin/master 2>/dev/null || git merge-base HEAD master 2>/dev/null); then
+    FAIL+=$'\n'"✗ $ROOT: no origin/develop, develop, origin/master or master to compare against, so the branch cannot be checked. Run git fetch origin."$'\n'
     return
   fi
   CHANGED=$({ git diff --name-only "$BASE"; git ls-files --others --exclude-standard; } 2>/dev/null | sort -u)
@@ -154,6 +154,6 @@ fi
 {
   echo "Not done: CI would reject this branch (attempt $COUNT of 3)."
   printf '%s\n' "$FAIL"
-  echo "Fix these, then finish. A failure that was already on master goes in your report with its issue number."
+  echo "Fix these, then finish. A failure that was already on develop goes in your report with its issue number."
 } >&2
 exit 2

@@ -117,7 +117,7 @@ paiement.*
   (Success/NotFound/Unauthorized) ; skeletons (pas de spinner plein écran) ; 3 états
   (loading/error/empty) ; optimistic updates.
 - **Méthode/module** : LIRE → PLANIFIER → IMPLÉMENTER (backend puis frontend + tests) → **VALIDER LIVE**
-  → COMMITER. Une branche par feature, PR vers `master` (le flow du dépôt). **Aucun ✅ sans preuve live.**
+  → COMMITER. Une branche par feature, PR vers `develop` (le flow du dépôt depuis #1244 : merge queue, puis promotion vers `staging` et `master`). **Aucun ✅ sans preuve live.**
 
 ---
 
