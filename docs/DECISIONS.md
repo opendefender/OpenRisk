@@ -59,7 +59,7 @@ workflow runs on `merge_group`.
 loop waits on it.
 
 ### D-084 — Organisation switch and MFA: does a factor proved for one organisation count in another? · decided 2026-11-04
-**Decided (owner, 2026-11-04)** — option B. A factor proved for an organisation in the current session is remembered, and a switch back into that organisation does not ask again. A factor proved in A never counts for B (D-066 holds). Implementation: #1262, with the clearing events (sign-out, revocation, password change, factor reset, policy change) as acceptance criteria. The account-wide lock question in the paragraph below is not decided by this and stays with #1233.
+**Decided (owner, 2026-11-04)** — option B. A factor proved for an organisation in the current session is remembered, and a switch back into that organisation does not ask again. A factor proved in A never counts for B (D-066 holds). **Limited in time** (owner, same day): a remembered factor expires after 15 minutes by default, configurable up to 30, counted from the proof and never extended by use or refresh. Implementation: #1262, with the clearing events (sign-out, revocation, password change, factor reset, policy change) as acceptance criteria. The account-wide lock question in the paragraph below is not decided by this and stays with #1233.
 
 **Rationale** — members of several organisations should not type a code on every switch back.
 
