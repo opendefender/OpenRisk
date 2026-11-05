@@ -9,6 +9,22 @@ recommends, and surfaces these in the daily brief. Run `/decide` to clear them.
 
 ## Resolved
 
+### D-103 — The merge gate judges an issue's criteria as they were when the issue was claimed · decided 2026-11-05
+**Decided (agent, 2026-11-05, under D-089)** — on #1334, from a HIGH found by devsecops on PR #1305.
+
+**Question** — The merge script read the acceptance criteria from the issue body as it is now, and every agent session can edit that body through the owner's account. An agent could delete or reword a criterion it failed and the PR merged automatically. What should the gate trust?
+
+**Options**
+1. Keep the live body, and rely on the bot reviewers to notice the edit. They read the current issue, not its history, so they would judge the weakened text.
+2. Freeze the criteria at the first `status:in-progress` (the body is rebuilt from GitHub's edit history, which no agent can rewrite, #1304), and refuse automatic merging when a criterion was removed or changed since. Criteria added later are allowed and required.
+3. Same as 2, but accept a later change when a trusted role approves it. Every agent acts as the owner, so no such approval can be told apart from a forgery (D-095).
+
+**Choice** — 2. When the claim-time body is unknown (never claimed, a deleted label or revision, history not fully read), automatic merging also refuses. Neither refusal is a dead end: the owner can queue the PR by hand, and the bot's `agent-review` and `Red gate` checks still apply there (#1311).
+
+**Reason** — It closes the bypass with data an agent cannot forge, and costs little: of the 22 recently claimed issues that had a usable anchor, 2 had their criteria changed after the claim (#815, #1291). When an issue's criteria truly need to change mid-work, that change is now the owner's, which is where it belongs.
+
+**Overturn** — revert `changedSinceClaim` in `scripts/merge/conditions.mjs`.
+
 ### D-102 — No local timer: the owner works with /work, bots review and merge, planning runs weekly in Actions · decided 2026-11-05
 **Decided (owner, 2026-11-05)** — "Pas de timer. Je veux que le lundi je reçoive le matin la liste sur ce que je dois travailler, on le fait normalement avec le /work, puis quand je push, la review est faite, puis mis dans la file d'auto-merge, si le CI fail, je corrigerai." Answers to the follow-up questions the same day: keep the daily brief **and** add the Monday list; the Monday list is drawn up by `po-openrisk` running in Actions; the owner also fixes what the bot reviewers refuse; the merge-steward is dropped.
 

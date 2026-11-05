@@ -32,24 +32,44 @@ export function latestCriteria(commentBodies) {
 //   closes the issue itself on merge.
 const AFTER_MERGE = /\((?:after merge|après (?:le )?merge)\)\s*$/i;
 
-// Numbered acceptance criteria of the issue body → { count, afterMerge: Map<number, line> }.
+// Numbered acceptance criteria of the issue body →
+// { count, afterMerge: Map<number, first line>, text: Map<number, whole criterion> }.
+// A criterion's text runs from its numbered line to the next one or the end of the section,
+// sub-bullets included, trailing spaces and blank lines dropped.
 export function criteriaOf(issueBody) {
   const lines = String(issueBody || '').split('\n');
   let inSection = false;
   let max = 0;
+  let current = null;
   const afterMerge = new Map();
+  const text = new Map();
   for (const raw of lines) {
     const l = raw.trimEnd();
-    if (/^#{2,3}\s/.test(l)) inSection = /^#{2,3}\s+(acceptance criteria|critères? d['’]acceptation)/i.test(l);
-    else if (inSection) {
+    if (/^#{2,3}\s/.test(l)) {
+      inSection = /^#{2,3}\s+(acceptance criteria|critères? d['’]acceptation)/i.test(l);
+      current = null;
+    } else if (inSection) {
       const m = /^(\d+)[.)]\s+\S/.exec(l);
       if (m) {
-        max = Math.max(max, Number(m[1]));
-        if (AFTER_MERGE.test(l)) afterMerge.set(Number(m[1]), l);
-      }
+        current = Number(m[1]);
+        max = Math.max(max, current);
+        text.set(current, [l]);
+        if (AFTER_MERGE.test(l)) afterMerge.set(current, l);
+      } else if (current != null) text.get(current).push(l);
     }
   }
-  return { count: max, afterMerge };
+  for (const [i, ls] of text) {
+    while (ls.length && !ls[ls.length - 1]) ls.pop();
+    text.set(i, ls.join('\n'));
+  }
+  return { count: max, afterMerge, text };
+}
+
+// Criteria of the claim-time body that are missing or changed in the current body → [n, …]
+// (#1334). Criteria added since are not listed: they are simply required like the others.
+export function changedSinceClaim(issueBody, issueBodyAtClaim) {
+  const now = criteriaOf(issueBody).text;
+  return [...criteriaOf(issueBodyAtClaim).text].filter(([i, t]) => now.get(i) !== t).map(([i]) => i);
 }
 
 // Criteria that may skip the ✅ check: marked now, and marked with the very same line when
@@ -122,7 +142,19 @@ export function mayEnqueue(f) {
   if (risk !== 'success') reasons.push(`Risk class is ${risk || 'missing'} (#1250)`);
   if (red !== 'success') reasons.push(`Red gate is ${red || 'missing'}: a red-class PR needs the stricter review`);
 
-  const { count: n, afterMerge } = criteriaOf(f.issueBody);
+  // The criteria are judged as they were when the issue was claimed (#1334): the live body
+  // is editable by any agent session, so a failed criterion could otherwise be deleted or
+  // reworded. Unknown or changed → refused, and the owner can still queue the PR by hand,
+  // where the bot's agent-review and Red gate checks still apply (#1311).
+  const HAND = 'the owner can queue it by hand; the required bot reviews still apply';
+  if (f.issueBodyAtClaim == null) {
+    reasons.push(`the issue body at claim time is unknown (never set status:in-progress, a deleted label or revision, or history not fully read), so its criteria cannot be checked against later edits: ${HAND}`);
+  } else {
+    const changed = changedSinceClaim(f.issueBody, f.issueBodyAtClaim);
+    if (changed.length) reasons.push(`criteria ${changed.join(', ')} were removed or changed in the issue after it was claimed: ${HAND}`);
+  }
+  const n = Math.max(criteriaOf(f.issueBody).count, criteriaOf(f.issueBodyAtClaim).count);
+  const { afterMerge } = criteriaOf(f.issueBody);
   const exempt = exemptCriteria(f.issueBody, f.issueBodyAtClaim);
   const marks = latestCriteria(f.issueComments || []);
   if (!n) reasons.push('the issue has no numbered acceptance criteria');

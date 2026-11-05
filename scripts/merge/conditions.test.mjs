@@ -10,6 +10,7 @@ const green = () => ({
   contexts: { ...Object.fromEntries(REQUIRED_CONTEXTS.map((c) => [c, 'success'])), 'Risk class': 'success' },
   statuses: { 'agent-review': 'success', 'Red gate': 'success' },
   issueBody: ISSUE,
+  issueBodyAtClaim: ISSUE,
   issueComments: [REPORT],
 });
 
@@ -32,7 +33,8 @@ test('one fixture per refusal', () => {
     ['a criterion not ✅', (f) => { f.issueComments = ['**Criteria** — 1 ✅ · 2 ❌ (x) · 3 ✅']; }, /2 ❌/],
     ['a criterion not reported', (f) => { f.issueComments = ['**Criteria** — 1 ✅ · 2 ✅']; }, /3 missing/],
     ['no report', (f) => { f.issueComments = ['just a comment']; }, /no progress report/],
-    ['no numbered criteria', (f) => { f.issueBody = '## Problem\nx\n'; }, /no numbered/],
+    ['no numbered criteria', (f) => { f.issueBody = f.issueBodyAtClaim = '## Problem\nx\n'; }, /no numbered/],
+    ['claim body unknown', (f) => { f.issueBodyAtClaim = null; }, /body at claim time is unknown.*queue it by hand/],
   ];
   for (const [name, mutate, re] of cases) {
     const f = green();
@@ -55,6 +57,51 @@ test('criteria parsing: count and marks', () => {
   assert.equal(criteriaCount("## Critères d'acceptation\n1. a\n2) b\n   3. nested is ignored\n"), 2);
   assert.deepEqual([...latestCriteria(['**Criteria** — 1 ✅ · 2 🟡 · 3 ⏳']).entries()], [[1, '✅'], [2, '🟡'], [3, '⏳']]);
   assert.equal(latestCriteria(['nothing']), null);
+});
+
+// #1334: criteria are judged as they were when the issue was claimed.
+const withCriteria = (...cs) => `## Problem\n\nx\n\n## Acceptance criteria\n\n${cs.map((c, i) => `${i + 1}. ${c}`).join('\n')}\n\n## Definition of Done\n\nd\n`;
+
+test('frozen criteria: a criterion deleted after the claim refuses the PR, even with every remaining one ✅', () => {
+  const f = green();
+  f.issueBody = withCriteria('a', 'b');
+  f.issueComments = ['**Criteria** — 1 ✅ · 2 ✅'];
+  const r = mayEnqueue(f);
+  assert.equal(r.ok, false);
+  assert.match(r.reasons.join(' | '), /criteria 3 were removed or changed in the issue after it was claimed/);
+  assert.match(r.reasons.join(' | '), /3 missing/, 'the count comes from the claim-time body too');
+});
+
+test('frozen criteria: a criterion reworded after the claim refuses the PR', () => {
+  const f = green();
+  f.issueBody = withCriteria('a', 'b', 'something trivial');
+  assert.match(mayEnqueue(f).reasons.join(), /criteria 3 were removed or changed/);
+});
+
+test('frozen criteria: a sub-bullet changed under a criterion counts as a change', () => {
+  const f = green();
+  f.issueBodyAtClaim = withCriteria('a', 'b', 'c\n   - with p95 < 200 ms');
+  f.issueBody = withCriteria('a', 'b', 'c\n   - with p95 < 2000 ms');
+  assert.match(mayEnqueue(f).reasons.join(), /criteria 3 were removed or changed/);
+  const same = green();
+  same.issueBodyAtClaim = withCriteria('a', 'b', 'c\n   - sub   ');
+  same.issueBody = withCriteria('a', 'b', 'c\n   - sub') + '\n';
+  assert.equal(mayEnqueue(same).ok, true, 'trailing spaces and blank lines do not count');
+});
+
+test('frozen criteria: a criterion added after the claim is allowed, and required ✅', () => {
+  const f = green();
+  f.issueBody = withCriteria('a', 'b', 'c', 'added later');
+  f.issueComments = ['**Criteria** — 1 ✅ · 2 ✅ · 3 ✅ · 4 ✅'];
+  assert.deepEqual(mayEnqueue(f), { ok: true, reasons: [] });
+  f.issueComments = [REPORT];
+  assert.match(mayEnqueue(f).reasons.join(), /4 missing/);
+});
+
+test('frozen criteria: an unchanged body passes, and an edit outside the criteria does not count', () => {
+  const f = green();
+  f.issueBody = ISSUE.replace('## Problem\n\nx', '## Problem\n\nx, clarified');
+  assert.deepEqual(mayEnqueue(f), { ok: true, reasons: [] });
 });
 
 // #1304: (after merge) criteria.
