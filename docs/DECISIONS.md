@@ -47,6 +47,11 @@ recommends, and surfaces these in the daily brief. Run `/decide` to clear them.
 
 **Signing** — images and binaries are signed keylessly with sigstore through GitHub OIDC. It is free, holds no key, and is verifiable with one command. It is the one new dependency, pinned by SHA.
 
+### D-098 — develop never fails: it only receives queue-tested commits · decided 2026-11-05
+**Decided (owner, 2026-11-05)** — "Je ne veux aucun fail CI sur develop." `develop` receives commits only from the merge queue, which ran the required checks on that exact commit. So the workflows that run in `merge_group` do not run again on pushes to `develop`. Nightly and heavy suites (E2E Firefox and WebKit, DAST, scheduled dependency and security scans) test `staging`, the next release, and a failure there opens a P1 bug automatically (`nightly-watch.yml`). Implemented in #1291. Two parts will follow, and are not delivered by #1291: holding the promotion to `master` while such a bug is open is planned in #1256, and making delivery workflows skip with a notice rather than fail when a script cannot load yet is #1299 (PR #1301).
+
+### D-097 — Models by role: opus for four agents only · decided 2026-11-05
+**Decided (agent: devops-sre, 2026-11-05, under D-089)** — tech-lead, devsecops, compliance-officer and legal-counsel run on opus. Those are the roles where a wrong call costs more than the tokens: arbitration and ADRs, the last review before an automatic merge of red-class changes, regulatory fidelity, and legal risk. issue-triage, scout, i18n-steward and release-manager run on haiku, since their work is mechanical. Everyone else runs on sonnet, and the runner moves L issues to the large model on its own. The split was opus 19 · sonnet 7 · haiku 2; it is now opus 4 · sonnet 21 · haiku 4 (#1253). The saving is measured from the runner's token logs (#1257), not estimated.
 ### D-096 — After a fix, only the refusing reviewers review again, and the carry-over is said · decided 2026-11-05
 **Decided (owner, 2026-11-05)** — "Limiter la relance aux rôles qui avaient refusé et signaler."
 When an implementer pushes a fix after the review gate sent the PR back (#1271):
