@@ -32,6 +32,15 @@ if ! before="$(digest_of "$src" 2>/dev/null)" || [ -z "$before" ]; then
   exit 1
 fi
 
+# The sha- tag is mutable. Refuse an image that does not say it was built from
+# this commit; it is a floor, not provenance (signed attestations: #1323).
+revision="$(docker buildx imagetools inspect "${image}@${before}" --format '{{json .Image.Config.Labels}}' \
+  | jq -r '."org.opencontainers.image.revision" // empty')"
+if [ "$revision" != "$sha" ]; then
+  echo "::error::${src} is labelled revision '${revision}', not ${sha}" >&2
+  exit 1
+fi
+
 docker buildx imagetools create --prefer-index=false --tag "${image}:${tag}" "${image}@${before}"
 
 after="$(digest_of "${image}:${tag}")"

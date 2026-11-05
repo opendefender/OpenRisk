@@ -37,7 +37,8 @@ for shape in index manifest; do
   image="${registry}/promote-test-${shape}"
   extra=()
   [ "$shape" = manifest ] && extra=(--provenance=false --sbom=false)
-  docker buildx build --quiet "${extra[@]}" --tag "${image}:sha-${sha}" --push "$work" > /dev/null
+  docker buildx build --quiet "${extra[@]}" --label "org.opencontainers.image.revision=${sha}" \
+    --tag "${image}:sha-${sha}" --push "$work" > /dev/null
   built="$(digest_of "${image}:sha-${sha}")"
 
   check "${shape}: promote to staging" 0 "$promote" "$image" "$sha" staging
@@ -48,6 +49,10 @@ done
 
 image="${registry}/promote-test-index"
 check "refuses a commit that was never built" 1 "$promote" "$image" "$(printf '%040d' 0 | tr 0 b)" staging
+other="$(printf '%040d' 0 | tr 0 d)"
+docker buildx build --quiet --label "org.opencontainers.image.revision=${sha}" \
+  --tag "${image}:sha-${other}" --push "$work" > /dev/null
+check "refuses an image labelled with another commit" 1 "$promote" "$image" "$other" staging
 check "refuses a short sha" 2 "$promote" "$image" abc1234 staging
 check "refuses to overwrite a sha- tag" 2 "$promote" "$image" "$sha" "sha-$(printf '%040d' 0 | tr 0 c)"
 check "refuses a malformed tag" 2 "$promote" "$image" "$sha" 'stag ing'

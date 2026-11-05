@@ -114,14 +114,38 @@ jobs:
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
+  # Is this commit still the head of its branch? Checked outside the tag job's
+  # concurrency group: GitHub keeps one pending run per group and a new one
+  # evicts it, so a stale commit queued there could push out a current one.
+  head:
+    name: Head of ${{ github.ref_name }}?
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    outputs:
+      current: ${{ steps.head.outputs.current }}
+    steps:
+      - id: head
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          head="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/${GITHUB_REF_NAME}" --jq .object.sha)"
+          if [ "$head" = "$GITHUB_SHA" ]; then
+            echo "current=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::${GITHUB_REF_NAME} is now ${head}; its own run moves the tag."
+            echo "current=false" >> "$GITHUB_OUTPUT"
+          fi
+
   # Moves `develop`, `staging` or `master` to the sha- digest of this commit.
-  # One run per branch at a time; a run whose commit is no longer the head of
-  # its branch leaves the tag to the newer run, so a tag never moves backwards.
+  # One run per branch at a time. Only current heads queue here, and the check
+  # is repeated before the write, so a tag never moves backwards.
   tag:
     name: Tag ${{ github.ref_name }}
-    needs: build
+    needs: [build, head]
     if: >-
       !cancelled() && github.event_name == 'push' &&
+      needs.head.outputs.current == 'true' &&
       (needs.build.result == 'success' ||
        (needs.build.result == 'skipped' && github.ref != 'refs/heads/develop'))
     runs-on: ubuntu-latest
@@ -137,11 +161,13 @@ jobs:
           persist-credentials: false
           sparse-checkout: scripts/images
 
-      - name: Is this commit still the head of ${{ github.ref_name }}?
+      - name: Still the head of ${{ github.ref_name }}?
         id: head
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          head="$(git ls-remote "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}" "refs/heads/${GITHUB_REF_NAME}" | cut -f1)"
+          head="$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/heads/${GITHUB_REF_NAME}" --jq .object.sha)"
           if [ "$head" = "$GITHUB_SHA" ]; then
             echo "current=true" >> "$GITHUB_OUTPUT"
           else

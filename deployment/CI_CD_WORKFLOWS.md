@@ -111,16 +111,9 @@ deployed, is removed.
 | `tag` | Push to `develop`, `staging` or `master` | Point `develop`/`staging`/`master` at the `sha-<sha>` digest with `scripts/images/promote.sh`, which fails if the digest changes or was never built |
 | `promote-test` | PR touching `images.yml` or `scripts/images/` | `scripts/images/promote.test.sh` against a throwaway registry |
 
------|-------------|-----------|---------|
-| `build-image` | Both | Success | Build Docker image, push to registry |
-| `deploy-staging` | Staging | Push to `stag` | Deploy, run smoke tests |
-| `deploy-production` | Production | Push to `main` or manual trigger | Backup, deploy, verify, monitor |
-
-**Deployment Flow**:
-- Staging: Auto-deploy on `stag` branch push
-- Production: Manual trigger required or auto on `main` push
-- Rollback on failure: Automatic
-- Monitoring: Post-deployment metrics check
+The packages `openrisk-backend` and `openrisk-frontend` are created by the first push from
+`GITHUB_TOKEN`, with the visibility GHCR gives new organisation packages. The machine that pulls
+them (#1246) needs either a read-only `read:packages` token or the packages made public.
 
 ---
 
