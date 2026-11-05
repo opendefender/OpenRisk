@@ -77,6 +77,13 @@ function galleryURL(gallery: string, theme: string, lang: string = 'en') {
 for (const gallery of GALLERIES) {
   for (const theme of THEMES) {
     test(`${gallery} — ${theme}`, async ({ page }) => {
+      // The chart entry draw is JavaScript (anime.js, started by an
+      // IntersectionObserver), so `animations: 'disabled'` does not stop it: a full-page
+      // capture scrolls charts into view and starts them mid-capture, and on a loaded
+      // runner the page never holds still for two consecutive shots (#1297). Under
+      // reduced motion the charts paint their FINAL state from the first frame, which
+      // is exactly what the reference images hold.
+      await page.emulateMedia({ reducedMotion: 'reduce' });
       await page.goto(galleryURL(gallery, theme));
       await page.waitForSelector('main');
       await waitForFonts(page);
