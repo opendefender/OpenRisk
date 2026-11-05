@@ -82,6 +82,8 @@ constitution; this file is its operating detail (#1277).
 | 7.3 | Issues are never closed by hand. A merge closes them; refinement closes duplicates and obsolete issues with proof (#1270). | hook `guard-bash.sh` (`gh issue close`) | 🔧 patch on #1277 |
 | 7.4 | A body posted from a file uses `-F body=@file` and is read back (`--jq '.body\|length'`). | hook `guard-bash.sh` blocks `-f body=@` | ✅ |
 | 7.5 | A script that writes shared state is run with `--dry-run` first, and the dry run is pasted. | review | 📝 |
+| 7.6 | The weekly planning agent holds no token and no write tool. Its JSON plan is validated and applied by the bot, and only as five kinds of action; work in flight, claimed or with a PR is never rewritten, split or closed (D-104). | `.github/workflows/plan.yml` (three jobs), `scripts/plan/plan.mjs` | 🔧 #1326 until its first run |
+| 7.7 | A refinement marker counts only from a trusted association or from the delivery bot's login with the Bot type, never from a login alone (D-104). | `scripts/ready/trust.mjs`, `scripts/brief/rank.test.mjs` | ✅ |
 
 ## 8. Tests and quality
 
@@ -97,7 +99,7 @@ constitution; this file is its operating detail (#1277).
 
 | # | Rule | Enforced by | Status |
 |---|---|---|---|
-| 9.1 | Every agent run in a workflow has a pinned model and a `max-turns` budget, and prints the tokens it used. | bot workflows (`agent-review.yml`, #1326) | ✅ review gate · 🔧 #1326 |
+| 9.1 | Every agent run in a workflow has a pinned model and a `max-turns` budget, and prints the tokens it used. | bot workflows (`agent-review.yml`, `plan.yml`) | ✅ review gate · 🔧 #1326 until the first run |
 | 9.2 | Model by role: `haiku` mechanical, `sonnet` by default, `opus` only for L design, arbitration and ADRs. | agent frontmatter | 🔧 #1253 |
 | 9.3 | No model call to poll: waiting is a workflow trigger or a schedule. | bot workflows | ✅ |
 | 9.4 | At most 3 review rounds per PR, then `status:blocked`. | review gate | 🔧 #1271 |

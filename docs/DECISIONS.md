@@ -9,6 +9,29 @@ recommends, and surfaces these in the daily brief. Run `/decide` to clear them.
 
 ## Resolved
 
+### D-104 — The weekly planning runs as a plan the bot validates; the delivery bot is trusted by login, not by association · decided 2026-11-05
+**Decided (agent, 2026-11-05, under D-089)** — design gate by tech-lead on #1326, 14 required changes, all taken.
+
+**Question** — `po-openrisk` must refine, schedule and plan every week in Actions (D-102), and the bot must post what it produced. Which account's refinement marker may the brief and the Ready gate believe, and how does a model's text reach GitHub without forging that trust?
+
+**Options**
+1. Keep trusting only OWNER, MEMBER and COLLABORATOR comments, and let the agent act with the owner's token. Rejected: every agent session already runs as the owner, so a marker proves nothing, and the model would hold a write token.
+2. Trust the bot like any member. Does not work: the delivery bot's comments and issues carry `author_association` CONTRIBUTOR, so every marker it wrote and every child issue it opened would be ignored.
+3. Trust the bot by login, give the model no token, and let a script publish a sanitised plan. Chosen.
+
+**Choice** — option 3.
+1. A refined marker counts from a trusted association **or** from the delivery bot's login. The login must come with the Bot type (GraphQL `__typename`, REST `type`, or the `[bot]` suffix): anyone can register a user called `opendefender-delivery-bot`, and GraphQL shows a bot without the suffix. Applies to `isRefined`, `launchable`, the size line of the brief (`scripts/brief/rank.mjs`), and the author check of the Ready gate (`scripts/ready/check.mjs`), through `scripts/ready/trust.mjs`.
+2. Three jobs, joined by artifacts (`.github/workflows/plan.yml`): a read-only bot token prepares the facts, the agent job holds no bot token at all, and the apply job mints the write token. The agent reads files and returns one JSON plan.
+3. Only five kinds of action apply (`scripts/plan/plan.mjs`): rewrite a body into the Ready format (the original text is kept quoted in a collapsed block), add the labels of a prefix the issue lacks, set Size and Sprint, close a duplicate or an obsolete issue through `scripts/refine/lib.mjs`, create the children of a split, set a milestone's due date or move an issue with a written reason. Caps per run: 15 refinements, 5 closes, 5 splits, 10 issues on the Monday list.
+4. Every model-written string is stripped of HTML comments, loses its `@`, and refuses the entry if it looks like a secret. Only bot code writes markers.
+5. Refine, split and close are refused on an issue that is in flight, has been claimed (`status:in-progress` ever), has an open PR or a branch, is P0, waits on the owner, was written by an outsider, or is the pinned brief. An issue that already carries a trusted marker is not refined again. Each action re-reads the live issue and is refused if it changed since the facts.
+6. An invalid plan applies nothing, still posts a degraded Monday list (the brief's order, and a line saying planning did not run), and fails the job.
+
+**Reason** — the agent's judgement is what the owner asked for (D-102); its authority must stay what a validator can check. The marker is trusted because only bot code writes it, and the bot only publishes validated, sanitised text.
+
+**Rollback** — `gh workflow disable plan.yml`. A refined issue keeps its previous text under « Original text » in its body.
+**Not covered** — `agent-review.yml` has the same two exposures (token valid during the review, verdict text posted unscanned); filed as a separate security issue.
+
 ### D-102 — No local timer: the owner works with /work, bots review and merge, planning runs weekly in Actions · decided 2026-11-05
 **Decided (owner, 2026-11-05)** — "Pas de timer. Je veux que le lundi je reçoive le matin la liste sur ce que je dois travailler, on le fait normalement avec le /work, puis quand je push, la review est faite, puis mis dans la file d'auto-merge, si le CI fail, je corrigerai." Answers to the follow-up questions the same day: keep the daily brief **and** add the Monday list; the Monday list is drawn up by `po-openrisk` running in Actions; the owner also fixes what the bot reviewers refuse; the merge-steward is dropped.
 
