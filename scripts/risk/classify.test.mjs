@@ -61,3 +61,9 @@ test('gate integrity: a required context removed from the workflows is reported'
   assert.deepEqual(missingContexts(wf, ['CI Status', 'Licence gate']), ['Licence gate']);
   assert.deepEqual(missingContexts('name: CI Status (old)\n', ['CI Status']), ['CI Status']);
 });
+
+test('the runner, the review gate and refinement are red: they run the agents and judge them', () => {
+  for (const p of ['scripts/runner/runner.mjs', 'scripts/runner/prompts/implement.md', 'scripts/review/record.mjs', 'scripts/refine/close.mjs', 'ops/runner/openrisk-runner.service']) {
+    assert.equal(red([file(p)]).cls, 'red', p);
+  }
+});
