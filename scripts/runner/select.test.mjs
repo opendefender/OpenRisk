@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { pickRefinement, pickImplementation, isRefined, byUrgency, turnBudget, hitUsageLimit } from './select.mjs';
+import * as select from './select.mjs';
+import { pickRefinement, isRefined, byUrgency, hitUsageLimit } from './select.mjs';
 
 const I = (number, labels, extra = {}) => ({ number, labels, authorAssociation: 'OWNER', milestone: 'M1', comments: [], hasOpenPr: false, ...extra });
 const REFINED = ['<!-- refined: 2026-11-05 po-openrisk --> nothing to change: criteria testable'];
@@ -17,28 +18,20 @@ test('refinement takes Refinement issues and Ready ones not refined yet, most ur
   assert.deepEqual(pickRefinement(issues, 1).map((i) => i.number), [14]);
 });
 
-test('implementation takes only Ready AND refined issues (D-094)', () => {
-  const issues = [
-    I(20, ['status:ready', 'priority:P0-critical']), // not refined: never implemented
-    I(21, ['status:ready', 'priority:P2-medium'], { comments: REFINED }),
-    I(22, ['status:needs-refinement', 'priority:P0-critical'], { comments: REFINED }),
-    I(23, ['status:ready', 'priority:P1-high'], { comments: REFINED }),
-  ];
-  assert.deepEqual(pickImplementation(issues, 5).map((i) => i.number), [23, 21]);
+test('the runner has no way to pick an issue to implement (D-101)', () => {
+  assert.equal(select.pickImplementation, undefined);
+  assert.equal(select.turnBudget, undefined);
 });
 
-test('never: outsiders, blocked, deferred tier, issues with an open PR, other milestones', () => {
-  const ok = { comments: REFINED };
+test('refinement never takes outsiders, blocked, deferred tier or issues with an open PR', () => {
   const issues = [
-    I(30, ['status:ready'], { ...ok, authorAssociation: 'NONE' }),
-    I(31, ['status:ready', 'status:blocked'], ok),
-    I(32, ['status:ready', 'tier:5-deferred'], ok),
-    I(33, ['status:ready'], { ...ok, hasOpenPr: true }),
-    I(34, ['status:ready'], { ...ok, milestone: 'Other' }),
-    I(35, ['status:ready'], ok),
+    I(30, ['status:ready'], { authorAssociation: 'NONE' }),
+    I(31, ['status:ready', 'status:blocked']),
+    I(32, ['status:ready', 'tier:5-deferred']),
+    I(33, ['status:ready'], { hasOpenPr: true }),
+    I(35, ['status:ready']),
   ];
-  assert.deepEqual(pickImplementation(issues, 9, { milestone: 'M1' }).map((i) => i.number), [35]);
-  assert.deepEqual(pickRefinement(issues.map((i) => ({ ...i, comments: [] })), 9).map((i) => i.number).includes(30), false);
+  assert.deepEqual(pickRefinement(issues, 9).map((i) => i.number), [35]);
 });
 
 test('urgency: priority, then tier, then age', () => {
@@ -46,24 +39,31 @@ test('urgency: priority, then tier, then age', () => {
   assert.deepEqual(s.map((i) => i.number), [2, 3, 1, 4]);
 });
 
-test('marker, budgets and the usage-limit signal', () => {
+test('marker and the usage-limit signal', () => {
   assert.ok(isRefined({ comments: REFINED }));
   assert.ok(!isRefined({ comments: ['refined by hand'] }));
-  assert.equal(turnBudget('L', { S: 40, M: 90, L: 160 }), 160);
-  assert.equal(turnBudget(undefined, { S: 40, M: 90, L: 160 }), 90);
   assert.ok(hitUsageLimit('Claude AI usage limit reached|1793900000'));
   assert.ok(!hitUsageLimit('all tests passed'));
 });
 
 import { resumeTarget } from './select.mjs';
 
-test('resume: an interrupted run comes back first; closed or blocked issues do not', () => {
-  const issues = [I(50, ['status:in-progress'], { size: 'S' }), I(51, ['status:blocked'])];
-  assert.deepEqual(resumeTarget({ resume: { step: 'implement', issue: 50 } }, issues), { step: 'implement', issue: 50, size: 'S' });
+test('resume: an interrupted fix comes back first; closed or blocked issues do not', () => {
+  const issues = [I(50, ['status:in-review']), I(51, ['status:blocked'])];
+  assert.deepEqual(resumeTarget({ resume: { step: 'fix', issue: 50, pr: 70 } }, issues), { step: 'fix', issue: 50, pr: 70 });
   // A run that never returned (power cut) is found through `current`.
-  assert.deepEqual(resumeTarget({ current: { step: 'fix', issue: 50 } }, issues), { step: 'fix', issue: 50, size: 'S' });
-  assert.equal(resumeTarget({ resume: { step: 'implement', issue: 51 } }, issues), null);
-  assert.equal(resumeTarget({ resume: { step: 'implement', issue: 99 } }, issues), null);
+  assert.deepEqual(resumeTarget({ current: { step: 'fix', issue: 50, pr: 70 } }, issues), { step: 'fix', issue: 50, pr: 70 });
+  assert.equal(resumeTarget({ resume: { step: 'fix', issue: 51, pr: 71 } }, issues), null);
+  assert.equal(resumeTarget({ resume: { step: 'fix', issue: 99, pr: 79 } }, issues), null);
+  assert.equal(resumeTarget({ resume: { step: 'fix', issue: 50 } }, issues), null); // no PR to resume in
   assert.equal(resumeTarget({ current: { step: 'steward', issue: null } }, issues), null);
   assert.equal(resumeTarget({}, issues), null);
+});
+
+test('resume never turns an interrupted implementation or refinement into new work (D-101)', () => {
+  const issues = [I(50, ['status:in-progress'])];
+  // State left by a runner from before D-101, or by a refinement cut short.
+  assert.equal(resumeTarget({ resume: { step: 'implement', issue: 50 } }, issues), null);
+  assert.equal(resumeTarget({ current: { step: 'implement', issue: 50, pr: 70 } }, issues), null);
+  assert.equal(resumeTarget({ resume: { step: 'refine', issue: 50 } }, issues), null);
 });

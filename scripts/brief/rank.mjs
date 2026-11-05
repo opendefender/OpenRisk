@@ -1,0 +1,86 @@
+// The daily brief (#1320, D-101): which three issues the owner should start next, and why.
+// Pure functions, no I/O; scripts/brief/post.mjs reads GitHub and posts the result.
+//
+// Nothing here starts work. The owner starts each issue with /work; the brief only ranks.
+
+import { isRefined, byUrgency } from '../runner/select.mjs';
+import { sprintEnd } from '../board/derive.mjs';
+
+const TRUSTED = ['OWNER', 'MEMBER', 'COLLABORATOR'];
+const IN_FLIGHT = ['status:in-progress', 'status:in-review', 'status:blocked'];
+const SIZE = /<!--\s*refined:\s*(\d{4}-\d{2}-\d{2})[^>]*?size=([SML])/;
+
+// issue = { number, title, labels, authorAssociation, comments: [bodies], hasOpenPr,
+//           milestone: { title, dueOn } | null, sprint: { startDate, duration } | null }
+export function launchable(i) {
+  return TRUSTED.includes(i.authorAssociation) &&
+    i.labels.includes('status:ready') &&
+    !i.labels.some((l) => IN_FLIGHT.includes(l) || l.startsWith('tier:5')) &&
+    !i.hasOpenPr &&
+    isRefined(i);
+}
+
+export const inSprint = (sprint, today) => Boolean(sprint) && sprint.startDate <= today && sprintEnd(sprint) > today;
+
+const due = (i) => i.milestone?.dueOn?.slice(0, 10) ?? '9999-12-31';
+
+// Current sprint first, then priority, then tier, then the nearest milestone due date, then age.
+export function rank(issues, today, n = 3) {
+  return issues
+    .filter(launchable)
+    .sort((a, b) =>
+      Number(inSprint(b.sprint, today)) - Number(inSprint(a.sprint, today)) ||
+      byUrgencyNoAge(a, b) || due(a).localeCompare(due(b)) || a.number - b.number)
+    .slice(0, n)
+    .map((i) => ({ number: i.number, title: i.title, reasons: reasons(i, today) }));
+}
+
+// byUrgency ends on age; the brief puts the milestone due date before age.
+const byUrgencyNoAge = (a, b) => byUrgency({ ...a, number: 0 }, { ...b, number: 0 });
+
+export function reasons(i, today) {
+  const out = [];
+  if (inSprint(i.sprint, today)) out.push('dans le sprint en cours');
+  // The taxonomy label (priority:P1-high) over a legacy bare one (priority:P1).
+  const p = i.labels.filter((l) => l.startsWith('priority:')).sort((x, y) => y.length - x.length)[0];
+  if (p) out.push(`priorité ${p.slice(9)}`);
+  const t = i.labels.find((l) => l.startsWith('tier:'));
+  if (t) out.push(`tier ${t.slice(5)}`);
+  if (i.milestone) out.push(i.milestone.dueOn ? `milestone « ${i.milestone.title} », échéance le ${i.milestone.dueOn.slice(0, 10)}` : `milestone « ${i.milestone.title} »`);
+  const m = [...(i.comments || [])].reverse().map((c) => SIZE.exec(c || '')).find(Boolean);
+  if (m) out.push(`affiné le ${m[1]}, taille ${m[2]}`);
+  return out;
+}
+
+// The comment the bot posts. `waiting` lists what only the owner can do.
+export function render({ today, owner, top, inFlight, waiting }) {
+  const lines = [`### Brief du jour — ${today}`, ''];
+  if (owner) lines.push(`@${owner}`, '');
+  if (top.length) {
+    lines.push(`**À lancer, dans l'ordre** (${top.length})`, '');
+    top.forEach((t, k) => {
+      lines.push(`${k + 1}. #${t.number} — ${t.title}`);
+      lines.push(`   - Pourquoi : ${t.reasons.join(' · ') || 'seul ticket prêt et affiné'}`);
+      lines.push(`   - Lancer : \`/work ${t.number}\``);
+    });
+  } else {
+    lines.push("**À lancer** — aucun ticket prêt et affiné. L'affinage automatique en prépare à chaque passe du runner.");
+  }
+  lines.push('');
+  lines.push(`**En cours** — ${inFlight.length ? inFlight.map((n) => `#${n}`).join(', ') : 'rien'}`);
+  lines.push('');
+  if (waiting.length) {
+    lines.push('**Attend ta décision**', '');
+    for (const w of waiting) lines.push(`- ${w}`);
+  } else {
+    lines.push('**Attend ta décision** — rien.');
+  }
+  lines.push('', '<sub>Calculé par scripts/brief/ sans appel de modèle (#1320). Rien ne démarre sans toi.</sub>');
+  return lines.join('\n');
+}
+
+// Open entries of docs/DECISIONS.md: the `### D-…` headings between `## Open` and `## Resolved`.
+export function openDecisions(markdown) {
+  const open = /^## Open\s*$([\s\S]*?)^## Resolved/m.exec(markdown)?.[1] ?? '';
+  return [...open.matchAll(/^### (D-\d+ — .+)$/gm)].map((m) => m[1].replace(/\s+·\s+raised.*$/, ''));
+}

@@ -3,10 +3,12 @@
 // on the owner's machine (ops/runner/). It decides what to do from GitHub and git alone;
 // a model is called only for the work itself.
 //
-// Order of a batch:
-//   1. refine     Refinement issues, and Ready issues without a refinement marker (#1270)
-//   2. fix        PRs the review gate sent back (#1271): the bot's agent-review is failure
-//   3. implement  Ready AND refined issues (D-094), by priority, then tier, then age
+// It never starts an implementation: the owner starts every piece of work with /work (D-101,
+// #1320), and the daily brief (scripts/brief/) tells them which. The runner only carries on
+// around that work. Order of a batch:
+//   1. resume     a fix that an earlier batch did not finish (#1294)
+//   2. refine     Refinement issues, and Ready issues without a refinement marker (#1270)
+//   3. fix        PRs the review gate sent back (#1271): the bot's agent-review is failure
 //   4. steward    one merge-steward pass over PRs that are not moving (#1280)
 //
 //   node scripts/runner/runner.mjs --dry-run    print the plan, start nothing
@@ -23,7 +25,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { gql } from '../board/lib.mjs';
 import { R, rest, restAll, statuses, BOT_LOGIN } from '../review/gh.mjs';
-import { pickRefinement, pickImplementation, turnBudget, hitUsageLimit, REFINED_MARKER, resumeTarget } from './select.mjs';
+import { pickRefinement, hitUsageLimit, resumeTarget } from './select.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const cfg = JSON.parse(readFileSync(join(ROOT, 'scripts/runner/config.json'), 'utf8'));
@@ -50,13 +52,11 @@ async function openIssues() {
           closedByPullRequestsReferences(first: 5) { nodes { state } } } } } }`, { after });
     const page = d.repository.issues;
     for (const n of page.nodes) {
-      const comments = n.comments.nodes.map((c) => c.body);
-      const marker = [...comments].reverse().map((c) => REFINED_MARKER.exec(c) && /size=([SML?])/.exec(c)).find(Boolean);
       out.push({
         number: n.number, title: n.title, authorAssociation: n.authorAssociation,
-        milestone: n.milestone?.title ?? null, labels: n.labels.nodes.map((l) => l.name), comments,
+        milestone: n.milestone?.title ?? null, labels: n.labels.nodes.map((l) => l.name),
+        comments: n.comments.nodes.map((c) => c.body),
         hasOpenPr: n.closedByPullRequestsReferences.nodes.some((p) => p.state === 'OPEN'),
-        size: marker?.[1] && marker[1] !== '?' ? marker[1] : undefined,
       });
     }
     after = page.pageInfo.hasNextPage ? page.pageInfo.endCursor : null;
@@ -151,12 +151,12 @@ function issueWorktrees() {
 
 // Commits and pushes whatever an interrupted run left in an issue's worktrees, so nothing
 // lives only on this machine. Returns the branches it saved.
-// Only the runner's own worktrees are ever touched: the ones /work creates
-// (../OpenRisk-wt-<n>) and the fix worktrees under cfg.worktrees. The owner's checkouts and
-// any other session's worktrees are never committed or pushed, whatever their branch.
+// Only the runner's own worktrees are ever touched: the fix worktrees under cfg.worktrees.
+// The /work worktrees (../OpenRisk-wt-<n>) belong to sessions the owner started (D-101), and
+// they, the owner's checkouts and any other session's worktrees are never committed or
+// pushed, whatever their branch.
 function ownedByRunner(path) {
-  const fixRoot = resolve(ROOT, cfg.worktrees);
-  return /\/OpenRisk-wt-\d+$/.test(path) || path.startsWith(fixRoot + '/');
+  return path.startsWith(resolve(ROOT, cfg.worktrees) + '/');
 }
 
 function saveWip(issue, reason) {
@@ -189,6 +189,14 @@ async function reportWip(saved, reason) {
   }
 }
 
+// The worktree a fix runs in, under cfg.worktrees, up to date with the PR's branch.
+function fixWorktree(pr, branch) {
+  const wt = resolve(ROOT, cfg.worktrees, `pr-${pr}`);
+  if (!existsSync(wt)) execFileSync('git', ['-C', ROOT, 'worktree', 'add', '--quiet', wt, branch]);
+  else execFileSync('git', ['-C', wt, 'pull', '--quiet', '--no-rebase', 'origin', branch]);
+  return wt;
+}
+
 // ---------- the batch ----------
 async function batch() {
   const state = readState();
@@ -209,37 +217,39 @@ async function batch() {
   const issues = await openIssues();
   const resume = resumeTarget(state, issues);
   const toRefine = pickRefinement(issues, cfg.batch.refine);
-  const fixes = (await sentBack()).slice(0, cfg.batch.fix);
-  const toBuild = pickImplementation(issues, cfg.batch.implement, { milestone: cfg.milestone });
+  const fixes = (await sentBack()).filter((f) => f.pr !== resume?.pr).slice(0, cfg.batch.fix);
   const stuck = (await stuckPrs()).slice(0, cfg.batch.steward ? 20 : 0);
-  if (resume) log({ step: 'plan', resume: `${resume.step}:#${resume.issue}` });
-  log({ step: 'plan', refine: toRefine.map((i) => i.number), fix: fixes.map((f) => f.pr), implement: toBuild.map((i) => `${i.number}:${i.size || 'M'}`), steward: stuck });
+  if (resume) log({ step: 'plan', resume: `fix:#${resume.pr}` });
+  log({ step: 'plan', refine: toRefine.map((i) => i.number), fix: fixes.map((f) => f.pr), steward: stuck });
   if (DRY) return;
 
   // Every agent run is bracketed: `current` is set before and cleared after, so a run that
   // never returns (power cut, crash) is found and recovered by the next batch.
-  const begin = (step, issue) => save({ current: { step, issue, at: new Date().toISOString() } });
+  const begin = (step, issue, pr) => save({ current: { step, issue, pr, at: new Date().toISOString() } });
   const end = () => save({ current: null });
-  const stop = async (r, step, issue) => {
+  const stop = async (r, step, issue, pr) => {
     if (!r.limited) return false;
     const until = new Date(Date.now() + cfg.usageBackoffMinutes * 60000).toISOString();
     const saved = issue ? saveWip(issue, 'usage window ran out') : [];
     await reportWip(saved, 'usage window ran out');
-    save({ backoffUntil: until, current: null, resume: issue ? { step, issue } : null });
+    save({ backoffUntil: until, current: null, resume: issue ? { step, issue, pr } : null });
     log({ step, issue, stopped: 'usage window ran out', backoffUntil: until, saved: saved.map((s) => s.branch) });
     return true;
   };
 
-  // A resumed issue goes first, before any new work.
+  // An interrupted fix goes first, before any new work, in the PR's own worktree.
   if (resume) {
-    const turns = turnBudget(resume.size || 'M', cfg.turns.implement);
-    begin(resume.step, resume.issue);
-    const r = runAgent({ prompt: prompt('resume', { N: resume.issue, TURNS: turns }), model: cfg.models.implement, turns, tools: cfg.implementTools, cwd: ROOT });
-    end();
-    log({ step: 'resume', issue: resume.issue, ok: r.ok, turns: r.turns, tokens: r.tokens });
-    await addTokens(resume.issue, r.tokens);
-    if (await stop(r, resume.step, resume.issue)) return;
-    if (r.maxTurns) await blockForBudget(resume.issue, 'Resumed work');
+    const pr = await rest('GET', `${R}/pulls/${resume.pr}`);
+    if (pr?.state === 'open') {
+      const wt = fixWorktree(resume.pr, pr.head.ref);
+      begin('fix', resume.issue, resume.pr);
+      const r = runAgent({ prompt: prompt('resume', { PR: resume.pr, N: resume.issue, TURNS: cfg.turns.fix }), model: cfg.models.fix, turns: cfg.turns.fix, tools: cfg.fixTools, cwd: wt });
+      end();
+      log({ step: 'resume', pr: resume.pr, issue: resume.issue, ok: r.ok, turns: r.turns, tokens: r.tokens });
+      await addTokens(resume.issue, r.tokens);
+      if (await stop(r, 'fix', resume.issue, resume.pr)) return;
+      if (r.maxTurns) await blockForBudget(resume.issue, `Resumed fix of PR #${resume.pr}`);
+    }
     save({ resume: null });
   }
 
@@ -252,28 +262,14 @@ async function batch() {
     if (await stop(r, 'refine', i.number)) return;
   }
   for (const f of fixes) {
-    const wt = resolve(ROOT, cfg.worktrees, `pr-${f.pr}`);
-    if (!existsSync(wt)) execFileSync('git', ['-C', ROOT, 'worktree', 'add', '--quiet', wt, f.branch]);
-    else execFileSync('git', ['-C', wt, 'pull', '--quiet', '--no-rebase', 'origin', f.branch]);
-    begin('fix', f.issue);
-    const r = runAgent({ prompt: prompt('fix', { PR: f.pr, N: f.issue, TURNS: cfg.turns.fix }), model: cfg.models.fix, turns: cfg.turns.fix, tools: cfg.implementTools, cwd: wt });
+    const wt = fixWorktree(f.pr, f.branch);
+    begin('fix', f.issue, f.pr);
+    const r = runAgent({ prompt: prompt('fix', { PR: f.pr, N: f.issue, TURNS: cfg.turns.fix }), model: cfg.models.fix, turns: cfg.turns.fix, tools: cfg.fixTools, cwd: wt });
     end();
     log({ step: 'fix', pr: f.pr, issue: f.issue, ok: r.ok, turns: r.turns, tokens: r.tokens });
     await addTokens(f.issue, r.tokens);
-    if (await stop(r, 'fix', f.issue)) return;
+    if (await stop(r, 'fix', f.issue, f.pr)) return;
     if (r.maxTurns) await blockForBudget(f.issue, `Fixing PR #${f.pr}`);
-  }
-  for (const i of toBuild) {
-    const size = i.size || 'M';
-    const turns = turnBudget(size, cfg.turns.implement);
-    const model = size === 'L' ? cfg.models.large : cfg.models.implement;
-    begin('implement', i.number);
-    const r = runAgent({ prompt: prompt('implement', { N: i.number, TURNS: turns, SIZE: size }), model, turns, tools: cfg.implementTools, cwd: ROOT });
-    end();
-    log({ step: 'implement', issue: i.number, size, ok: r.ok, turns: r.turns, tokens: r.tokens });
-    await addTokens(i.number, r.tokens);
-    if (await stop(r, 'implement', i.number)) return;
-    if (r.maxTurns) await blockForBudget(i.number, `Implementation (size ${size})`);
   }
   if (stuck.length && cfg.batch.steward) {
     const r = runAgent({ prompt: `Run one merge-steward pass over these PRs into ${cfg.base}: ${stuck.map((n) => `#${n}`).join(', ')}. Follow .claude/agents/ops/merge-steward.md exactly.`, model: cfg.models.steward, turns: cfg.turns.steward, tools: cfg.stewardTools, cwd: ROOT });

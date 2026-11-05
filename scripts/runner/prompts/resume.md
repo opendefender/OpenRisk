@@ -1,10 +1,9 @@
-/resume
+You are resuming the fix of PR #{{PR}} (issue #{{N}}), which an earlier run did not finish. It was cut by the usage window or by the machine stopping. Its work was committed (`wip(#{{N}}): …`) and pushed to the PR's branch.
 
-You are resuming OpenRisk issue #{{N}}, which an earlier run did not finish. It was cut by the usage window or by the machine stopping. Its work was committed (`wip(#{{N}}): …`) and pushed to the issue's branch.
-
-1. Find the branch: `git branch -r --list 'origin/*/{{N}}-*'`. Work in its worktree (`../OpenRisk-wt-{{N}}`), creating it from that branch if it is missing. Never start a new branch.
-2. Read the issue's last progress comment and the `wip` commits. Continue from there; do not redo what is done.
-3. Then follow `/work {{N}}` to the end, live verification included (below), and open or update the PR against `develop`.
+1. You are in the PR's worktree. Read the bot's review comments on the PR (they start with `<!-- agent-review:verdict`), the `wip` commits and the issue's last progress comment. Continue from there; do not redo what is done.
+2. Fix **every blocking finding**, and only those. Commit with `git commit -s`, push to the same branch, and never force push. Never start a new branch.
+3. Answer each blocking finding in one PR comment: *fixed in `<sha>`*, or *disputed: <reason>*. A dispute goes to tech-lead's single arbitration.
+4. Post the mandatory progress comment on #{{N}}.
 
 Turn budget: {{TURNS}}. The rules are CLAUDE.md and docs/AGENT_RULES.md. A refused action is a blocker: report it and stop.
 
