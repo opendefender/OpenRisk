@@ -9,6 +9,32 @@ recommends, and surfaces these in the daily brief. Run `/decide` to clear them.
 
 ## Resolved
 
+### D-100 — No promotion to staging without a local proof on the staging stack · decided 2026-11-05
+**Decided (owner, 2026-11-05)** — "Avant de merge un truc sur stag il faut pull develop en local et run sur la stack stag avant de prouver que tout est bon." Before `staging` moves, the candidate `develop` commit is pulled on the owner's machine, deployed on the real staging stack (`openrisk-staging`), and tested against it: the full E2E suite, the smoke suite and `/health`. The proof is a commit status `staging-verified` on that exact SHA, with the test summary, the image digest and the time, and it goes into the promotion's comment. Without it, the promotion is refused. A non-LLM script of the pull deployer does it (#1246, #1255). A failure rolls the staging stack back and opens a P1 bug.
+
+### D-099 — Releases: a repository script instead of release-please, rc from staging, final from master, signed · decided 2026-11-05
+**Decided (agent: release-manager, 2026-11-05, under D-089; replaces the release-please part of D-088)**
+
+**Why not release-please** — three facts.
+1. `CHANGELOG.md` is curated (Keep a Changelog 1.1.0), and its notes are corrected after claim verification (#1158). release-please writes its own format and would overwrite that prose.
+2. `release.yml` refuses a tag that differs from `VERSION` and checks that the propagated versions do not drift (job `guard`). release-please does not know those files.
+3. The tags already follow `vMAJOR.MINOR.PATCH[-rc.N]` (`docs/VERSIONING.md`), and `release.yml` already detects pre-releases.
+
+**What replaces it** — `scripts/release/cut.mjs`, in the repository and with tests, so no new dependency. It:
+- computes the next version from the Conventional Commits since the last tag (`feat` → minor, `fix` → patch, `!` or `BREAKING CHANGE` → major);
+- turns `## [Unreleased]` into the dated section without rewriting it;
+- bumps `VERSION` and every propagated version;
+- opens the release PR, which merges through the queue like any other.
+
+**The flow**
+- Each promotion to `staging` cuts a pre-release `vX.Y.Z-rc.N`.
+- After the 48 h soak (D-088), `master` is promoted and the final `vX.Y.Z` is cut.
+- A P0 or security P1 fix skips the soak but no test (#1256 criterion 7).
+- Before any tag, `selfhost-install` also **upgrades from the previous release with data**.
+- The notes, in FR and EN, have a mandatory "Upgrade and breaking changes" section. `product-verifier` blocks any claim it cannot prove from the code.
+
+**Signing** — images and binaries are signed keylessly with sigstore through GitHub OIDC. It is free, holds no key, and is verifiable with one command. It is the one new dependency, pinned by SHA.
+
 ### D-096 — After a fix, only the refusing reviewers review again, and the carry-over is said · decided 2026-11-05
 **Decided (owner, 2026-11-05)** — "Limiter la relance aux rôles qui avaient refusé et signaler."
 When an implementer pushes a fix after the review gate sent the PR back (#1271):
