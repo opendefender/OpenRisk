@@ -26,7 +26,9 @@ if [ ! -f "$ENV" ]; then
     echo "OPENRISK_DEV_VOLUMES=$P"; echo "OPENRISK_DEV_FRONTEND_PORT=$FE"; echo "OPENRISK_DEV_BACKEND_PORT=$BE"
     echo "OPENRISK_DEV_DB_PORT=$DB"; echo "OPENRISK_DEV_TEST_DB_PORT=$TDB"; echo "OPENRISK_DEV_REDIS_PORT=$RD"
     echo "CORS_ORIGINS=http://localhost:$FE"; } > "$ENV"
-  printf 'services:\n  backend:\n    environment:\n      INITIAL_ADMIN_PASSWORD: ${INITIAL_ADMIN_PASSWORD}\n' > "$OVR"
+  # APP_BASE_URL: links the backend builds (invitations, resets) must point at THIS stack, never
+  # at the owner's dev frontend on :5173 (found on the first live run, #1294).
+  printf 'services:\n  backend:\n    environment:\n      INITIAL_ADMIN_PASSWORD: ${INITIAL_ADMIN_PASSWORD}\n      APP_BASE_URL: http://localhost:%s\n' "$FE" > "$OVR"
 fi
 C=(docker compose -p "$P" -f "$ROOT/docker-compose.yaml" -f "$OVR" --env-file "$ENV")
 
