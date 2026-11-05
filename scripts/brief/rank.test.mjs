@@ -33,6 +33,7 @@ test('titles cannot mention anyone, link anywhere or fake the layout', () => {
   const t = safe('@victim urgent [verify](https://evil.example) `/work 1`');
   assert.ok(!/@[a-z]/i.test(t));
   assert.ok(!t.includes('](') && !/(^|[^\\])`/.test(t), 'no live link, no unescaped code span');
+  assert.ok(!/https?:\/\//.test(safe('see https://evil.example/login')) && !/www\./.test(safe('www.evil.example')), 'bare URLs are not autolinked');
   const md = render({ today: TODAY, owner: null, top: [{ number: 7, title: '@x [a](b)', reasons: [] }], inFlight: [], waiting: [] });
   assert.ok(!/@x/.test(md) && !md.includes('[a](b)'));
 });

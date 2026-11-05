@@ -50,6 +50,10 @@ export function hitUsageLimit(output) {
   return /usage limit|rate limit|quota (exceeded|reached)|limit will reset|Claude AI usage limit/i.test(String(output || ''));
 }
 
+// A branch the runner may push a fix to: an issue branch `<type>/<n>-<slug>`, never a
+// long-lived one, whatever a PR's head is called (#1320).
+export const isIssueBranch = (b) => /^[a-z]+\/\d+-[\w.-]+$/.test(String(b)) && !/^(master|main|staging|develop)$/.test(String(b));
+
 // Which interrupted fix the next batch resumes first (#1294), or null.
 // state: the runner's state.json; issues: the open issues just read from GitHub.
 // A clean stop records `resume`; a run that never returned (power cut, crash) left

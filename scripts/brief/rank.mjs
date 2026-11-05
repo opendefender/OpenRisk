@@ -54,7 +54,8 @@ export function reasons(i, today) {
 
 // A title from GitHub, made inert in the bot's comment: no @-mention, no link, no markup (#1320).
 // Anyone can write an issue or PR title, and the bot posts this every day.
-export const safe = (title) => String(title).replace(/[\\`*_[\]()<>#|~!]/g, '\\$&').replace(/@/g, '@\u200b');
+export const safe = (title) => String(title).replace(/[\\`*_[\]()<>#|~!]/g, '\\$&').replace(/@/g, '@\u200b')
+  .replace(/:\/\//g, ':\u200b//').replace(/\bwww\./gi, 'www\u200b.');
 
 // The comment the bot posts. `waiting` lists what only the owner can do.
 export function render({ today, owner, top, inFlight, waiting }) {

@@ -39,6 +39,11 @@ test('urgency: priority, then tier, then age', () => {
   assert.deepEqual(s.map((i) => i.number), [2, 3, 1, 4]);
 });
 
+test('the runner pushes fixes to issue branches only, never to a long-lived branch', () => {
+  assert.ok(select.isIssueBranch('chore/1320-owner-starts-work'));
+  for (const b of ['master', 'staging', 'develop', 'main', 'feature', 'chore/x', '', undefined]) assert.ok(!select.isIssueBranch(b), String(b));
+});
+
 test('marker and the usage-limit signal', () => {
   assert.ok(isRefined({ comments: REFINED }));
   assert.ok(!isRefined({ comments: [{ body: 'refined by hand', authorAssociation: 'OWNER' }] }));

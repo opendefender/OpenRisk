@@ -25,7 +25,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { gql } from '../board/lib.mjs';
 import { R, rest, restAll, statuses, BOT_LOGIN } from '../review/gh.mjs';
-import { pickRefinement, hitUsageLimit, resumeTarget } from './select.mjs';
+import { pickRefinement, hitUsageLimit, resumeTarget, isIssueBranch } from './select.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const cfg = JSON.parse(readFileSync(join(ROOT, 'scripts/runner/config.json'), 'utf8'));
@@ -68,7 +68,7 @@ async function sentBack() {
   const prs = await restAll(`${R}/pulls?state=open&base=${cfg.base}`);
   const out = [];
   for (const p of prs) {
-    if (p.draft || p.head.repo?.full_name !== p.base.repo.full_name) continue;
+    if (p.draft || p.head.repo?.full_name !== p.base.repo.full_name || !isIssueBranch(p.head.ref)) continue;
     const st = await statuses(p.head.sha, { onlyFrom: BOT_LOGIN });
     const issue = /\b(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)\s+#(\d+)\b/i.exec(p.body || '')?.[1];
     if (st['agent-review'] === 'failure' && issue) out.push({ pr: p.number, branch: p.head.ref, issue: Number(issue) });
@@ -145,7 +145,7 @@ const fixPath = (pr) => resolve(ROOT, cfg.worktrees, `pr-${pr}`);
 function saveWip(run, reason) {
   const { issue, pr, branch } = run || {};
   const wt = Number.isInteger(pr) ? fixPath(pr) : null;
-  if (!Number.isInteger(issue) || !branch || !wt || !existsSync(wt)) return []; // never "all"
+  if (!Number.isInteger(issue) || !isIssueBranch(branch) || !wt || !existsSync(wt)) return []; // never "all"
   try {
     const g = (args) => execFileSync('git', ['-C', wt, ...args], { encoding: 'utf8' }).trim();
     if (g(['status', '--porcelain'])) {
