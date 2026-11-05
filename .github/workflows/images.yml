@@ -1,0 +1,195 @@
+name: Images
+
+# One build per develop commit, promoted unchanged (#1245, ADR 0009 D1).
+#
+# - Push to develop: build the backend and frontend images once, push them as
+#   ghcr.io/<repo>-<component>:sha-<full sha>, then point the moving `develop`
+#   tag at that digest.
+# - Push to staging or master (a fast-forward promotion): no build. Point the
+#   `staging` or `master` tag at the digest of sha-<sha> and prove the digest is
+#   unchanged (scripts/images/promote.sh). A commit that was never built on
+#   develop fails the run; nothing here builds it.
+# - Pull request touching this file or scripts/images/: run
+#   scripts/images/promote.test.sh against a throwaway registry.
+#
+# Nothing here deploys. The owner's machine pulls the tags (ADR 0009 D4, #1246).
+# The versioned release image is release.yml's, built from the tag.
+#
+# Every third-party action is pinned to a full commit SHA; the tag is in the
+# trailing comment.
+on:
+  push:
+    branches: [develop, staging, master]
+  pull_request:
+    paths:
+      - .github/workflows/images.yml
+      - scripts/images/**
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build ${{ matrix.component }} (sha-)
+    if: github.event_name == 'push' && github.ref == 'refs/heads/develop'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - component: backend
+            context: .
+            file: backend/Dockerfile
+          - component: frontend
+            context: frontend
+            file: frontend/Dockerfile
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - name: Image name and version
+        id: meta
+        env:
+          COMPONENT: ${{ matrix.component }}
+        run: |
+          set -euo pipefail
+          echo "image=ghcr.io/${GITHUB_REPOSITORY,,}-${COMPONENT}" >> "$GITHUB_OUTPUT"
+          echo "version=$(tr -d '[:space:]' < VERSION)" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # The frontend Dockerfile declares no build args; BuildKit ignores the two.
+      - name: Build and push sha-${{ github.sha }}
+        id: build
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.file }}
+          push: true
+          tags: ${{ steps.meta.outputs.image }}:sha-${{ github.sha }}
+          labels: |
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.title=openrisk-${{ matrix.component }}
+          build-args: |
+            OPENRISK_VERSION=${{ steps.meta.outputs.version }}
+            OPENRISK_COMMIT=${{ github.sha }}
+          cache-from: type=gha,scope=images-${{ matrix.component }}
+          cache-to: type=gha,scope=images-${{ matrix.component }},mode=max
+
+      - name: The pushed image is the built one, labelled with this commit
+        env:
+          IMAGE: ${{ steps.meta.outputs.image }}
+          BUILT: ${{ steps.build.outputs.digest }}
+          COMPONENT: ${{ matrix.component }}
+        run: |
+          set -euo pipefail
+          ref="${IMAGE}:sha-${GITHUB_SHA}"
+          got="$(docker buildx imagetools inspect "$ref" --format '{{.Manifest.Digest}}')"
+          [ "$got" = "$BUILT" ] || { echo "::error::${ref} is ${got}, the build produced ${BUILT}"; exit 1; }
+          labels="$(docker buildx imagetools inspect "$ref" --format '{{json .Image.Config.Labels}}')"
+          rev="$(jq -r '."org.opencontainers.image.revision"' <<< "$labels")"
+          src="$(jq -r '."org.opencontainers.image.source"' <<< "$labels")"
+          [ "$rev" = "$GITHUB_SHA" ] || { echo "::error::revision label is '${rev}'"; exit 1; }
+          [ "$src" = "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}" ] || { echo "::error::source label is '${src}'"; exit 1; }
+          if [ "$COMPONENT" = backend ]; then
+            # The commit /health reports is linked into the binary (main.Commit).
+            docker run --rm --pull always --entrypoint grep "$ref" -c "$GITHUB_SHA" /usr/local/bin/openrisk \
+              || { echo "::error::the backend binary does not carry ${GITHUB_SHA}"; exit 1; }
+          fi
+          {
+            echo "### ${ref}"
+            echo '```'
+            docker buildx imagetools inspect "$ref"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # Moves `develop`, `staging` or `master` to the sha- digest of this commit.
+  # One run per branch at a time; a run whose commit is no longer the head of
+  # its branch leaves the tag to the newer run, so a tag never moves backwards.
+  tag:
+    name: Tag ${{ github.ref_name }}
+    needs: build
+    if: >-
+      !cancelled() && github.event_name == 'push' &&
+      (needs.build.result == 'success' ||
+       (needs.build.result == 'skipped' && github.ref != 'refs/heads/develop'))
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    concurrency:
+      group: images-tag-${{ github.ref_name }}
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+          sparse-checkout: scripts/images
+
+      - name: Is this commit still the head of ${{ github.ref_name }}?
+        id: head
+        run: |
+          set -euo pipefail
+          head="$(git ls-remote "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}" "refs/heads/${GITHUB_REF_NAME}" | cut -f1)"
+          if [ "$head" = "$GITHUB_SHA" ]; then
+            echo "current=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::${GITHUB_REF_NAME} is now ${head}; its own run moves the tag."
+            echo "current=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+        if: steps.head.outputs.current == 'true'
+
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+        if: steps.head.outputs.current == 'true'
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Promote without rebuilding, digest checked
+        if: steps.head.outputs.current == 'true'
+        run: |
+          set -euo pipefail
+          for component in backend frontend; do
+            image="ghcr.io/${GITHUB_REPOSITORY,,}-${component}"
+            scripts/images/promote.sh "$image" "$GITHUB_SHA" "$GITHUB_REF_NAME" | tee -a "$GITHUB_STEP_SUMMARY"
+          done
+
+  promote-test:
+    name: Promotion keeps the digest
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: images-test-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
+    services:
+      registry:
+        image: registry:2@sha256:a3d8aaa63ed8681a604f1dea0aa03f100d5895b6a58ace528858a7b332415373 # 2
+        ports:
+          - 5000:5000
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+        with:
+          driver-opts: network=host
+
+      - name: scripts/images/promote.test.sh
+        env:
+          REGISTRY: localhost:5000
+        run: scripts/images/promote.test.sh

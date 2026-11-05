@@ -65,6 +65,23 @@ What was read rather than assumed, on origin/master `5d08e593` (2026-11-04):
   unchanged. It is built from the same commit that soaked on staging; the reproducibility check
   already in `release.yml` is what ties the two.
 
+As built by #1245 (`.github/workflows/images.yml`, `scripts/images/promote.sh`):
+
+- The per-commit images are `ghcr.io/opendefender/openrisk-backend` and
+  `ghcr.io/opendefender/openrisk-frontend`, from `backend/Dockerfile` and `frontend/Dockerfile`,
+  the two images the Compose stacks run. Each carries `org.opencontainers.image.revision` and
+  `.source`; the backend links the full SHA into `main.Commit`, which `/api/v1/health` reports.
+- Promotion copies the manifest by digest (`imagetools create --prefer-index=false`) and fails
+  unless the promoted tag has the digest of `sha-<sha>`. A commit with no `sha-` image fails its
+  promotion; nothing builds it then. `ci.yml` builds the all-in-one image as a check only and
+  pushes nothing.
+- The release image `ghcr.io/opendefender/openrisk:X.Y.Z` is a different artifact: the
+  all-in-one root `Dockerfile`, built by `release.yml` from the tag, gated, then pushed. It is
+  not a retag of a `sha-` image and its digest differs. What ties them is the commit: the tag
+  is cut on the `master` commit whose `sha-` images soaked on staging. The reproducibility check
+  proves the release binary is the one that commit produces; it does not compare it with the
+  binary inside the `sha-` backend image, which is linked with different flags.
+
 Issues: #1244, #1245.
 
 ### D2 — "Green" is a contract, not a feeling
