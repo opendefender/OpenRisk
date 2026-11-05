@@ -33,9 +33,9 @@ constitution; this file is its operating detail (#1277).
 | 2.1 | No work without an issue that passed the Ready gate **and** the automatic refinement (D-094), and **the owner starts it** with `/work` (D-101, D-102). No agent and no timer starts an implementation; the briefs only propose. | no agent runs outside a `/work` session or a bot workflow (D-102); the brief ranks only refined Ready issues (`scripts/brief/rank.mjs`); Ready gate script | ✅ #1320, #1325 · 🔧 #1249, #1326 |
 | 2.2 | One issue → one branch `<type>/<n>-<slug>` → one PR with `Closes #<n>`. | CI check on the PR (title, branch name, closing reference) | 🔧 #1251 |
 | 2.3 | Smallest correct change. No refactor or cleanup outside the issue. | review | 📝 needs judgement |
-| 2.6 | A criterion that can only be checked once merged (a measurement later, a run on the next release) is marked `(after merge)` in the issue. It does not hold the merge, and the issue stays open until it is met (#1304). | `scripts/merge/conditions.mjs` | ✅ |
 | 2.4 | An issue found on the way becomes a new issue, never extra commits on the current PR. | review | 📝 needs judgement |
 | 2.5 | Read every file of a module before writing in it (CLAUDE.md rule 1). | review | 📝 needs judgement |
+| 2.6 | A criterion that can only be checked once merged (a measurement later, a run on the next release) ends with `(after merge)` in the issue, at refinement (#1304). It does not hold the merge only if that same line was already there when the issue was first set `status:in-progress`, at least one criterion stays unmarked, and the PR body names an open follow-up issue (`After merge: #<m>`). The merge closes the issue; the follow-up stays open until the criterion is met. | `scripts/merge/conditions.mjs` (`exemptCriteria`, `bodyAtClaim`, `followUpRefs`), fed from GitHub's edit history by `scripts/merge/enqueue.mjs` | ✅ merge gate · 📝 closing the follow-up needs judgement |
 
 ## 3. Irreversible and owner-only actions
 
