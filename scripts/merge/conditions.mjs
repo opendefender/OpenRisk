@@ -35,7 +35,8 @@ const AFTER_MERGE = /\((?:after merge|après (?:le )?merge)\)\s*$/i;
 // Numbered acceptance criteria of the issue body →
 // { count, afterMerge: Map<number, first line>, text: Map<number, whole criterion> }.
 // A criterion's text runs from its numbered line to the next one or the end of the section,
-// sub-bullets included, trailing spaces and blank lines dropped.
+// sub-bullets included, trailing spaces and blank lines dropped. A repeated number keeps the
+// last occurrence; the gate then compares that one on both sides.
 export function criteriaOf(issueBody) {
   const lines = String(issueBody || '').split('\n');
   let inSection = false;

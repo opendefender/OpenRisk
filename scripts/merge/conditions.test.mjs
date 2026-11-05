@@ -102,6 +102,9 @@ test('frozen criteria: an unchanged body passes, and an edit outside the criteri
   const f = green();
   f.issueBody = ISSUE.replace('## Problem\n\nx', '## Problem\n\nx, clarified');
   assert.deepEqual(mayEnqueue(f), { ok: true, reasons: [] });
+  const dod = green();
+  dod.issueBody = ISSUE.replace('## Definition of Done\n\nd', '## Definition of Done\n\nd, and a checklist');
+  assert.deepEqual(mayEnqueue(dod), { ok: true, reasons: [] }, 'the next heading ends the criteria');
 });
 
 // #1304: (after merge) criteria.

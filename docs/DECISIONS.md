@@ -23,6 +23,8 @@ recommends, and surfaces these in the daily brief. Run `/decide` to clear them.
 
 **Reason** — It closes the bypass with data an agent cannot forge, and costs little: of the 22 recently claimed issues that had a usable anchor, 2 had their criteria changed after the claim (#815, #1291). When an issue's criteria truly need to change mid-work, that change is now the owner's, which is where it belongs.
 
+**Cost** — 38 of the 60 most recently updated issues have no claim anchor, nearly all because nobody has worked them yet. `/work` always sets `status:in-progress`, so new work gets an anchor; a PR that closes an issue never claimed that way (an old PR such as #1241, or an issue created and worked outside `/work`) leaves automatic merging and needs the owner's hand queue. A note written under the last criterion is read as part of it, so editing that note after the claim also refuses (fail-closed).
+
 **Overturn** — revert `changedSinceClaim` in `scripts/merge/conditions.mjs`.
 
 ### D-102 — No local timer: the owner works with /work, bots review and merge, planning runs weekly in Actions · decided 2026-11-05
