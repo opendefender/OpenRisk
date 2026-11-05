@@ -1,0 +1,62 @@
+name: Brief du jour
+
+# Posts the daily brief on the pinned issue « Brief du jour », as the delivery bot (#1320,
+# D-101, D-092): the three issues the owner should start next, in order, with the reasons,
+# and what waits on the owner. The owner wrote that issue, so GitHub emails them each comment.
+#
+# Nothing starts here. The owner starts every piece of work with /work; the brief only ranks.
+# No model is called: the ranking is scripts/brief/rank.mjs.
+#
+# Every third-party action is pinned to a full commit SHA; the tag is in the trailing comment.
+
+on:
+  schedule:
+    - cron: '0 6 * * *' # 07:00 in Douala and Paris (winter)
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Print the brief without posting it'
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: brief
+  cancel-in-progress: false
+
+jobs:
+  brief:
+    name: Brief du jour
+    if: github.repository == 'opendefender/OpenRisk'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+      - name: Ranking tests
+        run: node --test scripts/brief/*.test.mjs
+      - name: Bot token
+        id: bot
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          app-id: ${{ secrets.BOT_APP_ID }}
+          private-key: ${{ secrets.BOT_PRIVATE_KEY }}
+          owner: opendefender
+          repositories: OpenRisk
+          # Only what the brief needs: read the repository and the board, write one comment.
+          permission-contents: read
+          permission-pull-requests: read
+          permission-issues: write
+          permission-organization-projects: read
+      - name: Post
+        env:
+          BOARD_TOKEN: ${{ steps.bot.outputs.token }}
+          DRY: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run && '--dry-run' || '' }}
+        run: node scripts/brief/post.mjs $DRY

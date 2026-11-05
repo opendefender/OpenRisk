@@ -4,7 +4,9 @@ on:
   merge_group:
     types: [checks_requested]
   push:
-    branches: [master, develop, staging]
+    # Not develop: its commits come only from the merge queue, which already ran this
+    # workflow on the same commit (#1291).
+    branches: [master, staging]
   pull_request:
     branches: [master, develop, staging]
   schedule:
@@ -41,6 +43,9 @@ jobs:
       security-events: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Scheduled runs test staging, the next release, never develop (#1291).
+          ref: ${{ github.event_name == 'schedule' && 'staging' || '' }}
       - uses: actions/setup-go@v5
         with:
           go-version: '1.26'
@@ -66,6 +71,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          # Scheduled runs test staging, the next release, never develop (#1291).
+          ref: ${{ github.event_name == 'schedule' && 'staging' || '' }}
           fetch-depth: 0
 
       # No base/head inputs: the action picks the range per event itself (push:
