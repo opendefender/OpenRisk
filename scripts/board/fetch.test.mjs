@@ -24,7 +24,19 @@ const json = (status, body, headers = {}) =>
 
 beforeEach(() => {
   slept = [];
+  retryPolicy.waitedMs = 0;
   retryPolicy.sleep = async (ms) => { slept.push(ms); };
+});
+
+test('rest: once the wait budget is spent, the next failure is returned without waiting', async () => {
+  retryPolicy.waitedMs = retryPolicy.budgetMs - 500;
+  serve(json(429, {}, { 'retry-after': '60' }), json(500, {}));
+  await assert.rejects(rest('GET', '/x'), /HTTP 500/);
+  assert.deepEqual(slept, [500]);
+  assert.equal(calls.length, 2);
+  serve(json(500, {}));
+  await assert.rejects(rest('GET', '/x'), /HTTP 500/);
+  assert.equal(calls.length, 1);
 });
 
 test('rest: a 500 then a 200 returns the body', async () => {

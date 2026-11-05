@@ -83,7 +83,17 @@ export async function gql(query, variables = {}, attempt = 0) {
 }
 
 // How REST calls ride out transient GitHub errors (#1330). Tests replace `sleep`.
-export const retryPolicy = { attempts: 5, baseMs: 1000, maxWaitMs: 60_000, sleep };
+// `budgetMs` caps the total time one process spends waiting on retries, so a long outage
+// fails the run cleanly before the job's timeout instead of being cancelled mid-way.
+export const retryPolicy = { attempts: 5, baseMs: 1000, maxWaitMs: 60_000, budgetMs: 120_000, waitedMs: 0, sleep };
+
+async function backoff(ms) {
+  const wait = Math.min(ms, retryPolicy.maxWaitMs, retryPolicy.budgetMs - retryPolicy.waitedMs);
+  if (wait <= 0) return false;
+  retryPolicy.waitedMs += wait;
+  await retryPolicy.sleep(wait);
+  return true;
+}
 
 const WRITES = new Set(['POST', 'PATCH', 'PUT', 'DELETE']);
 
@@ -99,8 +109,7 @@ export async function ghFetch(url, init = {}) {
     try {
       res = await fetch(url, init);
     } catch (e) {
-      if (write || last) throw e;
-      await retryPolicy.sleep(retryPolicy.baseMs * 2 ** (attempt - 1));
+      if (write || last || !(await backoff(retryPolicy.baseMs * 2 ** (attempt - 1)))) throw e;
       continue;
     }
     const retryAfter = res.headers.get('retry-after');
@@ -108,7 +117,7 @@ export async function ghFetch(url, init = {}) {
       (res.status === 403 && (retryAfter !== null || res.headers.get('x-ratelimit-remaining') === '0'));
     if (last || !(rateLimited || (!write && res.status >= 500))) return res;
     const wait = Number(retryAfter) > 0 ? Number(retryAfter) * 1000 : retryPolicy.baseMs * 2 ** (attempt - 1);
-    await retryPolicy.sleep(Math.min(wait, retryPolicy.maxWaitMs));
+    if (!(await backoff(wait))) return res;
   }
 }
 
