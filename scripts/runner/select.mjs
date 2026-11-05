@@ -61,3 +61,15 @@ export function turnBudget(size, budgets) {
 export function hitUsageLimit(output) {
   return /usage limit|rate limit|quota (exceeded|reached)|limit will reset|Claude AI usage limit/i.test(String(output || ''));
 }
+
+// Which interrupted step the next batch resumes first (#1294), or null.
+// state: the runner's state.json; issues: the open issues just read from GitHub.
+// A clean stop records `resume`; a run that never returned (power cut, crash) left
+// `current` set. An issue that was closed or blocked meanwhile is not resumed.
+export function resumeTarget(state, issues) {
+  const r = state?.current ?? state?.resume;
+  if (!r || !Number.isInteger(r.issue)) return null;
+  const i = issues.find((x) => x.number === r.issue);
+  if (!i || i.labels.includes('status:blocked')) return null;
+  return { step: r.step, issue: r.issue, size: i.size };
+}
