@@ -8,7 +8,7 @@ constitution; this file is its operating detail (#1277).
 - `hook`: `.claude/hooks/`, runs before or after the agent's tool call and can refuse it;
 - `CI`: a required check (D-082);
 - `ruleset`: branch rules on `develop`, `staging` and `master` (D-091);
-- `runner`: the headless agent runner (#1252);
+- `bot`: a workflow that runs as the delivery bot (D-092): the daily brief, the weekly planning (#1326);
 - `review`: the PR review gate (#1271);
 - `harness`: the agent CLI's own safety check.
 
@@ -30,7 +30,7 @@ constitution; this file is its operating detail (#1277).
 
 | # | Rule | Enforced by | Status |
 |---|---|---|---|
-| 2.1 | No work without an issue that passed the Ready gate **and** the automatic refinement (D-094), and **the owner starts it** with `/work` (D-101). No agent and no timer starts an implementation; the daily brief only proposes. | runner has no implement step (`scripts/runner/select.mjs`); brief ranks only refined Ready issues (`scripts/brief/rank.mjs`); Ready gate script | ✅ #1320 · 🔧 #1249, #1270 |
+| 2.1 | No work without an issue that passed the Ready gate **and** the automatic refinement (D-094), and **the owner starts it** with `/work` (D-101, D-102). No agent and no timer starts an implementation; the briefs only propose. | no agent runs outside a `/work` session or a bot workflow (D-102); the brief ranks only refined Ready issues (`scripts/brief/rank.mjs`); Ready gate script | ✅ #1320, #1325 · 🔧 #1249, #1326 |
 | 2.2 | One issue → one branch `<type>/<n>-<slug>` → one PR with `Closes #<n>`. | CI check on the PR (title, branch name, closing reference) | 🔧 #1251 |
 | 2.3 | Smallest correct change. No refactor or cleanup outside the issue. | review | 📝 needs judgement |
 | 2.4 | An issue found on the way becomes a new issue, never extra commits on the current PR. | review | 📝 needs judgement |
@@ -89,7 +89,7 @@ constitution; this file is its operating detail (#1277).
 |---|---|---|---|
 | 8.1 | CLAUDE.md's absolute rules: tenant filter, typed errors, three tests per use case, no `any`, three UI states, Zod, transactions. | CI (tenant isolation gate, lint, typecheck), review | ✅ CI · 🔧 #1271 |
 | 8.2 | A UI change is checked in a real browser, with figures (`always-verify-live`). | review | 🔧 #1271 |
-| 8.3 | A test that fails then passes is flaky. The second flaky failure opens a bug and gets fixed; it is not rerun a third time. Quarantine never covers tenant isolation or authz tests. | runner, #1254 | 🔧 #1254 |
+| 8.3 | A test that fails then passes is flaky. The second flaky failure opens a bug and gets fixed; it is not rerun a third time. Quarantine never covers tenant isolation or authz tests. | #1254 | 🔧 #1254 |
 | 8.4 | Never weaken or delete an assertion to make a test pass. | review | 🔧 #1271 |
 | 8.5 | Format only the files you changed; no tree-wide formatter. | `format-and-lint.sh` | ✅ |
 
@@ -97,9 +97,9 @@ constitution; this file is its operating detail (#1277).
 
 | # | Rule | Enforced by | Status |
 |---|---|---|---|
-| 9.1 | Each issue has a turn and token budget by size. Past it, the agent stops, pushes, sets `status:blocked` and posts its report. | runner | 🔧 #1252 |
+| 9.1 | Every agent run in a workflow has a pinned model and a `max-turns` budget, and prints the tokens it used. | bot workflows (`agent-review.yml`, #1326) | ✅ review gate · 🔧 #1326 |
 | 9.2 | Model by role: `haiku` mechanical, `sonnet` by default, `opus` only for L design, arbitration and ADRs. | agent frontmatter | 🔧 #1253 |
-| 9.3 | No model call to poll: waiting is a script or a timer. | runner | 🔧 #1252 |
+| 9.3 | No model call to poll: waiting is a workflow trigger or a schedule. | bot workflows | ✅ |
 | 9.4 | At most 3 review rounds per PR, then `status:blocked`. | review gate | 🔧 #1271 |
 
 ## 10. Reporting and decisions
