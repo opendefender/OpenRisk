@@ -126,7 +126,7 @@ jobs:
           DRY_RUN: ${{ inputs.dry_run && '--dry-run' || '' }}
         run: |
           # The script runs from the default branch; until it is merged there, skip.
-          if [ ! -f scripts/board/sync.mjs ]; then
+          if [ ! -f scripts/board/sync.mjs ] || { [ -f scripts/ci/can-load.mjs ] && ! node scripts/ci/can-load.mjs scripts/board/sync.mjs; }; then
             echo "::notice::scripts/board/sync.mjs is not on the default branch yet; skipped."
             exit 0
           fi
