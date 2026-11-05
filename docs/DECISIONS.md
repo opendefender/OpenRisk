@@ -9,6 +9,44 @@ recommends, and surfaces these in the daily brief. Run `/decide` to clear them.
 
 ## Resolved
 
+### D-101 — The owner starts all work, gets a daily brief, and merges staging → master themself · decided 2026-11-05
+**Decided (owner, 2026-11-05)** — "Je veux toujours que le travail commence par moi." "Le runner (affinage → correction → implémentation → steward) ne doit plus être là puisque je veux lancer le travail moi-même." "Interprète la correction comme la suite d'un travail que tu as déjà lancé." "Par mail via un bot un brief dans une issue épinglée « Brief du jour », avec les 3 tickets à lancer, dans l'ordre, et pourquoi." "Après les 48 h de soak, le bot ouvre la PR staging → master avec les notes FR/EN, la preuve staging-verified et le rc testé. Il ne la merge jamais, c'est moi qui dois merger."
+
+**What changes** (#1320)
+1. **No agent starts an implementation.** The runner (#1252) loses its `implement` step. It keeps refinement (no code), the fix of PRs the review gate sent back (the continuation of work the owner started), and the merge steward. The owner starts every issue with `/work <n>`. The runner no longer touches the `/work` worktrees (`../OpenRisk-wt-<n>`): they belong to the owner's sessions.
+2. **Daily brief by the bot.** `.github/workflows/brief.yml` posts each morning, as `opendefender-delivery-bot`, one comment on the pinned issue « Brief du jour »: the three issues to start, in order, with the reasons, the `/work` command, what is in flight, and what waits on the owner. The owner wrote the issue, so GitHub emails them each comment: no mail service, no new dependency. No model is called (`scripts/brief/rank.mjs`).
+3. **`master` is the owner's.** After the 48 h soak (D-088), the bot **opens** the PR `staging → master` with the FR/EN release notes, the `staging-verified` proof (D-100) and the tested `rc`. It never merges it. The `master` ruleset requires a PR and has **no bypass actor**; the bot keeps its bypass on `staging` only. The owner merges with a merge commit; the release workflow then tags the final `vX.Y.Z` on the soaked `staging` commit, which the merge commit has as parent, so the image that soaked is the one released and `scripts/release/cut.mjs` finds the last tag from `develop` too.
+
+**Overturns** — ADR 0009 D1 ("`staging` and `master` receive no PR"), D5 ("staging → master, automatically") and D7 (agents implement from the timer); D-091 point 3 for `master`; D-092 "the bot is the rulesets' only bypass actor on `staging` and `master`" for `master`; D-099 "after the 48 h soak, `master` is promoted and the final `vX.Y.Z` is cut", now on the owner's merge. D-094 still holds: the brief proposes only refined issues.
+
+**Unchanged** — merges into `develop` through the queue on green (D-088); `develop → staging` after the local proof on the staging stack (D-100), cutting an `rc` (D-099).
+
+### D-100 — No promotion to staging without a local proof on the staging stack · decided 2026-11-05
+**Decided (owner, 2026-11-05)** — "Avant de merge un truc sur stag il faut pull develop en local et run sur la stack stag avant de prouver que tout est bon." Before `staging` moves, the candidate `develop` commit is pulled on the owner's machine, deployed on the real staging stack (`openrisk-staging`), and tested against it: the full E2E suite, the smoke suite and `/health`. The proof is a commit status `staging-verified` on that exact SHA, with the test summary, the image digest and the time, and it goes into the promotion's comment. Without it, the promotion is refused. A non-LLM script of the pull deployer does it (#1246, #1255). A failure rolls the staging stack back and opens a P1 bug.
+
+### D-099 — Releases: a repository script instead of release-please, rc from staging, final from master, signed · decided 2026-11-05
+**Decided (agent: release-manager, 2026-11-05, under D-089; replaces the release-please part of D-088)**
+
+**Why not release-please** — three facts.
+1. `CHANGELOG.md` is curated (Keep a Changelog 1.1.0), and its notes are corrected after claim verification (#1158). release-please writes its own format and would overwrite that prose.
+2. `release.yml` refuses a tag that differs from `VERSION` and checks that the propagated versions do not drift (job `guard`). release-please does not know those files.
+3. The tags already follow `vMAJOR.MINOR.PATCH[-rc.N]` (`docs/VERSIONING.md`), and `release.yml` already detects pre-releases.
+
+**What replaces it** — `scripts/release/cut.mjs`, in the repository and with tests, so no new dependency. It:
+- computes the next version from the Conventional Commits since the last tag (`feat` → minor, `fix` → patch, `!` or `BREAKING CHANGE` → major);
+- turns `## [Unreleased]` into the dated section without rewriting it;
+- bumps `VERSION` and every propagated version;
+- opens the release PR, which merges through the queue like any other.
+
+**The flow**
+- Each promotion to `staging` cuts a pre-release `vX.Y.Z-rc.N`.
+- After the 48 h soak (D-088), `master` is promoted and the final `vX.Y.Z` is cut.
+- A P0 or security P1 fix skips the soak but no test (#1256 criterion 7).
+- Before any tag, `selfhost-install` also **upgrades from the previous release with data**.
+- The notes, in FR and EN, have a mandatory "Upgrade and breaking changes" section. `product-verifier` blocks any claim it cannot prove from the code.
+
+**Signing** — images and binaries are signed keylessly with sigstore through GitHub OIDC. It is free, holds no key, and is verifiable with one command. It is the one new dependency, pinned by SHA.
+
 ### D-098 — develop never fails: it only receives queue-tested commits · decided 2026-11-05
 **Decided (owner, 2026-11-05)** — "Je ne veux aucun fail CI sur develop." `develop` receives commits only from the merge queue, which ran the required checks on that exact commit. So the workflows that run in `merge_group` do not run again on pushes to `develop`. Nightly and heavy suites (E2E Firefox and WebKit, DAST, scheduled dependency and security scans) test `staging`, the next release, and a failure there opens a P1 bug automatically (`nightly-watch.yml`). Implemented in #1291. Two parts will follow, and are not delivered by #1291: holding the promotion to `master` while such a bug is open is planned in #1256, and making delivery workflows skip with a notice rather than fail when a script cannot load yet is #1299 (PR #1301).
 

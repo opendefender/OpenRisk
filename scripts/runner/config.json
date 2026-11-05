@@ -1,15 +1,14 @@
 {
-  "_doc": "Agent runner (#1252). Read at every batch; a change takes effect at the next timer tick. Kill switch: create ~/.config/openrisk-runner/disabled.",
+  "_doc": "Agent runner (#1252, D-101). Read at every batch; a change takes effect at the next timer tick. It refines issues, fixes PRs the review gate sent back and runs the merge steward; it never implements an issue, the owner starts that with /work. Kill switch: create ~/.config/openrisk-runner/disabled.",
   "repo": "opendefender/OpenRisk",
   "base": "develop",
-  "milestone": null,
-  "batch": { "refine": 5, "implement": 2, "fix": 2, "steward": 1 },
-  "turns": { "refine": 30, "fix": 60, "steward": 40, "implement": { "S": 40, "M": 90, "L": 160 } },
-  "models": { "refine": "sonnet", "implement": "sonnet", "fix": "sonnet", "steward": "sonnet", "large": "opus" },
+  "batch": { "refine": 5, "fix": 2, "steward": 1 },
+  "turns": { "refine": 30, "fix": 60, "steward": 40 },
+  "models": { "refine": "sonnet", "fix": "sonnet", "steward": "sonnet" },
   "cli": "claude",
   "worktrees": "../OpenRisk-runner-wt",
   "usageBackoffMinutes": 60,
-  "implementTools": "Read,Edit,Write,MultiEdit,Glob,Grep,Bash,TodoWrite",
+  "fixTools": "Read,Edit,Write,MultiEdit,Glob,Grep,Bash,TodoWrite",
   "refineTools": "Read,Glob,Grep,Bash(gh:*),Bash(git log:*),Bash(git show:*),Bash(node scripts/ready/gate.mjs:*),Bash(node scripts/refine/close.mjs:*)",
   "stewardTools": "Read,Glob,Grep,Bash"
 }

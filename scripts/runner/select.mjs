@@ -1,8 +1,9 @@
 // What the agent runner works on next (#1252, #1270, D-094). Pure functions, no I/O.
 //
-// Order of a batch: refinement first, then implementation. An issue is implemented only
-// once it is Ready (#1249) AND refined (#1270): it carries a `<!-- refined: … -->` marker
-// from the refinement step, later than its last material edit.
+// The runner never starts an implementation: the owner starts every piece of work (D-101,
+// #1320). It refines issues and fixes PRs the review gate sent back. An issue counts as
+// refined when it carries a `<!-- refined: … -->` marker from the refinement step, later
+// than its last material edit; the daily brief (scripts/brief/) only proposes refined ones.
 
 export const REFINED_MARKER = /<!--\s*refined:\s*(\d{4}-\d{2}-\d{2})/;
 const TRUSTED = ['OWNER', 'MEMBER', 'COLLABORATOR'];
@@ -20,9 +21,12 @@ const tierRank = (labels) => {
 export const byUrgency = (a, b) =>
   priorityRank(a.labels) - priorityRank(b.labels) || tierRank(a.labels) - tierRank(b.labels) || a.number - b.number;
 
-// issue = { number, labels, authorAssociation, milestone, comments: [bodies], hasOpenPr, size }
+// issue = { number, labels, authorAssociation, milestone, comments: [{ body, authorAssociation }], hasOpenPr }
+// Only a marker written by a trusted account counts: refinement runs as the owner's account,
+// and anyone can comment on a public issue (#1320).
+export const trustedComments = (issue) => (issue.comments || []).filter((c) => TRUSTED.includes(c?.authorAssociation));
 export function isRefined(issue) {
-  return (issue.comments || []).some((c) => REFINED_MARKER.test(c || ''));
+  return trustedComments(issue).some((c) => REFINED_MARKER.test(c.body || ''));
 }
 
 const eligible = (i) =>
@@ -41,35 +45,25 @@ export function pickRefinement(issues, cap) {
     .slice(0, cap);
 }
 
-// Issues the implementation step takes, at most `cap`, never one already in flight.
-export function pickImplementation(issues, cap, { milestone } = {}) {
-  return issues
-    .filter(eligible)
-    .filter((i) => i.labels.includes('status:ready') && !i.labels.some((l) => PROTECTED.includes(l)))
-    .filter(isRefined)
-    .filter((i) => !milestone || i.milestone === milestone)
-    .sort(byUrgency)
-    .slice(0, cap);
-}
-
-// Turn budget by size (S/M/L, set by refinement); M when unknown.
-export function turnBudget(size, budgets) {
-  return budgets[size] ?? budgets.M;
-}
-
 // Did the agent CLI stop because the subscription's usage window ran out?
 export function hitUsageLimit(output) {
   return /usage limit|rate limit|quota (exceeded|reached)|limit will reset|Claude AI usage limit/i.test(String(output || ''));
 }
 
-// Which interrupted step the next batch resumes first (#1294), or null.
+// A branch the runner may push a fix to: an issue branch `<type>/<n>-<slug>`, never a
+// long-lived one, whatever a PR's head is called (#1320).
+export const isIssueBranch = (b) => /^[a-z]+\/\d+-[\w.-]+$/.test(String(b)) && !/^(master|main|staging|develop)$/.test(String(b));
+
+// Which interrupted fix the next batch resumes first (#1294), or null.
 // state: the runner's state.json; issues: the open issues just read from GitHub.
 // A clean stop records `resume`; a run that never returned (power cut, crash) left
-// `current` set. An issue that was closed or blocked meanwhile is not resumed.
+// `current` set. Only a `fix` is resumed (D-101): an interrupted refinement is simply
+// picked again, and no other step ever implements. An issue closed or blocked meanwhile
+// is not resumed.
 export function resumeTarget(state, issues) {
   const r = state?.current ?? state?.resume;
-  if (!r || !Number.isInteger(r.issue)) return null;
+  if (!r || r.step !== 'fix' || !Number.isInteger(r.issue) || !Number.isInteger(r.pr)) return null;
   const i = issues.find((x) => x.number === r.issue);
   if (!i || i.labels.includes('status:blocked')) return null;
-  return { step: r.step, issue: r.issue, size: i.size };
+  return { step: 'fix', issue: r.issue, pr: r.pr };
 }

@@ -3,10 +3,12 @@
 // on the owner's machine (ops/runner/). It decides what to do from GitHub and git alone;
 // a model is called only for the work itself.
 //
-// Order of a batch:
-//   1. refine     Refinement issues, and Ready issues without a refinement marker (#1270)
-//   2. fix        PRs the review gate sent back (#1271): the bot's agent-review is failure
-//   3. implement  Ready AND refined issues (D-094), by priority, then tier, then age
+// It never starts an implementation: the owner starts every piece of work with /work (D-101,
+// #1320), and the daily brief (scripts/brief/) tells them which. The runner only carries on
+// around that work. Order of a batch:
+//   1. resume     a fix that an earlier batch did not finish (#1294)
+//   2. refine     Refinement issues, and Ready issues without a refinement marker (#1270)
+//   3. fix        PRs the review gate sent back (#1271): the bot's agent-review is failure
 //   4. steward    one merge-steward pass over PRs that are not moving (#1280)
 //
 //   node scripts/runner/runner.mjs --dry-run    print the plan, start nothing
@@ -23,7 +25,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { gql } from '../board/lib.mjs';
 import { R, rest, restAll, statuses, BOT_LOGIN } from '../review/gh.mjs';
-import { pickRefinement, pickImplementation, turnBudget, hitUsageLimit, REFINED_MARKER, resumeTarget } from './select.mjs';
+import { pickRefinement, hitUsageLimit, resumeTarget, isIssueBranch } from './select.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const cfg = JSON.parse(readFileSync(join(ROOT, 'scripts/runner/config.json'), 'utf8'));
@@ -46,17 +48,15 @@ async function openIssues() {
       issues(states: OPEN, first: 50, after: $after) { pageInfo { hasNextPage endCursor }
         nodes { number title authorAssociation milestone { title }
           labels(first: 50) { nodes { name } }
-          comments(last: 40) { nodes { body } }
+          comments(last: 40) { nodes { body authorAssociation } }
           closedByPullRequestsReferences(first: 5) { nodes { state } } } } } }`, { after });
     const page = d.repository.issues;
     for (const n of page.nodes) {
-      const comments = n.comments.nodes.map((c) => c.body);
-      const marker = [...comments].reverse().map((c) => REFINED_MARKER.exec(c) && /size=([SML?])/.exec(c)).find(Boolean);
       out.push({
         number: n.number, title: n.title, authorAssociation: n.authorAssociation,
-        milestone: n.milestone?.title ?? null, labels: n.labels.nodes.map((l) => l.name), comments,
+        milestone: n.milestone?.title ?? null, labels: n.labels.nodes.map((l) => l.name),
+        comments: n.comments.nodes,
         hasOpenPr: n.closedByPullRequestsReferences.nodes.some((p) => p.state === 'OPEN'),
-        size: marker?.[1] && marker[1] !== '?' ? marker[1] : undefined,
       });
     }
     after = page.pageInfo.hasNextPage ? page.pageInfo.endCursor : null;
@@ -68,7 +68,7 @@ async function sentBack() {
   const prs = await restAll(`${R}/pulls?state=open&base=${cfg.base}`);
   const out = [];
   for (const p of prs) {
-    if (p.draft || p.head.repo?.full_name !== p.base.repo.full_name) continue;
+    if (p.draft || p.head.repo?.full_name !== p.base.repo.full_name || !isIssueBranch(p.head.ref)) continue;
     const st = await statuses(p.head.sha, { onlyFrom: BOT_LOGIN });
     const issue = /\b(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)\s+#(\d+)\b/i.exec(p.body || '')?.[1];
     if (st['agent-review'] === 'failure' && issue) out.push({ pr: p.number, branch: p.head.ref, issue: Number(issue) });
@@ -134,59 +134,49 @@ async function blockForBudget(issue, what) {
 }
 
 // ---------- interrupted work (#1294) ----------
-// Worktrees on an issue branch `<type>/<n>-<slug>`, from `git worktree list`.
-function issueWorktrees() {
-  const out = [];
-  let cur = {};
-  for (const line of execFileSync('git', ['-C', ROOT, 'worktree', 'list', '--porcelain'], { encoding: 'utf8' }).split('\n')) {
-    if (line.startsWith('worktree ')) cur = { path: line.slice(9) };
-    else if (line.startsWith('branch refs/heads/')) {
-      cur.branch = line.slice(18);
-      const m = /^[a-z]+\/(\d+)-/.exec(cur.branch);
-      if (m) out.push({ ...cur, issue: Number(m[1]) });
-    }
-  }
-  return out;
-}
+// The runner only ever writes in its own fix worktrees, cfg.worktrees/pr-<n>. The /work
+// worktrees (../OpenRisk-wt-<n>) belong to sessions the owner started (D-101), and they, the
+// owner's checkouts and any other session's worktrees are never committed or pushed.
+const fixPath = (pr) => resolve(ROOT, cfg.worktrees, `pr-${pr}`);
 
-// Commits and pushes whatever an interrupted run left in an issue's worktrees, so nothing
-// lives only on this machine. Returns the branches it saved.
-// Only the runner's own worktrees are ever touched: the ones /work creates
-// (../OpenRisk-wt-<n>) and the fix worktrees under cfg.worktrees. The owner's checkouts and
-// any other session's worktrees are never committed or pushed, whatever their branch.
-function ownedByRunner(path) {
-  const fixRoot = resolve(ROOT, cfg.worktrees);
-  return /\/OpenRisk-wt-\d+$/.test(path) || path.startsWith(fixRoot + '/');
-}
-
-function saveWip(issue, reason) {
-  const saved = [];
-  if (!Number.isInteger(issue)) return saved; // no issue, nothing to save — never "all"
-  for (const w of issueWorktrees().filter((x) => x.issue === issue && ownedByRunner(x.path))) {
-    try {
-      const g = (args) => execFileSync('git', ['-C', w.path, ...args], { encoding: 'utf8' }).trim();
-      if (g(['status', '--porcelain'])) {
-        g(['add', '-A']);
-        g(['commit', '-s', '-q', '-m', `wip(#${w.issue}): runner stopped — ${reason}; resume`]);
-      }
-      const ahead = g(['rev-list', '--count', `origin/${w.branch}..HEAD`]).trim?.() ?? '';
-      if (ahead !== '0') g(['push', '-q', '-u', 'origin', w.branch]);
-      saved.push({ issue: w.issue, branch: w.branch });
-    } catch (e) {
-      // A branch never pushed has no origin/<branch>: push it.
-      try { execFileSync('git', ['-C', w.path, 'push', '-q', '-u', 'origin', w.branch]); saved.push({ issue: w.issue, branch: w.branch }); }
-      catch { log({ step: 'wip', issue: w.issue, error: e.message.split('\n')[0] }); }
+// Commits and pushes whatever an interrupted fix left in its worktree, so nothing lives only
+// on this machine. `run` is the state's `current` or `resume`: { issue, pr, branch }.
+// Returns the branches it saved.
+function saveWip(run, reason) {
+  const { issue, pr, branch } = run || {};
+  const wt = Number.isInteger(pr) ? fixPath(pr) : null;
+  if (!Number.isInteger(issue) || !isIssueBranch(branch) || !wt || !existsSync(wt)) return []; // never "all"
+  try {
+    const g = (args) => execFileSync('git', ['-C', wt, ...args], { encoding: 'utf8' }).trim();
+    if (g(['status', '--porcelain'])) {
+      g(['add', '-A']);
+      g(['commit', '-s', '-q', '-m', `wip(#${issue}): runner stopped — ${reason}; resume`]);
     }
+    g(['push', '-q', 'origin', `HEAD:refs/heads/${branch}`]);
+    return [{ issue, branch }];
+  } catch (e) {
+    log({ step: 'wip', issue, pr, error: e.message.split('\n')[0] });
+    return [];
   }
-  return saved;
 }
 
 async function reportWip(saved, reason) {
   for (const s of saved) {
     await rest('POST', `${R}/issues/${s.issue}/comments`, {
-      body: `### agent-runner — ${today()}\n**Done** — work interrupted (${reason}). Everything in the worktree was committed and pushed to \`${s.branch}\`.\n**Next** — the next batch resumes this issue first (#1294).\n**Blocked on** — nothing; resuming automatically.`,
+      body: `### agent-runner — ${today()}\n**Done** — fix interrupted (${reason}). Everything in the runner's worktree was committed and pushed to \`${s.branch}\`.\n**Next** — the next batch resumes this fix first if the review gate still refuses the PR (#1294).\n**Blocked on** — nothing; resuming automatically.`,
     });
   }
+}
+
+// The worktree a fix runs in, under cfg.worktrees, on the tip of the PR's branch. Detached:
+// the branch itself is usually checked out in the owner's /work worktree, and git refuses a
+// second checkout of it. The agent pushes with `git push origin HEAD:<branch>`.
+function fixWorktree(pr, branch) {
+  const wt = fixPath(pr);
+  execFileSync('git', ['-C', ROOT, 'fetch', '--quiet', 'origin', branch]);
+  if (!existsSync(wt)) execFileSync('git', ['-C', ROOT, 'worktree', 'add', '--quiet', '--detach', wt, `origin/${branch}`]);
+  else execFileSync('git', ['-C', wt, 'merge', '--quiet', '--ff-only', `origin/${branch}`]);
+  return wt;
 }
 
 // ---------- the batch ----------
@@ -201,45 +191,58 @@ async function batch() {
   // Recovery: the machine stopped mid-run last time (no clean stop was recorded). Save
   // whatever was left on disk, and resume the step that was running.
   if (state.current && !DRY) {
-    const saved = saveWip(state.current.issue, 'the machine or the runner stopped');
+    const saved = saveWip(state.current, 'the machine or the runner stopped');
     await reportWip(saved, 'the machine or the runner stopped');
     save({ resume: state.current, current: null });
     state.resume = state.current;
   }
   const issues = await openIssues();
-  const resume = resumeTarget(state, issues);
+  const refused = await sentBack();
+  // An interrupted fix is resumed only while the review gate still refuses that PR: if the
+  // owner fixed it by hand, or the review passed meanwhile, there is nothing to resume.
+  const target = resumeTarget(state, issues);
+  const resume = target && refused.find((f) => f.pr === target.pr) ? { ...target, branch: refused.find((f) => f.pr === target.pr).branch } : null;
+  if (!resume && state.resume) save({ resume: null }); // stale, or left by a runner from before D-101
   const toRefine = pickRefinement(issues, cfg.batch.refine);
-  const fixes = (await sentBack()).slice(0, cfg.batch.fix);
-  const toBuild = pickImplementation(issues, cfg.batch.implement, { milestone: cfg.milestone });
+  const fixes = refused.filter((f) => f.pr !== resume?.pr).slice(0, cfg.batch.fix);
   const stuck = (await stuckPrs()).slice(0, cfg.batch.steward ? 20 : 0);
-  if (resume) log({ step: 'plan', resume: `${resume.step}:#${resume.issue}` });
-  log({ step: 'plan', refine: toRefine.map((i) => i.number), fix: fixes.map((f) => f.pr), implement: toBuild.map((i) => `${i.number}:${i.size || 'M'}`), steward: stuck });
+  if (resume) log({ step: 'plan', resume: `fix:#${resume.pr}` });
+  log({ step: 'plan', refine: toRefine.map((i) => i.number), fix: fixes.map((f) => f.pr), steward: stuck });
   if (DRY) return;
 
   // Every agent run is bracketed: `current` is set before and cleared after, so a run that
   // never returns (power cut, crash) is found and recovered by the next batch.
-  const begin = (step, issue) => save({ current: { step, issue, at: new Date().toISOString() } });
+  const begin = (step, issue, f) => save({ current: { step, issue, pr: f?.pr, branch: f?.branch, at: new Date().toISOString() } });
   const end = () => save({ current: null });
-  const stop = async (r, step, issue) => {
+  const stop = async (r, step, issue, f) => {
     if (!r.limited) return false;
     const until = new Date(Date.now() + cfg.usageBackoffMinutes * 60000).toISOString();
-    const saved = issue ? saveWip(issue, 'usage window ran out') : [];
+    const run = { step, issue, pr: f?.pr, branch: f?.branch };
+    const saved = saveWip(run, 'usage window ran out');
     await reportWip(saved, 'usage window ran out');
-    save({ backoffUntil: until, current: null, resume: issue ? { step, issue } : null });
+    save({ backoffUntil: until, current: null, resume: issue ? run : null });
     log({ step, issue, stopped: 'usage window ran out', backoffUntil: until, saved: saved.map((s) => s.branch) });
     return true;
   };
-
-  // A resumed issue goes first, before any new work.
-  if (resume) {
-    const turns = turnBudget(resume.size || 'M', cfg.turns.implement);
-    begin(resume.step, resume.issue);
-    const r = runAgent({ prompt: prompt('resume', { N: resume.issue, TURNS: turns }), model: cfg.models.implement, turns, tools: cfg.implementTools, cwd: ROOT });
+  // One fix, resumed or new, in the runner's own worktree. A PR whose worktree cannot be
+  // prepared is logged and skipped; it does not stop the batch.
+  const fix = async (f, name) => {
+    let wt;
+    try { wt = fixWorktree(f.pr, f.branch); }
+    catch (e) { log({ step: name, pr: f.pr, issue: f.issue, error: e.message.split('\n')[0] }); return false; }
+    begin('fix', f.issue, f);
+    const r = runAgent({ prompt: prompt(name, { PR: f.pr, N: f.issue, BRANCH: f.branch, TURNS: cfg.turns.fix }), model: cfg.models.fix, turns: cfg.turns.fix, tools: cfg.fixTools, cwd: wt });
     end();
-    log({ step: 'resume', issue: resume.issue, ok: r.ok, turns: r.turns, tokens: r.tokens });
-    await addTokens(resume.issue, r.tokens);
-    if (await stop(r, resume.step, resume.issue)) return;
-    if (r.maxTurns) await blockForBudget(resume.issue, 'Resumed work');
+    log({ step: name, pr: f.pr, issue: f.issue, ok: r.ok, turns: r.turns, tokens: r.tokens });
+    await addTokens(f.issue, r.tokens);
+    if (await stop(r, 'fix', f.issue, f)) return true;
+    if (r.maxTurns) await blockForBudget(f.issue, `Fixing PR #${f.pr}`);
+    return false;
+  };
+
+  // An interrupted fix goes first, before any new work.
+  if (resume) {
+    if (await fix(resume, 'resume')) return;
     save({ resume: null });
   }
 
@@ -252,28 +255,7 @@ async function batch() {
     if (await stop(r, 'refine', i.number)) return;
   }
   for (const f of fixes) {
-    const wt = resolve(ROOT, cfg.worktrees, `pr-${f.pr}`);
-    if (!existsSync(wt)) execFileSync('git', ['-C', ROOT, 'worktree', 'add', '--quiet', wt, f.branch]);
-    else execFileSync('git', ['-C', wt, 'pull', '--quiet', '--no-rebase', 'origin', f.branch]);
-    begin('fix', f.issue);
-    const r = runAgent({ prompt: prompt('fix', { PR: f.pr, N: f.issue, TURNS: cfg.turns.fix }), model: cfg.models.fix, turns: cfg.turns.fix, tools: cfg.implementTools, cwd: wt });
-    end();
-    log({ step: 'fix', pr: f.pr, issue: f.issue, ok: r.ok, turns: r.turns, tokens: r.tokens });
-    await addTokens(f.issue, r.tokens);
-    if (await stop(r, 'fix', f.issue)) return;
-    if (r.maxTurns) await blockForBudget(f.issue, `Fixing PR #${f.pr}`);
-  }
-  for (const i of toBuild) {
-    const size = i.size || 'M';
-    const turns = turnBudget(size, cfg.turns.implement);
-    const model = size === 'L' ? cfg.models.large : cfg.models.implement;
-    begin('implement', i.number);
-    const r = runAgent({ prompt: prompt('implement', { N: i.number, TURNS: turns, SIZE: size }), model, turns, tools: cfg.implementTools, cwd: ROOT });
-    end();
-    log({ step: 'implement', issue: i.number, size, ok: r.ok, turns: r.turns, tokens: r.tokens });
-    await addTokens(i.number, r.tokens);
-    if (await stop(r, 'implement', i.number)) return;
-    if (r.maxTurns) await blockForBudget(i.number, `Implementation (size ${size})`);
+    if (await fix(f, 'fix')) return;
   }
   if (stuck.length && cfg.batch.steward) {
     const r = runAgent({ prompt: `Run one merge-steward pass over these PRs into ${cfg.base}: ${stuck.map((n) => `#${n}`).join(', ')}. Follow .claude/agents/ops/merge-steward.md exactly.`, model: cfg.models.steward, turns: cfg.turns.steward, tools: cfg.stewardTools, cwd: ROOT });

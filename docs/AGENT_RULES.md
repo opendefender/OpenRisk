@@ -30,7 +30,7 @@ constitution; this file is its operating detail (#1277).
 
 | # | Rule | Enforced by | Status |
 |---|---|---|---|
-| 2.1 | No work without an issue that passed the Ready gate **and** the automatic refinement (D-094). | runner picks only `status:ready` issues with the `<!-- refined: … -->` marker; Ready gate script | 🔧 #1249, #1252, #1270 |
+| 2.1 | No work without an issue that passed the Ready gate **and** the automatic refinement (D-094), and **the owner starts it** with `/work` (D-101). No agent and no timer starts an implementation; the daily brief only proposes. | runner has no implement step (`scripts/runner/select.mjs`); brief ranks only refined Ready issues (`scripts/brief/rank.mjs`); Ready gate script | ✅ #1320 · 🔧 #1249, #1270 |
 | 2.2 | One issue → one branch `<type>/<n>-<slug>` → one PR with `Closes #<n>`. | CI check on the PR (title, branch name, closing reference) | 🔧 #1251 |
 | 2.3 | Smallest correct change. No refactor or cleanup outside the issue. | review | 📝 needs judgement |
 | 2.4 | An issue found on the way becomes a new issue, never extra commits on the current PR. | review | 📝 needs judgement |
@@ -42,6 +42,7 @@ constitution; this file is its operating detail (#1277).
 |---|---|---|---|
 | 3.1 | No force push, no branch deletion on `develop` / `staging` / `master`. | hook `guard-bash.sh`, ruleset | ✅ hook · 🔧 #1244 ruleset |
 | 3.2 | No merge by hand; merges go through the `develop` merge queue (ADR 0009). | hook `guard-bash.sh`, ruleset | ✅ hook · 🔧 #1251 |
+| 3.2b | Only the owner merges into `master`, through the PR `staging → master` that the bot opens after the soak. No agent and no bot merges or pushes to `master` (D-101). | ruleset on `master` (PR required, no bypass actor), hook `guard-bash.sh` | 🔧 #1256 |
 | 3.3 | No release, tag or deletion of a release by an agent. | hook `guard-bash.sh` | ✅ |
 | 3.4 | No `rm -rf` on `/`, `~` or `$HOME`. No destructive DDL in a shell. No `terraform apply/destroy`, no `kubectl delete`. | hook `guard-bash.sh` | ✅ |
 | 3.5 | No pipe-to-shell (`curl … \| sh`). | hook `guard-bash.sh` | ✅ |
