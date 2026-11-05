@@ -5,7 +5,284 @@ recommends, and surfaces these in the daily brief. Run `/decide` to clear them.
 
 ## Open
 
-### D-084 — Organisation switch and MFA: does a factor proved for one organisation count in another? · raised 2026-11-02
+*No open decision on 2026-11-04.*
+
+## Resolved
+
+### D-102 — No local timer: the owner works with /work, bots review and merge, planning runs weekly in Actions · decided 2026-11-05
+**Decided (owner, 2026-11-05)** — "Pas de timer. Je veux que le lundi je reçoive le matin la liste sur ce que je dois travailler, on le fait normalement avec le /work, puis quand je push, la review est faite, puis mis dans la file d'auto-merge, si le CI fail, je corrigerai." Answers to the follow-up questions the same day: keep the daily brief **and** add the Monday list; the Monday list is drawn up by `po-openrisk` running in Actions; the owner also fixes what the bot reviewers refuse; the merge-steward is dropped.
+
+**What changes** (#1325, #1326)
+1. The local runner (#1252, #1294) and its systemd timer are removed: `scripts/runner/`, `ops/runner/`, and the `merge-steward` agent. Nothing runs an agent on the owner's machine outside a session the owner opened.
+2. The owner's loop: `/work <n>` → push → the bot reviewers (`agent-review.yml`, D-095) → the merge queue (`merge.yml`) on green. A red CI or a refused review comes back to the owner, who fixes it in their session.
+3. Refinement, sprint planning and milestone upkeep move to a weekly `po-openrisk` run in GitHub Actions, as the bot, with no token and no write tool in the agent's hands: it returns a plan that a script validates and applies (#1326). It posts the Monday list on « Brief du jour » (#1321).
+4. The daily brief (`brief.yml`, D-101) stays.
+
+**Overturns** — ADR 0009 D7 ("agents run headless from a local timer"); D-101 point 1 for the runner's refinement and fix steps; D-094 "the runner implements only refined issues" now reads "the briefs propose only refined issues".
+**Unchanged** — merges into `develop` through the queue (D-088); `develop → staging` after the local proof (D-100); the owner merges `staging → master` (D-101).
+
+### D-101 — The owner starts all work, gets a daily brief, and merges staging → master themself · decided 2026-11-05
+**Decided (owner, 2026-11-05)** — "Je veux toujours que le travail commence par moi." "Le runner (affinage → correction → implémentation → steward) ne doit plus être là puisque je veux lancer le travail moi-même." "Interprète la correction comme la suite d'un travail que tu as déjà lancé." "Par mail via un bot un brief dans une issue épinglée « Brief du jour », avec les 3 tickets à lancer, dans l'ordre, et pourquoi." "Après les 48 h de soak, le bot ouvre la PR staging → master avec les notes FR/EN, la preuve staging-verified et le rc testé. Il ne la merge jamais, c'est moi qui dois merger."
+
+**What changes** (#1320)
+1. **No agent starts an implementation.** The runner (#1252) loses its `implement` step. It keeps refinement (no code), the fix of PRs the review gate sent back (the continuation of work the owner started), and the merge steward. The owner starts every issue with `/work <n>`. The runner no longer touches the `/work` worktrees (`../OpenRisk-wt-<n>`): they belong to the owner's sessions.
+2. **Daily brief by the bot.** `.github/workflows/brief.yml` posts each morning, as `opendefender-delivery-bot`, one comment on the pinned issue « Brief du jour »: the three issues to start, in order, with the reasons, the `/work` command, what is in flight, and what waits on the owner. The owner wrote the issue, so GitHub emails them each comment: no mail service, no new dependency. No model is called (`scripts/brief/rank.mjs`).
+3. **`master` is the owner's.** After the 48 h soak (D-088), the bot **opens** the PR `staging → master` with the FR/EN release notes, the `staging-verified` proof (D-100) and the tested `rc`. It never merges it. The `master` ruleset requires a PR and has **no bypass actor**; the bot keeps its bypass on `staging` only. The owner merges with a merge commit; the release workflow then tags the final `vX.Y.Z` on the soaked `staging` commit, which the merge commit has as parent, so the image that soaked is the one released and `scripts/release/cut.mjs` finds the last tag from `develop` too.
+
+**Overturns** — ADR 0009 D1 ("`staging` and `master` receive no PR"), D5 ("staging → master, automatically") and D7 (agents implement from the timer); D-091 point 3 for `master`; D-092 "the bot is the rulesets' only bypass actor on `staging` and `master`" for `master`; D-099 "after the 48 h soak, `master` is promoted and the final `vX.Y.Z` is cut", now on the owner's merge. D-094 still holds: the brief proposes only refined issues.
+
+**Unchanged** — merges into `develop` through the queue on green (D-088); `develop → staging` after the local proof on the staging stack (D-100), cutting an `rc` (D-099).
+
+### D-100 — No promotion to staging without a local proof on the staging stack · decided 2026-11-05
+**Decided (owner, 2026-11-05)** — "Avant de merge un truc sur stag il faut pull develop en local et run sur la stack stag avant de prouver que tout est bon." Before `staging` moves, the candidate `develop` commit is pulled on the owner's machine, deployed on the real staging stack (`openrisk-staging`), and tested against it: the full E2E suite, the smoke suite and `/health`. The proof is a commit status `staging-verified` on that exact SHA, with the test summary, the image digest and the time, and it goes into the promotion's comment. Without it, the promotion is refused. A non-LLM script of the pull deployer does it (#1246, #1255). A failure rolls the staging stack back and opens a P1 bug.
+
+### D-099 — Releases: a repository script instead of release-please, rc from staging, final from master, signed · decided 2026-11-05
+**Decided (agent: release-manager, 2026-11-05, under D-089; replaces the release-please part of D-088)**
+
+**Why not release-please** — three facts.
+1. `CHANGELOG.md` is curated (Keep a Changelog 1.1.0), and its notes are corrected after claim verification (#1158). release-please writes its own format and would overwrite that prose.
+2. `release.yml` refuses a tag that differs from `VERSION` and checks that the propagated versions do not drift (job `guard`). release-please does not know those files.
+3. The tags already follow `vMAJOR.MINOR.PATCH[-rc.N]` (`docs/VERSIONING.md`), and `release.yml` already detects pre-releases.
+
+**What replaces it** — `scripts/release/cut.mjs`, in the repository and with tests, so no new dependency. It:
+- computes the next version from the Conventional Commits since the last tag (`feat` → minor, `fix` → patch, `!` or `BREAKING CHANGE` → major);
+- turns `## [Unreleased]` into the dated section without rewriting it;
+- bumps `VERSION` and every propagated version;
+- opens the release PR, which merges through the queue like any other.
+
+**The flow**
+- Each promotion to `staging` cuts a pre-release `vX.Y.Z-rc.N`.
+- After the 48 h soak (D-088), `master` is promoted and the final `vX.Y.Z` is cut.
+- A P0 or security P1 fix skips the soak but no test (#1256 criterion 7).
+- Before any tag, `selfhost-install` also **upgrades from the previous release with data**.
+- The notes, in FR and EN, have a mandatory "Upgrade and breaking changes" section. `product-verifier` blocks any claim it cannot prove from the code.
+
+**Signing** — images and binaries are signed keylessly with sigstore through GitHub OIDC. It is free, holds no key, and is verifiable with one command. It is the one new dependency, pinned by SHA.
+
+### D-098 — develop never fails: it only receives queue-tested commits · decided 2026-11-05
+**Decided (owner, 2026-11-05)** — "Je ne veux aucun fail CI sur develop." `develop` receives commits only from the merge queue, which ran the required checks on that exact commit. So the workflows that run in `merge_group` do not run again on pushes to `develop`. Nightly and heavy suites (E2E Firefox and WebKit, DAST, scheduled dependency and security scans) test `staging`, the next release, and a failure there opens a P1 bug automatically (`nightly-watch.yml`). Implemented in #1291. Two parts will follow, and are not delivered by #1291: holding the promotion to `master` while such a bug is open is planned in #1256, and making delivery workflows skip with a notice rather than fail when a script cannot load yet is #1299 (PR #1301).
+
+### D-097 — Models by role: opus for four agents only · decided 2026-11-05
+**Decided (agent: devops-sre, 2026-11-05, under D-089)** — tech-lead, devsecops, compliance-officer and legal-counsel run on opus. Those are the roles where a wrong call costs more than the tokens: arbitration and ADRs, the last review before an automatic merge of red-class changes, regulatory fidelity, and legal risk. issue-triage, scout, i18n-steward and release-manager run on haiku, since their work is mechanical. Everyone else runs on sonnet, and the runner moves L issues to the large model on its own. The split was opus 19 · sonnet 7 · haiku 2; it is now opus 4 · sonnet 21 · haiku 4 (#1253). The saving is measured from the runner's token logs (#1257), not estimated.
+### D-096 — After a fix, only the refusing reviewers review again, and the carry-over is said · decided 2026-11-05
+**Decided (owner, 2026-11-05)** — "Limiter la relance aux rôles qui avaient refusé et signaler."
+When an implementer pushes a fix after the review gate sent the PR back (#1271):
+- A role that **approved the previous reviewed commit** keeps its approval on the new commit. The bot writes it as `approval carried over from <sha>, not re-reviewed`.
+- A role that **refused, errored or never answered**, and any role **newly required** by the fix (for example devsecops when the fix touches a red path), reviews the new commit.
+- The routing comment on the PR lists both groups, so a reader sees which approvals were not re-checked.
+
+**Why** — fewer review runs per fix, so fewer tokens. A role that refused is the one whose
+concern the fix addresses.
+
+**Residual risk, accepted** — a fix can break something a carried role approved. The required
+checks still run on every commit, and a new risk class still adds its reviewers. The role
+lists are recomputed from the new diff each time, so a fix that reaches a new area is always
+reviewed by that area's role.
+
+### D-095 — Review verdicts are produced in GitHub Actions and posted by the bot · decided 2026-11-04
+**Decided (owner, 2026-11-04; design by devops-sre under D-089)** — "Faire poser les verdicts
+par le bot, depuis GitHub Actions, et n'accepter que les statuts écrits par le bot."
+
+**Why the reviewers move into Actions** — every agent on the owner's machine acts through the
+owner's account. A verdict sent from there cannot prove which agent wrote it: an implementer
+could approve its own work. So the reviewer agents of #1271 run **in the `Agent review`
+workflow**, one job per required role, after CI is green on the head commit. The bot then
+posts what the job produced: the review comment and the `agent-review/<role>` status.
+`agent-review`, `Red gate` and every condition of `enqueue.mjs` read **only statuses whose
+creator is `opendefender-delivery-bot[bot]`**. A status written by anyone else is ignored, so
+a forged approval changes nothing.
+
+**How the reviewer is contained**
+- It gets read-only tools (Read, Grep, Glob) and no repository token.
+- The PR's content is given to it as data, never as instructions.
+- It must answer with a structured verdict (pass/fail, blocking count, numbered findings), which a script validates before the bot posts it.
+- Fork PRs are never reviewed this way: no secret reaches them.
+- The deterministic gates (CI, risk class) still apply whatever the reviewer says.
+- A red-class PR always needs two reviewers.
+
+**Cost** — no new spending. The jobs use a token of the owner's existing subscription, a
+secret the owner creates once, and draw on the same usage quota as the local runner. Actions
+minutes are free for this public repository. The agent CLI is pinned to an exact version.
+
+**Changes** — #1271: reviewers in Actions, verdict posted by the bot, bot-only statuses.
+#1250: `Red gate` written by the bot. #1280: bot-only statuses in `enqueue.mjs`.
+
+### D-094 — Every issue is refined before the runner implements it · decided 2026-11-04
+**Decided (owner, 2026-11-04)** — "Les tickets passent d'abord par l'affinage automatique
+(#1270) avant d'être pris par le runner." The scripted Ready gate (#1249) checks the
+structure of an issue. Refinement checks its substance: problem in user terms, testable
+criteria, size, duplicates, split and obsolescence. The runner (#1252) implements only an
+issue that carries the refinement marker `<!-- refined: <date> <agent> -->`. That holds for
+the 98 issues the gate promoted and for older Ready issues too. A material edit of the
+criteria after refinement clears the marker.
+
+**Consequence** — #1270 lands with #1252, not after it. Rulebook rule 2.1 is amended.
+
+### D-093 — Licence of the private agent-team repository · decided 2026-11-04
+**Decided (agent: po-openrisk, 2026-11-04, under D-089)** — `opendefender/agent-team` is
+**private and proprietary** ("all rights reserved", see its `LICENSE`). It was created on
+2026-11-04 as a skeleton: plugin manifests, the `team.yaml` format, and the extraction map of
+#1258.
+
+**Why it may hold files first written here** — every file under `.claude/agents`,
+`.claude/skills` and `.claude/hooks` has the owner as its only author (55 commits checked with
+`git log --format=%an`). `CLA.md` also lets OpenDefender distribute contributions under future
+licences. The copyright holder can therefore relicense them for internal use.
+
+**Options** — A: proprietary (chosen). B: Apache-2.0, open to anyone (rejected for now: the
+team encodes OpenDefender's way of working, and opening it is a later product decision).
+C: AGPL-3.0, like OpenRisk (rejected: the repository is internal tooling and is never
+distributed with the product).
+
+**Consequence** — OpenRisk's AGPL code is not affected: the plugin runs beside the project and
+is not part of what OpenRisk distributes. If a contributor other than the owner ever writes an
+agent or a hook here, that file stays in OpenRisk under the AGPL unless its author agrees.
+
+### D-092 — A bot identity for merging, promotion, reviews and the board · decided 2026-11-04
+**Decided (agent: devops-sre, 2026-11-04, under D-089; asked for by the owner)** — a GitHub
+App owned by `opendefender`, `opendefender-delivery-bot`, installed on this repository only.
+It is free, needs no seat, and its actions show as the bot, not as the owner.
+
+**What it does**
+- **Merging (#1280)**: `scripts/merge/enqueue.mjs` runs in GitHub Actions with the bot's
+  installation token and enqueues green PRs. No model and no agent session holds the bot's
+  key; the `merge-steward` agent only prepares PRs and calls the workflow.
+- **Promotion (#1255, #1256)**: the bot is the rulesets' only bypass actor on `staging` and
+  `master`, replacing the deploy key of D-091 point 3. Same guarantee, one credential fewer.
+- **Reviews (#1271)**: the review gate posts real GitHub reviews (approve or request
+  changes) as the bot, which is possible because the bot is not the PR author. The
+  `agent-review` status stays as the machine-readable verdict.
+- **Board (#1248)**: the sync uses the bot's token with Projects read and write, and the
+  owner's personal `BOARD_TOKEN` can be revoked.
+
+**Permissions** — repository: Contents read and write, Pull requests read and write, Issues read
+and write, Commit statuses read and write, Checks read, Actions read, Merge queues read and write,
+Metadata read. Organization: Projects read and write. No webhook. Installation token minted per
+job by `actions/create-github-app-token` (GitHub's own action, a new dependency, pinned by SHA),
+valid one hour.
+
+**Options considered** — keep the owner's account plus a deploy key and a PAT (works, but every
+action looks like the owner's, and the account cannot approve its own PRs); a second "machine"
+user account (works, but it is a person-shaped account to maintain, with its own password and
+2FA); a hosted merge service such as Mergify (rejected: GitHub's merge queue already does the
+merging, and it would be an outside service with access to the code).
+
+**Owner's part** — create the App and store its two secrets (`BOT_APP_ID`, `BOT_PRIVATE_KEY`).
+Steps on #1280. An agent cannot create an App: GitHub requires the browser for that.
+
+### D-091 — How develop, staging and master are protected · decided 2026-11-04
+**Decided (agent: devops-sre, 2026-11-04)** — for #1244, under D-089.
+1. **Rulesets, not classic branch protection.** The classic protection API cannot require a
+   merge queue; rulesets can. `develop`, `staging` and `master` each get a ruleset that requires
+   the eight contexts of D-082 (`strict`) and blocks deletion and force pushes.
+2. **`develop`**: changes only through a PR and the merge queue. Merge method **merge** (not
+   squash), all-green grouping. **No bypass actor at all.** Every agent acts through the owner's
+   account, which is an admin, so an admin bypass would let any agent push straight to
+   `develop`.
+3. **`staging` and `master`**: no PR and no push from people or agents. The only bypass actor is
+   a **deploy key** used by the promotion workflows (#1255, #1256). Its private half lives only in
+   an Actions secret, so no agent session holds it. Until those workflows exist, promotion is a
+   fast-forward pushed with that key from a manual `workflow_dispatch`.
+4. **No required linear history.** Promotion fast-forwards `develop`'s commits, which include the
+   queue's merge commits. Linear history would reject every promotion.
+5. **Required checks also run on `merge_group`** (ci, dependency-gate, license-gate, security,
+   security-scanning, e2e, dco), and on pushes to `develop` and `staging`. Without that the queue
+   would wait forever (ADR 0009 context, point 3).
+
+**Options considered** — classic protection with an admin bypass (rejected: agents are admins);
+squash merges in the queue (rejected: the squash commit is GitHub's, and the DCO check could not
+vouch for it); a GitHub App as bypass actor (equivalent, but heavier to set up than a deploy key).
+
+**Reason** — the queue keeps `develop` green under concurrent agent PRs. The deploy key makes
+promotion the only path to `staging` and `master`, and keeps that path out of every agent's hands.
+
+### D-090 — Sprint length on the delivery board · decided 2026-11-04
+**Decided (agent: po-openrisk, 2026-11-04)** — one-week sprints, Monday to Sunday, the first
+starting 2026-11-02 (#1266). Sprint planning on Monday, review and retro on Friday (#1268).
+
+**Options** — A: one week. B: two weeks, the usual company default. C: no sprints, flow only.
+
+**Reason** — agents work issues in hours, not days, so a two-week sprint would hide a stuck
+issue for too long. One week matches the weekly report (`/report`) and the weekly DORA and token
+figures (#1257), so the cadence and the measurement agree. Carry-over is automatic (the sync
+moves unfinished work to the current sprint and counts it), so a short sprint costs no manual
+work. Overturn by changing `SPRINT` in `scripts/board/setup.mjs`; past sprints keep their dates.
+
+### D-089 — What agents decide alone, and what still reaches the owner · decided 2026-11-04
+**Decided (owner, 2026-11-04)** — "Implement it yourself, but record your decisions in
+`DECISIONS.md`; always take the best decision for our app, to have the best app possible."
+Agents decide, implement and record everything CLAUDE.md used to escalate: the Score Engine or
+SmartScore formula (with an ADR), a new external dependency, auth, crypto or tenant isolation
+design, pricing, licensing, brand naming, a milestone's scope. The criterion is the best option
+for the product, not the cheapest to build. Each one is written under **Resolved** as
+`Decided (agent, <date>)`, with the question, the options, the choice and the reason, so the
+owner can overturn it.
+
+**Kept with the owner, as the agent's recommendation (the owner may remove it)** — two things:
+anything that spends money (agents have no budget), and anything irreversible (deleting data or
+a repository, rewriting published history, a public legal commitment). A migration that drops or
+renames a column is made reversible by shipping it in two releases (expand, then contract), so
+agents decide it too.
+
+**Not yet applied** — CLAUDE.md's "Autonomy" section (lines 161-175) and line 76 ("requires an
+ADR and my approval") still say the old rule. The agent's edit of CLAUDE.md was refused by its
+own safety check on self-modification, so the owner applies the text proposed on #1242, or
+grants the edit. Until then CLAUDE.md is the rule that runs, and this entry is the intent.
+
+### D-088 — Accept ADR 0009: merges without the owner on green, develop → staging → master, pull deploys · decided 2026-11-04
+**Decided (owner, 2026-11-04)** — ADR 0009 accepted, amended by the owner's answers. (1) Green PRs merge automatically once everything on the issue is done: every acceptance criterion ✅ in the mandatory progress comment, every required check green, no open review finding. (2) **The red class does not wait for the owner.** A red PR (auth, crypto, tenant isolation design, destructive migrations, Score Engine and SmartScore, licence, pricing, entitlements, workflows, `CLAUDE.md`, `.claude/`) merges automatically too, but through a stricter gate: the security review (devsecops) and tech-lead review approve the head commit, the full Go suite on Postgres, the tenant isolation suite, the authz matrix and the full e2e suite pass, and no finding is open. (3) **Fork PRs are never auto-merged** and never run on the owner's machine. (4) Flow: merge into `develop` → deployed to dev → pulled and tested again on dev (e2e + smoke) → only then fast-forwarded to `staging`. (5) release-please is accepted as a new dependency, pinned by SHA. (6) Soak on staging before `master` and the tag: **48 h**. (7) `status:needs-owner` is not needed for red PRs; it is not created, and the board's Needs owner column stays for issues waiting on a D-0xx entry (`ownerLabels` in `.github/board.json`). (8) The licence of `opendefender/agent-team` stays open until #1258.
+
+**Rationale** — the owner wants the loop to resolve problems without waiting for them, and accepts that the guarantee for sensitive code is the strength of the tests and reviews rather than a human merge.
+
+**Interpretation recorded, for the owner to correct if wrong** — this changes who merges, not what needs a decision. Changing the Score Engine or SmartScore formula, adding a paid service, pricing, licensing, brand and anything irreversible still go to `docs/DECISIONS.md` *before* the work, as CLAUDE.md says; once decided, the implementation merges on green like the rest.
+
+**Risk accepted with it** — a green PR can edit a workflow or the risk rules that judge it. Branch protection (the required contexts) lives in the repository settings, which no PR can change, and #1250 adds a gate-integrity check: a PR that touches `.github/workflows/`, the risk rules or `scripts/board/` must still produce every required context from the base branch's definition.
+
+**Unblocked** — #1244, #1245, #1246, #1250, #1251, #1252, #1254, #1255, #1256, #1257, #1258 (`status:blocked` → `status:ready`; their own dependencies still apply). #1250, #1251, #1254 and #1256 were edited to match.
+
+**Question** — Accept `docs/adr/0009-autonomous-delivery-pipeline.md` as written, accept it with
+changes, or send it back. It amends CLAUDE.md's "Never merge a PR", which only the owner can do.
+Until it is decided, no issue of the Autonomous delivery milestone that merges, promotes or
+deploys may start (#1244 to #1246, #1248, #1250 to #1252, #1254 to #1258 carry
+`status:blocked`). #1243, #1247, #1249 and #1253 do not depend on it.
+
+**Context** — #1242. The ADR records the choices the owner made in the 2026-11-04 discussion
+(three branches with fast-forward promotion of one image, a red class that always waits, forks
+never auto-merged or run locally, agents headless on the owner's machine, no production) and
+turns them into rules. What was read: `deploy.yml` has never deployed (dead `stag`/`main`
+triggers, commented `kubectl`), the two Compose stacks share ports and a project name, and no
+workflow runs on `merge_group`.
+
+**What needs the owner, specifically**
+1. **The CLAUDE.md text** (ADR, "The CLAUDE.md amendment"). Applied by #1251, not before.
+2. **The red class (D3).** The owner's list (auth, crypto, tenant isolation design, destructive
+   migrations, Score Engine and SmartScore, licence, pricing) plus four additions this ADR
+   proposes: entitlements, `.github/workflows/`, `CLAUDE.md`, and `.claude/` (agents, skills,
+   hooks). Without the last three, an agent could widen its own permissions through a green PR.
+3. **The owner label.** The label table is fixed. Recommended: authorise `status:needs-owner` as
+   a sixth `status:` value rather than a bare `needs-owner`, so it fits the taxonomy and the board
+   sync of #1248.
+4. **release-please** (D5), a new third-party action. The alternative is a short script in the
+   repo that reads Conventional Commits and bumps `VERSION`.
+5. **The soak before `master`** (D5). Recommended 24 h.
+6. **The licence of `opendefender/agent-team`** (D8). Can wait until #1258; nothing is copied
+   before it.
+
+**Options**
+- **A (recommended)** — accept as written, with `status:needs-owner`, release-please and 24 h.
+- **B** — accept D1, D4, D6 and D7 (branches, pull deploys, board, budgeted agents) and keep the
+  owner merging every PR. The pipeline works, the owner stays the bottleneck, and #1251 is
+  dropped.
+- **C** — send it back.
+
+**Cost of delay** — low per day: #1243, #1247, #1249 and #1253 can proceed. The whole autonomous
+loop waits on it.
+
+### D-084 — Organisation switch and MFA: does a factor proved for one organisation count in another? · decided 2026-11-04
+**Decided (owner, 2026-11-04)** — option B. A factor proved for an organisation in the current session is remembered, and a switch back into that organisation does not ask again. A factor proved in A never counts for B (D-066 holds). **Limited in time** (owner, same day): a remembered factor expires after 15 minutes by default, configurable up to 30, counted from the proof and never extended by use or refresh. Implementation: #1262, with the clearing events (sign-out, revocation, password change, factor reset, policy change) as acceptance criteria. The account-wide lock question in the paragraph below is not decided by this and stays with #1233.
+
+**Rationale** — members of several organisations should not type a code on every switch back.
+
 **Question** — GHSA-45mr-j2w6-m4jv: switching organisation issued a session for
 the target without asking for the authenticator enrolled there or applying its
 role policy. The fix runs the sign-in gate for the target organisation on every
@@ -49,7 +326,11 @@ switch and cannot complete it (setup answers 409). The request-time guard
 already refuses them in B today, so the switch adds no new lockout; #897 lifts it.
 The enrolment screen says so and goes back to the current organisation.
 
-### D-085 — SSO and MFA: may an identity provider's own MFA stand in for the OpenRisk factor? · raised 2026-10-30
+### D-085 — SSO and MFA: may an identity provider's own MFA stand in for the OpenRisk factor? · decided 2026-11-04
+**Decided (owner, 2026-11-04)** — option A, as shipped. The OpenRisk factor is asked for after every SSO sign-in; a provider's own MFA claim does not stand in for it. Can be revisited as a per-tenant opt-in.
+
+**Rationale** — fail-closed; trusting a claim from a provider account OpenRisk does not control is the scenario of GHSA-rv5c-pr27-gpxh.
+
 *Raised as D-082 in the GHSA-rv5c-pr27-gpxh commits; renumbered because master's resolved D-082 (branch protection) holds that number.*
 
 **Question** — GHSA-rv5c-pr27-gpxh: an OAuth2 sign-in issued a full session
@@ -73,7 +354,11 @@ SAML `AuthnContextClassRef`) may satisfy the gate is an auth-design choice.
 **Cost of delay** — none: A is the fail-closed behaviour and B can be added on
 top later without changing it for tenants that do not opt in.
 
-### D-080 — Licence gate: what legal-counsel says the allowed set does not cover · raised 2026-10-28
+### D-080 — Licence gate: what legal-counsel says the allowed set does not cover · decided 2026-11-04
+**Decided (owner, 2026-11-04)** — option A. One issue per point: #1263 (MPL-2.0 in the EE build), #1264 (third-party notices from the SBOM), #1265 (base images, fonts, assets, bundled services). The MPL/EE position is confirmed by real counsel before the first commercial sale.
+
+**Rationale** — the obligations apply to every distributed copy once a commercial build ships.
+
 **Context** — #774 asked `legal-counsel` to review the allowed set in
 `security/license-policy.yaml`. Verdict: approved with notes, advisory only.
 The set itself is fine. Three points are outside what the gate can decide:
@@ -93,7 +378,11 @@ dependency gate already builds.
 **Cost of delay** — Low until a commercial build is distributed; then the
 MPL and notice obligations apply to every copy.
 
-### D-079 — Licence gate: confirm three licences and two exceptions that arrived after the D-017 census · raised 2026-10-28
+### D-079 — Licence gate: confirm three licences and two exceptions that arrived after the D-017 census · decided 2026-11-04
+**Decided (owner, 2026-11-04)** — option A. The three licences and the two exceptions stay as committed in `security/license-policy.yaml`.
+
+**Rationale** — none restricts use or redistribution and none is copyleft.
+
 **Context** — #457 built the licence gate D-017 asked for
 (`.github/workflows/license-gate.yml`, policy in `security/license-policy.yaml`).
 Its allowlist was written from the 2026-09-01 census. Re-running the census on
@@ -120,8 +409,6 @@ copyleft.
 **Cost of delay** — None. The gate is green either way; this only decides
 whether the list stays as it is.
 
-
-## Resolved
 
 ### D-087 — Accept ADR 0008, the Canonical Model v1 (#541) · decided 2026-11-03
 **Decided (owner, 2026-11-03)** — option A, as recommended. ADR 0008 is accepted as written,

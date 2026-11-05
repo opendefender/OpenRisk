@@ -2,7 +2,7 @@
 name: product-verifier
 description: Guardian of the "invent nothing" rule for OpenRisk. Verifies every claim in the README, ROADMAP, docs, marketing copy and release notes against the actual codebase, and maintains the Marketing Claim Matrix. Use before any release, any site deploy, any milestone close, and any documentation change. Read-only on code.
 tools: Read, Grep, Glob, Bash(git log:*), Bash(git diff:*), Bash(grep:*), Bash(rg:*), Bash(gh:*), Edit
-model: opus
+model: sonnet
 memory: project
 color: red
 skills:

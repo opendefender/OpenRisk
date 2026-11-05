@@ -7,10 +7,14 @@ name: E2E Tests
 # uses.
 
 on:
+  merge_group:
+    types: [checks_requested]
   push:
-    branches: [master, develop]
+    # Not develop: its commits come only from the merge queue, which already ran this
+    # workflow on the same commit (#1291).
+    branches: [master, staging]
   pull_request:
-    branches: [master, develop]
+    branches: [master, develop, staging]
   schedule:
     # Nightly cross-browser + weekly onboarding guard (UX-33 runs every night too).
     - cron: '17 3 * * *'
@@ -88,6 +92,9 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Scheduled runs test staging, the next release, never develop (#1291).
+          ref: ${{ github.event_name == 'schedule' && 'staging' || '' }}
 
       # A fresh admin password per run, shared by the backend (first-boot seed)
       # and the harness. Never a fixed value in the repository (#485).
@@ -246,6 +253,9 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Scheduled runs test staging, the next release, never develop (#1291).
+          ref: ${{ github.event_name == 'schedule' && 'staging' || '' }}
 
       # A fresh admin password per run, shared by the backend (first-boot seed)
       # and the harness. Never a fixed value in the repository (#485).

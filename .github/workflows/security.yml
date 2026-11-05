@@ -1,12 +1,16 @@
 name: Tenant Isolation
 
 on:
+  merge_group:
+    types: [checks_requested]
   push:
+    # Not develop: its commits come only from the merge queue, which already ran this
+    # workflow on the same commit (#1291).
     # `master` is this repository's default branch. `main` is kept for forks
     # that renamed it.
-    branches: [master, main, stag, develop]
+    branches: [master, main, staging]
   pull_request:
-    branches: [master, main, stag, develop]
+    branches: [master, main, develop, staging]
   schedule:
     - cron: '0 2 * * *'
 
@@ -28,12 +32,21 @@ on:
 #   - Security Scan Summary: printed "all passed" whatever happened.
 # Dependency and image vulnerabilities are gated by dependency-gate.yml (#487).
 
+concurrency:
+  # One run per PR: a new commit cancels the run of the previous one (#1289). Runs for
+  # merge_group, pushes and schedules are never cancelled.
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}-${{ github.event_name }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   tenant-isolation:
     name: Tenant Isolation Coverage Gate
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Scheduled runs test staging, the next release, never develop (#1291).
+          ref: ${{ github.event_name == 'schedule' && 'staging' || '' }}
       - uses: actions/setup-go@v5
         with:
           go-version: '1.26'

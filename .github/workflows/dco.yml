@@ -9,9 +9,19 @@ name: DCO
 on:
   pull_request:
     types: [opened, synchronize, reopened]
+  # Required on develop's merge queue (#1244). The queue's group contains the
+  # PR's commits plus GitHub's merge commit, which --no-merges leaves out.
+  merge_group:
+    types: [checks_requested]
 
 permissions:
   contents: read
+
+concurrency:
+  # One run per PR: a new commit cancels the run of the previous one (#1289). Runs for
+  # merge_group, pushes and schedules are never cancelled.
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}-${{ github.event_name }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   dco-check:
@@ -25,8 +35,8 @@ jobs:
 
       - name: Verify Signed-off-by on every commit
         env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.event.merge_group.head_sha }}
         run: |
           set -euo pipefail
 

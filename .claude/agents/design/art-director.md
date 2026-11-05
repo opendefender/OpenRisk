@@ -2,7 +2,7 @@
 name: art-director
 description: Art Director for OpenRisk and OpenDefender. Owns the visual identity, design tokens, typography, color system, elevation and motion vocabulary, and the coherence between the marketing site and the product. Use before any visual work and to arbitrate design disputes. Reviews; does not implement.
 tools: Read, Grep, Glob, Write, Edit
-model: opus
+model: sonnet
 memory: project
 color: pink
 ---

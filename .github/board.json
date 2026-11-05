@@ -5,8 +5,8 @@
   "projectId": "PVT_kwDODnXbzs4BqMrj",
   "url": "https://github.com/orgs/opendefender/projects/3",
   "branches": {
-    "dev": "master",
-    "staging": null
+    "dev": "develop",
+    "staging": "staging"
   },
   "releaseTags": "^v\\d+\\.\\d+\\.\\d+$",
   "ownerLabels": [
@@ -17,16 +17,16 @@
     "Status": {
       "id": "PVTSSF_lADODnXbzs4BqMrjzhok2oM",
       "options": {
-        "Inbox": "264a8ac6",
-        "Refinement": "5cbb26e2",
-        "Ready": "2d28c808",
-        "In progress": "eb83bf96",
-        "In review": "74fa39d4",
-        "On dev": "0b41f296",
-        "On staging": "c11c901a",
-        "Released": "da20d04b",
-        "Blocked": "f59b0424",
-        "Needs owner": "a5395122"
+        "Inbox": "09611b28",
+        "Refinement": "99136d1a",
+        "Ready": "87bb8444",
+        "In progress": "a9a205a1",
+        "In review": "44eb5806",
+        "On dev": "a4b1be86",
+        "On staging": "d5e0decb",
+        "Released": "2cd10192",
+        "Blocked": "5776bdda",
+        "Needs owner": "66f515c7"
       }
     },
     "Priority": {
@@ -69,6 +69,9 @@
     },
     "Tokens": {
       "id": "PVTF_lADODnXbzs4BqMrjzhok2xk"
+    },
+    "Sprint": {
+      "id": "PVTIF_lADODnXbzs4BqMrjzholP4c"
     }
   }
 }

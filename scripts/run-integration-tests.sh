@@ -97,7 +97,7 @@ sleep 3
 # Wait for database to be ready
 log_info "Waiting for database to be ready..."
 for i in {1..30}; do
-    if docker exec openrisk_test_db pg_isready -U test > /dev/null 2>&1; then
+    if docker-compose exec -T test_db pg_isready -U test > /dev/null 2>&1; then
         log_success "Database is ready"
         break
     fi

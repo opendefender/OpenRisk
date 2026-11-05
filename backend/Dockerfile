@@ -16,8 +16,14 @@ WORKDIR /app
 COPY backend/go.mod backend/go.sum ./
 RUN go mod download
 COPY backend/ .
+# The images workflow passes the VERSION file and the full commit SHA, which
+# /health reports (#1245). The defaults are the ones main.go falls back to.
+ARG OPENRISK_VERSION=dev
+ARG OPENRISK_COMMIT=none
 # Compile le binaire unique statiquement
-RUN CGO_ENABLED=0 go build -ldflags="-s -w" -o /openrisk ./cmd/server
+RUN CGO_ENABLED=0 go build \
+    -ldflags="-s -w -X main.Version=${OPENRISK_VERSION} -X main.Commit=${OPENRISK_COMMIT}" \
+    -o /openrisk ./cmd/server
 
 # 2. Final stage
 FROM alpine:latest
