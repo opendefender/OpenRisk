@@ -19,7 +19,9 @@ permissions:
 jobs:
   report:
     name: Nightly failure report
-    if: github.event.workflow_run.event == 'schedule' && github.event.workflow_run.conclusion == 'failure'
+    if: >-
+      github.event.workflow_run.event == 'schedule' &&
+      contains(fromJSON('["failure", "timed_out", "startup_failure"]'), github.event.workflow_run.conclusion)
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -64,7 +66,8 @@ jobs:
           The fix PR is merged, and the rerun passes, with its link pasted on this issue.
           EOT
           )
+          MS_ARG=(); [ -n "$MS" ] && MS_ARG=(-F milestone="$MS")
           gh api "repos/$REPO/issues" -f title="$TITLE" -f body="$BODY" \
-            -f "labels[]=type:bug" -f "labels[]=priority:P1-high" -f "labels[]=priority:P1" \
-            -f "labels[]=area:infra" -f "labels[]=area:quality" -f "labels[]=tier:0-trust" \
-            -F milestone="$MS" --jq .html_url
+            -f "labels[]=type:bug" -f "labels[]=priority:P1-high" \
+            -f "labels[]=area:infra" -f "labels[]=tier:0-trust" \
+            "${MS_ARG[@]}" --jq .html_url

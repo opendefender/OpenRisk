@@ -26,8 +26,6 @@ on:
     # Not develop: its commits come only from the merge queue, which already ran this
     # workflow on the same commit (#1291).
     branches: [master, staging]
-  pull_request:
-    branches: [master, develop, staging]
   schedule:
     - cron: '41 2 * * *'
   workflow_dispatch:
