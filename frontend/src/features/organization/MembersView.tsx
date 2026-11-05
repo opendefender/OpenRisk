@@ -258,7 +258,13 @@ function MembersTable({ tr, lang }: { tr: Tr; lang: LocaleCode }) {
           );
           setConfirm(null);
         },
-        onError: (err) => toast.error(apiMessage(err, tr('Action impossible.', 'Action failed.'))),
+        // Reactivating counts against the seat cap (402): say it in the UI
+        // language from limit_key/limit/used, not the backend's French text.
+        onError: (err) =>
+          toast.error(
+            planCapErrorMessage(err, lang) ??
+              apiMessage(err, tr('Action impossible.', 'Action failed.')),
+          ),
         onSettled: () => setBusyId(null),
       },
     );
@@ -577,7 +583,7 @@ function MembersTable({ tr, lang }: { tr: Tr; lang: LocaleCode }) {
 
 /* --------------------------------------------------------------- invitations */
 
-function InvitationsTable({ tr }: { tr: Tr; lang: LocaleCode }) {
+function InvitationsTable({ tr, lang }: { tr: Tr; lang: LocaleCode }) {
   const fmtDate = useMemberDate();
   const { can } = usePermissions();
   const canInvite = can('organization:members:invite');
@@ -627,7 +633,11 @@ function InvitationsTable({ tr }: { tr: Tr; lang: LocaleCode }) {
             toast.success(tr('Invitation renvoyée', 'Invitation re-sent'));
           else setRelink(res); // the link has to be relayed by hand — show it
         },
-        onError: (err) => toast.error(apiMessage(err, tr("L'envoi a échoué.", 'The send failed.'))),
+        onError: (err) =>
+          toast.error(
+            planCapErrorMessage(err, lang) ??
+              apiMessage(err, tr("L'envoi a échoué.", 'The send failed.')),
+          ),
         onSettled: () => setBusyId(null),
       },
     );

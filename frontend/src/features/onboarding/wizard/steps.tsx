@@ -381,6 +381,7 @@ export function GoalStep() {
         alreadyAdopted={alreadyAdopted}
         onToggle={toggle}
         failed={adopt.isError && !isExpectedAdoptionRefusal(adopt.error)}
+        capMessage={adopt.isError ? planCapErrorMessage(adopt.error, lang) : null}
         lang={lang}
         tr={tr}
       />
@@ -407,6 +408,7 @@ function StarterRiskPicker({
   alreadyAdopted,
   onToggle,
   failed,
+  capMessage,
   lang,
   tr,
 }: {
@@ -417,6 +419,8 @@ function StarterRiskPicker({
   alreadyAdopted: boolean;
   onToggle: (key: string) => void;
   failed: boolean;
+  /** The localised plan-cap sentence when the adoption was refused with a 402. */
+  capMessage: string | null;
   lang: LocaleCode;
   tr: (fr: string, en: string) => string;
 }) {
@@ -486,10 +490,11 @@ function StarterRiskPicker({
 
       {failed && (
         <div className="text-[12.5px] mb-3" role="alert" style={{ color: 'var(--high)' }}>
-          {tr(
-            'Les risques n’ont pas pu être ajoutés. Réessayez — vos choix sont conservés.',
-            'The risks could not be added. Try again — your picks are kept.',
-          )}
+          {capMessage ??
+            tr(
+              'Les risques n’ont pas pu être ajoutés. Réessayez — vos choix sont conservés.',
+              'The risks could not be added. Try again — your picks are kept.',
+            )}
         </div>
       )}
 

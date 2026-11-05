@@ -7,7 +7,7 @@
 // the old zinc-styled modals so the redesigned Compliance screens stay visually
 // consistent.
 
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { z } from 'zod';
 import { X, Library, Clock, Loader2, Plus, ClipboardPlus } from 'lucide-react';
 import { toast } from 'sonner';
@@ -66,6 +66,23 @@ export function ModalShell({
     return () => window.removeEventListener('keydown', h);
   }, [onClose]);
 
+  // Focus contract: move focus into the dialog on open (unless a field already
+  // took it via autoFocus) and hand it back to the trigger on close, so Escape
+  // does not drop a keyboard user at the top of the page.
+  const formRef = useRef<HTMLFormElement>(null);
+  // Read before commit: a field's autoFocus fires before this component's
+  // effects, so by then activeElement is already inside the dialog.
+  const [trigger] = useState<HTMLElement | null>(() =>
+    document.activeElement instanceof HTMLElement ? document.activeElement : null,
+  );
+  useEffect(() => {
+    const form = formRef.current;
+    if (form && !form.contains(document.activeElement)) form.focus();
+    return () => {
+      if (trigger && trigger.isConnected) trigger.focus();
+    };
+  }, [trigger]);
+
   return (
     <div
       className="fixed inset-0 z-70 flex items-center justify-center p-4"
@@ -77,12 +94,17 @@ export function ModalShell({
       onClick={onClose}
     >
       <form
+        ref={formRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
         onSubmit={(e) => {
           e.preventDefault();
           onSubmit?.();
         }}
-        className="w-full max-w-[480px] max-h-[90vh] flex flex-col rounded-[16px] overflow-hidden"
+        className="w-full max-w-[480px] max-h-[90vh] flex flex-col rounded-[16px] overflow-hidden outline-none"
         style={{
           background: 'var(--bg-secondary)',
           border: '1px solid var(--border)',
