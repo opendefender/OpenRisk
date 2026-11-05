@@ -36,7 +36,7 @@ async function checkRuns(sha) {
 async function claimedBody(n) {
   const d = await gql(`query($o: String!, $r: String!, $n: Int!) { repository(owner: $o, name: $r) { issue(number: $n) {
     body
-    userContentEdits(first: 100) { totalCount nodes { editedAt diff } }
+    userContentEdits(first: 100) { totalCount nodes { editedAt deletedAt diff } }
     timelineItems(itemTypes: [LABELED_EVENT], first: 100) { nodes { ... on LabeledEvent { createdAt label { name } } } }
   } } }`, { o: OWNER, r: REPO, n: Number(n) });
   const i = d.repository?.issue;
@@ -67,7 +67,7 @@ async function facts(pr) {
       issueBodyAtClaim: issueNo ? await claimedBody(issueNo) : null,
       followUps: Object.fromEntries(await Promise.all(followUpRefs(p.body).map(async (m) => {
         const i = await rest('GET', `${R}/issues/${m}`);
-        return [m, i && !i.pull_request ? i.state : 'missing'];
+        return [m, i && !i.pull_request ? { state: i.state, body: i.body ?? '' } : { state: 'missing', body: '' }];
       }))),
     },
   };

@@ -66,18 +66,29 @@ export function exemptCriteria(issueBody, issueBodyAtClaim) {
 // newest first (the oldest one is the original body), `totalEdits` their real count.
 // Anything incomplete → null, which exempts nothing.
 export function bodyAtClaim({ body, edits, totalEdits, labelEvents }) {
-  const claim = (labelEvents || []).find((e) => e?.label === 'status:in-progress')?.createdAt;
+  const events = labelEvents || [];
+  // A label deleted since leaves events with no name: the anchor could have been moved by
+  // deleting and recreating `status:in-progress`, so the history is not trusted.
+  if (events.some((e) => !e?.label)) return null;
+  const claim = events.find((e) => e.label === 'status:in-progress')?.createdAt;
   if (!claim) return null;
   if (!totalEdits) return body ?? null;
-  // Newest first, so the first revision at or before the claim is the one in force, even
-  // when older pages were not read. Not found in a partial read → unknown.
-  const at = (edits || []).find((e) => Date.parse(e.editedAt) <= Date.parse(claim));
-  return at?.diff ?? null;
+  // Newest first, so the first revision strictly before the claim is the one in force, even
+  // when older pages were not read. An edit in the same second as the claim does not count
+  // as before it. Not found in a partial read, or deleted → unknown.
+  const at = (edits || []).find((e) => Date.parse(e.editedAt) < Date.parse(claim));
+  if (!at || at.deletedAt) return null;
+  return at.diff ?? null;
 }
 
 // `After merge: #<m>` lines of the PR body → [m, …].
 export function followUpRefs(prBody) {
   return [...String(prBody || '').matchAll(/^\s*After merge:\s*#(\d+)\b/gim)].map((m) => Number(m[1]));
+}
+
+// Every issue the PR body closes (`Closes`, `Fixes`, `Resolves` #n) → [n, …].
+export function closingRefs(prBody) {
+  return [...String(prBody || '').matchAll(/\b(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)\s+#(\d+)\b/gi)].map((m) => Number(m[1]));
 }
 
 // The highest numbered criterion (kept for callers that only need the count).
@@ -89,7 +100,7 @@ export function criteriaCount(issueBody) {
 //   pr: { draft, fork, body, baseRef }, contexts: { name: 'success'|... },
 //   statuses: { context: state }, issueBody, issueComments: [bodies], enabled: boolean,
 //   issueBodyAtClaim: string | null,      body when status:in-progress was first set
-//   followUps: { [issueNumber]: 'open' | 'closed' }   issues named by `After merge: #m`
+//   followUps: { [issueNumber]: { state: 'open' | 'closed' | 'missing', body } }   named by `After merge: #m`
 // }
 // → { ok: boolean, reasons: string[] } — reasons lists every unmet condition.
 export function mayEnqueue(f) {
@@ -128,10 +139,15 @@ export function mayEnqueue(f) {
     if (notDone.length) reasons.push(`acceptance criteria not all ✅ in the latest report: ${notDone.join(', ')}`);
     if (exempt.size >= n) reasons.push('every criterion is marked (after merge): at least one must be proven before the merge');
     else if (deferred.length) {
-      // The issue the PR closes cannot be its own follow-up: the merge closes it.
-      const closes = /\b(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)\s+#(\d+)\b/i.exec(f.pr.body || '')?.[1];
-      const open = followUpRefs(f.pr.body).filter((m) => m !== Number(closes) && f.followUps?.[m] === 'open');
-      if (!open.length) reasons.push(`criteria ${deferred.join(', ')} are left for after the merge, but the PR names no open follow-up issue (\`After merge: #<m>\` in its body)`);
+      // A follow-up is an open issue the merge does not close, and whose body names the issue
+      // it follows (`#<n>`), so an unrelated open issue does not stand in for it.
+      const closes = closingRefs(f.pr.body);
+      const main = closes[0];
+      const open = followUpRefs(f.pr.body).filter((m) => {
+        const u = f.followUps?.[m];
+        return !closes.includes(m) && u?.state === 'open' && new RegExp(`#${main}\\b`).test(u.body || '');
+      });
+      if (!open.length) reasons.push(`criteria ${deferred.join(', ')} are left for after the merge, but the PR names no open follow-up issue that refers to #${main} (\`After merge: #<m>\` in its body)`);
     }
   }
   return { ok: reasons.length === 0, reasons };

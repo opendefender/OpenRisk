@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mayEnqueue, latestCriteria, criteriaCount, criteriaOf, exemptCriteria, followUpRefs, bodyAtClaim, REQUIRED_CONTEXTS } from './conditions.mjs';
+import { mayEnqueue, latestCriteria, criteriaCount, criteriaOf, exemptCriteria, followUpRefs, closingRefs, bodyAtClaim, REQUIRED_CONTEXTS } from './conditions.mjs';
 
 const ISSUE = '## Problem\n\nx\n\n## Acceptance criteria\n\n1. a\n2. b\n3. c\n\n## Definition of Done\n\nd\n';
 const REPORT = '### backend-go — 2026-11-05\n**Done** — x\n**Criteria** — 1 ✅ · 2 ✅ · 3 ✅\n**Next** — none';
@@ -66,7 +66,7 @@ const deferredPr = () => {
   f.issueBodyAtClaim = body(DEFERRED);
   f.issueComments = ['**Criteria** — 1 ✅ · 2 ✅ · 3 ⏳'];
   f.pr.body = 'Closes #42\n\nAfter merge: #77\n';
-  f.followUps = { 77: 'open' };
+  f.followUps = { 77: { state: 'open', body: 'Measure the change of #42 a day after the merge.' } };
   return f;
 };
 
@@ -120,12 +120,19 @@ test('after merge: a deferred criterion needs an open follow-up issue named in t
   none.pr.body = 'Closes #42';
   assert.match(mayEnqueue(none).reasons.join(), /names no open follow-up issue/);
   const closed = deferredPr();
-  closed.followUps = { 77: 'closed' };
+  closed.followUps = { 77: { state: 'closed', body: 'Follows #42' } };
   assert.match(mayEnqueue(closed).reasons.join(), /names no open follow-up issue/);
   const self = deferredPr();
   self.pr.body = 'Closes #42\n\nAfter merge: #42\n';
-  self.followUps = { 42: 'open' };
+  self.followUps = { 42: { state: 'open', body: 'Follows #42' } };
   assert.match(mayEnqueue(self).reasons.join(), /names no open follow-up issue/);
+  const alsoClosed = deferredPr();
+  alsoClosed.pr.body = 'Closes #42, closes #77\n\nAfter merge: #77\n';
+  assert.match(mayEnqueue(alsoClosed).reasons.join(), /names no open follow-up issue/, 'any closed ref is excluded');
+  const unrelated = deferredPr();
+  unrelated.followUps = { 77: { state: 'open', body: 'An epic about #420' } };
+  assert.match(mayEnqueue(unrelated).reasons.join(), /refers to #42/, 'the follow-up must name the issue it follows');
+  assert.deepEqual(closingRefs('Closes #1, fixes #2 and Resolved #3; refs #4'), [1, 2, 3]);
   const done = deferredPr();
   done.pr.body = 'Closes #42';
   done.issueComments = ['**Criteria** — 1 ✅ · 2 ✅ · 3 ✅'];
@@ -151,6 +158,12 @@ test('bodyAtClaim: the revision in force when status:in-progress was first added
   assert.equal(bodyAtClaim({ body: 'v3', edits, totalEdits: 3, labelEvents: labelEvents.slice(0, 1) }), null, 'never claimed');
   const deleted = [{ editedAt: '2026-11-04T09:00:00Z', diff: 'v3' }, { editedAt: '2026-11-01T12:00:00Z', diff: null }];
   assert.equal(bodyAtClaim({ body: 'v3', edits: deleted, totalEdits: 2, labelEvents }), null, 'revision deleted');
+  const marked = [{ editedAt: '2026-11-01T12:00:00Z', deletedAt: '2026-11-04T00:00:00Z', diff: 'v2' }];
+  assert.equal(bodyAtClaim({ body: 'v3', edits: marked, totalEdits: 1, labelEvents }), null, 'revision marked deleted');
+  const tie = [{ editedAt: '2026-11-02T10:00:00Z', diff: 'same second' }, ...edits.slice(1)];
+  assert.equal(bodyAtClaim({ body: 'x', edits: tie, totalEdits: 3, labelEvents }), 'v2', 'an edit in the claim second is not before it');
+  const relabelled = [{ createdAt: '2026-11-01T10:00:00Z', label: null }, ...labelEvents];
+  assert.equal(bodyAtClaim({ body: 'v3', edits, totalEdits: 3, labelEvents: relabelled }), null, 'a deleted label makes the anchor untrusted');
 });
 
 test('exemptCriteria: same number and same line at claim time only', () => {
