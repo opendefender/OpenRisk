@@ -165,9 +165,10 @@ Issues: #1247, #1248, #1249.
 - The owner starts every implementation with `/work` (D-101); a daily brief from the bot tells
   them which three issues to start. Around that work, agents run headless from a local timer on
   the owner's subscription, in batches, one issue per worktree: refinement, the fix of PRs the
-  review gate sent back, and the merge steward. The timer never implements an issue. Each issue has a turn budget by size; past it, the runner pushes what exists, sets
+  review gate sent back, and the merge steward. The timer never implements an issue. Each fix has a turn budget (`turns.fix`); past it, the runner pushes what exists, sets
   `status:blocked` and posts the CLAUDE.md progress comment. When the usage window runs out it
-  stops after the current step and the next run resumes with `/resume`. Nothing polls with a
+  stops after the current step, and the next run first resumes the interrupted fix, in the
+  runner's own worktree of the PR, while the review gate still refuses it. Nothing polls with a
   model: the runner decides from `gh api` and git alone.
 - Model by role: `haiku` for mechanical work (triage, label hygiene, release-notes drafts, i18n
   parity), `sonnet` by default (implementation, review, tests, docs), `opus` only for designing

@@ -50,6 +50,11 @@ jobs:
           private-key: ${{ secrets.BOT_PRIVATE_KEY }}
           owner: opendefender
           repositories: OpenRisk
+          # Only what the brief needs: read the repository and the board, write one comment.
+          permission-contents: read
+          permission-pull-requests: read
+          permission-issues: write
+          permission-organization-projects: read
       - name: Post
         env:
           BOARD_TOKEN: ${{ steps.bot.outputs.token }}

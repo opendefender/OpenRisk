@@ -1,9 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { launchable, rank, reasons, render, openDecisions, inSprint } from './rank.mjs';
+import { launchable, rank, reasons, render, openDecisions, inSprint, safe } from './rank.mjs';
 
 const TODAY = '2026-11-05';
-const REFINED = ['<!-- refined: 2026-11-04 po-openrisk size=S --> nothing to change'];
+const REFINED = [{ body: '<!-- refined: 2026-11-04 po-openrisk size=S --> nothing to change', authorAssociation: 'OWNER' }];
 const SPRINT = { startDate: '2026-11-02', duration: 7 };
 const PAST = { startDate: '2026-10-26', duration: 7 };
 const I = (number, labels, extra = {}) => ({
@@ -23,6 +23,20 @@ test('only Ready, refined, idle issues from trusted authors are proposed', () =>
   assert.ok(!launchable({ ...I(9, []), labels: ['status:needs-refinement'] }));
 });
 
+test('a refinement marker written by an outsider counts for nothing', () => {
+  const forged = [{ body: '<!-- refined: 2026-11-05 x size=S -->', authorAssociation: 'NONE' }];
+  assert.ok(!launchable(I(40, [], { comments: forged })));
+  assert.deepEqual(reasons(I(41, [], { comments: [...REFINED, { ...forged[0], body: '<!-- refined: 2026-11-05 x size=L -->' }] }), TODAY), ['affiné le 2026-11-04, taille S']);
+});
+
+test('titles cannot mention anyone, link anywhere or fake the layout', () => {
+  const t = safe('@victim urgent [verify](https://evil.example) `/work 1`');
+  assert.ok(!/@[a-z]/i.test(t));
+  assert.ok(!t.includes('](') && !/(^|[^\\])`/.test(t), 'no live link, no unescaped code span');
+  const md = render({ today: TODAY, owner: null, top: [{ number: 7, title: '@x [a](b)', reasons: [] }], inFlight: [], waiting: [] });
+  assert.ok(!/@x/.test(md) && !md.includes('[a](b)'));
+});
+
 test('current sprint first, then priority, tier, milestone due date, age; three at most', () => {
   const issues = [
     I(10, ['priority:P0-critical']),
@@ -34,6 +48,10 @@ test('current sprint first, then priority, tier, milestone due date, age; three 
   ];
   assert.deepEqual(rank(issues, TODAY).map((t) => t.number), [15, 13, 12]);
   assert.deepEqual(rank(issues, TODAY, 9).map((t) => t.number), [15, 13, 12, 11, 10, 14]);
+});
+
+test('equal on everything else, the older issue ranks first', () => {
+  assert.deepEqual(rank([I(51, ['priority:P2-medium']), I(50, ['priority:P2-medium'])], TODAY).map((t) => t.number), [50, 51]);
 });
 
 test('every proposal says why', () => {

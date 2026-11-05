@@ -63,7 +63,7 @@ test('gate integrity: a required context removed from the workflows is reported'
 });
 
 test('the runner, the review gate and refinement are red: they run the agents and judge them', () => {
-  for (const p of ['scripts/runner/runner.mjs', 'scripts/runner/prompts/implement.md', 'scripts/review/record.mjs', 'scripts/refine/close.mjs', 'ops/runner/openrisk-runner.service']) {
+  for (const p of ['scripts/runner/runner.mjs', 'scripts/runner/prompts/fix.md', 'scripts/review/record.mjs', 'scripts/refine/close.mjs', 'ops/runner/openrisk-runner.service']) {
     assert.equal(red([file(p)]).cls, 'red', p);
   }
 });

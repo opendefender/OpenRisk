@@ -1,7 +1,7 @@
 You are resuming the fix of PR #{{PR}} (issue #{{N}}), which an earlier run did not finish. It was cut by the usage window or by the machine stopping. Its work was committed (`wip(#{{N}}): …`) and pushed to the PR's branch.
 
 1. You are in the PR's worktree. Read the bot's review comments on the PR (they start with `<!-- agent-review:verdict`), the `wip` commits and the issue's last progress comment. Continue from there; do not redo what is done.
-2. Fix **every blocking finding**, and only those. Commit with `git commit -s`, push to the same branch, and never force push. Never start a new branch.
+2. Your worktree is detached on the tip of `{{BRANCH}}`. Fix **every blocking finding**, and only those. Commit with `git commit -s` and push with `git push origin HEAD:{{BRANCH}}`. Never force push, never start a new branch.
 3. Answer each blocking finding in one PR comment: *fixed in `<sha>`*, or *disputed: <reason>*. A dispute goes to tech-lead's single arbitration.
 4. Post the mandatory progress comment on #{{N}}.
 

@@ -10,7 +10,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { gql, loadConfig, ROOT } from '../board/lib.mjs';
 import { R, OWNER, REPO, rest, restAll, BOT_LOGIN } from '../review/gh.mjs';
-import { rank, render, openDecisions } from './rank.mjs';
+import { rank, render, openDecisions, safe } from './rank.mjs';
 
 const DRY = process.argv.includes('--dry-run');
 const TITLE = 'Brief du jour';
@@ -25,7 +25,7 @@ async function openIssues() {
       issues(states: OPEN, first: 50, after: $after) { pageInfo { hasNextPage endCursor }
         nodes { number title authorAssociation milestone { title dueOn }
           labels(first: 50) { nodes { name } }
-          comments(last: 40) { nodes { body } }
+          comments(last: 40) { nodes { body authorAssociation } }
           closedByPullRequestsReferences(first: 5) { nodes { state } }
           projectItems(first: 10) { nodes { project { id }
             fieldValueByName(name: "Sprint") { ... on ProjectV2ItemFieldIterationValue { startDate duration } } } } } } } }`, { after });
@@ -35,7 +35,7 @@ async function openIssues() {
       out.push({
         number: n.number, title: n.title, authorAssociation: n.authorAssociation,
         milestone: n.milestone, labels: n.labels.nodes.map((l) => l.name),
-        comments: n.comments.nodes.map((c) => c.body),
+        comments: n.comments.nodes,
         hasOpenPr: n.closedByPullRequestsReferences.nodes.some((p) => p.state === 'OPEN'),
         sprint: item?.fieldValueByName?.startDate ? item.fieldValueByName : null,
       });
@@ -47,8 +47,10 @@ async function openIssues() {
 
 async function briefIssue() {
   const d = await gql(`query { repository(owner: "${OWNER}", name: "${REPO}") {
-    pinnedIssues(first: 3) { nodes { issue { number title state author { login } } } } } }`);
-  return d.repository.pinnedIssues.nodes.map((n) => n.issue).find((i) => i.title === TITLE && i.state === 'OPEN') ?? null;
+    pinnedIssues(first: 3) { nodes { issue { number title state authorAssociation author { login } } } } } }`);
+  // Only the owner's issue: whoever wrote it is @-mentioned every day.
+  return d.repository.pinnedIssues.nodes.map((n) => n.issue)
+    .find((i) => i.title === TITLE && i.state === 'OPEN' && i.authorAssociation === 'OWNER') ?? null;
 }
 
 const issues = await openIssues();
@@ -56,8 +58,12 @@ const top = rank(issues, today);
 const inFlight = issues.filter((i) => i.labels.some((l) => l === 'status:in-progress' || l === 'status:in-review')).map((i) => i.number).sort((a, b) => a - b);
 
 const waiting = [];
-for (const p of await restAll(`${R}/pulls?state=open&base=master`)) waiting.push(`PR #${p.number} « ${p.title} » vers \`master\` — à merger par toi`);
-for (const i of issues.filter((x) => x.labels.some((l) => cfg.ownerLabels.includes(l)))) waiting.push(`#${i.number} — ${i.title}`);
+// Only the release PR the bot opens (rule 3.2b): a fork can open a PR into master too.
+for (const p of await restAll(`${R}/pulls?state=open&base=master`)) {
+  if (p.head.repo?.full_name !== `${OWNER}/${REPO}` || p.head.ref !== 'staging') continue;
+  waiting.push(`PR #${p.number} « ${safe(p.title)} » \`staging → master\` — à merger par toi`);
+}
+for (const i of issues.filter((x) => x.labels.some((l) => cfg.ownerLabels.includes(l)))) waiting.push(`#${i.number} — ${safe(i.title)}`);
 for (const d of openDecisions(readFileSync(join(ROOT, 'docs/DECISIONS.md'), 'utf8'))) waiting.push(`${d} (\`docs/DECISIONS.md\`, \`/decide\`)`);
 
 const target = await briefIssue();

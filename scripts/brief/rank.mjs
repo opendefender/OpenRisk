@@ -3,14 +3,14 @@
 //
 // Nothing here starts work. The owner starts each issue with /work; the brief only ranks.
 
-import { isRefined, byUrgency } from '../runner/select.mjs';
+import { isRefined, byUrgency, trustedComments } from '../runner/select.mjs';
 import { sprintEnd } from '../board/derive.mjs';
 
 const TRUSTED = ['OWNER', 'MEMBER', 'COLLABORATOR'];
 const IN_FLIGHT = ['status:in-progress', 'status:in-review', 'status:blocked'];
 const SIZE = /<!--\s*refined:\s*(\d{4}-\d{2}-\d{2})[^>]*?size=([SML])/;
 
-// issue = { number, title, labels, authorAssociation, comments: [bodies], hasOpenPr,
+// issue = { number, title, labels, authorAssociation, comments: [{ body, authorAssociation }], hasOpenPr,
 //           milestone: { title, dueOn } | null, sprint: { startDate, duration } | null }
 export function launchable(i) {
   return TRUSTED.includes(i.authorAssociation) &&
@@ -47,10 +47,14 @@ export function reasons(i, today) {
   const t = i.labels.find((l) => l.startsWith('tier:'));
   if (t) out.push(`tier ${t.slice(5)}`);
   if (i.milestone) out.push(i.milestone.dueOn ? `milestone « ${i.milestone.title} », échéance le ${i.milestone.dueOn.slice(0, 10)}` : `milestone « ${i.milestone.title} »`);
-  const m = [...(i.comments || [])].reverse().map((c) => SIZE.exec(c || '')).find(Boolean);
+  const m = [...trustedComments(i)].reverse().map((c) => SIZE.exec(c.body || '')).find(Boolean);
   if (m) out.push(`affiné le ${m[1]}, taille ${m[2]}`);
   return out;
 }
+
+// A title from GitHub, made inert in the bot's comment: no @-mention, no link, no markup (#1320).
+// Anyone can write an issue or PR title, and the bot posts this every day.
+export const safe = (title) => String(title).replace(/[\\`*_[\]()<>#|~!]/g, '\\$&').replace(/@/g, '@\u200b');
 
 // The comment the bot posts. `waiting` lists what only the owner can do.
 export function render({ today, owner, top, inFlight, waiting }) {
@@ -59,7 +63,7 @@ export function render({ today, owner, top, inFlight, waiting }) {
   if (top.length) {
     lines.push(`**À lancer, dans l'ordre** (${top.length})`, '');
     top.forEach((t, k) => {
-      lines.push(`${k + 1}. #${t.number} — ${t.title}`);
+      lines.push(`${k + 1}. #${t.number} — ${safe(t.title)}`);
       lines.push(`   - Pourquoi : ${t.reasons.join(' · ') || 'seul ticket prêt et affiné'}`);
       lines.push(`   - Lancer : \`/work ${t.number}\``);
     });

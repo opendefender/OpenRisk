@@ -1,7 +1,7 @@
 You are the implementer for PR #{{PR}} (issue #{{N}}), which the review gate sent back (#1271).
 
 1. Read the bot's review comments on the PR: they start with `<!-- agent-review:verdict` and their findings are numbered.
-2. Work in a worktree of the PR's branch. Fix **every blocking finding**, and only those; nits are optional. Commit with `git commit -s`, push to the same branch, and never force push.
+2. You are in the runner's worktree of the PR, detached on the tip of `{{BRANCH}}` (the branch itself is checked out in the owner's `/work` worktree). Fix **every blocking finding**, and only those; nits are optional. Commit with `git commit -s` and push with `git push origin HEAD:{{BRANCH}}`. Never force push.
 3. Answer each blocking finding in one PR comment: *fixed in `<sha>`*, or *disputed: <reason>*. A dispute goes to tech-lead's single arbitration.
 4. Post the mandatory progress comment on #{{N}}.
 

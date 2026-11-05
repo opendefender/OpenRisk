@@ -21,9 +21,12 @@ const tierRank = (labels) => {
 export const byUrgency = (a, b) =>
   priorityRank(a.labels) - priorityRank(b.labels) || tierRank(a.labels) - tierRank(b.labels) || a.number - b.number;
 
-// issue = { number, labels, authorAssociation, milestone, comments: [bodies], hasOpenPr, size }
+// issue = { number, labels, authorAssociation, milestone, comments: [{ body, authorAssociation }], hasOpenPr }
+// Only a marker written by a trusted account counts: refinement runs as the owner's account,
+// and anyone can comment on a public issue (#1320).
+export const trustedComments = (issue) => (issue.comments || []).filter((c) => TRUSTED.includes(c?.authorAssociation));
 export function isRefined(issue) {
-  return (issue.comments || []).some((c) => REFINED_MARKER.test(c || ''));
+  return trustedComments(issue).some((c) => REFINED_MARKER.test(c.body || ''));
 }
 
 const eligible = (i) =>

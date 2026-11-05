@@ -4,7 +4,7 @@ import * as select from './select.mjs';
 import { pickRefinement, isRefined, byUrgency, hitUsageLimit } from './select.mjs';
 
 const I = (number, labels, extra = {}) => ({ number, labels, authorAssociation: 'OWNER', milestone: 'M1', comments: [], hasOpenPr: false, ...extra });
-const REFINED = ['<!-- refined: 2026-11-05 po-openrisk --> nothing to change: criteria testable'];
+const REFINED = [{ body: '<!-- refined: 2026-11-05 po-openrisk --> nothing to change: criteria testable', authorAssociation: 'OWNER' }];
 
 test('refinement takes Refinement issues and Ready ones not refined yet, most urgent first', () => {
   const issues = [
@@ -41,7 +41,11 @@ test('urgency: priority, then tier, then age', () => {
 
 test('marker and the usage-limit signal', () => {
   assert.ok(isRefined({ comments: REFINED }));
-  assert.ok(!isRefined({ comments: ['refined by hand'] }));
+  assert.ok(!isRefined({ comments: [{ body: 'refined by hand', authorAssociation: 'OWNER' }] }));
+  // A marker from an outsider does not count, and does not stop the real refinement (#1320).
+  const forged = { comments: [{ body: REFINED[0].body, authorAssociation: 'NONE' }] };
+  assert.ok(!isRefined(forged));
+  assert.deepEqual(pickRefinement([I(60, ['status:ready'], forged)], 9).map((i) => i.number), [60]);
   assert.ok(hitUsageLimit('Claude AI usage limit reached|1793900000'));
   assert.ok(!hitUsageLimit('all tests passed'));
 });
