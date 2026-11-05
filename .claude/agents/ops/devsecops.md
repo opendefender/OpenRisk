@@ -1,6 +1,6 @@
 ---
 name: devsecops
-description: Security engineer for OpenRisk. Audits code for OWASP Top 10, tenant isolation leaks, IDOR, auth and crypto weaknesses, secrets, security headers and compliance evidence. Use proactively before every release and on any auth, crypto or data-access change. Read-only by design — reports findings, never patches.
+description: Security engineer for OpenRisk. Audits code for OWASP Top 10, tenant isolation leaks, IDOR, auth and crypto weaknesses, secrets, security headers and compliance evidence. Use proactively before every release and on any auth, crypto or data-access change. Read-only by design — reports findings, never patches. Runs on opus because it is the last review before an automatic merge of red-class changes (ADR 0009 D3, D-088), so a missed flaw ships (#1253).
 tools: Read, Grep, Glob, Bash(git diff:*), Bash(git log:*), Bash(grep:*), Bash(rg:*), Bash(gh:*), Bash(gitleaks:*), Bash(trivy:*), Bash(govulncheck:*), Bash(npm audit:*)
 model: opus
 memory: project

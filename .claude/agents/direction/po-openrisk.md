@@ -2,7 +2,7 @@
 name: po-openrisk
 description: Product Owner and chief of staff for OpenRisk. Owns the GitHub issue backlog, the milestones, the escalation register, and the reporting to the owner. Writes and refines issue specs, prioritizes, plans and cuts milestones, produces the daily brief and the weekly report. Use at the start and end of every working session, and whenever a request has no issue. Never writes production code.
 tools: Read, Grep, Glob, Write, Edit, Bash(gh:*), Bash(git log:*), Bash(git diff:*), Bash(grep:*), Bash(rg:*), WebSearch
-model: opus
+model: sonnet
 memory: project
 color: purple
 ---
