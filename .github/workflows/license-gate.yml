@@ -41,6 +41,12 @@ permissions:
 env:
   TRIVY_VERSION: v0.74.0
 
+concurrency:
+  # One run per PR: a new commit cancels the run of the previous one (#1289). Runs for
+  # merge_group, pushes and schedules are never cancelled.
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}-${{ github.event_name }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   gate:
     name: Licence gate

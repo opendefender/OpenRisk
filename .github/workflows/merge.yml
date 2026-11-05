@@ -1,0 +1,91 @@
+name: Merge
+
+# Puts green PRs into the develop merge queue (#1280, #1251, ADR 0009, D-088), as the
+# delivery bot (D-092). The decision is scripts/merge/conditions.mjs, never a model:
+# - the 8 required checks of D-082 pass;
+# - `agent-review` and `Red gate` pass, written by the bot (D-095);
+# - `Risk class` ran;
+# - every acceptance criterion is ✅ in the issue's latest report;
+# - the PR is not a draft, not a fork, targets develop, and closes an issue.
+# The merge queue then re-runs the checks on the merged result and merges.
+#
+# Kill switch: the repository variable AUTOMERGE_ENABLED. Anything but "true" refuses every
+# PR. It stays off until the owner applies #1251's CLAUDE.md amendment and turns it on.
+#
+# Every third-party action is pinned to a full commit SHA; the tag is in the trailing comment.
+
+on:
+  check_suite:
+    types: [completed]
+  status:
+  pull_request:
+    types: [ready_for_review, edited]
+  schedule:
+    - cron: '*/20 * * * *'
+  workflow_dispatch:
+    inputs:
+      pr:
+        description: 'PR number (empty = every open PR into develop)'
+        required: false
+        default: ''
+      dry_run:
+        description: 'Print the verdict without enqueueing'
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: merge-enqueue
+  cancel-in-progress: false
+
+jobs:
+  enqueue:
+    name: Merge enqueue
+    if: github.repository == 'opendefender/OpenRisk'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+      - name: Bot token
+        id: bot
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          app-id: ${{ secrets.BOT_APP_ID }}
+          private-key: ${{ secrets.BOT_PRIVATE_KEY }}
+          owner: opendefender
+          repositories: OpenRisk
+      - name: Enqueue
+        env:
+          BOARD_TOKEN: ${{ steps.bot.outputs.token }}
+          AUTOMERGE_ENABLED: ${{ vars.AUTOMERGE_ENABLED || 'false' }}
+          PR_INPUT: ${{ inputs.pr }}
+          DRY: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run && '--dry-run' || '' }}
+        run: |
+          if [ ! -f scripts/merge/enqueue.mjs ]; then
+            echo "::notice::scripts/merge/enqueue.mjs is not on the default branch yet; skipped."; exit 0
+          fi
+          echo "AUTOMERGE_ENABLED=$AUTOMERGE_ENABLED"
+          if [ -n "$PR_INPUT" ]; then node scripts/merge/enqueue.mjs --pr "$PR_INPUT" $DRY || [ $? -eq 3 ]
+          else node scripts/merge/enqueue.mjs --all $DRY; fi
+
+  test:
+    name: Merge conditions tests
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+      - run: node --test scripts/merge/*.test.mjs

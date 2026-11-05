@@ -32,6 +32,12 @@ on:
 #   - Security Scan Summary: printed "all passed" whatever happened.
 # Dependency and image vulnerabilities are gated by dependency-gate.yml (#487).
 
+concurrency:
+  # One run per PR: a new commit cancels the run of the previous one (#1289). Runs for
+  # merge_group, pushes and schedules are never cancelled.
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}-${{ github.event_name }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   tenant-isolation:
     name: Tenant Isolation Coverage Gate

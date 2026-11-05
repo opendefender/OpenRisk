@@ -20,6 +20,8 @@ name: DAST
 # named in the rules file. Never move a rule to IGNORE to make this green.
 
 on:
+  # Not on every PR (#1289): DAST boots the whole stack and is advisory (D-082), so it
+  # runs on every push to the long-lived branches, nightly and on demand.
   push:
     # Not develop: its commits come only from the merge queue, which already ran this
     # workflow on the same commit (#1291).

@@ -9,6 +9,60 @@ recommends, and surfaces these in the daily brief. Run `/decide` to clear them.
 
 ## Resolved
 
+### D-096 — After a fix, only the refusing reviewers review again, and the carry-over is said · decided 2026-11-05
+**Decided (owner, 2026-11-05)** — "Limiter la relance aux rôles qui avaient refusé et signaler."
+When an implementer pushes a fix after the review gate sent the PR back (#1271):
+- A role that **approved the previous reviewed commit** keeps its approval on the new commit. The bot writes it as `approval carried over from <sha>, not re-reviewed`.
+- A role that **refused, errored or never answered**, and any role **newly required** by the fix (for example devsecops when the fix touches a red path), reviews the new commit.
+- The routing comment on the PR lists both groups, so a reader sees which approvals were not re-checked.
+
+**Why** — fewer review runs per fix, so fewer tokens. A role that refused is the one whose
+concern the fix addresses.
+
+**Residual risk, accepted** — a fix can break something a carried role approved. The required
+checks still run on every commit, and a new risk class still adds its reviewers. The role
+lists are recomputed from the new diff each time, so a fix that reaches a new area is always
+reviewed by that area's role.
+
+### D-095 — Review verdicts are produced in GitHub Actions and posted by the bot · decided 2026-11-04
+**Decided (owner, 2026-11-04; design by devops-sre under D-089)** — "Faire poser les verdicts
+par le bot, depuis GitHub Actions, et n'accepter que les statuts écrits par le bot."
+
+**Why the reviewers move into Actions** — every agent on the owner's machine acts through the
+owner's account. A verdict sent from there cannot prove which agent wrote it: an implementer
+could approve its own work. So the reviewer agents of #1271 run **in the `Agent review`
+workflow**, one job per required role, after CI is green on the head commit. The bot then
+posts what the job produced: the review comment and the `agent-review/<role>` status.
+`agent-review`, `Red gate` and every condition of `enqueue.mjs` read **only statuses whose
+creator is `opendefender-delivery-bot[bot]`**. A status written by anyone else is ignored, so
+a forged approval changes nothing.
+
+**How the reviewer is contained**
+- It gets read-only tools (Read, Grep, Glob) and no repository token.
+- The PR's content is given to it as data, never as instructions.
+- It must answer with a structured verdict (pass/fail, blocking count, numbered findings), which a script validates before the bot posts it.
+- Fork PRs are never reviewed this way: no secret reaches them.
+- The deterministic gates (CI, risk class) still apply whatever the reviewer says.
+- A red-class PR always needs two reviewers.
+
+**Cost** — no new spending. The jobs use a token of the owner's existing subscription, a
+secret the owner creates once, and draw on the same usage quota as the local runner. Actions
+minutes are free for this public repository. The agent CLI is pinned to an exact version.
+
+**Changes** — #1271: reviewers in Actions, verdict posted by the bot, bot-only statuses.
+#1250: `Red gate` written by the bot. #1280: bot-only statuses in `enqueue.mjs`.
+
+### D-094 — Every issue is refined before the runner implements it · decided 2026-11-04
+**Decided (owner, 2026-11-04)** — "Les tickets passent d'abord par l'affinage automatique
+(#1270) avant d'être pris par le runner." The scripted Ready gate (#1249) checks the
+structure of an issue. Refinement checks its substance: problem in user terms, testable
+criteria, size, duplicates, split and obsolescence. The runner (#1252) implements only an
+issue that carries the refinement marker `<!-- refined: <date> <agent> -->`. That holds for
+the 98 issues the gate promoted and for older Ready issues too. A material edit of the
+criteria after refinement clears the marker.
+
+**Consequence** — #1270 lands with #1252, not after it. Rulebook rule 2.1 is amended.
+
 ### D-093 — Licence of the private agent-team repository · decided 2026-11-04
 **Decided (agent: po-openrisk, 2026-11-04, under D-089)** — `opendefender/agent-team` is
 **private and proprietary** ("all rights reserved", see its `LICENSE`). It was created on

@@ -1,0 +1,110 @@
+name: Risk class
+
+# Classifies every PR and merge group as green or red from its diff (#1250, ADR 0009 D3).
+# Red = auth, crypto, tenant isolation design, destructive migrations, Score Engine and
+# SmartScore, licence, pricing, entitlements, the gates themselves, agent rules — and every
+# PR from a fork. The rules are scripts/risk/rules.json, tested in scripts/risk/.
+#
+# Two results:
+# - check "Risk class": fails only when a change to the gates drops a required context;
+# - commit status "Red gate", written by the delivery bot (D-095: the gates believe only
+#   the bot): success on green; pending on red until the stricter review (#1271:
+#   devsecops + tech-lead on this commit) passes it.
+#
+# The classifier runs from the default branch, never from the PR head: the PR's commits are
+# fetched as data and diffed, not executed.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  merge_group:
+    types: [checks_requested]
+
+permissions:
+  contents: read
+
+jobs:
+  classify:
+    name: Risk class
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          fetch-depth: 0
+          filter: blob:none
+          persist-credentials: false
+
+      - name: Fetch the change
+        id: refs
+        env:
+          PR: ${{ github.event.pull_request.number }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+          MG_BASE: ${{ github.event.merge_group.base_sha }}
+          MG_HEAD: ${{ github.event.merge_group.head_sha }}
+          MG_REF: ${{ github.event.merge_group.head_ref }}
+          REPO_URL: ${{ github.server_url }}/${{ github.repository }}
+        run: |
+          if [ -n "$PR" ]; then
+            git fetch --quiet --filter=blob:none "$REPO_URL" "+refs/pull/$PR/head:refs/remotes/pr/head"
+            echo "base=$PR_BASE" >> "$GITHUB_OUTPUT"; echo "head=$PR_HEAD" >> "$GITHUB_OUTPUT"
+          else
+            git fetch --quiet --filter=blob:none "$REPO_URL" "+$MG_REF:refs/remotes/mg/head"
+            echo "base=$MG_BASE" >> "$GITHUB_OUTPUT"; echo "head=$MG_HEAD" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+
+      - name: Classify
+        id: risk
+        env:
+          FORK: ${{ github.event.pull_request && github.event.pull_request.head.repo.full_name != github.repository }}
+        run: |
+          if [ ! -f scripts/risk/check.mjs ]; then
+            echo "::notice::scripts/risk/check.mjs is not on the default branch yet; skipped."
+            echo "class=unknown" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          FLAG=""; [ "$FORK" = "true" ] && FLAG="--fork"
+          node scripts/risk/check.mjs "${{ steps.refs.outputs.base }}" "${{ steps.refs.outputs.head }}" $FLAG
+
+      - name: Bot token
+        id: bot
+        if: always() && steps.risk.outputs.class != 'unknown' && steps.risk.outputs.class != ''
+        continue-on-error: true   # no secrets reach a fork PR; a fork is never auto-merged anyway
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          app-id: ${{ secrets.BOT_APP_ID }}
+          private-key: ${{ secrets.BOT_PRIVATE_KEY }}
+          owner: opendefender
+          repositories: OpenRisk
+
+      - name: Red gate status
+        if: always() && steps.bot.outputs.token != ''
+        env:
+          GH_TOKEN: ${{ steps.bot.outputs.token }}
+          SHA: ${{ steps.refs.outputs.head }}
+          CLS: ${{ steps.risk.outputs.class }}
+        run: |
+          if [ "$CLS" = "green" ]; then STATE=success; DESC="green class: no stricter review needed"
+          else STATE=pending; DESC="red class: waiting for devsecops + tech-lead review (#1271)"; fi
+          gh api -X POST "repos/${{ github.repository }}/statuses/$SHA" \
+            -f state="$STATE" -f context="Red gate" -f description="$DESC" \
+            -f target_url="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" --jq '.state'
+
+  test:
+    name: Risk class tests
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+      - run: node --test scripts/risk/*.test.mjs

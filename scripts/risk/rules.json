@@ -1,0 +1,48 @@
+{
+  "_doc": "Red-class rules (ADR 0009 D3, D-088, #1250). A PR that matches any rule is red and goes through the stricter Red gate. This file is itself red.",
+  "red_paths": [
+    { "match": "backend/pkg/auth/", "why": "authentication" },
+    { "match": "backend/pkg/crypto/", "why": "cryptography" },
+    { "match": "backend/pkg/otp/", "why": "MFA" },
+    { "match": "backend/pkg/oauthpkce/", "why": "OAuth" },
+    { "match": "backend/pkg/pwpolicy/", "why": "password policy" },
+    { "match": "backend/internal/application/auth/", "why": "authentication use cases" },
+    { "match": "backend/internal/middleware/auth", "why": "authentication middleware" },
+    { "match": "backend/internal/application/entity/isolation.go", "why": "tenant isolation design" },
+    { "match": "backend/internal/service/tenant_service.go", "why": "tenant isolation design" },
+    { "match": "backend/internal/handler/rbac_tenant_handler.go", "why": "tenant isolation design" },
+    { "match": "backend/internal/repository/multitenancy_repository.go", "why": "tenant isolation design" },
+    { "match": "backend/internal/domain/rbac.go", "why": "authorisation model" },
+    { "match": "backend/internal/domain/permission.go", "why": "authorisation model" },
+    { "suffix": "isolation_test.go", "why": "tenant isolation suite" },
+    { "regex": "^backend/internal/handler/authz_.*_test\\.go$", "why": "authorisation matrix" },
+    { "match": "backend/pkg/scoring/engine.go", "why": "Score Engine formula" },
+    { "match": "backend/pkg/scoring/smart.go", "why": "SmartScore formula" },
+    { "match": "backend/pkg/entitlements/", "why": "entitlements" },
+    { "match": "backend/pkg/licensegate/", "why": "licence enforcement" },
+    { "match": "LICENSE", "why": "licence" },
+    { "match": "LICENSING.md", "why": "licence" },
+    { "match": "CLA.md", "why": "licence" },
+    { "match": "docs/PRICING.md", "why": "pricing" },
+    { "match": ".github/workflows/", "why": "the gates themselves" },
+    { "match": ".github/board.json", "why": "the gates themselves" },
+    { "match": "scripts/risk/", "why": "the gates themselves" },
+    { "match": "scripts/ready/", "why": "the gates themselves" },
+    { "match": "scripts/board/", "why": "the gates themselves" },
+    { "match": "scripts/merge/", "why": "the gates themselves" },
+    { "match": "CLAUDE.md", "why": "agent rules" },
+    { "match": ".claude/", "except": ".claude/agent-memory/", "why": "agent rules" }
+  ],
+  "red_content": [
+    {
+      "files": "(^|/)migrations/|\\.sql$",
+      "except_files": "\\.down\\.sql$",
+      "added_line": "\\b(DROP\\s+(TABLE|COLUMN|SCHEMA|DATABASE)|RENAME\\s+(TO|COLUMN)|ALTER\\s+TABLE\\s+\\S+\\s+DROP)\\b",
+      "why": "destructive migration"
+    }
+  ],
+  "required_contexts": [
+    "Licence gate", "CI Status", "Tenant Isolation Coverage Gate", "Dependency gate",
+    "E2E (chromium + Mobile Chrome)", "Signed-off-by trailer", "Frontend Design Tokens", "Secret Detection"
+  ]
+}

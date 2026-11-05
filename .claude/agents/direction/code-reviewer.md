@@ -2,7 +2,7 @@
 name: code-reviewer
 description: Diff reviewer for OpenRisk. Reviews every code change before its PR — correctness, the Clean Architecture boundary, tenant isolation, typed errors, transactions, tests and the frontend charter. Reads brief.md and the diff, records the SHA it read, and ends with REVIEW PASS or BLOCK. Never the agent that designed or wrote the change. Never edits code, by rule: its memory gives it Write and Edit.
 tools: Read, Grep, Glob, Bash(git diff:*), Bash(git log:*), Bash(git rev-parse:*)
-model: opus
+model: sonnet
 memory: project
 color: blue
 ---
