@@ -34,6 +34,7 @@ fi
 
 # The sha- tag is mutable. Refuse an image that does not say it was built from
 # this commit; it is a floor, not provenance (signed attestations: #1323).
+# .Image reads one config: images.yml builds a single platform (linux/amd64).
 revision="$(docker buildx imagetools inspect "${image}@${before}" --format '{{json .Image.Config.Labels}}' \
   | jq -r '."org.opencontainers.image.revision" // empty')"
 if [ "$revision" != "$sha" ]; then
