@@ -17,7 +17,9 @@ on:
   merge_group:
     types: [checks_requested]
   push:
-    branches: [master, develop, staging]
+    # Not develop: its commits come only from the merge queue, which already ran this
+    # workflow on the same commit (#1291).
+    branches: [master, staging]
   pull_request:
     branches: [master, develop, staging]
   schedule:
@@ -43,6 +45,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          # Scheduled runs test staging, the next release, never develop (#1291).
+          ref: ${{ github.event_name == 'schedule' && 'staging' || '' }}
 
       # Latest 1.26 patch, as the golang:1.26-alpine builder in the Dockerfile
       # uses: govulncheck judges the standard library by the Go that runs it.

@@ -56,7 +56,7 @@ export function checkReady(issue) {
 
   if (!issue.milestone) missing.push('a milestone');
   // The repository is public: an issue written by an outsider is never made Ready by a
-  // script, or the agent runner would implement a stranger's ticket (#1252 criterion 7).
+  // script, or the daily brief would send the owner to a stranger's ticket (#1252 criterion 7).
   if (issue.authorAssociation && !TRUSTED.includes(issue.authorAssociation)) {
     missing.push('a maintainer to take it over (it was opened from outside the team)');
   }

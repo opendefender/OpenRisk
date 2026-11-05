@@ -4,7 +4,9 @@ on:
   merge_group:
     types: [checks_requested]
   push:
-    branches: [master, develop, staging]
+    # Not develop: its commits come only from the merge queue, which already ran this
+    # workflow on the same commit (#1291).
+    branches: [master, staging]
   pull_request:
     branches: [master, develop, staging]
 
@@ -541,7 +543,6 @@ jobs:
     needs: [backend-unit-tests, frontend-unit-tests]
     permissions:
       contents: read
-      packages: write
     outputs:
       image: ${{ steps.meta.outputs.tags }}
     steps:
@@ -549,14 +550,6 @@ jobs:
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v2
-
-      - name: Log in to Container Registry
-        if: github.event_name == 'push'
-        uses: docker/login-action@v2
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Extract metadata
         id: meta
@@ -577,7 +570,9 @@ jobs:
         uses: docker/build-push-action@v4
         with:
           context: .
-          push: ${{ github.event_name == 'push' && github.ref != 'refs/heads/develop' }}
+          # Build check only. Images are pushed by images.yml, once per develop
+          # commit; a push to staging or master is a promotion and never builds (#1245).
+          push: false
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha

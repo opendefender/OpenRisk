@@ -30,6 +30,10 @@
     { "match": "scripts/ready/", "why": "the gates themselves" },
     { "match": "scripts/board/", "why": "the gates themselves" },
     { "match": "scripts/merge/", "why": "the gates themselves" },
+    { "match": "scripts/brief/", "why": "what the delivery bot tells the owner to work on" },
+    { "match": "scripts/review/", "why": "the review gate: who reviews and how verdicts are recorded" },
+    { "match": "scripts/refine/", "why": "refinement closes issues" },
+    { "match": "ops/", "why": "operations and deployment on the owner's machine" },
     { "match": "CLAUDE.md", "why": "agent rules" },
     { "match": ".claude/", "except": ".claude/agent-memory/", "why": "agent rules" }
   ],
