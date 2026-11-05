@@ -13,6 +13,8 @@ Areas that keep producing findings, updated 2026-10-14:
 - Return-target sanitisers (backend `sanitiseReturnTo` in oauth2_handler.go, frontend `safeNextPath.ts`) check prefixes only. They allow `/\t/evil` and `/\n/evil`, which browsers strip down to `//evil`. React Router's `push` falls back to `window.location.assign` when pushState throws; `replace` does not. Reviewed in #803 on 2026-10-01.
 - SAML2ACS has no signature verification, InResponseTo check, or RelayState handling. This was escalated privately on 2026-10-01.
 - Auth token types: the generic RS256 gate accepts every typed JWT (MFA_REQUIRED, MFA_ENROLLMENT). MFA use cases use read-then-Save instead of conditional UPDATEs. See [[auth-token-type-posture]].
+- Agent-asserted identity: the scanner agent's body fields (hostname) are trusted as the host identity, so one tenant agent can overwrite or close another host's data. Agent endpoints have no per-agent rate limit. See [[agent-inventory-posture]].
+- Process-wide outbound limiters (osv.Interval, NVD gap) shared by all tenants and fed by unthrottled per-tenant triggers. This is cross-tenant starvation.
 - Byte-slicing caps (`s[:n]`) split UTF-8, and Postgres then rejects the row. Also SUBSTR counts characters while Go `len` counts bytes.
 - Agent tooling (.claude/hooks): heuristic regex gates that agents treat as proof. Every revision so far has had trivial bypasses. See [[agent-hooks-posture]].
 - CI gate config: branch protection required checks drift from real job names; agent/ module and committed binaries escape the dependency gate. See [[ci-security-gates-posture]].

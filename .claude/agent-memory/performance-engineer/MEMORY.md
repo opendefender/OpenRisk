@@ -1,0 +1,3 @@
+- [Bundle budget is 180KB, not 250](bundle-budget-is-180kb-not-250.md) — CI's real blocking gate vs CLAUDE.md's stated ceiling
+- [Dashboard N+1](analytics-dashboard-n-plus-1.md) — GET /analytics/dashboard: 116+ sequential SQL round trips, day-loop + framework-loop
+- [risks missing composite tenant index](risks-missing-composite-tenant-index.md) — list/count scans whole tenant or other tenants' rows; fix proven in throwaway DB, not yet in a migration
