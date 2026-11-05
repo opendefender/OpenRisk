@@ -150,7 +150,7 @@ jobs:
   tag:
     name: Tag ${{ github.ref_name }}
     needs: head
-    if: needs.head.outputs.current == 'true'
+    if: ${{ !cancelled() && needs.head.result == 'success' && needs.head.outputs.current == 'true' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
