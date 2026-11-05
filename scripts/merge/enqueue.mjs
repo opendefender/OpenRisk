@@ -11,8 +11,8 @@
 // makes every PR refused.
 
 import { gql } from '../board/lib.mjs';
-import { R, rest, restAll, statuses, comments, arg, BOT_LOGIN } from '../review/gh.mjs';
-import { mayEnqueue } from './conditions.mjs';
+import { R, OWNER, REPO, rest, restAll, statuses, comments, arg, BOT_LOGIN } from '../review/gh.mjs';
+import { mayEnqueue, bodyAtClaim, followUpRefs } from './conditions.mjs';
 import { judgeAll } from './run.mjs';
 
 const DRY = process.argv.includes('--dry-run');
@@ -32,6 +32,24 @@ async function checkRuns(sha) {
   return out;
 }
 
+// The issue body when it was claimed (#1304), from GitHub's edit history and label timeline,
+// which no agent can rewrite: only markers already there then may defer a criterion.
+async function claimedBody(n) {
+  const d = await gql(`query($o: String!, $r: String!, $n: Int!) { repository(owner: $o, name: $r) { issue(number: $n) {
+    body
+    userContentEdits(first: 100) { totalCount nodes { editedAt deletedAt diff } }
+    timelineItems(itemTypes: [LABELED_EVENT], first: 100) { nodes { ... on LabeledEvent { createdAt label { name } } } }
+  } } }`, { o: OWNER, r: REPO, n: Number(n) });
+  const i = d.repository?.issue;
+  if (!i) return null;
+  return bodyAtClaim({
+    body: i.body,
+    edits: i.userContentEdits.nodes,
+    totalEdits: i.userContentEdits.totalCount,
+    labelEvents: i.timelineItems.nodes.map((e) => ({ createdAt: e.createdAt, label: e.label?.name })),
+  });
+}
+
 async function facts(pr) {
   const p = await rest('GET', `${R}/pulls/${pr}`);
   if (!p) throw new Error(`PR #${pr} not found`);
@@ -47,6 +65,11 @@ async function facts(pr) {
       statuses: await statuses(p.head.sha, { onlyFrom: BOT_LOGIN }),
       issueBody: issue?.body ?? '',
       issueComments: issueNo ? (await comments(issueNo)).map((c) => c.body) : [],
+      issueBodyAtClaim: issueNo ? await claimedBody(issueNo) : null,
+      followUps: Object.fromEntries(await Promise.all(followUpRefs(p.body).map(async (m) => {
+        const i = await rest('GET', `${R}/issues/${m}`);
+        return [m, i && !i.pull_request ? { state: i.state, body: i.body ?? '' } : { state: 'missing', body: '' }];
+      }))),
     },
   };
 }
