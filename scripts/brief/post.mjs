@@ -48,9 +48,10 @@ async function openIssues() {
 async function briefIssue() {
   const d = await gql(`query { repository(owner: "${OWNER}", name: "${REPO}") {
     pinnedIssues(first: 3) { nodes { issue { number title state authorAssociation author { login } } } } } }`);
-  // Only the owner's issue: whoever wrote it is @-mentioned every day.
+  // Only an issue written by the organisation's own people: whoever wrote it is @-mentioned
+  // every day. On an organisation repository the owner shows as MEMBER, not OWNER.
   return d.repository.pinnedIssues.nodes.map((n) => n.issue)
-    .find((i) => i.title === TITLE && i.state === 'OPEN' && i.authorAssociation === 'OWNER') ?? null;
+    .find((i) => i.title === TITLE && i.state === 'OPEN' && ['OWNER', 'MEMBER'].includes(i.authorAssociation)) ?? null;
 }
 
 const issues = await openIssues();
