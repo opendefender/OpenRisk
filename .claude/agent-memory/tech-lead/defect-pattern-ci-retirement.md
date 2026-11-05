@@ -12,6 +12,8 @@ Found in the 2026-10-14 review of #980–#983 (owner goal: master CI always gree
    "Code Quality & Security", "SAST Analysis" (all from security-scanning.yml).
    If you delete or rename one of those jobs, every PR waits forever (#980 showed BLOCKED).
    CI Pipeline, Tenant Isolation and Dependency gate were NOT required at that date.
+   **2026-10-30 (audit of 5d4e5b89): only "Licence gate" is required, strict=false, 0 reviews.**
+   The four security-scanning contexts are gone and nothing replaced them; flagged CRITICAL to the owner.
    **Why:** a renamed job does not report under the old context. **How to apply:** before approving any
    workflow job removal or rename, run `gh api repos/opendefender/OpenRisk/branches/master/protection`
    and list the contexts that change. Changing the protection is an owner action.
