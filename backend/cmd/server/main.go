@@ -109,8 +109,9 @@ import (
 )
 
 // Version and Commit are injected at build time via ldflags
-// (-X main.Version=$(cat VERSION) -X main.Commit=$(git rev-parse --short HEAD);
-// see Makefile). They are the SINGLE source of truth the /health endpoint
+// (-X main.Version=$(cat VERSION) -X main.Commit=<sha>: the short SHA from the
+// Makefile, the full SHA from images.yml through backend/Dockerfile, #1245).
+// They are the SINGLE source of truth the /health endpoint
 // reports. The defaults mark a non-release build (e.g. `go run`).
 var (
 	Version = "dev"
