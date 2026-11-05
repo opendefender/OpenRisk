@@ -17,6 +17,8 @@ Then do exactly one of the following.
    `node scripts/refine/close.mjs --issue {{N}} --reason not_planned --proof "<file path, PR or ADR>"`.
 5. **Needs a product choice.** Make the best choice for the product, record it as `Decided (agent: po-openrisk, <date>)` in `docs/DECISIONS.md` through a PR (D-089), and refine with it. Only money or something irreversible goes under **Open**, and then the issue stays in Refinement.
 
+A criterion that can only be checked once the change is merged (a measurement a day later, a run on the next release) ends with `(after merge)`. It will not hold the automatic merge.
+
 Size: **S** fits in one sitting, **M** in a day, **L** in more. Split L when you can.
 
 Finish with:

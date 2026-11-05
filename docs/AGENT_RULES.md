@@ -33,6 +33,7 @@ constitution; this file is its operating detail (#1277).
 | 2.1 | No work without an issue that passed the Ready gate **and** the automatic refinement (D-094). | runner picks only `status:ready` issues with the `<!-- refined: … -->` marker; Ready gate script | 🔧 #1249, #1252, #1270 |
 | 2.2 | One issue → one branch `<type>/<n>-<slug>` → one PR with `Closes #<n>`. | CI check on the PR (title, branch name, closing reference) | 🔧 #1251 |
 | 2.3 | Smallest correct change. No refactor or cleanup outside the issue. | review | 📝 needs judgement |
+| 2.6 | A criterion that can only be checked once merged (a measurement later, a run on the next release) is marked `(after merge)` in the issue. It does not hold the merge, and the issue stays open until it is met (#1304). | `scripts/merge/conditions.mjs` | ✅ |
 | 2.4 | An issue found on the way becomes a new issue, never extra commits on the current PR. | review | 📝 needs judgement |
 | 2.5 | Read every file of a module before writing in it (CLAUDE.md rule 1). | review | 📝 needs judgement |
 

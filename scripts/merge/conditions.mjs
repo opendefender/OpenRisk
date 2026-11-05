@@ -20,19 +20,33 @@ export function latestCriteria(commentBodies) {
   return found;
 }
 
-// Numbered acceptance criteria of the issue body: the highest top-level number.
-export function criteriaCount(issueBody) {
+// A criterion that can only be checked once the change is on develop (a measurement a day
+// after, a run on the next release) is marked `(after merge)` in the issue. It does not hold
+// the merge; the report still lists it, and the issue stays open until it is met.
+const AFTER_MERGE = /\((after merge|après (le )?merge)\)/i;
+
+// Numbered acceptance criteria of the issue body → { count, afterMerge: Set<number> }.
+export function criteriaOf(issueBody) {
   const lines = String(issueBody || '').split('\n');
   let inSection = false;
   let max = 0;
+  const afterMerge = new Set();
   for (const l of lines) {
     if (/^#{2,3}\s/.test(l)) inSection = /^#{2,3}\s+(acceptance criteria|critères? d['’]acceptation)/i.test(l);
     else if (inSection) {
       const m = /^(\d+)[.)]\s+\S/.exec(l);
-      if (m) max = Math.max(max, Number(m[1]));
+      if (m) {
+        max = Math.max(max, Number(m[1]));
+        if (AFTER_MERGE.test(l)) afterMerge.add(Number(m[1]));
+      }
     }
   }
-  return max;
+  return { count: max, afterMerge };
+}
+
+// The highest numbered criterion (kept for callers that only need the count).
+export function criteriaCount(issueBody) {
+  return criteriaOf(issueBody).count;
 }
 
 // facts = {
@@ -59,13 +73,16 @@ export function mayEnqueue(f) {
   if (risk !== 'success') reasons.push(`Risk class is ${risk || 'missing'} (#1250)`);
   if (red !== 'success') reasons.push(`Red gate is ${red || 'missing'}: a red-class PR needs the stricter review`);
 
-  const n = criteriaCount(f.issueBody);
+  const { count: n, afterMerge } = criteriaOf(f.issueBody);
   const marks = latestCriteria(f.issueComments || []);
   if (!n) reasons.push('the issue has no numbered acceptance criteria');
   else if (!marks) reasons.push('no progress report with a **Criteria** line on the issue');
   else {
     const notDone = [];
-    for (let i = 1; i <= n; i++) if (marks.get(i) !== '✅') notDone.push(`${i} ${marks.get(i) || 'missing'}`);
+    for (let i = 1; i <= n; i++) {
+      if (afterMerge.has(i)) continue; // checked after merge, by definition
+      if (marks.get(i) !== '✅') notDone.push(`${i} ${marks.get(i) || 'missing'}`);
+    }
     if (notDone.length) reasons.push(`acceptance criteria not all ✅ in the latest report: ${notDone.join(', ')}`);
   }
   return { ok: reasons.length === 0, reasons };

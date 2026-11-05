@@ -56,3 +56,15 @@ test('criteria parsing: count and marks', () => {
   assert.deepEqual([...latestCriteria(['**Criteria** — 1 ✅ · 2 🟡 · 3 ⏳']).entries()], [[1, '✅'], [2, '🟡'], [3, '⏳']]);
   assert.equal(latestCriteria(['nothing']), null);
 });
+
+import { criteriaOf } from './conditions.mjs';
+
+test('a criterion marked (after merge) does not hold the merge; the others still do', () => {
+  const f = green();
+  f.issueBody = '## Problem\n\nx\n\n## Acceptance criteria\n\n1. a\n2. b\n3. measured a day later (after merge)\n\n## Definition of Done\n\nd\n';
+  f.issueComments = ['**Criteria** — 1 ✅ · 2 ✅ · 3 ⏳'];
+  assert.equal(mayEnqueue(f).ok, true);
+  f.issueComments = ['**Criteria** — 1 ✅ · 2 ❌ · 3 ⏳'];
+  assert.match(mayEnqueue(f).reasons.join(), /2 ❌/);
+  assert.deepEqual([...criteriaOf("## Critères d'acceptation\n1. a (après merge)\n2. b\n").afterMerge], [1]);
+});
