@@ -3,7 +3,7 @@ name: Nightly watch
 # A failed scheduled run never stays a red mark nobody owns (#1291, #1254). When a nightly
 # workflow fails (they test `staging`, the next release), the delivery bot opens one
 # `type:bug` / `priority:P1-high` issue per workflow, in the Ready format, or adds the new run
-# to the open one. Refinement and the agent runner then take it like any other issue, and
+# to the open one. The weekly planning (#1326) refines it and the owner starts it, and
 # promotion to master waits until it is fixed (#1256).
 #
 # Every third-party action is pinned to a full commit SHA; the tag is in the trailing comment.

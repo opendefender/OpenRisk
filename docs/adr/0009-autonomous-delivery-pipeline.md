@@ -7,6 +7,7 @@ D5 below are written as amended; the proposed text of D3 (red PRs wait for the o
 retained.
 Amended: 2026-11-05 by D-101 (#1320) — the owner starts all work, and merges `staging → master`
 themself. D1, D5 and D7 are written as amended; see "Amendment of 2026-11-05" at the end.
+Amended again: 2026-11-05 by D-102 (#1325) — no local timer; see "Second amendment" at the end.
 Builds on: D-082 (required checks on `master`), D-043 (E2E as the PR gate), D-015 (DCO), D-003 and
 D-032 (labels), #1005 (`route-reviewers.sh`)
 Milestone: Autonomous delivery (#1242 to #1258)
@@ -180,13 +181,11 @@ Issues: #1247, #1248, #1249.
 - Labels, transitions, versioning, merge and deploy are scripts and workflows. A model is called
   only where judgement is needed: refining an issue, implementing, reviewing, writing notes.
 - The owner starts every implementation with `/work` (D-101); a daily brief from the bot tells
-  them which three issues to start. Around that work, agents run headless from a local timer on
-  the owner's subscription, in batches, one issue per worktree: refinement, the fix of PRs the
-  review gate sent back, and the merge steward. The timer never implements an issue. Each fix has a turn budget (`turns.fix`); past it, the runner pushes what exists, sets
-  `status:blocked` and posts the CLAUDE.md progress comment. When the usage window runs out it
-  stops after the current step, and the next run first resumes the interrupted fix, in the
-  runner's own worktree of the PR, while the review gate still refuses it. Nothing polls with a
-  model: the runner decides from `gh api` and git alone.
+  them which three issues to start, and a Monday list gives the week (D-102, #1326). No agent
+  runs on the owner's machine outside a session they opened: no local timer. On push the bot
+  reviewers review and the queue merges on green; a red CI or a refused review comes back to
+  the owner. Refinement, the sprint and the milestones are planned weekly by `po-openrisk` in
+  GitHub Actions, with a pinned model and a `max-turns` budget. Nothing polls with a model.
 - Model by role: `haiku` for mechanical work (triage, label hygiene, release-notes drafts, i18n
   parity), `sonnet` by default (implementation, review, tests, docs), `opus` only for designing
   L issues, arbitration and ADRs. Target: at most four agents on `opus`.
@@ -274,3 +273,12 @@ The owner wants to start every piece of work and to merge into `master` themself
 - **Consequences.** The owner is back on two paths: starting work and releasing. Merges into
   `develop` and promotion to `staging` stay automatic (D-088, D-100). "The owner is no longer on
   the merge path at all" (Consequences) no longer holds for `master`.
+
+## Second amendment of 2026-11-05 (D-102, #1325)
+
+No agent runs on the owner's machine outside a session they opened. The local runner and its
+timer are removed. The owner works with `/work`; on push the bot reviewers review, and the
+queue merges on green; a red CI or a refused review comes back to the owner. Refinement, the
+sprint and the milestones are planned once a week by `po-openrisk` in GitHub Actions, as the
+bot, which also posts the Monday list (#1326). D7's paragraph on the local timer no longer
+applies.

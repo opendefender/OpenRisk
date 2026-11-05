@@ -3,10 +3,28 @@
 //
 // Nothing here starts work. The owner starts each issue with /work; the brief only ranks.
 
-import { isRefined, byUrgency, trustedComments } from '../runner/select.mjs';
 import { sprintEnd } from '../board/derive.mjs';
 
 const TRUSTED = ['OWNER', 'MEMBER', 'COLLABORATOR'];
+
+// An issue counts as refined when a trusted account left a `<!-- refined: <date> … -->` marker
+// on it (D-094). Anyone can comment on a public issue, so a stranger's marker counts for
+// nothing (#1320).
+export const REFINED_MARKER = /<!--\s*refined:\s*(\d{4}-\d{2}-\d{2})/;
+export const trustedComments = (issue) => (issue.comments || []).filter((c) => TRUSTED.includes(c?.authorAssociation));
+export const isRefined = (issue) => trustedComments(issue).some((c) => REFINED_MARKER.test(c.body || ''));
+
+const priorityRank = (labels) => {
+  const m = labels.map((l) => /^priority:P([0-3])/.exec(l)?.[1]).filter(Boolean).sort();
+  return m.length ? Number(m[0]) : 9;
+};
+const tierRank = (labels) => {
+  const m = labels.map((l) => /^tier:([0-5])-/.exec(l)?.[1]).filter(Boolean).sort();
+  return m.length ? Number(m[0]) : 9;
+};
+// P0 first, then tier 0 first, then the oldest.
+export const byUrgency = (a, b) =>
+  priorityRank(a.labels) - priorityRank(b.labels) || tierRank(a.labels) - tierRank(b.labels) || a.number - b.number;
 const IN_FLIGHT = ['status:in-progress', 'status:in-review', 'status:blocked'];
 const SIZE = /<!--\s*refined:\s*(\d{4}-\d{2}-\d{2})[^>]*?size=([SML])/;
 
@@ -69,7 +87,7 @@ export function render({ today, owner, top, inFlight, waiting }) {
       lines.push(`   - Lancer : \`/work ${t.number}\``);
     });
   } else {
-    lines.push("**À lancer** — aucun ticket prêt et affiné. L'affinage automatique en prépare à chaque passe du runner.");
+    lines.push("**À lancer** — aucun ticket prêt et affiné. L'affinage automatique revient avec #1326 ; d'ici là, un ticket s'affine dans une session.");
   }
   lines.push('');
   lines.push(`**En cours** — ${inFlight.length ? inFlight.map((n) => `#${n}`).join(', ') : 'rien'}`);

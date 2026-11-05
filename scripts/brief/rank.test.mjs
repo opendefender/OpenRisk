@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { launchable, rank, reasons, render, openDecisions, inSprint, safe } from './rank.mjs';
+import { launchable, rank, reasons, render, openDecisions, inSprint, safe, isRefined, byUrgency } from './rank.mjs';
 
 const TODAY = '2026-11-05';
 const REFINED = [{ body: '<!-- refined: 2026-11-04 po-openrisk size=S --> nothing to change', authorAssociation: 'OWNER' }];
@@ -21,6 +21,17 @@ test('only Ready, refined, idle issues from trusted authors are proposed', () =>
   assert.ok(!launchable(I(7, [], { hasOpenPr: true })));
   assert.ok(!launchable(I(8, [], { authorAssociation: 'NONE' })), 'outsider');
   assert.ok(!launchable({ ...I(9, []), labels: ['status:needs-refinement'] }));
+});
+
+test('the marker counts only when a trusted account wrote it', () => {
+  assert.ok(isRefined({ comments: REFINED }));
+  assert.ok(!isRefined({ comments: [{ body: 'refined by hand', authorAssociation: 'OWNER' }] }));
+  assert.ok(!isRefined({ comments: [{ body: REFINED[0].body, authorAssociation: 'NONE' }] }));
+});
+
+test('urgency: priority, then tier, then age', () => {
+  const s = [I(3, ['priority:P1', 'tier:2-killer-workflow']), I(2, ['priority:P1-high', 'tier:0-trust']), I(1, ['priority:P2']), I(4, [])].sort(byUrgency);
+  assert.deepEqual(s.map((i) => i.number), [2, 3, 1, 4]);
 });
 
 test('a refinement marker written by an outsider counts for nothing', () => {

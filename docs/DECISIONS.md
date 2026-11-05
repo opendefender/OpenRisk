@@ -9,6 +9,18 @@ recommends, and surfaces these in the daily brief. Run `/decide` to clear them.
 
 ## Resolved
 
+### D-102 — No local timer: the owner works with /work, bots review and merge, planning runs weekly in Actions · decided 2026-11-05
+**Decided (owner, 2026-11-05)** — "Pas de timer. Je veux que le lundi je reçoive le matin la liste sur ce que je dois travailler, on le fait normalement avec le /work, puis quand je push, la review est faite, puis mis dans la file d'auto-merge, si le CI fail, je corrigerai." Answers to the follow-up questions the same day: keep the daily brief **and** add the Monday list; the Monday list is drawn up by `po-openrisk` running in Actions; the owner also fixes what the bot reviewers refuse; the merge-steward is dropped.
+
+**What changes** (#1325, #1326)
+1. The local runner (#1252, #1294) and its systemd timer are removed: `scripts/runner/`, `ops/runner/`, and the `merge-steward` agent. Nothing runs an agent on the owner's machine outside a session the owner opened.
+2. The owner's loop: `/work <n>` → push → the bot reviewers (`agent-review.yml`, D-095) → the merge queue (`merge.yml`) on green. A red CI or a refused review comes back to the owner, who fixes it in their session.
+3. Refinement, sprint planning and milestone upkeep move to a weekly `po-openrisk` run in GitHub Actions, as the bot, with no token and no write tool in the agent's hands: it returns a plan that a script validates and applies (#1326). It posts the Monday list on « Brief du jour » (#1321).
+4. The daily brief (`brief.yml`, D-101) stays.
+
+**Overturns** — ADR 0009 D7 ("agents run headless from a local timer"); D-101 point 1 for the runner's refinement and fix steps; D-094 "the runner implements only refined issues" now reads "the briefs propose only refined issues".
+**Unchanged** — merges into `develop` through the queue (D-088); `develop → staging` after the local proof (D-100); the owner merges `staging → master` (D-101).
+
 ### D-101 — The owner starts all work, gets a daily brief, and merges staging → master themself · decided 2026-11-05
 **Decided (owner, 2026-11-05)** — "Je veux toujours que le travail commence par moi." "Le runner (affinage → correction → implémentation → steward) ne doit plus être là puisque je veux lancer le travail moi-même." "Interprète la correction comme la suite d'un travail que tu as déjà lancé." "Par mail via un bot un brief dans une issue épinglée « Brief du jour », avec les 3 tickets à lancer, dans l'ordre, et pourquoi." "Après les 48 h de soak, le bot ouvre la PR staging → master avec les notes FR/EN, la preuve staging-verified et le rc testé. Il ne la merge jamais, c'est moi qui dois merger."
 
