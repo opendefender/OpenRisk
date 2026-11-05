@@ -87,7 +87,7 @@ export function render({ today, owner, top, inFlight, waiting }) {
       lines.push(`   - Lancer : \`/work ${t.number}\``);
     });
   } else {
-    lines.push("**À lancer** — aucun ticket prêt et affiné. La planification de chaque dimanche (#1326) en affine.");
+    lines.push("**À lancer** — aucun ticket prêt et affiné. L'affinage automatique revient avec #1326 ; d'ici là, un ticket s'affine dans une session.");
   }
   lines.push('');
   lines.push(`**En cours** — ${inFlight.length ? inFlight.map((n) => `#${n}`).join(', ') : 'rien'}`);

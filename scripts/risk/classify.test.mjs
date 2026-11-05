@@ -63,7 +63,7 @@ test('gate integrity: a required context removed from the workflows is reported'
 });
 
 test('the brief, the review gate, refinement and ops are red: they steer the owner and judge the agents', () => {
-  for (const p of ['scripts/brief/post.mjs', 'scripts/brief/rank.mjs', 'scripts/review/record.mjs', 'scripts/refine/close.mjs', 'ops/deploy/pull.sh']) {
+  for (const p of ['scripts/brief/post.mjs', 'scripts/brief/rank.mjs', 'scripts/review/record.mjs', 'scripts/refine/close.mjs', 'ops/deploy/pull.sh' /* hypothetical: ops/ is empty today, the rule waits for it */]) {
     assert.equal(red([file(p)]).cls, 'red', p);
   }
 });
