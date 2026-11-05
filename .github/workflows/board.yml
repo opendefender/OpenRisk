@@ -1,0 +1,147 @@
+name: Board sync
+
+# Keeps the delivery board (https://github.com/orgs/opendefender/projects/3) in line
+# with the repository (#1247, #1248, ADR 0009 D6).
+#
+# Every run recomputes every item from the facts — labels, closing PRs, branches,
+# merge commits, tags — so the event only says "something changed". A missed or
+# failed run is repaired by the next one, and the schedule is the safety net.
+#
+# Security:
+# - The job runs the sync script from the default branch, never from the PR head.
+# - A fork PR gets no secret and is skipped; the schedule picks up its effect.
+# - GITHUB_TOKEN cannot write an organisation project, so the job needs BOARD_TOKEN:
+#   a fine-grained token, resource owner opendefender, "Projects: read and write",
+#   and on this repository "Contents", "Issues", "Pull requests" and "Metadata" read.
+#   Without it the job prints a notice and succeeds.
+#
+# Every third-party action is pinned to a full commit SHA; the tag is in the
+# trailing comment.
+
+on:
+  issues:
+    types: [opened, reopened, closed, edited, labeled, unlabeled, transferred, deleted]
+  pull_request:
+    types: [opened, synchronize, reopened, closed, edited, ready_for_review, converted_to_draft]
+  create:
+  push:
+    branches: [master, develop, staging]
+    tags: ['v*']
+  schedule:
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Print the changes without writing them'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  pull-requests: read
+
+# One sync at a time; a queued run replaces an older queued one, which is fine
+# because each run recomputes everything.
+concurrency:
+  group: board-sync
+  # A newer run supersedes an older one: each run recomputes everything (#1289).
+  cancel-in-progress: true
+
+jobs:
+  sync:
+    name: Board sync
+    if: >-
+      github.repository == 'opendefender/OpenRisk' &&
+      (github.event_name != 'pull_request' ||
+       github.event.pull_request.head.repo.full_name == github.repository)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          fetch-depth: 0
+          filter: blob:none
+          persist-credentials: false
+
+      # A PR that changes the sync itself would be judged by the old copy on the default
+      # branch, which proves nothing. Its own code is checked by the test job; the board
+      # is brought up to date by the run that follows the merge.
+      - name: Skip when the PR changes the sync
+        id: gate
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          if [ -n "$PR" ] && gh api "repos/${{ github.repository }}/pulls/$PR/files" --paginate --jq '.[].filename' \
+               | grep -qE '^(scripts/board/|\.github/board\.json$|\.github/workflows/board\.yml$)'; then
+            echo "::notice::This PR changes the board sync; the sync runs after the merge."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        if: steps.gate.outputs.skip != 'true'
+        with:
+          node-version: '22'
+
+      # The bot's installation token (D-092), minted per job, valid one hour. The
+      # owner's BOARD_TOKEN is the fallback until it is revoked.
+      - name: Bot token
+        id: bot
+        if: steps.gate.outputs.skip != 'true'
+        continue-on-error: true
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          app-id: ${{ secrets.BOT_APP_ID }}
+          private-key: ${{ secrets.BOT_PRIVATE_KEY }}
+          owner: opendefender
+          repositories: OpenRisk
+
+      # Names the resource the token cannot reach, so a permission problem reads as one.
+      - name: Token check
+        if: steps.gate.outputs.skip != 'true'
+        env:
+          BOARD_TOKEN: ${{ steps.bot.outputs.token || secrets.BOARD_TOKEN }}
+        run: |
+          if [ -z "$BOARD_TOKEN" ]; then echo "::notice::BOARD_TOKEN is not set."; exit 0; fi
+          probe() {
+            out=$(curl -sS -H "Authorization: bearer $BOARD_TOKEN" -H 'Content-Type: application/json' \
+              -d "{\"query\":\"$2\"}" https://api.github.com/graphql)
+            if echo "$out" | jq -e '.errors' >/dev/null; then
+              echo "::error::token cannot reach $1: $(echo "$out" | jq -r '[.errors[].message]|join("; ")')"; return 1
+            fi
+            echo "ok: $1"
+          }
+          fail=0
+          probe "repository issues (Issues: read)" "query { repository(owner: \\\"opendefender\\\", name: \\\"OpenRisk\\\") { issues(first: 1) { totalCount } } }" || fail=1
+          probe "pull requests (Pull requests: read)" "query { repository(owner: \\\"opendefender\\\", name: \\\"OpenRisk\\\") { pullRequests(first: 1) { totalCount } } }" || fail=1
+          probe "organization project 3 (Organization > Projects: read and write)" "query { organization(login: \\\"opendefender\\\") { projectV2(number: 3) { title } } }" || fail=1
+          echo "token: ${{ steps.bot.outputs.token && 'bot installation (D-092)' || 'BOARD_TOKEN fallback' }}"
+          exit $fail
+
+      - name: Sync
+        if: steps.gate.outputs.skip != 'true'
+        env:
+          BOARD_TOKEN: ${{ steps.bot.outputs.token || secrets.BOARD_TOKEN }}
+          DRY_RUN: ${{ inputs.dry_run && '--dry-run' || '' }}
+        run: |
+          # The script runs from the default branch; until it is merged there, skip.
+          if [ ! -f scripts/board/sync.mjs ] || { [ -f scripts/ci/can-load.mjs ] && ! node scripts/ci/can-load.mjs scripts/board/sync.mjs; }; then
+            echo "::notice::scripts/board/sync.mjs is not on the default branch yet; skipped."
+            exit 0
+          fi
+          node scripts/board/sync.mjs $DRY_RUN
+
+  test:
+    name: Board scripts tests
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+      - run: node --test scripts/board/*.test.mjs

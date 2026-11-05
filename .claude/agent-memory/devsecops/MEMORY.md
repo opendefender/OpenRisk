@@ -1,10 +1,22 @@
 - [SSRF / outbound posture](ssrf-outbound-posture.md) — netguard review of PR #743: zone-suffix bypass, unguarded tenant-URL sinks
 - [Recurring defect areas](recurring-defect-areas.md) — outbound HTTP, err.Error() echo, scanner collectors, test seams
 - [Auth token-type posture](auth-token-type-posture.md) — Protected accepts MFA_REQUIRED/ENROLLMENT tokens (MFA bypass, 2026-10-11); MFA Save/race debts
+- [Agent inventory posture](agent-inventory-posture.md) — #910 review 2026-10-14: body-asserted hostname, unthrottled agent push, shared limiters
 - [Agent hooks posture](agent-hooks-posture.md) — 2026-10-14 r2: _roots.sh runs go test/git in transcript-named dirs (HIGH), builder reassign, -F gaps
-- [CI security gates posture](ci-security-gates-posture.md) — #980/#982 2026-10-14: branch protection requires retired checks, Semgrep loss, unscanned agent + stray binary
+- [CI security gates posture](ci-security-gates-posture.md) — #980/#982 drift, Semgrep loss; #1114 DAST token handling + #1125 no-store PASS 2026-10-23
 - [Router extraction posture](router-extraction-posture.md) — ADR 0005/#991: Mounter evidence-only PASS 2026-10-15; MEDIUM caller-asserted access; child-PR conditions
-- [Notification e-mail posture](notification-email-posture.md) — #757 2026-10-15: dispatcher tenant gate, Subject CRLF not injectable, LogService logs addresses
+- [Notification e-mail posture](notification-email-posture.md) — #757 dispatcher tenant gate, CRLF not injectable; #997 throttle PASS + outbox r2 PASS 2026-10-21 (2 MEDIUM)
 - [Transcript tooling posture](transcript-tooling-posture.md) — #1003 token_usage.py 2026-10-15: printed channels, meta.json task text, PASS after LOW fixes
+- [Risk acceptance posture](risk-acceptance-posture.md) — #811 2026-10-16: update endpoint writes raw status "accepted" (MEDIUM), Save() lost-update vs expiry
+- [Duplicate sign-up posture](duplicate-signup-posture.md) — #686 2026-10-21: D-073 disclosure accepted, username-collision oracle, PASS
+- [Sign-out-others posture](sign-out-others-posture.md) — #727 PASS 95e8b85c; #1059/#1060/#1061 PASS (stale-sid gate, re-issue gone, logout ends sid family)
+- [Audit hash key posture](audit-hash-key-posture.md) — #879 2026-10-21: HMAC AUDIT_HASH_KEY PASS; stale plain-SHA reset rows, Helm plaintext env
+- [Trusted device posture](trusted-device-posture.md) — #879/#1116/#1118 PASS; #1129 r3 2026-10-23 PASS (stale refresh hash -> reauth); reset race #1130
+- [OpenAPI auth docs posture](openapi-auth-docs-posture.md) — #1120 2026-10-22: spec auth claims OK; PAT→switch-org mints full session (HIGH, #1123); r2 PASS
+- [Risk timeline actor posture](risk-timeline-actor-posture.md) — #1139/#793 2026-10-28 PASS: audit-only risk timeline, Actor.kind; LOW kind absent pre-0064
+- [Scan type posture](scan-type-posture.md) — #1164 2026-10-29 PASS: scan_type selects fixed nmap args; replay drops AgentIDs (pre-existing)
+- [App-wide audit 2026-10-30](app-wide-audit-2026-10-30.md) — master 5d4e5b89 FAIL: mitigation parent gate (CRITICAL), notify SSRF, unscoped Preloads
+- [Deployment flag posture](deployment-flag-posture.md) — #1185/D-081 2026-10-30 PASS: required flag; layered values-prod.yaml fall-open (MEDIUM), late fatal
 - [Reviewer routing posture](reviewer-routing-posture.md) — #1005 2026-10-18 r1 BLOCK -> r2 PASS; runner must pass --labels (#1008)
 - [Bulk operations posture](bulk-operations-posture.md) — #1215 2026-10-30 PASS; open debts: Get not owner-scoped, assign nil-tenant mitigation, no validation
+- [Canonical model ADR posture](canonical-model-adr-posture.md) — ADR 0008 FAIL (HIGH edge tenant); #1240 impl PASS 2026-11-03, credential-filter bypasses MEDIUM

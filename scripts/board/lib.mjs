@@ -60,7 +60,17 @@ export async function gql(query, variables = {}, attempt = 0) {
     await sleep(after * 1000);
     return gql(query, variables, attempt + 1);
   }
-  const body = await res.json().catch(() => ({}));
+  const raw = await res.text();
+  let body = {};
+  try { body = JSON.parse(raw); } catch { /* not JSON: handled below */ }
+  if (res.ok && !body.errors && !body.data) {
+    // A 200 with no data and no errors was seen under load on 2026-11-04: retry it like a 502.
+    if (attempt < 4) {
+      await sleep(2 ** attempt * 2000);
+      return gql(query, variables, attempt + 1);
+    }
+    throw new Error(`GraphQL: empty response (HTTP ${res.status}): ${raw.slice(0, 200)}`);
+  }
   if (!res.ok || body.errors) {
     const msg = (body.errors || []).map((e) => e.message).join('; ') || `HTTP ${res.status}`;
     if (/rate limit|abuse|secondary/i.test(msg) && attempt < 6) {
@@ -72,12 +82,51 @@ export async function gql(query, variables = {}, attempt = 0) {
   return body.data;
 }
 
+// How REST calls ride out transient GitHub errors (#1330). Tests replace `sleep`.
+// `budgetMs` caps the total time one process spends waiting on retries, so a long outage
+// fails the run cleanly before the job's timeout instead of being cancelled mid-way.
+export const retryPolicy = { attempts: 5, baseMs: 1000, maxWaitMs: 60_000, budgetMs: 120_000, waitedMs: 0, sleep };
+
+async function backoff(ms) {
+  const wait = Math.min(ms, retryPolicy.maxWaitMs, retryPolicy.budgetMs - retryPolicy.waitedMs);
+  if (wait <= 0) return false;
+  retryPolicy.waitedMs += wait;
+  await retryPolicy.sleep(wait);
+  return true;
+}
+
+const WRITES = new Set(['POST', 'PATCH', 'PUT', 'DELETE']);
+
+// fetch with retries. A 429 or a rate-limit 403 is retried for every method: GitHub did not
+// apply the call. A 5xx or a network error is retried for reads only, since a write may
+// have landed and a retry could post a comment or a status twice. Returns the last
+// response; the caller decides what a non-OK status means.
+export async function ghFetch(url, init = {}) {
+  const write = WRITES.has((init.method || 'GET').toUpperCase());
+  for (let attempt = 1; ; attempt++) {
+    const last = attempt >= retryPolicy.attempts;
+    let res;
+    try {
+      res = await fetch(url, init);
+    } catch (e) {
+      if (write || last || !(await backoff(retryPolicy.baseMs * 2 ** (attempt - 1)))) throw e;
+      continue;
+    }
+    const retryAfter = res.headers.get('retry-after');
+    const rateLimited = res.status === 429 ||
+      (res.status === 403 && (retryAfter !== null || res.headers.get('x-ratelimit-remaining') === '0'));
+    if (last || !(rateLimited || (!write && res.status >= 500))) return res;
+    const wait = Number(retryAfter) > 0 ? Number(retryAfter) * 1000 : retryPolicy.baseMs * 2 ** (attempt - 1);
+    if (!(await backoff(wait))) return res;
+  }
+}
+
 // REST GET with Link-header pagination. Returns the concatenated array.
 export async function restAll(path) {
   const out = [];
   let url = `https://api.github.com${path}${path.includes('?') ? '&' : '?'}per_page=100`;
   while (url) {
-    const res = await fetch(url, {
+    const res = await ghFetch(url, {
       headers: { authorization: `bearer ${token()}`, accept: 'application/vnd.github+json', 'user-agent': 'openrisk-board-sync' },
     });
     if (res.status === 404) return out;

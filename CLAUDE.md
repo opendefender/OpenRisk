@@ -73,7 +73,8 @@ critical ≥ 7.0 · high ≥ 4.0 · medium ≥ 2.0 · low < 2.0
 ```
 `Risk.Score` from `pkg/scoring/engine.go` remains the source of truth.
 SmartScore (`pkg/scoring/smart.go`, 8 weighted factors, 0–100) is **additive**
-and never replaces it. Changing either formula requires an ADR and my approval.
+and never replaces it. Changing either formula requires an ADR and a decision
+recorded in `docs/DECISIONS.md` (D-089).
 
 ## Project management — GitHub is the single source of truth
 
@@ -104,7 +105,7 @@ urgent, tier says how strategic. An issue may be `priority:P1-high` and `tier:5-
 
 ### Branch, commit, PR
 - Branch: `<type>/<n>-<slug>`, in a worktree of your own:
-  `git worktree add ../OpenRisk-wt-<n> -b <type>/<n>-<slug> origin/master`
+  `git worktree add ../OpenRisk-wt-<n> -b <type>/<n>-<slug> origin/develop`
 - Commit: `type(scope): subject (#<n>)` — Conventional Commits, English, imperative.
   Always `git commit -s`: the DCO check rejects a commit without `Signed-off-by`.
 - PR body contains `Closes #<n>`. One issue → one branch → one PR.
@@ -125,7 +126,7 @@ Check the length the command prints: a body of a dozen characters is the tell.
 `gh issue edit`, `gh issue create`, `gh issue list`, `gh pr list` and
 `gh pr checks` work normally.
 If `gh pr create` fails with the same error, check `gh pr list --head <branch>`
-first, then `gh api -X POST repos/opendefender/OpenRisk/pulls -f title=… -f head=… -f base=master -F body=@pr.md`.
+first, then `gh api -X POST repos/opendefender/OpenRisk/pulls -f title=… -f head=… -f base=develop -F body=@pr.md`.
 
 ### The loop every agent follows on an issue
 1. Read the issue and its discussion through `gh api` (see GitHub CLI above).
@@ -143,7 +144,7 @@ first, then `gh api -X POST repos/opendefender/OpenRisk/pulls -f title=… -f he
    with zero re-reading. It is not optional.
 6. Open the PR with `Closes #<n>`. Wait for `gh pr checks <pr>`. A check
    your branch turned red is fixed before anything else; a check already red
-   on `master` is named in the PR body with its tracking issue. Only then set
+   on `develop` is named in the PR body with its tracking issue. Only then set
    `status:in-review`. A red CI is not a gate anyone reads.
 7. Never close an issue. The merge closes it.
 
@@ -164,18 +165,26 @@ Agents decide and proceed on: implementation approach within the architecture,
 naming, test strategy, refactors under 200 lines inside one module, copy
 wording, label and milestone hygiene, bug fixes with an existing issue.
 
-Agents **stop and escalate** by appending to `docs/DECISIONS.md` and reporting
-in the next brief, on: any change to the Score Engine or SmartScore formula ·
-any new external dependency or paid service · any schema migration that drops
-or renames a column · anything touching auth, crypto, or tenant isolation
-design (fixes are fine, redesign is not) · pricing, licensing, or brand naming ·
-cutting a milestone's scope · anything costing money · anything irreversible.
+Agents **decide, implement and record** (D-089) everything else that used to be
+escalated: Score Engine or SmartScore formula (with an ADR), new external
+dependency, auth, crypto or tenant isolation design, pricing, licensing, brand
+naming, a milestone's scope. Take the option that is best for the product, not the
+cheapest to build. Record each one in `docs/DECISIONS.md` under **Resolved** as
+`Decided (agent, <date>)` with the question, the options, the choice and the
+reason, so the owner can overturn it. A migration that drops or renames a column
+ships in two releases (expand, then contract), so no single release loses data.
+
+Agents **stop and escalate** (append under **Open** and report in the next brief)
+on two things only: anything that spends money, and anything irreversible
+(deleting data or a repository, rewriting published history, a public legal
+commitment).
 
 **Escalation is cheap, silence is expensive.** When in doubt, escalate and keep
 working on something else. Never block waiting for me.
 
 ## Agent operating rules
 
+- The full rulebook, with what enforces each rule, is `docs/AGENT_RULES.md`.
 - Read before you write. Never assume file content.
 - Smallest correct change. No opportunistic refactors.
 - Ambiguity: state it, state your chosen interpretation, proceed.
