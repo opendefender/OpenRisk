@@ -211,9 +211,9 @@ describe('#783 — threat intel below Business (criteria 15, 16)', () => {
     const risk = { id: 'r-1', raw: { source_cve_id: 'CVE-2024-3094' } } as unknown as UiRisk;
     renderIt(<DrawerCTI r={risk} />);
 
-    expect(
-      await screen.findByText(/disponible à partir du plan Business/),
-    ).toHaveTextContent('CVE-2024-3094');
+    expect(await screen.findByText(/disponible à partir du plan Business/)).toHaveTextContent(
+      'CVE-2024-3094',
+    );
     await waitFor(() => expect(calls).toContain('/entitlements'));
     expect(calls.filter((u) => u.startsWith('/cti'))).toEqual([]);
   });

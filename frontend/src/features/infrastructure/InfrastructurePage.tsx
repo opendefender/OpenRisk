@@ -167,7 +167,8 @@ export function InfrastructurePage() {
     if (isOnPrem(cfg.provider) && onlineAgents.length === 0) toast(t('infra.toast.queued'));
     triggerScan.mutate(cfg.id, {
       onSuccess: () => toast.success(t('infra.toast.started', { name: cfg.name })),
-      onError: (e) => toast.error(planCapErrorMessage(e, locale) ?? apiError(e) ?? t('infra.toast.failed')),
+      onError: (e) =>
+        toast.error(planCapErrorMessage(e, locale) ?? apiError(e) ?? t('infra.toast.failed')),
     });
   };
 

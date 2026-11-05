@@ -8,7 +8,9 @@ import { describe, it, expect } from 'vitest';
 import { QueryClient } from '@tanstack/react-query';
 import { retryUnlessPlanRefusal } from '../retryPolicy';
 
-const refusal = { response: { status: 402, data: { code: 'limit_reached', limit_key: 'frameworks' } } };
+const refusal = {
+  response: { status: 402, data: { code: 'limit_reached', limit_key: 'frameworks' } },
+};
 const outage = { response: { status: 503 } };
 
 function client() {
