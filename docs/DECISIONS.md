@@ -9,6 +9,9 @@ recommends, and surfaces these in the daily brief. Run `/decide` to clear them.
 
 ## Resolved
 
+### D-100 — No promotion to staging without a local proof on the staging stack · decided 2026-11-05
+**Decided (owner, 2026-11-05)** — "Avant de merge un truc sur stag il faut pull develop en local et run sur la stack stag avant de prouver que tout est bon." Before `staging` moves, the candidate `develop` commit is pulled on the owner's machine, deployed on the real staging stack (`openrisk-staging`), and tested against it: the full E2E suite, the smoke suite and `/health`. The proof is a commit status `staging-verified` on that exact SHA, with the test summary, the image digest and the time, and it goes into the promotion's comment. Without it, the promotion is refused. A non-LLM script of the pull deployer does it (#1246, #1255). A failure rolls the staging stack back and opens a P1 bug.
+
 ### D-099 — Releases: a repository script instead of release-please, rc from staging, final from master, signed · decided 2026-11-05
 **Decided (agent: release-manager, 2026-11-05, under D-089; replaces the release-please part of D-088)**
 
