@@ -4,14 +4,13 @@
 // Nothing here starts work. The owner starts each issue with /work; the brief only ranks.
 
 import { sprintEnd } from '../board/derive.mjs';
-
-const TRUSTED = ['OWNER', 'MEMBER', 'COLLABORATOR'];
+import { isTrusted } from '../ready/trust.mjs';
 
 // An issue counts as refined when a trusted account left a `<!-- refined: <date> … -->` marker
-// on it (D-094). Anyone can comment on a public issue, so a stranger's marker counts for
-// nothing (#1320).
+// on it (D-094): a person of the organisation, or the delivery bot by its login (D-104).
+// Anyone can comment on a public issue, so a stranger's marker counts for nothing (#1320).
 export const REFINED_MARKER = /<!--\s*refined:\s*(\d{4}-\d{2}-\d{2})/;
-export const trustedComments = (issue) => (issue.comments || []).filter((c) => TRUSTED.includes(c?.authorAssociation));
+export const trustedComments = (issue) => (issue.comments || []).filter((c) => isTrusted(c));
 export const isRefined = (issue) => trustedComments(issue).some((c) => REFINED_MARKER.test(c.body || ''));
 
 const priorityRank = (labels) => {
@@ -28,10 +27,10 @@ export const byUrgency = (a, b) =>
 const IN_FLIGHT = ['status:in-progress', 'status:in-review', 'status:blocked'];
 const SIZE = /<!--\s*refined:\s*(\d{4}-\d{2}-\d{2})[^>]*?size=([SML])/;
 
-// issue = { number, title, labels, authorAssociation, comments: [{ body, authorAssociation }], hasOpenPr,
+// issue = { number, title, labels, authorAssociation, author, comments: [{ body, authorAssociation, author }], hasOpenPr,
 //           milestone: { title, dueOn } | null, sprint: { startDate, duration } | null }
 export function launchable(i) {
-  return TRUSTED.includes(i.authorAssociation) &&
+  return isTrusted(i) &&
     i.labels.includes('status:ready') &&
     !i.labels.some((l) => IN_FLIGHT.includes(l) || l.startsWith('tier:5')) &&
     !i.hasOpenPr &&
@@ -87,7 +86,7 @@ export function render({ today, owner, top, inFlight, waiting }) {
       lines.push(`   - Lancer : \`/work ${t.number}\``);
     });
   } else {
-    lines.push("**À lancer** — aucun ticket prêt et affiné. L'affinage automatique revient avec #1326 ; d'ici là, un ticket s'affine dans une session.");
+    lines.push("**À lancer** — aucun ticket prêt et affiné. L'affinage tourne chaque dimanche soir (po-openrisk, #1326) ; un ticket peut aussi s'affiner dans une session.");
   }
   lines.push('');
   lines.push(`**En cours** — ${inFlight.length ? inFlight.map((n) => `#${n}`).join(', ') : 'rien'}`);

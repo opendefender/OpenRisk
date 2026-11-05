@@ -93,3 +93,23 @@ test('open decisions are read from the Open section only', () => {
   assert.deepEqual(openDecisions(md), ['D-120 — Pick a font']);
   assert.deepEqual(openDecisions('## Open\n\n*No open decision.*\n\n## Resolved\n'), []);
 });
+
+// The delivery bot's own comments and issues carry author_association CONTRIBUTOR, not MEMBER
+// (found on #1326): it is trusted by its login, and only if GitHub says it is a Bot.
+const BOT = { __typename: 'Bot', login: 'opendefender-delivery-bot' };
+const botMarker = { body: '<!-- refined: 2026-11-04 po-openrisk size=M -->', authorAssociation: 'CONTRIBUTOR', author: BOT };
+
+test('the delivery bot counts by login, under both spellings, a stranger of the same association does not', () => {
+  assert.ok(isRefined({ comments: [botMarker] }));
+  assert.ok(isRefined({ comments: [{ ...botMarker, author: undefined, user: { type: 'Bot', login: 'opendefender-delivery-bot[bot]' } }] }));
+  assert.ok(!isRefined({ comments: [{ ...botMarker, author: { __typename: 'User', login: 'someone' } }] }), 'CONTRIBUTOR stranger');
+  assert.ok(!isRefined({ comments: [{ ...botMarker, author: { __typename: 'User', login: 'opendefender-delivery-bot' } }] }), 'a human who registered the bot name');
+  assert.ok(!isRefined({ comments: [{ ...botMarker, author: { login: 'opendefender-delivery-bot' } }] }), 'login alone, with no Bot type');
+});
+
+test('an issue the bot wrote (a split child) is launchable once refined by the bot', () => {
+  const child = I(60, [], { authorAssociation: 'CONTRIBUTOR', author: BOT, comments: [botMarker] });
+  assert.ok(launchable(child));
+  assert.ok(!launchable({ ...child, author: { __typename: 'User', login: 'stranger' } }));
+  assert.deepEqual(reasons(child, TODAY).slice(-1), ['affiné le 2026-11-04, taille M']);
+});

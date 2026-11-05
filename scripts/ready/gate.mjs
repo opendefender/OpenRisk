@@ -36,6 +36,7 @@ const toIssue = (n) => ({
   milestone: n.milestone?.title ?? null,
   labels: (n.labels?.nodes ?? n.labels ?? []).map((l) => l.name ?? l),
   authorAssociation: n.author_association ?? n.authorAssociation ?? null,
+  author: n.author ?? n.user ?? null,
   isPR: Boolean(n.pull_request),
   state: (n.state || '').toUpperCase(),
 });
@@ -46,7 +47,7 @@ async function openIssues() {
   do {
     const d = await gql(`query($after: String) { repository(owner: "${OWNER}", name: "${REPO}") {
       issues(states: OPEN, first: 100, after: $after) { pageInfo { hasNextPage endCursor }
-        nodes { number body authorAssociation milestone { title } labels(first: 50) { nodes { name } } } } } }`, { after });
+        nodes { number body authorAssociation author { __typename login } milestone { title } labels(first: 50) { nodes { name } } } } } }`, { after });
     out.push(...d.repository.issues.nodes.map((n) => toIssue({ ...n, state: 'open' })));
     after = d.repository.issues.pageInfo.hasNextPage ? d.repository.issues.pageInfo.endCursor : null;
   } while (after);

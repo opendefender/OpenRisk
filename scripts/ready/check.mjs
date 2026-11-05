@@ -8,9 +8,10 @@
 // written over months by different people: "Problem", "Problème", "Goal", "Outcome",
 // "Context" all state the problem; "Critères d'acceptation" is "Acceptance criteria".
 
+import { isTrusted } from './trust.mjs';
+
 const PROBLEM = /^(problem|problème|probleme|goal|objectif|outcome|context|contexte|why|pourquoi|user story)\b/i;
 const CRITERIA = /^(acceptance criteria|critères? d['’]acceptation|criteres? d['’]acceptation|acceptance)\b/i;
-const TRUSTED = ['OWNER', 'MEMBER', 'COLLABORATOR'];
 // An epic tracks child issues; each child carries its own criteria (e.g. #899, #1002).
 const CHILDREN = /^(child issues|sub-issues|issues filles|sous-issues)\b/i;
 const DOD = /^(definition of done|dod|définition de (fini|terminé)|definition de (fini|termine))\b/i;
@@ -35,7 +36,7 @@ const nonEmpty = (s) => s.replace(/<!--[\s\S]*?-->/g, '').trim().length > 0;
 const numbered = (s) => /^\s*\d+[.)]\s+\S/m.test(s);
 
 // Returns { ready: boolean, missing: string[] } for one issue.
-// issue: { body, milestone: string|null, labels: string[] }
+// issue: { body, milestone: string|null, labels: string[], authorAssociation?, author? }
 export function checkReady(issue) {
   const missing = [];
   const secs = sections(issue.body);
@@ -57,7 +58,7 @@ export function checkReady(issue) {
   if (!issue.milestone) missing.push('a milestone');
   // The repository is public: an issue written by an outsider is never made Ready by a
   // script, or the daily brief would send the owner to a stranger's ticket (#1252 criterion 7).
-  if (issue.authorAssociation && !TRUSTED.includes(issue.authorAssociation)) {
+  if (issue.authorAssociation && !isTrusted(issue)) {
     missing.push('a maintainer to take it over (it was opened from outside the team)');
   }
   const labels = issue.labels || [];

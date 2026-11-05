@@ -84,3 +84,11 @@ test('an issue from outside the team never becomes Ready; a team issue does', ()
   }
   for (const a of ['OWNER', 'MEMBER', 'COLLABORATOR']) assert.ok(checkReady(ok({ authorAssociation: a })).ready, a);
 });
+
+test('the delivery bot is a maintainer by login; a CONTRIBUTOR stranger is not', () => {
+  const bot = { __typename: 'Bot', login: 'opendefender-delivery-bot' };
+  assert.ok(checkReady(ok({ authorAssociation: 'CONTRIBUTOR', author: bot })).ready, 'bot-authored child');
+  assert.ok(checkReady(ok({ authorAssociation: 'CONTRIBUTOR', author: { type: 'Bot', login: 'opendefender-delivery-bot[bot]' } })).ready);
+  assert.match(checkReady(ok({ authorAssociation: 'CONTRIBUTOR', author: { __typename: 'User', login: 'stranger' } })).missing.join(), /maintainer/);
+  assert.match(checkReady(ok({ authorAssociation: 'CONTRIBUTOR', author: { __typename: 'User', login: 'opendefender-delivery-bot' } })).missing.join(), /maintainer/);
+});
