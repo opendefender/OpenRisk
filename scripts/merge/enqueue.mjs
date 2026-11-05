@@ -13,6 +13,7 @@
 import { gql } from '../board/lib.mjs';
 import { R, OWNER, REPO, rest, restAll, statuses, comments, arg, BOT_LOGIN } from '../review/gh.mjs';
 import { mayEnqueue, bodyAtClaim, followUpRefs } from './conditions.mjs';
+import { judgeAll } from './run.mjs';
 
 const DRY = process.argv.includes('--dry-run');
 const ENABLED = (process.env.AUTOMERGE_ENABLED ?? 'false').toLowerCase() === 'true';
@@ -84,7 +85,9 @@ async function one(pr) {
   // Only the Merge workflow enqueues, as the bot (D-092, D-095). Run anywhere else, this
   // script would enqueue with the caller's account; an agent asks the workflow instead.
   if (!process.env.GITHUB_ACTIONS) return { pr, result: 'refused', reasons: ['enqueue runs only in the Merge workflow; use `gh workflow run merge.yml -f pr=<n> -f dry_run=false`'] };
-  await gql(`mutation($id: ID!) { enqueuePullRequest(input: { pullRequestId: $id }) { mergeQueueEntry { position } } }`, { id: p.node_id });
+  // expectedHeadOid pins the commit that was judged: a push after facts() read the PR makes
+  // GitHub refuse the enqueue, so an unreviewed head never enters the queue (#1330).
+  await gql(`mutation($id: ID!, $sha: GitObjectID!) { enqueuePullRequest(input: { pullRequestId: $id, expectedHeadOid: $sha }) { mergeQueueEntry { position } } }`, { id: p.node_id, sha: p.head.sha });
   return { pr, result: 'enqueued' };
 }
 
@@ -96,7 +99,11 @@ const print = (o) => {
 try {
   if (process.argv.includes('--all')) {
     const prs = await restAll(`${R}/pulls?state=open&base=develop`);
-    for (const p of prs) print(await one(p.number));
+    const errored = await judgeAll(prs.map((p) => p.number), one);
+    if (errored) {
+      console.error(`enqueue: ${errored} PR(s) could not be judged; the next run retries them`);
+      process.exit(1);
+    }
   } else {
     const pr = Number(arg('pr'));
     if (!pr) { console.error('usage: enqueue.mjs --pr <n> | --all [--dry-run]'); process.exit(2); }
