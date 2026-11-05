@@ -1,13 +1,13 @@
 // Small GitHub REST helpers for the review gate. The token comes from scripts/board/lib.mjs:
 // BOARD_TOKEN / GH_TOKEN / GITHUB_TOKEN, else `gh auth token`.
-import { token, restAll } from '../board/lib.mjs';
+import { token, restAll, ghFetch } from '../board/lib.mjs';
 
 export const [OWNER, REPO] = (process.env.GITHUB_REPOSITORY || 'opendefender/OpenRisk').split('/');
 export const R = `/repos/${OWNER}/${REPO}`;
 export { restAll };
 
 export async function rest(method, path, body) {
-  const res = await fetch(`https://api.github.com${path}`, {
+  const res = await ghFetch(`https://api.github.com${path}`, {
     method,
     headers: { authorization: `bearer ${token()}`, accept: 'application/vnd.github+json', 'user-agent': 'openrisk-review-gate', 'content-type': 'application/json' },
     body: body ? JSON.stringify(body) : undefined,

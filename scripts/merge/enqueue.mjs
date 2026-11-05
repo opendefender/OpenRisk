@@ -13,6 +13,7 @@
 import { gql } from '../board/lib.mjs';
 import { R, rest, restAll, statuses, comments, arg, BOT_LOGIN } from '../review/gh.mjs';
 import { mayEnqueue } from './conditions.mjs';
+import { judgeAll } from './run.mjs';
 
 const DRY = process.argv.includes('--dry-run');
 const ENABLED = (process.env.AUTOMERGE_ENABLED ?? 'false').toLowerCase() === 'true';
@@ -73,7 +74,11 @@ const print = (o) => {
 try {
   if (process.argv.includes('--all')) {
     const prs = await restAll(`${R}/pulls?state=open&base=develop`);
-    for (const p of prs) print(await one(p.number));
+    const errored = await judgeAll(prs.map((p) => p.number), one);
+    if (errored) {
+      console.error(`enqueue: ${errored} PR(s) could not be judged; the next run retries them`);
+      process.exit(1);
+    }
   } else {
     const pr = Number(arg('pr'));
     if (!pr) { console.error('usage: enqueue.mjs --pr <n> | --all [--dry-run]'); process.exit(2); }
