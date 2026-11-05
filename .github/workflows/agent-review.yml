@@ -79,7 +79,7 @@ jobs:
           PR: ${{ github.event.pull_request.number }}
           REPO_URL: ${{ github.server_url }}/${{ github.repository }}
         run: |
-          if [ ! -f scripts/review/route.mjs ]; then
+          if [ ! -f scripts/review/route.mjs ] || { [ -f scripts/ci/can-load.mjs ] && ! node scripts/ci/can-load.mjs scripts/review/route.mjs; }; then
             echo "::notice::scripts/review/route.mjs is not on the default branch yet; skipped."; exit 0
           fi
           git fetch --quiet --filter=blob:none "$REPO_URL" "+refs/pull/$PR/head:refs/remotes/pr/head"
@@ -124,7 +124,7 @@ jobs:
           RUN_PRS: ${{ toJSON(github.event.workflow_run.pull_requests) }}
           HAS_AGENT_TOKEN: ${{ secrets.AGENT_OAUTH_TOKEN != '' }}
         run: |
-          if [ ! -f scripts/review/plan.mjs ] || [ "$HAS_AGENT_TOKEN" != "true" ]; then
+          if [ ! -f scripts/review/plan.mjs ] || { [ -f scripts/ci/can-load.mjs ] && ! node scripts/ci/can-load.mjs scripts/review/plan.mjs; } || [ "$HAS_AGENT_TOKEN" != "true" ]; then
             echo "::notice::reviewer jobs not available (scripts not on the default branch, or AGENT_OAUTH_TOKEN not set)."
             echo 'roles=[]' >> "$GITHUB_OUTPUT"; exit 0
           fi
@@ -250,7 +250,7 @@ jobs:
           SHA: ${{ github.event.sha }}
           PR_INPUT: ${{ inputs.pr }}
         run: |
-          if [ ! -f scripts/review/aggregate.mjs ]; then
+          if [ ! -f scripts/review/aggregate.mjs ] || { [ -f scripts/ci/can-load.mjs ] && ! node scripts/ci/can-load.mjs scripts/review/aggregate.mjs; }; then
             echo "::notice::scripts/review/aggregate.mjs is not on the default branch yet; skipped."; exit 0
           fi
           if [ -n "$PR_INPUT" ]; then PRS="$PR_INPUT"
