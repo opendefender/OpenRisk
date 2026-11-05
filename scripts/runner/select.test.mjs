@@ -54,3 +54,16 @@ test('marker, budgets and the usage-limit signal', () => {
   assert.ok(hitUsageLimit('Claude AI usage limit reached|1793900000'));
   assert.ok(!hitUsageLimit('all tests passed'));
 });
+
+import { resumeTarget } from './select.mjs';
+
+test('resume: an interrupted run comes back first; closed or blocked issues do not', () => {
+  const issues = [I(50, ['status:in-progress'], { size: 'S' }), I(51, ['status:blocked'])];
+  assert.deepEqual(resumeTarget({ resume: { step: 'implement', issue: 50 } }, issues), { step: 'implement', issue: 50, size: 'S' });
+  // A run that never returned (power cut) is found through `current`.
+  assert.deepEqual(resumeTarget({ current: { step: 'fix', issue: 50 } }, issues), { step: 'fix', issue: 50, size: 'S' });
+  assert.equal(resumeTarget({ resume: { step: 'implement', issue: 51 } }, issues), null);
+  assert.equal(resumeTarget({ resume: { step: 'implement', issue: 99 } }, issues), null);
+  assert.equal(resumeTarget({ current: { step: 'steward', issue: null } }, issues), null);
+  assert.equal(resumeTarget({}, issues), null);
+});
