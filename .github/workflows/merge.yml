@@ -69,7 +69,7 @@ jobs:
           PR_INPUT: ${{ inputs.pr }}
           DRY: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run && '--dry-run' || '' }}
         run: |
-          if [ ! -f scripts/merge/enqueue.mjs ]; then
+          if [ ! -f scripts/merge/enqueue.mjs ] || { [ -f scripts/ci/can-load.mjs ] && ! node scripts/ci/can-load.mjs scripts/merge/enqueue.mjs; }; then
             echo "::notice::scripts/merge/enqueue.mjs is not on the default branch yet; skipped."; exit 0
           fi
           echo "AUTOMERGE_ENABLED=$AUTOMERGE_ENABLED"

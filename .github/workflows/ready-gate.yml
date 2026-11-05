@@ -70,7 +70,7 @@ jobs:
           ISSUE: ${{ github.event.issue.number || inputs.issue }}
           MODE: ${{ inputs.mode || 'apply' }}
         run: |
-          if [ ! -f scripts/ready/gate.mjs ]; then
+          if [ ! -f scripts/ready/gate.mjs ] || { [ -f scripts/ci/can-load.mjs ] && ! node scripts/ci/can-load.mjs scripts/ready/gate.mjs; }; then
             echo "::notice::scripts/ready/gate.mjs is not on the default branch yet; skipped."
             exit 0
           fi

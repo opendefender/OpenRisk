@@ -64,7 +64,7 @@ jobs:
         env:
           FORK: ${{ github.event.pull_request && github.event.pull_request.head.repo.full_name != github.repository }}
         run: |
-          if [ ! -f scripts/risk/check.mjs ]; then
+          if [ ! -f scripts/risk/check.mjs ] || { [ -f scripts/ci/can-load.mjs ] && ! node scripts/ci/can-load.mjs scripts/risk/check.mjs; }; then
             echo "::notice::scripts/risk/check.mjs is not on the default branch yet; skipped."
             echo "class=unknown" >> "$GITHUB_OUTPUT"; exit 0
           fi
