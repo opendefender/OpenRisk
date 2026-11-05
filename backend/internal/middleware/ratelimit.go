@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/utils"
 )
 
 // RateLimitBackend is the storage contract behind the rate limiter. Both the
@@ -144,7 +145,12 @@ func RateLimit(config RateLimitConfig) fiber.Handler {
 		// main.go). Reading X-Forwarded-For directly — as this code used to —
 		// let any client mint a fresh counter per request and defeated the
 		// throttle outright (audit finding F-04).
-		key := c.IP()
+		//
+		// The key is COPIED (#1302): behind a trusted proxy c.IP() is the
+		// X-Forwarded-For value, a string Fiber backs with the request buffer and
+		// reuses after the request. Stored as is, a client's map key was rewritten by
+		// the next request, and counters mixed between clients.
+		key := utils.CopyString(c.IP())
 
 		if config.LimitByUser {
 			// Try to get user ID from context
