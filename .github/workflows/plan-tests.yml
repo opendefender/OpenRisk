@@ -1,0 +1,34 @@
+name: Planning tests
+
+# Unit tests of the weekly planning (#1326) and of what it shares with the brief and the
+# Ready gate. No secret, no token: the planning workflow itself (plan.yml) has no
+# pull_request trigger, so a PR can never reach its credentials; this one only runs tests.
+#
+# Every third-party action is pinned to a full commit SHA; the tag is in the trailing comment.
+
+on:
+  pull_request:
+    paths:
+      - 'scripts/plan/**'
+      - 'scripts/brief/**'
+      - 'scripts/ready/**'
+      - 'scripts/refine/**'
+      - 'scripts/board/derive.mjs'
+      - '.github/workflows/plan-tests.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Planning tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+      - run: node --test scripts/plan/*.test.mjs scripts/brief/*.test.mjs scripts/ready/*.test.mjs scripts/board/*.test.mjs

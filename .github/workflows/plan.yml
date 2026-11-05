@@ -1,0 +1,236 @@
+name: Weekly planning
+
+# Every Sunday evening `po-openrisk` plans the week (#1326, D-102, D-104): it refines the
+# backlog, schedules the sprint, keeps milestones honest, and the delivery bot posts the
+# Monday list on the pinned issue « Brief du jour ». The owner receives it by email.
+# Nothing starts here: the owner starts every piece of work with /work (D-101).
+#
+# The agent holds no token and no write tool. Three jobs, joined by artifacts, so that no
+# credential that can write exists while the model runs:
+#
+#   prepare  a bot token that can only READ: facts.json, issues/<n>.md, prompt.txt
+#   agent    NO bot token. po-openrisk reads the files and answers with one JSON plan
+#   apply    mints the write token, validates the plan (scripts/plan/plan.mjs), re-reads each
+#            issue, applies the five allowed kinds of action, posts the Monday list
+#
+# Containment of the agent (same as the review gate, D-095, plus what its design gate found):
+# - Its working copy is the default branch with `.claude/`, `CLAUDE.md`, `.mcp.json` and
+#   `.git` removed, plus the issue files; HOME is empty.
+# - Read, Grep and Glob only; reads of /proc and of the runner's file commands are denied,
+#   so it cannot read its own OAuth token from /proc/self/environ.
+# - Its prompt is built from the default branch; issue text is quoted as data. Issues from
+#   people outside the team are not given to it at all.
+# - Its answer is scanned for secret-shaped text before it leaves the job, and validated and
+#   sanitised again before the bot publishes a word of it.
+# - No `pull_request` trigger: a fork can never reach this workflow.
+# - Budget: one scheduled run a week, sonnet, --max-turns, the CLI pinned to an exact
+#   version; turns, cost and tokens are printed in the log.
+#
+# Every third-party action is pinned to a full commit SHA; the tag is in the trailing comment.
+# Rollback: disable the workflow (`gh workflow disable plan.yml`). What a run changed is in
+# its log: a refinement keeps the previous text in the issue body under « Original text ».
+
+on:
+  schedule:
+    - cron: '0 18 * * 0' # Sunday 18:00 UTC, for the Monday that follows
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Run the agent and print the plan and the Monday list, change nothing'
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: plan
+  cancel-in-progress: false
+
+env:
+  AGENT_CLI: '@anthropic-ai/claude-code@2.1.307'
+  PLAN_MODEL: sonnet
+  PLAN_MAX_TURNS: '40'
+
+jobs:
+  prepare:
+    name: Facts and prompt
+    if: github.repository == 'opendefender/OpenRisk'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      ready: ${{ steps.guard.outputs.ready }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+      - name: Guard
+        id: guard
+        env:
+          HAS_AGENT_TOKEN: ${{ secrets.AGENT_OAUTH_TOKEN != '' }}
+        run: |
+          ready=true
+          if [ "$HAS_AGENT_TOKEN" != "true" ]; then
+            echo "::notice::AGENT_OAUTH_TOKEN is not set; the weekly planning is skipped."; ready=false
+          elif ! node scripts/ci/can-load.mjs scripts/plan/prepare.mjs scripts/plan/apply.mjs; then
+            echo "::notice::the planning scripts are not complete on the default branch yet; skipped."; ready=false
+          fi
+          echo "ready=$ready" >> "$GITHUB_OUTPUT"
+      - name: Tests
+        if: steps.guard.outputs.ready == 'true'
+        run: node --test scripts/plan/*.test.mjs scripts/brief/*.test.mjs scripts/ready/*.test.mjs
+      - name: Bot token (read only)
+        if: steps.guard.outputs.ready == 'true'
+        id: bot
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          app-id: ${{ secrets.BOT_APP_ID }}
+          private-key: ${{ secrets.BOT_PRIVATE_KEY }}
+          owner: opendefender
+          repositories: OpenRisk
+          permission-contents: read
+          permission-issues: read
+          permission-pull-requests: read
+          permission-organization-projects: read
+      - name: Prepare
+        if: steps.guard.outputs.ready == 'true'
+        env:
+          BOARD_TOKEN: ${{ steps.bot.outputs.token }}
+        run: node scripts/plan/prepare.mjs --out "$RUNNER_TEMP/plan-input"
+      - name: Hand over the input
+        if: steps.guard.outputs.ready == 'true'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: plan-input
+          path: ${{ runner.temp }}/plan-input
+          retention-days: 7
+          if-no-files-found: error
+
+  agent:
+    name: po-openrisk
+    needs: prepare
+    if: needs.prepare.outputs.ready == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: plan-input
+          path: ${{ runner.temp }}/plan-input
+      - name: Lay out the agent's directory
+        run: |
+          set -eu
+          D="$RUNNER_TEMP/plan-data"
+          mkdir -p "$D/repo" "$RUNNER_TEMP/home" "$RUNNER_TEMP/plan-answer"
+          git archive HEAD | tar -x -C "$D/repo"
+          # Nothing of the repository may configure the agent.
+          rm -rf "$D/repo/.claude" "$D/repo/CLAUDE.md" "$D/repo/.mcp.json"
+          cp -r "$RUNNER_TEMP/plan-input/issues" "$D/issues"
+          # No read of /proc (its own environment holds the OAuth token), of the runner's
+          # file commands, or of the artifact that holds the full facts.
+          jq -n --arg tmp "$RUNNER_TEMP" '{permissions: {deny: [
+            "Read(//proc/**)", "Read(//sys/**)",
+            ("Read(/" + $tmp + "/_runner_file_commands/**)"),
+            ("Read(/" + $tmp + "/plan-input/**)")
+          ]}}' > "$RUNNER_TEMP/settings.json"
+      - name: Plan
+        id: agent
+        # A crash must still reach the apply job, which posts a degraded Monday list and
+        # fails the run; the step after the upload turns the outcome into a red job.
+        continue-on-error: true
+        timeout-minutes: 20
+        working-directory: ${{ runner.temp }}/plan-data
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.AGENT_OAUTH_TOKEN }}
+          HOME: ${{ runner.temp }}/home
+        run: |
+          npx --yes "$AGENT_CLI" -p --output-format json --model "$PLAN_MODEL" --max-turns "$PLAN_MAX_TURNS" \
+            --settings "$RUNNER_TEMP/settings.json" \
+            --allowedTools "Read,Grep,Glob" \
+            --disallowedTools "Bash,Edit,Write,MultiEdit,NotebookEdit,WebFetch,WebSearch,Task" \
+            < "$RUNNER_TEMP/plan-input/prompt.txt" > "$RUNNER_TEMP/out.json"
+          jq -r '.result // empty' "$RUNNER_TEMP/out.json" > "$RUNNER_TEMP/plan-answer/answer.txt"
+          jq -c '{turns: .num_turns, cost_usd: .total_cost_usd, duration_ms: .duration_ms, usage: .usage}' "$RUNNER_TEMP/out.json" | tee "$RUNNER_TEMP/plan-answer/usage.json"
+      - name: Keep secrets out of the artifact
+        if: always()
+        run: |
+          touch "$RUNNER_TEMP/plan-answer/answer.txt"
+          if grep -Eq 'ghs_|ghp_|gho_|ghu_|ghr_|github_pat_|sk-ant-|-----BEGIN|xox[abprs]-|AKIA[0-9A-Z]{16}' "$RUNNER_TEMP/plan-answer/answer.txt"; then
+            : > "$RUNNER_TEMP/plan-answer/answer.txt"
+            echo "::error::the answer held secret-shaped text and was discarded"
+          fi
+      - name: Hand over the answer
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: plan-answer
+          path: ${{ runner.temp }}/plan-answer
+          retention-days: 7
+          if-no-files-found: ignore
+      - name: Fail visibly when the agent failed
+        if: steps.agent.outcome != 'success'
+        run: |
+          echo "::error::the planning agent failed (see the Plan step); the apply job posts a degraded Monday list"
+          exit 1
+
+  apply:
+    name: Validate, apply, post
+    needs: [prepare, agent]
+    # always(): a failed agent must still produce the degraded list.
+    if: always() && needs.prepare.outputs.ready == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: plan-input
+          path: ${{ runner.temp }}/plan-input
+      - name: Fetch the answer
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        # The artifact is missing when the agent job died before uploading it; apply.mjs then
+        # reads no answer, posts the degraded list and exits 1.
+        continue-on-error: true
+        with:
+          name: plan-answer
+          path: ${{ runner.temp }}/plan-answer
+      - name: Bot token (write)
+        id: bot
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          app-id: ${{ secrets.BOT_APP_ID }}
+          private-key: ${{ secrets.BOT_PRIVATE_KEY }}
+          owner: opendefender
+          repositories: OpenRisk
+          permission-contents: read
+          permission-pull-requests: read
+          permission-issues: write
+          permission-organization-projects: write
+      - name: Apply
+        env:
+          BOARD_TOKEN: ${{ steps.bot.outputs.token }}
+          DRY: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run && '--dry-run' || '' }}
+        run: |
+          node scripts/plan/apply.mjs --facts "$RUNNER_TEMP/plan-input/facts.json" \
+            --answer "$RUNNER_TEMP/plan-answer/answer.txt" --repo-root "$GITHUB_WORKSPACE" $DRY
+      - name: Fail visibly when the agent failed
+        if: always() && needs.agent.result != 'success'
+        env:
+          AGENT_RESULT: ${{ needs.agent.result }}
+        run: |
+          echo "::error::the agent job ended as '$AGENT_RESULT'"
+          exit 1
