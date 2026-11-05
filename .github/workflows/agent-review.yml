@@ -30,6 +30,10 @@ on:
     workflows: ['CI Pipeline']
     types: [completed]
   status:
+  # The review gate also holds in the merge queue (#1311): the queue requires the bot's
+  # `agent-review` and `Red gate` on the merge-group commit.
+  merge_group:
+    types: [checks_requested]
   workflow_dispatch:
     inputs:
       pr:
@@ -256,6 +260,37 @@ jobs:
           if [ -n "$PR_INPUT" ]; then PRS="$PR_INPUT"
           else PRS=$(gh api "repos/${{ github.repository }}/commits/$SHA/pulls" --jq '.[] | select(.state=="open") | .number'); fi
           for pr in $PRS; do node scripts/review/aggregate.mjs --pr "$pr"; done
+
+  queue:
+    name: Agent review (merge queue)
+    if: github.event_name == 'merge_group'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+      - name: Bot token
+        id: bot
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          app-id: ${{ secrets.BOT_APP_ID }}
+          private-key: ${{ secrets.BOT_PRIVATE_KEY }}
+          owner: opendefender
+          repositories: OpenRisk
+      - name: Carry the review gate into the queue
+        env:
+          BOARD_TOKEN: ${{ steps.bot.outputs.token }}
+          SHA: ${{ github.event.merge_group.head_sha }}
+        run: |
+          if [ ! -f scripts/review/queue-gate.mjs ] || { [ -f scripts/ci/can-load.mjs ] && ! node scripts/ci/can-load.mjs scripts/review/queue-gate.mjs; }; then
+            echo "::notice::scripts/review/queue-gate.mjs is not on the default branch yet; skipped."; exit 0
+          fi
+          node scripts/review/queue-gate.mjs --sha "$SHA"
 
   test:
     name: Agent review tests
