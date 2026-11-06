@@ -53,7 +53,9 @@ data:
       # (#1314). nginx drops every inherited add_header in a location that sets
       # one of its own, and both static locations set Cache-Control, so the set
       # that sat here reached no static response at all. /api/ carries the
-      # backend's own headers. Keep the two copies identical.
+      # backend's own headers. Keep the two copies identical. HSTS comes from
+      # the TLS-terminating ingress for now (#1358); the CSP has no script-src
+      # yet (#1359).
       
       upstream backend {
         least_conn;

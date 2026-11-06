@@ -53,11 +53,12 @@ import (
 //                     body, a header or a token a cross-site page cannot
 //                     attach for the victim. The reason is part of the entry.
 //   acceptedRisk(...) reads a cookie and is left unchecked on purpose; the
-//                     reason is part of the entry and in the #1314 proof note.
+//                     reason is part of the entry.
 //
 // Parser limits: main.go only, `<recv>.<Method>("literal", …)` calls only, on
 // app, api, protected and the groups main.go derives from them. Any other
-// receiver fails the test rather than being skipped.
+// receiver, and any registration form the parser cannot read (Add, Route,
+// Mount, RegisterRoutes), fails the test rather than being skipped.
 // ---------------------------------------------------------------------------
 
 type csrfDefence string
@@ -75,7 +76,7 @@ func acceptedRisk(reason string) csrfDefence { return csrfDefence("accepted-risk
 // mutatingRouteDefences is the table. Paths are relative to /api/v1.
 var mutatingRouteDefences = map[string]csrfDefence{
 	// --- Outside the Protected gate --------------------------------------
-	"POST /auth/login":                      notCookie("credentials in the body; filed separately as login CSRF, see the #1314 proof note"),
+	"POST /auth/login":                      notCookie("credentials in the body; it reads only the trusted-device cookie. Login CSRF is #1357"),
 	"POST /auth/register":                   notCookie("credentials in the body, no session yet"),
 	"POST /auth/refresh":                    viaHandler,
 	"POST /auth/logout":                     acceptedRisk("a forged logout can only end the victim's own session; refusing a logout would leave a live session behind, which is the worse failure"),
@@ -333,8 +334,17 @@ func parseMutatingRoutes(t *testing.T, src string) []mutatingRegistration {
 		}
 		parent, ok := prefixes[m[2]]
 		require.True(t, ok, "group %s derives from %s, which the parser does not know", m[1], m[2])
+		_, reused := prefixes[m[1]]
+		require.False(t, reused, "group variable %s is declared twice; the parser keys prefixes by name", m[1])
 		prefixes[m[1]] = parent + m[3]
 	}
+
+	routers := []string{"app"}
+	for name := range prefixes {
+		routers = append(routers, regexp.QuoteMeta(name))
+	}
+	unreadable := regexp.MustCompile(`\b(?:`+strings.Join(routers, "|")+`)\.(?:Add|Route|Mount)\(|RegisterRoutes\(`).FindAllString(src, -1)
+	require.Empty(t, unreadable, "main.go registers routes in a form this parser cannot read; extend it before the table can vouch for them")
 
 	var out []mutatingRegistration
 	for _, r := range parseRegistrations(t, src) {
