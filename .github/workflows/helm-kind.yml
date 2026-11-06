@@ -161,7 +161,8 @@ jobs:
             echo "$1 -> ${got:-<missing $2>}"
             [ "$(printf '%s\n' "$got" | grep -ci "^$2:")" = 1 ] && printf '%s' "$got" | grep -qi -- "$3"
           }
-          asset=$(curl -fsS http://localhost:18080/ | grep -o '/assets/[^"]*\.js' | head -1)
+          # Vite emits into /static (assetsDir in frontend/vite.config.ts).
+          asset=$(curl -fsS http://localhost:18080/ | grep -o '/static/[^"]*\.js' | head -1)
           for url in http://localhost:18080/ "http://localhost:18080$asset" http://localhost:18080/no/such/page; do
             check "$url" Content-Security-Policy "frame-ancestors 'none'"
             check "$url" X-Frame-Options DENY
