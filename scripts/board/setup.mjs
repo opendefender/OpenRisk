@@ -100,7 +100,7 @@ Statuses: Inbox → Refinement → Ready → In progress → In review → On de
 | In review | an open PR with \`Closes #n\`, or \`status:in-review\` | **Sprint**, **Flow** |
 | On dev | the PR is merged into \`develop\` | **Flow**, **Release** |
 | On staging | the commit is on \`staging\` (sprint-end promotion) | **Flow**, **Release** |
-| Released | the commit is in a \`vX.Y.Z\` tag | archived from views |
+| Released | the commit is in a \`vX.Y.Z\` tag | left out of Flow and Release |
 | Blocked / Needs owner | \`status:blocked\` / \`needs-owner\` | **Needs attention** |
 
 ## Automation
