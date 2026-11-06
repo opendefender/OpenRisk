@@ -58,7 +58,7 @@ import (
 // Parser limits: main.go only, `<recv>.<Method>("literal", …)` calls only, on
 // app, api, protected and the groups main.go derives from them. Any other
 // receiver, and any registration form the parser cannot read (Add, Route,
-// Mount, RegisterRoutes), fails the test rather than being skipped.
+// Mount, Register*Routes), fails the test rather than being skipped.
 // ---------------------------------------------------------------------------
 
 type csrfDefence string
@@ -343,7 +343,7 @@ func parseMutatingRoutes(t *testing.T, src string) []mutatingRegistration {
 	for name := range prefixes {
 		routers = append(routers, regexp.QuoteMeta(name))
 	}
-	unreadable := regexp.MustCompile(`\b(?:`+strings.Join(routers, "|")+`)\.(?:Add|Route|Mount)\(|RegisterRoutes\(`).FindAllString(src, -1)
+	unreadable := regexp.MustCompile(`\b(?:`+strings.Join(routers, "|")+`)\.(?:Add|Route|Mount)\(|\bRegister\w*Routes\(`).FindAllString(src, -1)
 	require.Empty(t, unreadable, "main.go registers routes in a form this parser cannot read; extend it before the table can vouch for them")
 
 	var out []mutatingRegistration
