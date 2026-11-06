@@ -49,3 +49,25 @@ jobs:
         run: |
           cd backend
           go test ./internal/security/... -v
+
+  asvs-register:
+    name: ASVS Register Proofs
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      # Rule 12: an ASVS chapter marked "met" names a file and a test that
+      # exist. Runs on every PR, not only doc changes: deleting or renaming a
+      # proof file is what turns a true row false (#1313).
+      - name: Checker tests
+        run: node --test scripts/security/check-asvs-register.test.mjs
+      - name: Every "met" row has a proof that exists
+        run: node scripts/security/check-asvs-register.mjs
