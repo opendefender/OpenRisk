@@ -163,6 +163,9 @@ jobs:
           }
           # Vite emits into /static (assetsDir in frontend/vite.config.ts).
           asset=$(curl -fsS http://localhost:18080/ | grep -o '/static/[^"]*\.js' | head -1)
+          # The step runs `bash -e` without pipefail: an empty match would not stop
+          # it, and the loop would check the shell twice and prove no asset.
+          [ -n "$asset" ] || { echo "no hashed asset under /static in index.html"; exit 1; }
           for url in http://localhost:18080/ "http://localhost:18080$asset" http://localhost:18080/no/such/page; do
             check "$url" Content-Security-Policy "frame-ancestors 'none'"
             check "$url" X-Frame-Options DENY
