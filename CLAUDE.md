@@ -105,7 +105,7 @@ urgent, tier says how strategic. An issue may be `priority:P1-high` and `tier:5-
 
 ### Branch, commit, PR
 - Branch: `<type>/<n>-<slug>`, in a worktree of your own:
-  `git worktree add ../OpenRisk-wt-<n> -b <type>/<n>-<slug> origin/master`
+  `git worktree add ../OpenRisk-wt-<n> -b <type>/<n>-<slug> origin/develop`
 - Commit: `type(scope): subject (#<n>)` — Conventional Commits, English, imperative.
   Always `git commit -s`: the DCO check rejects a commit without `Signed-off-by`.
 - PR body contains `Closes #<n>`. One issue → one branch → one PR.
@@ -126,7 +126,7 @@ Check the length the command prints: a body of a dozen characters is the tell.
 `gh issue edit`, `gh issue create`, `gh issue list`, `gh pr list` and
 `gh pr checks` work normally.
 If `gh pr create` fails with the same error, check `gh pr list --head <branch>`
-first, then `gh api -X POST repos/opendefender/OpenRisk/pulls -f title=… -f head=… -f base=master -F body=@pr.md`.
+first, then `gh api -X POST repos/opendefender/OpenRisk/pulls -f title=… -f head=… -f base=develop -F body=@pr.md`.
 
 ### The loop every agent follows on an issue
 1. Read the issue and its discussion through `gh api` (see GitHub CLI above).
@@ -144,7 +144,7 @@ first, then `gh api -X POST repos/opendefender/OpenRisk/pulls -f title=… -f he
    with zero re-reading. It is not optional.
 6. Open the PR with `Closes #<n>`. Wait for `gh pr checks <pr>`. A check
    your branch turned red is fixed before anything else; a check already red
-   on `master` is named in the PR body with its tracking issue. Only then set
+   on `develop` is named in the PR body with its tracking issue. Only then set
    `status:in-review`. A red CI is not a gate anyone reads.
 7. Never close an issue. The merge closes it.
 
@@ -184,6 +184,7 @@ working on something else. Never block waiting for me.
 
 ## Agent operating rules
 
+- The full rulebook, with what enforces each rule, is `docs/AGENT_RULES.md`.
 - Read before you write. Never assume file content.
 - Smallest correct change. No opportunistic refactors.
 - Ambiguity: state it, state your chosen interpretation, proceed.

@@ -257,6 +257,48 @@ guard 'gh api repos/o/r/issues/1/comments -f body=@c.md'; expect "guard blocks g
 guard 'gh api repos/o/r/issues/1/comments --field "body=@c.md"'; expect "guard lets --field body=@file through (it is -F)" 0 $?
 guard 'gh api repos/o/r/issues/1/comments -F body=@c.md'; expect "guard lets gh api -F body=@file through" 0 $?
 guard 'gh api -X POST repos/o/r/pulls -f title=x -f head=b'; expect "guard lets plain -f fields through" 0 $?
+
+# --- #1277 rulebook guards ------------------------------------------------------
+guard 'cat .env'; expect "guard blocks cat .env (4.2)" 2 $?
+guard 'grep DB_PASSWORD backend/.env.staging'; expect "guard blocks grep in .env.staging (4.2)" 2 $?
+guard 'cat .env.staging.example'; expect "guard lets an .env example be read (4.2)" 0 $?
+guard 'grep -rn envFrom helm/values.yaml'; expect "guard lets env words outside .env files through (4.2)" 0 $?
+guard "sed -i 's/x/y/' CLAUDE.md"; expect "guard blocks sed -i on CLAUDE.md (5.1)" 2 $?
+guard 'echo x >> .claude/hooks/guard-bash.sh'; expect "guard blocks appending to a hook (5.1)" 2 $?
+guard 'cp /tmp/x.md .claude/skills/work/SKILL.md'; expect "guard blocks overwriting a skill (5.1)" 2 $?
+guard 'echo note > .claude/agent-memory/tech-lead/x.md'; expect "guard lets agent memory be written (5.1)" 0 $?
+guard 'cat CLAUDE.md'; expect "guard lets CLAUDE.md be read (5.1)" 0 $?
+guard 'docker compose -f docker-compose.yaml down -v'; expect "guard blocks down -v on a real stack (6.2)" 2 $?
+guard 'docker volume rm openrisk_openrisk_data'; expect "guard blocks docker volume rm (6.2)" 2 $?
+guard 'docker system prune -af'; expect "guard blocks docker system prune (6.2)" 2 $?
+guard 'docker compose -f docker-compose.yaml --env-file /tmp/claude-1000/p/s/scratchpad/v/dev.env down -v'; expect "guard lets a scratchpad throwaway stack be wiped (6.2)" 0 $?
+guard 'docker compose -f docker-compose.yaml down'; expect "guard lets down without -v through (6.2)" 0 $?
+guard "gh api graphql -f query='mutation { updateProjectV2Field(input: {fieldId: \"x\", singleSelectOptions: []}) { clientMutationId } }'"; expect "guard blocks a raw singleSelectOptions mutation (7.1)" 2 $?
+guard 'node scripts/board/setup.mjs'; expect "guard lets the board setup script run (7.1)" 0 $?
+guard 'gh label delete type:bug'; expect "guard blocks gh label delete (7.2)" 2 $?
+guard 'gh api -X DELETE repos/o/r/milestones/3'; expect "guard blocks deleting a milestone (7.2)" 2 $?
+guard 'gh api -X DELETE repos/o/r/labels/type:bug'; expect "guard blocks deleting a repository label via the API (7.2)" 2 $?
+guard 'gh api -X DELETE repos/o/r/issues/5/labels/status:ready'; expect "guard lets a label be removed from an issue (7.2)" 0 $?
+guard 'gh issue edit 5 --add-label status:ready'; expect "guard lets labels be added (7.2)" 0 $?
+guard 'gh issue close 12'; expect "guard blocks gh issue close (7.3)" 2 $?
+guard 'gh api -X PATCH repos/o/r/issues/12 -f state=closed'; expect "guard blocks closing an issue via the API (7.3)" 2 $?
+guard 'gh api -X PATCH repos/o/r/issues/12 -F body=@b.md'; expect "guard lets an issue body be updated (7.3)" 0 $?
+guard "gh api graphql -f query='mutation { enqueuePullRequest(input: {pullRequestId: \"x\"}) { clientMutationId } }'"; expect "guard blocks a raw enqueue (3.2)" 2 $?
+guard "gh api graphql -f query='mutation { mergePullRequest(input: {pullRequestId: \"x\"}) { clientMutationId } }'"; expect "guard blocks a raw merge mutation (3.2)" 2 $?
+guard 'gh api -X PUT repos/o/r/pulls/12/merge'; expect "guard blocks the REST merge endpoint (3.2)" 2 $?
+guard 'node scripts/merge/enqueue.mjs --pr 12 --dry-run'; expect "guard lets the enqueue dry run through (3.2)" 0 $?
+guard 'gh api repos/o/r/pulls/12/files'; expect "guard lets PR files be read (3.2)" 0 $?
+
+gedit() { python3 -c 'import json,sys;print(json.dumps({"tool_input":{"file_path":sys.argv[1]}}))' "$1" | bash "$HOOKS/guard-edit.sh" 2>/dev/null; }
+gedit '/repo/CLAUDE.md'; expect "edit guard blocks CLAUDE.md (5.1)" 2 $?
+gedit '/repo/.claude/settings.json'; expect "edit guard blocks settings.json (5.1)" 2 $?
+gedit '/repo/.claude/settings.local.json'; expect "edit guard blocks settings.local.json (5.1)" 2 $?
+gedit '/repo/.claude/hooks/guard-bash.sh'; expect "edit guard blocks a hook (5.1)" 2 $?
+gedit '/repo/.claude/agents/dev/backend-go.md'; expect "edit guard blocks an agent (5.1)" 2 $?
+gedit '/repo/.claude/skills/work/SKILL.md'; expect "edit guard blocks a skill (5.1)" 2 $?
+gedit '/repo/.claude/agent-memory/tech-lead/MEMORY.md'; expect "edit guard lets agent memory be written (5.1)" 0 $?
+gedit '/repo/docs/AGENT_RULES.md'; expect "edit guard lets docs be written (5.1)" 0 $?
+gedit '/repo/backend/internal/domain/risk.go'; expect "edit guard lets code be written (5.1)" 0 $?
 guard 'gh api repos/o/r/issues/1/comments -fbody=@c.md'; expect "guard blocks -fbody=@file" 2 $?
 guard 'gh api repos/o/r/issues/1/comments --field=body=@c.md'; expect "guard lets --field=body=@file through" 0 $?
 guard 'gh api repos/o/r/issues/1/comments --raw-field=body=@c.md'; expect "guard blocks --raw-field=body=@file" 2 $?

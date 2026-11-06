@@ -76,7 +76,7 @@ const README = `Delivery board for opendefender/OpenRisk (ADR 0009, #1247, #1248
 | Size | refinement | set by hand or by the refining agent |
 | Risk class | #1250 | the PR's risk check |
 | Sprint | planning, sync | sprint planning sets it on Ready items; the sync gives the current sprint to work started without one, and carries unfinished work over |
-| Agent, Tokens | #1252 | the agent runner |
+| Agent, Tokens | #1257 | not written since the local runner was removed (D-102); #1257 decides what fills them |
 
 Statuses: Inbox → Refinement → Ready → In progress → In review → On dev → On staging → Released, plus Blocked and Needs owner. Issues closed as not planned or duplicate are archived.`;
 

@@ -16,3 +16,5 @@ State as reviewed 2026-10-14 (PR #980 retiring CI jobs, PR #982 Go 1.26.9 / D-07
 
 **Why:** CI cleanup keeps changing what actually gates; branch protection is configured outside the repo and drifts silently.
 **How to apply:** on any workflow PR, run `gh api repos/opendefender/OpenRisk/branches/master/protection` and diff required contexts against the job names that still exist. Running govulncheck locally on backend needs a govulncheck built with go1.26.9 and GOMEMLIMIT (plain `go run` got OOM-killed). See [[recurring-defect-areas]].
+
+Update 2026-10-23 (#1114 DAST, #1125 no-store): both PASS. dast.yml masks a per-run admin password and the bearer, passes ZAP_AUTH_HEADER_VALUE via `docker -e NAME`, greps zap-report/ for the literal token and deletes hits before the always() summary/upload steps (masks don't cover summaries or artifacts). Leak check matches only that one token, not other session cookies ZAP may record. API now defaults Cache-Control: no-store in SecurityHeaders; SSE handlers still send `no-cache` (LOW).

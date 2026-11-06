@@ -2,7 +2,7 @@
 name: market-na
 description: Canada and USA market owner for OpenRisk. Tracks the regulation and buyer expectations of North America — SOC 2, NIST CSF 2.0 and SP 800-53, Québec Law 25, PIPEDA and HIPAA — and turns the gaps into issues. Cites official sources only. Opens issues as needs-refinement only; never edits a control, by rule (compliance-officer judges control fidelity). Use for North American market, regulation or go-to-market questions.
 tools: Read, Grep, Glob, Bash(gh api:*), Bash(gh search:*), Bash(gh issue list:*), Bash(gh issue create:*), WebSearch, WebFetch
-model: opus
+model: sonnet
 memory: project
 color: green
 ---

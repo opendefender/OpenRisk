@@ -5,6 +5,9 @@ Proposed: 2026-11-04, on #1242
 Accepted: 2026-11-04 by the owner, with amendments — D-088 (`docs/DECISIONS.md`). D3 and
 D5 below are written as amended; the proposed text of D3 (red PRs wait for the owner) was not
 retained.
+Amended: 2026-11-05 by D-101 (#1320) — the owner starts all work, and merges `staging → master`
+themself. D1, D5 and D7 are written as amended; see "Amendment of 2026-11-05" at the end.
+Amended again: 2026-11-05 by D-102 (#1325) — no local timer; see "Second amendment" at the end.
 Builds on: D-082 (required checks on `master`), D-043 (E2E as the PR gate), D-015 (DCO), D-003 and
 D-032 (labels), #1005 (`route-reviewers.sh`)
 Milestone: Autonomous delivery (#1242 to #1258)
@@ -51,8 +54,9 @@ What was read rather than assumed, on origin/master `5d08e593` (2026-11-04):
 
 ### D1 — Three branches, one commit, one image
 
-- `develop` receives every PR, through a GitHub merge queue. `staging` and `master` receive no
-  PR and no push except the promotions below.
+- `develop` receives every PR, through a GitHub merge queue. `staging` receives no PR and no
+  push except the promotion below. `master` receives only the PR `staging → master` that the
+  bot opens and **the owner merges** (D-101).
 - A promotion is a fast-forward of the **same commit**. If a fast-forward is impossible, the
   promotion stops and opens a bug; it never forces and never merges.
 - Each `develop` commit is built **once** into GHCR images tagged `sha-<full sha>`. Promotion
@@ -61,6 +65,23 @@ What was read rather than assumed, on origin/master `5d08e593` (2026-11-04):
 - The versioned release image stays the one `release.yml` builds from the tag, with its gates
   unchanged. It is built from the same commit that soaked on staging; the reproducibility check
   already in `release.yml` is what ties the two.
+
+As built by #1245 (`.github/workflows/images.yml`, `scripts/images/promote.sh`):
+
+- The per-commit images are `ghcr.io/opendefender/openrisk-backend` and
+  `ghcr.io/opendefender/openrisk-frontend`, from `backend/Dockerfile` and `frontend/Dockerfile`,
+  the two images the Compose stacks run. Each carries `org.opencontainers.image.revision` and
+  `.source`; the backend links the full SHA into `main.Commit`, which `/api/v1/health` reports.
+- Promotion copies the manifest by digest (`imagetools create --prefer-index=false`) and fails
+  unless the promoted tag has the digest of `sha-<sha>`. A commit with no `sha-` image fails its
+  promotion; nothing builds it then. `ci.yml` builds the all-in-one image as a check only and
+  pushes nothing.
+- The release image `ghcr.io/opendefender/openrisk:X.Y.Z` is a different artifact: the
+  all-in-one root `Dockerfile`, built by `release.yml` from the tag, gated, then pushed. It is
+  not a retag of a `sha-` image and its digest differs. What ties them is the commit: the tag
+  is cut on the `master` commit whose `sha-` images soaked on staging. The reproducibility check
+  proves the release binary is the one that commit produces; it does not compare it with the
+  binary inside the `sha-` backend image, which is linked with different flags.
 
 Issues: #1244, #1245.
 
@@ -130,8 +151,11 @@ Issues: #1243, #1245, #1246.
 - **develop → staging**, automatically, when the commit runs on dev and the full e2e suite and a
   smoke suite pass again against the dev stack, pulled from the merged commit (not the PR's CI
   run), and no `priority:P0-critical` issue is open.
-- **staging → master**, automatically, when the commit has run on staging for **48 h** (D-088) with no rollback and no new P0/P1 bug, at least one `feat` or `fix` landed
-  since the last tag, and no P0 or P1 issue is open in the active milestone.
+- **staging → master**: when the commit has run on staging for **48 h** (D-088) with no rollback and no new P0/P1 bug, at least one `feat` or `fix` landed
+  since the last tag, and no P0 or P1 issue is open in the active milestone, the bot **opens**
+  the PR `staging → master` with the FR/EN notes, the `staging-verified` proof and the tested
+  `rc`. It never merges it; the owner does (D-101). The final tag goes on the soaked `staging`
+  commit once the owner has merged.
 - **Tag**: version and changelog come from Conventional Commits since the last tag, and must
   update `VERSION` so `release.yml`'s guard passes. release-please does this, and it is a new
   third-party action, accepted by D-088 and pinned by SHA. `selfhost-install.yml` runs on the candidate
@@ -156,11 +180,12 @@ Issues: #1247, #1248, #1249.
 
 - Labels, transitions, versioning, merge and deploy are scripts and workflows. A model is called
   only where judgement is needed: refining an issue, implementing, reviewing, writing notes.
-- Agents run headless from a local timer on the owner's subscription, in batches, one issue per
-  worktree. Each issue has a turn budget by size; past it, the runner pushes what exists, sets
-  `status:blocked` and posts the CLAUDE.md progress comment. When the usage window runs out it
-  stops after the current step and the next run resumes with `/resume`. Nothing polls with a
-  model: the runner decides from `gh api` and git alone.
+- The owner starts every implementation with `/work` (D-101); a daily brief from the bot tells
+  them which three issues to start, and a Monday list gives the week (D-102, #1326). No agent
+  runs on the owner's machine outside a session they opened: no local timer. On push the bot
+  reviewers review and the queue merges on green; a red CI or a refused review comes back to
+  the owner. Refinement, the sprint and the milestones are planned weekly by `po-openrisk` in
+  GitHub Actions, with a pinned model and a `max-turns` budget. Nothing polls with a model.
 - Model by role: `haiku` for mechanical work (triage, label hygiene, release-notes drafts, i18n
   parity), `sonnet` by default (implementation, review, tests, docs), `opus` only for designing
   L issues, arbitration and ADRs. Target: at most four agents on `opus`.
@@ -235,3 +260,25 @@ On staging / Released columns carry the rest.
 
 Added on 2026-11-04 at the owner's request: #1266 (sprints), #1267 (backlog triage), #1268 (team
 operating model), #1270 (automatic refinement).
+
+## Amendment of 2026-11-05 (D-101, #1320)
+
+The owner wants to start every piece of work and to merge into `master` themself.
+
+- **Start of work.** The runner has no implement step. The owner starts an issue with `/work`.
+  `.github/workflows/brief.yml` posts each morning, as the bot, the three issues to start on the
+  pinned issue « Brief du jour », which emails the owner through GitHub notifications.
+- **`master`.** Its ruleset requires a PR and has no bypass actor. After the soak the bot opens
+  the PR `staging → master`; only the owner merges it. #1256 implements this.
+- **Consequences.** The owner is back on two paths: starting work and releasing. Merges into
+  `develop` and promotion to `staging` stay automatic (D-088, D-100). "The owner is no longer on
+  the merge path at all" (Consequences) no longer holds for `master`.
+
+## Second amendment of 2026-11-05 (D-102, #1325)
+
+No agent runs on the owner's machine outside a session they opened. The local runner and its
+timer are removed. The owner works with `/work`; on push the bot reviewers review, and the
+queue merges on green; a red CI or a refused review comes back to the owner. Refinement, the
+sprint and the milestones are planned once a week by `po-openrisk` in GitHub Actions, as the
+bot, which also posts the Monday list (#1326). D7's paragraph on the local timer no longer
+applies.

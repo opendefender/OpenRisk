@@ -132,6 +132,7 @@ type jobDispatch struct {
 	JobID    string   `json:"job_id"`
 	ConfigID string   `json:"config_id"`
 	Provider string   `json:"provider"`
+	ScanType string   `json:"scan_type"` // discovery | vulnerability; absent = vulnerability (#1164)
 	Targets  []string `json:"targets"`
 	AgentIDs []string `json:"agent_ids"`
 }
