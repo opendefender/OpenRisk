@@ -51,6 +51,9 @@ jobs:
       - name: Propagated versions must not drift
         run: make check-version
 
+      - name: Release cut script tests
+        run: node --test scripts/release/*.test.mjs
+
   # --------------------------------------------------------------------------
   # 2. Build + test, stage the release artifacts and the source SBOMs.
   # --------------------------------------------------------------------------
@@ -294,6 +297,11 @@ jobs:
           ' CHANGELOG.md > release-notes.md
           if [ ! -s release-notes.md ]; then
             echo "Release ${TAG}. See CHANGELOG.md." > release-notes.md
+          fi
+          # French notes, written by /release next to the English CHANGELOG (#1364).
+          FR="docs/releases/${VER}.fr.md"
+          if [ -f "$FR" ]; then
+            { echo; echo "---"; echo; echo "## Notes en français"; echo; cat "$FR"; } >> release-notes.md
           fi
 
       - name: Detect pre-release (tag contains a hyphen, e.g. -rc.N)
