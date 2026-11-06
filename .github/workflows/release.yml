@@ -34,6 +34,23 @@ jobs:
       version: ${{ steps.version.outputs.version }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+
+      # A release ships only a commit the owner promoted (D-105): an rc tag sits
+      # on the develop commit merged into staging, a final on the commit merged
+      # into master. A tag pushed on any other branch publishes nothing.
+      - name: Tagged commit must be on staging or master
+        run: |
+          set -euo pipefail
+          git fetch -q origin staging master
+          if git merge-base --is-ancestor "$GITHUB_SHA" origin/staging \
+             || git merge-base --is-ancestor "$GITHUB_SHA" origin/master; then
+            echo "OK: ${GITHUB_SHA} is on staging or master."
+          else
+            echo "::error::Tagged commit ${GITHUB_SHA} is not on staging or master. Promote it first (/release)."
+            exit 1
+          fi
 
       - name: Tag must equal v$(VERSION)
         id: version
