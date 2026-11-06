@@ -16,12 +16,16 @@ name: Weekly planning
 # Containment of the agent (same as the review gate, D-095, plus what its design gate found):
 # - Its working copy is the default branch with `.claude/`, `CLAUDE.md`, `.mcp.json` and
 #   `.git` removed, plus the issue files; HOME is empty.
-# - Read, Grep and Glob only; reads of /proc and of the runner's file commands are denied,
-#   so it cannot read its own OAuth token from /proc/self/environ.
+# - Read and Glob only (no Grep: it could walk /proc/<pid>/environ from `/`); reads of /proc
+#   and of the runner's file commands are denied, so it cannot read its own OAuth token.
+#   That containment is UNPROVEN until a canary dry run: the PLAN_CANARY below exists to
+#   show it, and the answer is discarded if it ever appears.
 # - Its prompt is built from the default branch; issue text is quoted as data. Issues from
 #   people outside the team are not given to it at all.
-# - Its answer is scanned for secret-shaped text before it leaves the job, and validated and
-#   sanitised again before the bot publishes a word of it.
+# - Only the plan leaves the job, as canonical JSON (scripts/plan/canon.mjs), after a scan for
+#   secret-shaped text, the OAuth token and the canary, hidden or not. The raw answer is never
+#   uploaded: the repository is public and artifacts are downloadable. The apply job validates
+#   and sanitises the plan again, and checks every string once more before each write.
 # - No `pull_request` trigger: a fork can never reach this workflow.
 # - Budget: one scheduled run a week, sonnet, --max-turns, the CLI pinned to an exact
 #   version; turns, cost and tokens are printed in the log.
@@ -60,6 +64,7 @@ jobs:
     timeout-minutes: 15
     outputs:
       ready: ${{ steps.guard.outputs.ready }}
+      facts_sha256: ${{ steps.facts.outputs.sha256 }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
         with:
@@ -76,7 +81,7 @@ jobs:
           ready=true
           if [ "$HAS_AGENT_TOKEN" != "true" ]; then
             echo "::notice::AGENT_OAUTH_TOKEN is not set; the weekly planning is skipped."; ready=false
-          elif ! node scripts/ci/can-load.mjs scripts/plan/prepare.mjs scripts/plan/apply.mjs; then
+          elif ! node scripts/ci/can-load.mjs scripts/plan/prepare.mjs scripts/plan/apply.mjs scripts/plan/canon.mjs; then
             echo "::notice::the planning scripts are not complete on the default branch yet; skipped."; ready=false
           fi
           echo "ready=$ready" >> "$GITHUB_OUTPUT"
@@ -101,6 +106,11 @@ jobs:
         env:
           BOARD_TOKEN: ${{ steps.bot.outputs.token }}
         run: node scripts/plan/prepare.mjs --out "$RUNNER_TEMP/plan-input"
+      - name: Hash the facts
+        if: steps.guard.outputs.ready == 'true'
+        id: facts
+        # apply refuses a facts.json that does not hash to this: the artifact crosses a job.
+        run: echo "sha256=$(sha256sum "$RUNNER_TEMP/plan-input/facts.json" | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"
       - name: Hand over the input
         if: steps.guard.outputs.ready == 'true'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
@@ -121,6 +131,9 @@ jobs:
         with:
           ref: ${{ github.event.repository.default_branch }}
           persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           name: plan-input
@@ -130,6 +143,10 @@ jobs:
           set -eu
           D="$RUNNER_TEMP/plan-data"
           mkdir -p "$D/repo" "$RUNNER_TEMP/home" "$RUNNER_TEMP/plan-answer"
+          # A value mentioned nowhere else: if it comes back in the answer, the agent read its environment.
+          canary="canary-$(openssl rand -hex 16)"
+          echo "::add-mask::$canary"
+          echo "PLAN_CANARY=$canary" >> "$GITHUB_ENV"
           git archive HEAD | tar -x -C "$D/repo"
           # Nothing of the repository may configure the agent.
           rm -rf "$D/repo/.claude" "$D/repo/CLAUDE.md" "$D/repo/.mcp.json"
@@ -154,19 +171,21 @@ jobs:
         run: |
           npx --yes "$AGENT_CLI" -p --output-format json --model "$PLAN_MODEL" --max-turns "$PLAN_MAX_TURNS" \
             --settings "$RUNNER_TEMP/settings.json" \
-            --allowedTools "Read,Grep,Glob" \
-            --disallowedTools "Bash,Edit,Write,MultiEdit,NotebookEdit,WebFetch,WebSearch,Task" \
+            --allowedTools "Read,Glob" \
+            --disallowedTools "Bash,Grep,Edit,Write,MultiEdit,NotebookEdit,WebFetch,WebSearch,Task" \
             < "$RUNNER_TEMP/plan-input/prompt.txt" > "$RUNNER_TEMP/out.json"
-          jq -r '.result // empty' "$RUNNER_TEMP/out.json" > "$RUNNER_TEMP/plan-answer/answer.txt"
+          jq -r '.result // empty' "$RUNNER_TEMP/out.json" > "$RUNNER_TEMP/answer.raw"
           jq -c '{turns: .num_turns, cost_usd: .total_cost_usd, duration_ms: .duration_ms, usage: .usage}' "$RUNNER_TEMP/out.json" | tee "$RUNNER_TEMP/plan-answer/usage.json"
-      - name: Keep secrets out of the artifact
+      - name: Canonical plan only
         if: always()
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.AGENT_OAUTH_TOKEN }}
+        # Exits 1, and writes no plan.json, when there is no valid plan or the answer holds a
+        # secret-shaped string, the OAuth token or the canary. Nothing else is uploaded.
         run: |
-          touch "$RUNNER_TEMP/plan-answer/answer.txt"
-          if grep -Eq 'ghs_|ghp_|gho_|ghu_|ghr_|github_pat_|sk-ant-|-----BEGIN|xox[abprs]-|AKIA[0-9A-Z]{16}' "$RUNNER_TEMP/plan-answer/answer.txt"; then
-            : > "$RUNNER_TEMP/plan-answer/answer.txt"
-            echo "::error::the answer held secret-shaped text and was discarded"
-          fi
+          touch "$RUNNER_TEMP/answer.raw"
+          node scripts/plan/canon.mjs --in "$RUNNER_TEMP/answer.raw" --out "$RUNNER_TEMP/plan-answer/plan.json" \
+            --forbid-env CLAUDE_CODE_OAUTH_TOKEN,PLAN_CANARY
       - name: Hand over the answer
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
@@ -203,7 +222,7 @@ jobs:
       - name: Fetch the answer
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         # The artifact is missing when the agent job died before uploading it; apply.mjs then
-        # reads no answer, posts the degraded list and exits 1.
+        # reads no plan, posts the degraded list and exits 1.
         continue-on-error: true
         with:
           name: plan-answer
@@ -223,10 +242,11 @@ jobs:
       - name: Apply
         env:
           BOARD_TOKEN: ${{ steps.bot.outputs.token }}
+          FACTS_SHA256: ${{ needs.prepare.outputs.facts_sha256 }}
           DRY: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run && '--dry-run' || '' }}
         run: |
           node scripts/plan/apply.mjs --facts "$RUNNER_TEMP/plan-input/facts.json" \
-            --answer "$RUNNER_TEMP/plan-answer/answer.txt" --repo-root "$GITHUB_WORKSPACE" $DRY
+            --answer "$RUNNER_TEMP/plan-answer/plan.json" --repo-root "$GITHUB_WORKSPACE" $DRY
       - name: Fail visibly when the agent failed
         if: always() && needs.agent.result != 'success'
         env:
