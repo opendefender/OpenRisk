@@ -13,6 +13,7 @@ const has = (labels, name) => labels.includes(name);
 //   delivered: null | 'dev' | 'staging' | 'released'   closing commit merged, and how far it went
 //   openPr: boolean      an open PR says it closes the issue
 //   hasBranch: boolean   a <type>/<n>-* branch exists
+//   staleLabel: boolean  an in-progress / in-review label nothing in git backs (staleActiveLabel)
 // }
 // cfg: { ownerLabels: string[] }
 // Returns a Status option name, or ARCHIVE.
@@ -31,11 +32,24 @@ export function deriveStatus(facts, cfg) {
   if ((cfg.ownerLabels || []).some((l) => has(labels, l))) return 'Needs owner';
   if (has(labels, 'status:blocked')) return 'Blocked';
   if (facts.delivered) return DELIVERED[facts.delivered];
-  if (facts.openPr || has(labels, 'status:in-review')) return 'In review';
-  if (facts.hasBranch || has(labels, 'status:in-progress')) return 'In progress';
+  const trustLabel = !facts.staleLabel;
+  if (facts.openPr || (trustLabel && has(labels, 'status:in-review'))) return 'In review';
+  if (facts.hasBranch || (trustLabel && has(labels, 'status:in-progress'))) return 'In progress';
   if (has(labels, 'status:ready')) return 'Ready';
   if (has(labels, 'status:needs-refinement')) return 'Refinement';
   return 'Inbox';
+}
+
+// An in-progress or in-review label with no branch and no open PR is believed for
+// STALE_DAYS after the issue's last update (time to push the branch), then ignored (#1365):
+// labels left by a stopped run kept issues "In progress" for weeks.
+export const STALE_DAYS = 7;
+const ACTIVE_LABELS = ['status:in-progress', 'status:in-review'];
+export function staleActiveLabel(facts, now = Date.now()) {
+  if (facts.state !== 'OPEN' || facts.hasBranch || facts.openPr || facts.delivered) return false;
+  if (!ACTIVE_LABELS.some((l) => (facts.labels || []).includes(l))) return false;
+  const updated = Date.parse(facts.updatedAt);
+  return Number.isFinite(updated) && now - updated > STALE_DAYS * 86400e3;
 }
 
 // The furthest stage a commit has reached, from three predicates on the sha.

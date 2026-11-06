@@ -106,3 +106,21 @@ test('sprint: unfinished work of an ended sprint carries over; delivered and clo
   assert.equal(deriveSprint('In progress', { state: 'OPEN', sprint: null }, null, today), undefined);
   assert.equal(sprintEnd(past), '2026-11-09');
 });
+
+// #1365: a label nothing in git backs stops counting after STALE_DAYS.
+test('a stale in-progress / in-review label is ignored, a fresh one still counts', async () => {
+  const { staleActiveLabel, STALE_DAYS } = await import('./derive.mjs');
+  const now = Date.parse('2026-11-06T12:00:00Z');
+  const old = new Date(now - (STALE_DAYS + 1) * 86400e3).toISOString();
+  const fresh = new Date(now - 86400e3).toISOString();
+  const idle = open(['status:ready', 'status:in-progress'], { updatedAt: old });
+  assert.equal(staleActiveLabel(idle, now), true);
+  assert.equal(deriveStatus({ ...idle, staleLabel: true }, cfg), 'Ready');
+  assert.equal(deriveStatus({ ...open(['status:in-review'], { updatedAt: old }), staleLabel: true }, cfg), 'Inbox');
+  assert.equal(staleActiveLabel(open(['status:in-progress'], { updatedAt: fresh }), now), false);
+  // Git facts always win, whatever the age.
+  assert.equal(staleActiveLabel(open(['status:in-progress'], { updatedAt: old, hasBranch: true }), now), false);
+  assert.equal(staleActiveLabel(open(['status:in-review'], { updatedAt: old, openPr: true }), now), false);
+  assert.equal(staleActiveLabel(open(['status:ready'], { updatedAt: old }), now), false);
+  assert.equal(staleActiveLabel({ ...closed('COMPLETED'), labels: ['status:in-progress'], updatedAt: old }, now), false);
+});
