@@ -1,6 +1,6 @@
 ---
 name: tech-lead
-description: Lead Developer and Architect for OpenRisk. Owns architectural decisions and ADRs, the Clean Architecture boundary, tenant isolation design, performance, and the code quality bar. Use before any structural change, new module, dependency addition, or schema migration, as the design gate of M and L issues, and to arbitrate after two blocked review rounds. Diff review belongs to code-reviewer. Designs and arbitrates; implements only architectural glue.
+description: Lead Developer and Architect for OpenRisk. Owns architectural decisions and ADRs, the Clean Architecture boundary, tenant isolation design, performance, and the code quality bar. Use before any structural change, new module, dependency addition, or schema migration, as the design gate of M and L issues, and to arbitrate after two blocked review rounds. Diff review belongs to code-reviewer. Designs and arbitrates; implements only architectural glue. Runs on opus because it arbitrates disputes, writes ADRs and designs L issues, where a wrong call costs more than the tokens (#1253).
 tools: Read, Grep, Glob, Write, Edit, Bash, WebSearch, WebFetch
 model: opus
 memory: project

@@ -337,3 +337,45 @@ func TestRetryAfter_IsTheRestOfTheFixedWindow(t *testing.T) {
 		}
 	}
 }
+
+// #1302: behind a trusted proxy, c.IP() returns the X-Forwarded-For value without
+// copying it (Fiber hands out strings backed by the request buffer and reuses that
+// buffer). Stored as a map key, the first client's key was rewritten by the next
+// request, so counters mixed between clients. This checks the store's keys after the
+// requests are over, which shows the corruption every time instead of by timing.
+func TestRateLimit_StoredKeysSurviveTheRequest(t *testing.T) {
+	app := fiber.New(fiber.Config{
+		EnableTrustedProxyCheck: true,
+		TrustedProxies:          []string{"0.0.0.0"},
+		ProxyHeader:             fiber.HeaderXForwardedFor,
+	})
+	store := NewRateLimitStore()
+	app.Use(RateLimit(RateLimitConfig{MaxRequests: 100, WindowSize: time.Minute, Store: store}))
+	app.Get("/test", func(c *fiber.Ctx) error { return c.SendString("OK") })
+
+	want := map[string]int{"10.0.0.1": 2, "10.0.0.22": 3, "10.0.0.3": 1}
+	for _, ip := range []string{"10.0.0.1", "10.0.0.22", "10.0.0.1", "10.0.0.22", "10.0.0.3", "10.0.0.22"} {
+		r, _ := http.NewRequest("GET", "http://localhost/test", nil)
+		r.Header.Set("X-Forwarded-For", ip)
+		resp, err := app.Test(r)
+		if err != nil {
+			t.Fatal(err)
+		}
+		resp.Body.Close()
+	}
+
+	store.mu.Lock()
+	defer store.mu.Unlock()
+	got := map[string]int{}
+	for k, v := range store.requests {
+		got[k] = len(v)
+	}
+	if len(got) != len(want) {
+		t.Fatalf("store keys = %v, want exactly %v", got, want)
+	}
+	for k, n := range want {
+		if got[k] != n {
+			t.Errorf("key %q: %d requests counted, want %d (all keys: %v)", k, got[k], n, got)
+		}
+	}
+}

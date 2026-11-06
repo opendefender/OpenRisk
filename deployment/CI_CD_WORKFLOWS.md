@@ -99,23 +99,21 @@ End-to-end testing across multiple browsers with performance benchmarks.
 - API integration tests
 - Mobile responsive behavior
 
-### 4. **Deployment** (`.github/workflows/deploy.yml`)
+### 4. **Images** (`.github/workflows/images.yml`)
 
-Automated deployment to staging and production with approval gates.
+One build per `develop` commit, promoted unchanged (ADR 0009 D1, #1245). Nothing deploys from
+GitHub: the owner's machine pulls the tags (ADR 0009 D4). The old `deploy.yml`, which never
+deployed, is removed.
 
-#### Jobs:
+| Job | Trigger | Actions |
+|-----|---------|---------|
+| `build` | Push to `develop` | Build backend and frontend once, push `sha-<full sha>` |
+| `tag` | Push to `develop`, `staging` or `master` | Point `develop`/`staging`/`master` at the `sha-<sha>` digest with `scripts/images/promote.sh`, which fails if the digest changes or was never built |
+| `promote-test` | PR touching `images.yml` or `scripts/images/` | `scripts/images/promote.test.sh` against a throwaway registry |
 
-| Job | Environment | Condition | Actions |
-|-----|-------------|-----------|---------|
-| `build-image` | Both | Success | Build Docker image, push to registry |
-| `deploy-staging` | Staging | Push to `stag` | Deploy, run smoke tests |
-| `deploy-production` | Production | Push to `main` or manual trigger | Backup, deploy, verify, monitor |
-
-**Deployment Flow**:
-- Staging: Auto-deploy on `stag` branch push
-- Production: Manual trigger required or auto on `main` push
-- Rollback on failure: Automatic
-- Monitoring: Post-deployment metrics check
+The packages `openrisk-backend` and `openrisk-frontend` are created by the first push from
+`GITHUB_TOKEN`, with the visibility GHCR gives new organisation packages. The machine that pulls
+them (#1246) needs either a read-only `read:packages` token or the packages made public.
 
 ---
 
@@ -156,8 +154,6 @@ Required secrets in `.github/settings`:
 ```yaml
 GITHUB_TOKEN              # Auto-provided
 CODECOV_TOKEN            # Codecov.io upload
-KUBE_CONFIG_STAGING      # Kubernetes staging credentials
-KUBE_CONFIG_PRODUCTION   # Kubernetes production credentials
 DATABASE_URL_TEST        # Test database connection
 SLACK_WEBHOOK_URL        # Slack notifications
 PAGERDUTY_SERVICE_KEY    # PagerDuty integration
@@ -487,12 +483,11 @@ Before production deployment:
 
 ### Container Registry
 
-Configured to push to: `ghcr.io/opendefender/OpenRisk`
+**Images** (`images.yml`):
+- `ghcr.io/opendefender/openrisk-backend:sha-<full sha>` and `ghcr.io/opendefender/openrisk-frontend:sha-<full sha>` (one build per `develop` commit)
+- `:develop`, `:staging`, `:master` (moving tags, same digest as the `sha-` image they point at)
 
-**Images**:
-- `ghcr.io/opendefender/OpenRisk:main` (latest prod)
-- `ghcr.io/opendefender/OpenRisk:stag` (latest staging)
-- `ghcr.io/opendefender/OpenRisk:sha-<commit>` (specific commit)
+**Release image** (`release.yml`, on a `v*` tag): `ghcr.io/opendefender/openrisk:X.Y.Z`
 
 ---
 
