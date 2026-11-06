@@ -119,6 +119,12 @@ func CreateMitigation(c *fiber.Ctx) error {
 
 	output, err := useCase.ExecuteContext(c.UserContext(), input)
 	if err != nil {
+		// A risk outside the caller's tenant is refused by the repository and
+		// answers like a missing one (GHSA-2w75-9qj8-fwwp), the same 404 that
+		// ListMitigationsByRisk returns for it.
+		if errors.Is(err, domain.ErrNotFound) {
+			return c.Status(404).JSON(fiber.Map{"error": "risk not found"})
+		}
 		return c.Status(400).JSON(fiber.Map{"error": err.Error()})
 	}
 

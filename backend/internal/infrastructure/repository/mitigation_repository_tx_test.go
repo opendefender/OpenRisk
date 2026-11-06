@@ -50,6 +50,13 @@ func setupMitigationTxRepo(t *testing.T, uniqueTitles bool) (*GormMitigationRepo
 		created_at DATETIME, updated_at DATETIME, deleted_at DATETIME
 	);`).Error)
 
+	// The create path verifies the plan's risk belongs to the caller's tenant
+	// (GHSA-2w75-9qj8-fwwp), so the fixture needs the risks it points at.
+	require.NoError(t, db.Exec(`CREATE TABLE risks (
+		id TEXT PRIMARY KEY, tenant_id TEXT, title TEXT, description TEXT,
+		status TEXT, score REAL, created_at DATETIME, updated_at DATETIME, deleted_at DATETIME
+	);`).Error)
+
 	if uniqueTitles {
 		require.NoError(t, db.Exec(
 			`CREATE UNIQUE INDEX ux_subaction_title ON mitigation_subactions (mitigation_id, title);`,
@@ -59,11 +66,22 @@ func setupMitigationTxRepo(t *testing.T, uniqueTitles bool) (*GormMitigationRepo
 	return &GormMitigationRepository{db: db}, db
 }
 
-func newTxPlan(tenantID uuid.UUID) *domain.Mitigation {
+// seedTxRisk inserts a live risk owned by tenantID and returns its id.
+func seedTxRisk(t *testing.T, db *gorm.DB, tenantID uuid.UUID) uuid.UUID {
+	t.Helper()
+	id := uuid.New()
+	require.NoError(t, db.Exec(`INSERT INTO risks (id, tenant_id, title, status) VALUES (?, ?, ?, ?)`,
+		id.String(), tenantID.String(), "Ransomware on the file server", "open").Error)
+	return id
+}
+
+// newTxPlan builds a plan for tenantID, hanging off a risk of that tenant.
+func newTxPlan(t *testing.T, db *gorm.DB, tenantID uuid.UUID) *domain.Mitigation {
+	t.Helper()
 	return &domain.Mitigation{
 		ID:        uuid.New(),
 		TenantID:  tenantID,
-		RiskID:    uuid.New(),
+		RiskID:    seedTxRisk(t, db, tenantID),
 		Title:     "Patch the vulnerable dependency",
 		Status:    domain.MitigationPlanned,
 		CreatedBy: uuid.New(),
@@ -89,7 +107,7 @@ func countRows(t *testing.T, db *gorm.DB, table string) int64 {
 func TestCreateWithSubActions_Success(t *testing.T) {
 	repo, db := setupMitigationTxRepo(t, false)
 	tenantID := uuid.New()
-	plan := newTxPlan(tenantID)
+	plan := newTxPlan(t, db, tenantID)
 	subs := newTxSubActions("Inventory", "Patch", "Verify")
 
 	require.NoError(t, repo.CreateWithSubActions(tenantID.String(), plan, subs))
@@ -108,7 +126,7 @@ func TestCreateWithSubActions_Success(t *testing.T) {
 func TestCreateWithSubActions_PartialFailure_RollsBackEverything(t *testing.T) {
 	repo, db := setupMitigationTxRepo(t, true)
 	tenantID := uuid.New()
-	plan := newTxPlan(tenantID)
+	plan := newTxPlan(t, db, tenantID)
 
 	// The duplicate title trips the unique index on the second insert.
 	subs := newTxSubActions("Inventory", "Inventory", "Verify")
@@ -127,11 +145,11 @@ func TestCreateWithSubActions_PlanInsertFails_NoSubActions(t *testing.T) {
 	repo, db := setupMitigationTxRepo(t, false)
 	tenantID := uuid.New()
 
-	first := newTxPlan(tenantID)
+	first := newTxPlan(t, db, tenantID)
 	require.NoError(t, repo.CreateWithSubActions(tenantID.String(), first, nil))
 
 	// Same primary key: the plan insert fails before the checklist is reached.
-	clash := newTxPlan(tenantID)
+	clash := newTxPlan(t, db, tenantID)
 	clash.ID = first.ID
 
 	err := repo.CreateWithSubActions(tenantID.String(), clash, newTxSubActions("A", "B"))
@@ -148,7 +166,7 @@ func TestCreateWithSubActions_Unauthorized_CrossTenantWriteRefused(t *testing.T)
 	tenantA, tenantB := uuid.New(), uuid.New()
 
 	// The entity claims tenant B while the caller is acting as tenant A.
-	plan := newTxPlan(tenantB)
+	plan := newTxPlan(t, db, tenantB)
 
 	err := repo.CreateWithSubActions(tenantA.String(), plan, newTxSubActions("A"))
 	require.Error(t, err)
@@ -160,10 +178,10 @@ func TestCreateWithSubActions_Unauthorized_CrossTenantWriteRefused(t *testing.T)
 
 // Criterion 6 — a plan written by tenant A is not readable as tenant B.
 func TestCreateWithSubActions_TenantIsolation_NotFoundForOtherTenant(t *testing.T) {
-	repo, _ := setupMitigationTxRepo(t, false)
+	repo, db := setupMitigationTxRepo(t, false)
 	tenantA, tenantB := uuid.New(), uuid.New()
 
-	plan := newTxPlan(tenantA)
+	plan := newTxPlan(t, db, tenantA)
 	require.NoError(t, repo.CreateWithSubActions(tenantA.String(), plan, newTxSubActions("A", "B")))
 
 	got, err := repo.GetByID(tenantA.String(), plan.ID)
@@ -183,12 +201,87 @@ func TestCreateWithSubActions_RejectsMissingTenantAndNilPlan(t *testing.T) {
 
 	require.Error(t, repo.CreateWithSubActions(tenantID.String(), nil, nil))
 
-	noTenant := newTxPlan(tenantID)
+	noTenant := newTxPlan(t, db, tenantID)
 	noTenant.TenantID = uuid.Nil
 	require.Error(t, repo.CreateWithSubActions(tenantID.String(), noTenant, nil))
 
-	badTenant := newTxPlan(tenantID)
+	badTenant := newTxPlan(t, db, tenantID)
 	require.Error(t, repo.CreateWithSubActions("not-a-uuid", badTenant, nil))
 
 	assert.Equal(t, int64(0), countRows(t, db, "mitigations"))
+}
+
+// GHSA-2w75-9qj8-fwwp — tenant B writes, as itself, a plan whose risk_id is
+// tenant A's risk. The plan's own tenant is right; its risk is not. Refused as
+// not-found, and nothing is written.
+func TestCreateWithSubActions_Unauthorized_RiskOfAnotherTenant(t *testing.T) {
+	repo, db := setupMitigationTxRepo(t, false)
+	tenantA, tenantB := uuid.New(), uuid.New()
+
+	plan := newTxPlan(t, db, tenantB)
+	plan.RiskID = seedTxRisk(t, db, tenantA)
+
+	err := repo.CreateWithSubActions(tenantB.String(), plan, newTxSubActions("Inventory", "Patch"))
+	require.Error(t, err)
+	assert.ErrorIs(t, err, domain.ErrNotFound)
+
+	assert.Equal(t, int64(0), countRows(t, db, "mitigations"))
+	assert.Equal(t, int64(0), countRows(t, db, "mitigation_subactions"))
+}
+
+// A risk id that exists nowhere, and a risk of the caller's tenant that was
+// deleted, are refused the same way.
+func TestCreateWithSubActions_NotFound_UnknownOrDeletedRisk(t *testing.T) {
+	repo, db := setupMitigationTxRepo(t, false)
+	tenantID := uuid.New()
+
+	unknown := newTxPlan(t, db, tenantID)
+	unknown.RiskID = uuid.New()
+	assert.ErrorIs(t, repo.CreateWithSubActions(tenantID.String(), unknown, nil), domain.ErrNotFound)
+
+	deleted := newTxPlan(t, db, tenantID)
+	require.NoError(t, db.Exec(`UPDATE risks SET deleted_at = CURRENT_TIMESTAMP WHERE id = ?`, deleted.RiskID.String()).Error)
+	assert.ErrorIs(t, repo.CreateWithSubActions(tenantID.String(), deleted, nil), domain.ErrNotFound)
+
+	assert.Equal(t, int64(0), countRows(t, db, "mitigations"))
+}
+
+// The single-row Create has no caller today; it carries the same gate so the
+// next one does not reopen the hole.
+func TestCreate_Unauthorized_RiskOfAnotherTenant(t *testing.T) {
+	repo, db := setupMitigationTxRepo(t, false)
+	tenantA, tenantB := uuid.New(), uuid.New()
+
+	plan := newTxPlan(t, db, tenantB)
+	plan.RiskID = seedTxRisk(t, db, tenantA)
+	assert.ErrorIs(t, repo.Create(tenantB.String(), plan), domain.ErrNotFound)
+
+	own := newTxPlan(t, db, tenantB)
+	require.NoError(t, repo.Create(tenantB.String(), own))
+
+	assert.ErrorIs(t, repo.Create(tenantA.String(), newTxPlan(t, db, tenantB)), domain.ErrForbidden)
+	assert.Equal(t, int64(1), countRows(t, db, "mitigations"))
+}
+
+// Rows written before the fix can still point across tenants. Reading such a
+// plan as its own tenant must not bring the other tenant's risk with it.
+func TestGetByIDWithSubActions_DoesNotResolveAnotherTenantsRisk(t *testing.T) {
+	repo, db := setupMitigationTxRepo(t, false)
+	tenantA, tenantB := uuid.New(), uuid.New()
+	victimRisk := seedTxRisk(t, db, tenantA)
+
+	polluted := uuid.New()
+	require.NoError(t, db.Exec(`INSERT INTO mitigations (id, tenant_id, risk_id, title, status) VALUES (?, ?, ?, ?, ?)`,
+		polluted.String(), tenantB.String(), victimRisk.String(), "planted", "PLANNED").Error)
+
+	got, err := repo.GetByIDWithSubActions(tenantB.String(), polluted)
+	require.NoError(t, err)
+	assert.Nil(t, got.Risk, "tenant A's risk must not come back to tenant B")
+
+	own := newTxPlan(t, db, tenantB)
+	require.NoError(t, repo.CreateWithSubActions(tenantB.String(), own, nil))
+	got, err = repo.GetByIDWithSubActions(tenantB.String(), own.ID)
+	require.NoError(t, err)
+	require.NotNil(t, got.Risk, "a plan's own-tenant risk still resolves")
+	assert.Equal(t, own.RiskID, got.Risk.ID)
 }

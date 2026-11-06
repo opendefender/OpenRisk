@@ -40,7 +40,7 @@ file, a criterion or a step to the brief.
 
 ```markdown
 # Brief — #<n> <title>
-Read at: <origin/master short SHA from the caller, or "unknown">
+Read at: <origin/develop short SHA from the caller, or "unknown">
 
 ## Acceptance criteria
 <numbered, copied verbatim from the issue>

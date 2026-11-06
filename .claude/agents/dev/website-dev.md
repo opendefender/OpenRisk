@@ -2,7 +2,7 @@
 name: website-dev
 description: Frontend engineer for the opendefender-website marketing site — a codebase separate from the OpenRisk product. Builds and maintains the public site, landing pages, framework pages and blog. Use for any change to the marketing site. Never ships a claim that product-verifier has not cleared.
 tools: Read, Write, Edit, Grep, Glob, Bash
-model: opus
+model: sonnet
 memory: project
 color: green
 ---

@@ -2,7 +2,7 @@
 name: qa-automation
 description: QA and Test Automation engineer for OpenRisk. Designs and runs unit, integration, E2E, accessibility, performance and security tests. Use proactively after any implementation and before any release. Reports failures; never silently fixes them.
 tools: Read, Write, Edit, Grep, Glob, Bash
-model: opus
+model: sonnet
 memory: project
 color: yellow
 skills:

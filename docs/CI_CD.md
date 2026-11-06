@@ -213,13 +213,21 @@ Located in `.github/workflows/ci.yml`
 ### Build Matrix
 Runs on `ubuntu-latest`
 
-### Status Checks
-- Only the checks listed as required in the `master` branch protection block a merge.
-  The list is an owner decision (D-082 in `docs/DECISIONS.md`, #1199). See what GitHub
-  enforces today with
-  `gh api repos/opendefender/OpenRisk/branches/master/protection --jq '[.required_status_checks.checks[].context]'`.
+### Branches and status checks (ADR 0009, D-091, #1244)
+- **`develop`** is the default branch. Every PR targets it and merges through the **merge
+  queue** (merge commits, all-green groups). Its ruleset has no bypass: agents act through
+  the owner's admin account, so nobody can push to it directly.
+- **`staging`** and **`master`** take no PR and no push. They only move by promotion (a
+  fast-forward of a `develop` commit), pushed by the deploy key of the promotion workflows
+  (#1255, #1256).
+- **Environments:** the dev stack (`docker-compose.yaml`) runs `develop`, and the staging stack
+  (`docker-compose.staging.yaml`) runs `staging`. Self-hosters deploy release tags cut from
+  `master`.
+- The eight required contexts of D-082 block a merge on all three branches. They also run on
+  `merge_group`, so the queue can start. See them with
+  `gh api repos/opendefender/OpenRisk/rulesets --jq '.[].name'` and
+  `gh api repos/opendefender/OpenRisk/rules/branches/develop --jq '.[]|select(.type=="required_status_checks").parameters.required_status_checks[].context'`.
 - Coverage reports uploaded to Codecov
-- Docker image pushed to GHCR on main/stag
 
 ## Coverage Goals
 
