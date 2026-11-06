@@ -10,6 +10,14 @@ import { openDecisions, safe } from './rank.mjs';
 
 export const BRIEF_TITLE = 'Brief du jour';
 
+// Has `status:in-progress` ever been set? Fails closed when the history cannot be trusted: a
+// deleted label leaves an event with no name (the anchor could have been recreated), and
+// events past the 100 read are unknown.
+export function claimedEver({ totalCount, nodes }) {
+  if (totalCount > nodes.length || nodes.some((e) => !e?.label)) return true;
+  return nodes.some((e) => e.label.name === 'status:in-progress');
+}
+
 const WHO = 'author { __typename login }';
 
 // Every open issue. `detail` adds what the planning needs: body, dates, node ids, the label
@@ -47,9 +55,9 @@ export async function openIssues({ detail = false, cfg = loadConfig() } = {}) {
           openPrs: prs.filter((p) => p.state === 'OPEN').map((p) => p.number),
           // Merged into the dev branch while the issue stays open: delivered, not carried over.
           mergedPr: prs.some((p) => p.state === 'MERGED' && p.baseRefName === cfg.branches.dev),
-          // The label history is capped at 100 events: past that, fail closed (claimed).
-          everClaimed: n.labelEvents.totalCount > n.labelEvents.nodes.length ||
-            n.labelEvents.nodes.some((e) => e.label?.name === 'status:in-progress'),
+          everClaimed: claimedEver(n.labelEvents),
+          // Closing PRs in any state: work that has a PR, even closed or merged, is not rewritten.
+          closingPrs: prs.length,
         });
       }
       out.push(issue);

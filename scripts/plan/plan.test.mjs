@@ -4,6 +4,7 @@ import {
   validatePlan, parsePlan, sanitise, hasSecret, nextMonday, sprintsFor, composeBody, renderMonday, CAPS,
 } from './plan.mjs';
 import { sections, checkReady } from '../ready/check.mjs';
+import { claimedEver } from '../brief/data.mjs';
 
 const GOOD = '## Problem\n\nUsers cannot export risks.\n\n## Acceptance criteria\n\n1. An export button exists.\n2. The CSV holds every column.\n\n## Definition of Done\n\nPR green, live check pasted.\n';
 const BOT = { __typename: 'Bot', login: 'opendefender-delivery-bot' };
@@ -34,7 +35,7 @@ const refusedFor = (r, kind) => r.refused.filter((x) => x.kind === kind);
 test('an unknown key refuses the whole plan; so does a non-object', () => {
   const r = validate({ refine: [], delete_everything: [] });
   assert.equal(r.ok, false);
-  assert.match(r.error, /delete_everything/);
+  assert.match(r.error, /1 unknown key/);
   assert.equal(validate([]).ok, false);
   assert.equal(validate({ refine: 'nope' }).ok, false);
   assert.equal(validate({}).ok, true);
@@ -354,4 +355,103 @@ test('a plan that did not run still gives a degraded Monday list, in brief order
   assert.ok(md.indexOf('#1 — issue 1') < md.indexOf('#2 — issue 2'), 'brief order');
   assert.ok(!md.includes('#3 — issue 3\n   - Pourquoi'), 'not refined, not proposed');
   assert.match(md, /`\/work 1`/);
+});
+
+// --- review round 1 (#1326) -------------------------------------------------------------
+
+const HIDDEN = [
+  'sk-<!--x-->ant-oat01-abc', 'gh\u0001p_abcdef', 'sk\u200b-ant-xyz', 'g<!-- -->hs_abcdefgh', 'sk-ant-plain', 'ghp_\u00adabc',
+];
+
+test('B1: a secret hidden by a comment, a control or zero-width character is refused wherever the bot would publish it', () => {
+  for (const t of HIDDEN) {
+    assert.ok(hasSecret(t), t);
+    assert.ok(!sanitise(t).text.match(/sk-ant-|ghp_|ghs_/) || hasSecret(sanitise(t).text), 'what sanitise leaves is caught too');
+    const r = validate({
+      refine: [refine(1, { body: `${GOOD}\n${t}` })],
+      close: [{ issue: 2, reason: 'not_planned', proof: `see docs/DECISIONS.md ${t}` }],
+      move: [{ issue: 3, milestone: 21, reason: `a long enough reason ${t}` }],
+      milestone_due: [{ milestone: 20, due_on: '2026-12-15', reason: `a long enough reason ${t}` }],
+      split: [{ parent: 4, children: [{ title: `Part ${t}`, body: GOOD, labels: [] }] }],
+      monday: { start: [{ issue: 1, why: `why ${t}` }], notes: `note ${t}` },
+    }, facts([issue(1), issue(2), issue(3), issue(4)]), () => true);
+    assert.deepEqual([r.actions.refine, r.actions.close, r.actions.move, r.actions.milestone_due, r.actions.split, r.actions.monday.start].map((a) => a.length), [0, 0, 0, 0, 0, 0], t);
+    assert.equal(r.actions.monday.notes, '', t);
+  }
+  const viaJson = parsePlan('```json\n{"refine":[{"issue":1,"body":"sk-\\u0061nt-zzz","size":"S"}]}\n```');
+  assert.equal(validate(viaJson.plan).actions.refine.length, 0, 'a JSON-escaped token is decoded before the scan');
+  assert.ok(!hasSecret('an ordinary sentence with a comment <!-- and nothing else -->'));
+});
+
+test('B1: a refusal or an error never repeats what the model wrote', () => {
+  const r = validate({ refine: [{ issue: 'ghp_notanumber', body: 'x', size: 'S' }], sprint: [{ issue: 1, sprint: 'sk-ant-zzz' }], move: [{ issue: 1, milestone: 'tok', reason: 'a long enough reason' }] });
+  for (const x of r.refused) {
+    assert.ok(x.ref === '-' || Number.isInteger(x.ref), JSON.stringify(x));
+    assert.ok(!/ghp_|sk-ant|tok/.test(x.why), x.why);
+  }
+  const bad = validate({ 'sk-ant-key': [], tidy_key: [] });
+  assert.ok(!/sk-ant/.test(bad.error), bad.error);
+  assert.ok(!/sk-ant/.test(parsePlan('```json\n{"a": sk-ant-zzz}\n```').error));
+  assert.deepEqual(parsePlan('{"close": []}').plan, { close: [] }, 'the canonical form is bare JSON');
+});
+
+test('M1: a split is not repeated once the parent carries the bot split marker or has children', () => {
+  const marker = [{ body: '<!-- split: 2026-11-02 po-openrisk children=#9 -->', authorAssociation: 'CONTRIBUTOR', author: BOT }];
+  const entry = { split: [{ parent: 1, children: [{ title: 'Part A', body: GOOD, labels: [] }] }] };
+  assert.equal(validate(entry, facts([issue(1, { comments: marker })])).actions.split.length, 0);
+  assert.match(validate(entry, facts([issue(1, { comments: marker })])).refused[0].why, /already split/);
+  const withChild = facts([issue(1), issue(9, { body: `${GOOD}\nPart of #1` })]);
+  assert.equal(validate(entry, withChild).actions.split.length, 0, 'a child that says Part of #1 exists');
+  const forged = [{ ...marker[0], authorAssociation: 'NONE', author: PERSON }];
+  assert.equal(validate(entry, facts([issue(1, { comments: forged })])).actions.split.length, 1, 'a stranger marker does not count');
+});
+
+test('M2: work with a closing PR in any state, or delivered, is never rewritten, split or closed', () => {
+  for (const over of [{ closingPrs: 1 }, { mergedPr: true }]) {
+    for (const entries of [{ refine: [refine(1)] }, { close: [{ issue: 1, reason: 'not_planned', proof: 'see docs/DECISIONS.md' }] }, { split: [{ parent: 1, children: [{ title: 'Part A', body: GOOD, labels: [] }] }] }]) {
+      const r = validate(entries, facts([issue(1, over)]), () => true);
+      assert.equal(r.refused.length, 1, JSON.stringify(over));
+      assert.match(r.refused[0].why, /PR/);
+    }
+  }
+});
+
+test('M3: a duplicate or a proof may cite only a team issue or a merged PR, never itself, an outsider or the brief', () => {
+  const outsider = issue(5, { authorAssociation: 'NONE', author: { __typename: 'User', login: 'x' } });
+  const f = facts([issue(1), issue(2), outsider, issue(1321)]);
+  const dup = (of) => validate({ close: [{ issue: 1, reason: 'duplicate', of, proof: 'same request as the other one' }] }, f);
+  assert.equal(dup(2).actions.close.length, 1);
+  for (const of of [5, 1, 1321]) assert.equal(dup(of).actions.close.length, 0, `of #${of}`);
+  const np = (proof) => validate({ close: [{ issue: 1, reason: 'not_planned', proof }] }, f).actions.close.length;
+  assert.equal(np('overturned by #2 which covers it'), 1);
+  assert.equal(np('merged in #900 already'), 1);
+  for (const proof of ['see #5 from a stranger', 'see #1 itself and nothing', 'see #1321 the brief']) assert.equal(np(proof), 0, proof);
+});
+
+test('L1: a move is refused on P0, owner-labelled and in-flight issues', () => {
+  const mv = (over) => validate({ move: [{ issue: 1, milestone: 21, reason: 'belongs to the Wave 8 scope' }] }, facts([issue(1, over)]));
+  assert.equal(mv({}).actions.move.length, 1);
+  for (const labels of [['type:bug', 'area:backend', 'priority:P0-critical'], [...LABELS, 'status:needs-owner'], [...LABELS, 'status:in-progress'], [...LABELS, 'status:in-review'], [...LABELS, 'status:blocked']]) {
+    assert.equal(mv({ labels }).actions.move.length, 0, labels.join());
+  }
+});
+
+test('L2: an issue whose label history has a deleted label, or is longer than read, counts as claimed', () => {
+  assert.equal(claimedEver({ totalCount: 1, nodes: [{ label: { name: 'type:bug' } }] }), false);
+  assert.equal(claimedEver({ totalCount: 1, nodes: [{ label: { name: 'status:in-progress' } }] }), true);
+  assert.equal(claimedEver({ totalCount: 2, nodes: [{ label: { name: 'type:bug' } }, { label: null }] }), true, 'a deleted label');
+  assert.equal(claimedEver({ totalCount: 150, nodes: Array.from({ length: 100 }, () => ({ label: { name: 'x' } })) }), true, 'history cut off');
+});
+
+test('L4: a refinement may mark at most one criterion (after merge); the Monday list reports it', () => {
+  const marked = (n) => GOOD.replace('1. An export button exists.', Array.from({ length: n }, (_, k) => `${k + 1}. Criterion ${k + 1} is measured a day later (after merge)`).join('\n') + '\n9. Plain.');
+  const one = validate({ refine: [refine(1, { body: marked(1) })] });
+  assert.equal(one.actions.refine[0].afterMerge, 1);
+  const two = validate({ refine: [refine(2, { body: marked(2) })] });
+  assert.equal(two.actions.refine.length, 0);
+  assert.match(two.refused[0].why, /after merge/);
+  const f = facts();
+  assert.match(renderMonday({ facts: f, actions: one.actions }), /#1 \(1 critère « after merge »\)/);
+  const quoted = validate({ refine: [refine(3)] }, facts([issue(3, { body: '## Acceptance criteria\n\n1. old (after merge)\n2. old (after merge)\n' })]));
+  assert.equal(quoted.actions.refine[0].afterMerge, 0, 'the quoted original is not counted');
 });

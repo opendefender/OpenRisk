@@ -11,8 +11,9 @@
 import { checkReady } from '../ready/check.mjs';
 import { isTrusted, BOT } from '../ready/trust.mjs';
 import { deriveStatus, sprintEnd } from '../board/derive.mjs';
-import { isRefined, launchable, rank, reasons as rankReasons, safe } from '../brief/rank.mjs';
+import { isRefined, launchable, rank, reasons as rankReasons, safe, trustedComments } from '../brief/rank.mjs';
 import { closeProblem } from '../refine/lib.mjs';
+import { criteriaOf } from '../merge/conditions.mjs';
 
 export const CAPS = { refine: 15, close: 5, split: 5, children: 5, start: 10 };
 export const MAX_BODY = 60000; // GitHub's limit is 65536
@@ -31,15 +32,26 @@ const prefixOf = (label) => Object.keys(TAXONOMY).find((p) => String(label).star
 // --- text the bot publishes -------------------------------------------------------------
 
 const SECRET = /ghs_|ghp_|gho_|ghu_|ghr_|github_pat_|sk-ant-|-----BEGIN|xox[abprs]-|AKIA[0-9A-Z]{16}/;
-export const hasSecret = (text) => SECRET.test(String(text ?? ''));
+const CONTROL = /[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g;
+const INVISIBLE = /[\s\u00ad\u200b-\u200f\u2028-\u202f\u2060-\u2064\ufeff]/g;
+
+function stripComments(t) {
+  let prev;
+  do { prev = t; t = t.replace(/<!--[\s\S]*?-->/g, ''); } while (t !== prev);
+  return t.replace(/<!--[\s\S]*$/, '');
+}
+
+// What the text reads as once a comment, a control or an invisible character is taken out of
+// the middle of a token: `sk-<!---->ant-` and `gh\u0001p_` are tokens as published.
+export const squash = (text) => stripComments(String(text ?? '').replace(CONTROL, '')).replace(INVISIBLE, '');
+
+// Looks like a secret as written, or as it reads once squashed.
+export const hasSecret = (text) => SECRET.test(String(text ?? '')) || SECRET.test(squash(text));
 
 // HTML comments removed (only bot code writes markers), `@` neutralised (no mention, no
 // notification), control characters dropped. Unterminated comments lose everything after them.
 export function sanitise(text) {
-  let t = String(text ?? '').replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, '');
-  let prev;
-  do { prev = t; t = t.replace(/<!--[\s\S]*?-->/g, ''); } while (t !== prev);
-  t = t.replace(/<!--[\s\S]*$/, '').replace(/@/g, '@​');
+  const t = stripComments(String(text ?? '').replace(CONTROL, '')).replace(/@/g, '@​');
   return { text: t.trim() };
 }
 
@@ -56,11 +68,16 @@ export const markerComment = (date, size) => `<!-- refined: ${date} po-openrisk 
 
 // --- the answer, the dates ---------------------------------------------------------------
 
-// The agent ends its answer with one fenced JSON block: the plan.
+// The agent ends its answer with one fenced JSON block: the plan. Error texts are fixed:
+// they reach the log and the Monday comment, and never repeat what the model wrote.
 export function parsePlan(text) {
+  // The canonical form handed from the agent job is bare JSON (scripts/plan/canon.mjs).
+  if (/^\s*\{/.test(String(text || ''))) {
+    try { return { ok: true, plan: JSON.parse(text) }; } catch { return { ok: false, error: 'invalid json' }; }
+  }
   const blocks = [...String(text || '').matchAll(/```json\s*([\s\S]*?)```/g)];
   if (!blocks.length) return { ok: false, error: 'no fenced json block in the answer' };
-  try { return { ok: true, plan: JSON.parse(blocks[blocks.length - 1][1]) }; } catch (e) { return { ok: false, error: `invalid json: ${e.message}` }; }
+  try { return { ok: true, plan: JSON.parse(blocks[blocks.length - 1][1]) }; } catch { return { ok: false, error: 'invalid json' }; }
 }
 
 const DAY = 86400e3;
@@ -92,9 +109,10 @@ const validDate = (s) => /^\d{4}-\d{2}-\d{2}$/.test(s) && day(Date.parse(`${s}T0
 function text(v, name, { min = 0, max, oneLine = false }) {
   if (typeof v !== 'string') return { why: `${name} must be a string` };
   if (v.length > max) return { why: `${name} is longer than ${max} characters` };
-  if (hasSecret(v)) return { why: `${name} contains a secret-shaped string` };
   let t = sanitise(v).text;
   if (oneLine) t = t.replace(/\s+/g, ' ').trim();
+  // The raw text and what is left after sanitising: a token split by a comment is whole again.
+  if (hasSecret(v) || hasSecret(t)) return { why: `${name} contains a secret-shaped string` };
   if (t.length < min) return { why: `${name} needs at least ${min} characters` };
   return { text: t };
 }
@@ -105,7 +123,7 @@ function pickLabels(labels, name = 'labels') {
   const seen = new Set();
   for (const l of labels) {
     const p = typeof l === 'string' ? prefixOf(l) : null;
-    if (!p || !TAXONOMY[p].includes(l.slice(p.length))) return { why: `label ${JSON.stringify(l)} is not in the taxonomy` };
+    if (!p || !TAXONOMY[p].includes(l.slice(p.length))) return { why: 'a label is not in the taxonomy' };
     if (seen.has(p)) return { why: `more than one ${p} label` };
     if (l.startsWith('priority:P0')) return { why: 'priority:P0-critical is the owner\'s call' };
     seen.add(p);
@@ -122,11 +140,21 @@ function frozen(i, facts) {
   if (facts.brief?.number === i.number) return 'it is the pinned brief';
   if (i.labels.some((l) => FLIGHT.includes(l))) return 'it is in flight (status:in-progress, in-review or blocked)';
   if (i.everClaimed) return 'it has been claimed: its criteria were frozen at the claim (D-103)';
-  if (i.hasOpenPr) return 'a PR is open for it';
+  if (i.hasOpenPr || i.closingPrs > 0 || i.mergedPr) return 'a PR exists for it (open, closed or merged)';
   if (i.hasBranch) return 'a branch exists for it';
   if ((facts.ownerLabels || []).some((l) => i.labels.includes(l))) return 'it waits on the owner';
   if (i.labels.some((l) => /^priority:P0/.test(l))) return 'it is P0';
   return null;
+}
+
+export const SPLIT_MARKER = /<!--\s*split:/;
+export const splitComment = (date, numbers) => `<!-- split: ${date} po-openrisk children=${numbers.map((n) => `#${n}`).join(',')} -->\nSplit by the weekly planning (#1326) into ${numbers.map((n) => `#${n}`).join(', ')}.`;
+
+// A split is done once: the bot left its marker on the parent, or an open issue says `Part of #<parent>`.
+function alreadySplit(i, facts) {
+  if (trustedComments(i).some((c) => SPLIT_MARKER.test(c.body || ''))) return true;
+  const part = new RegExp(`^Part of #${i.number}\\s*$`, 'm');
+  return facts.issues.some((x) => x.number !== i.number && isTrusted(x) && part.test(x.body || ''));
 }
 
 const empty = () => ({ refine: [], close: [], split: [], sprint: [], move: [], milestone_due: [], monday: { start: [], notes: '' } });
@@ -137,7 +165,7 @@ export function validatePlan(plan, facts, { exists = () => false } = {}) {
   const fail = (error) => ({ ok: false, error, actions: empty(), refused: [] });
   if (!isObj(plan)) return fail('the plan must be a JSON object');
   const unknown = Object.keys(plan).filter((k) => !KEYS.includes(k));
-  if (unknown.length) return fail(`unknown key(s) in the plan: ${unknown.join(', ')}`);
+  if (unknown.length) return fail(`the plan has ${unknown.length} unknown key(s)`);
   for (const k of KEYS.filter((x) => x !== 'monday')) {
     if (plan[k] !== undefined && !Array.isArray(plan[k])) return fail(`"${k}" must be a list`);
   }
@@ -152,12 +180,13 @@ export function validatePlan(plan, facts, { exists = () => false } = {}) {
 
   const actions = empty();
   const refused = [];
-  const refuse = (kind, ref, why) => refused.push({ kind, ref, why });
+  // `ref` is an integer or '-': a refusal never carries a string the model chose.
+  const refuse = (kind, ref, why) => refused.push({ kind, ref: Number.isInteger(ref) ? ref : '-', why });
   const byNumber = new Map(facts.issues.map((i) => [i.number, i]));
   const milestones = new Map(facts.milestones.map((m) => [m.number, m]));
   const known = (kind, n) => {
     const i = Number.isInteger(n) ? byNumber.get(n) : null;
-    if (!i) refuse(kind, n, `#${n} is not an open issue in the facts`);
+    if (!i) refuse(kind, n, `${Number.isInteger(n) ? `#${n}` : 'the issue'} is not an open issue in the facts`);
     return i;
   };
 
@@ -171,6 +200,8 @@ export function validatePlan(plan, facts, { exists = () => false } = {}) {
     return false;
   };
   const closing = new Set((plan.close || []).map((e) => e?.issue));
+  // An issue a proof or a duplicate may point at: a team issue, never the issue itself or the brief.
+  const citable = (n, self) => Number.isInteger(n) && n !== self && n !== facts.brief?.number && byNumber.has(n) && isTrusted(byNumber.get(n));
 
   // close
   for (const e of plan.close || []) {
@@ -186,12 +217,12 @@ export function validatePlan(plan, facts, { exists = () => false } = {}) {
     const problem = closeProblem(e.reason, of, proof.text);
     if (problem) { refuse('close', e.issue, problem); continue; }
     if (e.reason === 'duplicate') {
-      if (!Number.isInteger(of) || of === e.issue || !byNumber.has(of) || closing.has(of)) { refuse('close', e.issue, `the kept issue #${of} must be another open issue that stays open`); continue; }
+      if (!citable(of, e.issue) || closing.has(of)) { refuse('close', e.issue, 'the kept issue must be another open team issue that stays open'); continue; }
     } else {
-      const cited = [...proof.text.matchAll(/#(\d+)/g)].some((m) => byNumber.has(Number(m[1])) || (facts.merged || []).some((p) => p.number === Number(m[1])));
+      const cited = [...proof.text.matchAll(/#(\d+)/g)].some((m) => citable(Number(m[1]), e.issue) || (facts.merged || []).some((p) => p.number === Number(m[1])));
       const paths = [...proof.text.matchAll(/(?<![\w./-])((?:[\w.-]+\/)+[\w.-]+)/g)].map((m) => m[1])
         .filter((p) => !p.includes('..') && !p.startsWith('/'));
-      if (!cited && !paths.some((p) => exists(p))) { refuse('close', e.issue, 'a not_planned proof must cite an existing #n or an existing path of the repository'); continue; }
+      if (!cited && !paths.some((p) => exists(p))) { refuse('close', e.issue, 'a not_planned proof must cite a team issue, a merged PR, or an existing path of the repository'); continue; }
     }
     actions.close.push({ issue: e.issue, reason: e.reason, of: e.reason === 'duplicate' ? of : null, proof: proof.text });
   }
@@ -207,9 +238,10 @@ export function validatePlan(plan, facts, { exists = () => false } = {}) {
     if (moveSeen.has(e.issue)) { refuse('move', e.issue, `#${e.issue} is moved twice`); continue; }
     moveSeen.add(e.issue);
     if (!isTrusted(i) || facts.brief?.number === i.number) { refuse('move', e.issue, 'its author is not trusted, or it is the pinned brief'); continue; }
+    if (i.labels.some((l) => FLIGHT.includes(l) || /^priority:P0/.test(l)) || (facts.ownerLabels || []).some((l) => i.labels.includes(l))) { refuse('move', e.issue, 'it is in flight, P0, or waits on the owner'); continue; }
     if (closing.has(e.issue)) { refuse('move', e.issue, 'it is closed by this plan'); continue; }
     const m = milestones.get(e.milestone);
-    if (!m) { refuse('move', e.issue, `milestone ${e.milestone} is not an open milestone`); continue; }
+    if (!m) { refuse('move', e.issue, 'the milestone is not an open milestone'); continue; }
     if (i.milestone?.number === m.number) { refuse('move', e.issue, 'it is already in that milestone'); continue; }
     const reason = text(e.reason, 'reason', { min: 10, max: 400, oneLine: true });
     if (reason.why) { refuse('move', e.issue, reason.why); continue; }
@@ -224,7 +256,7 @@ export function validatePlan(plan, facts, { exists = () => false } = {}) {
     const ref = e?.milestone;
     if (!shaped(e, ['milestone', 'due_on', 'reason'], ['milestone', 'due_on', 'reason'])) { refuse('milestone_due', ref, 'malformed entry'); continue; }
     const m = milestones.get(e.milestone);
-    if (!m) { refuse('milestone_due', ref, `milestone ${ref} is not an open milestone`); continue; }
+    if (!m) { refuse('milestone_due', ref, 'the milestone is not an open milestone'); continue; }
     if (dueSeen.has(ref)) { refuse('milestone_due', ref, 'the same milestone twice'); continue; }
     dueSeen.add(ref);
     if (typeof e.due_on !== 'string' || !validDate(e.due_on)) { refuse('milestone_due', ref, 'due_on must be a real YYYY-MM-DD date'); continue; }
@@ -259,7 +291,10 @@ export function validatePlan(plan, facts, { exists = () => false } = {}) {
     if (full.length > MAX_BODY) { refuse('refine', e.issue, `the new body with the original text is longer than ${MAX_BODY} characters`); continue; }
     const ready = checkReady({ body: full, milestone: milestoneAfter(i)?.title ?? null, labels: [...i.labels, ...addLabels], authorAssociation: i.authorAssociation, author: i.author });
     if (!ready.ready) { refuse('refine', e.issue, `the body does not pass the Ready check: missing ${ready.missing.join('; ')}`); continue; }
-    actions.refine.push({ issue: e.issue, body: full, size: e.size, addLabels, skipped });
+    // A criterion marked (after merge) does not hold the merge: one at most, so the others are proven first.
+    const afterMerge = criteriaOf(full).afterMerge.size;
+    if (afterMerge > 1) { refuse('refine', e.issue, 'more than one criterion is marked (after merge): at most one'); continue; }
+    actions.refine.push({ issue: e.issue, body: full, size: e.size, addLabels, skipped, afterMerge, milestone: milestoneAfter(i)?.number ?? null });
   }
 
   // split
@@ -271,6 +306,7 @@ export function validatePlan(plan, facts, { exists = () => false } = {}) {
     const why0 = frozen(i, facts);
     if (why0) { refuse('split', e.parent, `refused: ${why0}`); continue; }
     if (!Array.isArray(e.children) || !e.children.length) { refuse('split', e.parent, 'a split needs 1 to 5 children'); continue; }
+    if (alreadySplit(i, facts)) { refuse('split', e.parent, 'it is already split (a split marker or a child issue exists)'); continue; }
     const ms = milestoneAfter(i);
     const children = [];
     let bad = null;
@@ -367,7 +403,8 @@ export function validatePlan(plan, facts, { exists = () => false } = {}) {
 
 // --- the Monday comment ------------------------------------------------------------------
 
-const line = (s) => safe(String(s).replace(/\s+/g, ' ').trim());
+// Facts text is GitHub's, not ours: a line that looks like a secret is not repeated.
+const line = (s) => (hasSecret(s) ? '[texte masqué]' : safe(String(s).replace(/\s+/g, ' ').trim()));
 
 // renderMonday({ facts, actions, degraded }) → the comment the bot posts on « Brief du jour ».
 // `actions` is what was applied (null when there is no plan); `degraded` says why there is
@@ -425,7 +462,7 @@ export function renderMonday({ facts, actions, degraded = null }) {
   }
   if (actions) {
     const nums = (a, f) => (a.length ? a.map(f).join(', ') : 'rien');
-    out.push(`**Affinage de la semaine** — affinés : ${nums(actions.refine, (a) => `#${a.issue}`)} · fermés : ${nums(actions.close, (a) => `#${a.issue}`)} · découpés : ${nums(actions.split, (a) => `#${a.parent} (${a.children.length})`)} · planifiés : ${nums(actions.sprint, (a) => `#${a.issue}`)}`, '');
+    out.push(`**Affinage de la semaine** — affinés : ${nums(actions.refine, (a) => `#${a.issue}${a.afterMerge ? ` (${a.afterMerge} critère « after merge »)` : ''}`)} · fermés : ${nums(actions.close, (a) => `#${a.issue}`)} · découpés : ${nums(actions.split, (a) => `#${a.parent} (${a.children.length})`)} · planifiés : ${nums(actions.sprint, (a) => `#${a.issue}`)}`, '');
     if (actions.monday.notes) out.push('**Notes de po-openrisk**', '', ...actions.monday.notes.split(/\n+/).map((l) => `> ${line(l)}`), '');
   }
 
