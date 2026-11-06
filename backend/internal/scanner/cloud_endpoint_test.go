@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/pkg/netguard"
 )
 
 // #750: the endpoint of an in-process collector is checked when the config is
@@ -89,5 +90,35 @@ func TestCloudScannerValidate_DockerSocketNeedsOperatorOptIn(t *testing.T) {
 
 		t.Setenv(DockerSocketEnv, "true")
 		assert.NoError(t, s.Validate(context.Background(), cfg), host)
+	}
+}
+
+// #1315: a GCP service-account key carries the token_uri the SDK POSTs a signed
+// assertion to. It is tenant input, so it gets the same address rules.
+func TestCloudScannerValidate_GCPTokenURI(t *testing.T) {
+	s := NewGCPScanner(nil)
+	cfg := func(key string) ScanConfig {
+		return ScanConfig{Provider: domain.ProviderGCP, Credentials: map[string]string{"service_account_json": key}}
+	}
+	for _, key := range []string{
+		`{"type":"service_account","project_id":"p"}`, // no token_uri: Google's default
+		`{"type":"service_account","token_uri":"https://oauth2.googleapis.com/token"}`,
+		`not json`, // left to the collector to report
+	} {
+		assert.NoError(t, s.Validate(context.Background(), cfg(key)), key)
+	}
+	for _, uri := range []string{
+		"http://169.254.169.254/computeMetadata/v1/",
+		"https://169.254.169.254/token",
+		"https://127.0.0.1:8080/token",
+		"https://10.0.0.5/token",
+		"https://[::1]/token",
+		"http://oauth2.googleapis.com/token",
+		"gopher://127.0.0.1:6379/_x",
+	} {
+		err := s.Validate(context.Background(), cfg(`{"type":"service_account","token_uri":"`+uri+`"}`))
+		require.Error(t, err, uri)
+		assert.ErrorIs(t, err, domain.ErrValidation, uri)
+		assert.True(t, netguard.IsDenied(err), "%s: %v", uri, err)
 	}
 }

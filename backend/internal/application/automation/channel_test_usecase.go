@@ -14,6 +14,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/pkg/netguard"
 	"github.com/opendefender/openrisk/pkg/notify"
 )
 
@@ -26,7 +27,9 @@ import (
 // lands in Slack, or you get back the exact error the webhook returned.
 //
 // Every test performs a REAL send. A test that quietly returned success without
-// leaving the process would be worse than no test at all.
+// leaving the process would be worse than no test at all. A URL the outbound
+// guard refuses (#1315) is not a delivery result but a configuration error, and
+// is returned as a validation error naming the field.
 // ---------------------------------------------------------------------------
 
 // ChannelTestResult is the outcome of testing one channel.
@@ -154,6 +157,9 @@ func (t *ChannelTester) Test(ctx context.Context, tenantID, userID uuid.UUID, ch
 			break
 		}
 		if err := notify.PostSlack(ctx, cfg.SlackWebhookURL, msg, t.http); err != nil {
+			if netguard.IsDenied(err) {
+				return nil, domain.NewOutboundDeniedError("slack_webhook_url", err)
+			}
 			res.Error = err.Error()
 			res.Detail = "Slack rejected the message"
 			break
@@ -168,6 +174,9 @@ func (t *ChannelTester) Test(ctx context.Context, tenantID, userID uuid.UUID, ch
 			break
 		}
 		if err := notify.PostTeams(ctx, cfg.TeamsWebhookURL, msg, t.http); err != nil {
+			if netguard.IsDenied(err) {
+				return nil, domain.NewOutboundDeniedError("teams_webhook_url", err)
+			}
 			res.Error = err.Error()
 			res.Detail = "Teams rejected the message"
 			break
@@ -182,6 +191,9 @@ func (t *ChannelTester) Test(ctx context.Context, tenantID, userID uuid.UUID, ch
 			break
 		}
 		if err := notify.PostWebhook(ctx, cfg.WebhookURL, cfg.WebhookSecret, msg, t.http); err != nil {
+			if netguard.IsDenied(err) {
+				return nil, domain.NewOutboundDeniedError("webhook_url", err)
+			}
 			res.Error = err.Error()
 			res.Detail = "the endpoint did not accept the request"
 			break
@@ -209,6 +221,9 @@ func (t *ChannelTester) Test(ctx context.Context, tenantID, userID uuid.UUID, ch
 			SenderField: cfg.SMSSenderField,
 		}, recipients, msg.Title+" — "+msg.Text, t.http)
 		if err != nil {
+			if netguard.IsDenied(err) {
+				return nil, domain.NewOutboundDeniedError("sms_gateway_url", err)
+			}
 			res.Error = err.Error()
 			res.Detail = fmt.Sprintf("the gateway accepted %d of %d recipients before failing", sent, len(recipients))
 			break

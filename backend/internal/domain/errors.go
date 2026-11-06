@@ -86,6 +86,19 @@ func NewValidationError(message string) *AppError {
 	}
 }
 
+// NewOutboundDeniedError reports a URL the server refuses to call: loopback,
+// link-local (cloud metadata), a private range or a non-https scheme (#1315).
+// It is a validation error (400) that keeps its cause, so errors.Is matches
+// both ErrValidation and the guard's own sentinel (netguard.ErrDenied) without
+// the domain importing the guard.
+func NewOutboundDeniedError(field string, cause error) *AppError {
+	return &AppError{
+		Err:     errors.Join(ErrValidation, cause),
+		Message: field + ": " + cause.Error(),
+		Code:    http.StatusBadRequest,
+	}
+}
+
 func NewUnauthorizedError(reason string) *AppError {
 	return &AppError{
 		Err:     ErrUnauthorized,

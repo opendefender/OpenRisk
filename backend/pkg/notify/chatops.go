@@ -13,6 +13,8 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/opendefender/openrisk/pkg/netguard"
 )
 
 // chatops.go — dependency-free webhook posters for Slack and Microsoft Teams.
@@ -60,11 +62,22 @@ func severityColor(severity string) string {
 	}
 }
 
-func httpDo(doer HTTPDoer) HTTPDoer {
+// guardedClient is the production transport: every webhook and gateway URL
+// here is tenant-configured, so it may only reach public addresses (#1315).
+var guardedClient = netguard.Client(netguard.Options{Timeout: 15 * time.Second})
+
+// send performs req. With no doer it is the production path: the URL is checked
+// (https only, no denied literal host) and sent through the guarded client,
+// whose dialer re-checks the resolved address on every hop. A refusal wraps
+// netguard.ErrDenied. An injected doer (tests, httptest) is used as given.
+func send(doer HTTPDoer, req *http.Request) (*http.Response, error) {
 	if doer != nil {
-		return doer
+		return doer.Do(req)
 	}
-	return &http.Client{Timeout: 15 * time.Second}
+	if err := netguard.ValidateURL(req.URL.String()); err != nil {
+		return nil, err
+	}
+	return guardedClient.Do(req)
 }
 
 // PostSlack sends a message to a Slack incoming webhook (attachment format).
@@ -153,7 +166,7 @@ func postJSON(ctx context.Context, url string, payload interface{}, doer HTTPDoe
 		return fmt.Errorf("build webhook request: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
-	resp, err := httpDo(doer).Do(req)
+	resp, err := send(doer, req)
 	if err != nil {
 		return fmt.Errorf("post webhook: %w", err)
 	}

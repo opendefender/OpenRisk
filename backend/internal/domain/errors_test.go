@@ -7,6 +7,7 @@ package domain
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"testing"
 )
@@ -85,5 +86,24 @@ func TestAppError_Error_WithoutDetail(t *testing.T) {
 	expected := "email is required"
 	if err.Error() != expected {
 		t.Errorf("expected '%s', got '%s'", expected, err.Error())
+	}
+}
+
+// A refused outbound target is a 400 that still matches its cause, so a
+// caller can tell "the guard said no" from any other validation failure.
+func TestNewOutboundDeniedError_MatchesValidationAndCause(t *testing.T) {
+	cause := errors.New("outbound target not allowed")
+	err := NewOutboundDeniedError("webhook_url", fmt.Errorf("%w: address 169.254.169.254", cause))
+	if !errors.Is(err, ErrValidation) {
+		t.Error("expected errors.Is(err, ErrValidation)")
+	}
+	if !errors.Is(err, cause) {
+		t.Error("expected errors.Is(err, cause): the guard's sentinel must survive")
+	}
+	if HTTPStatusFromError(err) != http.StatusBadRequest {
+		t.Errorf("status = %d, want 400", HTTPStatusFromError(err))
+	}
+	if MessageFromError(err) != "webhook_url: outbound target not allowed: address 169.254.169.254" {
+		t.Errorf("message = %q", MessageFromError(err))
 	}
 }
