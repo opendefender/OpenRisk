@@ -9,6 +9,20 @@ recommends, and surfaces these in the daily brief. Run `/decide` to clear them.
 
 ## Resolved
 
+### D-105 — Releases through a /release command the owner runs; staging and master take PRs the owner merges · decided 2026-11-06
+**Decided (owner, 2026-11-06)** — "Je veux un bot ou agent qui s'occupera des releases." Given the choice, the owner picked a local `/release` command over the Actions bot of #1256, with the tag set by the tool "after my OK", "PR obligatoire, vous mergez" for `staging` and `master`, and "faire partir la PR de version d'une finale depuis staging, puis de la reporter sur develop".
+
+**What changes** (#1364)
+1. `/release rc|final|<v>` runs in the owner's session, one stage per run: the version PR (VERSION, CHANGELOG, French notes, claims checked by `product-verifier`), the promotion PR, the tag after an explicit OK, then for a final the back-merge. It never merges and never pushes a branch.
+2. An rc is cut from `develop` (version PR into `develop`, then `develop → staging`) and tagged on the `develop` commit the staging merge brought in. A final is cut **from `staging`** (version PR into `staging`, then `staging → master`), tagged on its release commit, then `staging → develop` brings the tag and the CHANGELOG back. A final ships exactly what the last rc proved: `scripts/release/cut.mjs final` refuses when a `feat` or `fix` commit sits after the rc tag.
+3. The tag goes on a commit whose tree equals the branch tip, checked before the OK is asked, so `release.yml` builds the promoted tree.
+4. The `staging` and `master` rulesets drop the `update` restriction and the bot's bypass: a pull request, the required checks and a merge commit, merged by the owner. Before, only the delivery bot app (5618677) could update them, and no one could once the bots were switched off on 2026-11-06.
+5. `release.yml` appends `docs/releases/<v>.fr.md` to the GitHub release when it exists, and runs the `cut.mjs` tests in its guard.
+
+**Overturns** — D-101 point 3 "the bot opens the PR `staging → master`" and D-092's bot bypass on `staging`, while automation is off. D-099's "rc from staging" now reads "rc promoted to staging, tagged on its develop commit".
+**Unchanged** — D-099's versioning rules (now `scripts/release/cut.mjs`), D-100's local proof before `staging`, the 48 h soak of D-088 before a final, the owner alone merging into `master`.
+**Rollback** — the previous rulesets are in #1364's PR: `gh api -X PUT repos/opendefender/OpenRisk/rulesets/<id> --input <saved.json>`.
+
 ### D-102 — No local timer: the owner works with /work, bots review and merge, planning runs weekly in Actions · decided 2026-11-05
 **Decided (owner, 2026-11-05)** — "Pas de timer. Je veux que le lundi je reçoive le matin la liste sur ce que je dois travailler, on le fait normalement avec le /work, puis quand je push, la review est faite, puis mis dans la file d'auto-merge, si le CI fail, je corrigerai." Answers to the follow-up questions the same day: keep the daily brief **and** add the Monday list; the Monday list is drawn up by `po-openrisk` running in Actions; the owner also fixes what the bot reviewers refuse; the merge-steward is dropped.
 

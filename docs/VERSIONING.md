@@ -47,6 +47,31 @@ A non-release build (`go run`, `go build` without ldflags) reports
 
 ## 3. Release cycle
 
+The owner runs `/release rc` or `/release final` (D-105). One stage per run:
+
+| | rc | final |
+|---|---|---|
+| Cut from | `develop` | `staging`: it ships what the last rc proved |
+| Version PR into | `develop` | `staging` |
+| Promotion PR | `develop → staging` | `staging → master` |
+| Tag on | the `develop` commit the staging merge brought in | the release commit |
+| Afterwards | — | `staging → develop`, so develop carries the tag |
+
+The owner merges every PR (merge commit). The tag is created and pushed only after
+the owner's explicit OK, on a commit whose tree equals the branch tip. The version
+comes from `scripts/release/cut.mjs`:
+
+- after a final `X.Y.Z`: `feat` → minor, `fix`/`perf` → patch, `!` or
+  `BREAKING CHANGE` → major; `rc` gives `-rc.1`;
+- during an rc cycle the core is kept (`1.1.0-rc.8` → `1.1.0-rc.9`, final `1.1.0`);
+  a breaking change found then is reported, and the owner passes an explicit version
+  if it must be a major;
+- `final` is refused when a `feat` or `fix` commit landed after the last rc.
+
+`node scripts/release/cut.mjs rc --dry-run` prints the plan without writing. The
+French notes live in `docs/releases/<version>.fr.md` and are appended to the GitHub
+release. The manual steps below are what the command does, for the record:
+
 ```
 1. Decide the next version (SemVer).           e.g. 1.1.0-rc.2
 2. echo "1.1.0-rc.2" > VERSION
