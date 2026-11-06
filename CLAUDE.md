@@ -109,6 +109,10 @@ urgent, tier says how strategic. An issue may be `priority:P1-high` and `tier:5-
 - Commit: `type(scope): subject (#<n>)` — Conventional Commits, English, imperative.
   Always `git commit -s`: the DCO check rejects a commit without `Signed-off-by`.
 - PR body contains `Closes #<n>`. One issue → one branch → one PR.
+- **Every PR shows its issue as linked on GitHub.** GitHub links `Closes` only on a PR
+  whose base is the default branch (`develop`); a PR to any other base links nothing.
+  Check right after opening — an empty list is fixed before anything else:
+  `gh api graphql -f query='{repository(owner:"opendefender",name:"OpenRisk"){pullRequest(number:<pr>){closingIssuesReferences(first:5){nodes{number}}}}}'`
 - **Never merge a PR.** Merging is the owner's decision.
 
 ### GitHub CLI on this repository
