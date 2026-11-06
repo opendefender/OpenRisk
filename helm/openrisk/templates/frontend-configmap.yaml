@@ -49,12 +49,13 @@ data:
                  application/rss+xml font/truetype font/opentype 
                  application/vnd.ms-fontobject image/svg+xml;
       
-      # Security headers
-      add_header X-Frame-Options "SAMEORIGIN" always;
-      add_header X-Content-Type-Options "nosniff" always;
-      add_header X-XSS-Protection "1; mode=block" always;
-      add_header Referrer-Policy "strict-origin-when-cross-origin" always;
-      add_header Permissions-Policy "geolocation=(), microphone=(), camera=()" always;
+      # Security headers live in the two static locations below, not here
+      # (#1314). nginx drops every inherited add_header in a location that sets
+      # one of its own, and both static locations set Cache-Control, so the set
+      # that sat here reached no static response at all. /api/ carries the
+      # backend's own headers. Keep the two copies identical. HSTS comes from
+      # the TLS-terminating ingress for now (#1358); the CSP has no script-src
+      # yet (#1359).
       
       upstream backend {
         least_conn;
@@ -73,6 +74,11 @@ data:
         location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ {
           expires 1y;
           add_header Cache-Control "public, immutable";
+          add_header Content-Security-Policy "frame-ancestors 'none'; base-uri 'self'; object-src 'none'; form-action 'self'" always;
+          add_header X-Frame-Options "DENY" always;
+          add_header X-Content-Type-Options "nosniff" always;
+          add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+          add_header Permissions-Policy "geolocation=(), microphone=(), camera=()" always;
         }
         
         # API proxy
@@ -90,6 +96,11 @@ data:
           try_files $uri $uri/ /index.html;
           expires -1;
           add_header Cache-Control "no-cache, no-store, must-revalidate";
+          add_header Content-Security-Policy "frame-ancestors 'none'; base-uri 'self'; object-src 'none'; form-action 'self'" always;
+          add_header X-Frame-Options "DENY" always;
+          add_header X-Content-Type-Options "nosniff" always;
+          add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+          add_header Permissions-Policy "geolocation=(), microphone=(), camera=()" always;
         }
       }
     }

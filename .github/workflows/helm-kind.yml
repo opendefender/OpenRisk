@@ -150,6 +150,34 @@ jobs:
           for i in $(seq 1 30); do curl -fsS http://localhost:18080/api/v1/health && break; sleep 2; done
           curl -fsS http://localhost:18080/ | grep -q '<div id="root"'
 
+      # #1314: nginx drops inherited add_header in any location with its own,
+      # which once left every static response without these. Each response kind
+      # is checked: the shell, a hashed asset, and the API through the proxy,
+      # which must carry the backend's set exactly once.
+      - name: Static and API responses carry the browser protections
+        run: |
+          check() { # url header expected-substring
+            got=$(curl -fsS -o /dev/null -D - "$1" | tr -d '\r' | grep -i "^$2:" || true)
+            echo "$1 -> ${got:-<missing $2>}"
+            [ "$(printf '%s\n' "$got" | grep -ci "^$2:")" = 1 ] && printf '%s' "$got" | grep -qi -- "$3"
+          }
+          # Vite emits into /static (assetsDir in frontend/vite.config.ts).
+          asset=$(curl -fsS http://localhost:18080/ | grep -o '/static/[^"]*\.js' | head -1)
+          # The step runs `bash -e` without pipefail: an empty match would not stop
+          # it, and the loop would check the shell twice and prove no asset.
+          [ -n "$asset" ] || { echo "no hashed asset under /static in index.html"; exit 1; }
+          for url in http://localhost:18080/ "http://localhost:18080$asset" http://localhost:18080/no/such/page; do
+            check "$url" Content-Security-Policy "frame-ancestors 'none'"
+            check "$url" X-Frame-Options DENY
+            check "$url" X-Content-Type-Options nosniff
+            check "$url" Referrer-Policy strict-origin-when-cross-origin
+          done
+          api=http://localhost:18080/api/v1/health
+          check "$api" Content-Security-Policy "default-src 'none'"
+          check "$api" X-Frame-Options SAMEORIGIN
+          check "$api" X-Content-Type-Options nosniff
+          check "$api" Referrer-Policy no-referrer
+
       - name: helm upgrade on the same values succeeds
         run: |
           helm upgrade openrisk helm/openrisk -f helm/kind/values.yaml --reuse-values
