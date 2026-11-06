@@ -63,6 +63,7 @@ func (RiskT) TableName() string { return "risks" }
 
 type MitigationT struct {
 	ID        uuid.UUID `gorm:"type:uuid;primaryKey"`
+	TenantID  uuid.UUID
 	RiskID    uuid.UUID
 	Title     string
 	CreatedAt time.Time

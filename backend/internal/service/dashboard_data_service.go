@@ -330,7 +330,7 @@ func (s *DashboardDataService) GetMitigationProgress(ctx context.Context, tenant
 	var mitigations []domain.Mitigation
 
 	err := s.scoped(ctx, tenantID).
-		Preload("Risk").
+		Preload("Risk", "tenant_id = ?", tenantID). // GHSA-2w75-9qj8-fwwp
 		Order("due_date ASC").
 		Limit(limit).
 		Find(&mitigations).Error
