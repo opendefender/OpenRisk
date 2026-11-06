@@ -73,9 +73,21 @@ func NewTriggerScanUseCase(
 	}
 }
 
+// Execute triggers a scan with the default type. The scheduler and the
+// automation engine call it, so scheduled scans stay vulnerability scans.
 func (uc *TriggerScanUseCase) Execute(ctx context.Context, tenantID, triggeredBy, configID uuid.UUID) (*domain.ScanJob, error) {
+	return uc.ExecuteWithType(ctx, tenantID, triggeredBy, configID, "")
+}
+
+// ExecuteWithType triggers a scan of the given type (#1164). An empty type
+// means vulnerability. A type is only accepted for agent providers: what a
+// cloud or API provider collects is not the user's choice.
+func (uc *TriggerScanUseCase) ExecuteWithType(ctx context.Context, tenantID, triggeredBy, configID uuid.UUID, scanType domain.ScanType) (*domain.ScanJob, error) {
 	if tenantID == uuid.Nil {
 		return nil, domain.NewUnauthorizedError("missing tenant")
+	}
+	if scanType != "" && !scanType.Valid() {
+		return nil, domain.NewValidationError("scan_type must be discovery or vulnerability")
 	}
 	cfg, err := uc.configRepo.GetByID(ctx, configID, tenantID)
 	if err != nil {
@@ -86,6 +98,12 @@ func (uc *TriggerScanUseCase) Execute(ctx context.Context, tenantID, triggeredBy
 	}
 	if !cfg.Enabled {
 		return nil, domain.NewValidationError("scan config is disabled")
+	}
+	if scanType != "" && !cfg.Provider.IsAgentBased() {
+		return nil, domain.NewValidationError("scan_type is only accepted for agent scans")
+	}
+	if scanType == "" {
+		scanType = domain.ScanVulnerability
 	}
 
 	// Plan cap on scans this month.
@@ -121,6 +139,7 @@ func (uc *TriggerScanUseCase) Execute(ctx context.Context, tenantID, triggeredBy
 		ConfigID:    configID,
 		Provider:    cfg.Provider,
 		Status:      domain.ScanQueued,
+		ScanType:    scanType,
 		Targets:     cfg.Targets,
 		TriggeredBy: triggeredBy,
 	}
@@ -157,6 +176,7 @@ func (uc *TriggerScanUseCase) dispatchToAgents(ctx context.Context, cfg *domain.
 		ConfigID: cfg.ID,
 		TenantID: cfg.TenantID,
 		Provider: string(cfg.Provider),
+		ScanType: string(job.ScanType),
 		Targets:  cfg.Targets,
 		AgentIDs: cfg.AgentIDs,
 	}

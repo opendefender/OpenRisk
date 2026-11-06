@@ -41,9 +41,9 @@ func newSubActionFixture(t *testing.T) *subActionFixture {
 		tenantA: uuid.New(),
 		tenantB: uuid.New(),
 	}
-	f.planA = newTxPlan(f.tenantA)
-	f.planA2 = newTxPlan(f.tenantA)
-	f.planB = newTxPlan(f.tenantB)
+	f.planA = newTxPlan(t, db, f.tenantA)
+	f.planA2 = newTxPlan(t, db, f.tenantA)
+	f.planB = newTxPlan(t, db, f.tenantB)
 	for _, p := range []*domain.Mitigation{f.planA, f.planA2, f.planB} {
 		require.NoError(t, db.Create(p).Error)
 	}

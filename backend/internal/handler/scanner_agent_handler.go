@@ -154,6 +154,8 @@ func (h *ScannerHandler) queuedJobFrames(ctx context.Context, agent *domain.Scan
 			ConfigID: j.ConfigID,
 			TenantID: j.TenantID,
 			Provider: string(j.Provider),
+			// A replayed job keeps the type it was queued with (#1164).
+			ScanType: string(j.ScanType),
 			Targets:  j.Targets,
 		})
 		if err == nil {

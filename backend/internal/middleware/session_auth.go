@@ -93,6 +93,11 @@ func verifyCSRF(c *fiber.Ctx) error {
 	return nil
 }
 
+// VerifyCSRF is the double-submit check for the handlers that read a session
+// cookie themselves, outside the Protected gate (#1314): the refresh cookie on
+// /auth/refresh. A nil error means the request may proceed.
+func VerifyCSRF(c *fiber.Ctx) error { return verifyCSRF(c) }
+
 // RefreshTokenFromRequest returns the refresh token supplied by cookie, for
 // handlers that still accept it in the body as well.
 func RefreshTokenFromRequest(c *fiber.Ctx) string {

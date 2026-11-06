@@ -75,7 +75,12 @@ func (d *Detector) OnRemediated(ctx context.Context, tenantID, scanJobID uuid.UU
 
 		for _, risk := range risks {
 			var mits []domain.Mitigation
-			if err := d.db.WithContext(ctx).Where("risk_id = ?", risk.ID).Find(&mits).Error; err != nil {
+			// Pinned to the tenant as well as the risk: a plan of another tenant
+			// can point at this risk (GHSA-2w75-9qj8-fwwp) and must never be
+			// picked up for auto-completion here.
+			if err := d.db.WithContext(ctx).
+				Where("tenant_id = ? AND risk_id = ? AND deleted_at IS NULL", tenantID, risk.ID).
+				Find(&mits).Error; err != nil {
 				continue
 			}
 			for _, mit := range mits {

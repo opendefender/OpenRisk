@@ -16,6 +16,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
@@ -249,4 +250,26 @@ func TestRiskIsolation_NilTenantIsDenied(t *testing.T) {
 		items, _ := body["items"].([]any)
 		require.Empty(t, items, "a nil tenant must never list another tenant's risks")
 	}
+}
+
+// GHSA-2w75-9qj8-fwwp — a plan of tenant B pointing at tenant A's risk (a row
+// written before the create path checked the risk) must not ride along in any
+// answer A gets about that risk: the read, and the read-back after an update.
+func TestRiskIsolation_ForeignMitigationNeverRidesAlong(t *testing.T) {
+	h := newTenantRiskApp(t)
+	tenantA, tenantB := uuid.New(), uuid.New()
+
+	h.as(tenantA)
+	riskID := h.createRisk(t, "Tenant A risk")
+	require.NoError(t, h.db.Create(&MitigationT{
+		ID: uuid.New(), TenantID: tenantB, RiskID: uuid.MustParse(riskID), Title: "planted by B",
+	}).Error)
+
+	status, body := h.do(t, http.MethodGet, "/api/v1/risks/"+riskID, nil)
+	require.Equal(t, fiber.StatusOK, status)
+	assert.Empty(t, body["mitigations"], "read: tenant B's plan must not appear under tenant A's risk")
+
+	status, body = h.do(t, http.MethodPatch, "/api/v1/risks/"+riskID, map[string]any{"description": "edited by A"})
+	require.Equal(t, fiber.StatusOK, status, "update must succeed: %v", body)
+	assert.Empty(t, body["mitigations"], "update read-back: tenant B's plan must not appear")
 }

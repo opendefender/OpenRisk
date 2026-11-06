@@ -89,7 +89,9 @@ func (r *GormRiskRepository) GetByID(ctx context.Context, id uuid.UUID, tenantID
 	var risk domain.Risk
 	err := r.db.WithContext(ctx).
 		Where("id = ? AND tenant_id = ?", id, tenantID).
-		Preload("Mitigations").
+		// Scoped: a plan of another tenant pointing at this risk must not ride
+		// along with it (GHSA-2w75-9qj8-fwwp).
+		Preload("Mitigations", "tenant_id = ?", tenantID).
 		Preload("Assets").
 		// The controlled category is what the "Catégorie" column renders. Without
 		// this the column shipped dead: the row carried category_id but no name,
@@ -256,7 +258,9 @@ func (r *GormRiskRepository) List(ctx context.Context, tenantID uuid.UUID, query
 		Order(fmt.Sprintf("%s %s", query.SortBy, query.SortOrder)).
 		Offset(query.Offset()).
 		Limit(query.Limit).
-		Preload("Mitigations").
+		// Scoped: a plan of another tenant pointing at this risk must not ride
+		// along with it (GHSA-2w75-9qj8-fwwp).
+		Preload("Mitigations", "tenant_id = ?", tenantID).
 		Preload("Assets").
 		// The controlled category is what the "Catégorie" column renders. Without
 		// this the column shipped dead: the row carried category_id but no name,

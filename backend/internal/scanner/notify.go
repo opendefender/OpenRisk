@@ -34,6 +34,7 @@ type AgentJobDispatch struct {
 	ConfigID uuid.UUID      `json:"config_id"`
 	TenantID uuid.UUID      `json:"tenant_id"`
 	Provider string         `json:"provider"`
+	ScanType string         `json:"scan_type,omitempty"` // discovery | vulnerability; absent = vulnerability
 	Targets  []string       `json:"targets"`
 	AgentIDs []string       `json:"agent_ids,omitempty"` // restrict to these agents (empty = any)
 	Options  map[string]any `json:"options,omitempty"`

@@ -157,13 +157,25 @@ func (h *ScannerHandler) DeleteScanConfig(c *fiber.Ctx) error {
 	return c.SendStatus(204)
 }
 
+// triggerScanInput is the optional body of TriggerScan (#1164).
+type triggerScanInput struct {
+	ScanType domain.ScanType `json:"scan_type"`
+}
+
 // TriggerScan POST /scanner/configs/:id/scan
+// The body is optional; without one the scan is a vulnerability scan.
 func (h *ScannerHandler) TriggerScan(c *fiber.Ctx) error {
 	id, err := uuid.Parse(c.Params("id"))
 	if err != nil {
 		return c.Status(400).JSON(fiber.Map{"error": "invalid config id"})
 	}
-	job, err := h.trigger.Execute(c.UserContext(), tenantID(c), userID(c), id)
+	var in triggerScanInput
+	if len(c.Body()) > 0 {
+		if err := c.BodyParser(&in); err != nil {
+			return c.Status(400).JSON(fiber.Map{"error": "invalid input format"})
+		}
+	}
+	job, err := h.trigger.ExecuteWithType(c.UserContext(), tenantID(c), userID(c), id, in.ScanType)
 	if err != nil {
 		return writeAppError(c, err)
 	}

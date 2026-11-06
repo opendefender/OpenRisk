@@ -23,6 +23,9 @@ export type ScannerProvider =
   | 'gitlab';
 export type AgentStatus = 'online' | 'offline' | 'scanning' | 'error' | 'revoked';
 export type ScanJobStatus = 'queued' | 'claimed' | 'running' | 'completed' | 'failed' | 'timeout';
+// What an agent scan looks for (#1164). Cloud and API scans have no type to
+// pick: the provider sets what they collect, and their jobs read vulnerability.
+export type ScanType = 'discovery' | 'vulnerability';
 
 export interface ScanConfig {
   id: string;
@@ -65,6 +68,7 @@ export interface ScanJob {
   config_id: string;
   provider: ScannerProvider;
   status: ScanJobStatus;
+  scan_type: ScanType;
   targets: string[] | null;
   claimed_by_agent?: string | null;
   preview_key?: string;
@@ -172,8 +176,14 @@ export const scannerService = {
     await api.delete(`/scanner/configs/${id}`);
   },
 
-  triggerScan: async (id: string): Promise<ScanJob> =>
-    (await api.post<ScanJob>(`/scanner/configs/${id}/scan`)).data,
+  // No type means the server default (vulnerability), and it is the only call
+  // a cloud or API configuration accepts.
+  triggerScan: async (id: string, scanType?: ScanType): Promise<ScanJob> =>
+    (
+      await (scanType
+        ? api.post<ScanJob>(`/scanner/configs/${id}/scan`, { scan_type: scanType })
+        : api.post<ScanJob>(`/scanner/configs/${id}/scan`))
+    ).data,
 
   registrationToken: async (id: string): Promise<RegistrationTokenResponse> =>
     (await api.post<RegistrationTokenResponse>(`/scanner/configs/${id}/registration-token`)).data,

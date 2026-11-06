@@ -86,11 +86,14 @@ type refreshResult struct {
 	resp   *http.Response
 }
 
-// send replays what the SPA sends: the refresh cookie and no body. It touches
-// no *testing.T, so a burst can call it from its own goroutines.
+// send replays what the SPA sends: the refresh cookie, no body, and the CSRF
+// cookie echoed in its header (#1314). It touches no *testing.T, so a burst can
+// call it from its own goroutines.
 func (s *refreshStack) send(token string) (refreshResult, error) {
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/refresh", nil)
 	req.AddCookie(&http.Cookie{Name: middleware.RefreshTokenCookie, Value: token})
+	req.AddCookie(&http.Cookie{Name: middleware.CSRFCookie, Value: "csrf-refresh"})
+	req.Header.Set(middleware.CSRFHeader, "csrf-refresh")
 	resp, err := s.app.Test(req, -1)
 	if err != nil {
 		return refreshResult{}, err

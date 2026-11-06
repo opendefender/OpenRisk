@@ -94,14 +94,26 @@ gh pr create --base develop --title "type(scope): subject (#$ARGUMENTS)" --body-
 verdicts, and the honest remainders. If `gh pr create` fails with the
 Projects classic error, use the REST fallback in CLAUDE.md.
 
+Then check that GitHub links the issue. A PR always has its issue:
+```
+gh api graphql -f query='{repository(owner:"opendefender",name:"OpenRisk"){pullRequest(number:<pr>){baseRefName closingIssuesReferences(first:5){nodes{number}}}}}'
+```
+It must list `$ARGUMENTS`. If the list is empty, the base is almost always
+not `develop` (GitHub links `Closes` only on the default branch): fix it with
+`gh api -X PATCH repos/opendefender/OpenRisk/pulls/<pr> -f base=develop`, merge
+`origin/develop` into the branch if it was cut elsewhere, and check again.
+
 ### Wait for CI before handing over
 
 ```
 gh pr checks <pr> --watch
 ```
 A check your branch turned red is yours: fix it and push. A check that is
-also red on develop is named in the PR body with its tracking issue (open
-one if none exists). Only then:
+also red on develop is named in the PR body with its tracking issue. Before
+opening one, search open and recently merged PRs on develop for a fix
+(`gh pr list --base develop --state all --search "<package or check>"`): a
+fix already merged means your branch is behind, so merge `origin/develop`.
+Open a tracking issue only when there is no fix and no issue yet. Only then:
 ```
 gh issue edit $ARGUMENTS --add-label status:in-review --remove-label status:in-progress
 ```
