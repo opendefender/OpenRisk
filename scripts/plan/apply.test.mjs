@@ -1,6 +1,7 @@
 import { test, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { runApply } from './apply.mjs';
+import { runApply, assertClean, verifyFactsHash } from './apply.mjs';
+import { createHash } from 'node:crypto';
 
 const GOOD = '## Problem\n\nUsers cannot export risks.\n\n## Acceptance criteria\n\n1. An export button exists.\n\n## Definition of Done\n\nPR green.\n';
 const PERSON = { __typename: 'User', login: 'alex' };
@@ -51,7 +52,7 @@ const json = (x, status = 200) => new Response(JSON.stringify(x), { status, head
 beforeEach(() => {
   process.env.BOARD_TOKEN = 'test-token';
   calls = [];
-  state = { drift: new Set(), briefComments: [], dueOn: { 20: '2026-12-01T00:00:00Z', 21: null } };
+  state = { fail: new Set(), drift: new Set(), briefComments: [], dueOn: { 20: '2026-12-01T00:00:00Z', 21: null } };
   globalThis.fetch = async (url, init = {}) => {
     const method = (init.method || 'GET').toUpperCase();
     const u = new URL(url);
@@ -64,6 +65,7 @@ beforeEach(() => {
     const m = /^\/repos\/[^/]+\/[^/]+(\/.*)$/.exec(u.pathname);
     const p = m ? m[1] : u.pathname;
     let g;
+    if (state.fail.has(`${method} ${p}`)) return json({ message: 'boom' }, 500);
     if (method === 'GET' && (g = /^\/issues\/(\d+)$/.exec(p))) {
       const n = Number(g[1]);
       const f = FACTS().issues.find((i) => i.number === n);
@@ -179,4 +181,64 @@ test('a child issue is created with the parent milestone and the part-of line, t
   const told = calls.find((c) => c.method === 'POST' && c.path.endsWith('/issues/1/comments'));
   assert.match(told.body.body, /#5001/);
   assert.match(told.body.body, /#5002/);
+});
+
+// --- review round 1 (#1326) -------------------------------------------------------------
+
+test('B1: the bot refuses to send a secret-shaped string, whatever hides it, and nothing is written for that issue', async () => {
+  for (const t of ['sk-<!---->ant-oat01-abc', 'gh\u0001p_abc', 'ghp_plain']) {
+    assert.throws(() => assertClean({ body: { nested: [`x ${t}`] } }), /secret-shaped/);
+  }
+  assertClean({ body: 'a normal body <!-- comment -->' });
+  // The original text of an issue is GitHub's, not the model's: it is quoted into the new body, so it is checked too.
+  const facts = FACTS();
+  facts.issues[0].body = 'old text with ghp_abcdef0123456789';
+  const { out, log } = logs();
+  const r = await runApply({ facts, answer: answer(PLAN()), dryRun: false, exists: () => false, log });
+  const w = calls.filter((c) => c.method !== 'GET');
+  assert.ok(!w.some((c) => c.path.endsWith('/issues/1') || c.path.endsWith('/issues/1/comments')), 'nothing written on #1');
+  assert.ok(r.refused.some((x) => x.ref === 1 && /secret/.test(x.why)));
+  assert.ok(!out.join('\n').includes('ghp_abcdef'), 'the string is not printed either');
+  assert.equal(r.exitCode, 0);
+});
+
+test('B1: a refusal in the log carries an integer or a dash, never a string the model chose', async () => {
+  const { out, log } = logs();
+  const plan = { refine: [{ issue: 'ghp_x', body: 'x', size: 'S' }], sprint: [{ issue: 3, sprint: 'sk-ant-zzz' }] };
+  await runApply({ facts: FACTS(), answer: answer(plan), dryRun: true, exists: () => false, log });
+  const text = out.join('\n');
+  assert.ok(!/ghp_|sk-ant/.test(text), text);
+  assert.match(text, /refine -:/);
+});
+
+test('M4: when a move fails, the refinement that relied on its milestone is skipped', async () => {
+  const facts = FACTS();
+  facts.issues[0] = issue(1, { milestone: null });
+  state.fail.add('PATCH /issues/1');
+  const { log } = logs();
+  const plan = { move: [{ issue: 1, milestone: 21, reason: 'belongs to the Wave 8 scope' }], refine: [{ issue: 1, body: GOOD, size: 'S' }] };
+  const r = await runApply({ facts, answer: answer(plan), dryRun: false, exists: () => false, log });
+  const patches = calls.filter((c) => c.method === 'PATCH' && c.path.endsWith('/issues/1'));
+  assert.equal(patches.length, 1, 'only the move was attempted');
+  assert.equal(patches[0].body.milestone, 21);
+  assert.ok(!calls.some((c) => c.path.endsWith('/issues/1/comments')), 'no marker comment');
+  assert.ok(r.refused.some((x) => x.kind === 'refine' && /move/.test(x.why)));
+  assert.equal(r.exitCode, 1, 'the failed move is a failure');
+});
+
+test('L5: facts.json must hash to what the prepare job recorded', () => {
+  const raw = '{"a":1}';
+  const sha = createHash('sha256').update(raw).digest('hex');
+  verifyFactsHash(raw, sha);
+  assert.throws(() => verifyFactsHash(raw + ' ', sha), /does not match/);
+  assert.throws(() => verifyFactsHash(raw, ''), /does not match|missing/);
+  assert.throws(() => verifyFactsHash(raw, undefined), /missing/);
+});
+
+test('M1: the split comment on the parent carries the bot marker', async () => {
+  const { log } = logs();
+  const plan = { split: [{ parent: 1, children: [{ title: 'Part A', body: GOOD, labels: [] }] }] };
+  await runApply({ facts: FACTS(), answer: answer(plan), dryRun: false, exists: () => false, log });
+  const told = calls.find((c) => c.method === 'POST' && c.path.endsWith('/issues/1/comments'));
+  assert.match(told.body.body, /^<!-- split: 2026-11-09 po-openrisk children=#5001 -->/);
 });
