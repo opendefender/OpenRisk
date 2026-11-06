@@ -45,6 +45,7 @@ COBAC / BCEAO-UEMOA / ANTIC-CM / ISO 27001 / PCI DSS / none. Cite the article if
 
 ## Acceptance criteria
 1. Given ... When ... Then ...
+2. A criterion that can only be checked once merged (a measurement a day later, a run on the next release) ends with `(after merge)`
 
 ## Definition of Done
 - [ ] tenant_id filtering verified on every new query
@@ -62,6 +63,11 @@ What breaks if we get this wrong.
 ## Estimate
 S | M | L — reasoning in one line.
 ```
+
+Mark `(after merge)` while refining, never later: the merge gate honours a marker only if
+the same line was there when the issue was first set `status:in-progress`, and only when
+at least one criterion stays unmarked (rule 2.6, #1304). The PR then names an open
+follow-up issue with `After merge: #<m>`, which stays open until the criterion is met.
 
 Create with:
 ```

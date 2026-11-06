@@ -35,6 +35,7 @@ constitution; this file is its operating detail (#1277).
 | 2.3 | Smallest correct change. No refactor or cleanup outside the issue. | review | 📝 needs judgement |
 | 2.4 | An issue found on the way becomes a new issue, never extra commits on the current PR. | review | 📝 needs judgement |
 | 2.5 | Read every file of a module before writing in it (CLAUDE.md rule 1). | review | 📝 needs judgement |
+| 2.6 | A criterion that can only be checked once merged (a measurement later, a run on the next release) ends with `(after merge)` in the issue, at refinement (#1304). It does not hold the merge only if that same line was already there when the issue was first set `status:in-progress`, at least one criterion stays unmarked, and the PR body names an open follow-up issue (`After merge: #<m>`) that the PR does not close and whose body refers to the issue. The merge closes the issue; the follow-up stays open until the criterion is met. Limit: the anchor proves the marker came before the work, not that another role approved it, since the agent that claims an issue often wrote it; the bot's agent-review still reads the marker. | `scripts/merge/conditions.mjs` (`exemptCriteria`, `bodyAtClaim`, `followUpRefs`), fed from GitHub's edit history by `scripts/merge/enqueue.mjs` | ✅ merge gate · 📝 closing the follow-up needs judgement |
 
 ## 3. Irreversible and owner-only actions
 
