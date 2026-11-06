@@ -42,7 +42,9 @@ export function deriveStatus(facts, cfg) {
 
 // An in-progress or in-review label with no branch and no open PR is believed for
 // STALE_DAYS after the issue's last update (time to push the branch), then ignored (#1365):
-// labels left by a stopped run kept issues "In progress" for weeks.
+// labels left by a stopped run kept issues "In progress" for weeks. updatedAt moves on any
+// activity, a comment included, so a progress comment buys the label another STALE_DAYS.
+// A missing or unreadable updatedAt trusts the label.
 export const STALE_DAYS = 7;
 const ACTIVE_LABELS = ['status:in-progress', 'status:in-review'];
 export function staleActiveLabel(facts, now = Date.now()) {

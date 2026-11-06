@@ -124,3 +124,13 @@ test('a stale in-progress / in-review label is ignored, a fresh one still counts
   assert.equal(staleActiveLabel(open(['status:ready'], { updatedAt: old }), now), false);
   assert.equal(staleActiveLabel({ ...closed('COMPLETED'), labels: ['status:in-progress'], updatedAt: old }, now), false);
 });
+test('stale label: the 7-day boundary, an unreadable date, and Blocked / Needs owner still win', async () => {
+  const { staleActiveLabel, STALE_DAYS } = await import('./derive.mjs');
+  const now = Date.parse('2026-11-06T12:00:00Z');
+  const at = (days) => new Date(now - days * 86400e3).toISOString();
+  assert.equal(staleActiveLabel(open(['status:in-progress'], { updatedAt: at(STALE_DAYS) }), now), false);
+  assert.equal(staleActiveLabel(open(['status:in-progress'], { updatedAt: at(STALE_DAYS) + 'x' }), now), false);
+  assert.equal(staleActiveLabel(open(['status:in-progress'], {}), now), false);
+  assert.equal(deriveStatus(open(['status:in-progress', 'status:blocked'], { staleLabel: true }), cfg), 'Blocked');
+  assert.equal(deriveStatus(open(['status:in-review', 'needs-owner'], { staleLabel: true }), cfg), 'Needs owner');
+});

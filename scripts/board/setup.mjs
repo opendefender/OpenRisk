@@ -262,6 +262,8 @@ async function main() {
   }
 
   for (const [name, layout, filter, visible, former] of VIEWS) {
+    const missingFields = visible.filter((n) => !p.fields.nodes.some((f) => f.name === n));
+    if (missingFields.length) console.warn(`view ${name}: no field named ${missingFields.join(', ')}`);
     const ids = visible.map((n) => p.fields.nodes.find((f) => f.name === n)?.id).filter(Boolean);
     const conf = ids.length ? `, configuration: { visibleFieldIds: [${ids.map(lit).join(', ')}] }` : '';
     const view = p.views.nodes.find((v) => v.name === name) ?? p.views.nodes.find((v) => former.includes(v.name));

@@ -243,7 +243,8 @@ async function main() {
     }
     const current = Object.fromEntries(item.fieldValues.nodes.filter((v) => v.field).map((v) => [v.field.id, v.optionId]));
     const status = deriveStatus(f, cfg);
-    if (f.staleLabel) stale.push(f.number);
+    // Listed only when the stale label is what moved the item (not when Blocked or Needs owner decided).
+    if (f.staleLabel && deriveStatus({ ...f, staleLabel: false }, cfg) !== status) stale.push(f.number);
     if (status === ARCHIVE) {
       archive.push(item);
       changes.push(`#${f.number} archive (${f.stateReason})`);
