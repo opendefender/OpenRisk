@@ -66,7 +66,8 @@ comes from `scripts/release/cut.mjs`:
 - during an rc cycle the core is kept (`1.1.0-rc.8` → `1.1.0-rc.9`, final `1.1.0`);
   a breaking change found then is reported, and the owner passes an explicit version
   if it must be a major;
-- `final` is refused when a `feat` or `fix` commit landed after the last rc.
+- `final` is refused when a `feat`, `fix`, `perf`, `security` or `revert` commit landed
+  after the last rc.
 
 `node scripts/release/cut.mjs rc --dry-run` prints the plan without writing. The
 French notes live in `docs/releases/<version>.fr.md` and are appended to the GitHub

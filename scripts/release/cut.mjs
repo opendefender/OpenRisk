@@ -50,10 +50,12 @@ export function classify(commit) {
   return { type: m[1].toLowerCase(), scope: m[2] || null, breaking, summary: m[4], refs };
 }
 
+const PATCH_TYPES = new Set(['fix', 'perf', 'security', 'revert']);
+
 export function bumpOf(classified) {
   if (classified.some((c) => c.breaking)) return 'major';
   if (classified.some((c) => c.type === 'feat')) return 'minor';
-  if (classified.some((c) => c.type === 'fix' || c.type === 'perf')) return 'patch';
+  if (classified.some((c) => PATCH_TYPES.has(c.type))) return 'patch';
   return null;
 }
 
@@ -72,7 +74,7 @@ export function nextVersion(last, mode, bump) {
   if (l.rc !== null) {
     // A final ships what the last rc proved, nothing more (D-099).
     if (mode === 'final' && bump) {
-      throw new Error(`feat or fix commits landed since v${formatVersion(l)}: cut an rc first, so they are tested before the final`);
+      throw new Error(`feat, fix or security commits landed since v${formatVersion(l)}: cut an rc first, so they are tested before the final`);
     }
     return formatVersion({ ...l, rc: mode === 'rc' ? l.rc + 1 : null });
   }
@@ -89,7 +91,8 @@ export function nextVersion(last, mode, bump) {
 // already exists or when Unreleased holds nothing to release.
 export function cutChangelog(text, { last, version, date }) {
   if (text.includes(`## [${version}]`)) throw new Error(`CHANGELOG.md already has a [${version}] section`);
-  const lines = text.split('\n');
+  const eol = text.includes('\r\n') ? '\r\n' : '\n';
+  const lines = text.split(/\r?\n/);
   const start = lines.findIndex((l) => /^## \[Unreleased\]/.test(l));
   if (start === -1) throw new Error('CHANGELOG.md has no "## [Unreleased]" heading');
   let end = lines.findIndex((l, i) => i > start && /^## \[/.test(l));
@@ -127,11 +130,12 @@ export function cutChangelog(text, { last, version, date }) {
   const unreleasedLink = out.findIndex((l) => /^\[Unreleased\]: /.test(l));
   const compare = `[${version}]: ${REPO_URL}/compare/v${last}...v${version}`;
   if (unreleasedLink === -1) {
-    out.push(`[Unreleased]: ${REPO_URL}/compare/v${version}...HEAD`, compare);
+    while (out.length && out[out.length - 1] === '') out.pop();
+    out.push(`[Unreleased]: ${REPO_URL}/compare/v${version}...HEAD`, compare, '');
   } else {
     out.splice(unreleasedLink, 1, `[Unreleased]: ${REPO_URL}/compare/v${version}...HEAD`, compare);
   }
-  return out.join('\n');
+  return out.join(eol);
 }
 
 function git(...args) {
@@ -163,14 +167,15 @@ export function plan({ last, mode, commits }) {
     bump,
     breaking: group((c) => c.breaking),
     feat: group((c) => c.type === 'feat'),
-    fix: group((c) => c.type === 'fix' || c.type === 'perf'),
+    fix: group((c) => PATCH_TYPES.has(c.type)),
     security: group((c) => c.type === 'security' || c.scope === 'security'),
-    other: classified.filter((c) => !['feat', 'fix', 'perf'].includes(c.type)).length,
+    other: classified.filter((c) => c.type !== 'feat' && !PATCH_TYPES.has(c.type)).length,
     refs: [...new Set(classified.flatMap((c) => c.refs))].sort((a, b) => a - b),
   };
 }
 
 function main(argv) {
+  process.chdir(git('rev-parse', '--show-toplevel'));
   const args = argv.slice(2);
   const dry = args.includes('--dry-run');
   const di = args.indexOf('--date');

@@ -34,6 +34,7 @@ test('the bump is the strongest change: breaking > feat > fix/perf > nothing', (
   assert.equal(bumpOf(k('fix: a', 'feat: b', 'chore!: c')), 'major');
   assert.equal(bumpOf(k('fix: a', 'feat: b')), 'minor');
   assert.equal(bumpOf(k('docs: a', 'perf: b')), 'patch');
+  assert.equal(bumpOf(k('security(auth): c')), 'patch');
   assert.equal(bumpOf(k('docs: a', 'chore: b')), null);
 });
 
@@ -115,6 +116,13 @@ Intro.
 [1.1.0-rc.8]: https://github.com/opendefender/OpenRisk/compare/v1.1.0-rc.7...v1.1.0-rc.8
 `,
   );
+});
+
+test('CRLF files keep CRLF, and a missing link list gets a final newline', () => {
+  const out = cutChangelog(LOG.replace(/\n/g, '\r\n'), { last: '1.1.0-rc.8', version: '1.1.0-rc.9', date: '2026-11-06' });
+  assert.equal(out.replace(/\r\n/g, '').includes('\n'), false);
+  const bare = cutChangelog('# C\n\n## [Unreleased]\n\n### Fixed\n- x\n', { last: '1.0.0', version: '1.0.1', date: 'd' });
+  assert.ok(bare.endsWith('[1.0.1]: https://github.com/opendefender/OpenRisk/compare/v1.0.0...v1.0.1\n'));
 });
 
 test('the changelog refuses an empty Unreleased, a missing heading and a duplicate section', () => {
