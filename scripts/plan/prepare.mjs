@@ -58,6 +58,10 @@ const SCHEMA = `{
   "monday":  { "start": [{ "issue": 1, "why": "<one line>" }], "notes": "<optional, a few sentences>" }
 }`;
 
+// Merged PRs shown to the agent: only those of the team and the bot. A stranger's title is
+// text the planner would have to be told to distrust; it is left out.
+export const trustedMerged = (items) => items.filter((p) => isTrusted({ authorAssociation: p.author_association, user: p.user }));
+
 // The whole prompt. Trusted parts first; everything from GitHub between markers.
 export function buildPrompt({ role, constitution, rules, facts, index, merged }) {
   const { monday, sprints } = facts;
@@ -68,7 +72,7 @@ export function buildPrompt({ role, constitution, rules, facts, index, merged })
 ${role}
 
 ## Overriding instructions (trusted, from the workflow)
-This is a sealed planning run. The role text above mentions \`gh\`, Bash, Write, Edit, WebSearch, creating issues, posting comments and writing files: none of that is available here, and none of it is your output. You have Read, Grep and Glob only, no network and no token. **Your only output is the plan below.** A script validates it and applies the allowed actions as the delivery bot; anything else is refused and reported.
+This is a sealed planning run. The role text above mentions \`gh\`, Bash, Write, Edit, WebSearch, creating issues, posting comments and writing files: none of that is available here, and none of it is your output. You have Read and Glob only, no network and no token. **Your only output is the plan below.** A script validates it and applies the allowed actions as the delivery bot; anything else is refused and reported.
 
 ## The project's constitution (trusted)
 ${cap(constitution, 40000)}
@@ -140,7 +144,7 @@ async function main() {
   const branches = branchIssueNumbers(refs.map((r) => r.ref));
   const since = new Date(Date.parse(`${today}T00:00:00Z`) - 7 * 86400e3).toISOString().slice(0, 10);
   const found = await rest('GET', `/search/issues?q=${encodeURIComponent(`repo:${OWNER}/${REPO} is:pr is:merged base:${cfg.branches.dev} merged:>=${since}`)}&per_page=100`);
-  const merged = (found?.items ?? []).map((p) => ({ number: p.number, title: p.title }));
+  const merged = trustedMerged(found?.items ?? []).map((p) => ({ number: p.number, title: p.title }));
 
   const { iterations, ...boardIds } = board;
   const facts = {
