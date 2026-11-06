@@ -23,6 +23,8 @@ import { Field, StepShell } from './stepPrimitives';
 import { initialOrgName } from './orgName';
 import { inputCls, inputStyle, str, useStepNav, useStoredAnswers } from './stepNav';
 import type { LocaleCode } from '../../../i18n/locales';
+import { planCapErrorMessage } from '../../billing/useEntitlements';
+import { PlanCapNotice } from '../../billing/PlanCapNotice';
 
 // ---------------------------------------------------------------------------
 // Shared primitives
@@ -379,6 +381,7 @@ export function GoalStep() {
         alreadyAdopted={alreadyAdopted}
         onToggle={toggle}
         failed={adopt.isError && !isExpectedAdoptionRefusal(adopt.error)}
+        capMessage={adopt.isError ? planCapErrorMessage(adopt.error, lang) : null}
         lang={lang}
         tr={tr}
       />
@@ -405,6 +408,7 @@ function StarterRiskPicker({
   alreadyAdopted,
   onToggle,
   failed,
+  capMessage,
   lang,
   tr,
 }: {
@@ -415,6 +419,8 @@ function StarterRiskPicker({
   alreadyAdopted: boolean;
   onToggle: (key: string) => void;
   failed: boolean;
+  /** The localised plan-cap sentence when the adoption was refused with a 402. */
+  capMessage: string | null;
   lang: LocaleCode;
   tr: (fr: string, en: string) => string;
 }) {
@@ -484,10 +490,11 @@ function StarterRiskPicker({
 
       {failed && (
         <div className="text-[12.5px] mb-3" role="alert" style={{ color: 'var(--high)' }}>
-          {tr(
-            'Les risques n’ont pas pu être ajoutés. Réessayez — vos choix sont conservés.',
-            'The risks could not be added. Try again — your picks are kept.',
-          )}
+          {capMessage ??
+            tr(
+              'Les risques n’ont pas pu être ajoutés. Réessayez — vos choix sont conservés.',
+              'The risks could not be added. Try again — your picks are kept.',
+            )}
         </div>
       )}
 
@@ -626,8 +633,14 @@ export function FrameworkStep() {
           ),
         );
       },
-      onError: () =>
-        toast.error(tr("L'import a échoué. Réessayez.", 'The import failed. Try again.')),
+      onError: (err) => {
+        // Free keeps one framework active (D-076): a second import is refused
+        // with the cap, which is not a failure to retry.
+        toast.error(
+          planCapErrorMessage(err, lang) ??
+            tr("L'import a échoué. Réessayez.", 'The import failed. Try again.'),
+        );
+      },
     });
   };
 
@@ -658,6 +671,8 @@ export function FrameworkStep() {
           {tr('Sélection des référentiels…', 'Selecting frameworks…')}
         </div>
       )}
+
+      <PlanCapNotice limitKey="frameworks" />
 
       <div className="flex flex-col gap-2.5">
         {offered.map((c) => {

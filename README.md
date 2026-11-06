@@ -64,8 +64,9 @@ OpenRisk allows every organization to:
 ![Financial Quantification dashboard, on demonstration data](./docs/assets/crq-dashboard.png)
 
 *The Financial Quantification dashboard (`/analytics/financial`), shown on the built-in
-demonstration dataset (`DEMO_MODE=true`), not on a customer's data. Available from the
-**Pro** plan.*
+demonstration dataset (`DEMO_MODE=true`), not on a customer's data. The dashboard and
+the Monte-Carlo simulation are available from the **Pro** plan; the deterministic ALE of
+each risk is available on every hosted plan, Free included.*
 
 Each risk is quantified FAIR-style: single loss expectancy (SLE), annual rate of occurrence
 (ARO), annualised loss expectancy (ALE = SLE × ARO), residual ALE and return on security

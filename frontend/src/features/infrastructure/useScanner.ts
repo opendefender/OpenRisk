@@ -16,6 +16,7 @@ import {
   type ScanType,
   type ScannerAgent,
 } from './scannerService';
+import { ENTITLEMENTS_KEY } from '../billing/useEntitlements';
 
 const CONFIGS_KEY = ['scanner', 'configs'];
 const AGENTS_KEY = ['scanner', 'agents'];
@@ -26,7 +27,11 @@ const IN_FLIGHT: ScanJob['status'][] = ['queued', 'claimed', 'running'];
 export function useScanConfigs() {
   const qc = useQueryClient();
   const query = useQuery({ queryKey: CONFIGS_KEY, queryFn: scannerService.listConfigs });
-  const invalidate = () => qc.invalidateQueries({ queryKey: ['scanner'] });
+  // Sources and scans move the plan's counters (D-078).
+  const invalidate = () => {
+    void qc.invalidateQueries({ queryKey: ['scanner'] });
+    void qc.invalidateQueries({ queryKey: ENTITLEMENTS_KEY });
+  };
 
   const createConfig = useMutation({
     mutationFn: (input: CreateScanConfigInput) => scannerService.createConfig(input),

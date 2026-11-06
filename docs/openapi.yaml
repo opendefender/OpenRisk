@@ -2005,6 +2005,8 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '402':
+          description: The plan's cap on risks is reached (limit_reached, D-078)
 
   /risks/{id}:
     get:
@@ -2967,6 +2969,8 @@ paths:
                 $ref: '#/components/schemas/ComplianceFramework'
         '400':
           description: Invalid input
+        '402':
+          description: The plan's cap on active frameworks is reached (limit_reached, D-076)
         '403':
           description: Forbidden — only Admin can create a global framework
         '409':
@@ -3727,6 +3731,8 @@ paths:
           description: Invalid input
         '401':
           description: Unauthorized
+        '402':
+          description: The plan's cap on assets is reached (limit_reached, D-078)
 
   /assets/{id}:
     get:

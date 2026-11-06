@@ -26,9 +26,9 @@ func TestSelfHosted_MatchesD040(t *testing.T) {
 		FeatExecutiveDashboard: LevelOn,
 		FeatScanner:            LevelOn,       // the agent registers with their own instance
 		FeatCTI:                LevelAdvanced, // NVD and CISA KEV are free public feeds
-		FeatCompliance:         LevelCustom,
-		FeatAutomation:         LevelAdvanced,
-		FeatGovernance:         LevelAdvanced,
+		FeatCompliance:         LevelOn,       // no tiers since D-076; frameworks are the cap, and here uncapped
+		FeatAutomation:         LevelOn,
+		FeatGovernance:         LevelOn,
 		FeatAPI:                LevelOn,
 		FeatMultiTenant:        LevelOn,
 		FeatOnPremise:          LevelOn,

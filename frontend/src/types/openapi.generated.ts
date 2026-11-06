@@ -6596,6 +6596,13 @@ export interface operations {
                     "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
+            /** @description The plan's cap on risks is reached (limit_reached, D-078) */
+            402: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
         };
     };
     getRisk: {
@@ -7758,6 +7765,13 @@ export interface operations {
                 };
                 content?: never;
             };
+            /** @description The plan's cap on active frameworks is reached (limit_reached, D-076) */
+            402: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Forbidden — only Admin can create a global framework */
             403: {
                 headers: {
@@ -8846,6 +8860,13 @@ export interface operations {
             };
             /** @description Unauthorized */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The plan's cap on assets is reached (limit_reached, D-078) */
+            402: {
                 headers: {
                     [name: string]: unknown;
                 };

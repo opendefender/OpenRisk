@@ -21,6 +21,7 @@ import type {
 } from './automationService';
 import { useEscapeToClose } from '../../shared/useBackTo';
 import { apiErrorMessage } from '../../lib/apiError';
+import { planCapErrorMessage } from '../billing/useEntitlements';
 
 const TRIGGERS: AutomationTrigger[] = [
   'vulnerability_detected',
@@ -175,7 +176,10 @@ export function RuleEditorModal({
       // generic message leaves the modal open with no way to tell whether the
       // save failed or the close is broken — which is exactly how "the modal
       // stays open after saving" gets reported.
-      toast.error(apiErrorMessage(err) || tr('Échec de l’enregistrement', 'Save failed'));
+      toast.error(
+        planCapErrorMessage(err, lang) ??
+          (apiErrorMessage(err) || tr('Échec de l’enregistrement', 'Save failed')),
+      );
     }
   };
 
