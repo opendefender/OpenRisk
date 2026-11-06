@@ -23,7 +23,11 @@ name: Weekly planning
 # - Its prompt is built from the default branch; issue text is quoted as data. Issues from
 #   people outside the team are not given to it at all.
 # - Only the plan leaves the job, as canonical JSON (scripts/plan/canon.mjs), after a scan for
-#   secret-shaped text, the OAuth token and the canary, hidden or not. The raw answer is never
+#   secret-shaped text, the OAuth token and the canary, including when split by an HTML
+#   comment, a control or zero-width character, or a JSON escape. It does NOT catch every
+#   encoding (HTML entities, markdown escapes, look-alike letters: #1339); what keeps the
+#   token safe is that the agent cannot read it (Read/Glob only, `/proc` denied), and that is
+#   unproven until a canary dry run in Actions. The raw answer is never
 #   uploaded: the repository is public and artifacts are downloadable. The apply job validates
 #   and sanitises the plan again, and checks every string once more before each write.
 # - No `pull_request` trigger: a fork can never reach this workflow.
