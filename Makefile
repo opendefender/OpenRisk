@@ -1,4 +1,4 @@
-.PHONY: help build test lint clean docker-build docker-up docker-down migrate migrate-rollback migrate-status migrate-force seed dev install setup version sync-version check-version
+.PHONY: help build test lint clean docker-build docker-up docker-down migrate migrate-rollback migrate-status migrate-force seed seed-dev dev install setup version sync-version check-version
 
 # ============================================================================
 # VERSION — single source of truth is the root VERSION file (see docs/VERSIONING.md)
@@ -48,6 +48,7 @@ help:
 	@echo "     make migrate-status       - Show current migration version + dirty flag"
 	@echo "     make migrate-force VERSION=<n> - Recover a DIRTY database (set version, clear dirty)"
 	@echo "     make seed                 - Seed database with sample data"
+	@echo "     make seed-dev             - Fill the running stack with the dev dataset (docs/DEV_DATASET.md)"
 	@echo "     make db-shell             - Open database shell (psql)"
 	@echo "     make db-test-shell        - Open test database shell"
 	@echo ""
@@ -228,6 +229,15 @@ seed:
 	@echo "🌱 Seeding database with sample data..."
 	cd backend && go run ./cmd/server seed
 	@echo "✅ Database seeded"
+
+# Fills the running compose stack through its API (#1337, docs/DEV_DATASET.md).
+# The seed admin password is read from the backend container unless
+# SEED_ADMIN_PASSWORD is already set. It goes through the environment and is
+# never echoed.
+seed-dev:
+	@SEED_ADMIN_PASSWORD="$${SEED_ADMIN_PASSWORD:-$$($(COMPOSE) exec -T backend cat /app/secrets/initial_admin_password 2>/dev/null)}" \
+	SEED_API_URL="$${SEED_API_URL:-http://localhost:$${OPENRISK_DEV_BACKEND_PORT:-8080}/api/v1}" \
+	node scripts/seed-dev.mjs
 
 db-shell:
 	@echo "🔌 Connecting to production database..."
