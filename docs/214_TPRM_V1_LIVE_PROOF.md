@@ -10,7 +10,7 @@ inferred from reading code; what was not observed live is listed under
 | --- | --- |
 | Date | 2026-11-07 |
 | Commit | `2572fd10` (`develop`, every TPRM child PR merged: #675–#684) |
-| Backend | Go 1.25.12, built from that commit, `:58214`, `OPENRISK_DEPLOYMENT=hosted` |
+| Backend | go1.26.9 (`go version` on the binary), built from that commit, `:58214`, `OPENRISK_DEPLOYMENT=hosted` |
 | Frontend | Vite dev server from the same commit, `:57214`, French UI |
 | Database | throwaway `postgres:16-alpine`, migrations applied through `DATABASE_URL` |
 | Cache | throwaway `redis:7-alpine`, `REDIS_URL` set |
@@ -69,7 +69,11 @@ through the API.
 7. **See the vendor→asset→risk chain.** On the vendor page: `Hébergé par le
    fournisseur → Core banking (proof 214) → Core banking outage via hosting
    provider, Score 12`. The risk's score stayed at 12 after the vendor was
-   scored.
+   scored. The same independence is pinned by
+   `TestSubmitPublicAssessment_NeverTouchesLinkedRisksOrAssets`
+   (`internal/application/tprm/score_assessment_test.go`) and
+   `TestBoundary_NothingInTheRiskScoringPathImportsVendorScore`
+   (`pkg/vendorscore/imports_test.go`).
 
 The 43-character token was searched for in both server logs: not found.
 
@@ -167,5 +171,8 @@ score, contact address, or answer points.
 - **The token of the first send** could not be checked against the 410 a
   replaced link must return, because the log transport never released it.
   Resend replacing a token is covered by `vendor_assessments_test.go`.
-- **Screenshots** of steps 1, 4–7 are attached to the issue comment, not
-  committed.
+- **Screenshots** of the register, the submitted vendor page, the score
+  breakdown and the vendor chain were taken during the run. They are not
+  committed, and the GitHub REST API cannot attach an image to an issue
+  comment, so they are not on the issue either. The DOM text quoted above is
+  the record.
