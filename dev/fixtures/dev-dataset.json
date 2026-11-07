@@ -172,7 +172,11 @@
       "owner": "asset_owner",
       "attributes": {
         "environment": "production",
-        "application_name": "Kalao Gateway"
+        "application_name": "Kalao Gateway",
+        "internet_exposed": true,
+        "cpes": [
+          "cpe:2.3:a:apache:tomcat:10.1.30:*:*:*:*:*:*:*"
+        ]
       }
     },
     {
@@ -205,7 +209,8 @@
       "owner": "asset_owner",
       "attributes": {
         "environment": "production",
-        "application_name": "Kalao Wallet"
+        "application_name": "Kalao Wallet",
+        "internet_exposed": true
       }
     },
     {
@@ -216,7 +221,11 @@
       "owner": "asset_owner",
       "attributes": {
         "environment": "production",
-        "application_name": "Portail marchands"
+        "application_name": "Portail marchands",
+        "internet_exposed": true,
+        "cpes": [
+          "cpe:2.3:a:nginx:nginx:1.25.2:*:*:*:*:*:*:*"
+        ]
       }
     },
     {
@@ -227,7 +236,11 @@
       "owner": "rssi",
       "attributes": {
         "environment": "production",
-        "application_name": "Keycloak"
+        "application_name": "Keycloak",
+        "internet_exposed": true,
+        "cpes": [
+          "cpe:2.3:a:redhat:keycloak:24.0.1:*:*:*:*:*:*:*"
+        ]
       }
     },
     {
@@ -239,7 +252,8 @@
       "attributes": {
         "environment": "production",
         "hostname": "web-dkr-01.kalao.local",
-        "operating_system": "Ubuntu 22.04"
+        "operating_system": "Ubuntu 22.04",
+        "internet_exposed": true
       }
     },
     {
@@ -251,7 +265,11 @@
       "attributes": {
         "environment": "production",
         "hostname": "web-dkr-02.kalao.local",
-        "operating_system": "Ubuntu 20.04"
+        "operating_system": "Ubuntu 20.04",
+        "internet_exposed": true,
+        "cpes": [
+          "cpe:2.3:a:openbsd:openssh:9.6:*:*:*:*:*:*:*"
+        ]
       }
     },
     {
@@ -263,7 +281,11 @@
       "attributes": {
         "environment": "production",
         "hostname": "web-abj-01.kalao.local",
-        "operating_system": "Debian 11"
+        "operating_system": "Debian 11",
+        "internet_exposed": true,
+        "cpes": [
+          "cpe:2.3:a:openssl:openssl:3.0.13:*:*:*:*:*:*:*"
+        ]
       }
     },
     {
@@ -274,7 +296,10 @@
       "owner": "asset_owner",
       "attributes": {
         "environment": "production",
-        "engine": "postgresql"
+        "engine": "postgresql",
+        "cpes": [
+          "cpe:2.3:a:postgresql:postgresql:12.18:*:*:*:*:*:*:*"
+        ]
       }
     },
     {
@@ -334,7 +359,8 @@
       "attributes": {
         "device_type": "pare-feu",
         "network_zone": "perimetre",
-        "management_ip": "10.10.0.1"
+        "management_ip": "10.10.0.1",
+        "internet_exposed": true
       }
     },
     {
@@ -346,7 +372,11 @@
       "attributes": {
         "device_type": "vpn",
         "network_zone": "dmz",
-        "management_ip": "10.10.0.5"
+        "management_ip": "10.10.0.5",
+        "internet_exposed": true,
+        "cpes": [
+          "cpe:2.3:o:fortinet:fortios:7.2.6:*:*:*:*:*:*:*"
+        ]
       }
     },
     {
@@ -699,7 +729,7 @@
       "title": "MFA non imposée sur le fournisseur d'identité",
       "description": "Les comptes administrateurs Keycloak se connectent par mot de passe seul. Les tentatives de bourrage d'identifiants sont visibles dans les journaux.",
       "probability": 0.5,
-      "impact": 9.0,
+      "impact": 9,
       "assets": [
         "idp-keycloak"
       ],
@@ -744,7 +774,7 @@
       "title": "Chiffrements TLS obsolètes sur le portail marchands",
       "description": "Le portail accepte encore TLS 1.0 et des suites CBC pour un terminal de paiement ancien.",
       "probability": 0.2,
-      "impact": 4.0,
+      "impact": 4,
       "assets": [
         "portail-marchands"
       ],
@@ -761,7 +791,7 @@
       "title": "Données personnelles non chiffrées dans le stockage objet",
       "description": "Des exports KYC sont déposés en clair dans un bucket accessible à tous les pods du cluster.",
       "probability": 0.3,
-      "impact": 9.0,
+      "impact": 9,
       "assets": [
         "stockage-objets",
         "Traitement — KYC clients mobile money"
@@ -788,7 +818,7 @@
       "title": "API Kubernetes exposée au réseau bureautique",
       "description": "Le plan de contrôle du cluster de production répond depuis le VLAN des postes.",
       "probability": 0.4,
-      "impact": 8.0,
+      "impact": 8,
       "assets": [
         "k8s-prod"
       ],
@@ -805,7 +835,7 @@
       "title": "Runners CI avec des clés cloud permanentes",
       "description": "Les runners de la CI stockent des clés d'accès cloud sans expiration.",
       "probability": 0.45,
-      "impact": 8.0,
+      "impact": 8,
       "assets": [
         "k8s-prod"
       ],
@@ -823,7 +853,7 @@
       "title": "Hameçonnage ciblant les postes de la finance",
       "description": "Trois campagnes de spear-phishing imitant la DGID en six mois. Taux de clic de 14 % au dernier exercice.",
       "probability": 0.6,
-      "impact": 7.0,
+      "impact": 7,
       "assets": [
         "postes-finance"
       ],
@@ -881,7 +911,7 @@
       "title": "Revue des accès expirée pour trois applications",
       "description": "La revue semestrielle des habilitations n'a pas été faite pour le switch, le ledger et le portail.",
       "probability": 0.45,
-      "impact": 6.0,
+      "impact": 6,
       "assets": [
         "switch-monetique",
         "ledger-db",
@@ -902,7 +932,7 @@
       "title": "Second serveur web hors de la baseline de correctifs",
       "description": "web-dkr-02 n'est pas rattaché à l'outil de patch management depuis son remplacement.",
       "probability": 0.55,
-      "impact": 7.0,
+      "impact": 7,
       "assets": [
         "web-dkr-02"
       ],
@@ -919,7 +949,7 @@
       "title": "Application de reporting sans propriétaire",
       "description": "Le reporting historique n'a plus de responsable depuis le départ de l'équipe BI.",
       "probability": 0.3,
-      "impact": 5.0,
+      "impact": 5,
       "assets": [
         "reporting-legacy"
       ],
@@ -954,7 +984,7 @@
       "title": "Environnement de recette restauré depuis la production",
       "description": "La recette a été rechargée avec un instantané de production non anonymisé.",
       "probability": 0.5,
-      "impact": 8.0,
+      "impact": 8,
       "assets": [
         "k8s-recette"
       ],
@@ -971,7 +1001,7 @@
       "title": "Comptes d'anciens prestataires réactivés sur le VPN",
       "description": "Clôturé après la purge de mars, le risque est revenu : deux comptes de prestataires partis ont été réactivés lors d'une restauration de l'annuaire.",
       "probability": 0.4,
-      "impact": 6.0,
+      "impact": 6,
       "assets": [
         "vpn-nomades",
         "idp-keycloak"
@@ -990,7 +1020,7 @@
       "title": "Pas de limitation de débit sur l'authentification du portail",
       "description": "L'endpoint de connexion du portail marchands n'applique aucun quota par IP.",
       "probability": 0.55,
-      "impact": 7.0,
+      "impact": 7,
       "assets": [
         "portail-marchands"
       ],
@@ -1085,7 +1115,7 @@
       "title": "Dépendance unique à l'hébergeur cloud",
       "description": "Production et sauvegardes externalisées sont chez le même hébergeur, sans plan de réversibilité testé.",
       "probability": 0.2,
-      "impact": 9.0,
+      "impact": 9,
       "assets": [
         "k8s-prod",
         "Wari Cloud Hosting"
@@ -1108,7 +1138,7 @@
       "title": "Prestataire d'impression sans clause RGPD",
       "description": "L'imprimeur reçoit noms et adresses des porteurs sans accord de sous-traitance signé.",
       "probability": 0.4,
-      "impact": 6.0,
+      "impact": 6,
       "assets": [
         "Imprimerie Cartes Ouest"
       ],
@@ -1126,7 +1156,7 @@
       "title": "Absence d'objectif de reprise documenté pour le ledger",
       "description": "Ni RTO ni RPO n'est formalisé pour la base comptable, alors que la BCEAO l'exige.",
       "probability": 0.3,
-      "impact": 8.0,
+      "impact": 8,
       "assets": [
         "ledger-db"
       ],
@@ -1164,7 +1194,7 @@
       "title": "Postes d'agence partagés entre plusieurs caissiers",
       "description": "Un même compte Windows est utilisé par toute l'équipe de l'agence de Thiès.",
       "probability": 0.7,
-      "impact": 3.0,
+      "impact": 3,
       "assets": [
         "postes-agences"
       ],
@@ -1551,7 +1581,7 @@
     {
       "title": "XZ Utils porte dérobée",
       "cve": "CVE-2024-3094",
-      "cvss": 10.0,
+      "cvss": 10,
       "severity": "critical",
       "host": "k8s-recette"
     },
@@ -2037,7 +2067,7 @@
         "title": "[Sahel] Base des sinistres sans chiffrement au repos",
         "description": "Visible uniquement dans le tenant Sahel Assurances. Si ce titre apparaît chez Kalao, l'isolation est cassée.",
         "probability": 0.4,
-        "impact": 8.0,
+        "impact": 8,
         "assets": [
           "sahel-sinistres-db"
         ],
@@ -2049,7 +2079,7 @@
         "title": "[Sahel] Comptes CRM partagés entre courtiers",
         "description": "Visible uniquement dans le tenant Sahel Assurances.",
         "probability": 0.6,
-        "impact": 5.0,
+        "impact": 5,
         "assets": [
           "sahel-crm"
         ],
@@ -2061,7 +2091,7 @@
         "title": "[Sahel] Messagerie sans DMARC",
         "description": "Visible uniquement dans le tenant Sahel Assurances.",
         "probability": 0.5,
-        "impact": 4.0,
+        "impact": 4,
         "assets": [
           "sahel-messagerie"
         ],
@@ -2071,5 +2101,16 @@
       }
     ]
   },
-  "acceptance_approver": "rssi"
+  "acceptance_approver": "rssi",
+  "scan_configs": [
+    {
+      "name": "Périmètre Dakar (nmap)",
+      "provider": "nmap",
+      "targets": [
+        "10.20.0.0/24",
+        "web-dkr-01.kalao.dev.local"
+      ],
+      "schedule_minutes": 0
+    }
+  ]
 }

@@ -37,7 +37,9 @@ const dataset = JSON.parse(fs.readFileSync(DATASET_FILE, 'utf8'));
 
 function assertLocalTarget() {
   const host = new URL(API_URL).hostname;
-  const local = ['localhost', '127.0.0.1', '::1', '[::1]', 'backend'].includes(host);
+  // Literal loopback only. A DNS name such as the compose service `backend`
+  // could resolve through a search domain to another machine.
+  const local = ['localhost', '127.0.0.1', '::1', '[::1]'].includes(host);
   if (!local && process.env.SEED_DEV_ALLOW_REMOTE !== 'true') {
     fail(
       `refusing to seed ${host}: this script creates accounts with published passwords. ` +
@@ -81,7 +83,8 @@ async function api(method, endpoint, body, opts = {}) {
     payload = JSON.stringify(body);
   }
   for (let attempt = 1; ; attempt++) {
-    const res = await fetch(`${API_URL}${endpoint}`, { method, headers, body: payload });
+    // No redirects: a proxy in the way must not forward passwords elsewhere.
+    const res = await fetch(`${API_URL}${endpoint}`, { method, headers, body: payload, redirect: 'manual' });
     const text = await res.text();
     let json;
     try {
@@ -142,7 +145,10 @@ async function listAll(endpoint) {
     const items = asArray(res.body);
     out.push(...items);
     const total = typeof res.body?.total === 'number' ? res.body.total : undefined;
-    if (!items.length || total === undefined || out.length >= total || items.length < size) break;
+    if (!items.length) break;
+    // A list that caps its page below `size` still reports the real total, so
+    // trust the total when there is one; a short page ends only an untotalled list.
+    if (total !== undefined ? out.length >= total : items.length < size) break;
   }
   return out;
 }
@@ -239,6 +245,28 @@ async function seedPersonas() {
   }
   const me = await api('GET', '/auth/me');
   ids.users.admin = me.body?.user?.id ?? me.body?.id;
+  for (const p of dataset.personas) await completeOnboarding(p);
+}
+
+/**
+ * Onboarding state is per user. Without this, every persona's first sign-in
+ * lands on the setup wizard instead of the screen being tested. Done through
+ * the persona's own session, as the wizard's last step would.
+ */
+async function completeOnboarding(p) {
+  const m = 'onboarding des comptes';
+  const session = await signIn(p.email, p.password);
+  if (session.error) {
+    skipped(m, `${p.email} cannot sign in`, session.error);
+    return;
+  }
+  const state = await api('GET', '/onboarding/state', undefined, { token: session.token });
+  if (state.body?.completed) {
+    existing(m);
+    return;
+  }
+  const res = await api('POST', '/onboarding/complete', {}, { token: session.token });
+  res.ok ? created(m) : skipped(m, p.email, res);
 }
 
 const userId = (key) => (key ? ids.users[key] : undefined);
@@ -1055,6 +1083,23 @@ async function seedSavedViews() {
   }
 }
 
+/**
+ * A scan configuration so the infrastructure screen has a target. It is never
+ * triggered: the seed does not scan anything.
+ */
+async function seedScanConfigs() {
+  const m = 'configurations de scan';
+  const configs = await listAll('/scanner/configs');
+  for (const c of dataset.scan_configs ?? []) {
+    if (configs.some((x) => x.name === c.name)) {
+      existing(m);
+      continue;
+    }
+    const res = await api('POST', '/scanner/configs', c);
+    res.ok ? created(m) : skipped(m, c.name, res);
+  }
+}
+
 /* ---- second tenant ---- */
 
 async function seedSecondTenant() {
@@ -1074,6 +1119,7 @@ async function seedSecondTenant() {
       return;
     }
   } else existing(m);
+  await completeOnboarding(st.owner);
 
   const adminToken = TOKEN;
   TOKEN = session.token;
@@ -1105,9 +1151,17 @@ async function seedSecondTenant() {
 
 /* ============================================================ isolation */
 
-/** Reads back from the first tenant: none of the second tenant's titles may show. */
+/**
+ * Reads back from the first tenant: none of the second tenant's titles may
+ * show. Returns null when the check proves nothing: the read failed, or the
+ * second tenant's risks do not exist, so an empty answer would be meaningless.
+ */
 async function checkIsolation() {
   const titles = new Set(dataset.second_tenant.risks.map((r) => r.title));
+  const st = tally('organisation n°2 · risques');
+  if (st.created + st.existing !== titles.size) return null;
+  const res = await api('GET', '/risks?page=1&page_size=1');
+  if (!res.ok) return null;
   const leaked = (await listAll('/risks')).filter((r) => titles.has(r.title));
   return leaked.length;
 }
@@ -1143,7 +1197,7 @@ async function main() {
     seedRisks, seedMitigations, seedGovernance, seedRiskStates,
     seedFrameworks, seedEvidence, seedControlStatuses, seedControlMappings, seedAudits, seedRemediations,
     seedVulnerabilities, seedIncidents, seedQuestionnaires, seedReports,
-    seedAutomation, seedSavedViews, seedSecondTenant,
+    seedAutomation, seedSavedViews, seedScanConfigs, seedSecondTenant,
   ];
   for (const step of steps) {
     try {
@@ -1159,7 +1213,7 @@ async function main() {
     STATE_FILE,
     JSON.stringify({ generatedAt: new Date().toISOString(), api: API_URL, ids }, null, 2),
   );
-  if (leaks) process.exit(2);
+  if (leaks !== 0) process.exit(2);
 }
 
 function printSummary(leaks) {
@@ -1175,9 +1229,13 @@ function printSummary(leaks) {
     console.log('\nNon créés (réponse de l\'API) :');
     for (const n of notes) console.log(n);
   }
-  console.log(
-    `\nIsolation : ${leaks ? `ÉCHEC, ${leaks} risque(s) de l'organisation n°2 visibles depuis Kalao` : 'aucun risque de l\'organisation n°2 visible depuis Kalao'}`,
-  );
+  const verdict =
+    leaks === null
+      ? 'NON VÉRIFIÉE, les risques de l\'organisation n°2 n\'existent pas ou le registre n\'a pas pu être lu'
+      : leaks
+        ? `ÉCHEC, ${leaks} risque(s) de l'organisation n°2 visibles depuis Kalao`
+        : 'aucun risque de l\'organisation n°2 visible depuis Kalao';
+  console.log(`\nIsolation : ${verdict}`);
   console.log('\nComptes (mots de passe de développement, voir dev/fixtures/dev-dataset.json) :');
   console.log(`  ${ADMIN_EMAIL.padEnd(36)} propriétaire (root)  mot de passe du seed admin`);
   for (const p of dataset.personas) {
