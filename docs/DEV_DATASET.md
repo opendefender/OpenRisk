@@ -65,6 +65,12 @@ the script waits and retries when it answers 429.
   in with these passwords. On a shared network, bind to loopback:
   `OPENRISK_DEV_BACKEND_PORT=127.0.0.1:8080 OPENRISK_DEV_FRONTEND_PORT=127.0.0.1:5173 make docker-up`,
   and give `make seed-dev` `SEED_API_URL=http://localhost:8080/api/v1`.
+- **Threat Intel needs the Internet.** The catalogue is public data, filled
+  only by a sync from `services.nvd.nist.gov` and `www.cisa.gov`, which the
+  script asks the API for once. Offline, the run reports "catalogue CTI" as
+  skipped and Threat Intel stays empty. The sync also runs the product's own
+  matching of newly published NVD CVEs against every tenant's asset CPEs, which
+  can create risks titled after a CVE; the script never calls `POST /cti/match`.
 - **It ends with an isolation check.** It reads the first organisation's risk
   register and exits with code 2 if a risk from the second organisation shows
   up, or if the check could not run (the second organisation's risks are
@@ -85,6 +91,7 @@ one story.
 | Custom fields | 2 fields on risks, 2 on assets |
 | Assets | 26 assets (applications, servers, network, endpoints, data processing, 4 vendors), 20 dependencies, 5 vendor-to-asset links; 9 assets marked internet-exposed and 7 carrying CPEs, for the topology and threat-intel screens |
 | Infrastructure | one nmap scan configuration, never triggered: the seed scans nothing |
+| Threat Intel | the shared CVE catalogue, synced once from NVD and CISA KEV through `POST /cti/sync` when it is empty; the KEV entries matching the seeded findings' CVEs then show as threats on Kalao's assets |
 | Risks | 28 risks: every lifecycle state from `draft` to `reopened`, all four bands, 2 residual risks accepted on a signed governance approval with a renewal date, 2 risks with no framework, owners spread across the personas |
 | Mitigations | 13 mitigations from 0 to 100 %, some with sub-actions partly done |
 | Compliance | ISO 27001, COBAC, BCEAO, RGPD and PCI DSS imported from their catalogues, a spread of control statuses, 7 cross-framework mappings, 3 risk-to-control mappings |

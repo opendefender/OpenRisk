@@ -193,6 +193,7 @@ const ids = {
   users: {}, // persona key -> user id
   assets: {}, // asset name -> id
   risks: {}, // title -> id
+  createdRisks: new Set(), // titles created by this run
   frameworks: {}, // name -> id
   controls: {}, // framework name -> [control]
   audits: {},
@@ -452,6 +453,7 @@ async function seedRisks() {
       continue;
     }
     ids.risks[r.title] = idOf(res.body);
+    ids.createdRisks.add(r.title);
     created(m);
     const owner = userId(r.owner);
     if (owner) {
@@ -475,7 +477,11 @@ async function seedRiskStates() {
       continue;
     }
     if (!steps.length) {
-      existing(m);
+      // A risk created this run already sits in its target state (draft,
+      // identified): its state was set by this run, not found from a previous
+      // one. Counting it as "existing" would show 26 + 2 on a fresh stack.
+      if (ids.createdRisks.has(r.title)) created(m);
+      else existing(m);
       if (r.state === 'residual_accepted') existing('approbations d\'acceptation');
       continue;
     }
@@ -1100,6 +1106,43 @@ async function seedScanConfigs() {
   }
 }
 
+/**
+ * Threat Intel lists the catalogue entries (NVD, CISA KEV) that touch the
+ * tenant's assets, by CPE or through an open finding's CVE. The catalogue is
+ * public data shared by every tenant and is filled only by a sync from those
+ * feeds, so this asks the API for one (POST /cti/sync, admin only) when the
+ * catalogue is empty. It needs the backend to reach the Internet.
+ *
+ * The sync answers 200 even when a feed was unreachable, so the catalogue size
+ * is read back: an empty catalogue after the sync is reported as skipped.
+ * POST /cti/match is not called: it creates risks, and the register is the
+ * dataset's to define.
+ */
+async function seedThreatIntel() {
+  const m = 'catalogue CTI';
+  const tm = 'menaces rattachées aux actifs';
+  const total = async () => (await api('GET', '/cti/stats')).body?.total ?? 0;
+  const before = await total();
+  if (before > 0) existing(m);
+  else {
+    const res = await api('POST', '/cti/sync', {});
+    if (!res.ok) {
+      skipped(m, 'sync', res);
+      return;
+    }
+    if ((await total()) === 0) {
+      skipped(m, 'sync answered but the catalogue is still empty: can the backend reach nvd.nist.gov and cisa.gov?');
+      return;
+    }
+    created(m);
+  }
+  const threats = await api('GET', '/cti/threats');
+  const n = asArray(threats.body?.threats ?? threats.body).length;
+  if (!threats.ok) skipped(tm, 'list', threats);
+  else if (before > 0) tally(tm).existing += n;
+  else tally(tm).created += n;
+}
+
 /* ---- second tenant ---- */
 
 async function seedSecondTenant() {
@@ -1196,7 +1239,7 @@ async function main() {
     // Governance before the lifecycle: accepting a residual risk needs its workflow.
     seedRisks, seedMitigations, seedGovernance, seedRiskStates,
     seedFrameworks, seedEvidence, seedControlStatuses, seedControlMappings, seedAudits, seedRemediations,
-    seedVulnerabilities, seedIncidents, seedQuestionnaires, seedReports,
+    seedVulnerabilities, seedThreatIntel, seedIncidents, seedQuestionnaires, seedReports,
     seedAutomation, seedSavedViews, seedScanConfigs, seedSecondTenant,
   ];
   for (const step of steps) {
@@ -1211,7 +1254,7 @@ async function main() {
   printSummary(leaks);
   fs.writeFileSync(
     STATE_FILE,
-    JSON.stringify({ generatedAt: new Date().toISOString(), api: API_URL, ids }, null, 2),
+    JSON.stringify({ generatedAt: new Date().toISOString(), api: API_URL, ids: { ...ids, createdRisks: undefined } }, null, 2),
   );
   if (leaks !== 0) process.exit(2);
 }
