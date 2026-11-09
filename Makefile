@@ -94,16 +94,16 @@ sync-version: ## Write VERSION into the Helm chart, frontend package.json and th
 	@sed -i.bak -E 's/^version: .*/version: $(VERSION)/' helm/openrisk/Chart.yaml && rm -f helm/openrisk/Chart.yaml.bak
 	@sed -i.bak -E 's/^appVersion: .*/appVersion: "$(VERSION)"/' helm/openrisk/Chart.yaml && rm -f helm/openrisk/Chart.yaml.bak
 	@sed -i.bak -E '0,/"version":/ s/("version": *")[^"]*"/\1$(VERSION)"/' frontend/package.json && rm -f frontend/package.json.bak
-	@sed -i.bak -E -e '0,/"version":/ s/("version": *")[^"]*"/\1$(VERSION)"/' \
-	  -e '/^    "": [{]/,/"version":/ s/("version": *")[^"]*"/\1$(VERSION)"/' frontend/package-lock.json && rm -f frontend/package-lock.json.bak
+	@sed -i.bak -E -e 's/^(  "version": *")[^"]*"/\1$(VERSION)"/' \
+	  -e '/^    "": [{]/,/^    }/ s/^(      "version": *")[^"]*"/\1$(VERSION)"/' frontend/package-lock.json && rm -f frontend/package-lock.json.bak
 	@echo "✅ Synced. Review the diff, then commit."
 
 check-version: ## Fail if Helm chart / frontend / lockfile version drift from VERSION (used by release CI)
 	@chart="$$(grep -E '^version:' helm/openrisk/Chart.yaml | head -1 | awk '{print $$2}')"; \
 	 app="$$(grep -E '^appVersion:' helm/openrisk/Chart.yaml | head -1 | sed -E 's/appVersion: *"?([^"]*)"?/\1/')"; \
 	 fe="$$(grep -E '"version"' frontend/package.json | head -1 | sed -E 's/.*: *"([^"]*)".*/\1/')"; \
-	 lock="$$(grep -E '"version"' frontend/package-lock.json | head -1 | sed -E 's/.*: *"([^"]*)".*/\1/')"; \
-	 lockroot="$$(sed -n -E '/^    "": [{]/,/"version":/ s/.*"version": *"([^"]*)".*/\1/p' frontend/package-lock.json)"; \
+	 lock="$$(grep -E '^  "version":' frontend/package-lock.json | head -1 | sed -E 's/.*: *"([^"]*)".*/\1/')"; \
+	 lockroot="$$(sed -n -E '/^    "": [{]/,/^    }/ s/^      "version": *"([^"]*)".*/\1/p' frontend/package-lock.json)"; \
 	 fail=0; \
 	 [ "$$chart" = "$(VERSION)" ] || { echo "::error::Helm chart version '$$chart' != VERSION '$(VERSION)'"; fail=1; }; \
 	 [ "$$app" = "$(VERSION)" ]   || { echo "::error::Helm appVersion '$$app' != VERSION '$(VERSION)'"; fail=1; }; \
