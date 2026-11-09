@@ -27,7 +27,9 @@ const (
 
 // httpDoer is the minimal HTTP surface the Graph enumeration needs, so the
 // pagination/normalisation logic is unit-testable with an httptest server while
-// the real path uses http.DefaultClient. *http.Client satisfies it.
+// the real path uses the guarded egress client (#1315): Graph is a fixed host,
+// but the next page is whatever @odata.nextLink the response names.
+// *http.Client satisfies it.
 type httpDoer interface {
 	Do(*http.Request) (*http.Response, error)
 }
@@ -53,7 +55,7 @@ func (M365) Collect(ctx context.Context, cfg scanner.ScanConfig, assets chan<- s
 		errs <- fmt.Errorf("m365: acquire token: %w", err)
 		return
 	}
-	collectGraph(ctx, http.DefaultClient, graphBaseURL, tok.Token, assets, findings, errs)
+	collectGraph(ctx, egress.client(scanHTTPTimeout), graphBaseURL, tok.Token, assets, findings, errs)
 }
 
 // graphList is a paginated Microsoft Graph collection response.

@@ -2163,6 +2163,14 @@
       "deleteConfirm": "Delete"
     }
   },
+  "automation": {
+    "channels": {
+      "saveFailed": "Failed",
+      "saveRejected": "Channels not saved: {reason}",
+      "testFailed": "The test could not run",
+      "testRejected": "Test refused: {reason}"
+    }
+  },
   "paywall": {
     "cta": "Upgrade to {plan}",
     "moment": "{plan} plan",

@@ -7,6 +7,7 @@ package scanner
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -58,6 +59,12 @@ func (s *cloudScanner) Validate(_ context.Context, cfg ScanConfig) error {
 	}
 	if s.endpoints != nil {
 		if err := s.endpoints(cfg.Credentials); err != nil {
+			// A guard refusal keeps its cause so it still matches
+			// netguard.ErrDenied, behind a fixed message (#1315). Anything else
+			// (the docker-socket opt-in) is a plain validation error.
+			if netguard.IsDenied(err) {
+				return domain.NewOutboundDeniedError(fmt.Sprintf("%s scanner", s.provider), err)
+			}
 			return domain.NewValidationError(fmt.Sprintf("%s scanner: %v", s.provider, err))
 		}
 	}
@@ -104,6 +111,23 @@ func httpsEndpoint(key string) func(map[string]string) error {
 		}
 		return endpoint(key, false, "https")(map[string]string{key: v})
 	}
+}
+
+// validateGCPTokenURI checks the token_uri inside a service-account key: the
+// SDK POSTs a signed assertion there, so it is an address the API process
+// connects to (#1315). Absent means Google's default. A key that is not JSON is
+// left to the collector, which reports it.
+func validateGCPTokenURI(creds map[string]string) error {
+	var key struct {
+		TokenURI string `json:"token_uri"`
+	}
+	if json.Unmarshal([]byte(creds["service_account_json"]), &key) != nil || strings.TrimSpace(key.TokenURI) == "" {
+		return nil
+	}
+	if err := netguard.ValidateURL(key.TokenURI); err != nil {
+		return fmt.Errorf("credential \"service_account_json\" token_uri: %w", err)
+	}
+	return nil
 }
 
 func validateDockerHost(creds map[string]string) error {
@@ -199,6 +223,7 @@ func NewGCPScanner(collector CloudCollector) Scanner {
 		name:      "GCP Cloud Scanner",
 		provider:  domain.ProviderGCP,
 		required:  []string{"service_account_json"},
+		endpoints: validateGCPTokenURI,
 		collector: collector,
 	}
 }

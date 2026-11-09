@@ -11,8 +11,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/pkg/netguard"
 )
 
 // SlackProvider implements Slack notifications
@@ -77,8 +79,7 @@ func (sp *SlackProvider) Send(ctx context.Context, notification *domain.Notifica
 
 	req.Header.Set("Content-Type", "application/json")
 
-	client := &http.Client{}
-	resp, err := client.Do(req)
+	resp, err := guardedDo(req)
 	if err != nil {
 		return fmt.Errorf("failed to send Slack notification: %w", err)
 	}
@@ -118,7 +119,20 @@ func (sp *SlackProvider) Validate(config map[string]interface{}) error {
 	if sp.webhookURL == "" {
 		return fmt.Errorf("slack webhook URL not configured")
 	}
-	return nil
+	return netguard.ValidateURL(sp.webhookURL)
+}
+
+// slackClient may only reach public https hosts: the webhook URL is
+// configuration a tenant controls (#1315).
+var slackClient = netguard.Client(netguard.Options{Timeout: 15 * time.Second})
+
+// guardedDo checks the URL, then sends through the guarded client, whose dialer
+// re-checks the resolved address on every hop. A refusal wraps netguard.ErrDenied.
+func guardedDo(req *http.Request) (*http.Response, error) {
+	if err := netguard.ValidateURL(req.URL.String()); err != nil {
+		return nil, err
+	}
+	return slackClient.Do(req)
 }
 
 // buildSlackMessage converts notification to Slack message
@@ -191,8 +205,7 @@ func (sp *SlackProvider) sendPayload(ctx context.Context, message SlackMessage) 
 
 	req.Header.Set("Content-Type", "application/json")
 
-	client := &http.Client{}
-	resp, err := client.Do(req)
+	resp, err := guardedDo(req)
 	if err != nil {
 		return err
 	}

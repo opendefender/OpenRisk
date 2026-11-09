@@ -2163,6 +2163,14 @@
       "deleteConfirm": "Supprimer"
     }
   },
+  "automation": {
+    "channels": {
+      "saveFailed": "Échec",
+      "saveRejected": "Canaux non enregistrés : {reason}",
+      "testFailed": "Le test n’a pas pu s’exécuter",
+      "testRejected": "Test refusé : {reason}"
+    }
+  },
   "paywall": {
     "cta": "Passer au plan {plan}",
     "moment": "Plan {plan}",
