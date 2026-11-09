@@ -239,16 +239,23 @@ func TestCanonical_EdgeVocabularyIsClosed(t *testing.T) {
 				"Note: escalate to alice@corp.com",
 				"Voir: la revue trimestrielle, contact rssi@banque.cm",
 				"Cf. https://wiki.example.com/grc/access-review?page=2 for the procedure.",
+				"see (https://wiki.corp/page?id=42) for context",
+				"\"https://wiki.corp/page?id=42\"",
 			} {
 				var e c.Edge
 				set(&e, prose)
 				require.NoError(t, e.Validate(), "%s: %q", field, prose[:min(len(prose), 40)])
 			}
-			var e c.Edge
-			set(&e, "Evidence at https://x/y?X-Amz-Signature=abc, see above.")
-			err := e.Validate()
-			requireRefused(t, err, "attributes."+field)
-			assert.NotContains(t, err.Error(), "X-Amz")
+			for _, secret := range []string{
+				"Evidence at https://x/y?X-Amz-Signature=abc, see above.",
+				"(https://s3.amazonaws.com/b/o?X-Amz-Signature=abc)",
+			} {
+				var e c.Edge
+				set(&e, secret)
+				err := e.Validate()
+				requireRefused(t, err, "attributes."+field)
+				assert.NotContains(t, err.Error(), "X-Amz")
+			}
 		}
 	})
 	t.Run("maps_to from a requirement to itself", func(t *testing.T) {

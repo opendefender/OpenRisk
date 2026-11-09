@@ -165,9 +165,11 @@ func secretParamName(name string) bool {
 
 // proseCarriesCredentialURL checks free text token by token: only a token that
 // contains "://" is read as a URL, so an e-mail address or a "key: value" in a
-// sentence is never mistaken for userinfo.
+// sentence is never mistaken for userinfo. Punctuation around a token, as in
+// "(https://…)" or a quoted link, is stripped before the URL is read.
 func proseCarriesCredentialURL(text string) bool {
 	for _, token := range strings.Fields(text) {
+		token = strings.Trim(token, "()[]{}<>\"'.,;:!")
 		if strings.Contains(token, "://") && credentialShaped(token) {
 			return true
 		}
