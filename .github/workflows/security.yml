@@ -63,6 +63,9 @@ jobs:
 
   asvs-register:
     name: ASVS Register Proofs
+    # Not required by the develop ruleset, and it already ran on the PR: the merge
+    # queue waits only for required checks, so here it would just hold a runner (#1377).
+    if: github.event_name != 'merge_group'
     runs-on: ubuntu-latest
     permissions:
       contents: read
