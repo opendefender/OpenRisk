@@ -246,7 +246,6 @@ func TestCanonical_ProvenanceRefusesCredentialShapedValues(t *testing.T) {
 		"undecodable parameter name":     "https://h/?token%zz=" + secret,
 		"double-escaped parameter name":  "https://h/?%2574oken=" + secret,
 		"samlresponse":                   "https://sso.example.com/acs?SAMLResponse=" + secret,
-		"ticket":                         "https://cas.example.com/app?ticket=" + secret,
 		"sid":                            "https://h/o?sid=" + secret,
 		// devsecops round 4: a double escape followed by a bad escape.
 		"double-escaped nested URL, bad escape": "https://a/?next=https%253A%252F%252Fb%252F%253Ftoken%253D" + secret + "%25zz",
@@ -327,8 +326,10 @@ func TestCanonical_ProvenanceRefusesCredentialShapedValues(t *testing.T) {
 		require.NoError(t, e.Validate(), "a nested URL without a credential passes")
 		for _, ordinary := range []string{
 			"https://h/?page=2", "https://h/?q=a+b", "https://h/?a=b@c", "https://h/doc#section-2",
-			"https://h/?discount=50%25", // a decodable escape that is not a URL
-			"https://h/?q=100%",         // an undecodable escape that hides nothing
+			"https://h/?discount=50%25",                    // a decodable escape that is not a URL
+			"https://h/?q=100%",                            // an undecodable escape that hides nothing
+			"https://jira.corp/x?ticket=OPS-12",            // a helpdesk link, not a credential (A9)
+			"https://h/?next=https%3A%2F%2Fb%2F%3Fq%3Da+b", // '+' decodes to a space
 		} {
 			e.ExternalURL = ptr(ordinary)
 			require.NoError(t, e.Validate(), ordinary)

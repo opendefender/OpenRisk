@@ -12,7 +12,9 @@ import (
 
 // secretParamNames are query or fragment parameter names that carry a
 // credential: presigned-URL signatures (S3, GCS, Azure SAS), OAuth tokens and
-// codes, API keys, passwords, session ids, SAML responses and CAS tickets. Compared case-insensitively, after
+// codes, API keys, passwords, session ids and SAML responses. Reusable
+// credentials only: a single-use CAS `ticket` is left out, because `?ticket=` is
+// an ordinary helpdesk link (ADR 0008 A9). Compared case-insensitively, after
 // unescaping and after stripping a trailing `[...]` (`token[]`) (ADR 0008 D3,
 // ABSOLUTE RULE 6).
 var secretParamNames = map[string]bool{
@@ -23,7 +25,7 @@ var secretParamNames = map[string]bool{
 	"code": true, "key": true, "apikey": true, "api_key": true, "api-key": true,
 	"secret": true, "client_secret": true, "password": true, "passwd": true, "pwd": true, "pass": true,
 	"auth": true, "authorization": true, "jwt": true, "sessionid": true,
-	"samlresponse": true, "ticket": true, "sid": true,
+	"samlresponse": true, "sid": true,
 }
 
 // secretParamSuffixes catch the variants a fixed list misses (`sessiontoken`,

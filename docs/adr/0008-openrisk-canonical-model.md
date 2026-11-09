@@ -872,3 +872,11 @@ publishes these readings with the schema.
   - A `vendor_contact:<assessment_id>` actor is not compared with the record's own id here.
     ADR 0004 D4 names the assessment, and `Assessment` is not typed in this package (D8). The
     check belongs to the `Assessment` projection.
+  - **Which parameter names D3's credential refusal covers.** The deny-list names parameters
+    that carry a **reusable** credential: signatures, OAuth tokens and codes, API keys,
+    passwords, session ids and SAML responses. Escapes are decoded leniently: a malformed escape
+    is kept as it is, and the valid escapes around it are still decoded and inspected.
+    `ticket` is **not** on the list. A CAS service ticket is single-use and expires within
+    seconds of issue, so a pasted one cannot be replayed. Meanwhile `?ticket=OPS-12` is an
+    ordinary helpdesk link that GRC notes and evidence URLs cite constantly. Refusing that link
+    would make legitimate records unprojectable, for no protection. (#1240, 2026-11-09)

@@ -242,6 +242,7 @@ func TestCanonical_EdgeVocabularyIsClosed(t *testing.T) {
 				"see (https://wiki.corp/page?id=42) for context",
 				"\"https://wiki.corp/page?id=42\"",
 				"rotate creds for svc:pw@db.internal", // no "://": prose, not a URL (A9)
+				"tracked in https://jira.corp/x?ticket=OPS-12",
 			} {
 				var e c.Edge
 				set(&e, prose)
