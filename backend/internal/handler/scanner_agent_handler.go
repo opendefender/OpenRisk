@@ -9,6 +9,7 @@ import (
 	"context"
 	"encoding/json"
 	"strings"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
@@ -129,20 +130,30 @@ func (h *ScannerHandler) AgentStream(c *fiber.Ctx) error {
 	preamble := h.queuedJobFrames(c.UserContext(), agent)
 	h.streamChannel(c, scanpkg.AgentJobChannel(tenantID), channelStream{
 		onClose: func() {
-			// On disconnect, mark offline. Detached context (the request is gone).
-			h.markAgentStreamClosed(context.Background(), agentID, tenantID, tokenHash)
+			// On disconnect, mark offline. Detached context (the request is
+			// gone), bounded so a stalled database cannot pin the goroutine.
+			ctx, cancel := context.WithTimeout(context.Background(), agentStreamDBTimeout)
+			defer cancel()
+			h.markAgentStreamClosed(ctx, agentID, tenantID, tokenHash)
 		},
 		preamble: preamble,
 		// The agent token has no jti, so the session revocation check never
 		// applies to it. Re-reading the agent on each tick is what bounds a
 		// revoked agent's stream to one keepalive interval (#962).
 		stillAuthorized: func() bool {
-			_, ok := h.agentStillValid(context.Background(), agentID, tenantID, tokenHash)
+			ctx, cancel := context.WithTimeout(context.Background(), agentStreamDBTimeout)
+			defer cancel()
+			_, ok := h.agentStillValid(ctx, agentID, tenantID, tokenHash)
 			return ok
 		},
 	})
 	return nil
 }
+
+// agentStreamDBTimeout bounds the agent re-reads a live stream makes. A lookup
+// that times out counts as "not valid", so the stream closes and the agent
+// reconnects through authenticateAgent.
+const agentStreamDBTimeout = 5 * time.Second
 
 // markAgentStreamClosed marks the agent offline when its stream ends.
 //

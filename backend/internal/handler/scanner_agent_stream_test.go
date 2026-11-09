@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -22,6 +23,7 @@ import (
 	scanapp "github.com/opendefender/openrisk/internal/application/scanner"
 	"github.com/opendefender/openrisk/internal/domain"
 	"github.com/opendefender/openrisk/internal/infrastructure/repository"
+	authpkg "github.com/opendefender/openrisk/pkg/auth"
 )
 
 // ---------------------------------------------------------------------------
@@ -223,4 +225,13 @@ func TestStreamChannel_MaxLifetimeEndsTheStream(t *testing.T) {
 	started := time.Now()
 	awaitClose(t, lines, 3*time.Second)
 	assert.GreaterOrEqual(t, time.Since(started), time.Second, "closed before its lifetime")
+}
+
+func TestAccessTokenExpired(t *testing.T) {
+	future := &authpkg.Claims{RegisteredClaims: jwt.RegisteredClaims{ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Minute))}}
+	past := &authpkg.Claims{RegisteredClaims: jwt.RegisteredClaims{ExpiresAt: jwt.NewNumericDate(time.Now().Add(-time.Second))}}
+
+	assert.False(t, accessTokenExpired(future), "a live token ended the stream")
+	assert.True(t, accessTokenExpired(past), "an expired token kept the stream")
+	assert.True(t, accessTokenExpired(&authpkg.Claims{}), "a token without exp must fail closed")
 }
