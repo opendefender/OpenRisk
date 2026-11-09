@@ -6,7 +6,6 @@
 package canonical
 
 import (
-	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -127,41 +126,29 @@ func ProvenanceAllowlist(source Source) []string {
 	return out
 }
 
-// UnmarshalJSON decodes provenance strictly: any key that is neither one of
-// D3's keys nor a key some source allowlists is refused, nested objects
-// included. Whether the record's own source allowlists a source-specific key is
-// checked by Validate, which knows the source.
+// UnmarshalJSON decodes provenance strictly: a key spelled other than exactly
+// as D3 or a source allowlist spells it, a duplicate key, at any nesting level,
+// or trailing data is refused. Whether the record's own source allowlists a
+// source-specific key is checked by Validate, which knows the source.
 func (p *Provenance) UnmarshalJSON(b []byte) error {
 	type plain Provenance
 	var v plain
-	dec := json.NewDecoder(bytes.NewReader(b))
-	dec.DisallowUnknownFields()
-	if err := dec.Decode(&v); err != nil {
-		return invalid("provenance", "%s", decodeReason(err))
-	}
-	if dec.More() {
-		return invalid("provenance", "trailing data after the object")
+	if err := decodeStrict("provenance", b, provenanceShape, &v); err != nil {
+		return err
 	}
 	*p = Provenance(v)
 	return nil
 }
 
-// decodeReason keeps the json error's structural message (an unknown key, a
-// wrong type) and never a value: encoding/json does not echo string values in
-// these errors, and syntax errors are reduced to their offset.
-func decodeReason(err error) string {
-	var syn *json.SyntaxError
-	if errors.As(err, &syn) {
-		return fmt.Sprintf("malformed JSON at offset %d", syn.Offset)
-	}
-	return err.Error()
-}
-
 // ParseProvenance decodes raw provenance strictly and validates it for source.
 // It is the entry point for provenance read from a JSONB column or a feed.
+// Every failure, malformed JSON included, satisfies errors.Is(err, ErrValidation).
 func ParseProvenance(raw []byte, source Source) (Provenance, error) {
 	var p Provenance
 	if err := json.Unmarshal(raw, &p); err != nil {
+		if !errors.Is(err, ErrValidation) {
+			return Provenance{}, invalid("provenance", "malformed JSON")
+		}
 		return Provenance{}, err
 	}
 	if err := p.Validate(source); err != nil {
@@ -284,13 +271,17 @@ func (a Actor) validate(field string) error {
 	}
 	switch a.Kind {
 	case ActorUser:
-		if id, err := uuid.Parse(a.ID); err != nil || id == uuid.Nil {
-			return invalid(field+".id", "must be a user id for kind %s", ActorUser)
+		// Canonical lowercase hyphenated form only. uuid.Parse also accepts
+		// upper case, braces, urn:uuid: and bare hex; admitting those would let
+		// one user appear under several spellings and defeat every comparison
+		// of actor ids, the user_entered uplift's first of all.
+		if !isCanonicalUUID(a.ID) {
+			return invalid(field+".id", "must be a user id in canonical lowercase form for kind %s", ActorUser)
 		}
 	case ActorVendorContact:
 		rest, ok := strings.CutPrefix(a.ID, vendorContactPrefix)
-		if id, err := uuid.Parse(rest); !ok || err != nil || id == uuid.Nil {
-			return invalid(field+".id", "must be %s<assessment_id> for kind %s", vendorContactPrefix, ActorVendorContact)
+		if !ok || !isCanonicalUUID(rest) {
+			return invalid(field+".id", "must be %s<assessment_id>, the id in canonical lowercase form, for kind %s", vendorContactPrefix, ActorVendorContact)
 		}
 	case ActorSystem:
 		// a worker name; presence and the caps above are the whole rule
@@ -298,4 +289,11 @@ func (a Actor) validate(field string) error {
 		return invalid(field+".kind", "must be one of user, system, vendor_contact")
 	}
 	return nil
+}
+
+// isCanonicalUUID is true for a non-nil uuid written exactly as uuid.UUID.String
+// writes it.
+func isCanonicalUUID(s string) bool {
+	id, err := uuid.Parse(s)
+	return err == nil && id != uuid.Nil && id.String() == s
 }

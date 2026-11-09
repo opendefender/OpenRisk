@@ -30,7 +30,7 @@ type Envelope struct {
 	ObservedAt    *time.Time `json:"observed_at"`
 	Confidence    float64    `json:"confidence"`
 	Provenance    Provenance `json:"provenance"`
-	Relationships []Edge     `json:"relationships"`
+	Relationships List[Edge] `json:"relationships"`
 }
 
 // observedRule is D4's optionality of observed_at for one entity.

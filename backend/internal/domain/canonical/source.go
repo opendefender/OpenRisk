@@ -185,7 +185,15 @@ func (rc ReviewContext) QualifiesForUplift() bool {
 	if rc.CollectedBy != nil && *rc.CollectedBy == *rc.ReviewedBy {
 		return false
 	}
-	return rc.ActorID != rc.ReviewedBy.String()
+	// Compared as UUIDs, not strings: uuid.Parse reads every spelling of the
+	// reviewer's id (upper case, braces, urn:uuid:), so a self-review cannot
+	// pass by writing the actor id differently. An actor id that is not a
+	// uuid (a worker name, a vendor contact) is not a person with an account
+	// and so cannot be the reviewer.
+	if actor, err := uuid.Parse(rc.ActorID); err == nil && actor == *rc.ReviewedBy {
+		return false
+	}
+	return true
 }
 
 // DefaultConfidence is the confidence a use case writes for a record of this

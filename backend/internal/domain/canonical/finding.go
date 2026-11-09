@@ -107,23 +107,26 @@ type FindingPriority struct {
 // Priority, never decoded from JSON, set only by WithVulnPriority.
 type Finding struct {
 	Envelope
-	Kind            FindingKind         `json:"kind"`
-	Title           string              `json:"title"`
-	Description     *string             `json:"description"`
-	Severity        Severity            `json:"severity"`
-	Status          FindingStatus       `json:"status"`
-	Identifiers     []FindingIdentifier `json:"identifiers"`
-	CVSS            *CVSS               `json:"cvss"`
-	Exploitability  *Exploitability     `json:"exploitability"`
-	priority        *FindingPriority    // read-only, see WithVulnPriority
-	FirstObservedAt time.Time           `json:"first_observed_at"`
-	SLADueAt        *time.Time          `json:"sla_due_at"`
-	RemediatedAt    *time.Time          `json:"remediated_at"`
-	RemediationHint *string             `json:"remediation_hint"`
+	Kind            FindingKind             `json:"kind"`
+	Title           string                  `json:"title"`
+	Description     *string                 `json:"description"`
+	Severity        Severity                `json:"severity"`
+	Status          FindingStatus           `json:"status"`
+	Identifiers     List[FindingIdentifier] `json:"identifiers"`
+	CVSS            *CVSS                   `json:"cvss"`
+	Exploitability  *Exploitability         `json:"exploitability"`
+	priority        *FindingPriority        // read-only, see WithVulnPriority
+	FirstObservedAt time.Time               `json:"first_observed_at"`
+	SLADueAt        *time.Time              `json:"sla_due_at"`
+	RemediatedAt    *time.Time              `json:"remediated_at"`
+	RemediationHint *string                 `json:"remediation_hint"`
 }
 
-// WithVulnPriority returns a copy of f carrying the priority pkg/vulnprio
-// computed and persistence stored. The read projection's only way in.
+// WithVulnPriority is the single permitted entry point for Finding.priority,
+// for the read projection only (ADR 0008 D6, amendment A4). It returns a copy
+// of f carrying the priority pkg/vulnprio computed and persistence stored: it
+// copies, it never computes, and nothing that writes a canonical Finding may
+// call it.
 func WithVulnPriority(f Finding, p FindingPriority) Finding {
 	c := p
 	f.priority = &c

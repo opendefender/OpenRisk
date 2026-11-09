@@ -40,7 +40,7 @@ type Control struct {
 	Applicability              Applicability  `json:"applicability"`
 	ApplicabilityJustification *string        `json:"applicability_justification"`
 	DeclaredStatus             DeclaredStatus `json:"declared_status"`
-	Tags                       []string       `json:"tags"`
+	Tags                       List[string]   `json:"tags"`
 }
 
 // Validate applies D2, D3, D4 and D6 to a Control.

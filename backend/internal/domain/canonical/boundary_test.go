@@ -62,6 +62,7 @@ var allowedImports = map[string]bool{
 	"encoding/json":          true,
 	"errors":                 true,
 	"fmt":                    true,
+	"io":                     true, // io.EOF only, to refuse trailing data after a JSON value
 	"math":                   true,
 	"net/url":                true, // parsing only, for D3's credential-shaped URL refusal
 	"regexp":                 true,

@@ -6,6 +6,7 @@
 package canonical_test
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/google/uuid"
@@ -132,10 +133,15 @@ func TestCanonical_ConfidenceCeilingPerClass(t *testing.T) {
 
 		refusals := map[string]canonical.Evidence{
 			"accepted with no reviewer (today's default)": reviewedEvidence(nil, canonical.ReviewAccepted, 0.90),
-			"reviewed by the collector":                   reviewedEvidence(ptr(userAlice), canonical.ReviewAccepted, 0.90),
-			"pending":                                     reviewedEvidence(ptr(userBob), canonical.ReviewPending, 0.90),
-			"rejected":                                    reviewedEvidence(ptr(userBob), canonical.ReviewRejected, 0.90),
+			"pending":  reviewedEvidence(ptr(userBob), canonical.ReviewPending, 0.90),
+			"rejected": reviewedEvidence(ptr(userBob), canonical.ReviewRejected, 0.90),
 		}
+		// Only the collector equals the reviewer: the actor who stored it is a
+		// third person, so this case fails on the collector guard alone.
+		byCollector := reviewedEvidence(ptr(userBob), canonical.ReviewAccepted, 0.90)
+		byCollector.CollectedBy = ptr(userBob)
+		byCollector.Provenance = userProvenance(userCarol)
+		refusals["reviewed by the collector"] = byCollector
 		byActor := reviewedEvidence(ptr(userBob), canonical.ReviewAccepted, 0.90)
 		byActor.CollectedBy = ptr(uuid.New())
 		byActor.Provenance = userProvenance(userBob)
@@ -147,6 +153,35 @@ func TestCanonical_ConfidenceCeilingPerClass(t *testing.T) {
 				def, err := canonical.DefaultConfidence(e.Source, e.ReviewContext())
 				require.NoError(t, err)
 				assert.Equal(t, 0.70, def)
+			})
+		}
+	})
+
+	t.Run("a self-review cannot pass by respelling the actor id", func(t *testing.T) {
+		for name, spelling := range map[string]string{
+			"upper case": strings.ToUpper(userBob.String()),
+			"urn:uuid:":  "urn:uuid:" + userBob.String(),
+			"braces":     "{" + userBob.String() + "}",
+			"bare hex":   strings.ReplaceAll(userBob.String(), "-", ""),
+		} {
+			t.Run(name, func(t *testing.T) {
+				rc := canonical.ReviewContext{
+					Verdict: canonical.ReviewAccepted, ReviewedBy: ptr(userBob),
+					CollectedBy: ptr(userAlice), ActorID: spelling,
+				}
+				assert.False(t, rc.QualifiesForUplift(), "the actor is the reviewer, however it is written")
+				def, err := canonical.DefaultConfidence(canonical.SourceOpenRiskUser, rc)
+				require.NoError(t, err)
+				assert.Equal(t, 0.70, def)
+
+				// Refused twice over: the parsed comparison keeps the ceiling at
+				// 0.70, and the actor id itself is refused for not being the
+				// canonical spelling, even at a confidence the ceiling allows.
+				e := reviewedEvidence(ptr(userBob), canonical.ReviewAccepted, 0.90)
+				e.Provenance.Actor.ID = spelling
+				requireRefused(t, e.Validate(), "ceiling")
+				e.Confidence = 0.70
+				requireRefused(t, e.Validate(), "actor.id")
 			})
 		}
 	})

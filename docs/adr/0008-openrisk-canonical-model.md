@@ -777,3 +777,76 @@ two stored directions of one relation drift, as ADR 0001 D6b recorded for two vo
 
 **G — Map `control_evidences` as a second evidence source.** Rejected by D-056: it is retired, and
 the evidence library is the only register the product reads.
+
+## Amendments
+
+### 2026-11-09 — readings fixed by the Go types (#1240)
+
+Tech-lead review of `backend/internal/domain/canonical`. Each item records how the code reads
+text this ADR left open. None changes a field, a type or an enumeration value of D2–D6. #542
+publishes these readings with the schema.
+
+- **A1 — Ceilings (D3).** Where "Rises to" is `—`, the ceiling is the default:
+  `automated_scanner` 0.80, `threat_intelligence` 0.40, `regulatory_catalogue` 0.90. `derived` has
+  no default; its validator ceiling is 0.90, the highest non-derived ceiling, which a minimum of
+  inputs can never exceed. The minimum-of-inputs rule itself is applied when the record is written
+  (`DerivedConfidence`), because a pure validator cannot see the inputs. The `user_entered` uplift
+  to 0.90 reads `review`, `reviewed_by` and `collected_by`, which only `Evidence` carries (D6). Every
+  other `user_entered` record, a manual `ControlTestResult` included, is capped at 0.70.
+- **A2 — "A value outside a class's default or ceiling needs a reason" (D3).** Values the rule
+  itself produces are not "outside": a default, the uplift, `false_positive`'s 0.00, a derived
+  minimum, a connector-stated value up to 0.80. Validation enforces the ceilings and nothing else.
+  Any other off-default value is set only by a use case (D2: confidence is never supplied), and
+  that use case writes its reason into `provenance.rule`. #553 carries this on the write path.
+- **A3 — `result_id` (D5).** On `ControlTest --evidenced_by--> Evidence` and
+  `Finding --raised_by--> ControlTest`, `result_id` is the edge's `qualifier`, required, and is not
+  repeated in `attributes`. The table's Attributes column names what the verb carries; the edge
+  envelope says where.
+- **A4 — Read-only scores (D6).** `Risk.score`, `Risk.smart_score` and `Finding.priority` cannot
+  be written through a canonical record: a decoded record never carries them. The read projection
+  attaches them through one function each (`WithEngineScores`, `WithVulnPriority`). `score`
+  stays non-null **in the published read contract**. A `Risk` on the write path has none, so
+  shape validation does not require it. The read projection in #553 is tested to always
+  attach it.
+- **A5 — Spellings.** `{type, id}` names entities exactly as this ADR writes them, in PascalCase
+  (`Requirement`, `ControlImplementation`, `ControlTest`, `Asset`). The `ControlSplitNamespace`
+  of D7 is `7e575e86-2003-497c-a5f6-c326c0820619`. The UUIDv5 name is the
+  `compliance_controls.id` in its lowercase hyphenated text form, so Postgres
+  `uuid_generate_v5(ns, id::text)` yields the same id.
+- **A6 — Tightenings that follow from the text.**
+  - A `Requirement` of class `regulatory_catalogue` requires `framework.key` and `reference_code`,
+    because the empty values are reserved to tenant-authored requirements. A catalogue row missing
+    either is projected as `openrisk_user` and listed, like a missing citation (D7).
+  - A `ControlTestResult`'s source class is `user_entered`, `automated_scanner` or
+    `connector_import` (D6).
+  - Results are unique by `result_id` and ordered by non-decreasing `recorded_at` ("append-only,
+    newest last").
+  - `first_observed_at <= observed_at` (D4).
+  - `false_positive` requires `confidence = 0.00` (D3, D6).
+  - `vendor_questionnaire` requires `method = questionnaire` and an actor of kind
+    `vendor_contact` (D8).
+  - `provenance.via` refuses `://` ("never a URL").
+  - `confidence_rule` is exactly `confidence/1`.
+  - `actor.id` is a uuid for `user`, `vendor_contact:<uuid>` for `vendor_contact`, and free for
+    `system`.
+  - `Evidence.external_url` is an absolute `http`/`https` URL.
+  - `cadence` is a non-zero ISO 8601 duration; null means "on demand".
+- **A7 — Representations.**
+  - `in_place_since` is a `YYYY-MM-DD` date.
+  - `custom_fields` and the `affects` attribute `match_candidates` are opaque JSON that must be
+    well formed.
+  - `cvss.version` and `exploitability.exploit_maturity` are null when the source leaves them
+    empty. The maturity, when present, is one of the four values.
+  - `priority.score` is 0–100, `pkg/vulnprio`'s scale.
+  - `provenance.external_refs[].scheme` is open; the known schemes are `cve`,
+    `starter_catalogue` and `ai_proposal`.
+  - Nullable `provenance` keys are omitted rather than written as null.
+- **A8 — Left to persistence, not shape validation.**
+  - The two-decimal precision of `confidence` is enforced by storage. Rounding a value that
+    passed its ceiling to two places cannot raise it above that ceiling, since every ceiling has
+    two places.
+  - UTC normalisation of timestamps.
+  - `updated_at >= created_at`.
+  - "`acceptance` present only in or after `RESIDUAL_ACCEPTED`" belongs to the risk lifecycle use
+    case (#811). The state machine is not linear (`reopened`), so a shape check cannot state
+    "after".

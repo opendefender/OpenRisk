@@ -7,6 +7,7 @@ package canonical_test
 
 import (
 	"encoding/json"
+	"strings"
 	"testing"
 
 	"github.com/google/uuid"
@@ -165,8 +166,59 @@ func TestCanonical_EdgeVocabularyIsClosed(t *testing.T) {
 	})
 	t.Run("an attribute key outside D5, from JSON", func(t *testing.T) {
 		var a c.EdgeAttributes
-		requireRefused(t, json.Unmarshal([]byte(`{"note":"x","weight":3}`), &a), "attributes")
+		requireRefused(t, json.Unmarshal([]byte(`{"note":"x","weight":3}`), &a), "unknown key")
 		require.NoError(t, json.Unmarshal([]byte(`{"note":"x"}`), &a))
+	})
+	t.Run("attribute keys are matched exactly, once", func(t *testing.T) {
+		for name, raw := range map[string]string{
+			"upper-case spelling":      `{"NOTE":"https://u:p@h/x"}`,
+			"two spellings of one key": `{"NOTE":"https://u:p@h/x","note":"ok"}`,
+			"duplicate key":            `{"note":"ok","note":"https://u:p@h/x"}`,
+			"mixed case":               `{"Rationale":"x"}`,
+		} {
+			t.Run(name, func(t *testing.T) {
+				var a c.EdgeAttributes
+				err := json.Unmarshal([]byte(raw), &a)
+				requireRefused(t, err, "attributes")
+				assert.NotContains(t, err.Error(), "NOTE")
+				assert.NotContains(t, err.Error(), "u:p@h")
+			})
+		}
+		var a c.EdgeAttributes
+		require.NoError(t, json.Unmarshal([]byte(`{"match_candidates":[{"Asset":"x","asset":"y"}]}`), &a),
+			"match_candidates is opaque JSON (A7): its inner keys are not ours to close")
+	})
+	t.Run("the vocabulary refusal echoes nothing it was given", func(t *testing.T) {
+		e := validEdge()
+		e.Verb = "owns\nlevel=INFO msg=forged"
+		e.From.Type = "Injected\r\nType"
+		err := e.Validate()
+		requireRefused(t, err, "vocabulary")
+		assert.NotContains(t, err.Error(), "forged")
+		assert.NotContains(t, err.Error(), "Injected")
+	})
+	t.Run("attribute strings are capped and never credential-shaped", func(t *testing.T) {
+		long := strings.Repeat("n", 256)
+		for name, set := range map[string]func(*c.EdgeAttributes, string){
+			"note":                             func(a *c.EdgeAttributes, v string) { a.Note = &v },
+			"rationale":                        func(a *c.EdgeAttributes, v string) { a.Rationale = &v },
+			"match_method":                     func(a *c.EdgeAttributes, v string) { a.MatchMethod = &v },
+			"asset_criticality_at_observation": func(a *c.EdgeAttributes, v string) { a.AssetCriticalityAtObservation = &v },
+		} {
+			for _, value := range []string{long, "https://h/o?X-Amz-Signature=abc"} {
+				e := validEdge()
+				set(&e.Attributes, value)
+				requireRefused(t, e.Validate(), "attributes."+name)
+			}
+		}
+		e := edgeFor(c.Triple{Verb: c.VerbAffects, From: c.TypeFinding, To: c.TypeAsset})
+		e.Attributes.MatchCandidates = json.RawMessage(`"` + strings.Repeat("x", 16<<10) + `"`)
+		requireRefused(t, e.Validate(), "match_candidates")
+	})
+	t.Run("maps_to from a requirement to itself", func(t *testing.T) {
+		e := edgeFor(c.Triple{Verb: c.VerbMapsTo, From: c.TypeRequirement, To: c.TypeRequirement})
+		e.To.ID = e.From.ID
+		requireRefused(t, e.Validate(), "to.id")
 	})
 	t.Run("an edge's own source and confidence follow D3", func(t *testing.T) {
 		e := validEdge()

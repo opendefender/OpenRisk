@@ -50,6 +50,31 @@ func TestCanonical_Provenance_Success(t *testing.T) {
 			canonical.ProvenanceAllowlist(canonical.SourceVendorQuestionnaire))
 		assert.Empty(t, canonical.ProvenanceAllowlist(canonical.SourceOpenRiskUser))
 	})
+	t.Run("every key the struct writes, the strict decoder reads", func(t *testing.T) {
+		// Pins the strict key list to the struct tags: a field added to
+		// Provenance without its key in the list fails here.
+		full := provenanceFor(canonical.SourceVendorQuestionnaire)
+		full.Via, full.IngestID, full.Rule, full.RawRef = ptr("v"), ptr("i"), ptr("r"), ptr("raw")
+		full.DerivedFrom = []canonical.RecordRef{{Type: canonical.TypeAssessment, ID: uuid.New()}}
+		full.ExternalRefs = []canonical.ExternalRef{{Scheme: "cve", Value: "CVE-2024-3094"}}
+		full.Channel, full.TemplateID, full.TemplateVersion, full.SubmittedWithTokenID = ptr("public_link"), ptr(uuid.New()), ptr(3), ptr(uuid.New())
+		raw, err := json.Marshal(full)
+		require.NoError(t, err)
+		back, err := canonical.ParseProvenance(raw, canonical.SourceVendorQuestionnaire)
+		require.NoError(t, err)
+		assert.Equal(t, full, back)
+
+		attrs := canonical.EdgeAttributes{
+			Coverage: ptr(canonical.CoverageFull), Rationale: ptr("r"), Origin: ptr(canonical.OriginCurated), Note: ptr("n"),
+			MatchConfidence: ptr(0.5), MatchMethod: ptr("m"), MatchAmbiguous: ptr(true),
+			MatchCandidates: json.RawMessage(`[]`), ResolvedBy: ptr(uuid.New()), AssetCriticalityAtObservation: ptr("HIGH"),
+		}
+		raw, err = json.Marshal(attrs)
+		require.NoError(t, err)
+		var backAttrs canonical.EdgeAttributes
+		require.NoError(t, json.Unmarshal(raw, &backAttrs))
+		assert.Equal(t, attrs, backAttrs)
+	})
 	t.Run("a derived record naming its inputs", func(t *testing.T) {
 		p := provenanceFor(canonical.SourceOpenRiskDerived)
 		require.NoError(t, p.Validate(canonical.SourceOpenRiskDerived))
@@ -83,6 +108,41 @@ func TestCanonical_ProvenanceRefusesUnknownKeys(t *testing.T) {
 		require.NotEqual(t, string(raw), patched)
 		var e canonical.Evidence
 		requireRefused(t, json.Unmarshal([]byte(patched), &e), "provenance")
+	})
+	t.Run("keys are matched exactly and once, at every level", func(t *testing.T) {
+		user := userAlice.String()
+		for name, raw := range map[string]string{
+			"RULE shadowing rule":            `{` + base + `, "RULE": "https://u:` + "pw" + `@h/x", "rule": "ok"}`,
+			"RULE alone":                     `{` + base + `, "RULE": "ok"}`,
+			"ID in actor":                    `{"method": "manual_entry", "actor": {"kind": "user", "ID": "` + user + `"}, "confidence_rule": "confidence/1"}`,
+			"Kind in actor":                  `{"method": "manual_entry", "actor": {"Kind": "user", "id": "` + user + `"}, "confidence_rule": "confidence/1"}`,
+			"duplicate top-level key":        `{` + base + `, "rule": "ok", "rule": "https://u:pw@h/x"}`,
+			"duplicate key in actor":         `{"method": "manual_entry", "actor": {"kind": "user", "id": "` + user + `", "id": "` + user + `"}, "confidence_rule": "confidence/1"}`,
+			"upper-case key in derived_from": `{` + base + `, "derived_from": [{"Type": "Finding", "id": "` + uuid.NewString() + `"}]}`,
+			"duplicate key in external_refs": `{` + base + `, "external_refs": [{"scheme": "cve", "value": "CVE-1", "value": "CVE-2"}]}`,
+		} {
+			t.Run(name, func(t *testing.T) {
+				_, err := canonical.ParseProvenance([]byte(raw), canonical.SourceOpenRiskUser)
+				requireRefused(t, err, "provenance")
+				assert.NotContains(t, err.Error(), "RULE")
+				assert.NotContains(t, err.Error(), "u:pw")
+			})
+		}
+	})
+	t.Run("a refusal names no key and no value", func(t *testing.T) {
+		_, err := canonical.ParseProvenance([]byte(`{`+base+`, "x_secret_header": "Bearer abc"}`), canonical.SourceOpenRiskUser)
+		requireRefused(t, err, "unknown key")
+		assert.NotContains(t, err.Error(), "x_secret_header")
+		assert.NotContains(t, err.Error(), "Bearer")
+		_, err = canonical.ParseProvenance([]byte(`{"method": "manual_entry", "actor": {"kind": "user", "id": 42}, "confidence_rule": "confidence/1"}`), canonical.SourceOpenRiskUser)
+		requireRefused(t, err, "actor.id has the wrong type")
+		assert.NotContains(t, err.Error(), "42")
+	})
+	t.Run("malformed JSON and trailing data are validation errors", func(t *testing.T) {
+		for _, raw := range []string{`{"method": `, `{` + base + `} {"rule": "x"}`, `not json`, ``} {
+			_, err := canonical.ParseProvenance([]byte(raw), canonical.SourceOpenRiskUser)
+			requireRefused(t, err, "malformed JSON")
+		}
 	})
 	t.Run("a vendor key set in Go on a non-vendor source", func(t *testing.T) {
 		p := userProvenance(userAlice)
@@ -162,6 +222,23 @@ func TestCanonical_ProvenanceRefusesCredentialShapedValues(t *testing.T) {
 		"encoded parameter name":       "https://a.example.com/o?%74oken=" + secret,
 		"query without a scheme":       "/download?signature=" + secret,
 		"unparseable URL":              "https://a.example.com/%zz?x=" + secret,
+		// devsecops round 1: nested, escaped and hash-routed credentials.
+		"nested URL in a parameter":     "https://h/?next=https://b/?token=" + secret,
+		"escaped nested URL":            "https://h/?next=https%3A%2F%2Fb%2F%3Ftoken%3D" + secret,
+		"second ? inside a value":       "https://h/?a=b?token=" + secret,
+		"hash route query":              "https://h/#/cb?code=" + secret,
+		"user:pass@host, underscore":    "db_user:" + secret + "@db.example.com",
+		"user:pass@host, leading digit": "1user:" + secret + "@host",
+		"nested userinfo":               "https://h/?next=//u:" + secret + "@b/",
+		"secret_key":                    "https://h/o?secret_key=" + secret,
+		"private_key":                   "https://h/o?private_key=" + secret,
+		"access_key":                    "https://h/o?access_key=" + secret,
+		"subscription-key":              "https://h/o?subscription-key=" + secret,
+		"token[]":                       "https://h/o?token[]=" + secret,
+		"access_token[]":                "https://h/o?access_token%5B%5D=" + secret,
+		"pass":                          "https://h/o?pass=" + secret,
+		"sessionid":                     "https://h/o?SessionId=" + secret,
+		"nested deeper than the limit":  "https://h/?a=https://h/?b=https://h/?c=https://h/?d=https://h/?e=" + secret,
 	}
 
 	t.Run("in every provenance string", func(t *testing.T) {
@@ -195,9 +272,6 @@ func TestCanonical_ProvenanceRefusesCredentialShapedValues(t *testing.T) {
 
 	t.Run("in Evidence.external_url", func(t *testing.T) {
 		for name, value := range shaped {
-			if !strings.HasPrefix(value, "http") {
-				continue
-			}
 			t.Run(name, func(t *testing.T) {
 				e := validEvidence()
 				e.ExternalURL = ptr(value)
@@ -225,8 +299,12 @@ func TestCanonical_ProvenanceRefusesCredentialShapedValues(t *testing.T) {
 		p.RawRef = ptr("https://scanner.example.com/reports/4471?page=2#host-12")
 		p.ExternalRefs = []canonical.ExternalRef{{Scheme: "cve", Value: "CVE-2024-3094"}}
 		require.NoError(t, p.Validate(canonical.SourceOpenRiskUser))
+		p.Rule = ptr("owner reviewed it: see ticket GRC-42 (next=quarterly)")
+		require.NoError(t, p.Validate(canonical.SourceOpenRiskUser))
 		e := validEvidence()
 		e.ExternalURL = ptr("https://sharepoint.example.com/sites/grc/Policy.pdf?web=1")
 		require.NoError(t, e.Validate())
+		e.ExternalURL = ptr("https://app.example.com/#/controls/12?tab=evidence&return=https://app.example.com/home")
+		require.NoError(t, e.Validate(), "a nested URL without a credential passes")
 	})
 }

@@ -96,10 +96,10 @@ type SmartFactor struct {
 // SmartScore is `smart_score`: SmartScore from pkg/scoring/smart.go, additive,
 // read-only like `score`.
 type SmartScore struct {
-	Value      float64       `json:"value"`
-	Level      Criticality   `json:"level"`
-	Factors    []SmartFactor `json:"factors"`
-	ComputedAt time.Time     `json:"computed_at"`
+	Value      float64           `json:"value"`
+	Level      Criticality       `json:"level"`
+	Factors    List[SmartFactor] `json:"factors"`
+	ComputedAt time.Time         `json:"computed_at"`
 }
 
 // Acceptance is present only in or after residual_accepted (#811).
@@ -162,17 +162,18 @@ type Risk struct {
 	Acceptance     *Acceptance                `json:"acceptance"`
 	ReviewCadence  *ReviewCadence             `json:"review_cadence"`
 	Category       *Category                  `json:"category"`
-	Tags           []string                   `json:"tags"`
+	Tags           List[string]               `json:"tags"`
 	Quantification *Quantification            `json:"quantification"`
 	CustomFields   map[string]json.RawMessage `json:"custom_fields"`
 	Ownership
 	CreatedBy uuid.UUID `json:"created_by"`
 }
 
-// WithEngineScores returns a copy of r carrying the score and SmartScore that
-// pkg/scoring computed and persistence stored. It is the read projection's
-// only way in: it copies, it never computes, and nothing that writes a
-// canonical Risk may call it to write a score (D6).
+// WithEngineScores is the single permitted entry point for Risk.score and
+// Risk.smart_score, for the read projection only (ADR 0008 D6, amendment A4).
+// It returns a copy of r carrying the score and SmartScore that pkg/scoring
+// computed and persistence stored: it copies, it never computes, and nothing
+// that writes a canonical Risk may call it.
 func WithEngineScores(r Risk, score RiskScore, smart *SmartScore) Risk {
 	s := score
 	r.score = &s

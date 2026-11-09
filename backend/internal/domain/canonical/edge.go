@@ -6,7 +6,6 @@
 package canonical
 
 import (
-	"bytes"
 	"encoding/json"
 	"sort"
 	"time"
@@ -191,17 +190,13 @@ type EdgeAttributes struct {
 	AssetCriticalityAtObservation *string         `json:"asset_criticality_at_observation,omitempty"`
 }
 
-// UnmarshalJSON refuses any attribute key outside D5.
+// UnmarshalJSON refuses any attribute key outside D5, a key spelled other than
+// exactly as D5 spells it, and a duplicate key.
 func (a *EdgeAttributes) UnmarshalJSON(b []byte) error {
 	type plain EdgeAttributes
 	var v plain
-	dec := json.NewDecoder(bytes.NewReader(b))
-	dec.DisallowUnknownFields()
-	if err := dec.Decode(&v); err != nil {
-		return invalid("attributes", "%s", decodeReason(err))
-	}
-	if dec.More() {
-		return invalid("attributes", "trailing data after the object")
+	if err := decodeStrict("attributes", b, attributesShape, &v); err != nil {
+		return err
 	}
 	*a = EdgeAttributes(v)
 	return nil
@@ -227,7 +222,35 @@ func (a EdgeAttributes) present() []string {
 	return out
 }
 
+// Caps on edge attributes. Strings follow provenance's 255 (D3); the opaque
+// match_candidates ranking is bounded so an edge cannot carry a payload.
+const (
+	attributeStringCap   = 255
+	matchCandidatesBytes = 16 << 10
+)
+
 func (a EdgeAttributes) validateValues() error {
+	for _, attr := range []struct {
+		field string
+		value *string
+	}{
+		{"attributes.rationale", a.Rationale}, {"attributes.note", a.Note},
+		{"attributes.match_method", a.MatchMethod},
+		{"attributes.asset_criticality_at_observation", a.AssetCriticalityAtObservation},
+	} {
+		if attr.value == nil {
+			continue
+		}
+		if err := maxLen(attr.field, *attr.value, attributeStringCap); err != nil {
+			return err
+		}
+		if credentialShaped(*attr.value) {
+			return invalid(attr.field, "carries a URL with userinfo or a signature/token parameter")
+		}
+	}
+	if len(a.MatchCandidates) > matchCandidatesBytes {
+		return invalid("attributes.match_candidates", "exceeds %d bytes", matchCandidatesBytes)
+	}
 	if a.Coverage != nil && *a.Coverage != CoverageFull && *a.Coverage != CoveragePartial {
 		return invalid("attributes.coverage", "must be full or partial")
 	}
@@ -294,7 +317,9 @@ func (e Edge) Validate() error {
 	}
 	rule, ok := vocabulary[Triple{e.Verb, e.From.Type, e.To.Type}]
 	if !ok {
-		return invalid("edge", "(%s, %s, %s) is not in the ADR 0008 D5 vocabulary", e.Verb, e.From.Type, e.To.Type)
+		// Fixed message: the verb and types are unvalidated input here, and
+		// echoing them would carry whatever they hold into logs.
+		return invalid("edge", "the (verb, from type, to type) triple is not in the ADR 0008 D5 vocabulary")
 	}
 	if rule.qualifier {
 		if e.Qualifier == nil || *e.Qualifier == uuid.Nil {
@@ -319,6 +344,9 @@ func (e Edge) Validate() error {
 	}
 	if err := within("edge", e.Attributes.validateValues()); err != nil {
 		return err
+	}
+	if e.Verb == VerbMapsTo && e.From.ID == e.To.ID {
+		return invalid("edge.to.id", "a requirement does not map to itself")
 	}
 	if _, err := validateSource("edge.source", e.Source); err != nil {
 		return err

@@ -21,6 +21,7 @@ var (
 	tenantB   = uuid.MustParse("b0000000-0000-4000-8000-00000000000b")
 	userAlice = uuid.MustParse("a1100000-0000-4000-8000-000000000001")
 	userBob   = uuid.MustParse("b0b00000-0000-4000-8000-000000000002")
+	userCarol = uuid.MustParse("ca201000-0000-4000-8000-000000000003")
 
 	// ADR 0008 D4's worked example: observed Monday 22:00, stored Thursday 09:00.
 	observed = time.Date(2026, 11, 2, 22, 0, 0, 0, time.UTC)

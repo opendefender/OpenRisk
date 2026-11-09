@@ -263,6 +263,16 @@ func TestCanonical_ControlTest_Refusals(t *testing.T) {
 			requireRefused(t, c.Validate(), tc.field)
 		})
 	}
+	t.Run("evidenced_by naming a result the test does not have", func(t *testing.T) {
+		c := validControlTest()
+		edge := edgeFor(canonicalTriple(canonical.VerbEvidencedBy, canonical.TypeControlTest, canonical.TypeEvidence))
+		edge.From.ID = c.ID
+		c.Relationships = []canonical.Edge{edge}
+		requireRefused(t, c.Validate(), "relationships[0].qualifier")
+		edge.Qualifier = ptr(c.Results[0].ResultID)
+		c.Relationships = []canonical.Edge{edge}
+		require.NoError(t, c.Validate())
+	})
 	t.Run("automated with a collector and on-demand cadence", func(t *testing.T) {
 		c := validControlTest()
 		c.Method, c.Procedure, c.Collector, c.Cadence = canonical.TestAutomated, nil, ptr("okta-access-review"), nil
@@ -321,6 +331,9 @@ func TestCanonical_Evidence_Refusals(t *testing.T) {
 		{"verdict outside the enum", "review.verdict", func(e *canonical.Evidence) { e.Review.Verdict = "approved" }},
 		{"external_url not http(s)", "external_url", func(e *canonical.Evidence) { e.ExternalURL = ptr("javascript:alert(1)") }},
 		{"external_url relative", "external_url", func(e *canonical.Evidence) { e.ExternalURL = ptr("/reviews/q3") }},
+		{"external_url over 2048", "external_url", func(e *canonical.Evidence) {
+			e.ExternalURL = ptr("https://docs.example.com/" + strings.Repeat("a", 2048))
+		}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -443,8 +456,35 @@ func TestCanonical_EnvelopeJSON_RoundTrip(t *testing.T) {
 	}
 	assert.Len(t, m, 23, "Evidence carries the 11 envelope fields and D6's 12 own fields, no more")
 
+	t.Run("empty lists encode as [], never null", func(t *testing.T) {
+		for name, record := range map[string]any{
+			"Control": canonical.Control{}, "Risk": canonical.Risk{}, "Finding": canonical.Finding{},
+			"ControlTest": canonical.ControlTest{}, "Requirement": canonical.Requirement{},
+			"SmartScore": canonical.SmartScore{},
+		} {
+			raw, err := json.Marshal(record)
+			require.NoError(t, err, name)
+			assert.NotContains(t, string(raw), "null]", name)
+			for _, key := range map[string][]string{
+				"Control": {"relationships", "tags"}, "Risk": {"relationships", "tags"},
+				"Finding": {"relationships", "identifiers"}, "ControlTest": {"relationships", "results"},
+				"Requirement": {"relationships"}, "SmartScore": {"factors"},
+			}[name] {
+				assert.Contains(t, string(raw), `"`+key+`":[]`, "%s.%s", name, key)
+			}
+		}
+		raw, err := json.Marshal(canonical.Control{})
+		require.NoError(t, err)
+		assert.Contains(t, string(raw), `"relationships":[]`)
+		assert.Contains(t, string(raw), `"tags":[]`)
+	})
+
 	var back canonical.Evidence
 	require.NoError(t, json.Unmarshal(raw, &back))
 	require.NoError(t, back.Validate())
 	assert.Equal(t, e.ID, back.ID)
+}
+
+func canonicalTriple(v canonical.Verb, from, to canonical.EntityType) canonical.Triple {
+	return canonical.Triple{Verb: v, From: from, To: to}
 }

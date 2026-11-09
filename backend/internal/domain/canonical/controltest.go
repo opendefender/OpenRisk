@@ -40,15 +40,15 @@ const (
 // observed, so its observed_at is null; each result carries its own (D4).
 type ControlTest struct {
 	Envelope
-	ImplementationID uuid.UUID           `json:"implementation_id"`
-	Name             string              `json:"name"`
-	Checks           string              `json:"checks"`
-	Method           TestMethod          `json:"method"`
-	Procedure        *string             `json:"procedure"`
-	Collector        *string             `json:"collector"`
-	Cadence          *string             `json:"cadence"`
-	PassCriteria     string              `json:"pass_criteria"`
-	Results          []ControlTestResult `json:"results"`
+	ImplementationID uuid.UUID               `json:"implementation_id"`
+	Name             string                  `json:"name"`
+	Checks           string                  `json:"checks"`
+	Method           TestMethod              `json:"method"`
+	Procedure        *string                 `json:"procedure"`
+	Collector        *string                 `json:"collector"`
+	Cadence          *string                 `json:"cadence"`
+	PassCriteria     string                  `json:"pass_criteria"`
+	Results          List[ControlTestResult] `json:"results"`
 }
 
 // ControlTestResult is one run of a ControlTest: a sub-record, not an entity
@@ -116,6 +116,13 @@ func (t ControlTest) Validate() error {
 		seen[r.ResultID] = true
 		if i > 0 && r.RecordedAt.Before(t.Results[i-1].RecordedAt) {
 			return invalid(field+".recorded_at", "results are append-only, newest last")
+		}
+	}
+	// An outgoing evidenced_by names, as its qualifier, a result of this test
+	// (D5, A3): evidence backs a run that exists, not any uuid.
+	for i, edge := range t.Relationships {
+		if edge.Verb == VerbEvidencedBy && edge.Qualifier != nil && !seen[*edge.Qualifier] {
+			return invalid(fmt.Sprintf("relationships[%d].qualifier", i), "must be the result_id of one of this test's results")
 		}
 	}
 	return nil
