@@ -16,9 +16,11 @@ Git tags use the `vMAJOR.MINOR.PATCH[-rc.N]` convention; see [docs/VERSIONING.md
 
 > **Security release: fixes GHSA-45mr-j2w6-m4jv, GHSA-rv5c-pr27-gpxh and
 > GHSA-2w75-9qj8-fwwp (second factor on organisation switch and on SSO sign-in,
-> cross-organisation mitigation plans), and bumps `golang.org/x/net` for CVE-2026-78661.**
+> cross-organisation mitigation plans), closes server-side request forgery through
+> tenant-supplied URLs (#1315), restricts reading a bulk operation to its author
+> (#1219), and bumps `golang.org/x/net` for CVE-2026-78661.**
 >
-> Beyond the advisories, this release candidate requires the CSRF token on cookie
+> Beyond these, this release candidate requires the CSRF token on cookie
 > refresh and invitation accept, sends browser protection headers on the web app's
 > static files, stops clients behind a proxy from sharing rate-limit counters,
 > lets a self-hosted instance declare itself with `OPENRISK_DEPLOYMENT`, lets you pick
@@ -34,6 +36,12 @@ Git tags use the `vMAJOR.MINOR.PATCH[-rc.N]` convention; see [docs/VERSIONING.md
 >   value of the `or_csrf` cookie, or the request is refused with 403 `CSRF_FAILED`.
 >   The OpenRisk web app already does. A refresh that sends its token in the request
 >   body, and a bearer-token caller, are unaffected (#1314).
+> - Webhook, Slack, Teams and SMS gateway URLs of Automation channels must now be
+>   public `https://` addresses; a stored one that is not stops delivering and its
+>   test answers 400. An on-premise target on a private range needs that range in
+>   `OUTBOUND_ALLOWED_CIDRS` (never loopback or link-local, and never plain `http://`).
+>   These sends ignore `HTTP(S)_PROXY`, so an install whose only egress is an HTTP
+>   proxy loses them (#1315).
 > - Helm and the frontend image: the browser protection headers now come from the two
 >   static locations of the nginx configuration. If you override the frontend
 >   ConfigMap or `nginx.conf`, carry the same headers over (#1314).
@@ -67,6 +75,24 @@ Git tags use the `vMAJOR.MINOR.PATCH[-rc.N]` convention; see [docs/VERSIONING.md
   risk alike, and the plan queries that load a risk or its plans are scoped by
   organisation. Plans already written across organisations before this release are
   not removed (D-086 tracks it).
+- **Tenant-supplied outbound URLs go through the outbound guard (#1315).** The server
+  no longer calls a loopback, link-local (cloud metadata) or private address named by a
+  tenant, unless the operator opened that private range with `OUTBOUND_ALLOWED_CIDRS`,
+  so the API pod cannot be used to reach its own network.
+  `PUT /automation/channels` answers 400 for a Slack, Teams, webhook or SMS gateway URL
+  that is `http://` or points at a denied address (such URLs used to be stored), and
+  `POST /automation/channels/test` answers 400 for a refused URL, including one stored
+  earlier, where it used to call that URL and answer 200. The
+  address is checked again where the connection is made, on every redirect hop, so a
+  name that later resolves to a private address is refused. The refusal reads
+  `<field>: target address is not allowed (must be a public https host)`; it never
+  echoes the stored URL (for Slack and Teams the path is the secret) nor the address it
+  resolved to. In Automation > Channels it shows as "Channels not saved: ..." or "Test
+  refused: ...", and a delivery failure no longer quotes the URL.
+- **Only the author reads a bulk operation by id (#1219).** `GET /api/v1/bulk-operations/:id`
+  returned any job of the organisation, filter and update data included. It now returns
+  the job to the member who created it, as the list already did; a colleague, or
+  another organisation, gets 404.
 - **An MFA backup code works once (#946).** Two concurrent challenges with the same
   code could both open a session. The code is now spent by one conditional update
   scoped to the user and organisation; a code that was not spent is refused and
@@ -167,6 +193,8 @@ Git tags use the `vMAJOR.MINOR.PATCH[-rc.N]` convention; see [docs/VERSIONING.md
 - Migration 0082 cannot restore which organisations were `starter`: its down
   migration restores the old column default only. 0083 is reversible.
 - The authenticator is still one per account (#897).
+- `OUTBOUND_ALLOWED_CIDRS` cannot reopen plain `http://`: an on-premise SMS gateway or
+  webhook that only speaks `http` cannot be saved (#1315).
 - #1151: OAuth-only accounts do not exist yet.
 
 ## [1.1.0-rc.8] - 2026-10-29
