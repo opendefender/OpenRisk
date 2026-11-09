@@ -239,6 +239,15 @@ func TestCanonical_ProvenanceRefusesCredentialShapedValues(t *testing.T) {
 		"pass":                          "https://h/o?pass=" + secret,
 		"sessionid":                     "https://h/o?SessionId=" + secret,
 		"nested deeper than the limit":  "https://h/?a=https://h/?b=https://h/?c=https://h/?d=https://h/?e=" + secret,
+		// devsecops round 2: undecodable and double-escaped values and names.
+		"escaped nested URL, bad escape": "https://h/?next=https%3A%2F%2Fb%2F%3Ftoken%3D" + secret + "%zz",
+		"escaped userinfo, bad escape":   "https://h/?next=https%3A%2F%2Fu%3A" + secret + "%40b%2F%zz",
+		"double-escaped nested URL":      "https://h/?next=https%253A%252F%252Fb%252F%253Ftoken%253D" + secret,
+		"undecodable parameter name":     "https://h/?token%zz=" + secret,
+		"double-escaped parameter name":  "https://h/?%2574oken=" + secret,
+		"samlresponse":                   "https://sso.example.com/acs?SAMLResponse=" + secret,
+		"ticket":                         "https://cas.example.com/app?ticket=" + secret,
+		"sid":                            "https://h/o?sid=" + secret,
 	}
 
 	t.Run("in every provenance string", func(t *testing.T) {
@@ -306,5 +315,15 @@ func TestCanonical_ProvenanceRefusesCredentialShapedValues(t *testing.T) {
 		require.NoError(t, e.Validate())
 		e.ExternalURL = ptr("https://app.example.com/#/controls/12?tab=evidence&return=https://app.example.com/home")
 		require.NoError(t, e.Validate(), "a nested URL without a credential passes")
+		for _, ordinary := range []string{
+			"https://h/?page=2", "https://h/?q=a+b", "https://h/?a=b@c", "https://h/doc#section-2",
+			"https://h/?discount=50%25", // a decodable escape that is not a URL
+		} {
+			e.ExternalURL = ptr(ordinary)
+			require.NoError(t, e.Validate(), ordinary)
+			p := userProvenance(userAlice)
+			p.RawRef = ptr(ordinary)
+			require.NoError(t, p.Validate(canonical.SourceOpenRiskUser), ordinary)
+		}
 	})
 }

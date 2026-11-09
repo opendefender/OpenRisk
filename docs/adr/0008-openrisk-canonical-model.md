@@ -850,3 +850,25 @@ publishes these readings with the schema.
   - "`acceptance` present only in or after `RESIDUAL_ACCEPTED`" belongs to the risk lifecycle use
     case (#811). The state machine is not linear (`reopened`), so a shape check cannot state
     "after".
+- **A9 — Round-two tightenings (#1240, 2026-11-09).**
+  - `maps_to` from a requirement to itself is refused. An unordered pair needs two ends.
+  - A `ControlTest --evidenced_by--> Evidence` qualifier must be the `result_id` of one of that
+    test's own `results` (D5: "the `ControlTestResult` it supports").
+  - Key matching in `provenance` and edge `attributes`:
+    - keys are matched exactly, case included;
+    - a key given twice is refused;
+    - "keys not listed are refused" applies at every nesting level.
+  - Caps on edge attributes:
+    - `match_method` and `asset_criticality_at_observation` are capped at 255 characters and
+      checked for credentials like provenance strings. Today's columns are 128 and 16.
+    - `note` and `rationale` are **text, uncapped**, like the prose fields of D6. Only tokens in
+      them that contain `://` are checked as URLs for credentials, so ordinary prose (an e-mail
+      address after a colon) is never refused.
+  - `match_candidates` is at most 16 KiB. The ranking is sorted by confidence, so when the
+    persisted ranking is larger, the #553 projection keeps its head within the cap. The full
+    ranking stays in `vulnerabilities.match_candidates`.
+  - `Evidence.external_url` is at most 2048 characters. The evidence write path adopts the same
+    cap in #553, so no new row exceeds it.
+  - A `vendor_contact:<assessment_id>` actor is not compared with the record's own id here.
+    ADR 0004 D4 names the assessment, and `Assessment` is not typed in this package (D8). The
+    check belongs to the `Assessment` projection.

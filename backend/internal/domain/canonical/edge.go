@@ -222,19 +222,21 @@ func (a EdgeAttributes) present() []string {
 	return out
 }
 
-// Caps on edge attributes. Strings follow provenance's 255 (D3); the opaque
-// match_candidates ranking is bounded so an edge cannot carry a payload.
+// Caps on edge attributes (A9). The two labels follow provenance's 255 (D3);
+// the opaque match_candidates ranking is bounded so an edge cannot carry a
+// payload. note and rationale are uncapped prose.
 const (
 	attributeStringCap   = 255
 	matchCandidatesBytes = 16 << 10
 )
 
 func (a EdgeAttributes) validateValues() error {
+	// match_method and asset_criticality_at_observation are short labels:
+	// capped and checked whole, like provenance strings (A9).
 	for _, attr := range []struct {
 		field string
 		value *string
 	}{
-		{"attributes.rationale", a.Rationale}, {"attributes.note", a.Note},
 		{"attributes.match_method", a.MatchMethod},
 		{"attributes.asset_criticality_at_observation", a.AssetCriticalityAtObservation},
 	} {
@@ -245,6 +247,19 @@ func (a EdgeAttributes) validateValues() error {
 			return err
 		}
 		if credentialShaped(*attr.value) {
+			return invalid(attr.field, "carries a URL with userinfo or a signature/token parameter")
+		}
+	}
+	// note and rationale are tenant prose, text and uncapped (A9). Only the
+	// tokens that are URLs are checked, so "escalate to alice@corp.com" is
+	// prose, and a pasted presigned link is still refused.
+	for _, attr := range []struct {
+		field string
+		value *string
+	}{
+		{"attributes.rationale", a.Rationale}, {"attributes.note", a.Note},
+	} {
+		if attr.value != nil && proseCarriesCredentialURL(*attr.value) {
 			return invalid(attr.field, "carries a URL with userinfo or a signature/token parameter")
 		}
 	}

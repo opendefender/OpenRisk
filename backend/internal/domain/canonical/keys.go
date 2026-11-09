@@ -59,7 +59,7 @@ var attributesShape = shape{
 func checkKeys(field string, raw []byte, s shape) error {
 	dec := json.NewDecoder(bytes.NewReader(raw))
 	dec.UseNumber()
-	if err := walkKeys(dec, field, s); err != nil {
+	if err := walkKeys(dec, field, s, 0); err != nil {
 		return err
 	}
 	if _, err := dec.Token(); !errors.Is(err, io.EOF) {
@@ -68,7 +68,14 @@ func checkKeys(field string, raw []byte, s shape) error {
 	return nil
 }
 
-func walkKeys(dec *json.Decoder, field string, s shape) error {
+// maxJSONDepth bounds the token walk: deeper nesting is refused rather than
+// followed, so a hostile document cannot make the walk recurse without limit.
+const maxJSONDepth = 64
+
+func walkKeys(dec *json.Decoder, field string, s shape, depth int) error {
+	if depth > maxJSONDepth {
+		return invalid(field, "nested too deeply")
+	}
 	tok, err := dec.Token()
 	if err != nil {
 		return invalid(field, "malformed JSON")
@@ -93,12 +100,12 @@ func walkKeys(dec *json.Decoder, field string, s shape) error {
 				}
 				seen[key] = true
 				child = known
-				if err := walkKeys(dec, field+"."+key, child); err != nil {
+				if err := walkKeys(dec, field+"."+key, child, depth+1); err != nil {
 					return err
 				}
 				continue
 			}
-			if err := walkKeys(dec, field, nil); err != nil {
+			if err := walkKeys(dec, field, nil, depth+1); err != nil {
 				return err
 			}
 		}
@@ -107,7 +114,7 @@ func walkKeys(dec *json.Decoder, field string, s shape) error {
 		}
 	case json.Delim('['):
 		for dec.More() {
-			if err := walkKeys(dec, field, s); err != nil {
+			if err := walkKeys(dec, field, s, depth+1); err != nil {
 				return err
 			}
 		}

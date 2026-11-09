@@ -188,6 +188,15 @@ func TestCanonical_EdgeVocabularyIsClosed(t *testing.T) {
 		require.NoError(t, json.Unmarshal([]byte(`{"match_candidates":[{"Asset":"x","asset":"y"}]}`), &a),
 			"match_candidates is opaque JSON (A7): its inner keys are not ours to close")
 	})
+	t.Run("the key walk refuses JSON nested past 64 levels", func(t *testing.T) {
+		deep := `{"match_candidates":` + strings.Repeat("[", 100) + strings.Repeat("]", 100) + `}`
+		var a c.EdgeAttributes
+		requireRefused(t, a.UnmarshalJSON([]byte(deep)), "nested too deeply")
+		var p c.Provenance
+		requireRefused(t, p.UnmarshalJSON([]byte(`{"derived_from":`+strings.Repeat("[", 100)+strings.Repeat("]", 100)+`}`)), "nested too deeply")
+		shallow := `{"match_candidates":` + strings.Repeat("[", 10) + strings.Repeat("]", 10) + `}`
+		require.NoError(t, a.UnmarshalJSON([]byte(shallow)))
+	})
 	t.Run("the vocabulary refusal echoes nothing it was given", func(t *testing.T) {
 		e := validEdge()
 		e.Verb = "owns\nlevel=INFO msg=forged"
@@ -197,16 +206,14 @@ func TestCanonical_EdgeVocabularyIsClosed(t *testing.T) {
 		assert.NotContains(t, err.Error(), "forged")
 		assert.NotContains(t, err.Error(), "Injected")
 	})
-	t.Run("attribute strings are capped and never credential-shaped", func(t *testing.T) {
+	t.Run("attribute labels are capped and never credential-shaped", func(t *testing.T) {
 		long := strings.Repeat("n", 256)
 		for name, set := range map[string]func(*c.EdgeAttributes, string){
-			"note":                             func(a *c.EdgeAttributes, v string) { a.Note = &v },
-			"rationale":                        func(a *c.EdgeAttributes, v string) { a.Rationale = &v },
 			"match_method":                     func(a *c.EdgeAttributes, v string) { a.MatchMethod = &v },
 			"asset_criticality_at_observation": func(a *c.EdgeAttributes, v string) { a.AssetCriticalityAtObservation = &v },
 		} {
-			for _, value := range []string{long, "https://h/o?X-Amz-Signature=abc"} {
-				e := validEdge()
+			for _, value := range []string{long, "https://h/o?X-Amz-Signature=abc", "svc:pw@db.internal"} {
+				e := edgeFor(c.Triple{Verb: c.VerbAffects, From: c.TypeFinding, To: c.TypeAsset})
 				set(&e.Attributes, value)
 				requireRefused(t, e.Validate(), "attributes."+name)
 			}
@@ -214,6 +221,35 @@ func TestCanonical_EdgeVocabularyIsClosed(t *testing.T) {
 		e := edgeFor(c.Triple{Verb: c.VerbAffects, From: c.TypeFinding, To: c.TypeAsset})
 		e.Attributes.MatchCandidates = json.RawMessage(`"` + strings.Repeat("x", 16<<10) + `"`)
 		requireRefused(t, e.Validate(), "match_candidates")
+	})
+	t.Run("note and rationale are uncapped prose; only URL tokens are checked (A9)", func(t *testing.T) {
+		setters := map[string]func(*c.Edge, string){
+			"note": func(e *c.Edge, v string) {
+				*e = edgeFor(c.Triple{Verb: c.VerbMitigatedBy, From: c.TypeRisk, To: c.TypeControl})
+				e.Attributes.Note = &v
+			},
+			"rationale": func(e *c.Edge, v string) {
+				*e = edgeFor(c.Triple{Verb: c.VerbMapsTo, From: c.TypeRequirement, To: c.TypeRequirement})
+				e.Attributes.Rationale = &v
+			},
+		}
+		for field, set := range setters {
+			for _, prose := range []string{
+				strings.Repeat("a", 1000),
+				"Note: escalate to alice@corp.com",
+				"Voir: la revue trimestrielle, contact rssi@banque.cm",
+				"Cf. https://wiki.example.com/grc/access-review?page=2 for the procedure.",
+			} {
+				var e c.Edge
+				set(&e, prose)
+				require.NoError(t, e.Validate(), "%s: %q", field, prose[:min(len(prose), 40)])
+			}
+			var e c.Edge
+			set(&e, "Evidence at https://x/y?X-Amz-Signature=abc, see above.")
+			err := e.Validate()
+			requireRefused(t, err, "attributes."+field)
+			assert.NotContains(t, err.Error(), "X-Amz")
+		}
 	})
 	t.Run("maps_to from a requirement to itself", func(t *testing.T) {
 		e := edgeFor(c.Triple{Verb: c.VerbMapsTo, From: c.TypeRequirement, To: c.TypeRequirement})
