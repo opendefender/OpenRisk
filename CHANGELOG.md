@@ -8,12 +8,166 @@ Git tags use the `vMAJOR.MINOR.PATCH[-rc.N]` convention; see [docs/VERSIONING.md
 
 ## [Unreleased]
 
-### Breaking
-- `OPENRISK_DEPLOYMENT` is required: the backend refuses to boot without it, and the log names the variable and its two values (#1185, D-081). The official `deploy/selfhost/docker-compose.yml` already sets it. Own compose file or binary: add `OPENRISK_DEPLOYMENT=self_hosted`. Helm: `backend.deployment` has no default and `helm upgrade` fails at render time, before any pod restarts, until you pass `--set backend.deployment=self_hosted` or set it in your values file (the repository's `helm/values-*.yaml` already do).
-
 ### Planned
 - Board Report mensuel (IA, human-in-the-loop, FCFA) — the second half of M4
 - Mobile app (React Native)
+
+## [1.1.0-rc.9] - 2026-11-09
+
+> **Security release: fixes GHSA-45mr-j2w6-m4jv, GHSA-rv5c-pr27-gpxh and
+> GHSA-2w75-9qj8-fwwp (second factor on organisation switch and on SSO sign-in,
+> cross-organisation mitigation plans), and bumps `golang.org/x/net` for CVE-2026-78661.**
+>
+> Beyond the advisories, this release candidate requires the CSRF token on cookie
+> refresh and invitation accept, sends browser protection headers on the web app's
+> static files, stops clients behind a proxy from sharing rate-limit counters,
+> lets a self-hosted instance declare itself with `OPENRISK_DEPLOYMENT`, lets you pick
+> a scan type, and rebuilds the Infrastructure page. One change stops an existing
+> install from booting until you act, so read the operator actions before upgrading.
+>
+> **Operator actions**
+> - Set `OPENRISK_DEPLOYMENT`. The backend refuses to boot without it. Own compose
+>   file or binary: `OPENRISK_DEPLOYMENT=self_hosted`. Helm: `--set
+>   backend.deployment=self_hosted`. See Breaking below (#1185).
+> - Custom clients that refresh a session through the cookie, or accept an invitation
+>   while signed in through the cookie, must send the `X-CSRF-Token` header with the
+>   value of the `or_csrf` cookie, or the request is refused with 403 `CSRF_FAILED`.
+>   The OpenRisk web app already does. A refresh that sends its token in the request
+>   body, and a bearer-token caller, are unaffected (#1314).
+> - Helm and the frontend image: the browser protection headers now come from the two
+>   static locations of the nginx configuration. If you override the frontend
+>   ConfigMap or `nginx.conf`, carry the same headers over (#1314).
+> - Staging Compose stack only (`docker-compose.staging.yaml`): set
+>   `STAGING_MFA_ENCRYPTION_KEY` in `.env.staging`, or `docker compose` refuses to
+>   start. Pick a random value and never change it once MFA secrets are encrypted
+>   with it (#1243).
+> - Migrations 0082 and 0083 run at boot. 0082 moves organisations stored on the
+>   legacy `starter` plan to `free`; 0083 adds `scan_jobs.scan_type`. See Changed and
+>   Honest remainders for their rollback.
+
+### Breaking
+- `OPENRISK_DEPLOYMENT` is required: the backend refuses to boot without it, and the log names the variable and its two values (#1185, D-081). The official `deploy/selfhost/docker-compose.yml` already sets it. Own compose file or binary: add `OPENRISK_DEPLOYMENT=self_hosted`. Helm: `backend.deployment` has no default and `helm upgrade` fails at render time, before any pod restarts, until you pass `--set backend.deployment=self_hosted` or set it in your values file (the repository's `helm/values-*.yaml` already do).
+
+### Security
+- **A second factor is asked on an organisation switch (GHSA-45mr-j2w6-m4jv).**
+  Authenticators and MFA policies are kept per organisation, and only the default
+  organisation's was checked at sign-in. `POST /auth/switch-org` now runs the target
+  organisation's check: when a factor is owed it answers 200 with `mfa_required` or
+  `mfa_enrollment_required` and a token for the target, sets no cookie, and leaves the
+  current session as it is. The organisation switcher shows the challenge or enrolment
+  and goes back to the current organisation on cancel (D-084).
+- **An SSO sign-in asks for the second factor (GHSA-rv5c-pr27-gpxh).** The identity
+  provider proves the first factor only. An SSO sign-in by a user with an enrolled
+  authenticator, or whose role's MFA grace period is over, now stops at the MFA
+  challenge or enrolment, as after a correct password, and ends in a session only
+  after it. A revoked membership is refused before any code is asked for.
+- **A plan could be created on another organisation's risk (GHSA-2w75-9qj8-fwwp).**
+  `POST /risks/:id/mitigations` did not check that the risk belonged to the caller's
+  organisation. It now answers 404 "risk not found" for a foreign, unknown or deleted
+  risk alike, and the plan queries that load a risk or its plans are scoped by
+  organisation. Plans already written across organisations before this release are
+  not removed (D-086 tracks it).
+- **An MFA backup code works once (#946).** Two concurrent challenges with the same
+  code could both open a session. The code is now spent by one conditional update
+  scoped to the user and organisation; a code that was not spent is refused and
+  counted like a wrong code.
+- **Cookie refresh and invitation accept need the CSRF token (#1314).**
+  `POST /auth/refresh` with the refresh cookie, and `POST /api/v1/invitations/accept`
+  by a signed-in cookie session, sat outside the CSRF check, so any page could act
+  in a signed-in user's name. Both answer 403 `CSRF_FAILED` without a matching
+  `X-CSRF-Token`. A token sent in the refresh request body needs none.
+- **The web app's static files carry the browser protection headers (#1314).**
+  `Content-Security-Policy` (`frame-ancestors 'none'`, `base-uri 'self'`,
+  `object-src 'none'`, `form-action 'self'`), `X-Frame-Options: DENY`,
+  `X-Content-Type-Options`, `Referrer-Policy` and `Permissions-Policy`, in the image's
+  `nginx.conf` and the Helm chart. The chart's previous set reached no static
+  response, because nginx drops inherited headers in a location that sets its own.
+- **Clients behind a proxy no longer share rate-limit counters (#1302).** Behind a
+  trusted proxy the client key was a string Fiber reuses after the request, so the
+  next request rewrote it and counters mixed between clients. The key is now copied.
+- **Dependencies (#1372, #1341).** `golang.org/x/net` v0.62.0 (CVE-2026-78661) and
+  `andybalholm/brotli` v1.2.7. `follow-redirects` 1.16.2 (CVE-2026-116689, #1229)
+  in the frontend lockfile.
+
+### Added
+- **Pick a scan type (#1164).** An agent scan is either a network discovery (live
+  hosts and service versions, no vulnerability scripts, lighter probe) or a
+  vulnerability scan (the nmap `vuln` scripts, slower). The trigger accepts
+  `scan_type` (`discovery` or `vulnerability`; any other value is refused as a validation
+  error, as is a type for a non-agent provider), and "Run a scan" on the Infrastructure page
+  offers the choice. With no type, a scan stays a vulnerability scan. The agent runs
+  the matching nmap command and treats a missing type as vulnerability, so an older
+  server keeps working. Migration 0083 adds `scan_jobs.scan_type`, default
+  `vulnerability`.
+- **A self-hosted instance has its own plan (#612, D-040).** With
+  `OPENRISK_DEPLOYMENT=self_hosted`, every organisation resolves to a Self-hosted set:
+  no caps on users, risks, assets, integrations and the newer plan counts, whatever
+  its stored plan, and SSO as the operator configures it. The sidebar, the billing
+  panel and the organisation profile name it, and Settings has no Billing tab (a
+  link to it lands on General; the telemetry consent stays in General). Support and
+  SLA stay services the owner renders. Never reached by a stored or tenant value.
+- **Rebuilt Infrastructure page (#912).** Provider cards, scan configurations,
+  connected agents and recent scans on the redesign, in French and English. Creating,
+  starting, deleting and revoking show a toast. A deleted configuration and a revoked
+  agent change in their list at once and come back if the server refuses; a started
+  scan joins the recent scans as soon as the server answers.
+
+### Changed
+- **Plan caps read in your language (#783).** Reactivating a member, resending an
+  invitation and adopting the starter risks show the cap from `limit_key`, `limit`
+  and `used` in the interface language, not the backend's French sentence. The
+  front end no longer retries a 402, on a mutation either (a capped create used to
+  send four requests and wait about 14 s). The executive portfolio figures name Pro
+  as the plan that opens them.
+- **New organisations are created on Free (#612).** The legacy `starter` plan, read as
+  Pro, is retired: migration 0082 moves every organisation stored as `starter` to
+  `free` and sets the column default to `free`. A subscription, when present, still
+  decides the plan.
+- **`OPENRISK_DEPLOYMENT=self_hosted` is declared on every in-repo deployment path
+  (#1185, #612).** The self-host, root, staging and test Compose files,
+  `helm/values-*.yaml`, the `.env.example` files, the Makefile and CI set it; the
+  kind chart check passes it with `--set`.
+- **Release and developer tooling (#1364, #1337, #1243).** `scripts/release/cut.mjs`
+  cuts the changelog, a script seeds a dev dataset, and the dev and staging Compose
+  stacks have their own project name, ports and volumes. Not shipped to operators.
+
+### Fixed
+- **Hosted plan caps hold at the edges (#783).** These apply to hosted plans only; a
+  self-hosted instance is uncapped. A seat is an active member or a pending,
+  unexpired invitation, so invitations can no longer exceed the user cap.
+  Reactivating a member and resending an expired invitation are held to the seat
+  cap. `POST /onboarding/starter-risks` adopts the three risks only if all three fit
+  under the risk cap, and writes none otherwise (Free could reach 33). A count or plan
+  read that errors still admits the write, and now logs a warning.
+- **Bulk "assign mitigation" gives each risk its own plan (#1213).** Plans are created
+  through the plan use case, in the job's organisation and with the requesting user
+  as creator, and a risk that already has a live plan with the template's title is
+  skipped, so rerunning a job adds no duplicate.
+- **Bulk operations can be read back on PostgreSQL (#1215).** `GET /bulk-operations/:id`
+  answered 404 and the list failed for any job with a filter.
+- **The MFA step of an organisation switch works without a reload (GHSA-45mr-j2w6-m4jv).**
+  The MFA token is no longer replaced by the session token on the enrolment and
+  challenge requests, the step stays open while a code is checked, and its enrolment
+  has a way back. When the account's single authenticator belongs to another
+  organisation, enrolment answers 409 and the user is told why (#897).
+
+### Internal
+- Agent runner, daily brief, merge queue and review-bot changes, board sync, CI repairs
+  and decision records (D-084, D-086, D-096). Not shipped to operators.
+
+### Honest remainders
+- The CSP on the web app has no `script-src`: `index.html` runs an inline theme
+  script, so a script policy needs its hash kept in step with the file (tracked
+  separately, #1314).
+- A factor proved in one organisation does not count in another (D-066, D-084), and
+  repeated switches from one session can trigger the account-wide challenge lock;
+  D-084 asks the owner to confirm.
+- Plans written across organisations before the GHSA-2w75-9qj8-fwwp fix are not
+  quarantined yet (D-086).
+- Migration 0082 cannot restore which organisations were `starter`: its down
+  migration restores the old column default only. 0083 is reversible.
+- The authenticator is still one per account (#897).
+- #1151: OAuth-only accounts do not exist yet.
 
 ## [1.1.0-rc.8] - 2026-10-29
 
@@ -934,7 +1088,8 @@ this is a release candidate, not a GA.
 
 ---
 
-[Unreleased]: https://github.com/opendefender/OpenRisk/compare/v1.1.0-rc.8...HEAD
+[Unreleased]: https://github.com/opendefender/OpenRisk/compare/v1.1.0-rc.9...HEAD
+[1.1.0-rc.9]: https://github.com/opendefender/OpenRisk/compare/v1.1.0-rc.8...v1.1.0-rc.9
 [1.1.0-rc.8]: https://github.com/opendefender/OpenRisk/compare/v1.1.0-rc.7...v1.1.0-rc.8
 [1.1.0-rc.7]: https://github.com/opendefender/OpenRisk/compare/v1.1.0-rc.6...v1.1.0-rc.7
 [1.1.0-rc.6]: https://github.com/opendefender/OpenRisk/compare/v1.1.0-rc.5...v1.1.0-rc.6
