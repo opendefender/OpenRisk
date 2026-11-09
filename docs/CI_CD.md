@@ -191,9 +191,10 @@ nothing to do with rate limiting:
 | `RATE_LIMIT_TENANT_PER_MINUTE=0` | turns off the per-tenant API quota (default 1200/min) | an ordinary setting; leave it unset |
 | `RATE_LIMIT_AUTH_DISABLED=true` | turns off the per-IP limiters on sign-in, sign-up, password reset and check, re-authentication and the MFA challenge | ignored: honoured only when `APP_ENV` is `test`, `testing`, `development`, `dev` or `local` |
 
-The harness checks this before it seeds: `tests/e2e/global-setup.ts` sends one request past
-the default per-IP budget to `/health` and stops the run with this table's switches in its
-message if any comes back 429. A backend Playwright starts itself gets them from
+The harness checks this before it seeds: `tests/e2e/global-setup.ts` sends twice the default
+per-IP budget plus one to `/health` (the budget is counted per wall-clock minute, so a burst
+may straddle two) and stops the run with this table's switches in its message if any comes
+back 429. A quota raised above that size is not detected. A backend Playwright starts itself gets them from
 `playwright.config.ts`; one it reuses (`make dev`, a stack started by hand) used to fail at
 random instead, on whichever test crossed the budget (UX-24, #1297).
 

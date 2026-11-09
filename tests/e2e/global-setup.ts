@@ -32,9 +32,12 @@ async function waitFor(url: string, label: string, tries = 60) {
   throw new Error(`[global-setup] ${label} not ready at ${url} after ${tries}s`);
 }
 
-// One past the backend's default per-IP quota (300 a minute,
-// backend/internal/middleware/apiquota.go).
-const QUOTA_PROBE_REQUESTS = 301;
+// The backend's default per-IP quota is 300 a minute
+// (backend/internal/middleware/apiquota.go), counted in fixed wall-clock minute
+// buckets (backend/internal/infrastructure/redis/client.go). A burst that crosses
+// a minute boundary splits over two buckets, so it takes twice the budget plus one
+// for either bucket to overflow.
+const QUOTA_PROBE_REQUESTS = 2 * 300 + 1;
 
 /**
  * Fails the run at once when the backend still enforces its per-IP API quota.
@@ -44,7 +47,8 @@ const QUOTA_PROBE_REQUESTS = 301;
  * UX-24 flaked on exactly that (#1297). A server Playwright starts gets the
  * switches from playwright.config.ts; a reused one (`make dev`, a local stack)
  * does not, and this turns its random flake into one clear message. /health sits
- * behind the quota, so one request past the default budget is refused when it is on.
+ * behind the quota, so the probe is refused when the default budget is on. A quota
+ * raised above the probe's size is not detected.
  */
 async function assertNoApiQuota() {
   const statuses = await Promise.all(
@@ -52,6 +56,13 @@ async function assertNoApiQuota() {
       fetch(`${API_URL}/health`).then((r) => r.status, () => 0),
     ),
   );
+  const failed = statuses.filter((s) => s === 0).length;
+  if (failed > 0) {
+    throw new Error(
+      `[global-setup] the API quota probe could not reach ${API_URL}/health on ${failed} of ` +
+        `${QUOTA_PROBE_REQUESTS} requests, so it proves nothing; fix the backend or the host first.`,
+    );
+  }
   if (statuses.includes(429)) {
     throw new Error(
       `[global-setup] the backend at ${API_URL} enforces its per-IP API quota (429 within ` +
