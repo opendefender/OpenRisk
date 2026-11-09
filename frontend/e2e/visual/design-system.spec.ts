@@ -70,6 +70,34 @@ async function waitForFonts(page: import('@playwright/test').Page) {
   await page.evaluate(() => document.fonts.ready);
 }
 
+/**
+ * The charts size themselves from a ResizeObserver (visx ParentSize), and on a
+ * loaded runner the first paint can be at a stale 300px width, corrected by a
+ * later observer callback that lands after the screenshot's own 5s budget
+ * (#1297, seen 2 in 60 runs). Wait for the outcome instead: every chart SVG as
+ * wide as the measuring box it sits in. A gallery without charts passes at once.
+ */
+async function waitForChartLayout(page: import('@playwright/test').Page) {
+  await expect
+    .poll(
+      () =>
+        page.evaluate(
+          () =>
+            [...document.querySelectorAll<SVGSVGElement>('svg[role="img"]')]
+              .filter((svg) => svg.parentElement?.style.position === 'absolute')
+              .filter(
+                (svg) =>
+                  Math.abs(
+                    Number(svg.getAttribute('width')) -
+                      (svg.parentElement as HTMLElement).getBoundingClientRect().width,
+                  ) >= 1,
+              ).length,
+        ),
+      { message: 'every chart is laid out at its container width', timeout: 15_000 },
+    )
+    .toBe(0);
+}
+
 function galleryURL(gallery: string, theme: string, lang: string = 'en') {
   return `/e2e/visual/gallery.html?gallery=${gallery}&theme=${theme}&lang=${lang}`;
 }
@@ -92,6 +120,7 @@ for (const gallery of GALLERIES) {
       // parameter would make both snapshots identical and pass while testing
       // one theme twice.
       await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
+      await waitForChartLayout(page);
 
       await expect(page).toHaveScreenshot(`ds-${gallery}-${theme}.png`, { fullPage: true });
     });
