@@ -50,3 +50,6 @@ CLAUDE.md.backup-*
 # the issue comment, not the repo (#956).
 .playwright-mcp/
 test.log
+
+# Ids written by scripts/seed-dev.mjs on each run (#1337)
+dev/.seed-dev-state.json
