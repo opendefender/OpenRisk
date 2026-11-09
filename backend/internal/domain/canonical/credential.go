@@ -95,20 +95,16 @@ func querySecret(raw string, depth int) bool {
 		if secretParamName(name) {
 			return true
 		}
-		decoded, state := unescapeFully(value)
-		switch state {
-		case unescapeUnstable:
+		decoded, malformed, stable := unescapeFully(value)
+		if !stable {
 			return true
-		case unescapeFailed:
-			// The value could not be decoded, so it cannot be inspected as a
-			// URL. Refuse it when its escaped form still spells a nested URL,
-			// a query or userinfo.
-			lower := strings.ToLower(value)
-			if strings.Contains(lower, "%3a%2f%2f") || strings.Contains(lower, "%3f") || strings.Contains(lower, "%40") {
-				return true
-			}
 		}
-		if strings.Contains(decoded, "://") || strings.ContainsAny(decoded, "?@") {
+		if malformed {
+			// A stray '%' would make url.Parse fail before the nested URL is
+			// read; escape it so the rest is inspected.
+			decoded = escapeStrayPercent(decoded)
+		}
+		if strings.Contains(decoded, "://") || strings.ContainsAny(decoded, "?@#") {
 			if credentialShapedAt(decoded, depth+1) {
 				return true
 			}
@@ -117,33 +113,80 @@ func querySecret(raw string, depth int) bool {
 	return false
 }
 
-type unescapeState int
-
-const (
-	unescapeOK       unescapeState = iota
-	unescapeFailed                 // a malformed escape: the result is the last decodable form
-	unescapeUnstable               // still changing after maxURLNesting rounds
-)
-
 // unescapeFully query-unescapes s until it stops changing, so a double-escaped
-// `%253Ftoken%253D` is read as `?token=`.
-func unescapeFully(s string) (string, unescapeState) {
+// `%253Ftoken%253D` is read as `?token=`. Decoding is lenient: a malformed
+// escape (`%zz`) is kept as it is and every valid one around it is still
+// decoded, so a bad escape cannot hide the rest of the value from inspection.
+// malformed reports that one was seen; stable is false when the value was still
+// changing after maxURLNesting rounds.
+func unescapeFully(s string) (decoded string, malformed, stable bool) {
 	for i := 0; i <= maxURLNesting; i++ {
-		decoded, err := url.QueryUnescape(s)
-		if err != nil {
-			return s, unescapeFailed
+		next, bad := unescapeLenient(s)
+		malformed = malformed || bad
+		if next == s {
+			return s, malformed, true
 		}
-		if decoded == s {
-			return s, unescapeOK
-		}
-		s = decoded
+		s = next
 	}
-	return s, unescapeUnstable
+	return s, malformed, false
+}
+
+// unescapeLenient is url.QueryUnescape that keeps a malformed escape literally
+// instead of failing.
+func unescapeLenient(s string) (string, bool) {
+	var b strings.Builder
+	b.Grow(len(s))
+	malformed := false
+	for i := 0; i < len(s); i++ {
+		switch c := s[i]; {
+		case c == '%' && i+2 < len(s) && isHex(s[i+1]) && isHex(s[i+2]):
+			b.WriteByte(unhex(s[i+1])<<4 | unhex(s[i+2]))
+			i += 2
+		case c == '%':
+			malformed = true
+			b.WriteByte(c)
+		case c == '+':
+			b.WriteByte(' ')
+		default:
+			b.WriteByte(c)
+		}
+	}
+	return b.String(), malformed
+}
+
+// escapeStrayPercent rewrites every '%' that does not start a valid escape as
+// "%25".
+func escapeStrayPercent(s string) string {
+	var b strings.Builder
+	b.Grow(len(s))
+	for i := 0; i < len(s); i++ {
+		if s[i] == '%' && !(i+2 < len(s) && isHex(s[i+1]) && isHex(s[i+2])) {
+			b.WriteString("%25")
+			continue
+		}
+		b.WriteByte(s[i])
+	}
+	return b.String()
+}
+
+func isHex(c byte) bool {
+	return '0' <= c && c <= '9' || 'a' <= c && c <= 'f' || 'A' <= c && c <= 'F'
+}
+
+func unhex(c byte) byte {
+	switch {
+	case c >= 'a':
+		return c - 'a' + 10
+	case c >= 'A':
+		return c - 'A' + 10
+	default:
+		return c - '0'
+	}
 }
 
 func secretParamName(name string) bool {
-	decoded, state := unescapeFully(name)
-	if state != unescapeOK {
+	decoded, malformed, stable := unescapeFully(name)
+	if malformed || !stable {
 		// A parameter name with a malformed or ever-deeper escape (`token%zz`)
 		// has no legitimate use and cannot be compared: fail closed.
 		return true

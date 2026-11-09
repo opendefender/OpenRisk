@@ -248,6 +248,16 @@ func TestCanonical_ProvenanceRefusesCredentialShapedValues(t *testing.T) {
 		"samlresponse":                   "https://sso.example.com/acs?SAMLResponse=" + secret,
 		"ticket":                         "https://cas.example.com/app?ticket=" + secret,
 		"sid":                            "https://h/o?sid=" + secret,
+		// devsecops round 4: a double escape followed by a bad escape.
+		"double-escaped nested URL, bad escape": "https://a/?next=https%253A%252F%252Fb%252F%253Ftoken%253D" + secret + "%25zz",
+		"double-escaped query, bad escape":      "https://a/?next=b%252F%253Ftoken%253D" + secret + "%25zz",
+		"double-escaped fragment, bad escape":   "https://a/?next=b%252F%2523access_token%253D" + secret + "%25zz",
+		// code-reviewer round 4: a bad escape must not hide the valid ones.
+		"double-escaped nested URL, raw bad escape": "https://h/?next=https%253A%252F%252Fb%252F%253Ftoken%253D" + secret + "%zz",
+		"double-escaped userinfo, raw bad escape":   "https://h/?next=https%253A%252F%252Fu%253A" + secret + "%2540b%252F%zz",
+		"triple-escaped nested URL, bad escape":     "https://h/?next=https%25253A%25252F%25252Fb%25252F%25253Ftoken%25253D" + secret + "%2525zz",
+		"mixed literal and escaped userinfo":        "https://h/?next=https:%2F%2Fu:" + secret + "%2540b/%zz",
+		"escaped five times":                        "https://h/?next=https%252525253A%252525252F%252525252Fb%252525252F%252525253Ftoken%252525253D" + secret,
 	}
 
 	t.Run("in every provenance string", func(t *testing.T) {
@@ -318,6 +328,7 @@ func TestCanonical_ProvenanceRefusesCredentialShapedValues(t *testing.T) {
 		for _, ordinary := range []string{
 			"https://h/?page=2", "https://h/?q=a+b", "https://h/?a=b@c", "https://h/doc#section-2",
 			"https://h/?discount=50%25", // a decodable escape that is not a URL
+			"https://h/?q=100%",         // an undecodable escape that hides nothing
 		} {
 			e.ExternalURL = ptr(ordinary)
 			require.NoError(t, e.Validate(), ordinary)

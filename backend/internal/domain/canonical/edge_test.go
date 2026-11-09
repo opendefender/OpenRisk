@@ -241,6 +241,7 @@ func TestCanonical_EdgeVocabularyIsClosed(t *testing.T) {
 				"Cf. https://wiki.example.com/grc/access-review?page=2 for the procedure.",
 				"see (https://wiki.corp/page?id=42) for context",
 				"\"https://wiki.corp/page?id=42\"",
+				"rotate creds for svc:pw@db.internal", // no "://": prose, not a URL (A9)
 			} {
 				var e c.Edge
 				set(&e, prose)
