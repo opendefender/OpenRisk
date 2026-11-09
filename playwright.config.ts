@@ -67,6 +67,14 @@ export default defineConfig({
         {
           // Reused when `make dev` already runs it. Health lives under /api/v1.
           command: 'cd backend && go run ./cmd/server',
+          // The suite sends every request from one address, so the production
+          // quotas refuse it with 429 partway through (UX-24 flaked on it, #1297).
+          // Same switches as the CI job and docs/CI_CD.md; merged over process.env.
+          env: {
+            RATE_LIMIT_IP_PER_MINUTE: '0',
+            RATE_LIMIT_TENANT_PER_MINUTE: '0',
+            RATE_LIMIT_AUTH_DISABLED: 'true',
+          },
           url: `${API_URL}/health`,
           timeout: 120_000,
           reuseExistingServer: !process.env.CI,

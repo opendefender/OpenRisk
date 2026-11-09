@@ -32,6 +32,46 @@ async function waitFor(url: string, label: string, tries = 60) {
   throw new Error(`[global-setup] ${label} not ready at ${url} after ${tries}s`);
 }
 
+// The backend's default per-IP quota is 300 a minute
+// (backend/internal/middleware/apiquota.go), counted in fixed wall-clock minute
+// buckets (backend/internal/infrastructure/redis/client.go). A burst that crosses
+// a minute boundary splits over two buckets, so it takes twice the budget plus one
+// for either bucket to overflow.
+const QUOTA_PROBE_REQUESTS = 2 * 300 + 1;
+
+/**
+ * Fails the run at once when the backend still enforces its per-IP API quota.
+ *
+ * The suite sends every request from one address, so with the production quota
+ * on, the backend answers 429 partway through and the page shows a load error:
+ * UX-24 flaked on exactly that (#1297). A server Playwright starts gets the
+ * switches from playwright.config.ts; a reused one (`make dev`, a local stack)
+ * does not, and this turns its random flake into one clear message. /health sits
+ * behind the quota, so the probe is refused when the default budget is on. A quota
+ * raised above the probe's size is not detected.
+ */
+async function assertNoApiQuota() {
+  const statuses = await Promise.all(
+    Array.from({ length: QUOTA_PROBE_REQUESTS }, () =>
+      fetch(`${API_URL}/health`).then((r) => r.status, () => 0),
+    ),
+  );
+  const failed = statuses.filter((s) => s === 0).length;
+  if (failed > 0) {
+    throw new Error(
+      `[global-setup] the API quota probe could not reach ${API_URL}/health on ${failed} of ` +
+        `${QUOTA_PROBE_REQUESTS} requests, so it proves nothing; fix the backend or the host first.`,
+    );
+  }
+  if (statuses.includes(429)) {
+    throw new Error(
+      `[global-setup] the backend at ${API_URL} enforces its per-IP API quota (429 within ` +
+        `${QUOTA_PROBE_REQUESTS} requests). Restart it with RATE_LIMIT_IP_PER_MINUTE=0 ` +
+        'RATE_LIMIT_TENANT_PER_MINUTE=0 RATE_LIMIT_AUTH_DISABLED=true, as CI does (docs/CI_CD.md).',
+    );
+  }
+}
+
 export default async function globalSetup(_config: FullConfig) {
   if (!ADMIN.password) {
     throw new Error(
@@ -40,6 +80,7 @@ export default async function globalSetup(_config: FullConfig) {
   }
   await waitFor(`${API_URL}/health`, 'backend');
   await waitFor(FRONTEND_URL, 'frontend');
+  await assertNoApiQuota();
 
   console.log('[global-setup] seeding…');
   execFileSync('node', [SEED_SCRIPT], { stdio: 'inherit', env: process.env });
