@@ -39,16 +39,25 @@ const OTHERS = { Agent: 'TEXT', Tokens: 'NUMBER' };
 const SPRINT = { name: 'Sprint', start: '2026-11-02', days: 7 };
 const SPRINTS_AHEAD = 6;
 
-// [name, layout, filter, visible fields (by name; empty = leave the default)]
-const VIEWS = [
-  ['Board', 'BOARD_LAYOUT', '', []],
-  ['Current sprint', 'BOARD_LAYOUT', 'sprint:@current', []],
-  ['Table', 'TABLE_LAYOUT', '', []],
-  ['By milestone', 'TABLE_LAYOUT', '', ['Title', 'Milestone', 'Sprint', 'Status', 'Priority', 'Tier', 'Size', 'Labels']],
-  ['Roadmap', 'ROADMAP_LAYOUT', '', []],
-  ['Needs owner', 'TABLE_LAYOUT', 'status:"Needs owner"', []],
-  ['Blocked', 'TABLE_LAYOUT', 'status:Blocked', []],
+// The views, in the order of the delivery cycle (#1365). Each one answers one question.
+// [name, layout, filter, visible fields (by name), former names]
+// Running setup again brings existing views back to this (name, layout, filter, fields);
+// a former name is renamed in place, so the view keeps its URL and its hand-set grouping.
+// Group-by and sort are not in the API: set them by hand (see the project README).
+// Risk class, Agent and Tokens are shown nowhere: the pipeline that wrote them is stopped.
+const CARD = ['Title', 'Assignees', 'Priority', 'Size', 'Sprint', 'Linked pull requests'];
+const ROW = ['Title', 'Status', 'Priority', 'Tier', 'Size', 'Milestone', 'Sprint', 'Labels'];
+export const VIEWS = [
+  ['Sprint', 'BOARD_LAYOUT', 'sprint:@current', CARD, ['Current sprint']],
+  ['Flow', 'BOARD_LAYOUT', '-status:Inbox,Refinement,Ready,Released', CARD, ['Board']],
+  ['Backlog', 'TABLE_LAYOUT', 'status:Ready', ROW, ['Table']],
+  ['Refinement', 'TABLE_LAYOUT', 'status:Inbox,Refinement', ROW, ['By milestone']],
+  ['Release', 'TABLE_LAYOUT', 'status:"On dev","On staging"', ['Title', 'Status', 'Priority', 'Milestone', 'Linked pull requests', 'Labels'], []],
+  ['Needs attention', 'TABLE_LAYOUT', 'status:Blocked,"Needs owner"', ['Title', 'Status', 'Priority', 'Assignees', 'Milestone', 'Labels'], ['Needs owner']],
+  ['Roadmap', 'ROADMAP_LAYOUT', 'is:open', [], []], // the API refuses visible fields on a roadmap
 ];
+// Views from before #1365 that no longer have a place.
+const RETIRED_VIEWS = ['Blocked'];
 
 const isoDay = (d) => d.toISOString().slice(0, 10);
 const addDays = (iso, n) => isoDay(new Date(Date.parse(`${iso}T00:00:00Z`) + n * 86400e3));
@@ -78,7 +87,47 @@ const README = `Delivery board for opendefender/OpenRisk (ADR 0009, #1247, #1248
 | Sprint | planning, sync | sprint planning sets it on Ready items; the sync gives the current sprint to work started without one, and carries unfinished work over |
 | Agent, Tokens | #1257 | not written since the local runner was removed (D-102); #1257 decides what fills them |
 
-Statuses: Inbox → Refinement → Ready → In progress → In review → On dev → On staging → Released, plus Blocked and Needs owner. Issues closed as not planned or duplicate are archived.`;
+Statuses: Inbox → Refinement → Ready → In progress → In review → On dev → On staging → Released, plus Blocked and Needs owner. Issues closed as not planned or duplicate are archived.
+
+## The cycle and its views
+
+| Step | How an issue gets there | View |
+|---|---|---|
+| Inbox → Refinement | opened; \`status:needs-refinement\` | **Refinement** |
+| Ready | \`status:ready\` (Ready definition met) | **Backlog** — pick the sprint from here |
+| Planned | Sprint set on a Ready item | **Sprint** |
+| In progress | a \`<type>/<n>-<slug>\` branch, or \`status:in-progress\` | **Sprint**, **Flow** |
+| In review | an open PR with \`Closes #n\`, or \`status:in-review\` | **Sprint**, **Flow** |
+| On dev | the PR is merged into \`develop\` | **Flow**, **Release** |
+| On staging | the commit is on \`staging\` (sprint-end promotion) | **Flow**, **Release** |
+| Released | the commit is in a \`vX.Y.Z\` tag | left out of Flow and Release |
+| Blocked / Needs owner | \`status:blocked\` / \`needs-owner\` | **Needs attention** |
+
+## Automation
+
+All of it lives in \`scripts/board/sync.mjs\`, run by the **Board sync** workflow on every issue, PR, push, branch and tag event and every 30 minutes. GitHub's built-in project workflows are off on purpose: "Item closed → Done" would fight the derived Status.
+
+- Every open issue is added to the board; issues closed as not planned or duplicate are archived; a reopened issue comes back.
+- Status, Priority and Tier follow the labels and git facts above.
+- Work that starts with no sprint joins the current sprint; unfinished work of an ended sprint is carried over.
+- A \`status:in-progress\` or \`status:in-review\` label with no branch and no open PR is believed for 7 days after the issue's last update, then ignored; the run lists those issues as "stale labels" so the label can be fixed.
+
+## Set by hand (not in the API)
+
+Group-by and sort: **Backlog** and **Refinement** group by Priority, sort by Tier; **Sprint** and **Flow** sort by Priority; **Release** group by Status; **Roadmap** dates from Sprint, group by Milestone.`;
+
+// What differs between a live view and its declaration: name, layout, filter, visible fields.
+export function viewDiff(view, want) {
+  const out = [];
+  if (view.name !== want.name) out.push('name');
+  if (view.layout !== want.layout) out.push('layout');
+  if ((view.filter ?? '') !== want.filter) out.push('filter');
+  // GitHub returns visible fields in its own order, so compare them as a set. A roadmap
+  // has no visible fields in the API: an empty list means "leave them".
+  const have = new Set((view.fields?.nodes ?? []).map((f) => f.id).filter(Boolean));
+  if (want.ids.length && (have.size !== want.ids.length || want.ids.some((id) => !have.has(id)))) out.push('fields');
+  return out;
+}
 
 // True when the field lacks one of the wanted option names (order is ignored).
 export function needsOptions(field, names) {
@@ -108,7 +157,7 @@ async function readProject(id) {
       ... on ProjectV2IterationField { id name dataType configuration {
         iterations { id startDate duration title } completedIterations { id startDate duration title } } }
     } }
-    views(first: 50) { nodes { id name layout } }
+    views(first: 50) { nodes { id name layout filter fields(first: 30) { nodes { ... on ProjectV2FieldCommon { id } } } } }
     workflows(first: 50) { nodes { id name enabled } }
     repositories(first: 10) { nodes { nameWithOwner } }
   } } }`, { id });
@@ -212,14 +261,27 @@ async function main() {
     if (!DRY) await gql(`mutation { deleteProjectV2Workflow(input: { workflowId: ${lit(w.id)} }) { clientMutationId } }`);
   }
 
-  for (const [name, layout, filter, visible] of VIEWS) {
-    if (p.views.nodes.some((v) => v.name === name)) continue;
-    log(`create view ${name}`);
-    if (DRY) continue;
+  for (const [name, layout, filter, visible, former] of VIEWS) {
+    const missingFields = visible.filter((n) => !p.fields.nodes.some((f) => f.name === n));
+    if (missingFields.length) console.warn(`view ${name}: no field named ${missingFields.join(', ')}`);
     const ids = visible.map((n) => p.fields.nodes.find((f) => f.name === n)?.id).filter(Boolean);
     const conf = ids.length ? `, configuration: { visibleFieldIds: [${ids.map(lit).join(', ')}] }` : '';
-    const d = await gql(`mutation { createProjectV2View(input: { projectId: ${lit(p.id)}, name: ${lit(name)}, layout: ${layout}${conf} }) { projectV2View { id } } }`);
-    if (filter) await gql(`mutation { updateProjectV2View(input: { viewId: ${lit(d.createProjectV2View.projectV2View.id)}, filter: ${lit(filter)} }) { clientMutationId } }`);
+    const view = p.views.nodes.find((v) => v.name === name) ?? p.views.nodes.find((v) => former.includes(v.name));
+    if (!view) {
+      log(`create view ${name}`);
+      if (DRY) continue;
+      const d = await gql(`mutation { createProjectV2View(input: { projectId: ${lit(p.id)}, name: ${lit(name)}, layout: ${layout}${conf} }) { projectV2View { id } } }`);
+      if (filter) await gql(`mutation { updateProjectV2View(input: { viewId: ${lit(d.createProjectV2View.projectV2View.id)}, filter: ${lit(filter)} }) { clientMutationId } }`);
+      continue;
+    }
+    const diff = viewDiff(view, { name, layout, filter, ids });
+    if (!diff.length) continue;
+    log(`update view ${view.name}${view.name === name ? '' : ` → ${name}`} (${diff.join(', ')})`);
+    if (!DRY) await gql(`mutation { updateProjectV2View(input: { viewId: ${lit(view.id)}, name: ${lit(name)}, layout: ${layout}, filter: ${lit(filter)}${conf} }) { clientMutationId } }`);
+  }
+  for (const v of p.views.nodes.filter((v) => RETIRED_VIEWS.includes(v.name))) {
+    log(`delete retired view ${v.name}`);
+    if (!DRY) await gql(`mutation { deleteProjectV2View(input: { viewId: ${lit(v.id)} }) { clientMutationId } }`);
   }
   // The default "View 1" is empty once ours exist.
   for (const v of p.views.nodes.filter((v) => /^View \d+$/.test(v.name))) {
