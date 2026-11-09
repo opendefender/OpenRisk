@@ -24,9 +24,10 @@ on:
   pull_request:
     types: [opened, synchronize, reopened, closed, edited, ready_for_review, converted_to_draft]
   create:
-  delete:
   push:
-    branches: [master, develop, staging]
+    # Not develop: the merge's pull_request closed event already syncs, and the push
+    # run was cancelled by it every time (#1377).
+    branches: [master, staging]
     tags: ['v*']
   schedule:
     - cron: '*/30 * * * *'
@@ -45,7 +46,8 @@ permissions:
 # because each run recomputes everything.
 concurrency:
   group: board-sync
-  cancel-in-progress: false
+  # A newer run supersedes an older one: each run recomputes everything (#1289).
+  cancel-in-progress: true
 
 jobs:
   sync:
@@ -84,11 +86,24 @@ jobs:
         with:
           node-version: '22'
 
+      # The bot's installation token (D-092), minted per job, valid one hour. The
+      # owner's BOARD_TOKEN is the fallback until it is revoked.
+      - name: Bot token
+        id: bot
+        if: steps.gate.outputs.skip != 'true'
+        continue-on-error: true
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          app-id: ${{ secrets.BOT_APP_ID }}
+          private-key: ${{ secrets.BOT_PRIVATE_KEY }}
+          owner: opendefender
+          repositories: OpenRisk
+
       # Names the resource the token cannot reach, so a permission problem reads as one.
       - name: Token check
         if: steps.gate.outputs.skip != 'true'
         env:
-          BOARD_TOKEN: ${{ secrets.BOARD_TOKEN }}
+          BOARD_TOKEN: ${{ steps.bot.outputs.token || secrets.BOARD_TOKEN }}
         run: |
           if [ -z "$BOARD_TOKEN" ]; then echo "::notice::BOARD_TOKEN is not set."; exit 0; fi
           probe() {
@@ -103,17 +118,17 @@ jobs:
           probe "repository issues (Issues: read)" "query { repository(owner: \\\"opendefender\\\", name: \\\"OpenRisk\\\") { issues(first: 1) { totalCount } } }" || fail=1
           probe "pull requests (Pull requests: read)" "query { repository(owner: \\\"opendefender\\\", name: \\\"OpenRisk\\\") { pullRequests(first: 1) { totalCount } } }" || fail=1
           probe "organization project 3 (Organization > Projects: read and write)" "query { organization(login: \\\"opendefender\\\") { projectV2(number: 3) { title } } }" || fail=1
-          echo "token owner: $(curl -sS -H "Authorization: bearer $BOARD_TOKEN" https://api.github.com/user | jq -r .login)"
+          echo "token: ${{ steps.bot.outputs.token && 'bot installation (D-092)' || 'BOARD_TOKEN fallback' }}"
           exit $fail
 
       - name: Sync
         if: steps.gate.outputs.skip != 'true'
         env:
-          BOARD_TOKEN: ${{ secrets.BOARD_TOKEN }}
+          BOARD_TOKEN: ${{ steps.bot.outputs.token || secrets.BOARD_TOKEN }}
           DRY_RUN: ${{ inputs.dry_run && '--dry-run' || '' }}
         run: |
           # The script runs from the default branch; until it is merged there, skip.
-          if [ ! -f scripts/board/sync.mjs ]; then
+          if [ ! -f scripts/board/sync.mjs ] || { [ -f scripts/ci/can-load.mjs ] && ! node scripts/ci/can-load.mjs scripts/board/sync.mjs; }; then
             echo "::notice::scripts/board/sync.mjs is not on the default branch yet; skipped."
             exit 0
           fi

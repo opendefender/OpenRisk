@@ -54,6 +54,9 @@ func (r *GormMitigationRepository) CreateWithSubActions(
 	}
 
 	return r.db.Transaction(func(tx *gorm.DB) error {
+		if err := requireRiskInTenant(tx, tenantUUID, mitigation.RiskID); err != nil {
+			return err
+		}
 		if err := tx.Create(mitigation).Error; err != nil {
 			return fmt.Errorf("failed to create mitigation: %w", err)
 		}
@@ -75,4 +78,32 @@ func (r *GormMitigationRepository) CreateWithSubActions(
 
 		return nil
 	})
+}
+
+// requireRiskInTenant refuses a plan whose risk is not in the caller's tenant.
+//
+// The plan's tenant_id is checked above, but its risk_id is a second pointer
+// into another table, and nothing tied the two together: a member of one
+// organisation could post a plan against another organisation's risk UUID and
+// get a row in their own tenant hanging off the victim's risk
+// (GHSA-2w75-9qj8-fwwp). The check runs in the write's transaction so that
+// every caller of the create path gets it, the incident post-mortem included,
+// without having to remember to wire anything.
+//
+// A risk of another tenant answers ErrNotFound, exactly like a missing one, so
+// the response says nothing about whether the UUID exists elsewhere.
+func requireRiskInTenant(tx *gorm.DB, tenantID, riskID uuid.UUID) error {
+	if riskID == uuid.Nil {
+		return fmt.Errorf("%w: risk_id is required", domain.ErrValidation)
+	}
+	var n int64
+	if err := tx.Table("risks").
+		Where("id = ? AND tenant_id = ? AND deleted_at IS NULL", riskID, tenantID).
+		Count(&n).Error; err != nil {
+		return fmt.Errorf("failed to verify the risk: %w", err)
+	}
+	if n == 0 {
+		return fmt.Errorf("%w: risk not found", domain.ErrNotFound)
+	}
+	return nil
 }

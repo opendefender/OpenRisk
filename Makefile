@@ -1,4 +1,4 @@
-.PHONY: help build test lint clean docker-build docker-up docker-down migrate migrate-rollback migrate-status migrate-force seed dev install setup version sync-version check-version
+.PHONY: help build test lint clean docker-build docker-up docker-down migrate migrate-rollback migrate-status migrate-force seed seed-dev dev install setup version sync-version check-version
 
 # ============================================================================
 # VERSION — single source of truth is the root VERSION file (see docs/VERSIONING.md)
@@ -48,6 +48,7 @@ help:
 	@echo "     make migrate-status       - Show current migration version + dirty flag"
 	@echo "     make migrate-force VERSION=<n> - Recover a DIRTY database (set version, clear dirty)"
 	@echo "     make seed                 - Seed database with sample data"
+	@echo "     make seed-dev             - Fill the running stack with the dev dataset (docs/DEV_DATASET.md)"
 	@echo "     make db-shell             - Open database shell (psql)"
 	@echo "     make db-test-shell        - Open test database shell"
 	@echo ""
@@ -88,23 +89,29 @@ build:
 version: ## Print the single-source version
 	@echo "$(VERSION)"
 
-sync-version: ## Write VERSION into the Helm chart and frontend package.json
-	@echo "🔁 Propagating VERSION=$(VERSION) to Helm chart + frontend..."
+sync-version: ## Write VERSION into the Helm chart, frontend package.json and the lockfile root
+	@echo "🔁 Propagating VERSION=$(VERSION) to Helm chart + frontend + lockfile..."
 	@sed -i.bak -E 's/^version: .*/version: $(VERSION)/' helm/openrisk/Chart.yaml && rm -f helm/openrisk/Chart.yaml.bak
 	@sed -i.bak -E 's/^appVersion: .*/appVersion: "$(VERSION)"/' helm/openrisk/Chart.yaml && rm -f helm/openrisk/Chart.yaml.bak
 	@sed -i.bak -E '0,/"version":/ s/("version": *")[^"]*"/\1$(VERSION)"/' frontend/package.json && rm -f frontend/package.json.bak
+	@sed -i.bak -E -e 's/^(  "version": *")[^"]*"/\1$(VERSION)"/' \
+	  -e '/^    "": [{]/,/^    }/ s/^(      "version": *")[^"]*"/\1$(VERSION)"/' frontend/package-lock.json && rm -f frontend/package-lock.json.bak
 	@echo "✅ Synced. Review the diff, then commit."
 
-check-version: ## Fail if Helm chart / frontend version drift from VERSION (used by release CI)
+check-version: ## Fail if Helm chart / frontend / lockfile version drift from VERSION (used by release CI)
 	@chart="$$(grep -E '^version:' helm/openrisk/Chart.yaml | head -1 | awk '{print $$2}')"; \
 	 app="$$(grep -E '^appVersion:' helm/openrisk/Chart.yaml | head -1 | sed -E 's/appVersion: *"?([^"]*)"?/\1/')"; \
 	 fe="$$(grep -E '"version"' frontend/package.json | head -1 | sed -E 's/.*: *"([^"]*)".*/\1/')"; \
+	 lock="$$(grep -E '^  "version":' frontend/package-lock.json | head -1 | sed -E 's/.*: *"([^"]*)".*/\1/')"; \
+	 lockroot="$$(sed -n -E '/^    "": [{]/,/^    }/ s/^      "version": *"([^"]*)".*/\1/p' frontend/package-lock.json)"; \
 	 fail=0; \
 	 [ "$$chart" = "$(VERSION)" ] || { echo "::error::Helm chart version '$$chart' != VERSION '$(VERSION)'"; fail=1; }; \
 	 [ "$$app" = "$(VERSION)" ]   || { echo "::error::Helm appVersion '$$app' != VERSION '$(VERSION)'"; fail=1; }; \
 	 [ "$$fe" = "$(VERSION)" ]    || { echo "::error::frontend version '$$fe' != VERSION '$(VERSION)'"; fail=1; }; \
+	 [ "$$lock" = "$(VERSION)" ]  || { echo "::error::frontend/package-lock.json version '$$lock' != VERSION '$(VERSION)'"; fail=1; }; \
+	 [ "$$lockroot" = "$(VERSION)" ] || { echo "::error::frontend/package-lock.json packages[\"\"].version '$$lockroot' != VERSION '$(VERSION)'"; fail=1; }; \
 	 if [ "$$fail" -ne 0 ]; then exit 1; fi; \
-	 echo "✅ Versions aligned on $(VERSION) (chart/appVersion/frontend)"
+	 echo "✅ Versions aligned on $(VERSION) (chart/appVersion/frontend/lockfile)"
 
 frontend-build:
 	@echo "🔨 Building frontend for production..."
@@ -228,6 +235,15 @@ seed:
 	@echo "🌱 Seeding database with sample data..."
 	cd backend && go run ./cmd/server seed
 	@echo "✅ Database seeded"
+
+# Fills the running compose stack through its API (#1337, docs/DEV_DATASET.md).
+# The seed admin password is read from the backend container unless
+# SEED_ADMIN_PASSWORD is already set. It goes through the environment and is
+# never echoed.
+seed-dev:
+	@SEED_ADMIN_PASSWORD="$${SEED_ADMIN_PASSWORD:-$$($(COMPOSE) exec -T backend cat /app/secrets/initial_admin_password 2>/dev/null)}" \
+	SEED_API_URL="$${SEED_API_URL:-http://localhost:$${OPENRISK_DEV_BACKEND_PORT:-8080}/api/v1}" \
+	node scripts/seed-dev.mjs
 
 db-shell:
 	@echo "🔌 Connecting to production database..."

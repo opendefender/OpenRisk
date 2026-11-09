@@ -6,6 +6,7 @@
 package service
 
 import (
+	"errors"
 	"testing"
 	"time"
 
@@ -92,15 +93,42 @@ func TestBulkOperation_CountResourcesIsTenantScoped(t *testing.T) {
 func TestBulkOperation_GetIsTenantScoped(t *testing.T) {
 	db := setupBulkTestDB(t)
 	tenantA, tenantB := uuid.New(), uuid.New()
+	author := uuid.New()
 
-	opID := insertOp(t, db, tenantB, uuid.New())
+	opID := insertOp(t, db, tenantB, author)
 
 	s := NewBulkOperationService()
-	if _, err := s.GetBulkOperation(opID, tenantA); err == nil {
-		t.Fatal("tenant A must NOT be able to read tenant B's bulk operation")
+	if _, err := s.GetBulkOperation(opID, author, tenantA); !errors.Is(err, gorm.ErrRecordNotFound) {
+		t.Fatalf("tenant A must NOT be able to read tenant B's bulk operation, got %v", err)
 	}
-	if _, err := s.GetBulkOperation(opID, tenantB); err != nil {
+	if _, err := s.GetBulkOperation(opID, author, tenantB); err != nil {
 		t.Fatalf("tenant B must read its own operation: %v", err)
+	}
+}
+
+// #1219 — a colleague in the same tenant who holds the UUID gets the same
+// not-found as for a job that does not exist.
+func TestBulkOperation_GetIsAuthorScoped(t *testing.T) {
+	db := setupBulkTestDB(t)
+	tenant, author, colleague := uuid.New(), uuid.New(), uuid.New()
+
+	opID := insertOp(t, db, tenant, author)
+
+	s := NewBulkOperationService()
+	_, errColleague := s.GetBulkOperation(opID, colleague, tenant)
+	if !errors.Is(errColleague, gorm.ErrRecordNotFound) {
+		t.Fatalf("a colleague must NOT read the author's bulk operation, got %v", errColleague)
+	}
+	_, errMissing := s.GetBulkOperation(uuid.New(), author, tenant)
+	if !errors.Is(errMissing, gorm.ErrRecordNotFound) {
+		t.Fatalf("a missing job must read as not found, got %v", errMissing)
+	}
+	got, err := s.GetBulkOperation(opID, author, tenant)
+	if err != nil {
+		t.Fatalf("the author must read their own operation: %v", err)
+	}
+	if got.ID != opID || got.CreatedBy != author {
+		t.Fatalf("expected op %s by %s, got %s by %s", opID, author, got.ID, got.CreatedBy)
 	}
 }
 

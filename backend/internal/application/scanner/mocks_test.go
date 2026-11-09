@@ -24,6 +24,7 @@ type fakeKV struct {
 	mu       sync.Mutex
 	store    map[string]string
 	messages int
+	last     interface{} // the last payload published
 }
 
 func newFakeKV() *fakeKV { return &fakeKV{store: map[string]string{}} }
@@ -47,10 +48,11 @@ func (f *fakeKV) Del(_ context.Context, keys ...string) error {
 	}
 	return nil
 }
-func (f *fakeKV) Publish(_ context.Context, _ string, _ interface{}) error {
+func (f *fakeKV) Publish(_ context.Context, _ string, msg interface{}) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.messages++
+	f.last = msg
 	return nil
 }
 func (f *fakeKV) SetNX(_ context.Context, k, v string, _ time.Duration) (bool, error) {

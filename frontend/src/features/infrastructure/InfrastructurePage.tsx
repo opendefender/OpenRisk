@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: LicenseRef-OpenRisk-Commercial
 //
 // Infrastructure (#912, the redesign blended with the scanner console). On top,
-// "Lancer un scan" picks a configuration and starts it; below, the scans with
+// "Lancer un scan" picks a configuration and, for an on-prem agent one, a scan
+// type (#1164), and starts it; below, the scans with
 // their progress and counts next to the agents with their last heartbeat; then
 // what the old screen already did and the design leaves out: the provider
 // cards, the scan configurations with their schedule, agent deployment, and
@@ -22,19 +23,20 @@ import { BlockEmpty, BlockError, BlockSkeleton } from '../dashboard/console/Pane
 import { ScanConfigDrawer } from './ScanConfigDrawer';
 import { AgentDeployModal } from './AgentDeployModal';
 import { useScanConfigs, useScannerAgents, useScanJobs } from './useScanner';
+import { PlanCapNotice } from '../billing/PlanCapNotice';
+import { planCapErrorMessage } from '../billing/useEntitlements';
 import {
   PROVIDERS,
   agentStatusColor,
   jobProgress,
   jobStatusColor,
-  scanFamily,
   scheduleLabel,
-  type ScanFamily,
 } from './scannerMeta';
 import type {
   CreateScanConfigInput,
   ScanConfig,
   ScanJob,
+  ScanType,
   ScannerAgent,
   ScannerProvider,
 } from './scannerService';
@@ -54,7 +56,9 @@ const PROVIDER_CARDS: { provider: ScannerProvider; title: string }[] = [
   { provider: 'nmap', title: '' },
 ];
 
-const FAMILIES: readonly (ScanFamily | 'all')[] = ['all', 'network', 'cloud', 'discovery'];
+// Only an on-prem agent scan has a type to pick. Vulnerability comes first:
+// it is the default, and what the server runs when no type is sent.
+const SCAN_TYPES: readonly ScanType[] = ['vulnerability', 'discovery'];
 
 const isOnPrem = (p: ScannerProvider) => p === 'nmap' || p === 'agent';
 const isOnline = (a: ScannerAgent) => a.status === 'online' || a.status === 'scanning';
@@ -143,14 +147,13 @@ export function InfrastructurePage() {
   const [deployConfig, setDeployConfig] = useState<ScanConfig | null>(null);
   const [toDelete, setToDelete] = useState<ScanConfig | null>(null);
   const [toRevoke, setToRevoke] = useState<ScannerAgent | null>(null);
-  const [family, setFamily] = useState<ScanFamily | 'all'>('all');
+  const [scanType, setScanType] = useState<ScanType>('vulnerability');
   const [targetId, setTargetId] = useState('');
 
   const onlineAgents = agents.filter(isOnline);
   const configById = useMemo(() => new Map(configs.map((c) => [c.id, c])), [configs]);
-  const targets = configs.filter((c) => family === 'all' || scanFamily(c.provider) === family);
-  // The picked target falls back to the first one the type allows.
-  const target = targets.find((c) => c.id === targetId) ?? targets[0];
+  // The picked target falls back to the first configuration.
+  const target = configs.find((c) => c.id === targetId) ?? configs[0];
 
   const countFor = (p: ScannerProvider) =>
     configs.filter((c) => (p === 'nmap' ? isOnPrem(c.provider) : c.provider === p)).length;
@@ -161,12 +164,18 @@ export function InfrastructurePage() {
     setDrawerProvider(null);
   };
 
-  const startScan = (cfg: ScanConfig) => {
+  // A type is sent only when one was picked for an agent target; the per-row
+  // "Scan" button sends none and gets the default vulnerability scan.
+  const startScan = (cfg: ScanConfig, type?: ScanType) => {
     if (isOnPrem(cfg.provider) && onlineAgents.length === 0) toast(t('infra.toast.queued'));
-    triggerScan.mutate(cfg.id, {
-      onSuccess: () => toast.success(t('infra.toast.started', { name: cfg.name })),
-      onError: (e) => toast.error(apiError(e) ?? t('infra.toast.failed')),
-    });
+    triggerScan.mutate(
+      { id: cfg.id, scanType: isOnPrem(cfg.provider) ? type : undefined },
+      {
+        onSuccess: () => toast.success(t('infra.toast.started', { name: cfg.name })),
+        onError: (e) =>
+          toast.error(planCapErrorMessage(e, locale) ?? apiError(e) ?? t('infra.toast.failed')),
+      },
+    );
   };
 
   const confirmDelete = () => {
@@ -207,6 +216,12 @@ export function InfrastructurePage() {
         }
       />
 
+      {/* D-078: the plan caps scan sources and scans per month. */}
+      <div className="flex flex-col gap-2 mb-4">
+        <PlanCapNotice limitKey="scan_sources" showUsage />
+        <PlanCapNotice limitKey="scans_per_month" showUsage />
+      </div>
+
       {canWrite && (
         <section
           aria-label={t('infra.launch.title')}
@@ -234,8 +249,7 @@ export function InfrastructurePage() {
                   onChange={setTargetId}
                   placeholder={t('infra.launch.noTarget')}
                   emptyLabel={t('infra.launch.noTarget')}
-                  disabled={targets.length === 0}
-                  options={targets.map((c) => ({
+                  options={configs.map((c) => ({
                     value: c.id,
                     label: c.name,
                     description: targetSummary(c, t),
@@ -246,23 +260,32 @@ export function InfrastructurePage() {
                 <span className="text-[12px] font-semibold text-ink-soft">
                   {t('infra.launch.type')}
                 </span>
-                <Listbox<ScanFamily | 'all'>
-                  aria-label={t('infra.launch.type')}
-                  className="h-9 rounded-[10px] text-[13px]"
-                  value={family}
-                  onChange={setFamily}
-                  options={FAMILIES.map((f) => ({
-                    value: f,
-                    label: t(`infra.launch.family.${f}`),
-                  }))}
-                />
+                {target && isOnPrem(target.provider) ? (
+                  <Listbox<ScanType>
+                    aria-label={t('infra.launch.type')}
+                    className="h-9 rounded-[10px] text-[13px]"
+                    value={scanType}
+                    onChange={setScanType}
+                    options={SCAN_TYPES.map((st) => ({
+                      value: st,
+                      label: t(`infra.scanType.${st}`),
+                      description: t(`infra.launch.typeHint.${st}`),
+                    }))}
+                  />
+                ) : (
+                  // A cloud or API scan collects what its provider exposes:
+                  // there is no type to pick, and the server refuses one.
+                  <span className="h-9 flex items-center px-3 rounded-[10px] border border-border-subtle bg-surface-2 text-[12.5px] text-ink-muted truncate">
+                    {t('infra.launch.providerType')}
+                  </span>
+                )}
               </div>
               <Button
                 variant="primary"
                 icon={Play}
                 disabled={!target}
                 loading={triggerScan.isPending}
-                onClick={() => target && startScan(target)}
+                onClick={() => target && startScan(target, scanType)}
               >
                 {t('infra.launch.start')}
               </Button>
@@ -442,7 +465,7 @@ export function InfrastructurePage() {
           <ul className="m-0 p-0 list-none">
             {configs.map((c) => {
               const m = PROVIDERS[c.provider];
-              const scanning = triggerScan.isPending && triggerScan.variables === c.id;
+              const scanning = triggerScan.isPending && triggerScan.variables?.id === c.id;
               return (
                 <li
                   key={c.id}
@@ -587,6 +610,7 @@ function ScanRow({
         <span className="block text-[13px] font-medium text-ink truncate">{label}</span>
         <span className="block text-[11.5px] text-ink-muted truncate">
           <span className="mono">{job.id.slice(0, 8)}</span> · {m.short} ·{' '}
+          {isOnPrem(job.provider) && <>{t(`infra.scanType.${job.scan_type}`)} · </>}
           {fmt.relative(job.started_at ?? job.created_at)} ·{' '}
           {t('infra.scans.assets', { count: job.assets_found })}
         </span>

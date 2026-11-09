@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: LicenseRef-OpenRisk-Commercial
 //
 // Infrastructure (#912): the "Lancer un scan" card starts the picked
-// configuration, scans show progress and counts, agents show status, OS,
+// configuration with the picked scan type for an agent one (#1164), scans show
+// their type, progress and counts, agents show status, OS,
 // version and last seen, and every block has its loading, error and empty
 // state. Deleting a configuration and revoking an agent go through a dialog
 // and update the list before the server answers.
@@ -15,7 +16,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
 import { useUIStore } from '../../../store/uiStore';
-import { jobProgress, scanFamily } from '../scannerMeta';
+import { jobProgress } from '../scannerMeta';
 import type { ScanConfig, ScanJob, ScannerAgent } from '../scannerService';
 
 const perms = { write: true };
@@ -86,6 +87,7 @@ function job(over: Partial<ScanJob>): ScanJob {
     config_id: 'c1',
     provider: 'nmap',
     status: 'completed',
+    scan_type: 'vulnerability',
     targets: ['10.20.0.0/24'],
     assets_found: 12,
     findings_found: 7,
@@ -222,17 +224,84 @@ describe('InfrastructurePage', () => {
     expect(toast.success).toHaveBeenCalledWith('Scan lancé sur Prod AWS');
   });
 
-  it('narrows the targets by type', async () => {
+  it('offers both scan types for an agent target and sends the picked one', async () => {
     const user = userEvent.setup();
     renderPage();
     const card = section('Lancer un scan');
-    await user.click(await within(card).findByRole('combobox', { name: 'Type' }));
-    await user.click(screen.getByRole('option', { name: 'Cloud' }));
-    expect(within(card).getByRole('combobox', { name: 'Cible' })).toHaveTextContent('Prod AWS');
+    const type = await within(card).findByRole('combobox', { name: 'Type' });
+    // Vulnerability is the default, as on the server.
+    expect(type).toHaveTextContent('Vulnérabilités');
 
-    await user.click(within(card).getByRole('combobox', { name: 'Type' }));
-    await user.click(screen.getByRole('option', { name: 'Découverte par API' }));
-    expect(within(card).getByRole('button', { name: 'Démarrer' })).toBeDisabled();
+    await user.click(type);
+    const options = screen.getAllByRole('option').map((o) => o.textContent);
+    expect(options).toHaveLength(2);
+    expect(options[0]).toMatch(/^Vulnérabilités/);
+    expect(options[1]).toMatch(/^Découverte réseau/);
+    // No configuration-compliance scan: nothing in the product runs one.
+    expect(screen.queryByRole('option', { name: /Conformité/ })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('option', { name: /Découverte réseau/ }));
+    await user.click(within(card).getByRole('button', { name: 'Démarrer' }));
+
+    await waitFor(() =>
+      expect(post).toHaveBeenCalledWith('/scanner/configs/c1/scan', { scan_type: 'discovery' }),
+    );
+  });
+
+  it('sends the vulnerability type when the agent target keeps the default', async () => {
+    const user = userEvent.setup();
+    renderPage();
+    const card = section('Lancer un scan');
+    await within(card).findByRole('combobox', { name: 'Type' });
+    await user.click(within(card).getByRole('button', { name: 'Démarrer' }));
+    await waitFor(() =>
+      expect(post).toHaveBeenCalledWith('/scanner/configs/c1/scan', {
+        scan_type: 'vulnerability',
+      }),
+    );
+  });
+
+  it('offers no scan type for a cloud target and sends none', async () => {
+    const user = userEvent.setup();
+    renderPage();
+    const card = section('Lancer un scan');
+    await user.click(await within(card).findByRole('combobox', { name: 'Cible' }));
+    await user.click(screen.getByRole('option', { name: /Prod AWS/ }));
+
+    expect(within(card).queryByRole('combobox', { name: 'Type' })).not.toBeInTheDocument();
+    expect(within(card).getByText('Défini par le fournisseur')).toBeInTheDocument();
+    await user.click(within(card).getByRole('button', { name: 'Démarrer' }));
+    await waitFor(() => expect(post).toHaveBeenCalledWith('/scanner/configs/c2/scan'));
+    expect(post.mock.calls[0]).toHaveLength(1);
+  });
+
+  it('shows the type of each agent scan in the list', async () => {
+    jobs = [
+      job({}),
+      job({ id: 'dddddddd-0000-0000-0000-000000000004', scan_type: 'discovery' }),
+      job({
+        id: 'bbbbbbbb-0000-0000-0000-000000000002',
+        config_id: 'c2',
+        provider: 'aws',
+        status: 'running',
+      }),
+    ];
+    renderPage();
+    const scans = section('Scans');
+    const rows = await within(scans).findAllByRole('listitem');
+    expect(rows[0]).toHaveTextContent(/· Vulnérabilités ·/);
+    expect(rows[1]).toHaveTextContent(/· Découverte réseau ·/);
+    // A cloud job reads as its provider; it has no scan type of its own.
+    expect(rows[2]).not.toHaveTextContent(/Vulnérabilités|Découverte réseau/);
+  });
+
+  it('labels the scan types in English', async () => {
+    useUIStore.setState({ lang: 'en' });
+    jobs = [job({ scan_type: 'discovery' })];
+    const user = userEvent.setup();
+    renderPage();
+    expect(await within(section('Scans')).findByText(/Network discovery/)).toBeInTheDocument();
+    await user.click(within(section('Run a scan')).getByRole('combobox', { name: 'Type' }));
+    expect(screen.getByRole('option', { name: /Vulnerabilities/ })).toBeInTheDocument();
   });
 
   it('opens the preview of a completed scan', async () => {
@@ -329,12 +398,5 @@ describe('scannerMeta', () => {
     expect(jobProgress('claimed')).toBeNull();
     expect(jobProgress('completed')).toBe(100);
     expect(jobProgress('failed')).toBe(100);
-  });
-
-  it('reads the scan type off the provider', () => {
-    expect(scanFamily('nmap')).toBe('network');
-    expect(scanFamily('agent')).toBe('network');
-    expect(scanFamily('gcp')).toBe('cloud');
-    expect(scanFamily('github')).toBe('discovery');
   });
 });

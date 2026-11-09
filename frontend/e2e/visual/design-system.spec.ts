@@ -70,6 +70,44 @@ async function waitForFonts(page: import('@playwright/test').Page) {
   await page.evaluate(() => document.fonts.ready);
 }
 
+/**
+ * Charts each gallery draws through visx ParentSize (CartesianChart, PieChart).
+ * Keep in sync with gallery.tsx: a chart missing from this count is not waited for.
+ */
+const SIZED_CHARTS: Partial<Record<(typeof GALLERIES)[number], number>> = { 'charts-v2': 4 };
+
+/**
+ * The charts size themselves from a ResizeObserver (visx ParentSize), and on a
+ * loaded runner the first paint can be at a stale 300px width, corrected by a
+ * later observer callback that lands after the screenshot's own 5s budget
+ * (#1297, seen 2 in 60 runs). Wait for the outcome instead: every expected chart
+ * mounted, and each SVG as wide as the measuring box it sits in. ParentSize draws
+ * nothing before its first measurement, so counting only mismatches would pass
+ * before any chart exists.
+ */
+async function waitForChartLayout(page: import('@playwright/test').Page, gallery: string) {
+  const expected = SIZED_CHARTS[gallery as (typeof GALLERIES)[number]] ?? 0;
+  await expect
+    .poll(
+      () =>
+        page.evaluate(() => {
+          const sized = [...document.querySelectorAll<SVGSVGElement>('svg[role="img"]')].filter(
+            (svg) => svg.parentElement?.style.position === 'absolute',
+          );
+          const laidOut = sized.filter(
+            (svg) =>
+              Math.abs(
+                Number(svg.getAttribute('width')) -
+                  (svg.parentElement as HTMLElement).getBoundingClientRect().width,
+              ) < 1,
+          );
+          return { mounted: sized.length, laidOut: laidOut.length };
+        }),
+      { message: 'every chart is mounted at its container width', timeout: 15_000 },
+    )
+    .toEqual({ mounted: expected, laidOut: expected });
+}
+
 function galleryURL(gallery: string, theme: string, lang: string = 'en') {
   return `/e2e/visual/gallery.html?gallery=${gallery}&theme=${theme}&lang=${lang}`;
 }
@@ -77,6 +115,13 @@ function galleryURL(gallery: string, theme: string, lang: string = 'en') {
 for (const gallery of GALLERIES) {
   for (const theme of THEMES) {
     test(`${gallery} — ${theme}`, async ({ page }) => {
+      // The chart entry draw is JavaScript (anime.js, started by an
+      // IntersectionObserver), so `animations: 'disabled'` does not stop it: a full-page
+      // capture scrolls charts into view and starts them mid-capture, and on a loaded
+      // runner the page never holds still for two consecutive shots (#1297). Under
+      // reduced motion the charts paint their FINAL state from the first frame, which
+      // is exactly what the reference images hold.
+      await page.emulateMedia({ reducedMotion: 'reduce' });
       await page.goto(galleryURL(gallery, theme));
       await page.waitForSelector('main');
       await waitForFonts(page);
@@ -85,6 +130,7 @@ for (const gallery of GALLERIES) {
       // parameter would make both snapshots identical and pass while testing
       // one theme twice.
       await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
+      await waitForChartLayout(page, gallery);
 
       await expect(page).toHaveScreenshot(`ds-${gallery}-${theme}.png`, { fullPage: true });
     });

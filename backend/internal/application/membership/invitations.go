@@ -165,6 +165,13 @@ func (s *Service) Resend(ctx context.Context, tenantID uuid.UUID, in ResendInput
 	if err := inv.CanResend(now); err != nil {
 		return nil, err
 	}
+	// An expired invitation holds no seat; resending makes it pending again, so
+	// it takes one, and is held to the cap like a new invitation.
+	if inv.State(now) == domain.InvitationExpired {
+		if err := s.ensureSeat(ctx, tenantID); err != nil {
+			return nil, err
+		}
+	}
 	token, err := inv.Rotate(now)
 	if err != nil {
 		return nil, domain.NewInternalError("could not mint an invitation token")

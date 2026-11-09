@@ -9,6 +9,181 @@ recommends, and surfaces these in the daily brief. Run `/decide` to clear them.
 
 ## Resolved
 
+### D-105 — Releases through a /release command the owner runs; staging and master take PRs the owner merges · decided 2026-11-06
+**Decided (owner, 2026-11-06)** — "Je veux un bot ou agent qui s'occupera des releases." Given the choice, the owner picked a local `/release` command over the Actions bot of #1256, with the tag set by the tool "after my OK", "PR obligatoire, vous mergez" for `staging` and `master`, and "faire partir la PR de version d'une finale depuis staging, puis de la reporter sur develop".
+
+**What changes** (#1364)
+1. `/release rc|final|<v>` runs in the owner's session, one stage per run: the version PR (VERSION, CHANGELOG, French notes, claims checked by `product-verifier`), the promotion PR, the tag after an explicit OK, then for a final the back-merge. It never merges and never pushes a branch.
+2. An rc is cut from `develop` (version PR into `develop`, then `develop → staging`) and tagged on the `develop` commit the staging merge brought in. A final is cut **from `staging`** (version PR into `staging`, then `staging → master`), tagged on its release commit, then `staging → develop` brings the tag and the CHANGELOG back. A final ships exactly what the last rc proved: `scripts/release/cut.mjs final` refuses when a `feat`, `fix`, `perf`, `security` or `revert` commit sits after the rc tag.
+3. The tag goes on a commit whose tree equals the branch tip, checked before the OK is asked, so `release.yml` builds the promoted tree.
+4. The `staging` and `master` rulesets drop the `update` restriction and the bot's bypass: a pull request, the required checks and a merge commit, merged by the owner. Before, only the delivery bot app (5618677) could update them, and no one could once the bots were switched off on 2026-11-06.
+5. `release.yml` appends `docs/releases/<v>.fr.md` to the GitHub release when it exists, and runs the `cut.mjs` tests in its guard.
+
+**Overturns** — D-101 point 3 "the bot opens the PR `staging → master`" and D-092's bot bypass on `staging`, while automation is off. D-099's "rc from staging" now reads "rc promoted to staging, tagged on its develop commit".
+**Unchanged** — D-099's versioning rules (now `scripts/release/cut.mjs`), D-100's local proof before `staging`, the 48 h soak of D-088 before a final, the owner alone merging into `master`.
+**Rollback** — the previous rulesets are in #1364's PR: `gh api -X PUT repos/opendefender/OpenRisk/rulesets/<id> --input <saved.json>`.
+
+### D-102 — No local timer: the owner works with /work, bots review and merge, planning runs weekly in Actions · decided 2026-11-05
+**Decided (owner, 2026-11-05)** — "Pas de timer. Je veux que le lundi je reçoive le matin la liste sur ce que je dois travailler, on le fait normalement avec le /work, puis quand je push, la review est faite, puis mis dans la file d'auto-merge, si le CI fail, je corrigerai." Answers to the follow-up questions the same day: keep the daily brief **and** add the Monday list; the Monday list is drawn up by `po-openrisk` running in Actions; the owner also fixes what the bot reviewers refuse; the merge-steward is dropped.
+
+**What changes** (#1325, #1326)
+1. The local runner (#1252, #1294) and its systemd timer are removed: `scripts/runner/`, `ops/runner/`, and the `merge-steward` agent. Nothing runs an agent on the owner's machine outside a session the owner opened.
+2. The owner's loop: `/work <n>` → push → the bot reviewers (`agent-review.yml`, D-095) → the merge queue (`merge.yml`) on green. A red CI or a refused review comes back to the owner, who fixes it in their session.
+3. Refinement, sprint planning and milestone upkeep move to a weekly `po-openrisk` run in GitHub Actions, as the bot, with no token and no write tool in the agent's hands: it returns a plan that a script validates and applies (#1326). It posts the Monday list on « Brief du jour » (#1321).
+4. The daily brief (`brief.yml`, D-101) stays.
+
+**Overturns** — ADR 0009 D7 ("agents run headless from a local timer"); D-101 point 1 for the runner's refinement and fix steps; D-094 "the runner implements only refined issues" now reads "the briefs propose only refined issues".
+**Unchanged** — merges into `develop` through the queue (D-088); `develop → staging` after the local proof (D-100); the owner merges `staging → master` (D-101).
+
+### D-101 — The owner starts all work, gets a daily brief, and merges staging → master themself · decided 2026-11-05
+**Decided (owner, 2026-11-05)** — "Je veux toujours que le travail commence par moi." "Le runner (affinage → correction → implémentation → steward) ne doit plus être là puisque je veux lancer le travail moi-même." "Interprète la correction comme la suite d'un travail que tu as déjà lancé." "Par mail via un bot un brief dans une issue épinglée « Brief du jour », avec les 3 tickets à lancer, dans l'ordre, et pourquoi." "Après les 48 h de soak, le bot ouvre la PR staging → master avec les notes FR/EN, la preuve staging-verified et le rc testé. Il ne la merge jamais, c'est moi qui dois merger."
+
+**What changes** (#1320)
+1. **No agent starts an implementation.** The runner (#1252) loses its `implement` step. It keeps refinement (no code), the fix of PRs the review gate sent back (the continuation of work the owner started), and the merge steward. The owner starts every issue with `/work <n>`. The runner no longer touches the `/work` worktrees (`../OpenRisk-wt-<n>`): they belong to the owner's sessions.
+2. **Daily brief by the bot.** `.github/workflows/brief.yml` posts each morning, as `opendefender-delivery-bot`, one comment on the pinned issue « Brief du jour »: the three issues to start, in order, with the reasons, the `/work` command, what is in flight, and what waits on the owner. The owner wrote the issue, so GitHub emails them each comment: no mail service, no new dependency. No model is called (`scripts/brief/rank.mjs`).
+3. **`master` is the owner's.** After the 48 h soak (D-088), the bot **opens** the PR `staging → master` with the FR/EN release notes, the `staging-verified` proof (D-100) and the tested `rc`. It never merges it. The `master` ruleset requires a PR and has **no bypass actor**; the bot keeps its bypass on `staging` only. The owner merges with a merge commit; the release workflow then tags the final `vX.Y.Z` on the soaked `staging` commit, which the merge commit has as parent, so the image that soaked is the one released and `scripts/release/cut.mjs` finds the last tag from `develop` too.
+
+**Overturns** — ADR 0009 D1 ("`staging` and `master` receive no PR"), D5 ("staging → master, automatically") and D7 (agents implement from the timer); D-091 point 3 for `master`; D-092 "the bot is the rulesets' only bypass actor on `staging` and `master`" for `master`; D-099 "after the 48 h soak, `master` is promoted and the final `vX.Y.Z` is cut", now on the owner's merge. D-094 still holds: the brief proposes only refined issues.
+
+**Unchanged** — merges into `develop` through the queue on green (D-088); `develop → staging` after the local proof on the staging stack (D-100), cutting an `rc` (D-099).
+
+### D-100 — No promotion to staging without a local proof on the staging stack · decided 2026-11-05
+**Decided (owner, 2026-11-05)** — "Avant de merge un truc sur stag il faut pull develop en local et run sur la stack stag avant de prouver que tout est bon." Before `staging` moves, the candidate `develop` commit is pulled on the owner's machine, deployed on the real staging stack (`openrisk-staging`), and tested against it: the full E2E suite, the smoke suite and `/health`. The proof is a commit status `staging-verified` on that exact SHA, with the test summary, the image digest and the time, and it goes into the promotion's comment. Without it, the promotion is refused. A non-LLM script of the pull deployer does it (#1246, #1255). A failure rolls the staging stack back and opens a P1 bug.
+
+### D-099 — Releases: a repository script instead of release-please, rc from staging, final from master, signed · decided 2026-11-05
+**Decided (agent: release-manager, 2026-11-05, under D-089; replaces the release-please part of D-088)**
+
+**Why not release-please** — three facts.
+1. `CHANGELOG.md` is curated (Keep a Changelog 1.1.0), and its notes are corrected after claim verification (#1158). release-please writes its own format and would overwrite that prose.
+2. `release.yml` refuses a tag that differs from `VERSION` and checks that the propagated versions do not drift (job `guard`). release-please does not know those files.
+3. The tags already follow `vMAJOR.MINOR.PATCH[-rc.N]` (`docs/VERSIONING.md`), and `release.yml` already detects pre-releases.
+
+**What replaces it** — `scripts/release/cut.mjs`, in the repository and with tests, so no new dependency. It:
+- computes the next version from the Conventional Commits since the last tag (`feat` → minor, `fix` → patch, `!` or `BREAKING CHANGE` → major);
+- turns `## [Unreleased]` into the dated section without rewriting it;
+- bumps `VERSION` and every propagated version;
+- opens the release PR, which merges through the queue like any other.
+
+**The flow**
+- Each promotion to `staging` cuts a pre-release `vX.Y.Z-rc.N`.
+- After the 48 h soak (D-088), `master` is promoted and the final `vX.Y.Z` is cut.
+- A P0 or security P1 fix skips the soak but no test (#1256 criterion 7).
+- Before any tag, `selfhost-install` also **upgrades from the previous release with data**.
+- The notes, in FR and EN, have a mandatory "Upgrade and breaking changes" section. `product-verifier` blocks any claim it cannot prove from the code.
+
+**Signing** — images and binaries are signed keylessly with sigstore through GitHub OIDC. It is free, holds no key, and is verifiable with one command. It is the one new dependency, pinned by SHA.
+
+### D-098 — develop never fails: it only receives queue-tested commits · decided 2026-11-05
+**Decided (owner, 2026-11-05)** — "Je ne veux aucun fail CI sur develop." `develop` receives commits only from the merge queue, which ran the required checks on that exact commit. So the workflows that run in `merge_group` do not run again on pushes to `develop`. Nightly and heavy suites (E2E Firefox and WebKit, DAST, scheduled dependency and security scans) test `staging`, the next release, and a failure there opens a P1 bug automatically (`nightly-watch.yml`). Implemented in #1291. Two parts will follow, and are not delivered by #1291: holding the promotion to `master` while such a bug is open is planned in #1256, and making delivery workflows skip with a notice rather than fail when a script cannot load yet is #1299 (PR #1301).
+
+### D-097 — Models by role: opus for four agents only · decided 2026-11-05
+**Decided (agent: devops-sre, 2026-11-05, under D-089)** — tech-lead, devsecops, compliance-officer and legal-counsel run on opus. Those are the roles where a wrong call costs more than the tokens: arbitration and ADRs, the last review before an automatic merge of red-class changes, regulatory fidelity, and legal risk. issue-triage, scout, i18n-steward and release-manager run on haiku, since their work is mechanical. Everyone else runs on sonnet, and the runner moves L issues to the large model on its own. The split was opus 19 · sonnet 7 · haiku 2; it is now opus 4 · sonnet 21 · haiku 4 (#1253). The saving is measured from the runner's token logs (#1257), not estimated.
+### D-096 — After a fix, only the refusing reviewers review again, and the carry-over is said · decided 2026-11-05
+**Decided (owner, 2026-11-05)** — "Limiter la relance aux rôles qui avaient refusé et signaler."
+When an implementer pushes a fix after the review gate sent the PR back (#1271):
+- A role that **approved the previous reviewed commit** keeps its approval on the new commit. The bot writes it as `approval carried over from <sha>, not re-reviewed`.
+- A role that **refused, errored or never answered**, and any role **newly required** by the fix (for example devsecops when the fix touches a red path), reviews the new commit.
+- The routing comment on the PR lists both groups, so a reader sees which approvals were not re-checked.
+
+**Why** — fewer review runs per fix, so fewer tokens. A role that refused is the one whose
+concern the fix addresses.
+
+**Residual risk, accepted** — a fix can break something a carried role approved. The required
+checks still run on every commit, and a new risk class still adds its reviewers. The role
+lists are recomputed from the new diff each time, so a fix that reaches a new area is always
+reviewed by that area's role.
+
+### D-095 — Review verdicts are produced in GitHub Actions and posted by the bot · decided 2026-11-04
+**Decided (owner, 2026-11-04; design by devops-sre under D-089)** — "Faire poser les verdicts
+par le bot, depuis GitHub Actions, et n'accepter que les statuts écrits par le bot."
+
+**Why the reviewers move into Actions** — every agent on the owner's machine acts through the
+owner's account. A verdict sent from there cannot prove which agent wrote it: an implementer
+could approve its own work. So the reviewer agents of #1271 run **in the `Agent review`
+workflow**, one job per required role, after CI is green on the head commit. The bot then
+posts what the job produced: the review comment and the `agent-review/<role>` status.
+`agent-review`, `Red gate` and every condition of `enqueue.mjs` read **only statuses whose
+creator is `opendefender-delivery-bot[bot]`**. A status written by anyone else is ignored, so
+a forged approval changes nothing.
+
+**How the reviewer is contained**
+- It gets read-only tools (Read, Grep, Glob) and no repository token.
+- The PR's content is given to it as data, never as instructions.
+- It must answer with a structured verdict (pass/fail, blocking count, numbered findings), which a script validates before the bot posts it.
+- Fork PRs are never reviewed this way: no secret reaches them.
+- The deterministic gates (CI, risk class) still apply whatever the reviewer says.
+- A red-class PR always needs two reviewers.
+
+**Cost** — no new spending. The jobs use a token of the owner's existing subscription, a
+secret the owner creates once, and draw on the same usage quota as the local runner. Actions
+minutes are free for this public repository. The agent CLI is pinned to an exact version.
+
+**Changes** — #1271: reviewers in Actions, verdict posted by the bot, bot-only statuses.
+#1250: `Red gate` written by the bot. #1280: bot-only statuses in `enqueue.mjs`.
+
+### D-094 — Every issue is refined before the runner implements it · decided 2026-11-04
+**Decided (owner, 2026-11-04)** — "Les tickets passent d'abord par l'affinage automatique
+(#1270) avant d'être pris par le runner." The scripted Ready gate (#1249) checks the
+structure of an issue. Refinement checks its substance: problem in user terms, testable
+criteria, size, duplicates, split and obsolescence. The runner (#1252) implements only an
+issue that carries the refinement marker `<!-- refined: <date> <agent> -->`. That holds for
+the 98 issues the gate promoted and for older Ready issues too. A material edit of the
+criteria after refinement clears the marker.
+
+**Consequence** — #1270 lands with #1252, not after it. Rulebook rule 2.1 is amended.
+
+### D-093 — Licence of the private agent-team repository · decided 2026-11-04
+**Decided (agent: po-openrisk, 2026-11-04, under D-089)** — `opendefender/agent-team` is
+**private and proprietary** ("all rights reserved", see its `LICENSE`). It was created on
+2026-11-04 as a skeleton: plugin manifests, the `team.yaml` format, and the extraction map of
+#1258.
+
+**Why it may hold files first written here** — every file under `.claude/agents`,
+`.claude/skills` and `.claude/hooks` has the owner as its only author (55 commits checked with
+`git log --format=%an`). `CLA.md` also lets OpenDefender distribute contributions under future
+licences. The copyright holder can therefore relicense them for internal use.
+
+**Options** — A: proprietary (chosen). B: Apache-2.0, open to anyone (rejected for now: the
+team encodes OpenDefender's way of working, and opening it is a later product decision).
+C: AGPL-3.0, like OpenRisk (rejected: the repository is internal tooling and is never
+distributed with the product).
+
+**Consequence** — OpenRisk's AGPL code is not affected: the plugin runs beside the project and
+is not part of what OpenRisk distributes. If a contributor other than the owner ever writes an
+agent or a hook here, that file stays in OpenRisk under the AGPL unless its author agrees.
+
+### D-092 — A bot identity for merging, promotion, reviews and the board · decided 2026-11-04
+**Decided (agent: devops-sre, 2026-11-04, under D-089; asked for by the owner)** — a GitHub
+App owned by `opendefender`, `opendefender-delivery-bot`, installed on this repository only.
+It is free, needs no seat, and its actions show as the bot, not as the owner.
+
+**What it does**
+- **Merging (#1280)**: `scripts/merge/enqueue.mjs` runs in GitHub Actions with the bot's
+  installation token and enqueues green PRs. No model and no agent session holds the bot's
+  key; the `merge-steward` agent only prepares PRs and calls the workflow.
+- **Promotion (#1255, #1256)**: the bot is the rulesets' only bypass actor on `staging` and
+  `master`, replacing the deploy key of D-091 point 3. Same guarantee, one credential fewer.
+- **Reviews (#1271)**: the review gate posts real GitHub reviews (approve or request
+  changes) as the bot, which is possible because the bot is not the PR author. The
+  `agent-review` status stays as the machine-readable verdict.
+- **Board (#1248)**: the sync uses the bot's token with Projects read and write, and the
+  owner's personal `BOARD_TOKEN` can be revoked.
+
+**Permissions** — repository: Contents read and write, Pull requests read and write, Issues read
+and write, Commit statuses read and write, Checks read, Actions read, Merge queues read and write,
+Metadata read. Organization: Projects read and write. No webhook. Installation token minted per
+job by `actions/create-github-app-token` (GitHub's own action, a new dependency, pinned by SHA),
+valid one hour.
+
+**Options considered** — keep the owner's account plus a deploy key and a PAT (works, but every
+action looks like the owner's, and the account cannot approve its own PRs); a second "machine"
+user account (works, but it is a person-shaped account to maintain, with its own password and
+2FA); a hosted merge service such as Mergify (rejected: GitHub's merge queue already does the
+merging, and it would be an outside service with access to the code).
+
+**Owner's part** — create the App and store its two secrets (`BOT_APP_ID`, `BOT_PRIVATE_KEY`).
+Steps on #1280. An agent cannot create an App: GitHub requires the browser for that.
+
 ### D-091 — How develop, staging and master are protected · decided 2026-11-04
 **Decided (agent: devops-sre, 2026-11-04)** — for #1244, under D-089.
 1. **Rulesets, not classic branch protection.** The classic protection API cannot require a

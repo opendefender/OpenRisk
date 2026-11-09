@@ -8,7 +8,7 @@
 
 import { Link } from 'react-router';
 import { useI18n } from '../../../hooks/useI18n';
-import { useFeature } from '../../billing/useEntitlements';
+import { useFeatureAtLeast } from '../../billing/useEntitlements';
 import { useFinancialSummary } from '../../financial/useFinancial';
 import { currencyLabel, millions, toDisplay } from '../../financial/money';
 import { BlockEmpty, BlockError, BlockSkeleton, Eyebrow, HeaderLink, Panel } from './Panel';
@@ -29,8 +29,9 @@ const PLAN_NAME: Record<string, string> = {
 
 export function ExposureCard({ className = '' }: { className?: string }) {
   const { t, locale } = useI18n();
-  const feature = useFeature('financial_quantification');
-  const summary = useFinancialSummary();
+  // The portfolio exposure is Monte-Carlo (Pro+, D-078).
+  const feature = useFeatureAtLeast('financial_quantification', 'on', 'pro');
+  const summary = useFinancialSummary(!feature.loading && feature.enabled);
   const locked = !feature.loading && !feature.enabled;
   const data = locked ? undefined : summary.data;
   const currency = currencyLabel(data?.currency);

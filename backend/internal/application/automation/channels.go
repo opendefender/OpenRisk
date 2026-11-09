@@ -7,9 +7,11 @@ package automation
 
 import (
 	"context"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/pkg/netguard"
 )
 
 // ChannelInput is the save payload for the tenant alert-channel config. Webhook
@@ -60,6 +62,9 @@ func (s *ChannelService) Save(ctx context.Context, tenantID uuid.UUID, in Channe
 	if tenantID == uuid.Nil {
 		return nil, domain.NewUnauthorizedError("missing tenant")
 	}
+	if err := checkChannelURLs(in); err != nil {
+		return nil, err
+	}
 	cfg := &domain.AutomationChannelConfig{
 		TenantID:        tenantID,
 		SlackEnabled:    in.SlackEnabled,
@@ -84,4 +89,25 @@ func (s *ChannelService) Save(ctx context.Context, tenantID uuid.UUID, in Channe
 		return nil, err
 	}
 	return cfg, nil
+}
+
+// checkChannelURLs refuses, at save time, a webhook or gateway URL the server
+// must not call (#1315): anything but https, or a host that is a loopback,
+// link-local (cloud metadata) or private address. Empty keeps the stored value
+// and is not checked here; the send path re-checks every URL it is given.
+func checkChannelURLs(in ChannelInput) error {
+	for _, f := range []struct{ name, url string }{
+		{"slack_webhook_url", in.SlackWebhookURL},
+		{"teams_webhook_url", in.TeamsWebhookURL},
+		{"webhook_url", in.WebhookURL},
+		{"sms_gateway_url", in.SMSGatewayURL},
+	} {
+		if strings.TrimSpace(f.url) == "" {
+			continue
+		}
+		if err := netguard.ValidateURL(f.url); err != nil {
+			return domain.NewOutboundDeniedError(f.name, err)
+		}
+	}
+	return nil
 }

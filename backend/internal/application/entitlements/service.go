@@ -15,6 +15,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/rs/zerolog"
+
 	"github.com/opendefender/openrisk/internal/domain"
 	ent "github.com/opendefender/openrisk/pkg/entitlements"
 )
@@ -49,6 +51,9 @@ type Service struct {
 	// levelOf is the matrix Level reads; ent.LevelOf unless WithLevelSource.
 	levelOf func(ent.Plan, ent.Feature) ent.Level
 
+	// log records the caps that fail open; zerolog.Nop() unless WithLogger.
+	log zerolog.Logger
+
 	now func() time.Time
 	ttl time.Duration
 	mu  sync.Mutex
@@ -67,6 +72,7 @@ func NewService(orgs OrgReader) *Service {
 	return &Service{
 		orgs:    orgs,
 		levelOf: ent.LevelOf,
+		log:     zerolog.Nop(),
 		now:     time.Now,
 		ttl:     30 * time.Second,
 		c:       make(map[uuid.UUID]cached),
@@ -78,6 +84,9 @@ func (s *Service) WithSubscriptions(r SubscriptionReader) *Service { s.subs = r;
 
 // WithUsage attaches the usage counter (makes limits enforceable, not advisory).
 func (s *Service) WithUsage(u UsageCounter) *Service { s.usage = u; return s }
+
+// WithLogger attaches the logger that reports a cap failing open.
+func (s *Service) WithLogger(l zerolog.Logger) *Service { s.log = l; return s }
 
 // WithDeployment sets who runs this instance. On a self-hosted deployment every
 // tenant resolves to ent.PlanSelfHosted (D-040); hosted resolves as before.
@@ -182,6 +191,9 @@ func (s *Service) Allowed(ctx context.Context, tenant uuid.UUID, f ent.Feature) 
 func (s *Service) Capacity(ctx context.Context, tenant uuid.UUID, key ent.LimitKey) (allowed bool, limit, used int, plan ent.Plan, err error) {
 	plan, _, _, err = s.EffectivePlan(ctx, tenant)
 	if err != nil {
+		// Every caller admits on this error, so the cap is off for the request.
+		s.log.Warn().Err(err).Str("tenant_id", tenant.String()).Str("limit_key", string(key)).
+			Msg("entitlements: plan unreadable, cap not applied")
 		return false, 0, 0, plan, err
 	}
 	limit = ent.LimitOf(plan, key)
@@ -191,7 +203,10 @@ func (s *Service) Capacity(ctx context.Context, tenant uuid.UUID, key ent.LimitK
 	if s.usage != nil {
 		if used, err = s.usage.Count(ctx, tenant, key); err != nil {
 			// Fail OPEN on a counting error: refusing a legitimate write because a
-			// COUNT query hiccuped is worse than briefly allowing one over.
+			// COUNT query hiccuped is worse than briefly allowing one over. Logged,
+			// so a count that keeps failing is a visible missing cap (#783).
+			s.log.Warn().Err(err).Str("tenant_id", tenant.String()).Str("limit_key", string(key)).
+				Str("plan", string(plan)).Msg("entitlements: usage count failed, cap not applied")
 			return true, limit, -1, plan, nil
 		}
 	}

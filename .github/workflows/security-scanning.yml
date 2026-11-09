@@ -4,7 +4,9 @@ on:
   merge_group:
     types: [checks_requested]
   push:
-    branches: [master, develop, staging]
+    # Not develop: its commits come only from the merge queue, which already ran this
+    # workflow on the same commit (#1291).
+    branches: [master, staging]
   pull_request:
     branches: [master, develop, staging]
   schedule:
@@ -12,6 +14,12 @@ on:
 
 permissions:
   contents: read
+
+concurrency:
+  # One run per PR: a new commit cancels the run of the previous one (#1289). Runs for
+  # merge_group, pushes and schedules are never cancelled.
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}-${{ github.event_name }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   # Go modules, npm production dependencies and the published image are gated
@@ -27,6 +35,9 @@ jobs:
   sast:
     runs-on: ubuntu-latest
     name: SAST Analysis
+    # gosec runs with -no-fail and already ran on the PR: in the merge queue it
+    # gates nothing and holds a runner (#1377).
+    if: github.event_name != 'merge_group'
     # Needed by upload-sarif to write gosec findings to the Security tab. Kept
     # on this job only, so TruffleHog never holds a token that can dismiss
     # code-scanning alerts.
@@ -35,6 +46,9 @@ jobs:
       security-events: write
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Scheduled runs test staging, the next release, never develop (#1291).
+          ref: ${{ github.event_name == 'schedule' && 'staging' || '' }}
       - uses: actions/setup-go@v5
         with:
           go-version: '1.26'
@@ -60,6 +74,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          # Scheduled runs test staging, the next release, never develop (#1291).
+          ref: ${{ github.event_name == 'schedule' && 'staging' || '' }}
           fetch-depth: 0
 
       # No base/head inputs: the action picks the range per event itself (push:

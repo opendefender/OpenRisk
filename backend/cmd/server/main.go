@@ -109,8 +109,9 @@ import (
 )
 
 // Version and Commit are injected at build time via ldflags
-// (-X main.Version=$(cat VERSION) -X main.Commit=$(git rev-parse --short HEAD);
-// see Makefile). They are the SINGLE source of truth the /health endpoint
+// (-X main.Version=$(cat VERSION) -X main.Commit=<sha>: the short SHA from the
+// Makefile, the full SHA from images.yml through backend/Dockerfile, #1245).
+// They are the SINGLE source of truth the /health endpoint
 // reports. The defaults mark a non-release build (e.g. `go run`).
 var (
 	Version = "dev"
@@ -1205,7 +1206,8 @@ func main() {
 	entitlementService := entapp.NewService(entitlementRepo).
 		WithSubscriptions(billingRepo).
 		WithUsage(entitlementRepo).
-		WithDeployment(deployment)
+		WithDeployment(deployment).
+		WithLogger(zeroLogger)
 
 	billingRegistry := pkgbilling.NewRegistry(
 		pkgbilling.NewStripeGateway(os.Getenv("STRIPE_SECRET_KEY")),
@@ -1260,8 +1262,22 @@ func main() {
 	featExecutive := middleware.RequireFeature(entitlementService, ent.FeatExecutiveDashboard)
 	featAI := middleware.RequireFeature(entitlementService, ent.FeatAIAdvisor)
 	featVendor := middleware.RequireFeature(entitlementService, ent.FeatVendorRisk)
+	// Hosted plans (D-078, ADR 0007, #783): Free does almost everything, in small
+	// quantities. Automation, the scanner and governance are on every plan and
+	// capped by count below; threat intel keeps a Business gate until its own
+	// preview quota ships. A self-hosted install is free and complete (D-040);
+	// #612 keeps it off the Free row, so none of this caps it.
+	featCTI := middleware.RequireFeature(entitlementService, ent.FeatCTI)
+	capUsers := middleware.RequireCapacity(entitlementService, ent.LimitUsers)
 	capRisks := middleware.RequireCapacity(entitlementService, ent.LimitRisks)
 	capAssets := middleware.RequireCapacity(entitlementService, ent.LimitAssets)
+	// D-076: every framework on every plan, the plan caps how many are active.
+	capFrameworks := middleware.RequireCapacity(entitlementService, ent.LimitFrameworks)
+	capScanSources := middleware.RequireCapacity(entitlementService, ent.LimitScanSources)
+	capWorkflows := middleware.RequireCapacity(entitlementService, ent.LimitApprovalWorkflows)
+	// Active automation rules and scans per month are capped in their use cases
+	// (WithQuota below): a rule turns on through four routes, and a scan also
+	// starts from the scheduler and from automation.
 
 	// --- MFA disable (L4) ---
 	// Enrolment (setup/verify) is mounted before the Protected gate, see above.
@@ -1693,7 +1709,7 @@ func main() {
 	protected.Post("/compliance/frameworks/:frameworkId/import-catalog", complianceFrameworkCreate, complianceHandler.ImportCatalog)
 
 	protected.Get("/compliance/frameworks", complianceFrameworkRead, complianceHandler.ListFrameworks)
-	protected.Post("/compliance/frameworks", complianceFrameworkCreate, complianceHandler.CreateFramework)
+	protected.Post("/compliance/frameworks", complianceFrameworkCreate, capFrameworks, complianceHandler.CreateFramework)
 	protected.Get("/compliance/frameworks/:frameworkId", complianceFrameworkRead, complianceHandler.GetFramework)
 	protected.Delete("/compliance/frameworks/:frameworkId", complianceFrameworkDelete, complianceHandler.DeleteFramework)
 	protected.Get("/compliance/frameworks/:frameworkId/progress", complianceControlRead, complianceHandler.GetProgress)
@@ -2305,7 +2321,7 @@ func main() {
 	// --- User Management (Admin only) ---
 	adminRole := middleware.RequireRole("admin")
 	protected.Get("/users", adminRole, handlers.GetUsers)
-	protected.Post("/users", adminRole, handlers.CreateUser)
+	protected.Post("/users", adminRole, capUsers, handlers.CreateUser)
 	// PATCH /users/:id/status, PATCH /users/:id/role and DELETE /users/:id were
 	// removed (#807). They wrote the global users row, so an admin of one
 	// organization could lock a person out of every other one, or delete them
@@ -2744,6 +2760,9 @@ func main() {
 	// =========================================================================
 	membershipSvc := membership.NewService(membershipRepo, userRepo).
 		WithOrganizations(orgRepo).
+		// D-078: reactivating a member or reviving an expired invitation takes a
+		// seat without passing the capUsers route gate.
+		WithSeatQuota(entitlementService).
 		WithOrganizationWriter(orgRepo).
 		WithBlobStore(fileStorage).
 		// The recorder feeds the request collector, so a membership action lands
@@ -2809,7 +2828,7 @@ func main() {
 	protected.Get("/organization/invitations",
 		middleware.RequirePermission("organization:members:read"), memberHandler.ListInvitations)
 	protected.Post("/organization/invitations",
-		middleware.RequirePermission("organization:members:invite"), memberHandler.CreateInvitation)
+		middleware.RequirePermission("organization:members:invite"), capUsers, memberHandler.CreateInvitation)
 	protected.Post("/organization/invitations/:invitationId/resend",
 		middleware.RequirePermission("organization:members:invite"), memberHandler.ResendInvitation)
 	protected.Delete("/organization/invitations/:invitationId",
@@ -3017,7 +3036,7 @@ func main() {
 	deleteScanConfigUC := scanapp.NewDeleteScanConfigUseCase(scanConfigRepo)
 	triggerScanUC := scanapp.NewTriggerScanUseCase(
 		scanConfigRepo, scanJobRepo, scanLock, scanRegistry, scanPipeline, scannerCipher, redisClientInstance, zeroLogger,
-	)
+	).WithQuota(entitlementService)
 	// Recurring scans: a background scheduler triggers due configs every minute.
 	scanScheduler := workers.NewScanScheduler(scanConfigRepo, triggerScanUC, zeroLogger)
 	go scanScheduler.Start(context.Background())
@@ -3055,7 +3074,7 @@ func main() {
 	scannerImport := middleware.RequirePermission("scanner:import")
 
 	protected.Get("/scanner/configs", scannerRead, scannerHandler.ListScanConfigs)
-	protected.Post("/scanner/configs", scannerCreate, scannerHandler.CreateScanConfig)
+	protected.Post("/scanner/configs", scannerCreate, capScanSources, scannerHandler.CreateScanConfig)
 	protected.Delete("/scanner/configs/:id", scannerDelete, scannerHandler.DeleteScanConfig)
 	protected.Post("/scanner/configs/:id/scan", scannerScan, scannerHandler.TriggerScan)
 	protected.Post("/scanner/configs/:id/registration-token", scannerCreate, scannerHandler.IssueRegistrationToken)
@@ -3155,11 +3174,11 @@ func main() {
 
 	ctiRead := middleware.RequirePermission("risks:read")
 	ctiAdmin := middleware.RequireRole("admin", "root")
-	protected.Get("/cti/vulnerabilities", ctiRead, ctiHandler.List)
-	protected.Get("/cti/vulnerabilities/:cve", ctiRead, ctiHandler.Get)
-	protected.Get("/cti/stats", ctiRead, ctiHandler.Stats)
-	protected.Post("/cti/sync", ctiAdmin, ctiHandler.Sync)
-	protected.Post("/cti/match", ctiAdmin, ctiHandler.Match)
+	protected.Get("/cti/vulnerabilities", ctiRead, featCTI, ctiHandler.List)
+	protected.Get("/cti/vulnerabilities/:cve", ctiRead, featCTI, ctiHandler.Get)
+	protected.Get("/cti/stats", ctiRead, featCTI, ctiHandler.Stats)
+	protected.Post("/cti/sync", ctiAdmin, featCTI, ctiHandler.Sync)
+	protected.Post("/cti/match", ctiAdmin, featCTI, ctiHandler.Match)
 
 	// Threats (#911): the catalogue entries that touch this tenant's assets, by
 	// CPE or by a scanner finding, ranked by an explained relevance. "Not
@@ -3169,9 +3188,9 @@ func main() {
 		threatintel.NewListThreatsUseCase(threatRepo, ctiRepo),
 		threatintel.NewDismissThreatUseCase(threatRepo, ctiRepo),
 	)
-	protected.Get("/cti/threats", ctiRead, threatHandler.List)
-	protected.Put("/cti/threats/:cve/dismissal", riskUpdate, threatHandler.Dismiss)
-	protected.Delete("/cti/threats/:cve/dismissal", riskUpdate, threatHandler.Restore)
+	protected.Get("/cti/threats", ctiRead, featCTI, threatHandler.List)
+	protected.Put("/cti/threats/:cve/dismissal", riskUpdate, featCTI, threatHandler.Dismiss)
+	protected.Delete("/cti/threats/:cve/dismissal", riskUpdate, featCTI, threatHandler.Restore)
 
 	// =========================================================================
 	// Universal Search (UX-1) — one GET /search behind the ⌘K palette. Composes
@@ -3271,7 +3290,7 @@ func main() {
 		// a second path to the repository: risk creation owns the lifecycle state
 		// machine, the ownership fallback and the synchronous banding, and a
 		// bypass would drift from all three silently.
-		WithStarterRisks(appactivation.NewStarterRisksUseCase(activationRepo, createRiskUseCase))
+		WithStarterRisks(appactivation.NewStarterRisksUseCase(activationRepo, createRiskUseCase).WithQuota(entitlementService))
 	// Readable by any authenticated member: the get-started panel is not a
 	// privileged view, and gating it behind a permission would hide the product's
 	// own instructions from exactly the people who need them most.
@@ -3377,7 +3396,7 @@ func main() {
 		WithRiskLookup(automationRiskActions)
 
 	automationHandler := handlers.NewAutomationHandler(
-		appauto.NewRuleService(automationRuleRepo),
+		appauto.NewRuleService(automationRuleRepo).WithQuota(entitlementService),
 		appauto.NewExecutionService(automationExecRepo),
 		automationSLAService,
 		automationChannelService,
@@ -3527,7 +3546,7 @@ func main() {
 	// Approval workflows (config) — admin only.
 	protected.Get("/governance/request-types", governanceHandler.ListRequestTypes)
 	protected.Get("/governance/workflows", governanceHandler.ListWorkflows)
-	protected.Post("/governance/workflows", governanceAdmin, governanceHandler.CreateWorkflow)
+	protected.Post("/governance/workflows", governanceAdmin, capWorkflows, governanceHandler.CreateWorkflow)
 	protected.Put("/governance/workflows/:id", governanceAdmin, governanceHandler.UpdateWorkflow)
 	protected.Delete("/governance/workflows/:id", governanceAdmin, governanceHandler.DeleteWorkflow)
 

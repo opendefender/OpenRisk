@@ -160,6 +160,7 @@ openssl rsa -in /tmp/or-e2e-keys/private.pem -pubout -out /tmp/or-e2e-keys/publi
 export DATABASE_URL="postgres://openrisk:openrisk@localhost:55432/openrisk_e2e?sslmode=disable" \
   DB_HOST=localhost DB_PORT=55432 DB_USER=openrisk DB_PASSWORD=openrisk DB_NAME=openrisk_e2e \
   REDIS_HOST=localhost REDIS_PORT=56379 REDIS_URL=redis://localhost:56379 APP_ENV=test PORT=8080 \
+  OPENRISK_DEPLOYMENT=self_hosted \
   CORS_ORIGINS=http://localhost:5173 \
   INITIAL_ADMIN_PASSWORD="$OR_E2E_ADMIN_PASSWORD" MIGRATIONS_DIR=../migrations \
   RSA_PRIVATE_KEY_PATH=/tmp/or-e2e-keys/private.pem RSA_PUBLIC_KEY_PATH=/tmp/or-e2e-keys/public.pem \
@@ -190,6 +191,13 @@ nothing to do with rate limiting:
 | `RATE_LIMIT_TENANT_PER_MINUTE=0` | turns off the per-tenant API quota (default 1200/min) | an ordinary setting; leave it unset |
 | `RATE_LIMIT_AUTH_DISABLED=true` | turns off the per-IP limiters on sign-in, sign-up, password reset and check, re-authentication and the MFA challenge | ignored: honoured only when `APP_ENV` is `test`, `testing`, `development`, `dev` or `local` |
 
+The harness checks this before it seeds: `tests/e2e/global-setup.ts` sends twice the default
+per-IP budget plus one to `/health` (the budget is counted per wall-clock minute, so a burst
+may straddle two) and stops the run with this table's switches in its message if any comes
+back 429. A quota raised above that size is not detected. A backend Playwright starts itself gets them from
+`playwright.config.ts`; one it reuses (`make dev`, a stack started by hand) used to fail at
+random instead, on whichever test crossed the budget (UX-24, #1297).
+
 The auth budgets themselves (`backend/internal/middleware/auth_limits.go`) cannot be
 changed from the environment. The per-account sign-in lockout in the login use case is
 not affected by any of these. The backend logs a warning at start-up when
@@ -213,13 +221,21 @@ Located in `.github/workflows/ci.yml`
 ### Build Matrix
 Runs on `ubuntu-latest`
 
-### Status Checks
-- Only the checks listed as required in the `master` branch protection block a merge.
-  The list is an owner decision (D-082 in `docs/DECISIONS.md`, #1199). See what GitHub
-  enforces today with
-  `gh api repos/opendefender/OpenRisk/branches/master/protection --jq '[.required_status_checks.checks[].context]'`.
+### Branches and status checks (ADR 0009, D-091, #1244)
+- **`develop`** is the default branch. Every PR targets it and merges through the **merge
+  queue** (merge commits, all-green groups). Its ruleset has no bypass: agents act through
+  the owner's admin account, so nobody can push to it directly.
+- **`staging`** and **`master`** take no PR and no push. They only move by promotion (a
+  fast-forward of a `develop` commit), pushed by the deploy key of the promotion workflows
+  (#1255, #1256).
+- **Environments:** the dev stack (`docker-compose.yaml`) runs `develop`, and the staging stack
+  (`docker-compose.staging.yaml`) runs `staging`. Self-hosters deploy release tags cut from
+  `master`.
+- The eight required contexts of D-082 block a merge on all three branches. They also run on
+  `merge_group`, so the queue can start. See them with
+  `gh api repos/opendefender/OpenRisk/rulesets --jq '.[].name'` and
+  `gh api repos/opendefender/OpenRisk/rules/branches/develop --jq '.[]|select(.type=="required_status_checks").parameters.required_status_checks[].context'`.
 - Coverage reports uploaded to Codecov
-- Docker image pushed to GHCR on main/stag
 
 ## Coverage Goals
 

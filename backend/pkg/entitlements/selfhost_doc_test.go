@@ -42,10 +42,15 @@ func selfHostDocPath() string {
 // A key with no label here fails the test rather than printing a raw
 // identifier — adding a feature to the matrix must also name it for humans.
 var limitLabels = map[LimitKey]string{
-	LimitUsers:        "Users",
-	LimitRisks:        "Risks",
-	LimitAssets:       "Assets",
-	LimitIntegrations: "Integrations",
+	LimitUsers:             "Users",
+	LimitRisks:             "Risks",
+	LimitAssets:            "Assets",
+	LimitIntegrations:      "Integrations",
+	LimitFrameworks:        "Active compliance frameworks",
+	LimitAutomationRules:   "Active automation rules",
+	LimitScanSources:       "Scan sources",
+	LimitScansPerMonth:     "Scans per month",
+	LimitApprovalWorkflows: "Approval workflows",
 }
 
 var featureLabels = map[Feature]string{
@@ -135,17 +140,19 @@ func renderSelfHostMatrix(t *testing.T) string {
 		b.WriteString(row + "\n")
 	}
 
+	// Every count, not a hand-picked few: a cap added to the matrix shows here.
+	caps := make([]string, 0, len(AllLimits))
+	for _, k := range AllLimits {
+		caps = append(caps, limitCell(PlanSelfHosted, k)+" "+strings.ToLower(limitLabels[k]))
+	}
 	b.WriteString("\n")
 	b.WriteString(fmt.Sprintf(
 		"With `%s=%s`, every organisation of the instance resolves to **%s**: "+
-			"%s users, %s risks, %s assets, %s integrations, whatever plan its row "+
-			"stores. Without the variable the backend refuses to boot (D-081): it never "+
-			"guesses whether it is your install or the OpenDefender service.\n",
+			"%s, whatever plan its row stores. Without the variable the backend refuses "+
+			"to boot (D-081): it never guesses whether it is your install or the "+
+			"OpenDefender service.\n",
 		DeploymentEnv, DeploymentSelfHosted, planTitle(PlanSelfHosted),
-		limitCell(PlanSelfHosted, LimitUsers),
-		limitCell(PlanSelfHosted, LimitRisks),
-		limitCell(PlanSelfHosted, LimitAssets),
-		limitCell(PlanSelfHosted, LimitIntegrations),
+		strings.Join(caps, ", "),
 	))
 	b.WriteString("\n")
 	b.WriteString(docEndMarker)

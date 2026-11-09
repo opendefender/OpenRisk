@@ -25,11 +25,11 @@ field**. Do not redo work. Do not re-read files the comment already describes.
 
 Several sessions run at once on this repository, and a shared checkout has
 carried one issue's commits onto another's branch. Work in a dedicated
-worktree, branched from the latest master:
+worktree, branched from the latest develop (ADR 0009, #1244):
 
 ```
 git fetch origin
-git worktree add ../OpenRisk-wt-$ARGUMENTS -b <type>/$ARGUMENTS-<slug> origin/master
+git worktree add ../OpenRisk-wt-$ARGUMENTS -b <type>/$ARGUMENTS-<slug> origin/develop
 gh issue edit $ARGUMENTS --add-label status:in-progress --remove-label status:ready
 ```
 When `frontend/package-lock.json` matches the main checkout, symlink its
@@ -55,7 +55,7 @@ which. **Never skip the review.**
 ### Review loop
 
 1. The reviewer reads the whole diff, not a summary:
-   `git diff origin/master...HEAD`. It ends with `REVIEW: PASS` or
+   `git diff origin/develop...HEAD`. It ends with `REVIEW: PASS` or
    `REVIEW: BLOCK — <n> critical` (devsecops: `SECURITY: PASS|FAIL`).
 2. BLOCK or FAIL goes back to the implementing agent with the findings
    verbatim. It fixes them, then the same reviewer reads the new diff.
@@ -86,13 +86,22 @@ Stage by explicit path, never `git add -A`, and look at what you stage:
 git status --short
 git add <path> <path>
 git commit -s -m "type(scope): subject (#$ARGUMENTS)"
-git log --no-merges --format='%h %s' origin/master..HEAD   # every line must carry #$ARGUMENTS
+git log --no-merges --format='%h %s' origin/develop..HEAD   # every line must carry #$ARGUMENTS
 git push -u origin HEAD
-gh pr create --base master --title "type(scope): subject (#$ARGUMENTS)" --body-file pr.md
+gh pr create --base develop --title "type(scope): subject (#$ARGUMENTS)" --body-file pr.md
 ```
 `pr.md` holds `Closes #$ARGUMENTS`, the verification output, the review
 verdicts, and the honest remainders. If `gh pr create` fails with the
 Projects classic error, use the REST fallback in CLAUDE.md.
+
+Then check that GitHub links the issue. A PR always has its issue:
+```
+gh api graphql -f query='{repository(owner:"opendefender",name:"OpenRisk"){pullRequest(number:<pr>){baseRefName closingIssuesReferences(first:5){nodes{number}}}}}'
+```
+It must list `$ARGUMENTS`. If the list is empty, the base is almost always
+not `develop` (GitHub links `Closes` only on the default branch): fix it with
+`gh api -X PATCH repos/opendefender/OpenRisk/pulls/<pr> -f base=develop`, merge
+`origin/develop` into the branch if it was cut elsewhere, and check again.
 
 ### Wait for CI before handing over
 
@@ -100,8 +109,11 @@ Projects classic error, use the REST fallback in CLAUDE.md.
 gh pr checks <pr> --watch
 ```
 A check your branch turned red is yours: fix it and push. A check that is
-also red on master is named in the PR body with its tracking issue (open
-one if none exists). Only then:
+also red on develop is named in the PR body with its tracking issue. Before
+opening one, search open and recently merged PRs on develop for a fix
+(`gh pr list --base develop --state all --search "<package or check>"`): a
+fix already merged means your branch is behind, so merge `origin/develop`.
+Open a tracking issue only when there is no fix and no issue yet. Only then:
 ```
 gh issue edit $ARGUMENTS --add-label status:in-review --remove-label status:in-progress
 ```

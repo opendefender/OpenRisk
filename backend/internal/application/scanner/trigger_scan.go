@@ -17,6 +17,7 @@ import (
 
 	"github.com/opendefender/openrisk/internal/domain"
 	scanpkg "github.com/opendefender/openrisk/internal/scanner"
+	ent "github.com/opendefender/openrisk/pkg/entitlements"
 )
 
 // CloudScanTimeout bounds an in-process cloud scan (mirrors the Agent's 15-minute
@@ -39,6 +40,21 @@ type TriggerScanUseCase struct {
 	cipher     *CredentialCipher
 	kv         scanpkg.KV
 	logger     zerolog.Logger
+	quota      ScanQuota
+}
+
+// ScanQuota reads a tenant's plan cap and usage (the entitlements service).
+type ScanQuota interface {
+	Capacity(ctx context.Context, tenant uuid.UUID, key ent.LimitKey) (allowed bool, limit, used int, plan ent.Plan, err error)
+}
+
+// WithQuota caps the scans a tenant starts per calendar month (D-078). It sits
+// here rather than on the route because a scan also starts from the scheduler
+// and from an automation rule; all three must count and all three must stop.
+// A quota read error fails OPEN, like the RequireCapacity gate.
+func (uc *TriggerScanUseCase) WithQuota(q ScanQuota) *TriggerScanUseCase {
+	uc.quota = q
+	return uc
 }
 
 func NewTriggerScanUseCase(
@@ -57,9 +73,21 @@ func NewTriggerScanUseCase(
 	}
 }
 
+// Execute triggers a scan with the default type. The scheduler and the
+// automation engine call it, so scheduled scans stay vulnerability scans.
 func (uc *TriggerScanUseCase) Execute(ctx context.Context, tenantID, triggeredBy, configID uuid.UUID) (*domain.ScanJob, error) {
+	return uc.ExecuteWithType(ctx, tenantID, triggeredBy, configID, "")
+}
+
+// ExecuteWithType triggers a scan of the given type (#1164). An empty type
+// means vulnerability. A type is only accepted for agent providers: what a
+// cloud or API provider collects is not the user's choice.
+func (uc *TriggerScanUseCase) ExecuteWithType(ctx context.Context, tenantID, triggeredBy, configID uuid.UUID, scanType domain.ScanType) (*domain.ScanJob, error) {
 	if tenantID == uuid.Nil {
 		return nil, domain.NewUnauthorizedError("missing tenant")
+	}
+	if scanType != "" && !scanType.Valid() {
+		return nil, domain.NewValidationError("scan_type must be discovery or vulnerability")
 	}
 	cfg, err := uc.configRepo.GetByID(ctx, configID, tenantID)
 	if err != nil {
@@ -70,6 +98,20 @@ func (uc *TriggerScanUseCase) Execute(ctx context.Context, tenantID, triggeredBy
 	}
 	if !cfg.Enabled {
 		return nil, domain.NewValidationError("scan config is disabled")
+	}
+	if scanType != "" && !cfg.Provider.IsAgentBased() {
+		return nil, domain.NewValidationError("scan_type is only accepted for agent scans")
+	}
+	if scanType == "" {
+		scanType = domain.ScanVulnerability
+	}
+
+	// Plan cap on scans this month.
+	if uc.quota != nil {
+		allowed, limit, used, _, qErr := uc.quota.Capacity(ctx, tenantID, ent.LimitScansPerMonth)
+		if qErr == nil && !allowed {
+			return nil, domain.NewLimitReachedError(string(ent.LimitScansPerMonth), limit, used)
+		}
 	}
 
 	// Per-tenant concurrency cap.
@@ -97,6 +139,7 @@ func (uc *TriggerScanUseCase) Execute(ctx context.Context, tenantID, triggeredBy
 		ConfigID:    configID,
 		Provider:    cfg.Provider,
 		Status:      domain.ScanQueued,
+		ScanType:    scanType,
 		Targets:     cfg.Targets,
 		TriggeredBy: triggeredBy,
 	}
@@ -133,6 +176,7 @@ func (uc *TriggerScanUseCase) dispatchToAgents(ctx context.Context, cfg *domain.
 		ConfigID: cfg.ID,
 		TenantID: cfg.TenantID,
 		Provider: string(cfg.Provider),
+		ScanType: string(job.ScanType),
 		Targets:  cfg.Targets,
 		AgentIDs: cfg.AgentIDs,
 	}

@@ -4,9 +4,11 @@ on:
   merge_group:
     types: [checks_requested]
   push:
+    # Not develop: its commits come only from the merge queue, which already ran this
+    # workflow on the same commit (#1291).
     # `master` is this repository's default branch. `main` is kept for forks
     # that renamed it.
-    branches: [master, main, develop, staging]
+    branches: [master, main, staging]
   pull_request:
     branches: [master, main, develop, staging]
   schedule:
@@ -30,12 +32,21 @@ on:
 #   - Security Scan Summary: printed "all passed" whatever happened.
 # Dependency and image vulnerabilities are gated by dependency-gate.yml (#487).
 
+concurrency:
+  # One run per PR: a new commit cancels the run of the previous one (#1289). Runs for
+  # merge_group, pushes and schedules are never cancelled.
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}-${{ github.event_name }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   tenant-isolation:
     name: Tenant Isolation Coverage Gate
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Scheduled runs test staging, the next release, never develop (#1291).
+          ref: ${{ github.event_name == 'schedule' && 'staging' || '' }}
       - uses: actions/setup-go@v5
         with:
           go-version: '1.26'
@@ -49,3 +60,28 @@ jobs:
         run: |
           cd backend
           go test ./internal/security/... -v
+
+  asvs-register:
+    name: ASVS Register Proofs
+    # Not required by the develop ruleset, and it already ran on the PR: the merge
+    # queue waits only for required checks, so here it would just hold a runner (#1377).
+    if: github.event_name != 'merge_group'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      # Rule 12: an ASVS chapter marked "met" names a file and a test that
+      # exist. Runs on every PR, not only doc changes: deleting or renaming a
+      # proof file is what turns a true row false (#1313).
+      - name: Checker tests
+        run: node --test scripts/security/check-asvs-register.test.mjs
+      - name: Every "met" row has a proof that exists
+        run: node scripts/security/check-asvs-register.mjs

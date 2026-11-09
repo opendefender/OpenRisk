@@ -27,7 +27,7 @@ import { Button } from '../../shared/ds';
 import { bandTextColor } from '../../services/scoreService';
 import { complianceService } from '../../services/complianceService';
 import { boardService } from '../../services/boardService';
-import { useFeature } from '../billing/useEntitlements';
+import { useFeatureAtLeast } from '../billing/useEntitlements';
 import { useFinancialSummary } from '../financial/useFinancial';
 import { currencyLabel, millions, toDisplay } from '../financial/money';
 import { useDashboardStats } from '../dashboard/useCommandCenter';
@@ -123,13 +123,17 @@ interface Delta {
   color: string;
 }
 
+// The plan that opens the portfolio figures, as the plan grid names it.
+const planLabel = (plan: string) => plan.charAt(0).toUpperCase() + plan.slice(1);
+
 function KpiStrip() {
   const { t, locale } = useI18n();
   const score = useScore('tenant');
   const history = useScoreHistory(12);
   const stats = useDashboardStats(ALL_TIME);
-  const fin = useFeature('financial_quantification');
-  const finance = useFinancialSummary();
+  // Portfolio figures are Monte-Carlo (Pro+, D-078).
+  const fin = useFeatureAtLeast('financial_quantification', 'on', 'pro');
+  const finance = useFinancialSummary(!fin.loading && fin.enabled);
   const gaps = useQuery({
     queryKey: ['compliance', 'gap-analysis', 'all'],
     queryFn: () => complianceService.getGapAnalysis(),
@@ -190,7 +194,10 @@ function KpiStrip() {
       unit: `M ${currencyLabel(f?.currency)}`,
       color: 'var(--fg-primary)',
       delta: locked
-        ? { text: t('executive.kpi.locked', { plan: 'Business' }), color: 'var(--fg-muted)' }
+        ? {
+            text: t('executive.kpi.locked', { plan: planLabel(fin.requiredPlan) }),
+            color: 'var(--fg-muted)',
+          }
         : thin
           ? { text: t('dashboard.counters.unquantified'), color: 'var(--fg-muted)' }
           : delta(ale, baseAle, true, (d) => `${millions(Math.abs(d), locale)} M`),
@@ -254,8 +261,9 @@ function KpiStrip() {
 
 function TopExposures({ className = '' }: { className?: string }) {
   const { t, locale } = useI18n();
-  const fin = useFeature('financial_quantification');
-  const finance = useFinancialSummary();
+  // Portfolio figures are Monte-Carlo (Pro+, D-078).
+  const fin = useFeatureAtLeast('financial_quantification', 'on', 'pro');
+  const finance = useFinancialSummary(!fin.loading && fin.enabled);
   const f = finance.data;
   const top = (f?.top_risks ?? []).filter((r) => r.ale.xaf > 0).slice(0, 5);
   const max = Math.max(1, ...top.map((r) => r.ale.xaf));
@@ -265,7 +273,9 @@ function TopExposures({ className = '' }: { className?: string }) {
     <Panel testId="exec-top" className={`px-5 py-[18px] ${className}`}>
       <PanelTitle className="mb-3.5" title={t('executive.top.title')} />
       {!fin.loading && !fin.enabled ? (
-        <BlockEmpty>{t('dashboard.exposure.locked', { plan: 'Business' })}</BlockEmpty>
+        <BlockEmpty>
+          {t('dashboard.exposure.locked', { plan: planLabel(fin.requiredPlan) })}
+        </BlockEmpty>
       ) : finance.isLoading || fin.loading ? (
         <BlockSkeleton lines={5} height={22} />
       ) : finance.isError || !f ? (

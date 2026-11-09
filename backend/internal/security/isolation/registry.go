@@ -188,8 +188,16 @@ var decisions = []Decision{
 	// surfaces as not-found.
 	{"/api/v1/risk-categories/{id}", Covered,
 		"repository/gorm_risk_taxonomy_repository_test TestRiskCategoryRepo_CrossTenantUpdateAndDeleteRefused"},
+	{"/api/v1/risks/{id}/mitigations", Covered,
+		"handler/mitigation_create_postcommit_test TestCreateMitigation_Unauthorized_RiskOfAnotherTenant posts a plan " +
+			"against another tenant's risk and asserts 404 and no row in either tenant; the gate is in the create " +
+			"transaction (repository/mitigation_repository_tx_test TestCreateWithSubActions_Unauthorized_RiskOfAnotherTenant), " +
+			"so the incident post-mortem path is held too. GET checks the parent risk in the handler (#248). Plans " +
+			"written before the fix that point across tenants no longer resolve the foreign risk nor appear under it " +
+			"(TestGetByIDWithSubActions_DoesNotResolveAnotherTenantsRisk, TestRisk*_Unauthorized_ForeignMitigationNotPreloaded); " +
+			"validated by sabotage (GHSA-2w75-9qj8-fwwp)"},
 	{"/api/v1/risks/*", Pending,
-		"financial/smart-score/simulate/mitigations subpaths lack cross-tenant assertions"},
+		"financial/smart-score/simulate subpaths lack cross-tenant assertions"},
 	{"/api/v1/mitigations/*", Pending,
 		"sub-action paths verify ownership through the parent plan; not pinned by a test"},
 	// Organization member management (W0-04). Every one of these resolves its
@@ -266,8 +274,12 @@ var decisions = []Decision{
 			"asserts 403 on the shared predefined roles (GHSA-6m8w-33j5-ff68)"},
 	{"/api/v1/rbac/*", Pending,
 		"admin-only tenant/user/role admin paths; GetTenantUsers gates on level, not pinned"},
-	{"/api/v1/bulk-operations/{id}", Pending,
-		"service filters by tenant (see bulk_operation_service); not pinned by a test"},
+	{"/api/v1/bulk-operations/{id}", Covered,
+		"service/bulk_operation_isolation_test TestBulkOperation_GetIsTenantScoped asserts not-found for another " +
+			"tenant's job, and TestBulkOperation_GetIsAuthorScoped asserts a colleague in the same tenant gets the " +
+			"same not-found as a missing job while the author reads it (#1219). The DATABASE_URL-gated " +
+			"bulk_operation_pg_test TestGetBulkOperation_Postgres_{Success,NotFound,Unauthorized} pins both " +
+			"predicates on Postgres. The query is `id AND created_by AND tenant_id`, the scope of the list endpoint"},
 	{"/api/v1/integrations/{id}/test", Pending,
 		"integration config is tenant-scoped; not pinned by a test"},
 	{"/api/v1/cti/vulnerabilities/{id}", PublicByDesign,

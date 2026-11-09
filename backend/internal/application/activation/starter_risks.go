@@ -12,6 +12,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/opendefender/openrisk/internal/domain"
+	ent "github.com/opendefender/openrisk/pkg/entitlements"
 	"github.com/opendefender/openrisk/pkg/onboarding"
 )
 
@@ -39,7 +40,18 @@ import (
 type StarterRisksUseCase struct {
 	repo   domain.OnboardingRepository
 	writer domain.StarterRiskWriter
+	quota  RiskQuota
 }
+
+// RiskQuota reads a tenant's risk cap and usage (the entitlements service).
+// Optional (nil-safe): without it, adoption is uncapped.
+type RiskQuota interface {
+	Capacity(ctx context.Context, tenant uuid.UUID, key ent.LimitKey) (allowed bool, limit, used int, plan ent.Plan, err error)
+}
+
+// WithQuota holds an adoption to the plan's risk cap (D-078, #783): the route
+// writes three rows at once, so the gate's "one more" check cannot cover it.
+func (uc *StarterRisksUseCase) WithQuota(q RiskQuota) *StarterRisksUseCase { uc.quota = q; return uc }
 
 // NewStarterRisksUseCase builds the use case. Both dependencies are required:
 // unlike the rest of this package there is no useful degraded mode — a screen
@@ -160,6 +172,14 @@ func (uc *StarterRisksUseCase) Adopt(ctx context.Context, tenantID, userID uuid.
 	}
 	if adopted {
 		return nil, domain.NewConflictError("starter risks", "tenant")
+	}
+	// All three fit, or none is written. A quota read error fails OPEN, like
+	// RequireCapacity (and is logged there).
+	if uc.quota != nil {
+		_, limit, used, _, qErr := uc.quota.Capacity(ctx, tenantID, ent.LimitRisks)
+		if qErr == nil && limit != ent.Unlimited && used+len(drafts) > limit {
+			return nil, domain.NewLimitReachedError(string(ent.LimitRisks), limit, used)
+		}
 	}
 
 	result := &AdoptResult{

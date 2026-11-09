@@ -86,6 +86,23 @@ func NewValidationError(message string) *AppError {
 	}
 }
 
+// NewOutboundDeniedError reports a URL the server refuses to call: loopback,
+// link-local (cloud metadata), a private range or a non-https scheme (#1315).
+// It is a validation error (400) that keeps its cause, so errors.Is matches
+// both ErrValidation and the guard's own sentinel (netguard.ErrDenied) without
+// the domain importing the guard.
+//
+// The message is fixed on purpose: the cause names the URL (a write-only
+// webhook URL whose path is its secret) and the internal address it resolved
+// to, neither of which goes back to the caller.
+func NewOutboundDeniedError(field string, cause error) *AppError {
+	return &AppError{
+		Err:     errors.Join(ErrValidation, cause),
+		Message: field + ": target address is not allowed (must be a public https host)",
+		Code:    http.StatusBadRequest,
+	}
+}
+
 func NewUnauthorizedError(reason string) *AppError {
 	return &AppError{
 		Err:     ErrUnauthorized,
@@ -125,9 +142,36 @@ func NewInternalError(detail string) *AppError {
 	}
 }
 
+// LimitReachedError is a create (or an enable) refused because the tenant's
+// plan cap is reached (D-078). It carries the numbers so the client can say
+// "2/2 rules" and the upgrade, and maps to 402 like the RequireCapacity gate.
+// Use cases return it where a cap must hold on every path, not only one route
+// (a scan started by the scheduler or by an automation rule).
+type LimitReachedError struct {
+	Key   string
+	Limit int
+	Used  int
+}
+
+func (e *LimitReachedError) Error() string {
+	return fmt.Sprintf("plan limit reached: %s (%d/%d)", e.Key, e.Used, e.Limit)
+}
+
+// Is lets errors.Is(err, ErrForbidden) hold: the caller may not do this now.
+func (e *LimitReachedError) Is(target error) bool { return target == ErrForbidden }
+
+// NewLimitReachedError builds the typed refusal for a reached plan cap.
+func NewLimitReachedError(key string, limit, used int) *LimitReachedError {
+	return &LimitReachedError{Key: key, Limit: limit, Used: used}
+}
+
 // HTTPStatusFromError extracts HTTP status code from an error.
 // Returns 500 if the error is not an AppError.
 func HTTPStatusFromError(err error) int {
+	var limitErr *LimitReachedError
+	if errors.As(err, &limitErr) {
+		return http.StatusPaymentRequired
+	}
 	var appErr *AppError
 	if errors.As(err, &appErr) {
 		return appErr.Code
@@ -137,6 +181,10 @@ func HTTPStatusFromError(err error) int {
 
 // MessageFromError extracts the user-facing message from an error.
 func MessageFromError(err error) string {
+	var limitErr *LimitReachedError
+	if errors.As(err, &limitErr) {
+		return "plan limit reached"
+	}
 	var appErr *AppError
 	if errors.As(err, &appErr) {
 		return appErr.Message

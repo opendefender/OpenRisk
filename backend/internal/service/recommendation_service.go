@@ -6,6 +6,7 @@
 package service
 
 import (
+	"fmt"
 	"math"
 
 	"github.com/opendefender/openrisk/internal/domain"
@@ -51,13 +52,15 @@ func (s *RecommendationService) CalculateWeightedPriority(m *domain.Mitigation) 
 func (s *RecommendationService) GetPrioritizedMitigations(tenantID string) ([]domain.Mitigation, error) {
 	var mitigations []domain.Mitigation
 
-	// Récupérer toutes les mitigations et leurs risques associés
-	query := database.DB.Preload("Risk")
-	if tenantID != "" {
-		// Supposons que Mitigation ait une relation Risk avec tenant_id, ou Mitigation ait tenant_id.
-		// On va filtrer par mitigation tenant_id s'il existe.
-		query = query.Where("tenant_id = ?", tenantID)
+	// No tenant, no answer: an empty id used to list every tenant's plans.
+	if tenantID == "" {
+		return nil, fmt.Errorf("%w: tenant_id is required", domain.ErrValidation)
 	}
+	// Récupérer les mitigations du tenant et leurs risques associés. The risk
+	// is a separate row and is scoped too, so a plan pointing across tenants
+	// cannot carry the other tenant's risk out (GHSA-2w75-9qj8-fwwp).
+	query := database.DB.Preload("Risk", "tenant_id = ?", tenantID).
+		Where("tenant_id = ?", tenantID)
 
 	if err := query.Find(&mitigations).Error; err != nil {
 		return nil, err

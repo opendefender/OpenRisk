@@ -8,6 +8,7 @@ package handler
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -25,13 +26,16 @@ import (
 )
 
 // newCreateMitigationApp wires POST /risks/:id/mitigations over an in-memory
-// database holding only the two tables the write touches.
+// database holding the tables the write touches, and returns the id of a risk
+// that belongs to the caller's tenant.
 //
-// withRisksTable is the whole point of the harness. GetByIDWithSubActions —
-// the read-back the handler performs after the write has committed — issues a
-// Preload("Risk"). With no `risks` table that read fails, which reproduces a
-// post-commit read failure through the real code path rather than a mock.
-func newCreateMitigationApp(t *testing.T, withRisksTable bool) (*fiber.App, *gorm.DB, uuid.UUID) {
+// failReadBack is the point of the #335 test. GetByIDWithSubActions — the
+// read-back the handler performs after the write has committed — issues a
+// Preload("Risk"). A query callback fails exactly that preload, which
+// reproduces a post-commit read failure through the real code path rather than
+// a mock. The ownership check before the write reads `risks` without a model,
+// so the callback leaves it alone.
+func newCreateMitigationApp(t *testing.T, failReadBack bool) (*fiber.App, *gorm.DB, uuid.UUID, uuid.UUID) {
 	t.Helper()
 
 	dsn := "file:mitigation_postcommit_" + uuid.New().String() + "?mode=memory&cache=private"
@@ -58,11 +62,18 @@ func newCreateMitigationApp(t *testing.T, withRisksTable bool) (*fiber.App, *gor
 		created_at DATETIME, updated_at DATETIME, deleted_at DATETIME
 	);`).Error)
 
-	if withRisksTable {
-		require.NoError(t, db.Exec(`CREATE TABLE risks (
-			id TEXT PRIMARY KEY, tenant_id TEXT, title TEXT, description TEXT,
-			status TEXT, score REAL, created_at DATETIME, updated_at DATETIME, deleted_at DATETIME
-		);`).Error)
+	require.NoError(t, db.Exec(`CREATE TABLE risks (
+		id TEXT PRIMARY KEY, tenant_id TEXT, title TEXT, description TEXT,
+		status TEXT, score REAL, created_at DATETIME, updated_at DATETIME, deleted_at DATETIME
+	);`).Error)
+
+	if failReadBack {
+		require.NoError(t, db.Callback().Query().Before("gorm:query").Register("test:fail_risk_preload",
+			func(tx *gorm.DB) {
+				if tx.Statement.Schema != nil && tx.Statement.Schema.Table == "risks" {
+					_ = tx.AddError(errors.New("simulated read-back failure"))
+				}
+			}))
 	}
 
 	previous := database.DB
@@ -71,6 +82,7 @@ func newCreateMitigationApp(t *testing.T, withRisksTable bool) (*fiber.App, *gor
 
 	tenantID := uuid.New()
 	userID := uuid.New()
+	riskID := seedRisk(t, db, tenantID)
 
 	app := fiber.New()
 	app.Use(func(c *fiber.Ctx) error {
@@ -79,7 +91,15 @@ func newCreateMitigationApp(t *testing.T, withRisksTable bool) (*fiber.App, *gor
 	})
 	app.Post("/api/v1/risks/:id/mitigations", CreateMitigation)
 
-	return app, db, tenantID
+	return app, db, tenantID, riskID
+}
+
+func seedRisk(t *testing.T, db *gorm.DB, tenantID uuid.UUID) uuid.UUID {
+	t.Helper()
+	id := uuid.New()
+	require.NoError(t, db.Exec(`INSERT INTO risks (id, tenant_id, title, status) VALUES (?, ?, ?, ?)`,
+		id.String(), tenantID.String(), "Ransomware on the file server", "open").Error)
+	return id
 }
 
 func postMitigation(t *testing.T, app *fiber.App, riskID string) (int, map[string]interface{}) {
@@ -115,12 +135,13 @@ func postMitigation(t *testing.T, app *fiber.App, riskID string) (int, map[strin
 
 // Criterion 1 and 5 — the ordinary path still answers 201 with the canonical plan.
 func TestCreateMitigation_Success_ReturnsCreatedPlan(t *testing.T) {
-	app, db, _ := newCreateMitigationApp(t, true)
+	app, db, _, riskID := newCreateMitigationApp(t, false)
 
-	status, body := postMitigation(t, app, uuid.New().String())
+	status, body := postMitigation(t, app, riskID.String())
 
 	require.Equal(t, http.StatusCreated, status)
 	assert.NotEmpty(t, body["id"], "the response must carry the plan id")
+	assert.NotNil(t, body["risk"], "the read-back resolves the caller's own risk")
 
 	var plans, subs int64
 	require.NoError(t, db.Table("mitigations").Count(&plans).Error)
@@ -135,9 +156,9 @@ func TestCreateMitigation_Success_ReturnsCreatedPlan(t *testing.T) {
 // Before #335 this path returned 500 while the plan sat committed in the
 // database, which is what drove users to retry and create duplicates.
 func TestCreateMitigation_PostCommitReadFailure_StillReturns201(t *testing.T) {
-	app, db, _ := newCreateMitigationApp(t, false) // no risks table -> Preload("Risk") fails
+	app, db, _, riskID := newCreateMitigationApp(t, true) // Preload("Risk") fails
 
-	status, body := postMitigation(t, app, uuid.New().String())
+	status, body := postMitigation(t, app, riskID.String())
 
 	assert.Equal(t, http.StatusCreated, status,
 		"a committed write must never be reported to the client as a failure")
@@ -146,6 +167,7 @@ func TestCreateMitigation_PostCommitReadFailure_StillReturns201(t *testing.T) {
 	// Criterion 5 — the body identifies what was created, so a client that
 	// retried can reconcile.
 	assert.NotEmpty(t, body["id"], "the response must carry the plan id")
+	assert.Nil(t, body["risk"], "the answer came from the committed entity, not the failed read-back")
 
 	// The write really did commit, whole.
 	var plans, subs int64
@@ -157,7 +179,7 @@ func TestCreateMitigation_PostCommitReadFailure_StillReturns201(t *testing.T) {
 
 // Criterion 6 — a request with no tenant context is refused before any write.
 func TestCreateMitigation_Unauthorized_NoContext(t *testing.T) {
-	_, db, _ := newCreateMitigationApp(t, true)
+	_, db, _, _ := newCreateMitigationApp(t, false)
 
 	app := fiber.New()
 	app.Post("/api/v1/risks/:id/mitigations", CreateMitigation)
@@ -179,7 +201,7 @@ func TestCreateMitigation_Unauthorized_NoContext(t *testing.T) {
 
 // A malformed risk id is rejected before any write (NotFound-shaped input guard).
 func TestCreateMitigation_InvalidRiskID_NoWrite(t *testing.T) {
-	app, db, _ := newCreateMitigationApp(t, true)
+	app, db, _, _ := newCreateMitigationApp(t, false)
 
 	status, _ := postMitigation(t, app, "not-a-uuid")
 	assert.Equal(t, http.StatusBadRequest, status)
@@ -187,4 +209,48 @@ func TestCreateMitigation_InvalidRiskID_NoWrite(t *testing.T) {
 	var plans int64
 	require.NoError(t, db.Table("mitigations").Count(&plans).Error)
 	assert.Equal(t, int64(0), plans)
+}
+
+// GHSA-2w75-9qj8-fwwp — a member of another organisation posts a plan against
+// this tenant's risk. The request is refused like a missing risk, and nothing
+// is written in either tenant.
+func TestCreateMitigation_Unauthorized_RiskOfAnotherTenant(t *testing.T) {
+	app, db, _, _ := newCreateMitigationApp(t, false)
+	victimRisk := seedRisk(t, db, uuid.New())
+
+	status, body := postMitigation(t, app, victimRisk.String())
+
+	assert.Equal(t, http.StatusNotFound, status)
+	assert.Equal(t, "risk not found", body["error"])
+
+	var plans, subs int64
+	require.NoError(t, db.Table("mitigations").Count(&plans).Error)
+	require.NoError(t, db.Table("mitigation_subactions").Count(&subs).Error)
+	assert.Equal(t, int64(0), plans, "no plan may hang off another tenant's risk")
+	assert.Equal(t, int64(0), subs)
+}
+
+// A well-formed id that matches no risk at all answers the same 404, so the
+// response does not reveal whether the UUID exists in another tenant.
+func TestCreateMitigation_NotFound_UnknownRisk(t *testing.T) {
+	app, db, _, _ := newCreateMitigationApp(t, false)
+
+	status, body := postMitigation(t, app, uuid.New().String())
+
+	assert.Equal(t, http.StatusNotFound, status)
+	assert.Equal(t, "risk not found", body["error"])
+
+	var plans int64
+	require.NoError(t, db.Table("mitigations").Count(&plans).Error)
+	assert.Equal(t, int64(0), plans)
+}
+
+// A soft-deleted risk of the caller's own tenant takes no new plan either.
+func TestCreateMitigation_NotFound_DeletedRisk(t *testing.T) {
+	app, db, _, riskID := newCreateMitigationApp(t, false)
+	require.NoError(t, db.Exec(`UPDATE risks SET deleted_at = CURRENT_TIMESTAMP WHERE id = ?`, riskID.String()).Error)
+
+	status, _ := postMitigation(t, app, riskID.String())
+
+	assert.Equal(t, http.StatusNotFound, status)
 }

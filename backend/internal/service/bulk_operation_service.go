@@ -101,11 +101,13 @@ func (s *BulkOperationService) CreateBulkOperation(userID, tenantID uuid.UUID, r
 	return op, nil
 }
 
-// GetBulkOperation retrieves a bulk operation by ID, scoped to the tenant so a
-// user cannot read another tenant's operation by guessing its UUID.
-func (s *BulkOperationService) GetBulkOperation(opID, tenantID uuid.UUID) (*domain.BulkOperation, error) {
+// GetBulkOperation retrieves a bulk operation by ID for the user who created
+// it, in their tenant, the same scope ListBulkOperations applies. Another
+// tenant's job and a colleague's job read as missing (#1219): the row carries
+// the filter and the update data of its author's work.
+func (s *BulkOperationService) GetBulkOperation(opID, userID, tenantID uuid.UUID) (*domain.BulkOperation, error) {
 	op := &domain.BulkOperation{}
-	if err := s.db.Where("id = ? AND tenant_id = ?", opID, tenantID).First(op).Error; err != nil {
+	if err := s.db.Where("id = ? AND created_by = ? AND tenant_id = ?", opID, userID, tenantID).First(op).Error; err != nil {
 		return nil, err
 	}
 	return op, nil

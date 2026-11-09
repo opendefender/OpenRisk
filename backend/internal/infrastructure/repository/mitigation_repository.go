@@ -55,12 +55,24 @@ func (r *GormMitigationRepository) Create(tenantID string, mitigation *domain.Mi
 	if mitigation.TenantID == uuid.Nil {
 		return errors.New("tenant_id is required")
 	}
-
-	result := r.db.WithContext(r.db.Statement.Context).Create(mitigation)
-	if result.Error != nil {
-		return fmt.Errorf("failed to create mitigation: %w", result.Error)
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return fmt.Errorf("invalid tenant_id: %w", err)
 	}
-	return nil
+	if mitigation.TenantID != tenantUUID {
+		return fmt.Errorf("%w: mitigation tenant_id does not match the caller", domain.ErrForbidden)
+	}
+
+	return r.db.Transaction(func(tx *gorm.DB) error {
+		// Same gate as CreateWithSubActions (GHSA-2w75-9qj8-fwwp).
+		if err := requireRiskInTenant(tx, tenantUUID, mitigation.RiskID); err != nil {
+			return err
+		}
+		if err := tx.Create(mitigation).Error; err != nil {
+			return fmt.Errorf("failed to create mitigation: %w", err)
+		}
+		return nil
+	})
 }
 
 // GetByID retrieves a mitigation by ID (with tenant isolation)
@@ -100,7 +112,10 @@ func (r *GormMitigationRepository) GetByIDWithSubActions(tenantID string, id uui
 			// its parent, which the Where above already pinned to this tenant.
 			return db.Where("deleted_at IS NULL").Order("\"order\", created_at")
 		}).
-		Preload("Risk").
+		// The plan is pinned to the tenant above, but its risk is a separate
+		// row: scope it too, so a plan that points across tenants can never
+		// carry the other tenant's risk back out (GHSA-2w75-9qj8-fwwp).
+		Preload("Risk", "tenant_id = ?", tenantUUID).
 		First(&mitigation)
 
 	if result.Error != nil {

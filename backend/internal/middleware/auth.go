@@ -466,7 +466,7 @@ func OAuthRateLimit(store *RateLimitStore) fiber.Handler {
 // here grants anything — it only stamps identity when identity is provable.
 func OptionalAuth(rsaKeys *authpkg.RSAKeys, redisBlacklistChecker func(jti string) (bool, error)) fiber.Handler {
 	return func(c *fiber.Ctx) error {
-		tokenString, _, extractErr := extractAccessToken(c)
+		tokenString, fromCookie, extractErr := extractAccessToken(c)
 		if extractErr != nil || tokenString == "" {
 			return c.Next()
 		}
@@ -475,6 +475,18 @@ func OptionalAuth(rsaKeys *authpkg.RSAKeys, redisBlacklistChecker func(jti strin
 		claims, err := authpkg.ValidateAccessToken(rsaKeys, tokenString, redisBlacklistChecker)
 		if err != nil || claims == nil || claims.Sub == uuid.Nil {
 			return c.Next()
+		}
+		// A live cookie session is about to act, and these routes sit outside
+		// Protected, so its CSRF check is repeated here (#1314). Without it any
+		// page could accept an invitation in the signed-in victim's name. Only a
+		// valid session is held to it: an anonymous caller has nothing to forge.
+		if fromCookie {
+			if err := verifyCSRF(c); err != nil {
+				return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+					"code":    "CSRF_FAILED",
+					"message": err.Error(),
+				})
+			}
 		}
 		c.Locals("user", claims)
 		c.Locals("user_id", claims.Sub)

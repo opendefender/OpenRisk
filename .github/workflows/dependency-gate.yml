@@ -17,7 +17,9 @@ on:
   merge_group:
     types: [checks_requested]
   push:
-    branches: [master, develop, staging]
+    # Not develop: its commits come only from the merge queue, which already ran this
+    # workflow on the same commit (#1291).
+    branches: [master, staging]
   pull_request:
     branches: [master, develop, staging]
   schedule:
@@ -31,12 +33,21 @@ env:
   TRIVY_VERSION: v0.74.0
   GOVULNCHECK_VERSION: v1.7.0
 
+concurrency:
+  # One run per PR: a new commit cancels the run of the previous one (#1289). Runs for
+  # merge_group, pushes and schedules are never cancelled.
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}-${{ github.event_name }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   gate:
     name: Dependency gate
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          # Scheduled runs test staging, the next release, never develop (#1291).
+          ref: ${{ github.event_name == 'schedule' && 'staging' || '' }}
 
       # Latest 1.26 patch, as the golang:1.26-alpine builder in the Dockerfile
       # uses: govulncheck judges the standard library by the Go that runs it.

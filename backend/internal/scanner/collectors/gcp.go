@@ -11,6 +11,8 @@ import (
 	"fmt"
 	"strings"
 
+	"cloud.google.com/go/auth"
+	"cloud.google.com/go/auth/credentials"
 	compute "cloud.google.com/go/compute/apiv1"
 	computepb "cloud.google.com/go/compute/apiv1/computepb"
 	"google.golang.org/api/iterator"
@@ -44,7 +46,12 @@ func (GCP) Collect(ctx context.Context, cfg scanner.ScanConfig, assets chan<- sc
 
 	opts := []option.ClientOption{}
 	if saJSON != "" {
-		opts = append(opts, option.WithAuthCredentialsJSON(option.ServiceAccount, []byte(saJSON)))
+		creds, err := gcpCredentials(saJSON)
+		if err != nil {
+			errs <- fmt.Errorf("gcp: credentials: %w", err)
+			return
+		}
+		opts = append(opts, option.WithAuthCredentials(creds))
 	}
 	client, err := compute.NewInstancesRESTClient(ctx, opts...)
 	if err != nil {
@@ -67,6 +74,18 @@ func (GCP) Collect(ctx context.Context, cfg scanner.ScanConfig, assets chan<- sc
 			assets <- gcpInstanceAsset(inst, pair.Key)
 		}
 	}
+}
+
+// gcpCredentials builds service-account credentials whose token exchange goes
+// through the guarded egress client (#1315). The key file is tenant input and
+// its token_uri is where the SDK POSTs a signed assertion: left to the default
+// client, a token_uri of http://169.254.169.254/... or an internal host would
+// make the API pod call it.
+func gcpCredentials(saJSON string) (*auth.Credentials, error) {
+	return credentials.NewCredentialsFromJSON(credentials.ServiceAccount, []byte(saJSON), &credentials.DetectOptions{
+		Scopes: compute.DefaultAuthScopes(),
+		Client: egress.client(scanHTTPTimeout),
+	})
 }
 
 func gcpInstanceAsset(inst *computepb.Instance, scope string) scanner.AssetDiscovery {

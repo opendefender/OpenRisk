@@ -20,8 +20,9 @@ Everything else is **derived** from it, never hand-edited independently:
 | Go binary → `GET /api/v1/health` | `make build` injects `-ldflags "-X main.Version=$(cat VERSION) -X main.Commit=$(git rev-parse --short HEAD)"` | run the binary, curl `/api/v1/health` |
 | Helm chart (`version` + `appVersion`) | `make sync-version` writes `VERSION` into `helm/openrisk/Chart.yaml` | `make check-version` |
 | Frontend (`package.json` `version`) | `make sync-version` writes `VERSION` into `frontend/package.json` | `make check-version` |
+| Frontend lockfile (root `version` + `packages[""].version`) | `make sync-version` writes `VERSION` into both root entries of `frontend/package-lock.json`, never a dependency entry | `make check-version` |
 
-`make check-version` fails (exit 1) if any of the three drift from `VERSION`. It is
+`make check-version` fails (exit 1) if any of them drift from `VERSION`. It is
 run by the release workflow's guard job, so a release can never ship artifacts whose
 reported version disagrees with the tag.
 
@@ -46,6 +47,32 @@ A non-release build (`go run`, `go build` without ldflags) reports
   stabilising release candidate and is published as a GitHub **pre-release**.
 
 ## 3. Release cycle
+
+The owner runs `/release rc` or `/release final` (D-105). One stage per run:
+
+| | rc | final |
+|---|---|---|
+| Cut from | `develop` | `staging`: it ships what the last rc proved |
+| Version PR into | `develop` | `staging` |
+| Promotion PR | `develop → staging` | `staging → master` |
+| Tag on | the `develop` commit the staging merge brought in | the release commit |
+| Afterwards | — | `staging → develop`, so develop carries the tag |
+
+The owner merges every PR (merge commit). The tag is created and pushed only after
+the owner's explicit OK, on a commit whose tree equals the branch tip. The version
+comes from `scripts/release/cut.mjs`:
+
+- after a final `X.Y.Z`: `feat` → minor, `fix`/`perf` → patch, `!` or
+  `BREAKING CHANGE` → major; `rc` gives `-rc.1`;
+- during an rc cycle the core is kept (`1.1.0-rc.8` → `1.1.0-rc.9`, final `1.1.0`);
+  a breaking change found then is reported, and the owner passes an explicit version
+  if it must be a major;
+- `final` is refused when a `feat`, `fix`, `perf`, `security` or `revert` commit landed
+  after the last rc.
+
+`node scripts/release/cut.mjs rc --dry-run` prints the plan without writing. The
+French notes live in `docs/releases/<version>.fr.md` and are appended to the GitHub
+release. The manual steps below are what the command does, for the record:
 
 ```
 1. Decide the next version (SemVer).           e.g. 1.1.0-rc.2
