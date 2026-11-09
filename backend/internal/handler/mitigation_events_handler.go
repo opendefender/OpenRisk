@@ -76,9 +76,14 @@ func (h *MitigationEventsHandler) Stream(c *fiber.Ctx) error {
 
 		keepalive := time.NewTicker(keepaliveEvery)
 		defer keepalive.Stop()
+		// The rolling write deadline lets a reading client hold this stream
+		// indefinitely, so it gets an explicit ceiling (#962).
+		lifetime := time.After(sseDeprecatedStreamLifetime)
 
 		for {
 			select {
+			case <-lifetime:
+				return
 			case msg, ok := <-msgs:
 				if !ok {
 					return
@@ -98,7 +103,9 @@ func (h *MitigationEventsHandler) Stream(c *fiber.Ctx) error {
 				// the stream opened, and this connection can outlive its
 				// revocation by hours otherwise (#345). h.blacklist is the same
 				// predicate ValidateAccessToken used above.
-				if sseRevokedWith(h.blacklist, claims.JTI) {
+				// The token's expiry is checked here too: it was checked once at
+				// connect, and the stream must not outlive it (#962).
+				if sseRevokedWith(h.blacklist, claims.JTI) || accessTokenExpired(claims) {
 					extendDeadline()
 					fmt.Fprint(w, "event: stream.revoked\ndata: {\"reason\":\"session_revoked\"}\n\n")
 					_ = w.Flush()
@@ -113,4 +120,14 @@ func (h *MitigationEventsHandler) Stream(c *fiber.Ctx) error {
 		}
 	})
 	return nil
+}
+
+// accessTokenExpired reports whether the token a stream was opened with has
+// passed its expiry. A token without one is treated as expired: every access
+// token this server issues carries exp.
+func accessTokenExpired(claims *authpkg.Claims) bool {
+	if claims.ExpiresAt == nil {
+		return true
+	}
+	return time.Now().After(claims.ExpiresAt.Time)
 }

@@ -44,6 +44,12 @@ func sseKeepaliveOr(d time.Duration) time.Duration {
 	return sseKeepaliveInterval
 }
 
+// sseDeprecatedStreamLifetime caps the deprecated scanner events and mitigation
+// streams (#347). The absolute WriteTimeout used to end them within seconds;
+// with the rolling deadline a client that keeps reading could hold one forever,
+// so they get the ceiling the realtime and report streams already had (#962).
+const sseDeprecatedStreamLifetime = 30 * time.Minute
+
 // sseWriteTimeout is the per-write budget. Atomic because stream goroutines read
 // it while a test swaps it in t.Cleanup. Production never changes it; a value
 // of zero or less is reachable only from a test, where it disables the helper

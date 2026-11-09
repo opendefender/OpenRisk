@@ -125,14 +125,53 @@ func (h *ScannerHandler) AgentStream(c *fiber.Ctx) error {
 	// Mark online on connect (best-effort).
 	_ = h.heartbeat.Execute(c.UserContext(), agent, domain.AgentOnline)
 
-	tenantID := agent.TenantID
-	agentCopy := *agent
+	tenantID, agentID, tokenHash := agent.TenantID, agent.ID, agent.TokenHash
 	preamble := h.queuedJobFrames(c.UserContext(), agent)
-	h.streamChannel(c, scanpkg.AgentJobChannel(tenantID), func() {
-		// On disconnect, mark offline. Detached context (the request is gone).
-		_ = h.heartbeat.Execute(context.Background(), &agentCopy, domain.AgentOffline)
-	}, preamble)
+	h.streamChannel(c, scanpkg.AgentJobChannel(tenantID), channelStream{
+		onClose: func() {
+			// On disconnect, mark offline. Detached context (the request is gone).
+			h.markAgentStreamClosed(context.Background(), agentID, tenantID, tokenHash)
+		},
+		preamble: preamble,
+		// The agent token has no jti, so the session revocation check never
+		// applies to it. Re-reading the agent on each tick is what bounds a
+		// revoked agent's stream to one keepalive interval (#962).
+		stillAuthorized: func() bool {
+			_, ok := h.agentStillValid(context.Background(), agentID, tenantID, tokenHash)
+			return ok
+		},
+	})
 	return nil
+}
+
+// markAgentStreamClosed marks the agent offline when its stream ends.
+//
+// The row is re-read rather than written from a copy taken at connect: that
+// copy still holds the token hash and push secret, and writing it back after a
+// revocation restored both, which undid the revocation (#962). An agent that
+// was revoked or re-registered meanwhile is left as it is.
+func (h *ScannerHandler) markAgentStreamClosed(ctx context.Context, agentID, tenantID uuid.UUID, tokenHash string) {
+	fresh, ok := h.agentStillValid(ctx, agentID, tenantID, tokenHash)
+	if !ok {
+		return
+	}
+	_ = h.heartbeat.Execute(ctx, fresh, domain.AgentOffline)
+}
+
+// agentStillValid re-reads the agent and reports whether the token its stream
+// authenticated with is still the agent's current one. Revocation clears the
+// hash and a re-registration replaces it, so either ends the stream. A lookup
+// error answers false: the stream closes and the agent reconnects through
+// authenticateAgent, which is the check that decides.
+func (h *ScannerHandler) agentStillValid(ctx context.Context, agentID, tenantID uuid.UUID, tokenHash string) (*domain.ScannerAgent, bool) {
+	agent, err := h.agentRepo.GetByID(ctx, agentID, tenantID)
+	if err != nil || agent == nil {
+		return nil, false
+	}
+	if agent.Status == domain.AgentRevoked || agent.TokenHash == "" || agent.TokenHash != tokenHash {
+		return nil, false
+	}
+	return agent, true
 }
 
 // queuedJobFrames returns the tenant's still-queued agent jobs as pre-serialised

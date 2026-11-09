@@ -130,14 +130,19 @@ func readKeepalives(t *testing.T, url string, headers map[string]string, window 
 // without one; CI's integration job provides it.
 func streamChannelServer(t *testing.T) string {
 	t.Helper()
+	return streamChannelServerWith(t, channelStream{})
+}
+
+func streamChannelServerWith(t *testing.T, opts channelStream) string {
+	t.Helper()
 
 	url := os.Getenv("REDIS_URL")
 	if url == "" {
 		url = "redis://localhost:6379"
 	}
-	opts, err := goredis.ParseURL(url)
+	redisOpts, err := goredis.ParseURL(url)
 	require.NoError(t, err)
-	probe := goredis.NewClient(opts)
+	probe := goredis.NewClient(redisOpts)
 	pingCtx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 	if err := probe.Ping(pingCtx).Err(); err != nil {
@@ -146,12 +151,14 @@ func streamChannelServer(t *testing.T) string {
 	}
 	_ = probe.Close()
 
-	h := &ScannerHandler{redis: redisinfra.NewClient(url), keepalive: deadlineTestKeepalive}
+	client := redisinfra.NewClient(url)
+	t.Cleanup(func() { _ = client.Close() })
+	h := &ScannerHandler{redis: client, keepalive: deadlineTestKeepalive}
 	channel := "test:962:" + uuid.NewString()
 
 	app := fiber.New(fiber.Config{DisableStartupMessage: true, WriteTimeout: deadlineTestWriteTimeout})
 	app.Get("/stream", func(c *fiber.Ctx) error {
-		h.streamChannel(c, channel, nil, nil)
+		h.streamChannel(c, channel, opts)
 		return nil
 	})
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
