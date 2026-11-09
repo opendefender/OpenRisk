@@ -87,6 +87,9 @@ func TestCloudScannerValidate_DockerSocketNeedsOperatorOptIn(t *testing.T) {
 		err := s.Validate(context.Background(), cfg)
 		require.Error(t, err, host)
 		assert.Contains(t, err.Error(), DockerSocketEnv)
+		// An operator opt-in is not a guard refusal (#1315).
+		assert.ErrorIs(t, err, domain.ErrValidation)
+		assert.False(t, netguard.IsDenied(err), host)
 
 		t.Setenv(DockerSocketEnv, "true")
 		assert.NoError(t, s.Validate(context.Background(), cfg), host)
@@ -120,5 +123,6 @@ func TestCloudScannerValidate_GCPTokenURI(t *testing.T) {
 		require.Error(t, err, uri)
 		assert.ErrorIs(t, err, domain.ErrValidation, uri)
 		assert.True(t, netguard.IsDenied(err), "%s: %v", uri, err)
+		assert.NotContains(t, err.Error(), uri, "the 400 message must not echo the key's token_uri")
 	}
 }

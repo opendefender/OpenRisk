@@ -7,6 +7,9 @@ package notify
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -60,5 +63,40 @@ func TestSenders_RefuseInternalTargets(t *testing.T) {
 	}
 	if n := hits.Load(); n != 0 {
 		t.Fatalf("a refused target was reached %d time(s)", n)
+	}
+}
+
+// testHookURL is a public https URL. The URL check runs whatever doer sends the
+// request, so tests can no longer post to an httptest URL (it is loopback);
+// routedClient delivers requests for this URL to the test server instead.
+const testHookURL = "https://example.com/hook"
+
+// routedClient sends every request to srv, whatever host the URL names, and
+// trusts srv's certificate (issued for example.com).
+func routedClient(srv *httptest.Server) *http.Client {
+	pool := x509.NewCertPool()
+	pool.AddCert(srv.Certificate())
+	addr := srv.Listener.Addr().String()
+	return &http.Client{Transport: &http.Transport{
+		TLSClientConfig: &tls.Config{RootCAs: pool, ServerName: "example.com"},
+		DialContext: func(ctx context.Context, network, _ string) (net.Conn, error) {
+			return (&net.Dialer{}).DialContext(ctx, network, addr)
+		},
+	}}
+}
+
+// An injected doer is a test seam, not a way around the guard: the URL is
+// checked before any doer sees the request.
+func TestSenders_InjectedDoerStillValidated(t *testing.T) {
+	var hits atomic.Int32
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(http.ResponseWriter, *http.Request) { hits.Add(1) }))
+	defer srv.Close()
+	for _, target := range []string{srv.URL + "/hook", "https://169.254.169.254/", "http://example.com/hook"} {
+		if err := PostWebhook(context.Background(), target, "s", sampleMessage(), srv.Client()); !netguard.IsDenied(err) {
+			t.Errorf("PostWebhook(%s) with injected doer: err = %v, want netguard.ErrDenied", target, err)
+		}
+	}
+	if hits.Load() != 0 {
+		t.Fatal("an injected doer reached a refused target")
 	}
 }

@@ -103,7 +103,8 @@ func TestNewOutboundDeniedError_MatchesValidationAndCause(t *testing.T) {
 	if HTTPStatusFromError(err) != http.StatusBadRequest {
 		t.Errorf("status = %d, want 400", HTTPStatusFromError(err))
 	}
-	if MessageFromError(err) != "webhook_url: outbound target not allowed: address 169.254.169.254" {
+	// The message never echoes the cause: it names the URL and the address.
+	if MessageFromError(err) != "webhook_url: target address is not allowed (must be a public https host)" {
 		t.Errorf("message = %q", MessageFromError(err))
 	}
 }

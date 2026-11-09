@@ -67,6 +67,8 @@ import {
   fmtMinutes,
 } from './automationMeta';
 import { RuleEditorModal } from './RuleEditorModal';
+import { apiErrorMessage } from '../../lib/apiError';
+import { useI18n } from '../../hooks/useI18n';
 
 type Tab = 'rules' | 'sla' | 'history' | 'channels';
 
@@ -951,9 +953,10 @@ const CHANNEL_ROWS: {
   },
 ];
 
-function ChannelsView({ canWrite }: { canWrite: boolean }) {
+export function ChannelsView({ canWrite }: { canWrite: boolean }) {
   const lang = useUIStore((s) => s.lang);
   const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
+  const { t } = useI18n();
   const { data: cfg } = useChannelConfig();
   const { data: catalogue = [] } = useChannelCatalogue();
   const { saveChannels, testChannel } = useAutomationMutations();
@@ -1022,8 +1025,15 @@ function ChannelsView({ canWrite }: { canWrite: boolean }) {
         sms_gateway_url: '',
         sms_api_key: '',
       }));
-    } catch {
-      toast.error(tr('Échec', 'Failed'));
+    } catch (err) {
+      // The server names the refused field (e.g. a channel URL the outbound
+      // guard rejects, #1315); show it so the user knows what to fix.
+      const reason = apiErrorMessage(err);
+      toast.error(
+        reason
+          ? t('automation.channels.saveRejected', { reason })
+          : t('automation.channels.saveFailed'),
+      );
     }
   };
 
@@ -1034,8 +1044,13 @@ function ChannelsView({ canWrite }: { canWrite: boolean }) {
       setResults((r) => ({ ...r, [ch]: res }));
       if (res.delivered) toast.success(tr('Message de test envoyé', 'Test message delivered'));
       else toast.error(res.error || res.detail);
-    } catch {
-      toast.error(tr('Le test n’a pas pu s’exécuter', 'The test could not run'));
+    } catch (err) {
+      const reason = apiErrorMessage(err);
+      toast.error(
+        reason
+          ? t('automation.channels.testRejected', { reason })
+          : t('automation.channels.testFailed'),
+      );
     } finally {
       setTestingCh(null);
     }

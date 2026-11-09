@@ -10,7 +10,7 @@ so and is listed under [Known Limitations](#known-limitations).
 
 | | |
 | --- | --- |
-| Date | 2026-11-06 |
+| Date | 2026-11-06 (first run); 2026-11-09 (re-run after review round 1) |
 | Go | go1.26.9 linux/amd64 |
 | Branch | `security/1315-ssrf-guard`, cut from `develop` at `8f7bbaec` |
 | Host | Linux workstation, LAN address `192.168.0.224`, loopback `127.0.0.1` |
@@ -41,15 +41,41 @@ is unchanged.
 **Scheme decision.** The issue text says "non-http(s) schemes"; the guard is
 **https-only**, which is stricter. No inventoried tenant-URL caller needs plain
 http: Slack and Teams webhooks are https, and a generic webhook or SMS gateway
-carries an HMAC signature or an API key that must not travel in clear. The one
-behaviour change is `webhooks.WebhookProvider.Validate`, which used to accept
-`http://`; it has no caller outside its own package.
+carries an HMAC signature or an API key that must not travel in clear.
+
+**Behaviour changes** an operator or a tenant can see:
+
+1. `automation.ChannelService.Save` (`PUT /automation/channels`) now answers 400
+   for a Slack, Teams, webhook or SMS gateway URL that is `http://` or points at
+   a denied address. Such URLs used to be stored. An on-premise SMS gateway that
+   only speaks plain http can no longer be saved: `OUTBOUND_ALLOWED_CIDRS` reopens
+   private ranges but never reopens `http://`.
+2. `automation.ChannelTester.Test` (`POST /automation/channels/test`) answers 400
+   for a refused URL, including one stored before the guard existed. It used to
+   answer 200 with `delivered: false` and the transport error.
+3. `scanner.cloudScanner.Validate` refuses a GCP service-account key whose
+   `token_uri` is `http://` or an internal address.
+4. `webhooks.WebhookProvider.Validate` no longer accepts `http://`. It has no
+   caller outside its own package.
+5. The guarded client ignores `HTTP(S)_PROXY` (a design choice of netguard since
+   #573). A deployment whose only egress is an HTTP proxy loses Slack, Teams,
+   webhook and SMS delivery, M365 Graph paging and the GCP token fetch, as it
+   already did for every other guarded path.
+
+The refusal message returned to the API caller is fixed:
+`<field>: target address is not allowed (must be a public https host)`. It names
+the field to fix, never the stored URL (for Slack and Teams the path is the
+secret) nor the internal address it resolved to. A delivery failure that is not
+a refusal reports the operation and a reason class (`timed out`, `connection
+failed`), not the URL.
 
 **Operator escape hatch.** `OUTBOUND_ALLOWED_CIDRS` can open specific private
 ranges (an on-prem Jira, an internal bus). Loopback, link-local and unspecified
 addresses stay denied whatever it says.
 
-**Typed error.** `pkg/` cannot import `internal/`, so the guard keeps its own
+**Typed error.** The rule is that `pkg/` does not import `internal/` (one
+existing exception predates this issue: `pkg/notify` imports
+`internal/infrastructure/email`). So the guard keeps its own
 sentinel `netguard.ErrDenied`, and the application layer maps it with the new
 `domain.NewOutboundDeniedError(field, cause)` (`backend/internal/domain/errors.go`):
 an `*AppError` with status 400 whose `Err` is `errors.Join(ErrValidation, cause)`.
@@ -85,8 +111,10 @@ true on the result.
 
 ### Calls whose host is fixed or operator-configured — exempt, with reason
 
-These are the entries of the allow-list in `backend/pkg/netguard/bypass_test.go`
-(the first four rows) plus SDK-internal clients the AST test cannot see.
+The allow-list in `backend/pkg/netguard/bypass_test.go` holds 8 files: the guard
+itself (`pkg/netguard/netguard.go`) and the 7 files named in the first 7 rows
+below (cti, billing, hibp, osv, TheHive, oauth2 `fetchJSON`, dockerapi). The
+other rows are SDK-internal clients and non-HTTP egress the AST test cannot see.
 
 | Call site | Host | Why exempt |
 | --- | --- | --- |
@@ -154,13 +182,14 @@ Command, from `backend/` with the harness at `backend/internal/zzssrfproof/main.
 $ go run ./internal/zzssrfproof
 ```
 
-Output, unedited:
+Output of the re-run on 2026-11-09, after review round 1, unedited. `api message`
+is what `domain.MessageFromError` returns, i.e. the body the API caller sees:
 
 ```
-control: unguarded GET https://127.0.0.1:44865 -> 200 (server reachable, hits=1)
+control: unguarded GET https://127.0.0.1:35813 -> 200 (server reachable, hits=1)
 
 == send path: pkg/notify (production default client) ==
-PostWebhook https://127.0.0.1:44865                            denied=true  validation=false status=500
+PostWebhook https://127.0.0.1:35813                            denied=true  validation=false status=500
     err: post webhook: outbound target not allowed: address 127.0.0.1
 PostWebhook https://169.254.169.254/latest/meta-data/          denied=true  validation=false status=500
     err: post webhook: outbound target not allowed: address 169.254.169.254
@@ -172,33 +201,38 @@ PostTeams gopher://127.0.0.1:6379/_x                           denied=true  vali
     err: post webhook: outbound target not allowed: "gopher://127.0.0.1:6379/_x" must use https
 
 == dial-time check (DNS path / rebinding): netguard.Client ==
-guarded GET https://localhost:44865/ (name -> 127.0.0.1)       denied=true  validation=false status=500
-    err: Get "https://localhost:44865/": dial tcp 127.0.0.1:44865: outbound target not allowed: address 127.0.0.1
+guarded GET https://localhost:35813/ (name -> 127.0.0.1)       denied=true  validation=false status=500
+    err: Get "https://localhost:35813/": dial tcp 127.0.0.1:35813: outbound target not allowed: address 127.0.0.1
 
 == save path: automation ChannelService.Save ==
 Save webhook_url=https://169.254.169.254/latest/meta-data/iam/ denied=true  validation=true  status=400
-    err: webhook_url: outbound target not allowed: address 169.254.169.254
-Save webhook_url=https://127.0.0.1:44865/hook                  denied=true  validation=true  status=400
-    err: webhook_url: outbound target not allowed: address 127.0.0.1
+    err: webhook_url: target address is not allowed (must be a public https host)
+    api message: webhook_url: target address is not allowed (must be a public https host)
+Save webhook_url=https://127.0.0.1:35813/hook                  denied=true  validation=true  status=400
+    err: webhook_url: target address is not allowed (must be a public https host)
+    api message: webhook_url: target address is not allowed (must be a public https host)
 Save webhook_url=http://hooks.slack.com/services/T/B/x         denied=true  validation=true  status=400
-    err: webhook_url: outbound target not allowed: "http://hooks.slack.com/services/T/B/x" must use https
+    err: webhook_url: target address is not allowed (must be a public https host)
+    api message: webhook_url: target address is not allowed (must be a public https host)
 rows stored: 0
 
 == test-send path: automation ChannelTester on a row stored before the guard ==
 Test webhook (stored https://169.254.169.254/latest/meta-data/iam/) result=false denied=true  validation=true  status=400
-    err: webhook_url: post webhook: outbound target not allowed: address 169.254.169.254
-Test webhook (stored https://127.0.0.1:44865/hook) result=false denied=true  validation=true  status=400
-    err: webhook_url: post webhook: outbound target not allowed: address 127.0.0.1
+    err: webhook_url: target address is not allowed (must be a public https host)
+    api message: webhook_url: target address is not allowed (must be a public https host)
+Test webhook (stored https://127.0.0.1:35813/hook) result=false denied=true  validation=true  status=400
+    err: webhook_url: target address is not allowed (must be a public https host)
+    api message: webhook_url: target address is not allowed (must be a public https host)
 
 == redirect: allowed-by-policy server redirecting inward ==
-policy: Allowed=[192.168.0.224/32]  server=https://192.168.0.224:43261
-GET https://192.168.0.224:43261/ok                             status=200
-GET https://192.168.0.224:43261/to-loopback                    denied=true  validation=false status=500
-    err: Get "https://127.0.0.1:44865/": outbound target not allowed: redirect to another host "127.0.0.1:44865"
-GET https://192.168.0.224:43261/to-metadata                    denied=true  validation=false status=500
+policy: Allowed=[192.168.0.224/32]  server=https://192.168.0.224:44945
+GET https://192.168.0.224:44945/ok                             status=200
+GET https://192.168.0.224:44945/to-loopback                    denied=true  validation=false status=500
+    err: Get "https://127.0.0.1:35813/": outbound target not allowed: redirect to another host "127.0.0.1:35813"
+GET https://192.168.0.224:44945/to-metadata                    denied=true  validation=false status=500
     err: Get "https://169.254.169.254/latest/meta-data/": outbound target not allowed: redirect to another host "169.254.169.254"
-GET https://192.168.0.224:43261/to-http                        denied=true  validation=false status=500
-    err: Get "http://192.168.0.224:43261/ok": outbound target not allowed: "http://192.168.0.224:43261/ok" must use https
+GET https://192.168.0.224:44945/to-http                        denied=true  validation=false status=500
+    err: Get "http://192.168.0.224:44945/ok": outbound target not allowed: "http://192.168.0.224:44945/ok" must use https
 
 loopback server hits during all guarded attempts: 0
 ```
@@ -221,6 +255,9 @@ Reading it:
   domain — which is why `validation=false status=500` is printed for those rows.
   No handler returns a `pkg/` error unmapped on these paths.
 - **Nothing stored** — `rows stored: 0` after three refused saves.
+- **No URL or address in the API message** — the `api message` lines carry the
+  field name and a fixed reason only. The internal `err` keeps the cause for
+  `errors.Is`; it is never sent to the caller.
 
 ---
 
@@ -232,10 +269,13 @@ backend module with `go/parser` and fails on an `http.Client{…}` /
 variable, `http.DefaultClient`, `http.DefaultTransport`, or
 `http.Get/Post/Head/PostForm`, under any import alias, outside an allow-list of
 files that each carry the reason their host is not tenant-supplied. An
-allow-list entry with no remaining use also fails, so a stale entry cannot hide
-the next bypass.
+allow-list entry pins the exact number of unguarded uses in its file: one more
+(a new client added to an already-listed file) or one fewer (a stale entry)
+fails the test.
 
-Proof it fails on a new bypass — a probe file added, the test run, the file removed:
+Re-run on 2026-11-09 with the count-pinned allow-list. First a new file with two
+bypasses, then a second client added to an already allow-listed file, then both
+probes removed:
 
 ```
 $ cat internal/application/automation/zz_bypass_probe.go
@@ -244,15 +284,28 @@ import "net/http"
 func probeBypass(u string) (*http.Response, error) { return http.Get(u) }
 var probeClient = &http.Client{}
 
-$ go test ./pkg/netguard/ -count=1 -run TestNoUnguardedOutboundHTTP
---- FAIL: TestNoUnguardedOutboundHTTP (0.11s)
-    bypass_test.go:183: unguarded outbound HTTP at internal/application/automation/zz_bypass_probe.go:5: http.Get(...) on the default client — use netguard.Client/Dialer, or allow-list the file with the reason its host is not tenant-supplied
-    bypass_test.go:183: unguarded outbound HTTP at internal/application/automation/zz_bypass_probe.go:7: http.Client{...} literal — use netguard.Client/Dialer, or allow-list the file with the reason its host is not tenant-supplied
+$ go test ./pkg/netguard/ -count=1 -run TestNoUnguardedOutboundHTTP   # new file
+--- FAIL: TestNoUnguardedOutboundHTTP (0.09s)
+    bypass_test.go:202: unguarded outbound HTTP at internal/application/automation/zz_bypass_probe.go:3: http.Get(...) on the default client — use netguard.Client/Dialer, or allow-list the file with the reason its host is not tenant-supplied
+    bypass_test.go:202: unguarded outbound HTTP at internal/application/automation/zz_bypass_probe.go:4: http.Client{...} literal — use netguard.Client/Dialer, or allow-list the file with the reason its host is not tenant-supplied
+FAIL
+FAIL	github.com/opendefender/openrisk/pkg/netguard	0.097s
 FAIL
 
 $ rm internal/application/automation/zz_bypass_probe.go
-$ go test ./pkg/netguard/ -count=1 -run TestNoUnguardedOutboundHTTP
-ok  	github.com/opendefender/openrisk/pkg/netguard	0.127s
+$ printf '\nvar probeExtra = &http.Client{}\n' >> pkg/hibp/hibp.go
+$ go test ./pkg/netguard/ -count=1 -run TestNoUnguardedOutboundHTTP   # second client in an allow-listed file
+--- FAIL: TestNoUnguardedOutboundHTTP (0.18s)
+    bypass_test.go:202: unguarded outbound HTTP at pkg/hibp/hibp.go: 2 unguarded use(s), allow-list expects 1:
+        	55: http.Client{...} literal
+        	141: http.Client{...} literal — use netguard.Client/Dialer, or allow-list the file with the reason its host is not tenant-supplied
+FAIL
+FAIL	github.com/opendefender/openrisk/pkg/netguard	0.181s
+FAIL
+
+$ cp <backup>/hibp.go pkg/hibp/hibp.go   # restore the original file
+$ go test ./pkg/netguard/ -count=1 -run TestNoUnguardedOutboundHTTP   # both probes removed
+ok  	github.com/opendefender/openrisk/pkg/netguard	0.101s
 ```
 
 ---
@@ -264,11 +317,12 @@ ok  	github.com/opendefender/openrisk/pkg/netguard	0.127s
 | `pkg/netguard/bypass_test.go` `TestNoUnguardedOutboundHTTP`, `TestHTTPBypasses_DetectsEveryShape` | no unguarded client outside the allow-list; the detector sees all ten shapes, aliases included |
 | `pkg/netguard/redirect_test.go` `TestClient_RedirectFromAllowedServer` | allowed-by-policy host answers; its redirects to loopback, metadata, `10.0.0.5`, `http://` and `file://` are refused; the loopback server is never hit |
 | `pkg/notify/ssrf_test.go` `TestSenders_RefuseInternalTargets` | Slack, Teams, webhook and SMS refuse 127.0.0.1, localhost, 169.254.169.254, 10.x, ::1, IPv4-mapped, encoded IP, `file://`, `gopher://`, `http://`; server never hit |
-| `internal/application/automation/channels_ssrf_test.go` | `Save` refuses every internal target with `ErrValidation` + `IsDenied` and stores nothing; `Save_Success`, `Save_Unauthorized`; `ChannelTester` refuses a stored internal URL with `ErrValidation`; `NotFound`, `Success` |
+| `pkg/notify/ssrf_test.go` `TestSenders_InjectedDoerStillValidated` | an injected doer cannot bypass the URL check: a refused URL never reaches it |
+| `internal/application/automation/channels_ssrf_test.go` | `Save` refuses every internal target with `ErrValidation` + `IsDenied` and stores nothing; `Save_Success`, `Save_Unauthorized`; `ChannelTester` refuses a stored internal URL with `ErrValidation`; `ChannelTester_Unauthorized` (no tenant: 401, repository never read); `ChannelTester_DeliveryErrorDoesNotEchoURL`; `NotFound`, `Success` |
 | `internal/scanner/cloud_endpoint_test.go` `TestCloudScannerValidate_GCPTokenURI` | a key whose `token_uri` is internal or http is refused at save with `ErrValidation` + `IsDenied` |
 | `internal/scanner/collectors/gcp_test.go` `TestGCPCollect_RefusesLoopbackTokenURI` | the token exchange goes through the guarded dialer (DNS path) |
 | `internal/infrastructure/integrations/{notifications,webhooks}/*_test.go` | the two providers refuse internal targets at validate and send time |
-| `internal/domain/errors_test.go` `TestNewOutboundDeniedError_MatchesValidationAndCause` | 400, `ErrValidation`, cause preserved |
+| `internal/domain/errors_test.go` `TestNewOutboundDeniedError_MatchesValidationAndCause` | 400, `ErrValidation`, cause preserved, fixed message without URL or address |
 
 Pre-existing guard tests (`pkg/netguard/netguard_test.go`) already cover
 `::1`, `fd00:ec2::254`, NAT64/6to4/Teredo, zone-hidden IPv6, the
@@ -285,13 +339,18 @@ link-local), and public IP literals such as `https://8.8.8.8:8834` being allowed
   source, so `bypass_test.go` cannot see them. Each is listed in the exempt
   table above from **reading** its configuration, not from a test. A new SDK
   given a tenant URL needs a guarded client or dialer by review, not by test.
-- **Non-HTTP egress** (LDAP, SMTP) is inventoried but not covered by the
-  bypass test, which looks only at `net/http`. LDAP already uses the guarded
-  dialer (#750); SMTP is operator-configured.
+- **Non-HTTP egress and raw dials** (`net.Dial`, `tls.Dial`, `&net.Dialer{`,
+  `ldap.DialURL`) are inventoried but not covered by the bypass test, which
+  looks only at `net/http`. LDAP already uses the guarded dialer (#750); SMTP is
+  operator-configured. Extending the test to them is a follow-up.
+- **The allow-list counts uses per file, not per call site.** Replacing one
+  allow-listed client with a different unguarded one in the same file keeps the
+  count and passes. Review is the control there.
 - **Logged URLs.** A transport error from Go's `net/http` (`*url.Error`) quotes
   the full request URL, and `automation/notifier.go` logs it at warn level.
   For a Slack or Teams webhook the URL path is the secret. This predates #1315
-  and is unchanged by it; it needs its own issue.
+  and is not made worse by it (a refusal logged there quotes the same URL); it
+  needs its own issue. The API response no longer carries it (see above).
 - **No full-stack run.** The routes (`PUT /automation/channels`,
   `POST /automation/channels/test`, scanner config save) were not exercised
   over HTTP. They call `ChannelService.Save`, `ChannelTester.Test` and
@@ -348,6 +407,9 @@ func (r storedRepo) Get(_ context.Context, t uuid.UUID) (*domain.AutomationChann
 func show(label string, err error) {
 	fmt.Printf("%-62s denied=%-5v validation=%-5v status=%d\n    err: %v\n",
 		label, netguard.IsDenied(err), errors.Is(err, domain.ErrValidation), domain.HTTPStatusFromError(err), err)
+	if errors.Is(err, domain.ErrValidation) {
+		fmt.Printf("    api message: %s\n", domain.MessageFromError(err))
+	}
 }
 
 func main() {

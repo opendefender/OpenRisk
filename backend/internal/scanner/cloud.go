@@ -59,9 +59,13 @@ func (s *cloudScanner) Validate(_ context.Context, cfg ScanConfig) error {
 	}
 	if s.endpoints != nil {
 		if err := s.endpoints(cfg.Credentials); err != nil {
-			// Same 400 and message as before; the cause is kept so a refusal
-			// still matches netguard.ErrDenied (#1315).
-			return domain.NewOutboundDeniedError(fmt.Sprintf("%s scanner", s.provider), err)
+			// A guard refusal keeps its cause so it still matches
+			// netguard.ErrDenied, behind a fixed message (#1315). Anything else
+			// (the docker-socket opt-in) is a plain validation error.
+			if netguard.IsDenied(err) {
+				return domain.NewOutboundDeniedError(fmt.Sprintf("%s scanner", s.provider), err)
+			}
+			return domain.NewValidationError(fmt.Sprintf("%s scanner: %v", s.provider, err))
 		}
 	}
 	return nil

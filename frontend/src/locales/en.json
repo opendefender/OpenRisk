@@ -2162,5 +2162,13 @@
       "deleteBody": "Scheduled scans of “{name}” stop. Assets already imported stay in the inventory.",
       "deleteConfirm": "Delete"
     }
+  },
+  "automation": {
+    "channels": {
+      "saveFailed": "Failed",
+      "saveRejected": "Channels not saved: {reason}",
+      "testFailed": "The test could not run",
+      "testRejected": "Test refused: {reason}"
+    }
   }
 }

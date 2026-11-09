@@ -2162,5 +2162,13 @@
       "deleteBody": "Les scans planifiés de « {name} » s’arrêtent. Les actifs déjà importés restent dans l’inventaire.",
       "deleteConfirm": "Supprimer"
     }
+  },
+  "automation": {
+    "channels": {
+      "saveFailed": "Échec",
+      "saveRejected": "Canaux non enregistrés : {reason}",
+      "testFailed": "Le test n’a pas pu s’exécuter",
+      "testRejected": "Test refusé : {reason}"
+    }
   }
 }

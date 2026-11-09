@@ -66,16 +66,17 @@ func severityColor(severity string) string {
 // here is tenant-configured, so it may only reach public addresses (#1315).
 var guardedClient = netguard.Client(netguard.Options{Timeout: 15 * time.Second})
 
-// send performs req. With no doer it is the production path: the URL is checked
-// (https only, no denied literal host) and sent through the guarded client,
-// whose dialer re-checks the resolved address on every hop. A refusal wraps
-// netguard.ErrDenied. An injected doer (tests, httptest) is used as given.
+// send performs req. The URL is always checked first (https only, no denied
+// literal host), whoever sends it, so an injected doer can never be a way
+// around the guard. With no doer — the production path — it then goes through
+// the guarded client, whose dialer re-checks the resolved address on every hop.
+// A refusal wraps netguard.ErrDenied. An injected doer is a test seam only.
 func send(doer HTTPDoer, req *http.Request) (*http.Response, error) {
-	if doer != nil {
-		return doer.Do(req)
-	}
 	if err := netguard.ValidateURL(req.URL.String()); err != nil {
 		return nil, err
+	}
+	if doer != nil {
+		return doer.Do(req)
 	}
 	return guardedClient.Do(req)
 }

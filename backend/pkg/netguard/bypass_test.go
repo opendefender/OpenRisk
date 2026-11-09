@@ -19,20 +19,29 @@ import (
 	"testing"
 )
 
+// allowedUse is one allow-listed file: how many unguarded uses it holds, and
+// why its host is not tenant-supplied.
+type allowedUse struct {
+	uses   int
+	reason string
+}
+
 // unguardedAllowed lists the only non-test files that may build an HTTP client
-// without this package (#1315). Each one reaches a host the operator chose —
-// a vendor API or an env setting — never one a tenant or user typed in. A new
-// outbound call to a tenant-supplied URL goes through Client/Dialer instead;
-// adding a file here needs the same justification, in the reason.
-var unguardedAllowed = map[string]string{
-	"pkg/netguard/netguard.go":                               "the guard itself: builds the guarded transport and client",
-	"pkg/cti/client.go":                                      "fixed hosts: services.nvd.nist.gov and www.cisa.gov feeds",
-	"pkg/billing/billing.go":                                 "fixed hosts: api.stripe.com, api.notchpay.co, api-checkout.cinetpay.com; operator keys",
-	"pkg/hibp/hibp.go":                                       "fixed host: api.pwnedpasswords.com (WithEndpoint is only called by tests)",
-	"internal/infrastructure/osv/client.go":                  "operator host: OSV_API_URL env, default api.osv.dev; refuses cross-host redirects",
-	"internal/infrastructure/integrations/thehive/client.go": "operator host: TheHive URL from server config, often on-prem",
-	"internal/handler/oauth2_handler.go":                     "fixed hosts: Google, GitHub and Microsoft Graph user-info endpoints",
-	"internal/scanner/collectors/dockerapi.go":               "tcp:// uses the guarded dialer; unix:// only when the operator sets SCANNER_DOCKER_SOCKET_ENABLED",
+// without this package (#1315), with the exact number of unguarded uses each
+// holds. Each one reaches a host the operator chose — a vendor API or an env
+// setting — never one a tenant or user typed in. The count is pinned so a new
+// client in an already-listed file fails too, as does a removed one (the entry
+// must shrink with the code). A new outbound call to a tenant-supplied URL goes
+// through Client/Dialer instead; growing this list needs the same justification.
+var unguardedAllowed = map[string]allowedUse{
+	"pkg/netguard/netguard.go":                               {2, "the guard itself: builds the guarded transport and client"},
+	"pkg/cti/client.go":                                      {1, "fixed hosts: services.nvd.nist.gov and www.cisa.gov feeds"},
+	"pkg/billing/billing.go":                                 {1, "fixed hosts: api.stripe.com, api.notchpay.co, api-checkout.cinetpay.com; operator keys"},
+	"pkg/hibp/hibp.go":                                       {1, "fixed host: api.pwnedpasswords.com (WithEndpoint is only called by tests)"},
+	"internal/infrastructure/osv/client.go":                  {1, "operator host: OSV_API_URL env, default api.osv.dev; refuses cross-host redirects"},
+	"internal/infrastructure/integrations/thehive/client.go": {2, "operator host: TheHive URL from server config, often on-prem"},
+	"internal/handler/oauth2_handler.go":                     {1, "fixed hosts: Google, GitHub and Microsoft Graph user-info endpoints"},
+	"internal/scanner/collectors/dockerapi.go":               {4, "tcp:// uses the guarded dialer; unix:// only when the operator sets SCANNER_DOCKER_SOCKET_ENABLED"},
 }
 
 // bannedHTTP are the net/http identifiers that send through an unguarded
@@ -171,23 +180,26 @@ func TestNoUnguardedOutboundHTTP(t *testing.T) {
 
 	var bad []string
 	for file, hits := range found {
-		if _, ok := unguardedAllowed[file]; ok {
+		if allowed, ok := unguardedAllowed[file]; ok && len(hits) == allowed.uses {
+			continue
+		} else if ok {
+			bad = append(bad, fmt.Sprintf("%s: %d unguarded use(s), allow-list expects %d:\n\t%s",
+				file, len(hits), allowed.uses, strings.Join(hits, "\n\t")))
 			continue
 		}
 		for _, h := range hits {
 			bad = append(bad, file+":"+h)
 		}
 	}
+	// A stale entry would silently allow the next bypass added to that file.
+	for file, allowed := range unguardedAllowed {
+		if _, ok := found[file]; !ok {
+			bad = append(bad, fmt.Sprintf("%s: 0 unguarded uses, allow-list expects %d: remove the entry", file, allowed.uses))
+		}
+	}
 	sort.Strings(bad)
 	for _, b := range bad {
 		t.Errorf("unguarded outbound HTTP at %s — use netguard.Client/Dialer, or allow-list the file with the reason its host is not tenant-supplied", b)
-	}
-
-	// A stale entry would silently allow the next bypass added to that file.
-	for file := range unguardedAllowed {
-		if _, ok := found[file]; !ok {
-			t.Errorf("allow-list entry %s has no unguarded use left: remove it", file)
-		}
 	}
 }
 

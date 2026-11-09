@@ -91,10 +91,14 @@ func NewValidationError(message string) *AppError {
 // It is a validation error (400) that keeps its cause, so errors.Is matches
 // both ErrValidation and the guard's own sentinel (netguard.ErrDenied) without
 // the domain importing the guard.
+//
+// The message is fixed on purpose: the cause names the URL (a write-only
+// webhook URL whose path is its secret) and the internal address it resolved
+// to, neither of which goes back to the caller.
 func NewOutboundDeniedError(field string, cause error) *AppError {
 	return &AppError{
 		Err:     errors.Join(ErrValidation, cause),
-		Message: field + ": " + cause.Error(),
+		Message: field + ": target address is not allowed (must be a public https host)",
 		Code:    http.StatusBadRequest,
 	}
 }
