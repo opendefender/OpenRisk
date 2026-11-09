@@ -63,7 +63,7 @@ func TestGetBulkOperation_Postgres_Success(t *testing.T) {
 		update := map[string]interface{}{"status": "mitigated", "tags": []interface{}{"q4", "bulk"}}
 		op := createBulkOpPG(t, tx, tenant, user, filter, update, time.Now())
 
-		got, err := s.GetBulkOperation(op.ID, tenant)
+		got, err := s.GetBulkOperation(op.ID, user, tenant)
 		require.NoError(t, err)
 		assert.Equal(t, filter, got.FilterQuery)
 		assert.Equal(t, update, got.UpdateData)
@@ -71,7 +71,7 @@ func TestGetBulkOperation_Postgres_Success(t *testing.T) {
 
 		// A job without a filter or update data stores NULL and reads back nil.
 		bare := createBulkOpPG(t, tx, tenant, user, nil, nil, time.Now())
-		got, err = s.GetBulkOperation(bare.ID, tenant)
+		got, err = s.GetBulkOperation(bare.ID, user, tenant)
 		require.NoError(t, err)
 		assert.Nil(t, got.FilterQuery)
 		assert.Nil(t, got.UpdateData)
@@ -85,19 +85,27 @@ func TestGetBulkOperation_Postgres_Success(t *testing.T) {
 
 func TestGetBulkOperation_Postgres_NotFound(t *testing.T) {
 	withBulkPG(t, func(tx *gorm.DB, s *BulkOperationService) {
-		_, err := s.GetBulkOperation(uuid.New(), uuid.New())
+		_, err := s.GetBulkOperation(uuid.New(), uuid.New(), uuid.New())
 		assert.ErrorIs(t, err, gorm.ErrRecordNotFound)
 	})
 }
 
-// Another tenant's job is indistinguishable from a missing one.
+// Another tenant's job, and a colleague's job in the same tenant (#1219), are
+// indistinguishable from a missing one.
 func TestGetBulkOperation_Postgres_Unauthorized(t *testing.T) {
 	withBulkPG(t, func(tx *gorm.DB, s *BulkOperationService) {
 		owner, intruder := uuid.New(), uuid.New()
-		op := createBulkOpPG(t, tx, owner, uuid.New(), map[string]interface{}{"status": "open"}, nil, time.Now())
+		author, colleague := uuid.New(), uuid.New()
+		op := createBulkOpPG(t, tx, owner, author, map[string]interface{}{"status": "open"}, nil, time.Now())
 
-		_, err := s.GetBulkOperation(op.ID, intruder)
-		assert.ErrorIs(t, err, gorm.ErrRecordNotFound)
+		_, err := s.GetBulkOperation(op.ID, author, intruder)
+		assert.ErrorIs(t, err, gorm.ErrRecordNotFound, "other tenant")
+
+		_, err = s.GetBulkOperation(op.ID, colleague, owner)
+		assert.ErrorIs(t, err, gorm.ErrRecordNotFound, "other user in the same tenant")
+
+		_, err = s.GetBulkOperation(op.ID, author, owner)
+		assert.NoError(t, err, "the author still reads it")
 	})
 }
 

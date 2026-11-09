@@ -274,8 +274,12 @@ var decisions = []Decision{
 			"asserts 403 on the shared predefined roles (GHSA-6m8w-33j5-ff68)"},
 	{"/api/v1/rbac/*", Pending,
 		"admin-only tenant/user/role admin paths; GetTenantUsers gates on level, not pinned"},
-	{"/api/v1/bulk-operations/{id}", Pending,
-		"service filters by tenant (see bulk_operation_service); not pinned by a test"},
+	{"/api/v1/bulk-operations/{id}", Covered,
+		"service/bulk_operation_isolation_test TestBulkOperation_GetIsTenantScoped asserts not-found for another " +
+			"tenant's job, and TestBulkOperation_GetIsAuthorScoped asserts a colleague in the same tenant gets the " +
+			"same not-found as a missing job while the author reads it (#1219). The DATABASE_URL-gated " +
+			"bulk_operation_pg_test TestGetBulkOperation_Postgres_{Success,NotFound,Unauthorized} pins both " +
+			"predicates on Postgres. The query is `id AND created_by AND tenant_id`, the scope of the list endpoint"},
 	{"/api/v1/integrations/{id}/test", Pending,
 		"integration config is tenant-scoped; not pinned by a test"},
 	{"/api/v1/cti/vulnerabilities/{id}", PublicByDesign,
