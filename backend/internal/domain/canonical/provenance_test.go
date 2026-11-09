@@ -257,6 +257,11 @@ func TestCanonical_ProvenanceRefusesCredentialShapedValues(t *testing.T) {
 		"triple-escaped nested URL, bad escape":     "https://h/?next=https%25253A%25252F%25252Fb%25252F%25253Ftoken%25253D" + secret + "%2525zz",
 		"mixed literal and escaped userinfo":        "https://h/?next=https:%2F%2Fu:" + secret + "%2540b/%zz",
 		"escaped five times":                        "https://h/?next=https%252525253A%252525252F%252525252Fb%252525252F%252525253Ftoken%252525253D" + secret,
+		// devsecops round 5: a browser deletes tab, LF and CR anywhere in a URL.
+		"line feed in a fragment name":  "https://b/#access_to\nken=" + secret,
+		"tab in a hash-route name":      "https://b/#/cb?co\tde=" + secret,
+		"escaped tab in a nested URL":   "https://h/?next=https:%2F%09%2Fb%2F%3Ftoken%3D" + secret,
+		"escaped LF in nested userinfo": "https://h/?next=https:%2F%0A%2Fu:" + secret + "%40b%2F",
 	}
 
 	t.Run("in every provenance string", func(t *testing.T) {

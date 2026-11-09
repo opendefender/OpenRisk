@@ -49,7 +49,15 @@ func credentialShaped(s string) bool {
 	return credentialShapedAt(strings.TrimSpace(s), 0)
 }
 
+// urlWhitespace is what a browser (WHATWG URL) deletes anywhere in a URL, so
+// "#access_to\nken=" opens as "#access_token=". It is deleted here too before
+// the URL is read.
+var urlWhitespace = strings.NewReplacer("\t", "", "\n", "", "\r", "")
+
 func credentialShapedAt(s string, depth int) bool {
+	if strings.ContainsAny(s, "\t\n\r") {
+		s = urlWhitespace.Replace(s)
+	}
 	if !strings.ContainsAny(s, "@?#=") {
 		return false
 	}
