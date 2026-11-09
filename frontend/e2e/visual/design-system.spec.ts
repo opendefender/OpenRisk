@@ -71,31 +71,41 @@ async function waitForFonts(page: import('@playwright/test').Page) {
 }
 
 /**
+ * Charts each gallery draws through visx ParentSize (CartesianChart, PieChart).
+ * Keep in sync with gallery.tsx: a chart missing from this count is not waited for.
+ */
+const SIZED_CHARTS: Partial<Record<(typeof GALLERIES)[number], number>> = { 'charts-v2': 4 };
+
+/**
  * The charts size themselves from a ResizeObserver (visx ParentSize), and on a
  * loaded runner the first paint can be at a stale 300px width, corrected by a
  * later observer callback that lands after the screenshot's own 5s budget
- * (#1297, seen 2 in 60 runs). Wait for the outcome instead: every chart SVG as
- * wide as the measuring box it sits in. A gallery without charts passes at once.
+ * (#1297, seen 2 in 60 runs). Wait for the outcome instead: every expected chart
+ * mounted, and each SVG as wide as the measuring box it sits in. ParentSize draws
+ * nothing before its first measurement, so counting only mismatches would pass
+ * before any chart exists.
  */
-async function waitForChartLayout(page: import('@playwright/test').Page) {
+async function waitForChartLayout(page: import('@playwright/test').Page, gallery: string) {
+  const expected = SIZED_CHARTS[gallery as (typeof GALLERIES)[number]] ?? 0;
   await expect
     .poll(
       () =>
-        page.evaluate(
-          () =>
-            [...document.querySelectorAll<SVGSVGElement>('svg[role="img"]')]
-              .filter((svg) => svg.parentElement?.style.position === 'absolute')
-              .filter(
-                (svg) =>
-                  Math.abs(
-                    Number(svg.getAttribute('width')) -
-                      (svg.parentElement as HTMLElement).getBoundingClientRect().width,
-                  ) >= 1,
-              ).length,
-        ),
-      { message: 'every chart is laid out at its container width', timeout: 15_000 },
+        page.evaluate(() => {
+          const sized = [...document.querySelectorAll<SVGSVGElement>('svg[role="img"]')].filter(
+            (svg) => svg.parentElement?.style.position === 'absolute',
+          );
+          const laidOut = sized.filter(
+            (svg) =>
+              Math.abs(
+                Number(svg.getAttribute('width')) -
+                  (svg.parentElement as HTMLElement).getBoundingClientRect().width,
+              ) < 1,
+          );
+          return { mounted: sized.length, laidOut: laidOut.length };
+        }),
+      { message: 'every chart is mounted at its container width', timeout: 15_000 },
     )
-    .toBe(0);
+    .toEqual({ mounted: expected, laidOut: expected });
 }
 
 function galleryURL(gallery: string, theme: string, lang: string = 'en') {
@@ -120,7 +130,7 @@ for (const gallery of GALLERIES) {
       // parameter would make both snapshots identical and pass while testing
       // one theme twice.
       await expect(page.locator('html')).toHaveAttribute('data-theme', theme);
-      await waitForChartLayout(page);
+      await waitForChartLayout(page, gallery);
 
       await expect(page).toHaveScreenshot(`ds-${gallery}-${theme}.png`, { fullPage: true });
     });
