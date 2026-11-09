@@ -32,6 +32,35 @@ async function waitFor(url: string, label: string, tries = 60) {
   throw new Error(`[global-setup] ${label} not ready at ${url} after ${tries}s`);
 }
 
+// One past the backend's default per-IP quota (300 a minute,
+// backend/internal/middleware/apiquota.go).
+const QUOTA_PROBE_REQUESTS = 301;
+
+/**
+ * Fails the run at once when the backend still enforces its per-IP API quota.
+ *
+ * The suite sends every request from one address, so with the production quota
+ * on, the backend answers 429 partway through and the page shows a load error:
+ * UX-24 flaked on exactly that (#1297). A server Playwright starts gets the
+ * switches from playwright.config.ts; a reused one (`make dev`, a local stack)
+ * does not, and this turns its random flake into one clear message. /health sits
+ * behind the quota, so one request past the default budget is refused when it is on.
+ */
+async function assertNoApiQuota() {
+  const statuses = await Promise.all(
+    Array.from({ length: QUOTA_PROBE_REQUESTS }, () =>
+      fetch(`${API_URL}/health`).then((r) => r.status, () => 0),
+    ),
+  );
+  if (statuses.includes(429)) {
+    throw new Error(
+      `[global-setup] the backend at ${API_URL} enforces its per-IP API quota (429 within ` +
+        `${QUOTA_PROBE_REQUESTS} requests). Restart it with RATE_LIMIT_IP_PER_MINUTE=0 ` +
+        'RATE_LIMIT_TENANT_PER_MINUTE=0 RATE_LIMIT_AUTH_DISABLED=true, as CI does (docs/CI_CD.md).',
+    );
+  }
+}
+
 export default async function globalSetup(_config: FullConfig) {
   if (!ADMIN.password) {
     throw new Error(
@@ -40,6 +69,7 @@ export default async function globalSetup(_config: FullConfig) {
   }
   await waitFor(`${API_URL}/health`, 'backend');
   await waitFor(FRONTEND_URL, 'frontend');
+  await assertNoApiQuota();
 
   console.log('[global-setup] seeding…');
   execFileSync('node', [SEED_SCRIPT], { stdio: 'inherit', env: process.env });
