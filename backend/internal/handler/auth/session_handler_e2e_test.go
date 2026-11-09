@@ -179,11 +179,12 @@ func (s *sessionStack) send(t *testing.T, method, path string, cookies map[strin
 	return out
 }
 
-// refresh is the browser's refresh: the refresh cookie and nothing else.
+// refresh is the browser's refresh: the refresh cookie, no body, and the CSRF
+// cookie echoed in its header as src/lib/api.ts does (#1314).
 func (s *sessionStack) refresh(t *testing.T, refreshToken string) sessionResponse {
 	t.Helper()
 	return s.send(t, http.MethodPost, "/api/v1/auth/refresh",
-		map[string]string{middleware.RefreshTokenCookie: refreshToken}, nil)
+		map[string]string{middleware.RefreshTokenCookie: refreshToken, middleware.CSRFCookie: "csrf-727"}, browserHeaders)
 }
 
 func (s *sessionStack) liveSessions(t *testing.T) int64 {

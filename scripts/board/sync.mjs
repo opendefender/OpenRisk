@@ -9,12 +9,12 @@
 //   node scripts/board/sync.mjs --dry-run   print the changes and the counts
 
 import { gql, lit, loadConfig, mutateBatched, token, restAll, git, gitOk } from './lib.mjs';
-import { deriveStatus, deriveSprint, sprintEnd, deliveryStage, branchIssueNumbers, derivePriority, deriveTier, ARCHIVE } from './derive.mjs';
+import { deriveStatus, staleActiveLabel, STALE_DAYS, deriveSprint, sprintEnd, deliveryStage, branchIssueNumbers, derivePriority, deriveTier, ARCHIVE } from './derive.mjs';
 
 const DRY = process.argv.includes('--dry-run');
 const cfg = loadConfig();
 
-const ISSUE_FIELDS = `id number title state stateReason
+const ISSUE_FIELDS = `id number title state stateReason updatedAt
   repository { nameWithOwner }
   labels(first: 50) { nodes { name } }
   closedByPullRequestsReferences(first: 10, includeClosedPrs: true) {
@@ -81,15 +81,18 @@ function facts(issue) {
   // Merged but the commit is not on the dev branch (merged elsewhere, or not fetched):
   // a closed issue still counts as delivered to dev, never further.
   if (!delivered && sha && issue.state === 'CLOSED') delivered = 'dev';
-  return {
+  const f = {
     number: issue.number,
     state: issue.state,
     stateReason: issue.stateReason,
+    updatedAt: issue.updatedAt,
     labels: issue.labels.nodes.map((l) => l.name),
     delivered,
     openPr: prs.some((p) => p.state === 'OPEN'),
     hasBranch: branchNumbers.has(issue.number),
   };
+  f.staleLabel = staleActiveLabel(f);
+  return f;
 }
 
 async function boardItems() {
@@ -224,6 +227,7 @@ async function main() {
   const archive = [];
   const unarchive = [];
   const releasedId = F.Status.options.Released;
+  const stale = [];
   for (const item of byNumber.values()) {
     // Released is final for a closed issue: skip the git work.
     if (item.content.state === 'CLOSED' && item.fieldValues.nodes.some((v) => v.optionId === releasedId)) {
@@ -239,6 +243,8 @@ async function main() {
     }
     const current = Object.fromEntries(item.fieldValues.nodes.filter((v) => v.field).map((v) => [v.field.id, v.optionId]));
     const status = deriveStatus(f, cfg);
+    // Listed only when the stale label is what moved the item (not when Blocked or Needs owner decided).
+    if (f.staleLabel && deriveStatus({ ...f, staleLabel: false }, cfg) !== status) stale.push(f.number);
     if (status === ARCHIVE) {
       archive.push(item);
       changes.push(`#${f.number} archive (${f.stateReason})`);
@@ -280,6 +286,7 @@ async function main() {
 
   const order = Object.keys(F.Status.options).concat('(none)');
   console.log('status counts: ' + order.filter((s) => counts[s]).map((s) => `${s} ${counts[s]}`).join(' · '));
+  if (stale.length) console.log(`stale labels (in-progress / in-review, no branch, no PR, idle > ${STALE_DAYS} days; ignored): ${stale.sort((a, b) => a - b).map((n) => `#${n}`).join(' ')}`);
   console.log(`done in ${((Date.now() - started) / 1000).toFixed(1)} s`);
 }
 

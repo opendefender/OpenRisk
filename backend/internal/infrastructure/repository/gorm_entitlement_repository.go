@@ -7,6 +7,7 @@ package repository
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/opendefender/openrisk/internal/domain"
@@ -54,10 +55,20 @@ func (r *GormEntitlementRepository) Count(ctx context.Context, tenant uuid.UUID,
 	var n int64
 	switch key {
 	case ent.LimitUsers:
+		// A seat is an active member or a pending invitation that can still be
+		// accepted. Counting members alone let a tenant at 1 of 2 send any
+		// number of invitations, each checked against 1, and all be accepted.
+		var members, pending int64
 		if err := db.Model(&domain.OrganizationMember{}).
-			Where("organization_id = ? AND is_active = ?", tenant, true).Count(&n).Error; err != nil {
+			Where("organization_id = ? AND is_active = ?", tenant, true).Count(&members).Error; err != nil {
 			return 0, err
 		}
+		if err := db.Model(&domain.Invitation{}).
+			Where("organization_id = ? AND status = ? AND expires_at > ?", tenant, domain.InvitationPending, time.Now().UTC()).
+			Count(&pending).Error; err != nil {
+			return 0, err
+		}
+		n = members + pending
 	case ent.LimitRisks:
 		if err := db.Model(&domain.Risk{}).
 			Where("tenant_id = ? AND deleted_at IS NULL", tenant).Count(&n).Error; err != nil {
@@ -77,6 +88,36 @@ func (r *GormEntitlementRepository) Count(ctx context.Context, tenant uuid.UUID,
 			return 0, err
 		}
 		n = vi + sc
+	case ent.LimitFrameworks:
+		// Active = not deleted (D-076): there is no activation flag, and a
+		// deleted framework frees its slot.
+		if err := db.Model(&domain.ComplianceFramework{}).
+			Where("tenant_id = ? AND deleted_at IS NULL", tenant).Count(&n).Error; err != nil {
+			return 0, err
+		}
+	case ent.LimitAutomationRules:
+		// Enabled rules only: a suspended rule costs nothing (D-078).
+		if err := db.Model(&domain.AutomationRule{}).
+			Where("tenant_id = ? AND enabled = ?", tenant, true).Count(&n).Error; err != nil {
+			return 0, err
+		}
+	case ent.LimitScanSources:
+		if err := db.Model(&domain.ScanConfig{}).Where("tenant_id = ?", tenant).Count(&n).Error; err != nil {
+			return 0, err
+		}
+	case ent.LimitScansPerMonth:
+		// Every job started this calendar month (UTC), whoever started it: a
+		// click, the scheduler or an automation rule.
+		now := time.Now().UTC()
+		since := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.UTC)
+		if err := db.Model(&domain.ScanJob{}).
+			Where("tenant_id = ? AND created_at >= ?", tenant, since).Count(&n).Error; err != nil {
+			return 0, err
+		}
+	case ent.LimitApprovalWorkflows:
+		if err := db.Model(&domain.ApprovalWorkflow{}).Where("tenant_id = ?", tenant).Count(&n).Error; err != nil {
+			return 0, err
+		}
 	default:
 		return 0, nil
 	}

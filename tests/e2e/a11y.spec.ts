@@ -218,3 +218,130 @@ test.describe('a11y — recognition (#438)', () => {
     await api.dispose();
   });
 });
+
+// ---------------------------------------------------------------------------
+// #783 — hosted plan caps (D-078).
+//
+// Two states the plan gates added were outside the sweep: the cap notice
+// (PlanCapNotice, here inside the framework dialog) and the locked, blurred
+// preview FeatureGate renders on a plan without the feature (Threat Intel).
+//
+// Both exist ONLY on a hosted deployment: a self-hosted install resolves every
+// tenant to PlanSelfHosted, which has no caps and no locks (ADR 0007). The CI
+// e2e stack boots self_hosted, so this block detects the plan of the tenant it
+// just signed up and SKIPS, loudly, when it is not Free. A skip is not a pass:
+// run it against a stack started with OPENRISK_DEPLOYMENT=hosted.
+// ---------------------------------------------------------------------------
+
+test.describe('a11y — hosted plan caps (#783)', () => {
+  test.use({ storageState: { cookies: [], origins: [] } });
+
+  let free: Awaited<ReturnType<typeof signUp>>;
+  let plan = '';
+  test.beforeAll(async () => {
+    const api = await pwRequest.newContext();
+    free = await signUp(api, 'a11ycaps');
+    const client = authed(api, free.token);
+    // Past the wizard so the guard does not bounce /compliance and /threat-intel.
+    await client.put('/onboarding/steps/organization', {
+      answers: {
+        name: 'Awa Test Org',
+        industry: 'banking',
+        full_name: 'Awa Newcomer',
+        job_title: 'RSSI',
+      },
+    });
+    await client.post('/onboarding/complete', {});
+    const snapshot = await client.get('/entitlements');
+    plan = snapshot.ok() ? String(((await snapshot.json()) as { plan?: string }).plan ?? '') : '';
+    if (plan === 'free') {
+      // Free keeps ONE framework active: this one fills the slot, so the dialog
+      // opens at the cap.
+      const created = await client.post('/compliance/frameworks', {
+        name: 'Cap filler',
+      });
+      expect(
+        [200, 201].includes(created.status()),
+        `seeding the framework should succeed: ${await created.text()}`,
+      ).toBeTruthy();
+    }
+    await api.dispose();
+  });
+
+  test.beforeEach(() => {
+    test.skip(
+      plan !== 'free',
+      `the tenant resolved to plan "${plan}": caps and locks exist only on a hosted deployment (OPENRISK_DEPLOYMENT=hosted); this is NOT a pass`,
+    );
+  });
+
+  test('a11y: cap notice in the framework dialog, Escape returns focus to its trigger', async ({
+    browser,
+  }, info) => {
+    const ctx = await browser.newContext({ storageState: free.storageState });
+    const page = await ctx.newPage();
+    await page.goto('/compliance', { waitUntil: 'domcontentloaded' });
+    await page.waitForLoadState('networkidle', { timeout: 15_000 }).catch(() => {});
+
+    const trigger = page.getByRole('button', { name: /^(Nouveau|New)$/ });
+    await trigger.focus();
+    await page.keyboard.press('Enter');
+
+    const dialog = page.getByRole('dialog');
+    await expect(dialog, 'the create-framework dialog must open from the keyboard').toBeVisible();
+    await expect(
+      dialog.getByTestId('plan-cap-frameworks'),
+      'the cap notice must be on screen for the scan to mean anything',
+    ).toBeVisible();
+    expect(
+      await page.evaluate(() => !!document.activeElement?.closest('[role="dialog"]')),
+      'focus must be inside the dialog once it is open',
+    ).toBe(true);
+
+    await expectNoBlockingViolations(page, info, 'plan-cap-notice-dialog', '/compliance (cap)');
+
+    await page.keyboard.press('Escape');
+    await expect(dialog, 'Escape closes the dialog').toBeHidden();
+    await expect(trigger, 'focus returns to the trigger that opened the dialog').toBeFocused();
+
+    await ctx.close();
+  });
+
+  test('a11y: locked Threat Intel preview, keyboard never enters the blurred content', async ({
+    browser,
+  }, info) => {
+    const ctx = await browser.newContext({ storageState: free.storageState });
+    const page = await ctx.newPage();
+    await page.goto('/threat-intel', { waitUntil: 'domcontentloaded' });
+    await page.waitForLoadState('networkidle', { timeout: 15_000 }).catch(() => {});
+
+    const preview = page.locator('[inert][aria-hidden="true"]');
+    await expect(preview, 'the blurred preview must be on screen (plan is locked)').toHaveCount(1, {
+      timeout: 15_000,
+    });
+
+    await expectNoBlockingViolations(page, info, 'locked-threat-intel', '/threat-intel (locked)');
+
+    // Walk the tab order well past the page's own controls: no stop may land
+    // inside the inert preview, and the upgrade CTA must be one of the stops.
+    let reachedCta = false;
+    for (let i = 0; i < 60; i++) {
+      await page.keyboard.press('Tab');
+      const stop = await page.evaluate(() => {
+        const el = document.activeElement;
+        return {
+          insidePreview: !!el?.closest('[inert]'),
+          label: (el?.textContent ?? '').trim().slice(0, 60),
+        };
+      });
+      expect(
+        stop.insidePreview,
+        `Tab stop ${i + 1} ("${stop.label}") is inside the locked preview`,
+      ).toBe(false);
+      if (/Pro|Business|Enterprise/.test(stop.label)) reachedCta = true;
+    }
+    expect(reachedCta, 'the upgrade CTA must be reachable by keyboard').toBe(true);
+
+    await ctx.close();
+  });
+});

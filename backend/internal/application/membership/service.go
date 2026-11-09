@@ -29,11 +29,20 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/opendefender/openrisk/internal/domain"
+	ent "github.com/opendefender/openrisk/pkg/entitlements"
 )
 
 // ---------------------------------------------------------------------------
 // Ports
 // ---------------------------------------------------------------------------
+
+// SeatQuota reads a tenant's seat cap and usage (the entitlements service).
+// Optional (nil-safe): without it, seats are uncapped here. Invitation and user
+// creation are capped by the RequireCapacity route gate; this port covers the
+// two moves that take a seat without creating anything (#783).
+type SeatQuota interface {
+	Capacity(ctx context.Context, tenant uuid.UUID, key ent.LimitKey) (allowed bool, limit, used int, plan ent.Plan, err error)
+}
 
 // AuditSink records a membership event. Best-effort and nil-safe: journalling
 // must never be the reason a legitimate administrative action fails.
@@ -255,6 +264,8 @@ type Service struct {
 	mfaPrivileged domain.MFAPrivilegeSet
 	// mfaCache drops the resolved MFA decision after a role change. Optional.
 	mfaCache MFAStatusInvalidator
+	// seats caps reactivations and revived invitations (D-078). Optional.
+	seats SeatQuota
 }
 
 // MFAStatusInvalidator drops a cached MFA decision for one member.
@@ -300,6 +311,23 @@ func (s *Service) WithMFAStatusInvalidator(i MFAStatusInvalidator) *Service {
 
 // WithClock overrides the clock (tests only).
 func (s *Service) WithClock(f func() time.Time) *Service { s.now = f; return s }
+
+// WithSeatQuota attaches the seat cap read on reactivation and on resending an
+// expired invitation.
+func (s *Service) WithSeatQuota(q SeatQuota) *Service { s.seats = q; return s }
+
+// ensureSeat refuses one more seat when the plan is at its cap. A quota read
+// error fails OPEN, like the RequireCapacity gate (and is logged there).
+func (s *Service) ensureSeat(ctx context.Context, tenantID uuid.UUID) error {
+	if s.seats == nil {
+		return nil
+	}
+	allowed, limit, used, _, err := s.seats.Capacity(ctx, tenantID, ent.LimitUsers)
+	if err != nil || allowed {
+		return nil
+	}
+	return domain.NewLimitReachedError(string(ent.LimitUsers), limit, used)
+}
 
 func (s *Service) clock() time.Time {
 	if s.now == nil {

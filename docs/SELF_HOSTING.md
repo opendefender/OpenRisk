@@ -134,27 +134,32 @@ the code ever disagree. It is not a marketing table; it is the code.
 | Capability | Self-hosted | Free | Pro | Business | Enterprise |
 |---|---|---|---|---|---|
 | Users | unlimited | 2 | 10 | 50 | unlimited |
-| Risks | unlimited | 50 | 500 | unlimited | unlimited |
-| Assets | unlimited | 50 | unlimited | unlimited | unlimited |
+| Risks | unlimited | 30 | 500 | unlimited | unlimited |
+| Assets | unlimited | 30 | unlimited | unlimited | unlimited |
 | Integrations | unlimited | 1 | 10 | unlimited | unlimited |
+| Active compliance frameworks | unlimited | 1 | 3 | 10 | unlimited |
+| Active automation rules | unlimited | 2 | 20 | unlimited | unlimited |
+| Scan sources | unlimited | 1 | 10 | unlimited | unlimited |
+| Scans per month | unlimited | 4 | unlimited | unlimited | unlimited |
+| Approval workflows | unlimited | 1 | 3 | unlimited | unlimited |
 | REST API | yes | limited | yes | yes | yes |
-| Automation rules | advanced | — | yes | advanced | advanced |
+| Automation rules | yes | yes | yes | yes | yes |
 | AI advisor | advanced | — | yes | advanced | advanced |
-| Compliance frameworks | custom | basic | standard | advanced | custom |
+| Compliance frameworks | yes | yes | yes | yes | yes |
 | SSO (Google, GitHub, Microsoft Entra; SAML from #1045) | yes | — | — | — | — |
 | Multi-tenant | yes | — | — | — | yes |
 | On-premise entitlement | yes | — | — | — | yes |
-| Financial quantification | yes | — | yes | yes | yes |
-| SmartScore | yes | — | yes | yes | yes |
-| Executive dashboard | yes | — | yes | yes | yes |
-| Scanner | yes | — | yes | yes | yes |
+| Financial quantification | yes | basic | yes | yes | yes |
+| SmartScore | yes | yes | yes | yes | yes |
+| Executive dashboard | yes | yes | yes | yes | yes |
+| Scanner | yes | yes | yes | yes | yes |
 | Threat intelligence (CTI) | advanced | — | — | yes | advanced |
-| Governance | advanced | — | — | yes | advanced |
+| Governance | yes | yes | yes | yes | yes |
 | Vendor risk (TPRM) | yes | — | — | yes | yes |
 | SLA | — | — | — | 99.5% | 99.9% |
 | Support | community | community | email | priority | dedicated |
 
-With `OPENRISK_DEPLOYMENT=self_hosted`, every organisation of the instance resolves to **Self-hosted**: unlimited users, unlimited risks, unlimited assets, unlimited integrations, whatever plan its row stores. Without the variable the backend refuses to boot (D-081): it never guesses whether it is your install or the OpenDefender service.
+With `OPENRISK_DEPLOYMENT=self_hosted`, every organisation of the instance resolves to **Self-hosted**: unlimited users, unlimited risks, unlimited assets, unlimited integrations, unlimited active compliance frameworks, unlimited active automation rules, unlimited scan sources, unlimited scans per month, unlimited approval workflows, whatever plan its row stores. Without the variable the backend refuses to boot (D-081): it never guesses whether it is your install or the OpenDefender service.
 
 <!-- END GENERATED: entitlements matrix -->
 

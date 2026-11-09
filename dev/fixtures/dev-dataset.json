@@ -1,0 +1,2116 @@
+{
+  "_comment": "Development dataset for the local stack (#1337). Loaded by scripts/seed-dev.mjs through the public API, never straight into the database, so scores, bands, audit trail and activity come from the real use cases. One fictional organisation, Kalao Paiements, a payment processor in Dakar and Abidjan, plus a second, smaller tenant to check isolation. Every account password below is a development fixture: the script refuses to run against anything but localhost unless SEED_DEV_ALLOW_REMOTE=true.",
+  "organization": {
+    "name": "Kalao Paiements (dev)",
+    "mfa_grace_days": 90
+  },
+  "personas": [
+    {
+      "key": "rssi",
+      "email": "fatou.ndiaye@kalao.dev.local",
+      "username": "fndiaye",
+      "full_name": "Fatou Ndiaye",
+      "password": "DevSeed!Rssi2026",
+      "role": "admin",
+      "business_role": "rssi",
+      "department": "Sécurité"
+    },
+    {
+      "key": "risk_manager",
+      "email": "ibrahima.fall@kalao.dev.local",
+      "username": "ifall",
+      "full_name": "Ibrahima Fall",
+      "password": "DevSeed!Risk2026",
+      "role": "user",
+      "business_role": "risk_manager",
+      "department": "Risques"
+    },
+    {
+      "key": "analyst",
+      "email": "awa.diallo@kalao.dev.local",
+      "username": "adiallo",
+      "full_name": "Awa Diallo",
+      "password": "DevSeed!Soc2026",
+      "role": "user",
+      "business_role": "security_analyst",
+      "department": "SOC"
+    },
+    {
+      "key": "compliance",
+      "email": "koffi.mensah@kalao.dev.local",
+      "username": "kmensah",
+      "full_name": "Koffi Mensah",
+      "password": "DevSeed!Compliance2026",
+      "role": "user",
+      "business_role": "compliance_officer",
+      "department": "Conformité"
+    },
+    {
+      "key": "auditor",
+      "email": "aminata.toure@kalao.dev.local",
+      "username": "atoure",
+      "full_name": "Aminata Touré",
+      "password": "DevSeed!Audit2026",
+      "role": "user",
+      "business_role": "auditor",
+      "department": "Audit interne"
+    },
+    {
+      "key": "asset_owner",
+      "email": "moussa.kone@kalao.dev.local",
+      "username": "mkone",
+      "full_name": "Moussa Koné",
+      "password": "DevSeed!Infra2026",
+      "role": "user",
+      "business_role": "asset_owner",
+      "department": "Infrastructure"
+    },
+    {
+      "key": "executive",
+      "email": "aissatou.ba@kalao.dev.local",
+      "username": "aba",
+      "full_name": "Aïssatou Ba",
+      "password": "DevSeed!Board2026",
+      "role": "user",
+      "business_role": "executive",
+      "department": "Direction générale"
+    },
+    {
+      "key": "viewer",
+      "email": "yao.kouassi@kalao.dev.local",
+      "username": "ykouassi",
+      "full_name": "Yao Kouassi",
+      "password": "DevSeed!Viewer2026",
+      "role": "user",
+      "business_role": "viewer",
+      "department": "Finance"
+    }
+  ],
+  "teams": [
+    {
+      "name": "SOC",
+      "description": "Détection et réponse aux incidents, 24/7 depuis Dakar.",
+      "members": [
+        "analyst",
+        "rssi"
+      ]
+    },
+    {
+      "name": "GRC",
+      "description": "Registre des risques, conformité COBAC et BCEAO, audits.",
+      "members": [
+        "risk_manager",
+        "compliance",
+        "auditor"
+      ]
+    },
+    {
+      "name": "Infrastructure",
+      "description": "Datacentres de Dakar et d'Abidjan, cloud, réseau.",
+      "members": [
+        "asset_owner"
+      ]
+    }
+  ],
+  "custom_fields": [
+    {
+      "name": "business_line",
+      "display_name": "Ligne métier",
+      "description": "Activité de Kalao concernée par le risque.",
+      "field_type": "choice",
+      "scope": "risk",
+      "validation": {
+        "allowed_values": [
+          "Acquisition",
+          "Monétique",
+          "Mobile money",
+          "Transverse"
+        ]
+      },
+      "position": 1,
+      "visible": true
+    },
+    {
+      "name": "regulator_notified",
+      "display_name": "Régulateur notifié",
+      "description": "La BCEAO ou la COBAC a été informée.",
+      "field_type": "checkbox",
+      "scope": "risk",
+      "position": 2,
+      "visible": true
+    },
+    {
+      "name": "datacenter",
+      "display_name": "Datacentre",
+      "field_type": "choice",
+      "scope": "asset",
+      "validation": {
+        "allowed_values": [
+          "Dakar DC1",
+          "Abidjan DC2",
+          "Cloud"
+        ]
+      },
+      "position": 1,
+      "visible": true
+    },
+    {
+      "name": "end_of_support",
+      "display_name": "Fin de support",
+      "field_type": "date",
+      "scope": "asset",
+      "position": 2,
+      "visible": true
+    }
+  ],
+  "assets": [
+    {
+      "name": "passerelle-paiement",
+      "type": "Application",
+      "category": "application",
+      "criticality": "CRITICAL",
+      "owner": "asset_owner",
+      "attributes": {
+        "environment": "production",
+        "application_name": "Kalao Gateway",
+        "internet_exposed": true,
+        "cpes": [
+          "cpe:2.3:a:apache:tomcat:10.1.30:*:*:*:*:*:*:*"
+        ]
+      }
+    },
+    {
+      "name": "ledger-db",
+      "type": "Database",
+      "category": "database",
+      "criticality": "CRITICAL",
+      "owner": "asset_owner",
+      "attributes": {
+        "environment": "production",
+        "engine": "postgresql"
+      }
+    },
+    {
+      "name": "switch-monetique",
+      "type": "Application",
+      "category": "application",
+      "criticality": "CRITICAL",
+      "owner": "asset_owner",
+      "attributes": {
+        "environment": "production",
+        "application_name": "Switch EMV"
+      }
+    },
+    {
+      "name": "app-mobile-money",
+      "type": "Application",
+      "category": "application",
+      "criticality": "HIGH",
+      "owner": "asset_owner",
+      "attributes": {
+        "environment": "production",
+        "application_name": "Kalao Wallet",
+        "internet_exposed": true
+      }
+    },
+    {
+      "name": "portail-marchands",
+      "type": "Application",
+      "category": "application",
+      "criticality": "HIGH",
+      "owner": "asset_owner",
+      "attributes": {
+        "environment": "production",
+        "application_name": "Portail marchands",
+        "internet_exposed": true,
+        "cpes": [
+          "cpe:2.3:a:nginx:nginx:1.25.2:*:*:*:*:*:*:*"
+        ]
+      }
+    },
+    {
+      "name": "idp-keycloak",
+      "type": "Application",
+      "category": "application",
+      "criticality": "CRITICAL",
+      "owner": "rssi",
+      "attributes": {
+        "environment": "production",
+        "application_name": "Keycloak",
+        "internet_exposed": true,
+        "cpes": [
+          "cpe:2.3:a:redhat:keycloak:24.0.1:*:*:*:*:*:*:*"
+        ]
+      }
+    },
+    {
+      "name": "web-dkr-01",
+      "type": "Server",
+      "category": "server",
+      "criticality": "HIGH",
+      "owner": "asset_owner",
+      "attributes": {
+        "environment": "production",
+        "hostname": "web-dkr-01.kalao.local",
+        "operating_system": "Ubuntu 22.04",
+        "internet_exposed": true
+      }
+    },
+    {
+      "name": "web-dkr-02",
+      "type": "Server",
+      "category": "server",
+      "criticality": "HIGH",
+      "owner": "asset_owner",
+      "attributes": {
+        "environment": "production",
+        "hostname": "web-dkr-02.kalao.local",
+        "operating_system": "Ubuntu 20.04",
+        "internet_exposed": true,
+        "cpes": [
+          "cpe:2.3:a:openbsd:openssh:9.6:*:*:*:*:*:*:*"
+        ]
+      }
+    },
+    {
+      "name": "web-abj-01",
+      "type": "Server",
+      "category": "server",
+      "criticality": "MEDIUM",
+      "owner": "asset_owner",
+      "attributes": {
+        "environment": "production",
+        "hostname": "web-abj-01.kalao.local",
+        "operating_system": "Debian 11",
+        "internet_exposed": true,
+        "cpes": [
+          "cpe:2.3:a:openssl:openssl:3.0.13:*:*:*:*:*:*:*"
+        ]
+      }
+    },
+    {
+      "name": "db-replica-abj",
+      "type": "Database",
+      "category": "database",
+      "criticality": "HIGH",
+      "owner": "asset_owner",
+      "attributes": {
+        "environment": "production",
+        "engine": "postgresql",
+        "cpes": [
+          "cpe:2.3:a:postgresql:postgresql:12.18:*:*:*:*:*:*:*"
+        ]
+      }
+    },
+    {
+      "name": "k8s-prod",
+      "type": "Cloud",
+      "category": "cloud",
+      "criticality": "CRITICAL",
+      "owner": "asset_owner",
+      "attributes": {
+        "environment": "production",
+        "provider": "autre",
+        "resource_id": "wari:k8s-prod"
+      }
+    },
+    {
+      "name": "k8s-recette",
+      "type": "Cloud",
+      "category": "cloud",
+      "criticality": "MEDIUM",
+      "owner": "asset_owner",
+      "attributes": {
+        "environment": "recette",
+        "provider": "autre",
+        "resource_id": "wari:k8s-recette"
+      }
+    },
+    {
+      "name": "stockage-objets",
+      "type": "Storage",
+      "category": "cloud",
+      "criticality": "HIGH",
+      "owner": "asset_owner",
+      "attributes": {
+        "environment": "production",
+        "provider": "autre",
+        "resource_id": "wari:stockage-objets"
+      }
+    },
+    {
+      "name": "nas-sauvegarde",
+      "type": "Storage",
+      "category": "server",
+      "criticality": "HIGH",
+      "owner": "asset_owner",
+      "attributes": {
+        "environment": "production",
+        "hostname": "nas-sauvegarde.kalao.local",
+        "operating_system": "TrueNAS 13"
+      }
+    },
+    {
+      "name": "fw-perimetre",
+      "type": "Network",
+      "category": "network",
+      "criticality": "CRITICAL",
+      "owner": "asset_owner",
+      "attributes": {
+        "device_type": "pare-feu",
+        "network_zone": "perimetre",
+        "management_ip": "10.10.0.1",
+        "internet_exposed": true
+      }
+    },
+    {
+      "name": "vpn-nomades",
+      "type": "Network",
+      "category": "network",
+      "criticality": "HIGH",
+      "owner": "asset_owner",
+      "attributes": {
+        "device_type": "vpn",
+        "network_zone": "dmz",
+        "management_ip": "10.10.0.5",
+        "internet_exposed": true,
+        "cpes": [
+          "cpe:2.3:o:fortinet:fortios:7.2.6:*:*:*:*:*:*:*"
+        ]
+      }
+    },
+    {
+      "name": "wifi-agences",
+      "type": "Network",
+      "category": "network",
+      "criticality": "LOW",
+      "owner": "asset_owner",
+      "attributes": {
+        "device_type": "point-acces-wifi",
+        "network_zone": "invite",
+        "management_ip": "10.40.0.2"
+      }
+    },
+    {
+      "name": "postes-finance",
+      "type": "Laptop",
+      "category": "workstation",
+      "criticality": "HIGH",
+      "owner": "asset_owner",
+      "attributes": {
+        "hostname": "postes-finance.kalao.local",
+        "operating_system": "Windows 11"
+      }
+    },
+    {
+      "name": "postes-agences",
+      "type": "Laptop",
+      "category": "workstation",
+      "criticality": "MEDIUM",
+      "owner": "asset_owner",
+      "attributes": {
+        "hostname": "postes-agences.kalao.local",
+        "operating_system": "Windows 10"
+      }
+    },
+    {
+      "name": "reporting-legacy",
+      "type": "Application",
+      "category": "application",
+      "criticality": "LOW",
+      "owner": "asset_owner",
+      "attributes": {
+        "environment": "production",
+        "application_name": "Reporting BI"
+      }
+    },
+    {
+      "name": "Traitement — données porteurs de carte",
+      "type": "Data",
+      "category": "data_processing",
+      "criticality": "CRITICAL",
+      "owner": "compliance",
+      "attributes": {
+        "processing_name": "Autorisation et compensation des transactions carte",
+        "purpose": "Exécuter les paiements par carte des clients des marchands affiliés.",
+        "data_categories": [
+          "financieres",
+          "identification"
+        ],
+        "legal_basis": "contrat",
+        "retention_period": "13 mois"
+      }
+    },
+    {
+      "name": "Traitement — KYC clients mobile money",
+      "type": "Data",
+      "category": "data_processing",
+      "criticality": "HIGH",
+      "owner": "compliance",
+      "attributes": {
+        "processing_name": "Connaissance client (KYC) mobile money",
+        "purpose": "Vérifier l'identité des titulaires de portefeuille, obligation LBC/FT.",
+        "data_categories": [
+          "identification"
+        ],
+        "legal_basis": "obligation-legale",
+        "retention_period": "10 ans"
+      }
+    },
+    {
+      "name": "Wari Cloud Hosting",
+      "type": "Supplier",
+      "category": "vendor",
+      "criticality": "CRITICAL",
+      "owner": "rssi",
+      "attributes": {
+        "legal_name": "Wari Cloud Hosting SARL",
+        "country": "Sénégal",
+        "service_provided": "Hébergement IaaS du cluster de production et du stockage objet.",
+        "contract_reference": "KAL-2024-017",
+        "contract_end": "2027-06-30",
+        "contact_email": "securite@wari-cloud.example",
+        "data_shared": "financieres",
+        "dpa_signed": true,
+        "certifications": [
+          "iso-27001"
+        ],
+        "service_criticality": "critique",
+        "last_assessment": "2026-03-12"
+      }
+    },
+    {
+      "name": "Sonatel Liaisons",
+      "type": "Supplier",
+      "category": "vendor",
+      "criticality": "HIGH",
+      "owner": "asset_owner",
+      "attributes": {
+        "legal_name": "Liaisons d'entreprise (opérateur télécom)",
+        "country": "Sénégal",
+        "service_provided": "Liens MPLS entre Dakar, Abidjan et les agences.",
+        "contract_reference": "KAL-2023-004",
+        "contract_end": "2026-12-31",
+        "data_shared": "aucune",
+        "dpa_signed": false,
+        "certifications": [
+          "aucune"
+        ],
+        "service_criticality": "haute"
+      }
+    },
+    {
+      "name": "Paysafe Tokenisation",
+      "type": "Supplier",
+      "category": "vendor",
+      "criticality": "CRITICAL",
+      "owner": "compliance",
+      "attributes": {
+        "legal_name": "Tokenisation SaaS Ltd",
+        "country": "Irlande",
+        "service_provided": "Coffre de tokenisation des PAN pour la passerelle de paiement.",
+        "contract_reference": "KAL-2025-002",
+        "contract_end": "2028-01-31",
+        "contact_email": "dpo@token-saas.example",
+        "data_shared": "financieres",
+        "dpa_signed": true,
+        "certifications": [
+          "pci-dss",
+          "iso-27001",
+          "soc-2"
+        ],
+        "service_criticality": "critique",
+        "last_assessment": "2025-11-20"
+      }
+    },
+    {
+      "name": "Imprimerie Cartes Ouest",
+      "type": "Supplier",
+      "category": "vendor",
+      "criticality": "MEDIUM",
+      "owner": "compliance",
+      "attributes": {
+        "legal_name": "Imprimerie Cartes Ouest SA",
+        "country": "Côte d'Ivoire",
+        "service_provided": "Personnalisation et envoi des cartes prépayées.",
+        "data_shared": "personnelles",
+        "dpa_signed": false,
+        "certifications": [
+          "aucune"
+        ],
+        "service_criticality": "moyenne"
+      }
+    }
+  ],
+  "dependencies": [
+    {
+      "source": "passerelle-paiement",
+      "target": "ledger-db",
+      "type": "stores_data_in",
+      "description": "Écritures comptables des transactions"
+    },
+    {
+      "source": "passerelle-paiement",
+      "target": "k8s-prod",
+      "type": "runs_on"
+    },
+    {
+      "source": "passerelle-paiement",
+      "target": "idp-keycloak",
+      "type": "authenticates_via"
+    },
+    {
+      "source": "passerelle-paiement",
+      "target": "switch-monetique",
+      "type": "connects_to",
+      "description": "Autorisations carte"
+    },
+    {
+      "source": "switch-monetique",
+      "target": "web-dkr-01",
+      "type": "runs_on"
+    },
+    {
+      "source": "app-mobile-money",
+      "target": "k8s-prod",
+      "type": "runs_on"
+    },
+    {
+      "source": "app-mobile-money",
+      "target": "ledger-db",
+      "type": "stores_data_in"
+    },
+    {
+      "source": "portail-marchands",
+      "target": "web-dkr-02",
+      "type": "runs_on"
+    },
+    {
+      "source": "portail-marchands",
+      "target": "idp-keycloak",
+      "type": "authenticates_via"
+    },
+    {
+      "source": "ledger-db",
+      "target": "db-replica-abj",
+      "type": "backs_up_to",
+      "description": "Réplication asynchrone vers Abidjan"
+    },
+    {
+      "source": "ledger-db",
+      "target": "nas-sauvegarde",
+      "type": "backs_up_to"
+    },
+    {
+      "source": "k8s-prod",
+      "target": "stockage-objets",
+      "type": "stores_data_in"
+    },
+    {
+      "source": "k8s-prod",
+      "target": "fw-perimetre",
+      "type": "connects_to"
+    },
+    {
+      "source": "web-dkr-01",
+      "target": "fw-perimetre",
+      "type": "connects_to"
+    },
+    {
+      "source": "web-dkr-02",
+      "target": "fw-perimetre",
+      "type": "connects_to"
+    },
+    {
+      "source": "web-abj-01",
+      "target": "db-replica-abj",
+      "type": "depends_on"
+    },
+    {
+      "source": "postes-finance",
+      "target": "vpn-nomades",
+      "type": "connects_to"
+    },
+    {
+      "source": "postes-agences",
+      "target": "wifi-agences",
+      "type": "connects_to"
+    },
+    {
+      "source": "reporting-legacy",
+      "target": "db-replica-abj",
+      "type": "depends_on"
+    },
+    {
+      "source": "k8s-recette",
+      "target": "stockage-objets",
+      "type": "stores_data_in"
+    }
+  ],
+  "vendor_links": [
+    {
+      "vendor": "Wari Cloud Hosting",
+      "asset": "k8s-prod",
+      "verb": "hosted_by",
+      "description": "Cluster de production"
+    },
+    {
+      "vendor": "Wari Cloud Hosting",
+      "asset": "stockage-objets",
+      "verb": "hosted_by"
+    },
+    {
+      "vendor": "Sonatel Liaisons",
+      "asset": "vpn-nomades",
+      "verb": "depends_on"
+    },
+    {
+      "vendor": "Paysafe Tokenisation",
+      "asset": "passerelle-paiement",
+      "verb": "processes_data_of",
+      "description": "Tokenisation des numéros de carte"
+    },
+    {
+      "vendor": "Imprimerie Cartes Ouest",
+      "asset": "Traitement — KYC clients mobile money",
+      "verb": "processes_data_of"
+    }
+  ],
+  "risks": [
+    {
+      "title": "RCE activement exploitée dans le framework de la passerelle",
+      "description": "Le framework web de la passerelle de paiement est vulnérable à une exécution de code à distance listée au catalogue KEV. Un correctif existe mais n'est pas déployé.",
+      "probability": 0.85,
+      "impact": 9.5,
+      "assets": [
+        "passerelle-paiement"
+      ],
+      "tags": [
+        "cve",
+        "internet"
+      ],
+      "frameworks": [
+        "ISO 27001",
+        "PCI DSS"
+      ],
+      "state": "in_treatment",
+      "owner": "rssi",
+      "sle_xaf": 450000000,
+      "aro": 0.6,
+      "remediation_cost_xaf": 12000000,
+      "mitigation_effectiveness": 0.9,
+      "custom": {
+        "business_line": "Acquisition"
+      }
+    },
+    {
+      "title": "Compte de service superutilisateur sur le ledger",
+      "description": "Le compte applicatif de la passerelle dispose des droits superuser sur la base comptable. Une compromission de l'application donne la main sur toutes les écritures.",
+      "probability": 0.4,
+      "impact": 9.5,
+      "assets": [
+        "ledger-db"
+      ],
+      "tags": [
+        "iam"
+      ],
+      "frameworks": [
+        "ISO 27001",
+        "COBAC"
+      ],
+      "state": "treatment_planned",
+      "owner": "risk_manager",
+      "sle_xaf": 800000000,
+      "aro": 0.15,
+      "remediation_cost_xaf": 4000000,
+      "mitigation_effectiveness": 0.8
+    },
+    {
+      "title": "MFA non imposée sur le fournisseur d'identité",
+      "description": "Les comptes administrateurs Keycloak se connectent par mot de passe seul. Les tentatives de bourrage d'identifiants sont visibles dans les journaux.",
+      "probability": 0.5,
+      "impact": 9,
+      "assets": [
+        "idp-keycloak"
+      ],
+      "tags": [
+        "iam",
+        "mfa"
+      ],
+      "frameworks": [
+        "ISO 27001",
+        "BCEAO"
+      ],
+      "state": "in_treatment",
+      "owner": "rssi",
+      "sle_xaf": 300000000,
+      "aro": 0.3,
+      "remediation_cost_xaf": 2500000,
+      "mitigation_effectiveness": 0.85
+    },
+    {
+      "title": "Restauration des sauvegardes jamais testée",
+      "description": "Aucun test de restauration complet du ledger n'a été mené depuis la migration vers le nouveau NAS.",
+      "probability": 0.35,
+      "impact": 8.5,
+      "assets": [
+        "nas-sauvegarde",
+        "ledger-db"
+      ],
+      "tags": [
+        "continuité"
+      ],
+      "frameworks": [
+        "ISO 22301",
+        "BCEAO"
+      ],
+      "state": "assessed",
+      "owner": "asset_owner",
+      "downtime_hours": 48,
+      "hourly_downtime_cost_xaf": 3500000,
+      "aro": 0.2
+    },
+    {
+      "title": "Chiffrements TLS obsolètes sur le portail marchands",
+      "description": "Le portail accepte encore TLS 1.0 et des suites CBC pour un terminal de paiement ancien.",
+      "probability": 0.2,
+      "impact": 4,
+      "assets": [
+        "portail-marchands"
+      ],
+      "tags": [
+        "tls"
+      ],
+      "frameworks": [
+        "PCI DSS"
+      ],
+      "state": "mitigated",
+      "owner": "asset_owner"
+    },
+    {
+      "title": "Données personnelles non chiffrées dans le stockage objet",
+      "description": "Des exports KYC sont déposés en clair dans un bucket accessible à tous les pods du cluster.",
+      "probability": 0.3,
+      "impact": 9,
+      "assets": [
+        "stockage-objets",
+        "Traitement — KYC clients mobile money"
+      ],
+      "tags": [
+        "rgpd",
+        "chiffrement"
+      ],
+      "frameworks": [
+        "RGPD",
+        "ISO 27001"
+      ],
+      "state": "assessed",
+      "owner": "compliance",
+      "fines_xaf": 150000000,
+      "data_loss_cost_xaf": 60000000,
+      "aro": 0.25,
+      "custom": {
+        "business_line": "Mobile money",
+        "regulator_notified": false
+      }
+    },
+    {
+      "title": "API Kubernetes exposée au réseau bureautique",
+      "description": "Le plan de contrôle du cluster de production répond depuis le VLAN des postes.",
+      "probability": 0.4,
+      "impact": 8,
+      "assets": [
+        "k8s-prod"
+      ],
+      "tags": [
+        "réseau"
+      ],
+      "frameworks": [
+        "ISO 27001"
+      ],
+      "state": "identified",
+      "owner": "asset_owner"
+    },
+    {
+      "title": "Runners CI avec des clés cloud permanentes",
+      "description": "Les runners de la CI stockent des clés d'accès cloud sans expiration.",
+      "probability": 0.45,
+      "impact": 8,
+      "assets": [
+        "k8s-prod"
+      ],
+      "tags": [
+        "secrets",
+        "ci"
+      ],
+      "frameworks": [
+        "ISO 27001"
+      ],
+      "state": "draft",
+      "owner": "analyst"
+    },
+    {
+      "title": "Hameçonnage ciblant les postes de la finance",
+      "description": "Trois campagnes de spear-phishing imitant la DGID en six mois. Taux de clic de 14 % au dernier exercice.",
+      "probability": 0.6,
+      "impact": 7,
+      "assets": [
+        "postes-finance"
+      ],
+      "tags": [
+        "phishing",
+        "humain"
+      ],
+      "frameworks": [
+        "ISO 27001"
+      ],
+      "state": "in_treatment",
+      "owner": "rssi",
+      "sle_xaf": 120000000,
+      "aro": 0.8,
+      "remediation_cost_xaf": 6000000,
+      "mitigation_effectiveness": 0.5
+    },
+    {
+      "title": "Firmware du VPN en retard de deux versions majeures",
+      "description": "La passerelle VPN des nomades tourne sur un firmware dont deux CVE critiques sont publiées.",
+      "probability": 0.5,
+      "impact": 8.5,
+      "assets": [
+        "vpn-nomades"
+      ],
+      "tags": [
+        "cve",
+        "réseau"
+      ],
+      "frameworks": [
+        "ISO 27001"
+      ],
+      "state": "in_treatment",
+      "owner": "asset_owner"
+    },
+    {
+      "title": "Réplica d'Abidjan joignable sans politique réseau",
+      "description": "La base répliquée accepte les connexions de tout le réseau de l'agence d'Abidjan.",
+      "probability": 0.35,
+      "impact": 7.5,
+      "assets": [
+        "db-replica-abj"
+      ],
+      "tags": [
+        "réseau"
+      ],
+      "frameworks": [
+        "ISO 27001",
+        "COBAC"
+      ],
+      "state": "assessed",
+      "owner": "asset_owner"
+    },
+    {
+      "title": "Revue des accès expirée pour trois applications",
+      "description": "La revue semestrielle des habilitations n'a pas été faite pour le switch, le ledger et le portail.",
+      "probability": 0.45,
+      "impact": 6,
+      "assets": [
+        "switch-monetique",
+        "ledger-db",
+        "portail-marchands"
+      ],
+      "tags": [
+        "iam",
+        "audit"
+      ],
+      "frameworks": [
+        "COBAC",
+        "ISO 27001"
+      ],
+      "state": "identified",
+      "owner": "compliance"
+    },
+    {
+      "title": "Second serveur web hors de la baseline de correctifs",
+      "description": "web-dkr-02 n'est pas rattaché à l'outil de patch management depuis son remplacement.",
+      "probability": 0.55,
+      "impact": 7,
+      "assets": [
+        "web-dkr-02"
+      ],
+      "tags": [
+        "patch"
+      ],
+      "frameworks": [
+        "ISO 27001"
+      ],
+      "state": "treatment_planned",
+      "owner": "asset_owner"
+    },
+    {
+      "title": "Application de reporting sans propriétaire",
+      "description": "Le reporting historique n'a plus de responsable depuis le départ de l'équipe BI.",
+      "probability": 0.3,
+      "impact": 5,
+      "assets": [
+        "reporting-legacy"
+      ],
+      "tags": [
+        "gouvernance"
+      ],
+      "frameworks": [],
+      "state": "residual_accepted",
+      "acceptance_expires_at": "+20d",
+      "owner": "risk_manager"
+    },
+    {
+      "title": "Wi-Fi des agences sur le même réseau que la finance",
+      "description": "Le Wi-Fi invités des agences n'est pas segmenté du réseau des postes comptables.",
+      "probability": 0.35,
+      "impact": 6.5,
+      "assets": [
+        "wifi-agences",
+        "postes-agences"
+      ],
+      "tags": [
+        "réseau",
+        "segmentation"
+      ],
+      "frameworks": [
+        "PCI DSS"
+      ],
+      "state": "assessed",
+      "owner": "asset_owner"
+    },
+    {
+      "title": "Environnement de recette restauré depuis la production",
+      "description": "La recette a été rechargée avec un instantané de production non anonymisé.",
+      "probability": 0.5,
+      "impact": 8,
+      "assets": [
+        "k8s-recette"
+      ],
+      "tags": [
+        "rgpd"
+      ],
+      "frameworks": [
+        "RGPD"
+      ],
+      "state": "closed",
+      "owner": "compliance"
+    },
+    {
+      "title": "Comptes d'anciens prestataires réactivés sur le VPN",
+      "description": "Clôturé après la purge de mars, le risque est revenu : deux comptes de prestataires partis ont été réactivés lors d'une restauration de l'annuaire.",
+      "probability": 0.4,
+      "impact": 6,
+      "assets": [
+        "vpn-nomades",
+        "idp-keycloak"
+      ],
+      "tags": [
+        "accès",
+        "tiers"
+      ],
+      "frameworks": [
+        "ISO 27001"
+      ],
+      "state": "reopened",
+      "owner": "risk_manager"
+    },
+    {
+      "title": "Pas de limitation de débit sur l'authentification du portail",
+      "description": "L'endpoint de connexion du portail marchands n'applique aucun quota par IP.",
+      "probability": 0.55,
+      "impact": 7,
+      "assets": [
+        "portail-marchands"
+      ],
+      "tags": [
+        "owasp"
+      ],
+      "frameworks": [
+        "ISO 27001"
+      ],
+      "state": "in_treatment",
+      "owner": "analyst",
+      "sle_xaf": 80000000,
+      "aro": 0.5,
+      "remediation_cost_xaf": 1500000,
+      "mitigation_effectiveness": 0.9
+    },
+    {
+      "title": "Un seul administrateur pour la base comptable",
+      "description": "Toutes les opérations DBA du ledger reposent sur une seule personne, sans suppléant formé.",
+      "probability": 0.25,
+      "impact": 8.5,
+      "assets": [
+        "ledger-db"
+      ],
+      "tags": [
+        "continuité",
+        "humain"
+      ],
+      "frameworks": [
+        "COBAC"
+      ],
+      "state": "residual_accepted",
+      "acceptance_expires_at": "+200d",
+      "owner": "risk_manager"
+    },
+    {
+      "title": "Chiffrement des disques des postes d'agence non vérifié",
+      "description": "Le rapport BitLocker remonte 31 % de postes sans statut.",
+      "probability": 0.3,
+      "impact": 5.5,
+      "assets": [
+        "postes-agences"
+      ],
+      "tags": [
+        "chiffrement"
+      ],
+      "frameworks": [
+        "ISO 27001",
+        "RGPD"
+      ],
+      "state": "mitigated",
+      "owner": "asset_owner"
+    },
+    {
+      "title": "Journaux du pare-feu conservés sept jours",
+      "description": "La rétention des journaux du pare-feu périmétrique ne couvre pas les 12 mois exigés.",
+      "probability": 0.4,
+      "impact": 4.5,
+      "assets": [
+        "fw-perimetre"
+      ],
+      "tags": [
+        "journalisation"
+      ],
+      "frameworks": [
+        "PCI DSS",
+        "BCEAO"
+      ],
+      "state": "identified",
+      "owner": "analyst"
+    },
+    {
+      "title": "Script analytique tiers sur la page de paiement",
+      "description": "Un script de mesure d'audience est chargé sur la page de saisie carte sans contrôle d'intégrité.",
+      "probability": 0.3,
+      "impact": 7.5,
+      "assets": [
+        "passerelle-paiement"
+      ],
+      "tags": [
+        "pci",
+        "supply-chain"
+      ],
+      "frameworks": [
+        "PCI DSS",
+        "RGPD"
+      ],
+      "state": "assessed",
+      "owner": "compliance"
+    },
+    {
+      "title": "Dépendance unique à l'hébergeur cloud",
+      "description": "Production et sauvegardes externalisées sont chez le même hébergeur, sans plan de réversibilité testé.",
+      "probability": 0.2,
+      "impact": 9,
+      "assets": [
+        "k8s-prod",
+        "Wari Cloud Hosting"
+      ],
+      "tags": [
+        "tiers",
+        "continuité"
+      ],
+      "frameworks": [
+        "ISO 27001",
+        "BCEAO"
+      ],
+      "state": "treatment_planned",
+      "owner": "rssi",
+      "downtime_hours": 72,
+      "hourly_downtime_cost_xaf": 3500000,
+      "aro": 0.1
+    },
+    {
+      "title": "Prestataire d'impression sans clause RGPD",
+      "description": "L'imprimeur reçoit noms et adresses des porteurs sans accord de sous-traitance signé.",
+      "probability": 0.4,
+      "impact": 6,
+      "assets": [
+        "Imprimerie Cartes Ouest"
+      ],
+      "tags": [
+        "tiers",
+        "rgpd"
+      ],
+      "frameworks": [
+        "RGPD"
+      ],
+      "state": "identified",
+      "owner": "compliance"
+    },
+    {
+      "title": "Absence d'objectif de reprise documenté pour le ledger",
+      "description": "Ni RTO ni RPO n'est formalisé pour la base comptable, alors que la BCEAO l'exige.",
+      "probability": 0.3,
+      "impact": 8,
+      "assets": [
+        "ledger-db"
+      ],
+      "tags": [
+        "continuité"
+      ],
+      "frameworks": [
+        "BCEAO",
+        "ISO 22301"
+      ],
+      "state": "draft",
+      "owner": "risk_manager"
+    },
+    {
+      "title": "Clés HSM du switch monétique jamais renouvelées",
+      "description": "Les clés de zone du switch n'ont pas été renouvelées depuis la mise en service en 2021.",
+      "probability": 0.15,
+      "impact": 9.5,
+      "assets": [
+        "switch-monetique"
+      ],
+      "tags": [
+        "crypto",
+        "pci"
+      ],
+      "frameworks": [
+        "PCI DSS"
+      ],
+      "state": "assessed",
+      "owner": "rssi",
+      "sle_xaf": 600000000,
+      "aro": 0.05
+    },
+    {
+      "title": "Postes d'agence partagés entre plusieurs caissiers",
+      "description": "Un même compte Windows est utilisé par toute l'équipe de l'agence de Thiès.",
+      "probability": 0.7,
+      "impact": 3,
+      "assets": [
+        "postes-agences"
+      ],
+      "tags": [
+        "iam"
+      ],
+      "frameworks": [
+        "COBAC"
+      ],
+      "state": "identified",
+      "owner": "asset_owner"
+    },
+    {
+      "title": "Bannière serveur révélant les versions",
+      "description": "Les serveurs web affichent la version exacte de nginx et d'OpenSSL.",
+      "probability": 0.6,
+      "impact": 1.5,
+      "assets": [
+        "web-abj-01"
+      ],
+      "tags": [
+        "durcissement"
+      ],
+      "frameworks": [],
+      "state": "identified",
+      "owner": "analyst"
+    }
+  ],
+  "mitigations": [
+    {
+      "risk": "RCE activement exploitée dans le framework de la passerelle",
+      "title": "Déployer le correctif du framework en production",
+      "assignee": "asset_owner",
+      "progress": 60,
+      "cost": "12 000 000 XAF",
+      "due_in_days": 7,
+      "sub_actions": [
+        {
+          "title": "Valider le correctif en recette",
+          "done": true
+        },
+        {
+          "title": "Fenêtre de maintenance validée par le CAB",
+          "done": true
+        },
+        {
+          "title": "Déploiement Dakar"
+        },
+        {
+          "title": "Déploiement Abidjan"
+        }
+      ]
+    },
+    {
+      "risk": "RCE activement exploitée dans le framework de la passerelle",
+      "title": "Règle WAF temporaire contre l'exploit public",
+      "assignee": "analyst",
+      "progress": 100,
+      "due_in_days": -10
+    },
+    {
+      "risk": "MFA non imposée sur le fournisseur d'identité",
+      "title": "Imposer TOTP aux administrateurs Keycloak",
+      "assignee": "rssi",
+      "progress": 40,
+      "due_in_days": 14,
+      "sub_actions": [
+        {
+          "title": "Inventaire des comptes administrateurs",
+          "done": true
+        },
+        {
+          "title": "Enrôlement des 12 administrateurs"
+        },
+        {
+          "title": "Politique d'authentification obligatoire"
+        }
+      ]
+    },
+    {
+      "risk": "Hameçonnage ciblant les postes de la finance",
+      "title": "Campagne de sensibilisation trimestrielle",
+      "assignee": "rssi",
+      "progress": 25,
+      "due_in_days": 30,
+      "sub_actions": [
+        {
+          "title": "Module e-learning DGID"
+        },
+        {
+          "title": "Simulation de phishing",
+          "done": true
+        }
+      ]
+    },
+    {
+      "risk": "Firmware du VPN en retard de deux versions majeures",
+      "title": "Mettre à jour le firmware du VPN",
+      "assignee": "asset_owner",
+      "progress": 10,
+      "due_in_days": -3
+    },
+    {
+      "risk": "Pas de limitation de débit sur l'authentification du portail",
+      "title": "Quota par IP sur /login à l'edge",
+      "assignee": "analyst",
+      "progress": 80,
+      "due_in_days": 2
+    },
+    {
+      "risk": "Compte de service superutilisateur sur le ledger",
+      "title": "Créer un rôle applicatif à privilèges minimaux",
+      "assignee": "asset_owner",
+      "progress": 0,
+      "due_in_days": 45
+    },
+    {
+      "risk": "Second serveur web hors de la baseline de correctifs",
+      "title": "Rattacher web-dkr-02 au patch management",
+      "assignee": "asset_owner",
+      "progress": 0,
+      "due_in_days": 21
+    },
+    {
+      "risk": "Dépendance unique à l'hébergeur cloud",
+      "title": "Plan de réversibilité vers le DC d'Abidjan",
+      "assignee": "rssi",
+      "progress": 0,
+      "due_in_days": 120
+    },
+    {
+      "risk": "Chiffrements TLS obsolètes sur le portail marchands",
+      "title": "Désactiver TLS 1.0 et les suites CBC",
+      "assignee": "asset_owner",
+      "progress": 100,
+      "due_in_days": -30
+    },
+    {
+      "risk": "Chiffrement des disques des postes d'agence non vérifié",
+      "title": "Remontée du statut BitLocker dans l'inventaire",
+      "assignee": "asset_owner",
+      "progress": 100,
+      "due_in_days": -15
+    },
+    {
+      "risk": "Application de reporting sans propriétaire",
+      "title": "Restreindre l'accès au reporting en lecture seule",
+      "assignee": "asset_owner",
+      "progress": 100,
+      "due_in_days": -20
+    },
+    {
+      "risk": "Un seul administrateur pour la base comptable",
+      "title": "Documenter les procédures DBA critiques",
+      "assignee": "risk_manager",
+      "progress": 70,
+      "due_in_days": 10
+    }
+  ],
+  "frameworks": [
+    {
+      "name": "ISO 27001",
+      "catalog_key": "iso27001-2022",
+      "version": "2022",
+      "description": "Système de management de la sécurité de l'information."
+    },
+    {
+      "name": "COBAC",
+      "catalog_key": "cobac",
+      "version": "R-2008/01",
+      "description": "Contrôle interne des établissements de crédit de la CEMAC."
+    },
+    {
+      "name": "BCEAO",
+      "catalog_key": "bceao",
+      "version": "2021",
+      "description": "Systèmes et moyens de paiement UEMOA."
+    },
+    {
+      "name": "RGPD",
+      "catalog_key": "gdpr-2016-679",
+      "version": "2016/679",
+      "description": "Protection des données personnelles des clients européens."
+    },
+    {
+      "name": "PCI DSS",
+      "catalog_key": "pci-dss-4.0",
+      "version": "4.0",
+      "description": "Sécurité des données de cartes de paiement."
+    }
+  ],
+  "control_status_mix": {
+    "implemented": 0.45,
+    "in_progress": 0.25,
+    "not_implemented": 0.25,
+    "not_applicable": 0.05
+  },
+  "evidence": [
+    {
+      "title": "Politique de contrôle d'accès v3",
+      "type": "document",
+      "description": "Politique validée par le comité sécurité de mars.",
+      "framework": "ISO 27001",
+      "controls": 2,
+      "review": "approve",
+      "valid_days": 300
+    },
+    {
+      "title": "Rapport de revue des habilitations S1",
+      "type": "document",
+      "description": "Export signé de la revue semestrielle du switch monétique.",
+      "framework": "COBAC",
+      "controls": 1,
+      "review": "approve",
+      "valid_days": 20
+    },
+    {
+      "title": "Capture de la configuration MFA Keycloak",
+      "type": "capture",
+      "description": "Écran de la politique d'authentification du royaume admin.",
+      "framework": "ISO 27001",
+      "controls": 1,
+      "review": "reject",
+      "valid_days": 365
+    },
+    {
+      "title": "Procès-verbal du test de PRA 2025",
+      "type": "document",
+      "description": "Test de bascule partiel vers Abidjan, novembre 2025.",
+      "framework": "BCEAO",
+      "controls": 1,
+      "valid_days": -10
+    },
+    {
+      "title": "Registre des traitements",
+      "type": "document",
+      "description": "Registre article 30, version de septembre.",
+      "framework": "RGPD",
+      "controls": 2,
+      "valid_days": 200
+    },
+    {
+      "title": "Rapport de scan ASV trimestriel",
+      "type": "document",
+      "description": "Scan externe ASV du périmètre carte, aucun échec.",
+      "framework": "PCI DSS",
+      "controls": 1,
+      "review": "approve",
+      "valid_days": 60
+    },
+    {
+      "title": "Tableau de bord des correctifs octobre",
+      "type": "document",
+      "description": "Taux de conformité de la baseline de correctifs.",
+      "framework": "ISO 27001",
+      "controls": 1,
+      "valid_days": 30
+    }
+  ],
+  "audits": [
+    {
+      "title": "Audit interne ISO 27001 2026",
+      "type": "internal",
+      "framework": "ISO 27001",
+      "auditor": "auditor",
+      "scope": "SMSI complet, sites de Dakar et d'Abidjan.",
+      "start_in_days": -40,
+      "end_in_days": -20,
+      "status": "completed",
+      "compliance_score": 72,
+      "summary": "Quatre non-conformités mineures, une majeure sur la gestion des accès.",
+      "generate_remediations": true
+    },
+    {
+      "title": "Mission COBAC de contrôle sur place",
+      "type": "external",
+      "framework": "COBAC",
+      "auditor": "Commission bancaire (externe)",
+      "scope": "Contrôle interne et sécurité des SI.",
+      "start_in_days": -5,
+      "end_in_days": 25,
+      "status": "in_progress"
+    },
+    {
+      "title": "Certification PCI DSS 2027",
+      "type": "certification",
+      "framework": "PCI DSS",
+      "auditor": "QSA externe",
+      "scope": "Environnement des données de carte.",
+      "start_in_days": 60,
+      "end_in_days": 75,
+      "status": "planned"
+    }
+  ],
+  "remediations": [
+    {
+      "title": "Formaliser la revue trimestrielle des habilitations",
+      "description": "Procédure, calendrier et preuve signée par propriétaire d'application.",
+      "audit": "Audit interne ISO 27001 2026",
+      "priority": "high",
+      "assignee": "compliance",
+      "due_in_days": 30,
+      "status": "in_progress"
+    },
+    {
+      "title": "Mettre la rétention des journaux à 12 mois",
+      "audit": "Mission COBAC de contrôle sur place",
+      "priority": "medium",
+      "assignee": "asset_owner",
+      "due_in_days": 60
+    },
+    {
+      "title": "Clore l'écart sur la segmentation du Wi-Fi",
+      "priority": "critical",
+      "assignee": "asset_owner",
+      "due_in_days": -5
+    }
+  ],
+  "vulnerabilities": [
+    {
+      "title": "Exécution de code dans le framework web",
+      "cve": "CVE-2025-24813",
+      "cvss": 9.8,
+      "severity": "critical",
+      "kev": true,
+      "exploit_available": true,
+      "host": "passerelle-paiement"
+    },
+    {
+      "title": "Contournement d'authentification du VPN",
+      "cve": "CVE-2024-21762",
+      "cvss": 9.6,
+      "severity": "critical",
+      "kev": true,
+      "exploit_available": true,
+      "host": "vpn-nomades"
+    },
+    {
+      "title": "Débordement de tampon dans le firmware VPN",
+      "cve": "CVE-2024-23113",
+      "cvss": 9.8,
+      "severity": "critical",
+      "kev": true,
+      "host": "vpn-nomades"
+    },
+    {
+      "title": "OpenSSH regreSSHion",
+      "cve": "CVE-2024-6387",
+      "cvss": 8.1,
+      "severity": "high",
+      "exploit_available": true,
+      "host": "web-dkr-02"
+    },
+    {
+      "title": "Élévation de privilèges noyau Linux",
+      "cve": "CVE-2024-1086",
+      "cvss": 7.8,
+      "severity": "high",
+      "kev": true,
+      "host": "web-dkr-02"
+    },
+    {
+      "title": "Injection SQL dans le module d'export",
+      "cve": "CVE-2023-34362",
+      "cvss": 9.8,
+      "severity": "critical",
+      "host": "reporting-legacy"
+    },
+    {
+      "title": "Déni de service HTTP/2 Rapid Reset",
+      "cve": "CVE-2023-44487",
+      "cvss": 7.5,
+      "severity": "high",
+      "kev": true,
+      "host": "portail-marchands"
+    },
+    {
+      "title": "Fuite mémoire TLS",
+      "cve": "CVE-2024-5535",
+      "cvss": 9.1,
+      "severity": "critical",
+      "host": "web-abj-01"
+    },
+    {
+      "title": "XZ Utils porte dérobée",
+      "cve": "CVE-2024-3094",
+      "cvss": 10,
+      "severity": "critical",
+      "host": "k8s-recette"
+    },
+    {
+      "title": "Exposition d'informations du serveur web",
+      "cve": "CVE-2023-44981",
+      "cvss": 5.3,
+      "severity": "medium",
+      "host": "web-abj-01"
+    },
+    {
+      "title": "Version de PostgreSQL non supportée",
+      "cve": "CVE-2024-10979",
+      "cvss": 8.8,
+      "severity": "high",
+      "host": "db-replica-abj"
+    },
+    {
+      "title": "Cookie de session sans attribut Secure",
+      "cvss": 4.3,
+      "severity": "medium",
+      "host": "portail-marchands"
+    },
+    {
+      "title": "Certificat auto-signé sur l'imprimante réseau",
+      "cvss": 3.1,
+      "severity": "low",
+      "host": "imp-agence-thies"
+    },
+    {
+      "title": "SMBv1 activé sur un poste inconnu",
+      "cve": "CVE-2017-0144",
+      "cvss": 8.1,
+      "severity": "high",
+      "kev": true,
+      "host": "pc-inconnu-042"
+    }
+  ],
+  "incidents": [
+    {
+      "title": "Trafic sortant suspect depuis web-dkr-01",
+      "description": "Pic de trafic vers un ASN inconnu dans la nuit. Hôte isolé, investigation en cours.",
+      "incident_type": "security_breach",
+      "severity": "high",
+      "status": "in_progress",
+      "assets": [
+        "web-dkr-01"
+      ],
+      "risks": [
+        "RCE activement exploitée dans le framework de la passerelle"
+      ],
+      "actions": [
+        {
+          "title": "Isoler l'hôte du réseau",
+          "assignee": "analyst",
+          "due_in_days": -1
+        },
+        {
+          "title": "Collecter une image mémoire",
+          "assignee": "analyst",
+          "due_in_days": 1
+        }
+      ]
+    },
+    {
+      "title": "Bourrage d'identifiants sur le portail marchands",
+      "description": "9 000 tentatives de connexion depuis un même ASN en deux heures.",
+      "incident_type": "unauthorized_access",
+      "severity": "high",
+      "status": "open",
+      "assets": [
+        "portail-marchands"
+      ],
+      "risks": [
+        "Pas de limitation de débit sur l'authentification du portail"
+      ],
+      "actions": [
+        {
+          "title": "Bloquer l'ASN à l'edge",
+          "assignee": "analyst",
+          "due_in_days": 0
+        }
+      ]
+    },
+    {
+      "title": "Hameçonnage paie signalé par la DRH",
+      "description": "Un collaborateur a signalé un e-mail imitant le prestataire de paie. Aucun identifiant saisi.",
+      "incident_type": "phishing",
+      "severity": "medium",
+      "status": "resolved",
+      "assets": [
+        "postes-finance"
+      ],
+      "risks": [
+        "Hameçonnage ciblant les postes de la finance"
+      ],
+      "post_mortem": {
+        "summary": "Campagne de phishing ciblée stoppée par le signalement d'un collaborateur.",
+        "root_cause": "Absence de DMARC en mode reject sur le domaine du prestataire imité.",
+        "impact": "Aucun compte compromis ; 2 heures d'analyse SOC.",
+        "lessons_learned": "Le bouton de signalement fonctionne : le généraliser à toutes les agences.",
+        "publish": true,
+        "timeline": [
+          {
+            "at": "__-3d",
+            "title": "Détection",
+            "detail": "Alerte ou signalement reçu par le SOC.",
+            "kind": "detection"
+          },
+          {
+            "at": "__-3d",
+            "title": "Escalade au RSSI",
+            "kind": "escalation"
+          },
+          {
+            "at": "__-2d",
+            "title": "Mesure de confinement",
+            "kind": "mitigation"
+          },
+          {
+            "at": "__-1d",
+            "title": "Retour à la normale",
+            "kind": "resolution"
+          }
+        ],
+        "corrective_actions": [
+          {
+            "title": "Corriger la cause racine",
+            "priority": "high",
+            "status": "open",
+            "owner": "rssi",
+            "due_in_days": 30
+          },
+          {
+            "title": "Ajouter une alerte de supervision",
+            "priority": "medium",
+            "status": "open",
+            "owner": "analyst",
+            "due_in_days": 15
+          }
+        ]
+      }
+    },
+    {
+      "title": "Échec des sauvegardes nocturnes du ledger",
+      "description": "Trois nuits d'échec sur volume plein. Capacité étendue, sauvegardes rejouées et vérifiées.",
+      "incident_type": "system_failure",
+      "severity": "medium",
+      "status": "closed",
+      "assets": [
+        "nas-sauvegarde",
+        "ledger-db"
+      ],
+      "risks": [
+        "Restauration des sauvegardes jamais testée"
+      ],
+      "post_mortem": {
+        "summary": "Volume de sauvegarde saturé, alerte de capacité non configurée.",
+        "root_cause": "Croissance du ledger non prise en compte dans le dimensionnement.",
+        "impact": "72 heures sans sauvegarde valide du ledger.",
+        "publish": false,
+        "timeline": [
+          {
+            "at": "__-3d",
+            "title": "Détection",
+            "detail": "Alerte ou signalement reçu par le SOC.",
+            "kind": "detection"
+          },
+          {
+            "at": "__-3d",
+            "title": "Escalade au RSSI",
+            "kind": "escalation"
+          },
+          {
+            "at": "__-2d",
+            "title": "Mesure de confinement",
+            "kind": "mitigation"
+          },
+          {
+            "at": "__-1d",
+            "title": "Retour à la normale",
+            "kind": "resolution"
+          }
+        ],
+        "corrective_actions": [
+          {
+            "title": "Corriger la cause racine",
+            "priority": "high",
+            "status": "open",
+            "owner": "rssi",
+            "due_in_days": 30
+          },
+          {
+            "title": "Ajouter une alerte de supervision",
+            "priority": "medium",
+            "status": "open",
+            "owner": "analyst",
+            "due_in_days": 15
+          }
+        ]
+      }
+    },
+    {
+      "title": "Certificat expiré sur le VPN nomades",
+      "description": "Accès distant indisponible 40 minutes un dimanche matin.",
+      "incident_type": "system_failure",
+      "severity": "low",
+      "status": "resolved",
+      "assets": [
+        "vpn-nomades"
+      ]
+    },
+    {
+      "title": "Fuite potentielle d'un export KYC",
+      "description": "Un lien public vers un export KYC a été partagé par erreur avec un prestataire.",
+      "incident_type": "data_breach",
+      "severity": "critical",
+      "status": "open",
+      "assets": [
+        "stockage-objets",
+        "Traitement — KYC clients mobile money"
+      ],
+      "risks": [
+        "Données personnelles non chiffrées dans le stockage objet"
+      ]
+    }
+  ],
+  "questionnaire_templates": [
+    {
+      "name": "Évaluation sécurité fournisseur critique",
+      "description": "Questionnaire annuel pour les prestataires qui hébergent ou traitent des données de paiement.",
+      "language": "fr",
+      "questions": [
+        {
+          "text": "Disposez-vous d'une certification ISO 27001 en cours de validité ?",
+          "answer_type": "choice",
+          "weight": 3,
+          "required": true,
+          "control_ref": "A.5.1",
+          "options": [
+            {
+              "value": "oui",
+              "label": "Oui",
+              "points": 1
+            },
+            {
+              "value": "en-cours",
+              "label": "En cours",
+              "points": 0.5
+            },
+            {
+              "value": "non",
+              "label": "Non",
+              "points": 0
+            }
+          ]
+        },
+        {
+          "text": "Les accès administrateurs sont-ils protégés par une authentification multifacteur ?",
+          "answer_type": "choice",
+          "weight": 3,
+          "required": true,
+          "options": [
+            {
+              "value": "oui-partout",
+              "label": "Oui, partout",
+              "points": 1
+            },
+            {
+              "value": "partiellement",
+              "label": "Partiellement",
+              "points": 0.5
+            },
+            {
+              "value": "non",
+              "label": "Non",
+              "points": 0
+            }
+          ]
+        },
+        {
+          "text": "Sous quel délai notifiez-vous un incident de sécurité ?",
+          "answer_type": "choice",
+          "weight": 2,
+          "required": true,
+          "options": [
+            {
+              "value": "moins-de-24-heures",
+              "label": "Moins de 24 heures",
+              "points": 1
+            },
+            {
+              "value": "moins-de-72-heures",
+              "label": "Moins de 72 heures",
+              "points": 0.5
+            },
+            {
+              "value": "pas-d-engagement",
+              "label": "Pas d'engagement",
+              "points": 0
+            }
+          ]
+        },
+        {
+          "text": "Décrivez votre plan de réversibilité.",
+          "answer_type": "text",
+          "weight": 1,
+          "required": false,
+          "na_allowed": true
+        }
+      ]
+    }
+  ],
+  "vendor_assessments": [
+    {
+      "vendor": "Wari Cloud Hosting",
+      "template": "Évaluation sécurité fournisseur critique",
+      "due_in_days": 21,
+      "contact_email": "securite@wari-cloud.example",
+      "contact_language": "fr"
+    },
+    {
+      "vendor": "Paysafe Tokenisation",
+      "template": "Évaluation sécurité fournisseur critique",
+      "due_in_days": 14,
+      "contact_email": "dpo@token-saas.example",
+      "contact_language": "en"
+    }
+  ],
+  "board_reports": [
+    {
+      "period_label": "T3 2026",
+      "locale": "fr",
+      "approve": true
+    },
+    {
+      "period_label": "T4 2026",
+      "locale": "fr",
+      "approve": false
+    }
+  ],
+  "report_jobs": [
+    {
+      "type": "risk_register",
+      "format": "pdf",
+      "locale": "fr"
+    },
+    {
+      "type": "compliance_framework",
+      "format": "pdf",
+      "locale": "fr",
+      "framework": "ISO 27001"
+    },
+    {
+      "type": "executive_summary",
+      "format": "pdf",
+      "locale": "fr"
+    }
+  ],
+  "governance": {
+    "workflows": [
+      {
+        "name": "Acceptation d'un risque résiduel",
+        "description": "Toute acceptation de risque résiduel est validée par le RSSI, qui ne peut pas être le demandeur.",
+        "entity_type": "risk_acceptance",
+        "action": "accept",
+        "mode": "sequential",
+        "expires_in_hours": 168,
+        "enabled": true,
+        "steps": [
+          {
+            "name": "Validation RSSI",
+            "approver_role": "admin",
+            "min_approvals": 1
+          }
+        ]
+      }
+    ],
+    "approvals": [
+      {
+        "entity_type": "risk_acceptance",
+        "entity": "Bannière serveur révélant les versions",
+        "action": "accept",
+        "title": "Accepter la bannière de version sur web-abj-01",
+        "description": "Serveur décommissionné au T1 2027, pas de durcissement prévu d'ici là."
+      }
+    ],
+    "delegations": [
+      {
+        "delegator": "rssi",
+        "delegate": "risk_manager",
+        "reason": "Congés du RSSI",
+        "permissions": [
+          "risks:update"
+        ],
+        "starts_in_days": 0,
+        "ends_in_days": 14
+      }
+    ]
+  },
+  "automation": {
+    "templates_to_adopt": 3
+  },
+  "saved_views": [
+    {
+      "table_id": "risks",
+      "name": "Critiques non traités",
+      "visibility": "shared",
+      "state": {
+        "q": "",
+        "filters": {
+          "criticality": [
+            "critical"
+          ]
+        },
+        "sort": null
+      },
+      "columns": {
+        "order": null,
+        "hidden": null
+      }
+    },
+    {
+      "table_id": "risks",
+      "name": "Mes risques PCI",
+      "visibility": "personal",
+      "state": {
+        "q": "PCI",
+        "filters": null,
+        "sort": null
+      },
+      "columns": {
+        "order": null,
+        "hidden": null
+      }
+    }
+  ],
+  "second_tenant": {
+    "owner": {
+      "email": "mariam.sow@sahel-assur.dev.local",
+      "username": "msow",
+      "full_name": "Mariam Sow",
+      "password": "DevSeed!Sahel2026",
+      "company_name": "Sahel Assurances (dev)"
+    },
+    "assets": [
+      {
+        "name": "sahel-crm",
+        "type": "Application",
+        "category": "application",
+        "criticality": "HIGH",
+        "owner": "mariam.sow@sahel-assur.dev.local",
+        "attributes": {
+          "environment": "production",
+          "application_name": "CRM Sahel"
+        }
+      },
+      {
+        "name": "sahel-sinistres-db",
+        "type": "Database",
+        "category": "database",
+        "criticality": "CRITICAL",
+        "owner": "mariam.sow@sahel-assur.dev.local",
+        "attributes": {
+          "environment": "production",
+          "engine": "postgresql"
+        }
+      },
+      {
+        "name": "sahel-messagerie",
+        "type": "SaaS",
+        "category": "application",
+        "criticality": "MEDIUM",
+        "owner": "mariam.sow@sahel-assur.dev.local",
+        "attributes": {
+          "environment": "production",
+          "application_name": "Messagerie Sahel"
+        }
+      }
+    ],
+    "risks": [
+      {
+        "title": "[Sahel] Base des sinistres sans chiffrement au repos",
+        "description": "Visible uniquement dans le tenant Sahel Assurances. Si ce titre apparaît chez Kalao, l'isolation est cassée.",
+        "probability": 0.4,
+        "impact": 8,
+        "assets": [
+          "sahel-sinistres-db"
+        ],
+        "tags": [
+          "isolation-check"
+        ]
+      },
+      {
+        "title": "[Sahel] Comptes CRM partagés entre courtiers",
+        "description": "Visible uniquement dans le tenant Sahel Assurances.",
+        "probability": 0.6,
+        "impact": 5,
+        "assets": [
+          "sahel-crm"
+        ],
+        "tags": [
+          "isolation-check"
+        ]
+      },
+      {
+        "title": "[Sahel] Messagerie sans DMARC",
+        "description": "Visible uniquement dans le tenant Sahel Assurances.",
+        "probability": 0.5,
+        "impact": 4,
+        "assets": [
+          "sahel-messagerie"
+        ],
+        "tags": [
+          "isolation-check"
+        ]
+      }
+    ]
+  },
+  "acceptance_approver": "rssi",
+  "scan_configs": [
+    {
+      "name": "Périmètre Dakar (nmap)",
+      "provider": "nmap",
+      "targets": [
+        "10.20.0.0/24",
+        "web-dkr-01.kalao.dev.local"
+      ],
+      "schedule_minutes": 0
+    }
+  ]
+}

@@ -59,6 +59,8 @@ import type {
 } from './organizationService';
 import { UserAvatar } from '../../shared/UserAvatar';
 import { usePreferredDate } from '../../hooks/useI18n';
+import { PlanCapNotice } from '../billing/PlanCapNotice';
+import { planCapErrorMessage } from '../billing/useEntitlements';
 
 type Tab = 'members' | 'invitations' | 'history';
 type Tr = (fr: string, en: string) => string;
@@ -256,7 +258,13 @@ function MembersTable({ tr, lang }: { tr: Tr; lang: LocaleCode }) {
           );
           setConfirm(null);
         },
-        onError: (err) => toast.error(apiMessage(err, tr('Action impossible.', 'Action failed.'))),
+        // Reactivating counts against the seat cap (402): say it in the UI
+        // language from limit_key/limit/used, not the backend's French text.
+        onError: (err) =>
+          toast.error(
+            planCapErrorMessage(err, lang) ??
+              apiMessage(err, tr('Action impossible.', 'Action failed.')),
+          ),
         onSettled: () => setBusyId(null),
       },
     );
@@ -575,7 +583,7 @@ function MembersTable({ tr, lang }: { tr: Tr; lang: LocaleCode }) {
 
 /* --------------------------------------------------------------- invitations */
 
-function InvitationsTable({ tr }: { tr: Tr; lang: LocaleCode }) {
+function InvitationsTable({ tr, lang }: { tr: Tr; lang: LocaleCode }) {
   const fmtDate = useMemberDate();
   const { can } = usePermissions();
   const canInvite = can('organization:members:invite');
@@ -625,7 +633,11 @@ function InvitationsTable({ tr }: { tr: Tr; lang: LocaleCode }) {
             toast.success(tr('Invitation renvoyée', 'Invitation re-sent'));
           else setRelink(res); // the link has to be relayed by hand — show it
         },
-        onError: (err) => toast.error(apiMessage(err, tr("L'envoi a échoué.", 'The send failed.'))),
+        onError: (err) =>
+          toast.error(
+            planCapErrorMessage(err, lang) ??
+              apiMessage(err, tr("L'envoi a échoué.", 'The send failed.')),
+          ),
         onSettled: () => setBusyId(null),
       },
     );
@@ -886,7 +898,10 @@ function InviteDialog({ tr, onClose }: { tr: Tr; onClose: () => void }) {
     invite.mutate(input, {
       onSuccess: (res) => setResult(res),
       onError: (err) =>
-        setError(apiMessage(err, tr("L'invitation a échoué.", 'The invitation failed.'))),
+        setError(
+          planCapErrorMessage(err, lang) ??
+            apiMessage(err, tr("L'invitation a échoué.", 'The invitation failed.')),
+        ),
     });
   };
 
@@ -907,6 +922,10 @@ function InviteDialog({ tr, onClose }: { tr: Tr; onClose: () => void }) {
         >
           <X size={17} />
         </button>
+      </div>
+      {/* D-078: the plan caps active members; say so before the send fails. */}
+      <div className="mb-3">
+        <PlanCapNotice limitKey="users" showUsage />
       </div>
       <form onSubmit={submit}>
         <label className="block text-[12px] font-semibold text-ink-soft mb-1.5" htmlFor="inv-email">

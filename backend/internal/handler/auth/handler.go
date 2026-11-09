@@ -478,8 +478,10 @@ func (h *Handler) RefreshToken(c *fiber.Ctx) error {
 	// fatal once the cookie has also come up empty.
 	parseErr := c.BodyParser(&req)
 
+	fromCookie := false
 	if req.RefreshToken == "" {
 		req.RefreshToken = middleware.RefreshTokenFromRequest(c)
+		fromCookie = req.RefreshToken != ""
 	}
 	if req.RefreshToken == "" {
 		if parseErr != nil {
@@ -490,6 +492,18 @@ func (h *Handler) RefreshToken(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"error": "Token refresh failed",
 		})
+	}
+
+	// The browser attaches the refresh cookie on its own, and this route sits
+	// outside Protected, so it carries the double-submit check itself (#1314).
+	// A token sent in the body was put there by its caller and needs none.
+	if fromCookie {
+		if err := middleware.VerifyCSRF(c); err != nil {
+			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+				"code":    "CSRF_FAILED",
+				"message": err.Error(),
+			})
+		}
 	}
 
 	if req.DeviceFingerprint == "" {
