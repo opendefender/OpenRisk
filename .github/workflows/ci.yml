@@ -539,6 +539,9 @@ jobs:
 
   build-docker-image:
     name: Build Docker Image
+    # Not required and not in CI Status. Skipped in develop's merge queue and on PRs
+    # to develop, whose images images.yml builds once per commit (#1245, #1377).
+    if: github.event_name != 'merge_group' && (github.event_name != 'pull_request' || github.base_ref != 'develop')
     runs-on: ubuntu-latest
     needs: [backend-unit-tests, frontend-unit-tests]
     permissions:

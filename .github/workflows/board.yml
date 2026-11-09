@@ -25,7 +25,9 @@ on:
     types: [opened, synchronize, reopened, closed, edited, ready_for_review, converted_to_draft]
   create:
   push:
-    branches: [master, develop, staging]
+    # Not develop: the merge's pull_request closed event already syncs, and the push
+    # run was cancelled by it every time (#1377).
+    branches: [master, staging]
     tags: ['v*']
   schedule:
     - cron: '*/30 * * * *'

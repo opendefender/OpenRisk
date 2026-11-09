@@ -35,6 +35,9 @@ jobs:
   sast:
     runs-on: ubuntu-latest
     name: SAST Analysis
+    # gosec runs with -no-fail and already ran on the PR: in the merge queue it
+    # gates nothing and holds a runner (#1377).
+    if: github.event_name != 'merge_group'
     # Needed by upload-sarif to write gosec findings to the Security tab. Kept
     # on this job only, so TruffleHog never holds a token that can dismiss
     # code-scanning alerts.
