@@ -36,6 +36,7 @@ type ResetMailerLike interface {
 	SendMFADisabled(ctx context.Context, to, fullName, locale string) error
 	SendMFALocked(ctx context.Context, to, fullName, locale string) error
 	SendMFABackupCodesPurged(ctx context.Context, to, fullName, locale string) error
+	SendMFABackupCodesRegenerated(ctx context.Context, to, fullName, locale string) error
 	SendDuplicateSignup(ctx context.Context, to, fullName, signInURL, resetURL, locale string) error
 }
 
@@ -71,6 +72,13 @@ func (a *Async) SendMFADisabled(_ context.Context, to, fullName, locale string) 
 // SendMFABackupCodesPurged queues the backup-code purge notice (#1001).
 func (a *Async) SendMFABackupCodesPurged(_ context.Context, to, fullName, locale string) error {
 	a.dispatch(func(ctx context.Context) { _ = a.inner.SendMFABackupCodesPurged(ctx, to, fullName, locale) })
+	return nil
+}
+
+// SendMFABackupCodesRegenerated queues the backup-code regeneration notice
+// (#1032).
+func (a *Async) SendMFABackupCodesRegenerated(_ context.Context, to, fullName, locale string) error {
+	a.dispatch(func(ctx context.Context) { _ = a.inner.SendMFABackupCodesRegenerated(ctx, to, fullName, locale) })
 	return nil
 }
 

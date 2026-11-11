@@ -801,6 +801,10 @@ func main() {
 		WithTOTPKey(mfaKey[:]).
 		RequireMFAForRoles(mfaRequiredRoles, mfaRequiredBusinessRoles).
 		WithMailer(securityMailer)
+	// #1032 — new backup codes take a current authenticator code, plus the
+	// password when the account has one, and mail the owner.
+	regenerateBackupCodesUseCase := auth.NewRegenerateBackupCodesUseCase(mfaRepo, userRepo, passwordHasher, mfaKey[:]).
+		WithMailer(securityMailer)
 	// #689 — five codes per challenge token, ten failures per account in
 	// fifteen minutes before a fixed fifteen-minute lock, counted in Redis so
 	// the budget holds across instances. The owner is mailed when a lock is set.
@@ -841,6 +845,7 @@ func main() {
 		WithMFAStatus(mfaStatusResolver).
 		// #754 — per-account budget on disabling MFA, shared across instances.
 		WithDisableAttemptLimit(middleware.NewRedisRateLimitStore(redisClientInstance)).
+		WithBackupCodeRegeneration(regenerateBackupCodesUseCase).
 		WithTrustedDevices(deviceCookies)
 	mfaPolicyHandler := authhandler.NewMFAPolicyHandler(
 		auth.NewGetMFAPolicyUseCase(mfaPolicyRepo, mfaRequiredRoles, mfaRequiredBusinessRoles),
@@ -1285,6 +1290,8 @@ func main() {
 	// MFA_REQUIRED or MFA_ENROLLMENT token (#944) — and the account password.
 	// Throttled like /auth/password/change: the body carries a password guess.
 	protected.Post("/auth/mfa/disable", authLimits.Reauth, mfaHandler.Disable)
+	// #1032 — same per-IP and per-account budgets as disable.
+	protected.Post("/auth/mfa/backup-codes/regenerate", authLimits.Reauth, mfaHandler.RegenerateBackupCodes)
 
 	// --- MFA policy (OR26-03) — "force MFA after N days" -----------------------
 	// Reading is open to any authenticated member: everyone subject to a deadline

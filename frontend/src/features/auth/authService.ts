@@ -267,6 +267,31 @@ export async function disableMFA(
   return data;
 }
 
+/** Why the server refused to issue new backup codes (#1032). */
+export type RegenerateBackupCodesErrorCode =
+  'wrong_password' | 'wrong_code' | 'not_enrolled' | 'too_many_attempts';
+
+export interface RegenerateBackupCodesErrorBody {
+  error?: string;
+  code?: RegenerateBackupCodesErrorCode;
+}
+
+/**
+ * Replaces the signed-in user's backup codes (#1032). New codes stand in for
+ * the second factor, so the server takes a current authenticator code, always,
+ * and the password when the account has one. The codes come back once.
+ */
+export async function regenerateBackupCodes(
+  proof: { password?: string; code: string },
+  locale: Lang,
+): Promise<{ backup_codes: string[] }> {
+  const { data } = await api.post<{ backup_codes: string[] }>('/auth/mfa/backup-codes/regenerate', {
+    ...proof,
+    locale,
+  });
+  return data;
+}
+
 /**
  * Picks up the session an SSO callback left in the cookies (#803).
  *

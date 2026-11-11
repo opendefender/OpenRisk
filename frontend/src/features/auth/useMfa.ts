@@ -5,7 +5,12 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { fetchMFAStatus, fetchMFAPolicy, saveMFAPolicy, type MFAStatus } from './mfaPolicyService';
-import { disableMFA, fetchDisableMFAProof } from './authService';
+import {
+  disableMFA,
+  fetchDisableMFAProof,
+  fetchHasLocalPassword,
+  regenerateBackupCodes,
+} from './authService';
 import type { Lang } from '../../store/uiStore';
 
 /** Shared key so any flow that changes MFA state can invalidate the banner. */
@@ -90,6 +95,32 @@ export function useDisableMFAProof() {
   return useQuery({
     queryKey: ['auth', 'mfa-disable-proof'],
     queryFn: fetchDisableMFAProof,
+    staleTime: 0,
+    retry: 1,
+  });
+}
+
+/**
+ * Replaces the backup codes (#1032).
+ *
+ * Not optimistic: there is nothing to show before the server answers, since
+ * the answer is the codes themselves. Never retried: each request is a
+ * password and code guess counted against the account's budget, and a retry
+ * would also spend the authenticator code the first request consumed.
+ */
+export function useRegenerateBackupCodes() {
+  return useMutation({
+    mutationFn: ({ proof, locale }: { proof: { password?: string; code: string }; locale: Lang }) =>
+      regenerateBackupCodes(proof, locale),
+    retry: false,
+  });
+}
+
+/** Whether the account has a password to confirm (#1032). Read fresh on open. */
+export function useHasLocalPassword() {
+  return useQuery({
+    queryKey: ['auth', 'has-local-password'],
+    queryFn: fetchHasLocalPassword,
     staleTime: 0,
     retry: 1,
   });
