@@ -194,10 +194,17 @@ func newDeferredFixture(t *testing.T) *deferredFixture {
 	disableUC := appauth.NewDisableMFAUseCase(mfaRepo, userRepo, deferredHasher{}).
 		WithTOTPKey(deferredTOTPKey).
 		RequireMFAForRoles(orgRoles, businessRoles)
-	mfaHandler := authhandler.NewMFAHandler(nil, nil, disableUC, nil, tokens, userRepo, nil).
+	// #1032 — the real regenerate path, audited into auth_audit_logs.
+	require.NoError(t, db.Exec(`CREATE TABLE auth_audit_logs (id TEXT PRIMARY KEY)`).Error)
+	require.NoError(t, sqliteschema.Reconcile(db, "auth_audit_logs", &domain.AuthAuditLog{}))
+	regenerateUC := appauth.NewRegenerateBackupCodesUseCase(mfaRepo, userRepo, deferredHasher{}, deferredTOTPKey)
+	mfaHandler := authhandler.NewMFAHandler(nil, nil, disableUC, nil, tokens, userRepo,
+		coreauth.NewAuditService(repository.NewGormAuthAuditLogRepository(db))).
 		WithMFAStatus(f.resolver).
-		WithDisableAttemptLimit(middleware.NewRateLimitStore())
+		WithDisableAttemptLimit(middleware.NewRateLimitStore()).
+		WithBackupCodeRegeneration(regenerateUC)
 	protected.Post("/auth/mfa/disable", mfaHandler.Disable)
+	protected.Post("/auth/mfa/backup-codes/regenerate", mfaHandler.RegenerateBackupCodes)
 
 	f.app = app
 	return f

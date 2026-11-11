@@ -120,6 +120,7 @@ var mutatingRouteDefences = map[string]csrfDefence{
 	"PUT /attack-surface/schemas/:category":                   viaProtected,
 	"POST /attack-surface/schemas/:category/reset":            viaProtected,
 	"POST /auth/mfa/disable":                                  viaProtected,
+	"POST /auth/mfa/backup-codes/regenerate":                  viaProtected,
 	"POST /auth/password/change":                              viaProtected,
 	"POST /auth/pat":                                          viaProtected,
 	"DELETE /auth/pat/:id":                                    viaProtected,

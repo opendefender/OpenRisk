@@ -29,6 +29,13 @@ type MitigationEventsHandler struct {
 	redis     *redisinfra.Client
 	rsaKeys   *authpkg.RSAKeys
 	blacklist func(jti string) (bool, error)
+
+	// keepalive overrides the stream keepalive interval; zero keeps
+	// sseKeepaliveInterval. Only a test sets it (#962).
+	keepalive time.Duration
+	// lifetime overrides the stream's ceiling; zero keeps
+	// sseDeprecatedStreamLifetime. Only a test sets it (#962).
+	lifetime time.Duration
 }
 
 // NewMitigationEventsHandler wires the SSE handler.
@@ -54,6 +61,9 @@ func (h *MitigationEventsHandler) Stream(c *fiber.Ctx) error {
 	c.Set("Connection", "keep-alive")
 	c.Set("X-Accel-Buffering", "no")
 
+	extendDeadline := sseWriteDeadline(c)
+	keepaliveEvery := sseKeepaliveOr(h.keepalive)
+	maxLifetime := sseDeprecatedLifetimeOr(h.lifetime)
 	c.Context().SetBodyStreamWriter(func(w *bufio.Writer) {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
@@ -62,16 +72,22 @@ func (h *MitigationEventsHandler) Stream(c *fiber.Ctx) error {
 		defer pubsub.Close()
 		msgs := pubsub.Channel()
 
+		extendDeadline()
 		fmt.Fprint(w, ": connected\n\n")
 		if err := w.Flush(); err != nil {
 			return
 		}
 
-		keepalive := time.NewTicker(20 * time.Second)
+		keepalive := time.NewTicker(keepaliveEvery)
 		defer keepalive.Stop()
+		// The rolling write deadline lets a reading client hold this stream
+		// indefinitely, so it gets an explicit ceiling (#962).
+		lifetime := time.After(maxLifetime)
 
 		for {
 			select {
+			case <-lifetime:
+				return
 			case msg, ok := <-msgs:
 				if !ok {
 					return
@@ -81,6 +97,7 @@ func (h *MitigationEventsHandler) Stream(c *fiber.Ctx) error {
 				if err := json.Unmarshal([]byte(msg.Payload), &evt); err != nil || evt.TenantID != tenantID {
 					continue
 				}
+				extendDeadline()
 				fmt.Fprintf(w, "event: mitigation.auto_completed\ndata: %s\n\n", msg.Payload)
 				if err := w.Flush(); err != nil {
 					return
@@ -90,11 +107,15 @@ func (h *MitigationEventsHandler) Stream(c *fiber.Ctx) error {
 				// the stream opened, and this connection can outlive its
 				// revocation by hours otherwise (#345). h.blacklist is the same
 				// predicate ValidateAccessToken used above.
-				if sseRevokedWith(h.blacklist, claims.JTI) {
+				// The token's expiry is checked here too: it was checked once at
+				// connect, and the stream must not outlive it (#962).
+				if sseRevokedWith(h.blacklist, claims.JTI) || accessTokenExpired(claims) {
+					extendDeadline()
 					fmt.Fprint(w, "event: stream.revoked\ndata: {\"reason\":\"session_revoked\"}\n\n")
 					_ = w.Flush()
 					return
 				}
+				extendDeadline()
 				fmt.Fprint(w, ": keepalive\n\n")
 				if err := w.Flush(); err != nil {
 					return
@@ -103,4 +124,14 @@ func (h *MitigationEventsHandler) Stream(c *fiber.Ctx) error {
 		}
 	})
 	return nil
+}
+
+// accessTokenExpired reports whether the token a stream was opened with has
+// passed its expiry. A token without one is treated as expired: every access
+// token this server issues carries exp.
+func accessTokenExpired(claims *authpkg.Claims) bool {
+	if claims.ExpiresAt == nil {
+		return true
+	}
+	return time.Now().After(claims.ExpiresAt.Time)
 }

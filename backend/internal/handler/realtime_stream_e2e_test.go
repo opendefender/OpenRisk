@@ -59,6 +59,23 @@ type streamTestEnv struct {
 // what the handler trusts.
 func newStreamTestEnv(t *testing.T, opts apprealtime.HubOptions) *streamTestEnv {
 	t.Helper()
+	return newStreamTestEnvWith(t, opts, streamServerOptions{})
+}
+
+// streamServerOptions shapes the test server for the write-deadline tests
+// (#962). The zero value is the server every other test in this file runs on.
+type streamServerOptions struct {
+	// WriteTimeout is fiber.Config.WriteTimeout; production runs with 10s.
+	WriteTimeout time.Duration
+	// KeepaliveInterval overrides the 150ms test keepalive.
+	KeepaliveInterval time.Duration
+	// SendBuffer, when set, caps each accepted socket's kernel send buffer so a
+	// client that stops reading blocks the server's writes quickly.
+	SendBuffer int
+}
+
+func newStreamTestEnvWith(t *testing.T, opts apprealtime.HubOptions, srv streamServerOptions) *streamTestEnv {
+	t.Helper()
 
 	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
 	require.NoError(t, err)
@@ -71,12 +88,16 @@ func newStreamTestEnv(t *testing.T, opts apprealtime.HubOptions) *streamTestEnv 
 	// failing write IS how the server learns the socket is gone, and a suite
 	// that opened streams on the production interval would spend its runtime
 	// waiting for teardown rather than testing anything.
+	keepalive := 150 * time.Millisecond
+	if srv.KeepaliveInterval > 0 {
+		keepalive = srv.KeepaliveInterval
+	}
 	h := NewRealtimeHandlerWithOptions(hub, eventLog, RealtimeStreamOptions{
-		KeepaliveInterval: 150 * time.Millisecond,
+		KeepaliveInterval: keepalive,
 		MaxLifetime:       30 * time.Second,
 	})
 
-	app := fiber.New(fiber.Config{DisableStartupMessage: true})
+	app := fiber.New(fiber.Config{DisableStartupMessage: true, WriteTimeout: srv.WriteTimeout})
 	app.Use(func(c *fiber.Ctx) error {
 		tenantHeader := c.Get("X-Test-Tenant")
 		if tenantHeader == "" {
@@ -109,6 +130,9 @@ func newStreamTestEnv(t *testing.T, opts apprealtime.HubOptions) *streamTestEnv 
 
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(t, err)
+	if srv.SendBuffer > 0 {
+		ln = smallSendBufferListener{Listener: ln, size: srv.SendBuffer}
+	}
 	go func() { _ = app.Listener(ln) }()
 	// Shutdown does not wait for stream writers, which keep ticking until a
 	// keepalive write fails. Wait for the hub to empty, so no stream from this

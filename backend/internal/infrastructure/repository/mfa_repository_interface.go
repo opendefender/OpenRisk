@@ -35,6 +35,10 @@ type MFARepository interface {
 	// was already spent or is not theirs, i.e. a replay (#946).
 	MarkBackupCodeAsUsed(ctx context.Context, codeID, userID, tenantID uuid.UUID) (bool, error)
 	DeleteBackupCodes(ctx context.Context, userID, tenantID uuid.UUID) error
+	// ReplaceBackupCodes swaps every backup code of the user for codes, in one
+	// transaction, and only while a verified secret exists (#1032). false means
+	// there is none; nothing was written and the old codes stay.
+	ReplaceBackupCodes(ctx context.Context, userID, tenantID uuid.UUID, codes []*domain.MFABackupCode) (bool, error)
 }
 
 // OAuthProviderRepository defines CRUD operations for OAuth providers
