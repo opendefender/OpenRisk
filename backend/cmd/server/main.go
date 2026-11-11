@@ -797,13 +797,19 @@ func main() {
 	// #754 — removing the factor re-proves the password (or, with no local
 	// password, a current authenticator code), is refused for the roles login
 	// requires MFA for, and mails the owner.
+	// #1392 (D-107) — ten wrong proofs in 24 h across disable and regenerate
+	// lock both for a fixed 24 h and mail the owner. Its own Redis keys: the
+	// sign-in challenge lock (#689) is never touched by it.
+	mfaInSessionLimits := auth.NewMFAInSessionLimits(authmfa.NewAttemptStore(redisClientInstance), userRepo, securityMailer)
 	disableMFAUseCase := auth.NewDisableMFAUseCase(mfaRepo, userRepo, passwordHasher).
 		WithTOTPKey(mfaKey[:]).
+		WithInSessionLimits(mfaInSessionLimits).
 		RequireMFAForRoles(mfaRequiredRoles, mfaRequiredBusinessRoles).
 		WithMailer(securityMailer)
 	// #1032 — new backup codes take a current authenticator code, plus the
 	// password when the account has one, and mail the owner.
 	regenerateBackupCodesUseCase := auth.NewRegenerateBackupCodesUseCase(mfaRepo, userRepo, passwordHasher, mfaKey[:]).
+		WithInSessionLimits(mfaInSessionLimits).
 		WithMailer(securityMailer)
 	// #689 — five codes per challenge token, ten failures per account in
 	// fifteen minutes before a fixed fifteen-minute lock, counted in Redis so
@@ -846,6 +852,7 @@ func main() {
 		// #754 — per-account budget on disabling MFA, shared across instances.
 		WithDisableAttemptLimit(middleware.NewRedisRateLimitStore(redisClientInstance)).
 		WithBackupCodeRegeneration(regenerateBackupCodesUseCase).
+		WithInSessionLimits(mfaInSessionLimits).
 		WithTrustedDevices(deviceCookies)
 	mfaPolicyHandler := authhandler.NewMFAPolicyHandler(
 		auth.NewGetMFAPolicyUseCase(mfaPolicyRepo, mfaRequiredRoles, mfaRequiredBusinessRoles),

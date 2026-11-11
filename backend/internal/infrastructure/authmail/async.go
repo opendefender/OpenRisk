@@ -35,6 +35,7 @@ type ResetMailerLike interface {
 	SendPasswordChanged(ctx context.Context, to, fullName, locale string) error
 	SendMFADisabled(ctx context.Context, to, fullName, locale string) error
 	SendMFALocked(ctx context.Context, to, fullName, locale string) error
+	SendMFAInSessionLocked(ctx context.Context, to, fullName, locale string) error
 	SendMFABackupCodesPurged(ctx context.Context, to, fullName, locale string) error
 	SendMFABackupCodesRegenerated(ctx context.Context, to, fullName, locale string) error
 	SendDuplicateSignup(ctx context.Context, to, fullName, signInURL, resetURL, locale string) error
@@ -85,6 +86,12 @@ func (a *Async) SendMFABackupCodesRegenerated(_ context.Context, to, fullName, l
 // SendMFALocked queues the second-factor lock notice (#689).
 func (a *Async) SendMFALocked(_ context.Context, to, fullName, locale string) error {
 	a.dispatch(func(ctx context.Context) { _ = a.inner.SendMFALocked(ctx, to, fullName, locale) })
+	return nil
+}
+
+// SendMFAInSessionLocked queues the in-session two-factor lock notice (#1392).
+func (a *Async) SendMFAInSessionLocked(_ context.Context, to, fullName, locale string) error {
+	a.dispatch(func(ctx context.Context) { _ = a.inner.SendMFAInSessionLocked(ctx, to, fullName, locale) })
 	return nil
 }
 
