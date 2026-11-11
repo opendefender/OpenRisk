@@ -2428,6 +2428,9 @@ func main() {
 		Incidents:  reportIncidentAdapter{svc: incidentService},
 		Audits:     reportAuditAdapter{repo: complianceAuditRepo},
 		Org:        orgRepo,
+		// Same engine as /analytics/financial, so a report prints the exposure
+		// the screens show (#1033).
+		Quantifier: riskQuantifier,
 	}
 	reportService := appreport.NewService(reportRepo, reportSources).WithUserLookup(userRepo)
 	reportHandler := handlers.NewReportHandler(reportService, redisClientInstance)

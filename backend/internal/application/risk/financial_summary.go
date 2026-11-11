@@ -343,6 +343,11 @@ func (uc *FinancialSummaryUseCase) clock() func() time.Time {
 	return time.Now
 }
 
+// FinancialInputsFor maps a risk's stored drivers onto the CRQ input struct.
+// Exported so the generated reports (#1033) feed the engine exactly the inputs
+// this summary does, and print the same total_ale as the screens.
+func FinancialInputsFor(r *domain.Risk) crq.FinancialInputs { return financialInputs(r) }
+
 // financialInputs maps a risk's stored drivers onto the CRQ input struct. Kept
 // here (not in the handler helper) so the use case has no handler dependency.
 func financialInputs(r *domain.Risk) crq.FinancialInputs {
