@@ -192,22 +192,36 @@ func TestBuildRiskRegister_Unauthorized(t *testing.T) {
 	assert.NotContains(t, ale, "Insider")
 }
 
-// An SLE without an ARO cannot be annualised: the engine values the risk by the
-// reference model, so the document marks the amount as such and does not call
-// the exposure quantified, even though the screen counts the SLE as entered.
-func TestBuildRiskRegister_SLEWithoutARO(t *testing.T) {
+// A risk with a fine but no ARO is quantified by the financial screen's rule
+// (it carries a loss amount), so the documents count it too. Its ALE is still
+// the reference value, and its row says the annual frequency is what is
+// missing (#1033).
+func TestBuildRiskRegister_LossFiguresWithoutARO(t *testing.T) {
 	tenantID := uuid.New()
-	risks := []domain.Risk{{ID: uuid.New(), TenantID: tenantID, Name: "Fraude", Criticality: "medium",
-		Score: 4, SLEXAF: ptr(20_000_000)}}
-	src := Sources{Risks: &fakeRisks{byTenant: map[uuid.UUID][]domain.Risk{tenantID: risks}}}
+	risks := []domain.Risk{
+		{ID: uuid.New(), TenantID: tenantID, Name: "Amende CNIL", Criticality: "medium", Score: 4, FinesXAF: ptr(8_000_000)},
+		{ID: uuid.New(), TenantID: tenantID, Name: "Phishing", Criticality: "medium", Score: 3},
+	}
+	q := crq.NewQuantifier(crq.DefaultXAFPerUSD, crq.DefaultReference())
+	lister := &fakeRisks{byTenant: map[uuid.UUID][]domain.Risk{tenantID: risks}}
+	src := Sources{Risks: lister, Quantifier: q}
+
+	// The screen counts the fined risk as quantified; so does the document.
+	sum, err := risk.NewFinancialSummaryUseCase(lister, q).Execute(context.Background(), tenantID)
+	require.NoError(t, err)
+	require.Equal(t, 1, sum.QuantifiedRisks)
+	require.Equal(t, risk.FinancialDataOK, sum.DataStatus)
 
 	c, err := Build(context.Background(), src, execRequest(tenantID, domain.ReportTypeExecutiveSummary), nil)
 	require.NoError(t, err)
-	assert.Equal(t, "Non quantifiée", summaryValue(c, "Exposition annuelle"))
+	assert.Equal(t, formatXAF(sum.TotalALE.XAF), summaryValue(c, "Exposition annuelle"))
+	assert.Equal(t, "6.0 M FCFA", summaryValue(c, "Exposition annuelle"))
+	assert.Contains(t, strings.Join(c.Sections[0].Body, "\n"),
+		"dont 6.0 M FCFA estimés par le modèle de référence pour 2 risque(s) sans montant de perte ou sans fréquence annuelle")
 
-	withQuantified := append(risks, issueRisks(tenantID)[0])
-	src = Sources{Risks: &fakeRisks{byTenant: map[uuid.UUID][]domain.Risk{tenantID: withQuantified}}}
 	c, err = Build(context.Background(), src, execRequest(tenantID, domain.ReportTypeRiskRegister), nil)
 	require.NoError(t, err)
-	assert.Equal(t, "3.0 M FCFA (modèle de référence)", registerALE(t, c)["Fraude"])
+	ale := registerALE(t, c)
+	assert.Equal(t, "3.0 M FCFA (sans fréquence annuelle : modèle de référence)", ale["Amende CNIL"])
+	assert.Equal(t, "3.0 M FCFA (modèle de référence)", ale["Phishing"])
 }

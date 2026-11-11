@@ -237,7 +237,7 @@ func (uc *FinancialSummaryUseCase) Execute(ctx context.Context, tenantID uuid.UU
 		totalReduction += a.RiskReduction.XAF
 		totalRemediation += a.RemediationCost.XAF
 
-		if a.SLEBasis == crq.BasisExplicit || a.SLEBasis == crq.BasisComposed {
+		if r.HasLossFigures() {
 			derivedQuantified++
 		}
 

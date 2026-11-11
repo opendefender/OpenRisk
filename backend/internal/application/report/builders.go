@@ -45,10 +45,14 @@ func (s Sources) quantifier() *crq.Quantifier {
 }
 
 // riskExposure is one risk's annual loss expectancy as the CRQ engine computes
-// it for /analytics/financial, and whether that amount rests on the tenant's
-// own loss figures or on the per-criticality reference model.
+// it for /analytics/financial.
 type riskExposure struct {
-	ALE       float64
+	ALE float64
+	// Quantified is the financial screen's rule (domain.Risk.HasLossFigures):
+	// the tenant entered at least one loss amount.
+	Quantified bool
+	// Reference is true when the ALE itself is the reference model's value:
+	// no loss figure at all, or loss figures without an annual frequency.
 	Reference bool
 }
 
@@ -56,7 +60,7 @@ type riskExposure struct {
 // the same engine call (AssessDeterministic) as the financial summary.
 func assessRisk(q *crq.Quantifier, r *domain.Risk) riskExposure {
 	a := q.AssessDeterministic(risk.FinancialInputsFor(r), string(r.Criticality))
-	return riskExposure{ALE: a.ALE.XAF, Reference: a.ALEBasis == crq.BasisReference}
+	return riskExposure{ALE: a.ALE.XAF, Quantified: r.HasLossFigures(), Reference: a.ALEBasis == crq.BasisReference}
 }
 
 // ComplianceSource reads the control register.
@@ -337,7 +341,7 @@ func buildRiskRegister(ctx context.Context, s Sources, req Request, progress Pro
 	anyQuantified := false
 	for i := range risks {
 		exposures[i] = assessRisk(q, &risks[i])
-		anyQuantified = anyQuantified || !exposures[i].Reference
+		anyQuantified = anyQuantified || exposures[i].Quantified
 	}
 
 	var critical, high int
@@ -672,21 +676,20 @@ type riskPortfolio struct {
 	// ALE is the sum of every risk's ALE, reference-valued ones included: it
 	// equals total_ale on /analytics/financial.
 	ALE float64
-	// ReferenceALE and ReferenceCount are the part of ALE that comes from the
-	// reference model, not from loss figures the tenant entered.
+	// Quantified counts the risks with loss figures, by the screen's rule.
+	Quantified int
+	// ReferenceALE and ReferenceCount are the part of ALE that is the reference
+	// model's value: risks without loss figures, and risks whose figures lack
+	// an annual frequency.
 	ReferenceALE   float64
 	ReferenceCount int
 }
 
-// quantified is true when at least one risk carries its own loss figures.
-// Without one, every amount is the reference model's and printing it as the
-// tenant's exposure would state a measurement nobody made.
-//
-// It reads the ALE basis, not the SLE components the financial screen counts
-// for its data_status: a risk with an SLE but no ARO is "quantified" on the
-// screen, yet its ALE is the reference value, and the document labels the
-// amount it prints. Deliberate (#1033).
-func (p riskPortfolio) quantified() bool { return p.Count > p.ReferenceCount }
+// quantified is true when at least one risk carries its own loss figures, by
+// the same rule as the financial screen's quantified_risks. Without one, every
+// amount is the reference model's and printing it as the tenant's exposure
+// would state a measurement nobody made.
+func (p riskPortfolio) quantified() bool { return p.Quantified > 0 }
 
 func (p riskPortfolio) exposureFigure(l domain.ReportLocale) string {
 	if !p.quantified() {
@@ -707,9 +710,9 @@ func (p riskPortfolio) exposureSentence(l domain.ReportLocale) string {
 			fmt.Sprintf("expected annual exposure %s.", formatXAF(p.ALE)))
 	}
 	return Localise(l,
-		fmt.Sprintf("exposition annuelle attendue %s, dont %s estimés par le modèle de référence pour %d risque(s) sans données de perte.",
+		fmt.Sprintf("exposition annuelle attendue %s, dont %s estimés par le modèle de référence pour %d risque(s) sans montant de perte ou sans fréquence annuelle.",
 			formatXAF(p.ALE), formatXAF(p.ReferenceALE), p.ReferenceCount),
-		fmt.Sprintf("expected annual exposure %s, of which %s is estimated by the reference model for %d risk(s) without loss figures.",
+		fmt.Sprintf("expected annual exposure %s, of which %s is estimated by the reference model for %d risk(s) without a loss amount or an annual frequency.",
 			formatXAF(p.ALE), formatXAF(p.ReferenceALE), p.ReferenceCount))
 }
 
@@ -730,6 +733,9 @@ func riskTotals(ctx context.Context, s Sources, tenantID uuid.UUID) (p riskPortf
 		}
 		e := assessRisk(q, r)
 		p.ALE += e.ALE
+		if e.Quantified {
+			p.Quantified++
+		}
 		if e.Reference {
 			p.ReferenceALE += e.ALE
 			p.ReferenceCount++
@@ -796,10 +802,15 @@ func formatXAF(v float64) string {
 
 // formatExposure prints one register row's ALE, marking an amount that comes
 // from the reference model: it is an order of magnitude, not a measured loss.
-// When no risk of the register is quantified, no amount is printed at all.
+// A risk with loss figures but no frequency says which input is missing. When
+// no risk of the register is quantified, no amount is printed at all.
 func formatExposure(l domain.ReportLocale, e riskExposure, anyQuantified bool) string {
 	if !anyQuantified {
 		return Localise(l, "Non quantifiée", "Not quantified")
+	}
+	if e.Reference && e.Quantified {
+		return formatXAF(e.ALE) + Localise(l,
+			" (sans fréquence annuelle : modèle de référence)", " (no annual frequency: reference model)")
 	}
 	if e.Reference {
 		return formatXAF(e.ALE) + Localise(l, " (modèle de référence)", " (reference model)")

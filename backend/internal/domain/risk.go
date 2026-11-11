@@ -459,6 +459,18 @@ func (r *Risk) BulkSnapshot() map[string]interface{} {
 // OwnershipBlock implements OwnedEntity.
 func (r *Risk) OwnershipBlock() *Ownership { return &r.Ownership }
 
+// HasLossFigures reports whether the tenant entered at least one loss amount
+// for this risk: an SLE, a fine, a data-loss or other direct cost, or the
+// downtime pair. It is the one definition of a "quantified" risk, the Go twin
+// of the FILTER in GormRiskRepository.CountFinancialCoverage that the financial
+// screen counts with; a Postgres test keeps the two equal (#1033). A risk with
+// loss figures but no ARO is quantified even though its ALE falls back to the
+// reference value, since the frequency is the only thing missing.
+func (r *Risk) HasLossFigures() bool {
+	return r.SLEXAF != nil || r.FinesXAF != nil || r.DataLossCostXAF != nil ||
+		r.OtherDirectCostXAF != nil || (r.DowntimeHours != nil && r.HourlyDowntimeCostXAF != nil)
+}
+
 // CountMitigations fills the computed count from the preloaded relation.
 // Called by the repository after every read that preloads Mitigations.
 func (r *Risk) CountMitigations() {
