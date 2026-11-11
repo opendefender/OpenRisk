@@ -483,6 +483,76 @@ paths:
         '503':
           $ref: '#/components/responses/MFAStatusUnavailable'
 
+  /auth/mfa/backup-codes/regenerate:
+    post:
+      tags:
+        - Authentication
+      summary: Replace the signed-in user's MFA backup codes
+      description: >
+        New codes stand in for the second factor, so issuing them takes that
+        factor (#1032): a current six-digit `code` from the authenticator app,
+        always, plus the current `password` when `/auth/me` says
+        `has_password: true`. An existing backup code is not accepted. Allowed
+        for every role, including those that may not turn MFA off. Attempts
+        share the per-account budget of `/auth/mfa/disable` (5 per 15 minutes,
+        on top of the per-IP limit). On success the old codes are deleted and 8
+        new ones stored hashed in one transaction; they are returned once, with
+        `Cache-Control: no-store`. On any failure the old codes stay. Success
+        and failure are written to the auth audit log, and success mails the
+        owner. Neither proof is ever logged or echoed. Errors carry a stable
+        `code` (see RegenerateBackupCodesError).
+      operationId: regenerateMfaBackupCodes
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegenerateBackupCodesInput'
+      responses:
+        '200':
+          description: The new codes, shown once
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [backup_codes]
+                properties:
+                  backup_codes:
+                    type: array
+                    minItems: 8
+                    maxItems: 8
+                    items: { type: string }
+        '400':
+          description: The body is not JSON
+        '401':
+          description: "`wrong_password` or `wrong_code` (wrong, missing or already used). Not a session error: the session stays valid."
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RegenerateBackupCodesError'
+        '403':
+          description: "From the middleware: `CSRF_FAILED` or `MFA_ENROLLMENT_REQUIRED`"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GuardError'
+        '404':
+          description: "`not_enrolled`: no verified authenticator on this account"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RegenerateBackupCodesError'
+        '429':
+          description: "`too_many_attempts`, or the per-IP limit"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RegenerateBackupCodesError'
+        '503':
+          $ref: '#/components/responses/MFAStatusUnavailable'
+
   # ==================== AUTHENTICATION (#1120) ====================
   /auth/register:
     post:
@@ -7903,6 +7973,31 @@ components:
         code:
           type: string
           enum: [wrong_password, wrong_code, mfa_required_by_role, no_local_password, not_enrolled, too_many_attempts, rejected, internal]
+    RegenerateBackupCodesInput:
+      type: object
+      required: [code]
+      properties:
+        password:
+          type: string
+          format: password
+          description: Required when the account has a password.
+        code:
+          type: string
+          pattern: '^[0-9]{6}$'
+          description: Current authenticator code. Always required.
+        locale:
+          type: string
+          enum: [fr, en]
+    RegenerateBackupCodesError:
+      type: object
+      required: [error, code]
+      properties:
+        error:
+          type: string
+          description: Localised message, safe to show as is.
+        code:
+          type: string
+          enum: [wrong_password, wrong_code, not_enrolled, too_many_attempts, rejected, internal]
     AssetAnalysis:
       type: object
       required: [asset_id, criticality, internet_facing, by_severity, open, kev_open, overdue, resolved, last_detected_at, truncated, vulnerabilities, risks, findings, next_action]

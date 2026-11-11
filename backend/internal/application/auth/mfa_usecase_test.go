@@ -25,6 +25,8 @@ type MockMFARepository struct {
 	// enrolmentErr makes StartMFAEnrolment fail; enrolments counts its calls.
 	enrolmentErr error
 	enrolments   int
+	// replaceErr makes ReplaceBackupCodes fail before anything is written.
+	replaceErr error
 }
 
 func NewMockMFARepository() *MockMFARepository {
@@ -125,6 +127,24 @@ func (m *MockMFARepository) MarkBackupCodeAsUsed(ctx context.Context, codeID, us
 		}
 	}
 	return false, nil
+}
+
+// ReplaceBackupCodes honours the GORM contract: all or nothing, and only for a
+// verified secret of that user and tenant.
+func (m *MockMFARepository) ReplaceBackupCodes(ctx context.Context, userID, tenantID uuid.UUID, codes []*domain.MFABackupCode) (bool, error) {
+	if m.replaceErr != nil {
+		return false, m.replaceErr
+	}
+	key := userID.String() + ":" + tenantID.String()
+	secret := m.secrets[key]
+	if secret == nil || !secret.IsVerified {
+		return false, nil
+	}
+	for _, c := range codes {
+		c.UserID, c.TenantID = userID, tenantID
+	}
+	m.codes[key] = codes
+	return true, nil
 }
 
 func (m *MockMFARepository) DeleteBackupCodes(ctx context.Context, userID, tenantID uuid.UUID) error {
