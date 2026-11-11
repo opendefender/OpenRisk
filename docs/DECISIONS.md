@@ -5,7 +5,19 @@ recommends, and surfaces these in the daily brief. Run `/decide` to clear them.
 
 ## Open
 
-### D-107 — Guessing codes from a stolen session: which lock, and whose sign-in it can block · raised 2026-11-11
+*No open decision on 2026-11-11.*
+
+## Resolved
+
+### D-107 — Guessing codes from a stolen session: which lock, and whose sign-in it can block · decided 2026-11-11
+**Decided (owner, 2026-11-11)** — "un compteur séparé pour ces deux actions." Option B. Wrong codes and
+wrong passwords on `POST /auth/mfa/disable` and `POST /auth/mfa/backup-codes/regenerate` count toward
+one per-account counter of their own, never toward the sign-in lock of #689. When it trips, both
+endpoints lock for a fixed period, the request that sets the lock is audited, and the owner gets one
+new FR/EN mail pointing to "sign out other devices". Sign-in is never affected, and the D-061 budget
+(5 per 15 min) stays. The owner did not set numbers, so the proposal stands: 10 failures in 24 h,
+24 h lock. Implemented by #1392, whose criteria are written for this option.
+
 **Question** — #1392. Someone holding a stolen session on an account that signs in
 through an identity provider (no local password) can guess authenticator codes on
 `POST /auth/mfa/disable` and, once #1393 merges, `POST /auth/mfa/backup-codes/regenerate`.
@@ -49,8 +61,6 @@ proposal; the owner may set others without changing the shape.
 **Cost of delay** — Low. P3: it needs a stolen session first, and #1392 stays in
 `status:needs-refinement` until this is decided. Nothing else waits on it. #1393 can
 merge without it.
-
-## Resolved
 
 ### D-105 — Releases through a /release command the owner runs; staging and master take PRs the owner merges · decided 2026-11-06
 **Decided (owner, 2026-11-06)** — "Je veux un bot ou agent qui s'occupera des releases." Given the choice, the owner picked a local `/release` command over the Actions bot of #1256, with the tag set by the tool "after my OK", "PR obligatoire, vous mergez" for `staging` and `master`, and "faire partir la PR de version d'une finale depuis staging, puis de la reporter sur develop".
