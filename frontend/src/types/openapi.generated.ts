@@ -192,7 +192,7 @@ export interface paths {
         put?: never;
         /**
          * Replace the signed-in user's MFA backup codes
-         * @description New codes stand in for the second factor, so issuing them takes that factor (#1032): a current six-digit `code` from the authenticator app, always, plus the current `password` when `/auth/me` says `has_password: true`. An existing backup code is not accepted. Allowed for every role, including those that may not turn MFA off. Attempts share the per-account budget of `/auth/mfa/disable` (5 per 15 minutes, on top of the per-IP limit). On success the old codes are deleted and 8 new ones stored hashed in one transaction; they are returned once, with `Cache-Control: no-store`. On any failure the old codes stay. Success and failure are written to the auth audit log, and success mails the owner. Neither proof is ever logged or echoed. Errors carry a stable `code` (see RegenerateBackupCodesError).
+         * @description New codes stand in for the second factor, so issuing them takes that factor (#1032): a current six-digit `code` from the authenticator app, always, plus the current `password` when `/auth/me` says `has_password: true`. An existing backup code is not accepted. Allowed for every role, including those that may not turn MFA off. Attempts share the per-account budget of `/auth/mfa/disable` (5 per 15 minutes, on top of the per-IP limit). On success the old codes are deleted and 8 new ones stored hashed in one transaction; they are returned once, with `Cache-Control: no-store`. On any failure the old codes stay. Success and failure are written to the auth audit log, and success mails the owner. Refused to personal access tokens. Neither proof is ever logged or echoed. Errors carry a stable `code` (see RegenerateBackupCodesError).
          */
         post: operations["regenerateMfaBackupCodes"];
         delete?: never;
@@ -4212,7 +4212,7 @@ export interface components {
             /** @description Localised message, safe to show as is. */
             error: string;
             /** @enum {string} */
-            code: "wrong_password" | "wrong_code" | "not_enrolled" | "too_many_attempts" | "rejected" | "internal";
+            code: "wrong_password" | "wrong_code" | "not_enrolled" | "too_many_attempts" | "personal_access_token" | "rejected" | "internal";
         };
         AssetAnalysis: {
             /** Format: uuid */
@@ -5173,13 +5173,13 @@ export interface operations {
                     "application/json": components["schemas"]["RegenerateBackupCodesError"];
                 };
             };
-            /** @description From the middleware: `CSRF_FAILED` or `MFA_ENROLLMENT_REQUIRED` */
+            /** @description `personal_access_token`: a personal access token cannot mint backup codes; or, from the middleware, `CSRF_FAILED` or `MFA_ENROLLMENT_REQUIRED` */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["GuardError"];
+                    "application/json": components["schemas"]["RegenerateBackupCodesError"] | components["schemas"]["GuardError"];
                 };
             };
             /** @description `not_enrolled`: no verified authenticator on this account */

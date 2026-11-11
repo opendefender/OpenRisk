@@ -309,6 +309,17 @@ func (h *MFAHandler) RegenerateBackupCodes(c *fiber.Ctx) error {
 	if userID == uuid.Nil || tenantID == uuid.Nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "not authenticated"})
 	}
+	// New codes are second-factor material, the owner's to mint, not a script's.
+	// Refused before the budget is touched, so a leaked token cannot spend the
+	// owner's attempts either.
+	if c.Locals("is_pat") == true {
+		reason := "personal_access_token"
+		h.logRegenerate(c, userID, tenantID, false, &reason)
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"error": "personal access tokens cannot manage two-factor authentication",
+			"code":  reason,
+		})
+	}
 
 	var req struct {
 		Password string `json:"password,omitempty"`

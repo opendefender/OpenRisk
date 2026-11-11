@@ -49,7 +49,8 @@ function downloadCodes(codes: string[], email: string, tr: Tr) {
   a.href = url;
   a.download = 'openrisk-backup-codes.txt';
   a.click();
-  URL.revokeObjectURL(url);
+  // Revoked on the next tick: revoking synchronously can cancel the download.
+  setTimeout(() => URL.revokeObjectURL(url), 0);
 }
 
 export function MFABackupCodesDialog({ onClose }: { onClose: () => void }) {
@@ -137,6 +138,9 @@ export function MFABackupCodesDialog({ onClose }: { onClose: () => void }) {
 
   const busy = regenerate.isPending;
   const resolving = passwordQuery.isLoading;
+  // Without /auth/me the dialog cannot tell which proofs to ask for; guessing
+  // would show a password field to an account that has none.
+  const unresolved = passwordQuery.isError;
 
   if (codes !== null) {
     return (
@@ -246,7 +250,7 @@ export function MFABackupCodesDialog({ onClose }: { onClose: () => void }) {
             type="submit"
             form="mfa-regenerate-form"
             loading={busy}
-            disabled={blocked !== null || resolving}
+            disabled={blocked !== null || resolving || unresolved}
             data-testid="mfa-regenerate-submit"
           >
             {tr('Générer de nouveaux codes', 'Generate new codes')}
@@ -268,6 +272,22 @@ export function MFABackupCodesDialog({ onClose }: { onClose: () => void }) {
         </p>
         {resolving ? (
           <SkeletonRows rows={2} height={40} />
+        ) : unresolved ? (
+          <div
+            role="alert"
+            className="flex items-center justify-between gap-3 rounded-md bg-surface-3 p-3 text-sm text-fg-secondary"
+            data-testid="mfa-regenerate-unresolved"
+          >
+            <span>
+              {tr(
+                'Impossible de vérifier votre compte pour le moment.',
+                'Could not check your account right now.',
+              )}
+            </span>
+            <Button size="sm" variant="secondary" onClick={() => void passwordQuery.refetch()}>
+              {tr('Réessayer', 'Retry')}
+            </Button>
+          </div>
         ) : (
           <>
             {needsPassword && (

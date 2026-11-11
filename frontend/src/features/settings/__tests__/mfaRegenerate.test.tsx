@@ -265,4 +265,22 @@ describe('regenerating backup codes', () => {
       expect(regenerateBackupCodes).toHaveBeenCalledWith({ code: '123456' }, expect.any(String)),
     );
   });
+
+  it('says so, with a retry, when it cannot learn which proofs to ask for', async () => {
+    fetchHasLocalPassword
+      .mockRejectedValueOnce(new Error('offline'))
+      .mockRejectedValueOnce(new Error('offline'))
+      .mockResolvedValue(true);
+    renderPanel();
+    await openDialog();
+
+    expect(
+      await screen.findByTestId('mfa-regenerate-unresolved', {}, { timeout: 3000 }),
+    ).toBeInTheDocument();
+    expect(screen.queryByTestId('mfa-regenerate-password')).not.toBeInTheDocument();
+    expect(screen.getByTestId('mfa-regenerate-submit')).toBeDisabled();
+
+    await userEvent.click(screen.getByRole('button', { name: /retry|réessayer/i }));
+    expect(await screen.findByTestId('mfa-regenerate-password')).toBeInTheDocument();
+  });
 });

@@ -7,14 +7,20 @@ package auth_test
 
 import (
 	"net/http"
+	"net/http/httptest"
+	"strings"
 	"testing"
 
+	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/bcrypt"
 
+	appauth "github.com/opendefender/openrisk/internal/application/auth"
 	"github.com/opendefender/openrisk/internal/domain"
+	authhandler "github.com/opendefender/openrisk/internal/handler/auth"
+	"github.com/opendefender/openrisk/internal/infrastructure/repository"
 	"github.com/opendefender/openrisk/pkg/crypto"
 	"github.com/opendefender/openrisk/pkg/otp"
 )
@@ -208,4 +214,32 @@ func TestRegenerateBackupCodesE2E_SharesTheDisableBudget(t *testing.T) {
 	for _, h := range f.codeHashes(t, f.memberA) {
 		assert.Contains(t, h, "old-")
 	}
+}
+
+// A personal access token reaches Protected with user_id and tenant_id set, but
+// minting second-factor material is the owner's act, not a script's.
+func TestRegenerateBackupCodesE2E_PersonalAccessTokenIsRefused(t *testing.T) {
+	f := newDeferredFixture(t)
+	_, plain := f.sessionThenEnrolWithSecret(t, f.memberA)
+	before := f.codeHashes(t, f.memberA)
+
+	users := repository.NewGormUserRepository(f.db)
+	uc := appauth.NewRegenerateBackupCodesUseCase(repository.NewGormMFARepository(f.db), users, deferredHasher{}, deferredTOTPKey)
+	h := authhandler.NewMFAHandler(nil, nil, nil, nil, nil, users, nil).WithBackupCodeRegeneration(uc)
+	app := fiber.New()
+	// Stands in for middleware.PATMiddleware: the same locals for a PAT request.
+	app.Post(regeneratePath, func(c *fiber.Ctx) error {
+		c.Locals("user_id", f.memberA.UserID)
+		c.Locals("tenant_id", f.memberA.OrganizationID)
+		c.Locals("is_pat", true)
+		return c.Next()
+	}, h.RegenerateBackupCodes)
+
+	body := `{"password":"` + deferredPassword + `","code":"` + liveCode(t, plain) + `"}`
+	req := httptest.NewRequest(http.MethodPost, regeneratePath, strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := app.Test(req)
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusForbidden, resp.StatusCode)
+	assert.ElementsMatch(t, before, f.codeHashes(t, f.memberA), "a PAT changes nothing")
 }
