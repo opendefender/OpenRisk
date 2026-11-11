@@ -681,6 +681,11 @@ type riskPortfolio struct {
 // quantified is true when at least one risk carries its own loss figures.
 // Without one, every amount is the reference model's and printing it as the
 // tenant's exposure would state a measurement nobody made.
+//
+// It reads the ALE basis, not the SLE components the financial screen counts
+// for its data_status: a risk with an SLE but no ARO is "quantified" on the
+// screen, yet its ALE is the reference value, and the document labels the
+// amount it prints. Deliberate (#1033).
 func (p riskPortfolio) quantified() bool { return p.Count > p.ReferenceCount }
 
 func (p riskPortfolio) exposureFigure(l domain.ReportLocale) string {

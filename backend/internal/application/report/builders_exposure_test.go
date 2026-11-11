@@ -98,6 +98,7 @@ func TestBuildExecutive_Success(t *testing.T) {
 	// 10 M + 3 M, and the same total the financial screen shows.
 	assert.InDelta(t, 13_000_000, screenTotalALE(t, q, risks), 0.01)
 	assert.Equal(t, "13.0 M FCFA", summaryValue(c, "Exposition annuelle"))
+	assert.Equal(t, formatXAF(screenTotalALE(t, q, risks)), summaryValue(c, "Exposition annuelle"))
 	body := strings.Join(c.Sections[0].Body, "\n")
 	assert.Contains(t, body, "exposition annuelle attendue 13.0 M FCFA")
 	assert.Contains(t, body, "dont 3.0 M FCFA estimés par le modèle de référence pour 1 risque(s)")
@@ -189,4 +190,24 @@ func TestBuildRiskRegister_Unauthorized(t *testing.T) {
 	ale := registerALE(t, c)
 	assert.Len(t, ale, 1)
 	assert.NotContains(t, ale, "Insider")
+}
+
+// An SLE without an ARO cannot be annualised: the engine values the risk by the
+// reference model, so the document marks the amount as such and does not call
+// the exposure quantified, even though the screen counts the SLE as entered.
+func TestBuildRiskRegister_SLEWithoutARO(t *testing.T) {
+	tenantID := uuid.New()
+	risks := []domain.Risk{{ID: uuid.New(), TenantID: tenantID, Name: "Fraude", Criticality: "medium",
+		Score: 4, SLEXAF: ptr(20_000_000)}}
+	src := Sources{Risks: &fakeRisks{byTenant: map[uuid.UUID][]domain.Risk{tenantID: risks}}}
+
+	c, err := Build(context.Background(), src, execRequest(tenantID, domain.ReportTypeExecutiveSummary), nil)
+	require.NoError(t, err)
+	assert.Equal(t, "Non quantifiée", summaryValue(c, "Exposition annuelle"))
+
+	withQuantified := append(risks, issueRisks(tenantID)[0])
+	src = Sources{Risks: &fakeRisks{byTenant: map[uuid.UUID][]domain.Risk{tenantID: withQuantified}}}
+	c, err = Build(context.Background(), src, execRequest(tenantID, domain.ReportTypeRiskRegister), nil)
+	require.NoError(t, err)
+	assert.Equal(t, "3.0 M FCFA (modèle de référence)", registerALE(t, c)["Fraude"])
 }
