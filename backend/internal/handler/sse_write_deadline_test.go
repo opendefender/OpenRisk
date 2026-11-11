@@ -8,6 +8,8 @@ package handler
 import (
 	"bufio"
 	"context"
+	"crypto/rand"
+	"crypto/rsa"
 	"fmt"
 	"net"
 	"net/http"
@@ -23,7 +25,11 @@ import (
 	"github.com/stretchr/testify/require"
 
 	apprealtime "github.com/opendefender/openrisk/internal/application/realtime"
+	appreport "github.com/opendefender/openrisk/internal/application/report"
+	"github.com/opendefender/openrisk/internal/domain"
 	redisinfra "github.com/opendefender/openrisk/internal/infrastructure/redis"
+	"github.com/opendefender/openrisk/internal/middleware"
+	authpkg "github.com/opendefender/openrisk/pkg/auth"
 	rt "github.com/opendefender/openrisk/pkg/realtime"
 )
 
@@ -136,6 +142,22 @@ func streamChannelServer(t *testing.T) string {
 func streamChannelServerWith(t *testing.T, opts channelStream) string {
 	t.Helper()
 
+	h := &ScannerHandler{redis: testRedisClient(t), keepalive: deadlineTestKeepalive}
+	channel := "test:962:" + uuid.NewString()
+	return serveSSE(t, nil, func(app *fiber.App) {
+		app.Get("/stream", func(c *fiber.Ctx) error {
+			h.streamChannel(c, channel, opts)
+			return nil
+		})
+	}) + "/stream"
+}
+
+// testRedisClient returns the production Redis client on REDIS_URL, or skips
+// the test when no Redis answers: the streams subscribe through that client,
+// which refuses to start without one. CI's integration job provides it.
+func testRedisClient(t *testing.T) *redisinfra.Client {
+	t.Helper()
+
 	url := os.Getenv("REDIS_URL")
 	if url == "" {
 		url = "redis://localhost:6379"
@@ -147,25 +169,96 @@ func streamChannelServerWith(t *testing.T, opts channelStream) string {
 	defer cancel()
 	if err := probe.Ping(pingCtx).Err(); err != nil {
 		_ = probe.Close()
-		t.Skipf("Redis is not reachable on %s, skipping the streamChannel case: %v", url, err)
+		t.Skipf("Redis is not reachable on %s, skipping this stream case: %v", url, err)
 	}
 	_ = probe.Close()
 
 	client := redisinfra.NewClient(url)
 	t.Cleanup(func() { _ = client.Close() })
-	h := &ScannerHandler{redis: client, keepalive: deadlineTestKeepalive}
-	channel := "test:962:" + uuid.NewString()
+	return client
+}
+
+// serveSSE serves routes on a real 127.0.0.1 listener with the shrunk
+// WriteTimeout and returns the base URL. A non-nil tenant is put on every
+// request's context, the way the auth middleware does in production.
+func serveSSE(t *testing.T, tenant *uuid.UUID, routes func(app *fiber.App)) string {
+	t.Helper()
 
 	app := fiber.New(fiber.Config{DisableStartupMessage: true, WriteTimeout: deadlineTestWriteTimeout})
-	app.Get("/stream", func(c *fiber.Ctx) error {
-		h.streamChannel(c, channel, opts)
-		return nil
-	})
+	if tenant != nil {
+		tid := *tenant
+		app.Use(func(c *fiber.Ctx) error {
+			middleware.SetContext(c, &middleware.RequestContext{UserID: uuid.New(), OrganizationID: tid})
+			return c.Next()
+		})
+	}
+	routes(app)
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(t, err)
 	go func() { _ = app.Listener(ln) }()
 	t.Cleanup(func() { _ = app.Shutdown() })
-	return "http://" + ln.Addr().String() + "/stream"
+	return "http://" + ln.Addr().String()
+}
+
+// testSigningKeys is a throwaway RS256 key pair for minting stream tokens.
+func testSigningKeys(t *testing.T) *authpkg.RSAKeys {
+	t.Helper()
+	pk, err := rsa.GenerateKey(rand.Reader, 2048)
+	require.NoError(t, err)
+	return &authpkg.RSAKeys{PrivateKey: pk, PublicKey: &pk.PublicKey}
+}
+
+// mitigationStreamServer serves MitigationEventsHandler.Stream and returns the
+// stream URL carrying a token for a fresh tenant that expires after ttl.
+func mitigationStreamServer(t *testing.T, ttl, lifetime time.Duration) string {
+	t.Helper()
+
+	keys := testSigningKeys(t)
+	h := &MitigationEventsHandler{
+		redis:     testRedisClient(t),
+		rsaKeys:   keys,
+		keepalive: deadlineTestKeepalive,
+		lifetime:  lifetime,
+	}
+	token, _, err := authpkg.GenerateAccessToken(keys, uuid.New(), uuid.New(), nil, nil, nil, ttl)
+	require.NoError(t, err)
+	base := serveSSE(t, nil, func(app *fiber.App) { app.Get("/mitigations/events", h.Stream) })
+	return base + "/mitigations/events?token=" + token
+}
+
+// streamReportRepo holds one report that is still rendering, so the progress
+// stream stays open and waits for events.
+type streamReportRepo struct {
+	domain.ReportRepository
+	report domain.Report
+}
+
+func (r *streamReportRepo) GetByID(_ context.Context, tenantID, id uuid.UUID) (*domain.Report, error) {
+	if tenantID != r.report.TenantID || id != r.report.ID {
+		return nil, domain.ErrNotFound
+	}
+	rep := r.report
+	return &rep, nil
+}
+
+func (r *streamReportRepo) ListComments(context.Context, uuid.UUID, uuid.UUID) ([]domain.ReportComment, error) {
+	return nil, nil
+}
+
+// reportProgressServer serves ReportHandler.Progress for a running report and
+// returns its progress URL.
+func reportProgressServer(t *testing.T) string {
+	t.Helper()
+
+	tenant := uuid.New()
+	repo := &streamReportRepo{report: domain.Report{ID: uuid.New(), TenantID: tenant, RunState: domain.ReportRunRunning}}
+	h := &ReportHandler{
+		svc:       appreport.NewService(repo, appreport.Sources{}),
+		redis:     testRedisClient(t),
+		keepalive: deadlineTestKeepalive,
+	}
+	base := serveSSE(t, &tenant, func(app *fiber.App) { app.Get("/reports/:reportId/progress", h.Progress) })
+	return base + "/reports/" + repo.report.ID.String() + "/progress"
 }
 
 func realtimeDeadlineServer(t *testing.T) (*streamTestEnv, string) {
@@ -193,6 +286,19 @@ func TestSSEWriteDeadline_StreamSurvivesWriteTimeout(t *testing.T) {
 		assert.False(t, got.closed, "the server closed the stream inside the window")
 		assert.GreaterOrEqual(t, got.keepalives, 10)
 	})
+	t.Run("mitigation", func(t *testing.T) {
+		url := mitigationStreamServer(t, time.Hour, 0)
+		got := readKeepalives(t, url, nil, deadlineTestWindow)
+		assert.False(t, got.closed, "the server closed the stream inside the window")
+		assert.GreaterOrEqual(t, got.keepalives, 10)
+	})
+
+	t.Run("report", func(t *testing.T) {
+		url := reportProgressServer(t)
+		got := readKeepalives(t, url, nil, deadlineTestWindow)
+		assert.False(t, got.closed, "the server closed the stream inside the window")
+		assert.GreaterOrEqual(t, got.keepalives, 10)
+	})
 }
 
 // The control: the same streams with the helper disabled must be cut by the
@@ -211,6 +317,19 @@ func TestSSEWriteDeadline_ControlWithoutHelperIsCut(t *testing.T) {
 
 	t.Run("streamChannel", func(t *testing.T) {
 		url := streamChannelServer(t)
+		got := readKeepalives(t, url, nil, deadlineTestWindow)
+		assert.True(t, got.closed, "without the helper the stream should be cut at WriteTimeout")
+		assert.Less(t, got.keepalives, 10)
+	})
+	t.Run("mitigation", func(t *testing.T) {
+		url := mitigationStreamServer(t, time.Hour, 0)
+		got := readKeepalives(t, url, nil, deadlineTestWindow)
+		assert.True(t, got.closed, "without the helper the stream should be cut at WriteTimeout")
+		assert.Less(t, got.keepalives, 10)
+	})
+
+	t.Run("report", func(t *testing.T) {
+		url := reportProgressServer(t)
 		got := readKeepalives(t, url, nil, deadlineTestWindow)
 		assert.True(t, got.closed, "without the helper the stream should be cut at WriteTimeout")
 		assert.Less(t, got.keepalives, 10)

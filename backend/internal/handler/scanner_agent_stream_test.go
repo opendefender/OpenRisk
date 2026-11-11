@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gofiber/fiber/v2"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -23,6 +24,7 @@ import (
 	scanapp "github.com/opendefender/openrisk/internal/application/scanner"
 	"github.com/opendefender/openrisk/internal/domain"
 	"github.com/opendefender/openrisk/internal/infrastructure/repository"
+	scanpkg "github.com/opendefender/openrisk/internal/scanner"
 	authpkg "github.com/opendefender/openrisk/pkg/auth"
 )
 
@@ -43,6 +45,11 @@ func agentTestRepo(t *testing.T) *repository.GormScannerAgentRepository {
 	t.Helper()
 	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
 	require.NoError(t, err)
+	// Each SQLite connection to :memory: is its own empty database. A live
+	// stream reads from its own goroutine, so pin the pool to one connection.
+	sqlDB, err := db.DB()
+	require.NoError(t, err)
+	sqlDB.SetMaxOpenConns(1)
 	// Postgres DDL (gen_random_uuid) does not run on SQLite; the columns the
 	// repository reads and writes are what matters here.
 	require.NoError(t, db.Exec(`CREATE TABLE scanner_agents (
@@ -162,9 +169,18 @@ func TestMarkAgentStreamClosed_MarksALiveAgentOffline(t *testing.T) {
 // readFrames returns the stream's lines and closes the channel at EOF.
 func readFrames(t *testing.T, url string) (<-chan string, func()) {
 	t.Helper()
+	return readFramesWith(t, url, nil)
+}
+
+// readFramesWith is readFrames with request headers.
+func readFramesWith(t *testing.T, url string, headers map[string]string) (<-chan string, func()) {
+	t.Helper()
 	ctx, cancel := context.WithCancel(context.Background())
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	require.NoError(t, err)
+	for k, v := range headers {
+		req.Header.Set(k, v)
+	}
 	resp, err := http.DefaultClient.Do(req)
 	require.NoError(t, err)
 	require.Equal(t, http.StatusOK, resp.StatusCode)
@@ -222,6 +238,120 @@ func TestStreamChannel_MaxLifetimeEndsTheStream(t *testing.T) {
 	url := streamChannelServerWith(t, channelStream{maxLifetime: 1500 * time.Millisecond})
 
 	lines, _ := readFrames(t, url)
+	started := time.Now()
+	awaitClose(t, lines, 3*time.Second)
+	assert.GreaterOrEqual(t, time.Since(started), time.Second, "closed before its lifetime")
+}
+
+// awaitLine waits for one exact line and fails if it has not come within the
+// bound or the stream ended first.
+func awaitLine(t *testing.T, lines <-chan string, want string, within time.Duration) {
+	t.Helper()
+	timer := time.NewTimer(within)
+	defer timer.Stop()
+	for {
+		select {
+		case line, ok := <-lines:
+			if !ok {
+				t.Fatalf("the stream ended before %q", want)
+			}
+			if line == want {
+				return
+			}
+		case <-timer.C:
+			t.Fatalf("no %q within %s", want, within)
+		}
+	}
+}
+
+// The agent stream end to end: authenticated by its scoped token, revoked
+// while connected. The stream must end on the next ticks with stream.revoked,
+// and its close must not write the connect-time row back over the revocation.
+func TestAgentStream_RevokedAgentIsClosedAndStaysRevoked(t *testing.T) {
+	setSSEWriteTimeout(t, deadlineTestWriteTimeout)
+	repo := agentTestRepo(t)
+	keys := testSigningKeys(t)
+
+	agent := &domain.ScannerAgent{
+		ID: uuid.New(), TenantID: uuid.New(), Name: "agent-962",
+		Status: domain.AgentOffline, PushSecretEnc: "secret-at-connect", RegisteredAt: time.Now(),
+	}
+	token, err := scanpkg.MintAgentToken(keys, agent.TenantID, agent.ID)
+	require.NoError(t, err)
+	agent.TokenHash = scanpkg.HashToken(token)
+	require.NoError(t, repo.Create(context.Background(), agent))
+
+	h := &ScannerHandler{
+		agentRepo: repo,
+		jobRepo:   &triggerJobRepo{},
+		heartbeat: scanapp.NewHeartbeatAgentUseCase(repo),
+		rsaKeys:   keys,
+		redis:     testRedisClient(t),
+		keepalive: deadlineTestKeepalive,
+	}
+	base := serveSSE(t, nil, func(app *fiber.App) { app.Get("/scanner/agent/stream", h.AgentStream) })
+
+	lines, _ := readFramesWith(t, base+"/scanner/agent/stream", map[string]string{"Authorization": "Bearer " + token})
+	awaitLine(t, lines, ": connected", 2*time.Second)
+	row, err := repo.GetByID(context.Background(), agent.ID, agent.TenantID)
+	require.NoError(t, err)
+	require.Equal(t, domain.AgentOnline, row.Status, "connecting did not mark the agent online")
+
+	// Alive past the server's WriteTimeout, so the revocation below is what
+	// ends it and not the deadline.
+	time.Sleep(deadlineTestWriteTimeout + 2*deadlineTestKeepalive)
+	revoke(t, repo, agent)
+
+	awaitLine(t, lines, "event: stream.revoked", 2*deadlineTestKeepalive)
+	// The writer runs onClose before it returns, and the body only ends after
+	// that, so at EOF the close handler has already written whatever it writes.
+	awaitClose(t, lines, 2*time.Second)
+
+	row, err = repo.GetByID(context.Background(), agent.ID, agent.TenantID)
+	require.NoError(t, err)
+	assert.Equal(t, domain.AgentRevoked, row.Status, "the close changed a revoked agent's status")
+	assert.Empty(t, row.TokenHash, "the close restored the revoked token hash")
+	assert.Empty(t, row.PushSecretEnc, "the close restored the revoked push secret")
+}
+
+// The mitigation stream's token was checked once at connect. Its expiry must
+// end the stream on a keepalive tick, with stream.revoked, while the rolling
+// deadline would otherwise keep it open.
+func TestMitigationStream_ExpiredTokenEndsTheStream(t *testing.T) {
+	setSSEWriteTimeout(t, deadlineTestWriteTimeout)
+	// exp is whole seconds, so a 2s token expires 1 to 2s from now.
+	url := mitigationStreamServer(t, 2*time.Second, 0)
+
+	lines, _ := readFrames(t, url)
+	started := time.Now()
+	revoked := awaitClose(t, lines, 2*time.Second+3*deadlineTestKeepalive+time.Second)
+	assert.True(t, revoked, "no stream.revoked frame before the close")
+	assert.GreaterOrEqual(t, time.Since(started), 900*time.Millisecond, "closed before the token expired")
+}
+
+func TestMitigationStream_MaxLifetimeEndsTheStream(t *testing.T) {
+	setSSEWriteTimeout(t, deadlineTestWriteTimeout)
+	url := mitigationStreamServer(t, time.Hour, 1500*time.Millisecond)
+
+	lines, _ := readFrames(t, url)
+	started := time.Now()
+	revoked := awaitClose(t, lines, 3*time.Second)
+	assert.False(t, revoked, "a lifetime close is not a revocation")
+	assert.GreaterOrEqual(t, time.Since(started), time.Second, "closed before its lifetime")
+}
+
+// The deprecated scan events stream must hand its ceiling to streamChannel.
+func TestStreamScanEvents_MaxLifetimeEndsTheStream(t *testing.T) {
+	setSSEWriteTimeout(t, deadlineTestWriteTimeout)
+	tenant := uuid.New()
+	h := &ScannerHandler{
+		redis:              testRedisClient(t),
+		keepalive:          deadlineTestKeepalive,
+		deprecatedLifetime: 1500 * time.Millisecond,
+	}
+	base := serveSSE(t, &tenant, func(app *fiber.App) { app.Get("/scanner/events", h.StreamScanEvents) })
+
+	lines, _ := readFrames(t, base+"/scanner/events")
 	started := time.Now()
 	awaitClose(t, lines, 3*time.Second)
 	assert.GreaterOrEqual(t, time.Since(started), time.Second, "closed before its lifetime")

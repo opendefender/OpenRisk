@@ -33,6 +33,9 @@ type MitigationEventsHandler struct {
 	// keepalive overrides the stream keepalive interval; zero keeps
 	// sseKeepaliveInterval. Only a test sets it (#962).
 	keepalive time.Duration
+	// lifetime overrides the stream's ceiling; zero keeps
+	// sseDeprecatedStreamLifetime. Only a test sets it (#962).
+	lifetime time.Duration
 }
 
 // NewMitigationEventsHandler wires the SSE handler.
@@ -60,6 +63,7 @@ func (h *MitigationEventsHandler) Stream(c *fiber.Ctx) error {
 
 	extendDeadline := sseWriteDeadline(c)
 	keepaliveEvery := sseKeepaliveOr(h.keepalive)
+	maxLifetime := sseDeprecatedLifetimeOr(h.lifetime)
 	c.Context().SetBodyStreamWriter(func(w *bufio.Writer) {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
@@ -78,7 +82,7 @@ func (h *MitigationEventsHandler) Stream(c *fiber.Ctx) error {
 		defer keepalive.Stop()
 		// The rolling write deadline lets a reading client hold this stream
 		// indefinitely, so it gets an explicit ceiling (#962).
-		lifetime := time.After(sseDeprecatedStreamLifetime)
+		lifetime := time.After(maxLifetime)
 
 		for {
 			select {

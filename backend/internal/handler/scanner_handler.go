@@ -55,6 +55,9 @@ type ScannerHandler struct {
 	// keepalive overrides the stream keepalive interval; zero keeps
 	// sseKeepaliveInterval. Only a test sets it (#962).
 	keepalive time.Duration
+	// deprecatedLifetime overrides the deprecated scan events stream's
+	// ceiling; zero keeps sseDeprecatedStreamLifetime. Only a test sets it (#962).
+	deprecatedLifetime time.Duration
 }
 
 // WithInventory wires the software-inventory endpoint (#910).
@@ -324,7 +327,7 @@ func (h *ScannerHandler) StreamScanEvents(c *fiber.Ctx) error {
 	// /scanner/agent/stream, is a different endpoint and is NOT deprecated.
 	markSSEDeprecated(c, "/api/v1/scanner/jobs")
 
-	h.streamChannel(c, scanpkg.SSEChannel(tid), channelStream{maxLifetime: sseDeprecatedStreamLifetime})
+	h.streamChannel(c, scanpkg.SSEChannel(tid), channelStream{maxLifetime: sseDeprecatedLifetimeOr(h.deprecatedLifetime)})
 	return nil
 }
 

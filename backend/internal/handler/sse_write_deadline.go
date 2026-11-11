@@ -50,6 +50,16 @@ func sseKeepaliveOr(d time.Duration) time.Duration {
 // so they get the ceiling the realtime and report streams already had (#962).
 const sseDeprecatedStreamLifetime = 30 * time.Minute
 
+// sseDeprecatedLifetimeOr returns d, or sseDeprecatedStreamLifetime when d is
+// zero. The override exists so a test can watch the ceiling end a stream in
+// seconds (#962).
+func sseDeprecatedLifetimeOr(d time.Duration) time.Duration {
+	if d > 0 {
+		return d
+	}
+	return sseDeprecatedStreamLifetime
+}
+
 // sseWriteTimeout is the per-write budget. Atomic because stream goroutines read
 // it while a test swaps it in t.Cleanup. Production never changes it; a value
 // of zero or less is reachable only from a test, where it disables the helper
