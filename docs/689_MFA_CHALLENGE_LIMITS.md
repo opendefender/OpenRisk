@@ -194,3 +194,27 @@ Each task ends green on its own `go test` and is one commit (`fix(auth): … (#6
   - Open the frontend follow-up issue, post the progress comment, open the PR with `Closes #689`, set `status:in-review`.
 
 Risks: route registry and authz ratchet tests may trip on the new middleware order (T4). That is why the full `go test ./...` runs before the PR.
+
+## In-session lock — disable and backup-code regeneration (#1392, D-107 option B)
+
+The challenge lock above guards sign-in. Two actions prove the second factor from a session that is already signed in: `POST /auth/mfa/disable` and `POST /auth/mfa/backup-codes/regenerate`. Before #1392 they had only the D-061 budget (5 tries per 15 minutes per account), which slows a session thief down but never stops one: about 480 guesses a day, close to 40 % success over a year on an account without a local password.
+
+| | Sign-in challenge (#689) | In-session (#1392) |
+|---|---|---|
+| Counts | wrong codes at `/auth/mfa/challenge` | wrong code **or** password at disable and regenerate, one counter for both |
+| Limit | 10 failures in 15 min | 10 failures in 24 h, from the first failure |
+| Lock | 15 min, fixed | 24 h, fixed |
+| Keys | `mfa-attempts:challenge:user:<id>`, `…:challenge:lock:<id>` | `mfa-attempts:insession:fail:<id>`, `…:insession:lock:<id>` |
+| Answer | 429 `MFA_LOCKED` | 429 `mfa_locked`, `Retry-After`, `retry_after` |
+| Mail | `SendMFALocked` ("someone entered your password") | `SendMFAInSessionLocked` (wrong codes from a signed-in session; "Sign out all other devices", then the administrator) |
+
+Rules:
+- Per user, not per (user, tenant): the counter holds whichever organisation the session belongs to. The reads of `mfa_secrets` stay scoped by `(user_id, tenant_id)`.
+- The lock is checked before the D-061 budget and before any proof, so a locked account is refused even with the correct code and password, and is told 24 h, not "a few minutes". The D-061 budget is unchanged behind it.
+- Refused attempts neither count nor extend the lock (SetNX on the lock key, no increment under the lock).
+- The failure that sets the lock is answered with the lock. It is audited once with reason `mfa_lock_set`; every refusal under it is audited with `mfa_locked`. The owner is mailed once per lock, in the locale of their account, not of the request.
+- A success clears the counter; nothing clears the lock early. Ending the session on lock is out of scope.
+- The two locks never touch each other: a sign-in failure never counts in session, and the in-session lock never stops sign-in. Sharing them would let a session thief lock the owner out of signing in.
+- Store error on the lock check: refused (500), unlike the sign-in lock check in `login_limits.go`. The store already falls back to per-instance memory when Redis is down.
+
+Code: `backend/internal/application/auth/mfa_in_session_limits.go`. Tests: `mfa_in_session_limits_test.go` (use case, criteria 1–6), `backend/internal/handler/auth/mfa_in_session_lock_e2e_test.go` (HTTP, audit, `Retry-After`), `authmail/mfa_locked_mailer_test.go` (mail FR/EN).
