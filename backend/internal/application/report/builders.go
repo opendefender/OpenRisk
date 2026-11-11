@@ -51,8 +51,10 @@ type riskExposure struct {
 	// Quantified is the financial screen's rule (domain.Risk.HasLossFigures):
 	// the tenant entered at least one loss amount.
 	Quantified bool
-	// Reference is true when the ALE itself is the reference model's value:
-	// no loss figure at all, or loss figures without an annual frequency.
+	// Reference is true when the ALE rests on the reference model: the loss
+	// per incident is the reference value (no loss figure, even if an ARO was
+	// entered: the engine then annualises the reference SLE), or the loss
+	// figures lack an annual frequency and the ALE falls back to it.
 	Reference bool
 }
 
@@ -60,7 +62,11 @@ type riskExposure struct {
 // the same engine call (AssessDeterministic) as the financial summary.
 func assessRisk(q *crq.Quantifier, r *domain.Risk) riskExposure {
 	a := q.AssessDeterministic(risk.FinancialInputsFor(r), string(r.Criticality))
-	return riskExposure{ALE: a.ALE.XAF, Quantified: r.HasLossFigures(), Reference: a.ALEBasis == crq.BasisReference}
+	return riskExposure{
+		ALE:        a.ALE.XAF,
+		Quantified: r.HasLossFigures(),
+		Reference:  a.SLEBasis == crq.BasisReference || a.ALEBasis == crq.BasisReference,
+	}
 }
 
 // ComplianceSource reads the control register.

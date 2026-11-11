@@ -460,15 +460,18 @@ func (r *Risk) BulkSnapshot() map[string]interface{} {
 func (r *Risk) OwnershipBlock() *Ownership { return &r.Ownership }
 
 // HasLossFigures reports whether the tenant entered at least one loss amount
-// for this risk: an SLE, a fine, a data-loss or other direct cost, or the
-// downtime pair. It is the one definition of a "quantified" risk, the Go twin
-// of the FILTER in GormRiskRepository.CountFinancialCoverage that the financial
-// screen counts with; a Postgres test keeps the two equal (#1033). A risk with
-// loss figures but no ARO is quantified even though its ALE falls back to the
-// reference value, since the frequency is the only thing missing.
+// above zero for this risk: an SLE, a fine, a data-loss or other direct cost,
+// or the downtime pair. A zero is not a loss figure: the CRQ engine ignores it
+// and falls back to the reference model. This is the Go twin of the
+// "quantified" FILTER in GormRiskRepository.CountFinancialCoverage (financial
+// screen) and in the dashboard aggregate (dashboard_handler.go); a Postgres
+// test keeps the first equal to it (#1033). A risk with loss figures but no
+// ARO is quantified even though its ALE falls back to the reference value,
+// since the frequency is the only thing missing.
 func (r *Risk) HasLossFigures() bool {
-	return r.SLEXAF != nil || r.FinesXAF != nil || r.DataLossCostXAF != nil ||
-		r.OtherDirectCostXAF != nil || (r.DowntimeHours != nil && r.HourlyDowntimeCostXAF != nil)
+	pos := func(p *float64) bool { return p != nil && *p > 0 }
+	return pos(r.SLEXAF) || pos(r.FinesXAF) || pos(r.DataLossCostXAF) ||
+		pos(r.OtherDirectCostXAF) || (pos(r.DowntimeHours) && pos(r.HourlyDowntimeCostXAF))
 }
 
 // CountMitigations fills the computed count from the preloaded relation.

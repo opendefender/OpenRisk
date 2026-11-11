@@ -401,7 +401,8 @@ func (r *GormRiskRepository) SearchByText(ctx context.Context, tenantID uuid.UUI
 // The SLE column is `slexaf`: GORM's name for the SLEXAF field, which carries no
 // column tag. It read `sle_xaf` until #1033, so the query failed and the
 // financial summary silently fell back to its in-memory count. The FILTER is
-// the SQL twin of domain.Risk.HasLossFigures; a Postgres test keeps them equal.
+// the SQL twin of domain.Risk.HasLossFigures (an amount counts when above
+// zero, as in the dashboard aggregate); a Postgres test keeps them equal.
 func (r *GormRiskRepository) CountFinancialCoverage(ctx context.Context, tenantID uuid.UUID) (total, quantified int, err error) {
 	type row struct {
 		Total      int64
@@ -412,11 +413,11 @@ func (r *GormRiskRepository) CountFinancialCoverage(ctx context.Context, tenantI
 		Model(&domain.Risk{}).
 		Select(`COUNT(*) AS total,
 			COUNT(*) FILTER (WHERE
-				slexaf IS NOT NULL
-				OR fines_xaf IS NOT NULL
-				OR data_loss_cost_xaf IS NOT NULL
-				OR other_direct_cost_xaf IS NOT NULL
-				OR (downtime_hours IS NOT NULL AND hourly_downtime_cost_xaf IS NOT NULL)
+				COALESCE(slexaf, 0) > 0
+				OR COALESCE(fines_xaf, 0) > 0
+				OR COALESCE(data_loss_cost_xaf, 0) > 0
+				OR COALESCE(other_direct_cost_xaf, 0) > 0
+				OR (COALESCE(downtime_hours, 0) > 0 AND COALESCE(hourly_downtime_cost_xaf, 0) > 0)
 			) AS quantified`).
 		Where("tenant_id = ?", tenantID).
 		Scan(&res).Error

@@ -27,7 +27,9 @@ func TestRiskHasLossFigures(t *testing.T) {
 		{"other direct cost", Risk{OtherDirectCostXAF: v(1)}, true},
 		{"downtime hours only", Risk{DowntimeHours: v(4)}, false},
 		{"downtime pair", Risk{DowntimeHours: v(4), HourlyDowntimeCostXAF: v(100_000)}, true},
-		{"zero SLE entered", Risk{SLEXAF: v(0)}, true},
+		{"zero SLE entered", Risk{SLEXAF: v(0), ARO: v(0.5)}, false},
+		{"zero fine entered", Risk{FinesXAF: v(0)}, false},
+		{"downtime pair with zero rate", Risk{DowntimeHours: v(4), HourlyDowntimeCostXAF: v(0)}, false},
 	}
 	for _, c := range cases {
 		assert.Equal(t, c.want, c.r.HasLossFigures(), c.name)

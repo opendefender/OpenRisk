@@ -197,6 +197,33 @@ func TestBuildRiskRegister_Unauthorized(t *testing.T) {
 // the reference value, and its row says the annual frequency is what is
 // missing (#1033).
 func TestBuildRiskRegister_LossFiguresWithoutARO(t *testing.T) {
+	t.Run("an ARO without a loss amount is still the reference model", func(t *testing.T) {
+		// The engine annualises the reference SLE (3 M × 0.5) and calls the
+		// ALE basis explicit; the row must still say where the amount comes from.
+		tid := uuid.New()
+		mixed := []domain.Risk{
+			issueRisks(tid)[0],
+			{ID: uuid.New(), TenantID: tid, Name: "Fréquence seule", Criticality: "medium", Score: 3, ARO: ptr(0.5)},
+		}
+		src := Sources{Risks: &fakeRisks{byTenant: map[uuid.UUID][]domain.Risk{tid: mixed}}}
+		c, err := Build(context.Background(), src, execRequest(tid, domain.ReportTypeRiskRegister), nil)
+		require.NoError(t, err)
+		assert.Equal(t, "1.5 M FCFA (modèle de référence)", registerALE(t, c)["Fréquence seule"])
+	})
+	t.Run("zero amounts are not loss figures", func(t *testing.T) {
+		// A typed 0 is accepted by the form; it must not turn the reference
+		// value into "the tenant's exposure" (criterion 3).
+		tid := uuid.New()
+		zero := []domain.Risk{
+			{ID: uuid.New(), TenantID: tid, Name: "Zéro", Criticality: "medium", Score: 4, SLEXAF: ptr(0), ARO: ptr(0.5)},
+			{ID: uuid.New(), TenantID: tid, Name: "Phishing", Criticality: "medium", Score: 3},
+		}
+		src := Sources{Risks: &fakeRisks{byTenant: map[uuid.UUID][]domain.Risk{tid: zero}}}
+		c, err := Build(context.Background(), src, execRequest(tid, domain.ReportTypeExecutiveSummary), nil)
+		require.NoError(t, err)
+		assert.Equal(t, "Non quantifiée", summaryValue(c, "Exposition annuelle"))
+	})
+
 	tenantID := uuid.New()
 	risks := []domain.Risk{
 		{ID: uuid.New(), TenantID: tenantID, Name: "Amende CNIL", Criticality: "medium", Score: 4, FinesXAF: ptr(8_000_000)},

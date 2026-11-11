@@ -46,7 +46,9 @@ func TestCountFinancialCoverage_MatchesHasLossFigures_Postgres(t *testing.T) {
 		func(r *domain.Risk) { r.OtherDirectCostXAF = v(1_000) },
 		func(r *domain.Risk) { r.DowntimeHours = v(4) },
 		func(r *domain.Risk) { r.DowntimeHours = v(4); r.HourlyDowntimeCostXAF = v(100_000) },
-		func(r *domain.Risk) { r.SLEXAF = v(0) },
+		func(r *domain.Risk) { r.SLEXAF = v(0); r.ARO = v(0.5) },
+		func(r *domain.Risk) { r.FinesXAF = v(0) },
+		func(r *domain.Risk) { r.DowntimeHours = v(4); r.HourlyDowntimeCostXAF = v(0) },
 	}
 
 	rollback := errors.New("rollback")
