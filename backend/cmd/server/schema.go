@@ -159,10 +159,9 @@ func schemaModels() []interface{} {
 		// plans ("Plans de remédiation" — close a gap, assign, track). Tenant-scoped.
 		&domain.ComplianceAudit{},
 		&domain.RemediationPlan{},
-		// Evidence library (migration 0052): one proof artifact answering N
-		// controls, with a collection date and an expiry. Replaces the read path
-		// of control_evidences, which stays in place, backfilled from, for a
-		// release.
+		// Evidence library: one proof artifact answering N controls, with a
+		// collection date and an expiry. The only evidence register; the legacy
+		// control_evidences table is dropped by migration 0084 (#813).
 		&domain.Evidence{},
 		&domain.EvidenceControlLink{},
 		// Security Automation / SOAR (spec §10 « Automatisation »): tenant-scoped

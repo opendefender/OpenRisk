@@ -33,9 +33,6 @@ type MockComplianceRepository struct {
 	listControlsByFrameworkFunc func(ctx context.Context, tenantID, frameworkID uuid.UUID) ([]domain.ComplianceControl, error)
 	updateControlFunc           func(ctx context.Context, c *domain.ComplianceControl) error
 	deleteControlFunc           func(ctx context.Context, id, tenantID uuid.UUID) error
-	createEvidenceFunc          func(ctx context.Context, e *domain.ControlEvidence) error
-	getEvidenceByIDFunc         func(ctx context.Context, id, tenantID uuid.UUID) (*domain.ControlEvidence, error)
-	listEvidencesByControlFunc  func(ctx context.Context, tenantID, controlID uuid.UUID) ([]domain.ControlEvidence, error)
 	countEvidencesByFwFunc      func(ctx context.Context, tenantID, frameworkID uuid.UUID) (map[uuid.UUID]int, error)
 	deleteEvidenceFunc          func(ctx context.Context, id, tenantID uuid.UUID) error
 }

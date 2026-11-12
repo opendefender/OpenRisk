@@ -53,3 +53,6 @@ test.log
 
 # Ids written by scripts/seed-dev.mjs on each run (#1337)
 dev/.seed-dev-state.json
+
+# scout brief saved by /work at the worktree root (#1398)
+/brief.md
