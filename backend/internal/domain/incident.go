@@ -54,7 +54,7 @@ type Incident struct {
 	ResolvedAt   *time.Time     `json:"resolved_at"`
 
 	// Ownership — responsable / exécutant / validateur. Same embedded block as
-	// Risk, Mitigation, RemediationPlan and ControlEvidence.
+	// Risk, Mitigation, RemediationPlan and Evidence.
 	Ownership `gorm:"embedded"`
 
 	CreatedAt time.Time      `json:"created_at"`

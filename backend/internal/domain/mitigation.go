@@ -61,7 +61,7 @@ type Mitigation struct {
 	Priority    MitigationPriority `gorm:"type:varchar(20);default:'medium'" json:"priority"`
 
 	// Ownership — responsable / exécutant / validateur. Same embedded block as
-	// Risk, Incident, RemediationPlan and ControlEvidence.
+	// Risk, Incident, RemediationPlan and Evidence.
 	Ownership `gorm:"embedded"`
 
 	// Deprecated: multi-user assignment (JSONB array). Superseded by

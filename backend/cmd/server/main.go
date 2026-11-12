@@ -1666,14 +1666,6 @@ func main() {
 	// to the tenant without being handed the ability to mutate the register.
 	// userRepo resolves "collected by" to an email; optional and nil-safe.
 	evidenceRepo := repository.NewGormEvidenceRepository(database.DB)
-	// Move any pre-library attachments into the library. Idempotent, and
-	// best-effort: an old attachment that fails to move is worth a log line, not
-	// a server that refuses to start.
-	if moved, err := evidenceRepo.BackfillFromControlEvidences(context.Background()); err != nil {
-		log.Printf("Evidence: backfill from control_evidences failed (pre-library attachments may be missing): %v", err)
-	} else if moved > 0 {
-		log.Printf("Evidence: migrated %d pre-library attachment(s) into the evidence library", moved)
-	}
 	evidenceService := evidence.NewService(evidenceRepo, complianceRepo, fileStorage).
 		WithUserLookup(userRepo)
 	evidenceHandler := handlers.NewEvidenceHandler(evidenceService)
