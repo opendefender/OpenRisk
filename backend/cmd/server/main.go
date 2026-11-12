@@ -3082,6 +3082,7 @@ func main() {
 		storeInventoryUC.WithGate(redisClientInstance)
 	}
 	scannerHandler.WithInventory(storeInventoryUC)
+	scannerHandler.WithHeartbeatLimiter(authLimiterStore)
 
 	// User-facing routes (RS256 user token). Admin/root pass via the "*" wildcard.
 	scannerRead := middleware.RequirePermission("scanner:read")
