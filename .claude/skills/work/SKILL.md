@@ -35,32 +35,59 @@ gh issue edit $ARGUMENTS --add-label status:in-progress --remove-label status:re
 When `frontend/package-lock.json` matches the main checkout, symlink its
 `frontend/node_modules` instead of reinstalling.
 
-## 3. Route by `area:` label, then review
+## 3. Brief — `scout` first, unless the issue is S
 
-| Label | Implementation, in order | Review, always |
-|---|---|---|
-| `area:backend` | tech-lead (design, if structural) → backend-go → qa-automation | code-reviewer + devsecops |
-| `area:frontend` | ux-designer (if no spec) → frontend-react → qa-automation | code-reviewer |
-| `area:infra` | devops-sre → cloud-sysadmin | code-reviewer + devsecops |
-| `area:design` | art-director → ux-designer → motion-designer | art-director, then code-reviewer if code changed |
-| `area:marketing` | brand-strategist → copywriter | product-verifier |
-| `type:security` | devsecops (finding) → owning agent → qa-automation | code-reviewer + devsecops |
+Read the `## Estimate` line of the issue body. On M, L, or no estimate, call
+`scout` before any other agent, with the issue (title, body, labels, and the
+comments with their `author_association`), the worktree path and the short SHA
+of `origin/develop`. Save its answer verbatim as `brief.md` at the worktree
+root (git ignores it). Every agent called after that gets the path to
+`brief.md` in its prompt and starts from it instead of re-exploring the code.
+On S, skip `scout` and say so.
 
-Add devsecops to the review of any change that touches auth, sessions, tenant
-data, uploads, outbound requests or secrets, whatever its label.
+## 4. Implement — route by `area:` label
+
+| Label | Implementation, in order |
+|---|---|
+| `area:backend` | tech-lead (design, if structural) → backend-go → qa-automation |
+| `area:frontend` | ux-designer (if no spec) → frontend-react → qa-automation |
+| `area:infra` | devops-sre → cloud-sysadmin |
+| `area:design` | art-director → ux-designer → motion-designer |
+| `area:marketing` | brand-strategist → copywriter |
+| `type:security` | devsecops (finding) → owning agent → qa-automation |
 
 Skip an implementation stage only when it is genuinely irrelevant, and say
 which. **Never skip the review.**
 
+## 5. Review — reviewers chosen by the script, not by judgement
+
+The reviewers come from the diff and the labels (#1005). Once the work is
+committed, from the worktree:
+```
+bash "$CLAUDE_PROJECT_DIR/.claude/hooks/route-reviewers.sh" origin/develop
+```
+It prints one agent per line. Call **every** agent it prints, in parallel,
+each with the worktree path, the branch and `brief.md` if it exists. Exit 2
+or 3 means it could not decide (bad base, labels unreadable): fix the cause
+and run it again; never read a failure as "no reviewer". You may add a
+reviewer it did not print, never drop one. Run it again after every new
+commit: a fix can reach a path that needs another reviewer.
+
 ### Review loop
 
 1. The reviewer reads the whole diff, not a summary:
-   `git diff origin/develop...HEAD`. It ends with `REVIEW: PASS` or
-   `REVIEW: BLOCK — <n> critical` (devsecops: `SECURITY: PASS|FAIL`).
+   `git diff origin/develop...HEAD`. It ends with `Read: <base>..<sha>` and
+   `REVIEW: PASS` or `REVIEW: BLOCK — <n> critical` (devsecops:
+   `SECURITY: PASS|FAIL`). Keep each reviewer's `<sha>`; for a reviewer
+   whose output has no `Read:` line, keep the `git rev-parse HEAD` you gave
+   it.
 2. BLOCK or FAIL goes back to the implementing agent with the findings
-   verbatim. It fixes them, then the same reviewer reads the new diff.
+   verbatim. It fixes them, then every reviewer, the ones that passed
+   included, gets the `<sha>` of its last `Read:` line and reads only
+   `git diff <sha>..HEAD`.
 3. A PASS covers the diff it read. Any later change, a CI fix included, goes
-   back to the same reviewer before the PR is handed over.
+   back to the reviewers the script prints for the new diff before the PR is
+   handed over.
 4. After two blocked rounds, `tech-lead` arbitrates. What it cannot settle
    goes to `docs/DECISIONS.md` with both positions and the reviewer's
    findings, and is reported. Do not open the PR over a block.
@@ -72,14 +99,14 @@ Run the branch for real (see the live boot recipe in agent memory or
 which screen, which states (loading, error, empty, filled) and which role
 were checked. Unit tests alone do not close a UI issue.
 
-## 4. Checkpoint — mandatory, before you finish or run low
+## 6. Checkpoint — mandatory, before you finish or run low
 
 Post the issue comment in the exact format from CLAUDE.md, including the
 **Review** line. This comment is the resume anchor: a fresh session with zero
 context must be able to continue from it alone. Write it as if the reader
 knows nothing.
 
-## 5. Ship the branch
+## 7. Ship the branch
 
 Stage by explicit path, never `git add -A`, and look at what you stage:
 ```
@@ -120,7 +147,7 @@ gh issue edit $ARGUMENTS --add-label status:in-review --remove-label status:in-p
 
 Never merge. Merging is the owner's decision.
 
-## 6. Close out
+## 8. Close out
 
 One paragraph: what shipped, what was verified, the review verdicts, the CI
 state, what remains, and whether anything needs the owner. Nothing else.
