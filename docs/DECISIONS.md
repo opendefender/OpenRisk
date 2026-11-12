@@ -5,33 +5,62 @@ recommends, and surfaces these in the daily brief. Run `/decide` to clear them.
 
 ## Open
 
-### D-106 — Board report exposure: keep the flat model or use the CRQ figure · opened 2026-11-11
-**Context** (#1033, criterion 5) — `POST /reports/board` estimates exposure with
-`internal/application/board/exposure.go`: count of risks per criticality × a flat
-value (critical 50 M, high 15 M, medium 3 M, low 500 k FCFA). It ignores the loss
-figures the tenant entered. On the #1033 case (one risk at SLE 20 M × ARO 0.5,
-one medium risk without figures) the board report says 6 M FCFA while
-`/analytics/financial`, the dashboard and, since #1033, the `executive_summary`
-and `risk_register` documents say 13 M. #1033 leaves `exposure.go` untouched.
-
-**Options**
-1. **Use the CRQ engine** (`crq.Quantifier.AssessDeterministic`, as the other
-   reports now do): the board pack prints `total_ale`, says "not quantified" when
-   no risk carries loss figures, and states the reference-model share. One
-   number everywhere. `board.ExposureModel` goes away.
-2. **Keep the flat model, label it**: the board pack prints "order of magnitude
-   by criticality, not the measured exposure" next to the figure, and the CRQ
-   total beside it. Two numbers on one page.
-3. **Leave it as is.** A board member keeps reading 6 M where the CFO reads 13 M.
-
-**Recommendation** — option 1. The flat values are already the CRQ reference
-model (`crq.DefaultReference()` holds the same four numbers), so a risk without
-figures is valued identically; only the quantified risks change, which is the
-defect.
-**Cost of delay** — every board pack generated until then contradicts the
-screens on the one figure a board reads.
+*No open decision on 2026-11-11.*
 
 ## Resolved
+
+### D-107 — Guessing codes from a stolen session: which lock, and whose sign-in it can block · decided 2026-11-11
+**Decided (owner, 2026-11-11)** — "un compteur séparé pour ces deux actions." Option B. Wrong codes and
+wrong passwords on `POST /auth/mfa/disable` and `POST /auth/mfa/backup-codes/regenerate` count toward
+one per-account counter of their own, never toward the sign-in lock of #689. When it trips, both
+endpoints lock for a fixed period, the request that sets the lock is audited, and the owner gets one
+new FR/EN mail pointing to "sign out other devices". Sign-in is never affected, and the D-061 budget
+(5 per 15 min) stays. The owner did not set numbers, so the proposal stands: 10 failures in 24 h,
+24 h lock. Implemented by #1392, whose criteria are written for this option.
+
+**Question** — #1392. Someone holding a stolen session on an account that signs in
+through an identity provider (no local password) can guess authenticator codes on
+`POST /auth/mfa/disable` and, once #1393 merges, `POST /auth/mfa/backup-codes/regenerate`.
+Both share the per-account budget D-061 fixed (`mfa-disable:<user>`, 5 attempts per
+15 minutes). The budget never locks and never tells the owner: about 480 guesses a day,
+≈0.14 % a day, ≈40 % over a year. The sign-in challenge has a lock and an owner mail
+(#689: 10 failures per account in 15 min, 15-min lock, `SendMFALocked`). Adding a lock
+here changes who gets through an auth lock and what D-061 decided for this path, so it
+is the owner's call (same reasoning as D-064).
+
+**Options**
+- **A — share the #689 sign-in counter** (the issue's first draft). A failure on disable or
+  regenerate counts toward the sign-in lock. Two problems. It does not trip: 5 attempts per
+  15 min never reach 10 failures in a 15-min window, so the thresholds would have to change
+  too. When it does trip, the person holding the stolen session locks the real owner out of
+  signing in, a denial of service on the owner, while their own session keeps working. And
+  the `SendMFALocked` mail says "someone entered your password", which is false on an
+  account that has no password.
+- **B — a separate counter for in-session MFA actions, with its own lock and its own mail
+  (recommended).** Every failed proof (`wrong_code` or `wrong_password`) on the two endpoints
+  counts toward a per-account counter: 10 failures in 24 h from the first one lock both
+  endpoints for 24 h, fixed, never extended by refused attempts. The request that sets the
+  lock audits it and sends the owner one new mail, FR and EN, that says what happened (wrong
+  codes typed from a signed-in session) and what to do ("sign out other devices", which
+  already revokes every session, then tell the administrator). Sign-in is never affected.
+  The owner loses, at worst, the ability to turn MFA off or regenerate codes for a day.
+  Guessing falls to 10 a day: ≈0.003 % a day, ≈1 % a year, and the owner is mailed every
+  day the attacker tries. The existing 5-per-15-minute budget stays as it is. Cost: about
+  one M issue, no dependency, no migration (the store #689 uses is reused under new keys).
+- **C — a silent daily cap.** Same 10-a-day ceiling, no lock, no mail. Same odds as B,
+  but the owner never learns. Smaller (S), and it leaves the gap the finding is about:
+  nobody is told.
+- **D — accept the risk.** It needs a stolen session on a passwordless account, and the
+  session itself expires. No code. The 40 %-a-year figure stands for a session kept alive.
+
+**Recommendation** — B. It closes the gap without handing a session thief a way to lock
+the owner out of signing in, and the mail is the part that actually ends the attack,
+because it sends the owner to "sign out other devices". The numbers (10, 24 h) are a
+proposal; the owner may set others without changing the shape.
+
+**Cost of delay** — Low. P3: it needs a stolen session first, and #1392 stays in
+`status:needs-refinement` until this is decided. Nothing else waits on it. #1393 can
+merge without it.
 
 ### D-105 — Releases through a /release command the owner runs; staging and master take PRs the owner merges · decided 2026-11-06
 **Decided (owner, 2026-11-06)** — "Je veux un bot ou agent qui s'occupera des releases." Given the choice, the owner picked a local `/release` command over the Actions bot of #1256, with the tag set by the tool "after my OK", "PR obligatoire, vous mergez" for `staging` and `master`, and "faire partir la PR de version d'une finale depuis staging, puis de la reporter sur develop".
