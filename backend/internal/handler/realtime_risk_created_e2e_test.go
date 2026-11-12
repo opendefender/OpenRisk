@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -115,7 +116,11 @@ func newRiskCreatedEnv(t *testing.T) *riskCreatedEnv {
 				if mw := middleware.GetContext(c); mw == nil || mw.OrganizationID == uuid.Nil {
 					return c.SendStatus(fiber.StatusUnauthorized)
 				}
-				c.Locals("permissions", []string{"*"})
+				perms := []string{"*"}
+				if raw := c.Get("X-Test-Perms"); raw != "" {
+					perms = strings.Split(raw, ",")
+				}
+				c.Locals("permissions", perms)
 				return c.Next()
 			})
 			// The order main.go uses: audit (with the bridge) on the group, then
@@ -264,18 +269,48 @@ func TestRiskCreatedRealtime_CrossTenant(t *testing.T) {
 
 	require.Len(t, streamA.collect(rt.RiskCreated, 700*time.Millisecond), 1)
 
-	// Criterion 4: B sees no risk.created, and B's log read holds none, even
-	// when B replays from the very beginning.
+	// Criterion 4: B sees no risk.created, and B's log read holds none.
 	assert.Empty(t, streamB.collect(rt.RiskCreated, 500*time.Millisecond))
 	assert.Empty(t, riskCreatedRows(t, e.streamTestEnv, tenantB))
 	assert.Len(t, riskCreatedRows(t, e.streamTestEnv, tenantA), 1)
 
+	// Replay for B is checked with a cursor that really replays: B has two
+	// events of its own (the cursor of 0 would mean "no cursor" and replay
+	// nothing, proving nothing). Reconnecting after the first must hand B its
+	// own second event, which shows B's replay path is live and tenant-scoped,
+	// and must not hand it A's risk.created.
+	b1 := e.publish(t, tenantB, rt.RiskUpdated, "b-risk")
+	b1Frame := streamB.next(t, 3*time.Second)
+	require.Equal(t, b1.ID, b1Frame.Data["id"])
+	b2 := e.publish(t, tenantB, rt.RiskUpdated, "b-risk")
+	require.Equal(t, b2.ID, streamB.next(t, 3*time.Second).Data["id"])
+
 	replayB, status := e.openStream(t, map[string]string{
 		"X-Test-Tenant": tenantB.String(),
-		"Last-Event-ID": "0",
+		"Last-Event-ID": b1Frame.ID,
 	}, "")
 	require.Equal(t, http.StatusOK, status)
+	replayB.awaitHello(t)
+	got := replayB.next(t, 3*time.Second)
+	assert.Equal(t, b2.ID, got.Data["id"], "B's own missed event is replayed")
+	assert.Equal(t, string(rt.RiskUpdated), got.Event)
 	assert.Empty(t, replayB.collect(rt.RiskCreated, 500*time.Millisecond))
+}
+
+func TestRiskCreatedRealtime_Forbidden(t *testing.T) {
+	e := newRiskCreatedEnv(t)
+	tenantA := uuid.New()
+
+	stream, status := e.openStream(t, tenantHeaders(tenantA), "")
+	require.Equal(t, http.StatusOK, status)
+	stream.awaitHello(t)
+
+	// Authenticated, in tenant A, but holding only risks:read.
+	status, _ = e.postRisk(t, tenantHeaders(tenantA, "risks:read"))
+	assert.Equal(t, http.StatusForbidden, status)
+	assert.Zero(t, e.audit.count(), "a forbidden create must leave no audit entry")
+	assert.Empty(t, stream.collect(rt.RiskCreated, 500*time.Millisecond))
+	assert.Empty(t, riskCreatedRows(t, e.streamTestEnv, tenantA))
 }
 
 func TestRiskCreatedRealtime_Unauthorized(t *testing.T) {
