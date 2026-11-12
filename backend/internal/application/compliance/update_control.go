@@ -7,6 +7,7 @@ package compliance
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/opendefender/openrisk/internal/domain"
@@ -41,7 +42,7 @@ func NewUpdateControlUseCase(repo domain.ComplianceRepository) *UpdateControlUse
 }
 
 func (uc *UpdateControlUseCase) Execute(ctx context.Context, tenantID, controlID uuid.UUID, input UpdateControlInput) (*domain.ComplianceControl, error) {
-	control, err := uc.repo.GetControlByID(ctx, controlID, tenantID)
+	control, err := uc.repo.GetControlByID(ctx, controlID, tenantID, time.Now())
 	if err != nil {
 		return nil, err
 	}

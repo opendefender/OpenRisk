@@ -7,6 +7,7 @@ package domain
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -49,7 +50,13 @@ type ComplianceRepository interface {
 
 	// GetControlByID retrieves a control by ID scoped to a tenant.
 	// Returns (nil, nil) if not found or belongs to another tenant.
-	GetControlByID(ctx context.Context, id uuid.UUID, tenantID uuid.UUID) (*ComplianceControl, error)
+	//
+	// asOf is the instant EvidenceCount is judged at: evidence counts while its
+	// valid_until is after asOf. It is the caller's clock, never the
+	// repository's, so a service with an injected clock and the count it reads
+	// agree about whether the same artifact has expired (#419). A caller with
+	// no clock seam passes time.Now().
+	GetControlByID(ctx context.Context, id uuid.UUID, tenantID uuid.UUID, asOf time.Time) (*ComplianceControl, error)
 
 	// ListControlsByFramework retrieves all controls for a (tenant, framework) pair.
 	ListControlsByFramework(ctx context.Context, tenantID uuid.UUID, frameworkID uuid.UUID) ([]ComplianceControl, error)
@@ -78,5 +85,8 @@ type ComplianceRepository interface {
 	// evidences attached to each control, keyed by control ID. Controls with no evidence
 	// are simply absent from the map. Used by the compliance report to show, in a single
 	// query, which controls are substantiated — avoids N per-control lookups.
-	CountEvidencesByFramework(ctx context.Context, tenantID uuid.UUID, frameworkID uuid.UUID) (map[uuid.UUID]int, error)
+	//
+	// asOf is the instant validity is judged at, from the caller's clock, on the
+	// same terms as GetControlByID (#419).
+	CountEvidencesByFramework(ctx context.Context, tenantID uuid.UUID, frameworkID uuid.UUID, asOf time.Time) (map[uuid.UUID]int, error)
 }

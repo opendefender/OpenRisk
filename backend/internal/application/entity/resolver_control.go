@@ -8,6 +8,7 @@ package entity
 import (
 	"context"
 	"strconv"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -16,7 +17,7 @@ import (
 
 // ControlReader is the narrow port over the compliance repository.
 type ControlReader interface {
-	GetControlByID(ctx context.Context, id uuid.UUID, tenantID uuid.UUID) (*domain.ComplianceControl, error)
+	GetControlByID(ctx context.Context, id uuid.UUID, tenantID uuid.UUID, asOf time.Time) (*domain.ComplianceControl, error)
 	GetFrameworkByID(ctx context.Context, id uuid.UUID, tenantID uuid.UUID) (*domain.ComplianceFramework, error)
 }
 
@@ -38,7 +39,7 @@ func (r *ControlResolver) load(ctx context.Context, c Caller, id string) (*domai
 	if r.controls == nil {
 		return nil, uuid.Nil, domain.NewNotFoundError("control", id)
 	}
-	ctrl, err := r.controls.GetControlByID(ctx, cid, c.TenantID)
+	ctrl, err := r.controls.GetControlByID(ctx, cid, c.TenantID, time.Now())
 	if err != nil {
 		return nil, uuid.Nil, err
 	}
