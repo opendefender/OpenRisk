@@ -165,6 +165,8 @@ type mockAgentRepo struct {
 	listFunc        func(context.Context, uuid.UUID) ([]domain.ScannerAgent, error)
 	updateFunc      func(context.Context, *domain.ScannerAgent) error
 	deleteFunc      func(context.Context, uuid.UUID, uuid.UUID) error
+	revokeFunc      func(context.Context, uuid.UUID, uuid.UUID) error
+	reenrollFunc    func(context.Context, *domain.ScannerAgent) error
 	completionFunc  func(context.Context, uuid.UUID, uuid.UUID, string, uuid.UUID, time.Time) error
 	livenessFunc    func(context.Context, uuid.UUID, uuid.UUID, string, domain.AgentStatus, time.Time) error
 }
@@ -208,6 +210,18 @@ func (m *mockAgentRepo) UpdateLiveness(c context.Context, id, t uuid.UUID, h str
 func (m *mockAgentRepo) RecordJobCompletion(c context.Context, id, t uuid.UUID, h string, j uuid.UUID, at time.Time) error {
 	if m.completionFunc != nil {
 		return m.completionFunc(c, id, t, h, j, at)
+	}
+	return nil
+}
+func (m *mockAgentRepo) Revoke(c context.Context, id, t uuid.UUID) error {
+	if m.revokeFunc != nil {
+		return m.revokeFunc(c, id, t)
+	}
+	return nil
+}
+func (m *mockAgentRepo) Reenroll(c context.Context, a *domain.ScannerAgent) error {
+	if m.reenrollFunc != nil {
+		return m.reenrollFunc(c, a)
 	}
 	return nil
 }

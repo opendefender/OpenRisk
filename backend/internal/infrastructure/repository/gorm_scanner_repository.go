@@ -236,6 +236,49 @@ func (r *GormScannerAgentRepository) guardedLivenessWrite(ctx context.Context, i
 	return nil
 }
 
+// Revoke is the only write that clears credentials. It carries no status
+// condition on purpose: revoking twice succeeds, and it wins any race (#1402).
+func (r *GormScannerAgentRepository) Revoke(ctx context.Context, id, tenantID uuid.UUID) error {
+	if tenantID == uuid.Nil {
+		return fmt.Errorf("tenant_id is required")
+	}
+	result := r.db.WithContext(ctx).
+		Model(&domain.ScannerAgent{}).
+		Where("id = ? AND tenant_id = ?", id, tenantID).
+		UpdateColumns(map[string]interface{}{
+			"status": domain.AgentRevoked, "token_hash": "", "push_secret_enc": "",
+		})
+	if result.Error != nil {
+		return fmt.Errorf("failed to revoke agent: %w", result.Error)
+	}
+	if result.RowsAffected == 0 {
+		return domain.ErrNotFound
+	}
+	return nil
+}
+
+// Reenroll rotates the credentials of an agent that is still not revoked. The
+// status condition lives in the WHERE clause so the check and the write cannot
+// be split by a revocation committing in between (#1402).
+func (r *GormScannerAgentRepository) Reenroll(ctx context.Context, agent *domain.ScannerAgent) error {
+	if agent == nil || agent.TenantID == uuid.Nil {
+		return fmt.Errorf("tenant_id is required")
+	}
+	result := r.db.WithContext(ctx).
+		Model(&domain.ScannerAgent{}).
+		Where("id = ? AND tenant_id = ? AND status <> ?", agent.ID, agent.TenantID, domain.AgentRevoked).
+		Select("name", "version", "ip", "hostname", "os", "status", "last_heartbeat",
+			"token_hash", "push_secret_enc", "token_rotated_at").
+		Updates(agent)
+	if result.Error != nil {
+		return fmt.Errorf("failed to re-enrol agent: %w", result.Error)
+	}
+	if result.RowsAffected == 0 {
+		return domain.ErrConflict
+	}
+	return nil
+}
+
 func (r *GormScannerAgentRepository) Delete(ctx context.Context, id, tenantID uuid.UUID) error {
 	result := r.db.WithContext(ctx).
 		Where("id = ? AND tenant_id = ?", id, tenantID).
