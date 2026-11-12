@@ -115,27 +115,6 @@ func (m *MockComplianceRepository) DeleteControl(ctx context.Context, id, tenant
 	return nil
 }
 
-func (m *MockComplianceRepository) CreateEvidence(ctx context.Context, e *domain.ControlEvidence) error {
-	if m.createEvidenceFunc != nil {
-		return m.createEvidenceFunc(ctx, e)
-	}
-	return nil
-}
-
-func (m *MockComplianceRepository) GetEvidenceByID(ctx context.Context, id, tenantID uuid.UUID) (*domain.ControlEvidence, error) {
-	if m.getEvidenceByIDFunc != nil {
-		return m.getEvidenceByIDFunc(ctx, id, tenantID)
-	}
-	return nil, nil
-}
-
-func (m *MockComplianceRepository) ListEvidencesByControl(ctx context.Context, tenantID, controlID uuid.UUID) ([]domain.ControlEvidence, error) {
-	if m.listEvidencesByControlFunc != nil {
-		return m.listEvidencesByControlFunc(ctx, tenantID, controlID)
-	}
-	return []domain.ControlEvidence{}, nil
-}
-
 func (m *MockComplianceRepository) CountEvidencesByFramework(ctx context.Context, tenantID, frameworkID uuid.UUID, _ time.Time) (map[uuid.UUID]int, error) {
 	if m.countEvidencesByFwFunc != nil {
 		return m.countEvidencesByFwFunc(ctx, tenantID, frameworkID)

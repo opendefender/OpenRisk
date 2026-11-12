@@ -89,15 +89,6 @@ func (m *mockComplianceRepo) DeleteControl(context.Context, uuid.UUID, uuid.UUID
 func (m *mockComplianceRepo) DeleteControlsByFramework(context.Context, uuid.UUID, uuid.UUID) (int64, error) {
 	return 0, nil
 }
-func (m *mockComplianceRepo) CreateEvidence(context.Context, *domain.ControlEvidence) error {
-	return nil
-}
-func (m *mockComplianceRepo) GetEvidenceByID(context.Context, uuid.UUID, uuid.UUID) (*domain.ControlEvidence, error) {
-	return nil, nil
-}
-func (m *mockComplianceRepo) ListEvidencesByControl(context.Context, uuid.UUID, uuid.UUID) ([]domain.ControlEvidence, error) {
-	return nil, nil
-}
 func (m *mockComplianceRepo) CountEvidencesByFramework(context.Context, uuid.UUID, uuid.UUID, time.Time) (map[uuid.UUID]int, error) {
 	return map[uuid.UUID]int{}, nil
 }
