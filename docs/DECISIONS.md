@@ -5,7 +5,31 @@ recommends, and surfaces these in the daily brief. Run `/decide` to clear them.
 
 ## Open
 
-*No open decision on 2026-11-04.*
+### D-106 — Board report exposure: keep the flat model or use the CRQ figure · opened 2026-11-11
+**Context** (#1033, criterion 5) — `POST /reports/board` estimates exposure with
+`internal/application/board/exposure.go`: count of risks per criticality × a flat
+value (critical 50 M, high 15 M, medium 3 M, low 500 k FCFA). It ignores the loss
+figures the tenant entered. On the #1033 case (one risk at SLE 20 M × ARO 0.5,
+one medium risk without figures) the board report says 6 M FCFA while
+`/analytics/financial`, the dashboard and, since #1033, the `executive_summary`
+and `risk_register` documents say 13 M. #1033 leaves `exposure.go` untouched.
+
+**Options**
+1. **Use the CRQ engine** (`crq.Quantifier.AssessDeterministic`, as the other
+   reports now do): the board pack prints `total_ale`, says "not quantified" when
+   no risk carries loss figures, and states the reference-model share. One
+   number everywhere. `board.ExposureModel` goes away.
+2. **Keep the flat model, label it**: the board pack prints "order of magnitude
+   by criticality, not the measured exposure" next to the figure, and the CRQ
+   total beside it. Two numbers on one page.
+3. **Leave it as is.** A board member keeps reading 6 M where the CFO reads 13 M.
+
+**Recommendation** — option 1. The flat values are already the CRQ reference
+model (`crq.DefaultReference()` holds the same four numbers), so a risk without
+figures is valued identically; only the quantified risks change, which is the
+defect.
+**Cost of delay** — every board pack generated until then contradicts the
+screens on the one figure a board reads.
 
 ## Resolved
 

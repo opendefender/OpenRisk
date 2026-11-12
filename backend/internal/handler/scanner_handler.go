@@ -51,6 +51,13 @@ type ScannerHandler struct {
 	// inventory stores the software inventory an agent reports (#910). Nil
 	// until wired; the route then answers 503.
 	inventory *invapp.StoreInventoryUseCase
+
+	// keepalive overrides the stream keepalive interval; zero keeps
+	// sseKeepaliveInterval. Only a test sets it (#962).
+	keepalive time.Duration
+	// deprecatedLifetime overrides the deprecated scan events stream's
+	// ceiling; zero keeps sseDeprecatedStreamLifetime. Only a test sets it (#962).
+	deprecatedLifetime time.Duration
 }
 
 // WithInventory wires the software-inventory endpoint (#910).
@@ -320,17 +327,32 @@ func (h *ScannerHandler) StreamScanEvents(c *fiber.Ctx) error {
 	// /scanner/agent/stream, is a different endpoint and is NOT deprecated.
 	markSSEDeprecated(c, "/api/v1/scanner/jobs")
 
-	h.streamChannel(c, scanpkg.SSEChannel(tid), nil, nil)
+	h.streamChannel(c, scanpkg.SSEChannel(tid), channelStream{maxLifetime: sseDeprecatedLifetimeOr(h.deprecatedLifetime)})
 	return nil
+}
+
+// channelStream configures one streamChannel loop.
+type channelStream struct {
+	// onClose (if set) runs when the stream ends, whoever ended it.
+	onClose func()
+	// preamble frames (already-JSON payloads) are written right after the
+	// connection opens — used to replay queued agent jobs so a job published
+	// during a reconnect gap is never lost.
+	preamble []string
+	// stillAuthorized (if set) is re-checked on every keepalive tick, next to
+	// the session revocation check. False ends the stream with stream.revoked.
+	// It is how an agent token, which carries no jti, loses its stream when the
+	// agent is revoked (#962).
+	stillAuthorized func() bool
+	// maxLifetime ends the stream after this long; zero means no ceiling.
+	maxLifetime time.Duration
 }
 
 // streamChannel is the shared SSE loop: it subscribes to a Redis channel and
 // relays each message as an SSE `data:` frame, with a keepalive comment every
-// 20s. `preamble` frames (already-JSON payloads) are written right after the
-// connection opens — used to replay queued agent jobs so a job published during
-// a reconnect gap is never lost. onClose (if set) runs when the client
-// disconnects.
-func (h *ScannerHandler) streamChannel(c *fiber.Ctx, channel string, onClose func(), preamble []string) {
+// sseKeepaliveInterval. Each write first extends the connection's write
+// deadline, so the stream outlives the server's WriteTimeout (#962).
+func (h *ScannerHandler) streamChannel(c *fiber.Ctx, channel string, opts channelStream) {
 	c.Set("Content-Type", "text/event-stream")
 	c.Set("Cache-Control", "no-cache")
 	c.Set("Connection", "keep-alive")
@@ -342,9 +364,11 @@ func (h *ScannerHandler) streamChannel(c *fiber.Ctx, channel string, onClose fun
 	// no session jti — an agent's scoped token — which sseSessionRevoked treats
 	// as "nothing to revoke" rather than as a reason to refuse (#345).
 	jti := streamJTI(c)
+	extendDeadline := sseWriteDeadline(c)
+	keepaliveEvery := sseKeepaliveOr(h.keepalive)
 	c.Context().SetBodyStreamWriter(func(w *bufio.Writer) {
-		if onClose != nil {
-			defer onClose()
+		if opts.onClose != nil {
+			defer opts.onClose()
 		}
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
@@ -353,26 +377,36 @@ func (h *ScannerHandler) streamChannel(c *fiber.Ctx, channel string, onClose fun
 		defer pubsub.Close()
 		msgs := pubsub.Channel()
 
+		extendDeadline()
 		fmt.Fprint(w, ": connected\n\n")
 		if err := w.Flush(); err != nil {
 			return
 		}
 		// Replay any queued jobs first (covers a job published during a reconnect
 		// gap — Redis pub/sub is fire-and-forget).
-		for _, frame := range preamble {
+		for _, frame := range opts.preamble {
+			extendDeadline()
 			fmt.Fprintf(w, "data: %s\n\n", frame)
 			if err := w.Flush(); err != nil {
 				return
 			}
 		}
-		ticker := time.NewTicker(20 * time.Second)
+		ticker := time.NewTicker(keepaliveEvery)
 		defer ticker.Stop()
+		// A nil channel never fires: no ceiling unless one was asked for.
+		var lifetime <-chan time.Time
+		if opts.maxLifetime > 0 {
+			lifetime = time.After(opts.maxLifetime)
+		}
 		for {
 			select {
+			case <-lifetime:
+				return
 			case m, ok := <-msgs:
 				if !ok {
 					return
 				}
+				extendDeadline()
 				fmt.Fprintf(w, "data: %s\n\n", m.Payload)
 				if err := w.Flush(); err != nil {
 					return
@@ -380,11 +414,13 @@ func (h *ScannerHandler) streamChannel(c *fiber.Ctx, channel string, onClose fun
 			case <-ticker.C:
 				// Re-authorize on the tick, bounding revocation to one interval
 				// instead of the life of the connection (#345).
-				if sseSessionRevoked(jti) {
+				if sseSessionRevoked(jti) || (opts.stillAuthorized != nil && !opts.stillAuthorized()) {
+					extendDeadline()
 					fmt.Fprint(w, "event: stream.revoked\ndata: {\"reason\":\"session_revoked\"}\n\n")
 					_ = w.Flush()
 					return
 				}
+				extendDeadline()
 				fmt.Fprint(w, ": keepalive\n\n")
 				if err := w.Flush(); err != nil {
 					return
