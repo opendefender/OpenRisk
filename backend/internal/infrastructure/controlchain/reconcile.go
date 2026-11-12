@@ -7,6 +7,7 @@ package controlchain
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -21,6 +22,29 @@ import (
 // advisoryLockKey serialises Reconcile across replicas booting together. The
 // value is arbitrary and only has to be stable ("553" and the migration number).
 const advisoryLockKey int64 = 553_0085
+
+// ErrNotReconciled is returned when, inside the transaction, what Reconcile
+// planned is not what the database holds, or the classes of a source table do
+// not add up to its count(*). The transaction has rolled back: nothing was
+// written, and the legacy tables are untouched.
+var ErrNotReconciled = errors.New("controlchain.Reconcile: the chain does not reconcile with the legacy tables")
+
+// ReconcileAtBoot is the boot policy around Reconcile (D-108, amended
+// 2026-11-12). A database error stops the boot: the SQL layer that runs next
+// would fail on the same database. ErrNotReconciled does not: it means a defect
+// in the split, the transaction has rolled back, the legacy tables are still
+// the source of truth, and no reader uses the chain yet (D-108 Q6). Stopping
+// would take every tenant down on every boot and protect no data, so it is
+// logged at error level and the boot goes on. Reconcile runs again on the next
+// boot. Revisit when #1413 makes the chain read or written outside Reconcile.
+func ReconcileAtBoot(ctx context.Context, db *gorm.DB) error {
+	_, err := Reconcile(ctx, db)
+	if errors.Is(err, ErrNotReconciled) {
+		log.Error().Err(err).Msg("controlchain: reconciliation refused, nothing was written; the boot continues on the legacy tables")
+		return nil
+	}
+	return err
+}
 
 // insertBatch keeps every INSERT far below PostgreSQL's 65535 bind parameters.
 const insertBatch = 500
@@ -361,14 +385,14 @@ func reconcileTx(tx *gorm.DB) (Result, error) {
 	}
 
 	// The proof: what was planned is in the database, and the classes add up to
-	// count(*) of each source table, or the transaction rolls back and the boot stops.
+	// count(*) of each source table, or the transaction rolls back (ErrNotReconciled).
 	afterControls, err := loadControlIDs(tx)
 	if err != nil {
 		return res, err
 	}
 	for _, c := range plannedControls {
 		if !afterControls[c] {
-			return res, fmt.Errorf("controlchain.Reconcile: split control %s of tenant %s is not in controls after the insert; nothing was written", c.ID, c.TenantID)
+			return res, fmt.Errorf("%w: split control %s of tenant %s is not in controls after the insert; nothing was written", ErrNotReconciled, c.ID, c.TenantID)
 		}
 	}
 	afterEdges, err := loadEdgeKeys(tx)
@@ -377,18 +401,18 @@ func reconcileTx(tx *gorm.DB) (Result, error) {
 	}
 	for k := range planned {
 		if !afterEdges[k] {
-			return res, fmt.Errorf("controlchain.Reconcile: edge %s %s %s of tenant %s is not in canonical_edges after the insert; nothing was written", k.FromID, k.Verb, k.ToID, k.Tenant)
+			return res, fmt.Errorf("%w: edge %s %s %s of tenant %s is not in canonical_edges after the insert; nothing was written", ErrNotReconciled, k.FromID, k.Verb, k.ToID, k.Tenant)
 		}
 	}
 	if got := int64(res.ControlsCreated + res.ControlsAlreadyThere); got != res.Requirements {
-		return res, fmt.Errorf("controlchain.Reconcile: %d controls accounted for, compliance_controls has %d rows; nothing was written", got, res.Requirements)
+		return res, fmt.Errorf("%w: %d controls accounted for, compliance_controls has %d rows; nothing was written", ErrNotReconciled, got, res.Requirements)
 	}
 	if got := int64(res.LinksCarried + len(res.LinksUnplaceable)); got != res.Links {
-		return res, fmt.Errorf("controlchain.Reconcile: %d evidence links accounted for, evidence_control_links has %d rows; nothing was written", got, res.Links)
+		return res, fmt.Errorf("%w: %d evidence links accounted for, evidence_control_links has %d rows; nothing was written", ErrNotReconciled, got, res.Links)
 	}
 	if got := int64(res.MappingsCarried + len(res.MappingsCollapsed) + len(res.MappingsUnplaceable) +
 		res.MappingsSoftDeleted + res.MappingsFrameworkOnly); got != res.Mappings {
-		return res, fmt.Errorf("controlchain.Reconcile: %d risk mappings accounted for, risk_control_mappings has %d rows; nothing was written", got, res.Mappings)
+		return res, fmt.Errorf("%w: %d risk mappings accounted for, risk_control_mappings has %d rows; nothing was written", ErrNotReconciled, got, res.Mappings)
 	}
 	return res, nil
 }

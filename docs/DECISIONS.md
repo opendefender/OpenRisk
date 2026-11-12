@@ -138,6 +138,18 @@ the only backfill shape that is correct on a DB_HOST boot and on a late SQL repl
 **Overturn cost** — Per-verb tables later: one data copy per verb, no API change. Reader
 re-pointing earlier: pulled into any slice after the mirror ships.
 
+**Amended (agent, 2026-11-12)** — Q2, the boot policy. Question: when Reconcile's counts do not
+reconcile, stop the boot or boot with an alert? Options: (a) stop, as decided above; (b) roll back,
+log at error level and boot. **Choice: (b) for `controlchain.ErrNotReconciled`, (a) for database
+errors.** Reason: the transaction rolls back, so nothing is written either way; the legacy tables
+stay the source of truth and no reader uses the chain yet (Q6). Stopping takes every tenant down on
+every boot until a code fix and protects no data. The 0084 `RAISE` precedent guards a drop, which
+loses data; this guards an insert-only copy, which does not. A database error still stops the boot:
+the SQL layer that runs next would fail on it. Implemented by `controlchain.ReconcileAtBoot`, tested
+by `TestReconcileAtBoot_NotReconciledLetsTheBootGoOn` and `_DatabaseErrorStopsTheBoot`. **Revisit**
+when #1413 writes or reads the chain outside Reconcile: a missing chain then misstates coverage, and
+a per-tenant flag is the likely shape.
+
 ### D-107 — Guessing codes from a stolen session: which lock, and whose sign-in it can block · decided 2026-11-11
 **Decided (owner, 2026-11-11)** — "un compteur séparé pour ces deux actions." Option B. Wrong codes and
 wrong passwords on `POST /auth/mfa/disable` and `POST /auth/mfa/backup-codes/regenerate` count toward

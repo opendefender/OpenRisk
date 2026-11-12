@@ -294,9 +294,39 @@ func TestReconcile_FailsWhenCountsDoNotReconcile(t *testing.T) {
 
 	_, err = Reconcile(context.Background(), f.db)
 	require.Error(t, err)
+	assert.ErrorIs(t, err, ErrNotReconciled)
 	assert.Contains(t, err.Error(), "nothing was written")
 	assert.Equal(t, int64(1), f.count(t, TableControls), "the transaction rolled back")
 	assert.Equal(t, int64(0), f.count(t, TableCanonicalEdges))
+}
+
+// TestReconcileAtBoot_NotReconciledLetsTheBootGoOn: a split defect rolls back,
+// is logged, and does not stop the boot (D-108 amended 2026-11-12).
+func TestReconcileAtBoot_NotReconciledLetsTheBootGoOn(t *testing.T) {
+	f := seed(t)
+	squatter, _ := SplitControl(RequirementRow{ID: f.reqA, TenantID: tenantA, Name: "x", Status: "implemented", CreatedAt: t0, UpdatedAt: t0}, canonical.MethodMigration)
+	row, err := ControlToRow(squatter, nil)
+	require.NoError(t, err)
+	row.ID = uuid.New()
+	require.NoError(t, f.db.Create(&row).Error)
+	legacyBefore := f.count(t, "compliance_controls")
+
+	require.NoError(t, ReconcileAtBoot(context.Background(), f.db))
+	assert.Equal(t, int64(1), f.count(t, TableControls), "nothing was written")
+	assert.Equal(t, int64(0), f.count(t, TableCanonicalEdges))
+	assert.Equal(t, legacyBefore, f.count(t, "compliance_controls"), "the legacy table is untouched")
+}
+
+// TestReconcileAtBoot_DatabaseErrorStopsTheBoot: an unreadable source table is
+// not a split defect, so the boot stops on it.
+func TestReconcileAtBoot_DatabaseErrorStopsTheBoot(t *testing.T) {
+	f := seed(t)
+	require.NoError(t, f.db.Migrator().DropTable("evidence_control_links"))
+
+	err := ReconcileAtBoot(context.Background(), f.db)
+	require.Error(t, err)
+	assert.NotErrorIs(t, err, ErrNotReconciled)
+	assert.Equal(t, int64(0), f.count(t, TableControls), "the transaction rolled back")
 }
 
 // TestCanonical_IdentityKeyIncludesTenant: (tenant_id, source, source_id) is the

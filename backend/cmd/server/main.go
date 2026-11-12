@@ -242,9 +242,10 @@ func main() {
 	// ADR 0008 control chain (#553, D-108): the split Control of every compliance
 	// control and the edges of its evidence links and risk mappings. It needs the
 	// tables AutoMigrate has just built, and it must run on a DB_HOST-only boot,
-	// which never runs the SQL layer below. Insert-only and idempotent; it fails
-	// the boot when its counts do not match the source tables.
-	if _, err := controlchain.Reconcile(context.Background(), database.DB); err != nil {
+	// which never runs the SQL layer below. Insert-only and idempotent. A database
+	// error stops the boot; counts that do not reconcile roll back, are logged at
+	// error level and let the boot go on (D-108, amended 2026-11-12).
+	if err := controlchain.ReconcileAtBoot(context.Background(), database.DB); err != nil {
 		log.Fatalf("Control chain reconciliation failed: %v", err)
 	}
 
