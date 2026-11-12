@@ -119,6 +119,19 @@ func (m *Mailer) SendMFALocked(ctx context.Context, to, fullName, locale string)
 	return m.sender.SendEmail(ctx, to, c.subject, m.render(c))
 }
 
+// SendMFAInSessionLocked tells the owner that turning off two-factor and
+// regenerating backup codes were locked after repeated wrong codes or passwords
+// typed from a signed-in session (#1392). Unlike SendMFALocked it does not say
+// the password was used: on an account that signs in through its identity
+// provider there is none. The remedy it gives is the one that ends the session.
+func (m *Mailer) SendMFAInSessionLocked(ctx context.Context, to, fullName, locale string) error {
+	if m == nil || m.sender == nil {
+		return nil
+	}
+	c := mfaInSessionLockedCopy(locale, displayName(fullName, locale))
+	return m.sender.SendEmail(ctx, to, c.subject, m.render(c))
+}
+
 // SendDuplicateSignup tells the owner of an address that someone tried to
 // create an account with it (#686). It names nothing about the requester and
 // no attempted password: the owner learns that it happened and where to go if
@@ -328,6 +341,32 @@ func mfaLockedCopy(locale, name string) copyBlock {
 			"Pour arriver à l'étape du code, il faut votre mot de passe. Si ces tentatives ne viennent pas de vous, quelqu'un d'autre le connaît.",
 		},
 		footnote: "Si ce n'était pas vous, réinitialisez votre mot de passe dès maintenant et prévenez votre administrateur OpenRisk. Si c'était vous, patientez quelques minutes et reconnectez-vous.",
+	}
+}
+
+func mfaInSessionLockedCopy(locale, name string) copyBlock {
+	hours := 24 // mirrors application/auth.MFAInSessionLockDuration
+	if locale == "en" {
+		return copyBlock{
+			subject: "Too many wrong codes: two-factor changes on your OpenRisk account are locked",
+			heading: "Two-factor changes are locked",
+			paragraphs: []string{
+				fmt.Sprintf("Hello %s,", name),
+				fmt.Sprintf("Someone signed in to your OpenRisk account typed a wrong two-factor code or password too many times while trying to turn off two-factor authentication or to generate new backup codes. To stop them guessing, OpenRisk refuses both actions on this account for %d hours. Nothing was changed: your authenticator app and your backup codes still work, and you can still sign in.", hours),
+				"These attempts came from a session that is already signed in. If they were not yours, someone else has access to that session.",
+			},
+			footnote: "If this wasn't you, open Settings › Security, choose \"Sign out all other devices\", then tell your OpenRisk administrator. If it was you, wait until the lock ends and try again.",
+		}
+	}
+	return copyBlock{
+		subject: "Trop de codes erronés : les changements de double authentification de votre compte OpenRisk sont verrouillés",
+		heading: "Les changements de double authentification sont verrouillés",
+		paragraphs: []string{
+			fmt.Sprintf("Bonjour %s,", name),
+			fmt.Sprintf("Quelqu'un de connecté à votre compte OpenRisk a saisi un code de double authentification ou un mot de passe erroné trop de fois en essayant de désactiver la double authentification ou de générer de nouveaux codes de secours. Pour l'empêcher de deviner, OpenRisk refuse ces deux actions sur ce compte pendant %d heures. Rien n'a été modifié : votre application d'authentification et vos codes de secours fonctionnent toujours, et vous pouvez toujours vous connecter.", hours),
+			"Ces tentatives viennent d'une session déjà connectée. Si elles ne viennent pas de vous, quelqu'un d'autre a accès à cette session.",
+		},
+		footnote: "Si ce n'était pas vous, ouvrez Paramètres › Sécurité, choisissez « Déconnecter tous les autres appareils », puis prévenez votre administrateur OpenRisk. Si c'était vous, attendez la fin du verrouillage et réessayez.",
 	}
 }
 

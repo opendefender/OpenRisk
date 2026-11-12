@@ -77,6 +77,9 @@ type RegenerateBackupCodesUseCase struct {
 	// totpKey decrypts the stored secret to check Code.
 	totpKey []byte
 	mailer  MFABackupCodesRegeneratedMailer
+	// limits is the in-session lock shared with disabling MFA (#1392).
+	// Optional; main.go always wires it.
+	limits *MFAInSessionLimits
 }
 
 // NewRegenerateBackupCodesUseCase wires the use case. totpKey is the key the
@@ -96,6 +99,22 @@ func (uc *RegenerateBackupCodesUseCase) WithMailer(m MFABackupCodesRegeneratedMa
 	return uc
 }
 
+// WithInSessionLimits counts wrong proofs toward the lock shared with disabling
+// MFA (#1392). Pass the same instance to both use cases.
+func (uc *RegenerateBackupCodesUseCase) WithInSessionLimits(l *MFAInSessionLimits) *RegenerateBackupCodesUseCase {
+	uc.limits = l
+	return uc
+}
+
+// wrongProof counts a wrong password or code toward the in-session lock. The
+// failure that sets the lock is answered with the lock.
+func (uc *RegenerateBackupCodesUseCase) wrongProof(ctx context.Context, userID uuid.UUID, proofErr error) error {
+	if err := uc.limits.RecordFailure(ctx, userID); err != nil {
+		return err
+	}
+	return proofErr
+}
+
 // Execute checks the password (when the account has one), then the
 // authenticator code, then swaps the codes in one transaction and mails the
 // owner. On any failure the old codes stay.
@@ -108,6 +127,11 @@ func (uc *RegenerateBackupCodesUseCase) Execute(ctx context.Context, input Regen
 		// session alone mint a factor.
 		return nil, errors.New("auth.RegenerateBackupCodes: no TOTP key configured")
 	}
+	// Before any proof is looked at: under the lock even the right one is
+	// refused (#1392).
+	if err := uc.limits.Check(ctx, input.UserID); err != nil {
+		return nil, err
+	}
 
 	user, err := uc.users.GetByID(ctx, input.UserID)
 	if err != nil {
@@ -117,7 +141,7 @@ func (uc *RegenerateBackupCodesUseCase) Execute(ctx context.Context, input Regen
 		return nil, domain.NewNotFoundError("user", input.UserID)
 	}
 	if user.Password != "" && (input.Password == "" || !uc.passwordHasher.Verify(user.Password, input.Password)) {
-		return nil, ErrBackupCodesPasswordIncorrect
+		return nil, uc.wrongProof(ctx, input.UserID, ErrBackupCodesPasswordIncorrect)
 	}
 
 	secret, err := uc.mfaRepo.GetMFASecret(ctx, input.UserID, input.TenantID)
@@ -129,7 +153,7 @@ func (uc *RegenerateBackupCodesUseCase) Execute(ctx context.Context, input Regen
 		return nil, domain.NewNotFoundError("MFA secret", input.UserID)
 	}
 	if input.Code == "" {
-		return nil, ErrBackupCodesCodeIncorrect
+		return nil, uc.wrongProof(ctx, input.UserID, ErrBackupCodesCodeIncorrect)
 	}
 	plain, err := crypto.DecryptAES256GCM(secret.SecretEncrypted, uc.totpKey)
 	if err != nil {
@@ -140,7 +164,7 @@ func (uc *RegenerateBackupCodesUseCase) Execute(ctx context.Context, input Regen
 		return nil, err
 	}
 	if !accepted {
-		return nil, ErrBackupCodesCodeIncorrect
+		return nil, uc.wrongProof(ctx, input.UserID, ErrBackupCodesCodeIncorrect)
 	}
 
 	codes, err := otp.GenerateBackupCodes()
@@ -165,6 +189,7 @@ func (uc *RegenerateBackupCodesUseCase) Execute(ctx context.Context, input Regen
 		// MFA was turned off between the read and the write.
 		return nil, domain.NewNotFoundError("MFA secret", input.UserID)
 	}
+	uc.limits.RecordSuccess(ctx, input.UserID)
 
 	if uc.mailer != nil {
 		_ = uc.mailer.SendMFABackupCodesRegenerated(ctx, user.Email, user.FullName, normaliseLocale(input.Locale))
