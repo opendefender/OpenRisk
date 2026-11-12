@@ -8,6 +8,7 @@ package compliance
 import (
 	"context"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/opendefender/openrisk/internal/domain"
@@ -51,14 +52,14 @@ func (uc *CreateControlMappingUseCase) Execute(ctx context.Context, tenantID, cr
 
 	// Both controls must belong to THIS tenant (GetControlByID returns nil for
 	// another tenant's control, so a forged id can never map across tenants).
-	src, err := uc.compRepo.GetControlByID(ctx, in.SourceControlID, tenantID)
+	src, err := uc.compRepo.GetControlByID(ctx, in.SourceControlID, tenantID, time.Now())
 	if err != nil {
 		return nil, err
 	}
 	if src == nil {
 		return nil, domain.NewValidationError("source control not found")
 	}
-	tgt, err := uc.compRepo.GetControlByID(ctx, in.TargetControlID, tenantID)
+	tgt, err := uc.compRepo.GetControlByID(ctx, in.TargetControlID, tenantID, time.Now())
 	if err != nil {
 		return nil, err
 	}
@@ -149,7 +150,7 @@ func (uc *ListControlMappingsUseCase) lookupControl(ctx context.Context, tenantI
 	if c, ok := cache[id]; ok {
 		return c, nil
 	}
-	c, err := uc.compRepo.GetControlByID(ctx, id, tenantID)
+	c, err := uc.compRepo.GetControlByID(ctx, id, tenantID, time.Now())
 	if err != nil {
 		return nil, err
 	}

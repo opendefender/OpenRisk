@@ -189,7 +189,7 @@ type fakeControls struct {
 	frameworks map[uuid.UUID]domain.ComplianceFramework
 }
 
-func (f *fakeControls) GetControlByID(_ context.Context, id, tenantID uuid.UUID) (*domain.ComplianceControl, error) {
+func (f *fakeControls) GetControlByID(_ context.Context, id, tenantID uuid.UUID, _ time.Time) (*domain.ComplianceControl, error) {
 	c, ok := f.controls[id]
 	if !ok || c.TenantID != tenantID {
 		return nil, nil

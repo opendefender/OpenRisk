@@ -27,7 +27,7 @@ func (f fakeSubs) GetByTenant(context.Context, uuid.UUID) (*domain.Subscription,
 
 type fakeUsage map[ent.LimitKey]int
 
-func (f fakeUsage) Count(_ context.Context, _ uuid.UUID, k ent.LimitKey) (int, error) {
+func (f fakeUsage) Count(_ context.Context, _ uuid.UUID, k ent.LimitKey, _ time.Time) (int, error) {
 	return f[k], nil
 }
 

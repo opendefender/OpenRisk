@@ -8,6 +8,7 @@ package complianceaudit
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/opendefender/openrisk/internal/domain"
@@ -75,7 +76,7 @@ func (m *mockComplianceRepo) DeleteFramework(context.Context, uuid.UUID, uuid.UU
 func (m *mockComplianceRepo) CreateControl(context.Context, *domain.ComplianceControl) error {
 	return nil
 }
-func (m *mockComplianceRepo) GetControlByID(context.Context, uuid.UUID, uuid.UUID) (*domain.ComplianceControl, error) {
+func (m *mockComplianceRepo) GetControlByID(context.Context, uuid.UUID, uuid.UUID, time.Time) (*domain.ComplianceControl, error) {
 	return nil, nil
 }
 func (m *mockComplianceRepo) ListControlsByFramework(context.Context, uuid.UUID, uuid.UUID) ([]domain.ComplianceControl, error) {
@@ -97,7 +98,7 @@ func (m *mockComplianceRepo) GetEvidenceByID(context.Context, uuid.UUID, uuid.UU
 func (m *mockComplianceRepo) ListEvidencesByControl(context.Context, uuid.UUID, uuid.UUID) ([]domain.ControlEvidence, error) {
 	return nil, nil
 }
-func (m *mockComplianceRepo) CountEvidencesByFramework(context.Context, uuid.UUID, uuid.UUID) (map[uuid.UUID]int, error) {
+func (m *mockComplianceRepo) CountEvidencesByFramework(context.Context, uuid.UUID, uuid.UUID, time.Time) (map[uuid.UUID]int, error) {
 	return map[uuid.UUID]int{}, nil
 }
 func (m *mockComplianceRepo) DeleteEvidence(context.Context, uuid.UUID, uuid.UUID) error { return nil }

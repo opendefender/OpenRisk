@@ -10,6 +10,7 @@ import (
 	"context"
 	"io"
 	"sync"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/opendefender/openrisk/internal/domain"
@@ -86,7 +87,7 @@ func (m *MockComplianceRepository) CreateControl(ctx context.Context, c *domain.
 	return nil
 }
 
-func (m *MockComplianceRepository) GetControlByID(ctx context.Context, id, tenantID uuid.UUID) (*domain.ComplianceControl, error) {
+func (m *MockComplianceRepository) GetControlByID(ctx context.Context, id, tenantID uuid.UUID, _ time.Time) (*domain.ComplianceControl, error) {
 	if m.getControlByIDFunc != nil {
 		return m.getControlByIDFunc(ctx, id, tenantID)
 	}
@@ -135,7 +136,7 @@ func (m *MockComplianceRepository) ListEvidencesByControl(ctx context.Context, t
 	return []domain.ControlEvidence{}, nil
 }
 
-func (m *MockComplianceRepository) CountEvidencesByFramework(ctx context.Context, tenantID, frameworkID uuid.UUID) (map[uuid.UUID]int, error) {
+func (m *MockComplianceRepository) CountEvidencesByFramework(ctx context.Context, tenantID, frameworkID uuid.UUID, _ time.Time) (map[uuid.UUID]int, error) {
 	if m.countEvidencesByFwFunc != nil {
 		return m.countEvidencesByFwFunc(ctx, tenantID, frameworkID)
 	}

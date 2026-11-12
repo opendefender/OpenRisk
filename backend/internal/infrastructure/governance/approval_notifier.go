@@ -136,11 +136,16 @@ func (n *ApprovalNotifier) resolveRecipients(ctx context.Context, tenantID uuid.
 	}
 	// Anyone currently covering for an eligible approver is eligible too, and
 	// should be told — otherwise a delegation silently changes nothing.
+	//
+	// "Currently" is the wall clock, on purpose (#419): the governance use cases
+	// that decide a delegation is active or lapsed own no clock seam and read
+	// time.Now() themselves, so this agrees with them.
 	if len(ids) > 0 {
+		now := time.Now().UTC()
 		var delegations []domain.Delegation
 		if err := n.db.WithContext(ctx).
 			Where("tenant_id = ? AND delegator_id IN ? AND status = ? AND starts_at <= ? AND ends_at >= ?",
-				tenantID, ids, domain.DelegationActive, time.Now().UTC(), time.Now().UTC()).
+				tenantID, ids, domain.DelegationActive, now, now).
 			Find(&delegations).Error; err == nil {
 			for _, d := range delegations {
 				ids = append(ids, d.DelegateID)

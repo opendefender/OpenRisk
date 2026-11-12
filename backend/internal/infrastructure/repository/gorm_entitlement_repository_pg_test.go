@@ -129,7 +129,7 @@ func TestCountPlanCaps_Postgres(t *testing.T) {
 			ent.LimitFrameworks:        1,
 			ent.LimitUsers:             2,
 		} {
-			n, err := repo.Count(ctx, tenant, key)
+			n, err := repo.Count(ctx, tenant, key, time.Now())
 			require.NoError(t, err, key)
 			require.Equal(t, want, n, "%s", key)
 		}
