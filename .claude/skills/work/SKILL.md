@@ -64,8 +64,12 @@ which. **Never skip the review.**
 The reviewers come from the diff and the labels (#1005). Once the work is
 committed, from the worktree:
 ```
-bash .claude/hooks/route-reviewers.sh origin/develop
+s=$(git show origin/develop:.claude/hooks/route-reviewers.sh) && bash -c "$s" route-reviewers origin/develop
 ```
+The script is the one on `develop`, never the branch's copy: a change must
+not choose its own reviewers, nor run unreviewed code with your credentials.
+Any non-zero exit from this command, or an empty output on a branch with
+changes, is a stop.
 It prints one agent per line. Call **every** agent it prints, in parallel,
 each with the worktree path, the branch and the `git rev-parse HEAD` it is
 to review. Give `brief.md` to `code-reviewer` only, as context, never to
@@ -80,7 +84,8 @@ You may add a reviewer it did not print, never drop one. One addition is
 mandatory, whatever the script prints: call `devsecops` when the issue
 carries `area:backend`, `area:infra` or `type:security`, or the diff touches
 auth, sessions, tenant data, uploads, outbound requests, secrets, an
-`.env*` file or a CI or DAST gate. This floor is never dropped.
+`.env*` file, a CI or DAST gate, or anything under `.claude/`. This floor
+is never dropped.
 
 ### Review loop
 

@@ -48,8 +48,12 @@ they work.
 Each issue is reviewed as in `/work` step 5, on its own branch. When its
 implementer and `qa` are done, run in that issue's worktree:
 ```
-bash .claude/hooks/route-reviewers.sh origin/develop
+s=$(git show origin/develop:.claude/hooks/route-reviewers.sh) && bash -c "$s" route-reviewers origin/develop
 ```
+The script is the one on `develop`, never the branch's copy: a change must
+not choose its own reviewers, nor run unreviewed code with your credentials.
+Any non-zero exit from this command, or an empty output on a branch with
+changes, is a stop.
 and call every agent it prints (`code-reviewer` on any code, `devsecops` on
 sensitive paths, and the others it names), in parallel, each with the worktree
 path, the branch and its HEAD. Add `devsecops` by the floor of `/work`
