@@ -236,7 +236,12 @@ func TestMigration0084_RefusesWithoutLibrary(t *testing.T) {
 	u.seedLegacyRows(t)
 	require.NoError(t, u.db.Exec(`DROP TABLE evidence_control_links`).Error)
 
-	_, err := u.runSQLLayer(t, u.dsn)
+	// The fixture's search_path ends in public, where a migrated database (CI)
+	// has its own evidence_control_links, and to_regclass would find that one.
+	// Run the SQL layer on this schema alone, as a real database has one.
+	var schema string
+	require.NoError(t, u.db.Raw(`SELECT current_schema()`).Scan(&schema).Error)
+	_, err := u.runSQLLayer(t, withParams(t, u.dsn, map[string]string{"search_path": schema}))
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "evidence library does not exist yet")
 	assert.Equal(t, int64(4), u.count(t, `SELECT count(*) FROM control_evidences`))
