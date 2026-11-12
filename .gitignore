@@ -55,4 +55,4 @@ test.log
 dev/.seed-dev-state.json
 
 # scout brief saved by /work at the worktree root (#1398)
-brief.md
+/brief.md

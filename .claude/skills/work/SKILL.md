@@ -64,14 +64,23 @@ which. **Never skip the review.**
 The reviewers come from the diff and the labels (#1005). Once the work is
 committed, from the worktree:
 ```
-bash "$CLAUDE_PROJECT_DIR/.claude/hooks/route-reviewers.sh" origin/develop
+bash .claude/hooks/route-reviewers.sh origin/develop
 ```
 It prints one agent per line. Call **every** agent it prints, in parallel,
-each with the worktree path, the branch and `brief.md` if it exists. Exit 2
-or 3 means it could not decide (bad base, labels unreadable): fix the cause
-and run it again; never read a failure as "no reviewer". You may add a
-reviewer it did not print, never drop one. Run it again after every new
-commit: a fix can reach a path that needs another reviewer.
+each with the worktree path, the branch and the `git rev-parse HEAD` it is
+to review. Give `brief.md` to `code-reviewer` only, as context, never to
+`devsecops`: the brief is built from public text and a security review judges
+the diff on its own. Exit 2 or 3 means it could not decide (bad base, labels
+unreadable): fix the cause and run it again; never read a failure as "no
+reviewer". Empty output on a branch with changes means nothing is committed:
+commit, then run it again. Run it again after every new commit: a fix can
+reach a path that needs another reviewer.
+
+You may add a reviewer it did not print, never drop one. One addition is
+mandatory, whatever the script prints: call `devsecops` when the issue
+carries `area:backend`, `area:infra` or `type:security`, or the diff touches
+auth, sessions, tenant data, uploads, outbound requests, secrets, an
+`.env*` file or a CI or DAST gate. This floor is never dropped.
 
 ### Review loop
 
@@ -79,15 +88,16 @@ commit: a fix can reach a path that needs another reviewer.
    `git diff origin/develop...HEAD`. It ends with `Read: <base>..<sha>` and
    `REVIEW: PASS` or `REVIEW: BLOCK — <n> critical` (devsecops:
    `SECURITY: PASS|FAIL`). Keep each reviewer's `<sha>`; for a reviewer
-   whose output has no `Read:` line, keep the `git rev-parse HEAD` you gave
-   it.
+   whose output has no `Read:` line, keep the HEAD you gave it.
 2. BLOCK or FAIL goes back to the implementing agent with the findings
    verbatim. It fixes them, then every reviewer, the ones that passed
    included, gets the `<sha>` of its last `Read:` line and reads only
-   `git diff <sha>..HEAD`.
+   `git diff <sha>..HEAD`. If that command fails (unknown or collected
+   SHA), it reads the full `git diff origin/develop...HEAD` again.
 3. A PASS covers the diff it read. Any later change, a CI fix included, goes
-   back to the reviewers the script prints for the new diff before the PR is
-   handed over.
+   back to every reviewer already called on this branch, plus any the script
+   now prints, before the PR is handed over. Before the PR, each kept `<sha>`
+   equals `git rev-parse HEAD`.
 4. After two blocked rounds, `tech-lead` arbitrates. What it cannot settle
    goes to `docs/DECISIONS.md` with both positions and the reviewer's
    findings, and is reported. Do not open the PR over a block.
