@@ -70,7 +70,7 @@ type ControlRow struct {
 	Applicability              string     `gorm:"size:16;not null;check:chk_controls_applicability,applicability IN ('applicable', 'not_applicable')"`
 	ApplicabilityJustification *string    `gorm:"type:text;check:chk_controls_not_applicable,applicability <> 'not_applicable' OR applicability_review_pending OR length(trim(COALESCE(applicability_justification, ''))) > 0"`
 	// ApplicabilityReviewPending is A10.1: set only by the D7 split.
-	ApplicabilityReviewPending bool   `gorm:"not null;default:false"`
+	ApplicabilityReviewPending bool   `gorm:"not null;default:false" json:"-"`
 	DeclaredStatus             string `gorm:"size:20;not null;check:chk_controls_declared_status,declared_status IN ('not_implemented', 'in_progress', 'implemented')"`
 	Tags                       string `gorm:"type:jsonb;not null;default:'[]'"`
 }

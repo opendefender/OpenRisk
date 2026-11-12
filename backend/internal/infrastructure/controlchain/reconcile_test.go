@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/prometheus/client_golang/prometheus/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/driver/sqlite"
@@ -17,6 +18,7 @@ import (
 	"gorm.io/gorm/logger"
 
 	"github.com/opendefender/openrisk/internal/domain/canonical"
+	"github.com/opendefender/openrisk/pkg/monitoring"
 )
 
 // legacyDB is an in-memory database with the legacy tables Reconcile reads,
@@ -223,7 +225,7 @@ func TestReconcile_Unauthorized(t *testing.T) {
 	}
 }
 
-// TestReconcile_ZeroTenantRowIsNotCarried: a legacy row with the nil tenant is
+// TestReconcile_ZeroTenantRowIsNotCarried: a legacy link with the nil tenant is
 // never given a control edge (fail closed, never uuid.Nil).
 func TestReconcile_ZeroTenantRowIsNotCarried(t *testing.T) {
 	f := seed(t)
@@ -234,6 +236,27 @@ func TestReconcile_ZeroTenantRowIsNotCarried(t *testing.T) {
 	res, err := Reconcile(context.Background(), f.db)
 	require.NoError(t, err)
 	assert.Contains(t, res.LinksUnplaceable, orphan)
+}
+
+// TestReconcile_ZeroTenantRequirementIsNotSplit: a compliance_controls row with
+// the nil tenant gets no control and no addressed_by edge; it is listed, and the
+// counts still reconcile.
+func TestReconcile_ZeroTenantRequirementIsNotSplit(t *testing.T) {
+	f := seed(t)
+	orphan := uuid.New()
+	require.NoError(t, f.db.Exec(`INSERT INTO compliance_controls (id, tenant_id, name, status, created_at, updated_at)
+		VALUES (?, ?, 'orphan', 'implemented', ?, ?)`, orphan, uuid.Nil, t0, t0).Error)
+
+	res, err := Reconcile(context.Background(), f.db)
+	require.NoError(t, err)
+	assert.Equal(t, []uuid.UUID{orphan}, res.RequirementsUnplaceable)
+	var n int64
+	require.NoError(t, f.db.Model(&ControlRow{}).Where("tenant_id = ?", uuid.Nil).Count(&n).Error)
+	assert.Equal(t, int64(0), n, "no control with the nil tenant")
+	require.NoError(t, f.db.Model(&CanonicalEdgeRow{}).Where("tenant_id = ?", uuid.Nil).Count(&n).Error)
+	assert.Equal(t, int64(0), n, "no edge with the nil tenant")
+	require.NoError(t, f.db.Model(&ControlRow{}).Where("id = ?", canonical.ControlIDFor(orphan)).Count(&n).Error)
+	assert.Equal(t, int64(0), n, "no split control for the orphan")
 }
 
 // TestReconcile_Idempotent: a second run inserts nothing, and one that follows
@@ -311,10 +334,20 @@ func TestReconcileAtBoot_NotReconciledLetsTheBootGoOn(t *testing.T) {
 	require.NoError(t, f.db.Create(&row).Error)
 	legacyBefore := f.count(t, "compliance_controls")
 
+	monitoring.ControlChainReconcileRefused.Set(0)
 	require.NoError(t, ReconcileAtBoot(context.Background(), f.db))
+	assert.Equal(t, float64(1), testutil.ToFloat64(monitoring.ControlChainReconcileRefused), "the alert gauge is raised")
 	assert.Equal(t, int64(1), f.count(t, TableControls), "nothing was written")
 	assert.Equal(t, int64(0), f.count(t, TableCanonicalEdges))
 	assert.Equal(t, legacyBefore, f.count(t, "compliance_controls"), "the legacy table is untouched")
+}
+
+// TestReconcileAtBoot_SuccessClearsTheAlert: a reconciled boot sets the gauge to 0.
+func TestReconcileAtBoot_SuccessClearsTheAlert(t *testing.T) {
+	f := seed(t)
+	monitoring.ControlChainReconcileRefused.Set(1)
+	require.NoError(t, ReconcileAtBoot(context.Background(), f.db))
+	assert.Equal(t, float64(0), testutil.ToFloat64(monitoring.ControlChainReconcileRefused))
 }
 
 // TestReconcileAtBoot_DatabaseErrorStopsTheBoot: an unreadable source table is
@@ -323,9 +356,11 @@ func TestReconcileAtBoot_DatabaseErrorStopsTheBoot(t *testing.T) {
 	f := seed(t)
 	require.NoError(t, f.db.Migrator().DropTable("evidence_control_links"))
 
+	monitoring.ControlChainReconcileRefused.Set(0)
 	err := ReconcileAtBoot(context.Background(), f.db)
 	require.Error(t, err)
 	assert.NotErrorIs(t, err, ErrNotReconciled)
+	assert.Equal(t, float64(0), testutil.ToFloat64(monitoring.ControlChainReconcileRefused), "a stopped boot raises no gauge: the process exits")
 	assert.Equal(t, int64(0), f.count(t, TableControls), "the transaction rolled back")
 }
 

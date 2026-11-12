@@ -140,13 +140,22 @@ re-pointing earlier: pulled into any slice after the mirror ships.
 
 **Amended (agent, 2026-11-12)** — Q2, the boot policy. Question: when Reconcile's counts do not
 reconcile, stop the boot or boot with an alert? Options: (a) stop, as decided above; (b) roll back,
-log at error level and boot. **Choice: (b) for `controlchain.ErrNotReconciled`, (a) for database
-errors.** Reason: the transaction rolls back, so nothing is written either way; the legacy tables
+log at error level and boot; (c) as (b), with a real alert. **Choice: (c) for
+`controlchain.ErrNotReconciled`, (a) for database errors.** A log line nobody reads is silence, so
+the refusal sets the `openrisk_control_chain_reconcile_refused` gauge to 1, and the
+`ControlChainReconcileRefused` alert (`deployment/monitoring/alerts.yml`, severity critical; run
+once through `promtool check rules` and `promtool test rules` on #553, output in the issue) fires on it. The backend has no
+Sentry client and the repository ships no Loki, so Prometheus is the alert path that exists; an
+install without the monitoring stack gets the error log only. Reason: the transaction rolls back, so nothing is written either way; the legacy tables
 stay the source of truth and no reader uses the chain yet (Q6). Stopping takes every tenant down on
 every boot until a code fix and protects no data. The 0084 `RAISE` precedent guards a drop, which
 loses data; this guards an insert-only copy, which does not. A database error still stops the boot:
 the SQL layer that runs next would fail on it. Implemented by `controlchain.ReconcileAtBoot`, tested
-by `TestReconcileAtBoot_NotReconciledLetsTheBootGoOn` and `_DatabaseErrorStopsTheBoot`. **Revisit**
+by `TestReconcileAtBoot_NotReconciledLetsTheBootGoOn`, `_SuccessClearsTheAlert` and
+`_DatabaseErrorStopsTheBoot`. Two review findings follow from it: Reconcile reads under REPEATABLE
+READ on PostgreSQL, so a write during a rolling deploy cannot raise a false alert; and a
+`compliance_controls` row with the nil tenant is listed (`RequirementsUnplaceable`) and not split,
+fail closed like the links. **Revisit**
 when #1413 writes or reads the chain outside Reconcile: a missing chain then misstates coverage, and
 a per-tenant flag is the likely shape.
 

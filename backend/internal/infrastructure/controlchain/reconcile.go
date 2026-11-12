@@ -7,6 +7,7 @@ package controlchain
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"fmt"
 	"time"
@@ -17,6 +18,7 @@ import (
 	"gorm.io/gorm/clause"
 
 	"github.com/opendefender/openrisk/internal/domain/canonical"
+	"github.com/opendefender/openrisk/pkg/monitoring"
 )
 
 // advisoryLockKey serialises Reconcile across replicas booting together. The
@@ -35,15 +37,23 @@ var ErrNotReconciled = errors.New("controlchain.Reconcile: the chain does not re
 // in the split, the transaction has rolled back, the legacy tables are still
 // the source of truth, and no reader uses the chain yet (D-108 Q6). Stopping
 // would take every tenant down on every boot and protect no data, so it is
-// logged at error level and the boot goes on. Reconcile runs again on the next
-// boot. Revisit when #1413 makes the chain read or written outside Reconcile.
+// logged at error level, raises the ControlChainReconcileRefused alert through
+// the openrisk_control_chain_reconcile_refused gauge, and the boot goes on.
+// Reconcile runs again on the next boot. Revisit when #1413 makes the chain read
+// or written outside Reconcile.
 func ReconcileAtBoot(ctx context.Context, db *gorm.DB) error {
 	_, err := Reconcile(ctx, db)
-	if errors.Is(err, ErrNotReconciled) {
+	switch {
+	case err == nil:
+		monitoring.ControlChainReconcileRefused.Set(0)
+		return nil
+	case errors.Is(err, ErrNotReconciled):
+		monitoring.ControlChainReconcileRefused.Set(1)
 		log.Error().Err(err).Msg("controlchain: reconciliation refused, nothing was written; the boot continues on the legacy tables")
 		return nil
+	default:
+		return err
 	}
-	return err
 }
 
 // insertBatch keeps every INSERT far below PostgreSQL's 65535 bind parameters.
@@ -52,13 +62,16 @@ const insertBatch = 500
 // Result is what one Reconcile found and wrote. Every Unplaceable and Collapsed
 // slice lists row ids, so an operator can find what was not carried.
 type Result struct {
-	// compliance_controls: every row, soft-deleted included, has exactly one split.
-	Requirements         int64
-	ControlsCreated      int
-	ControlsAlreadyThere int
-	ApplicabilityFlagged int         // not_applicable rows, split with the pending flag
-	StatusDefaulted      []uuid.UUID // rows whose status the model does not know
-	AddressedByCreated   int
+	// compliance_controls: every row, soft-deleted included, has exactly one
+	// split, except a row with the nil tenant, which is listed and not split
+	// (fail closed, never uuid.Nil).
+	Requirements            int64
+	RequirementsUnplaceable []uuid.UUID
+	ControlsCreated         int
+	ControlsAlreadyThere    int
+	ApplicabilityFlagged    int         // not_applicable rows, split with the pending flag
+	StatusDefaulted         []uuid.UUID // rows whose status the model does not know
+	AddressedByCreated      int
 
 	// evidence_control_links: carried, or listed as unplaceable.
 	Links            int64
@@ -138,10 +151,14 @@ func keyOf(r CanonicalEdgeRow) edgeKey {
 // It never updates or deletes a row, so a late replay changes nothing that
 // exists, and a second run inserts nothing.
 //
-// It runs in one transaction. On PostgreSQL it first takes a transaction-level
-// advisory lock, so two replicas booting together do not both insert: the second
-// waits, then finds everything present. It returns an error, and the transaction
-// rolls back, when the counts do not reconcile with count(*) on the source tables.
+// It runs in one transaction. On PostgreSQL it first takes a session-level
+// advisory lock on a pinned connection, so two replicas booting together do not
+// both insert: the second waits, then finds everything present. Only once the
+// lock is held does it open the transaction, under REPEATABLE READ, so the
+// snapshot is taken after the other replica committed, and every read sees one
+// state: a write landing during a rolling deploy cannot make the counts disagree
+// and raise a false alert. It returns an error, and the transaction rolls back,
+// when the counts do not reconcile with count(*) on the source tables.
 //
 // Tenant isolation: this is a boot-time system task, so it reads every tenant's
 // legacy rows in one pass. Nothing crosses tenants: every row it writes carries
@@ -149,17 +166,35 @@ func keyOf(r CanonicalEdgeRow) edgeKey {
 // ends do not both resolve in that same tenant is not carried, it is listed.
 func Reconcile(ctx context.Context, db *gorm.DB) (Result, error) {
 	var res Result
-	err := db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		if tx.Dialector.Name() == "postgres" {
+	run := func(conn *gorm.DB, opts ...*sql.TxOptions) error {
+		return conn.Transaction(func(tx *gorm.DB) error {
+			var err error
+			res, err = reconcileTx(tx)
+			return err
+		}, opts...)
+	}
+	var err error
+	if db.Dialector.Name() != "postgres" {
+		// SQLite (tests): transactions are serialised, no lock or level needed.
+		err = run(db.WithContext(ctx))
+	} else {
+		err = db.WithContext(ctx).Connection(func(conn *gorm.DB) error {
 			// tenant: a process-wide mutex between replicas, it reads no row.
-			if err := tx.Exec("SELECT pg_advisory_xact_lock(?)", advisoryLockKey).Error; err != nil {
+			// Session-level, not xact-level: under REPEATABLE READ the first
+			// statement fixes the snapshot, so the lock must come before the
+			// transaction, or the waiting replica reads a state from before the
+			// other one committed. Closing the connection releases it too.
+			if err := conn.Exec("SELECT pg_advisory_lock(?)", advisoryLockKey).Error; err != nil {
 				return fmt.Errorf("controlchain.Reconcile: advisory lock: %w", err)
 			}
-		}
-		var err error
-		res, err = reconcileTx(tx)
-		return err
-	})
+			defer func() {
+				if err := conn.Exec("SELECT pg_advisory_unlock(?)", advisoryLockKey).Error; err != nil {
+					log.Warn().Err(err).Msg("controlchain: advisory unlock failed; the lock is released when the connection closes")
+				}
+			}()
+			return run(conn, &sql.TxOptions{Isolation: sql.LevelRepeatableRead})
+		})
+	}
 	if err != nil {
 		return res, err
 	}
@@ -170,6 +205,7 @@ func Reconcile(ctx context.Context, db *gorm.DB) (Result, error) {
 func logResult(r Result) {
 	log.Info().
 		Int64("requirements", r.Requirements).
+		Int("requirements_unplaceable", len(r.RequirementsUnplaceable)).
 		Int("controls_created", r.ControlsCreated).
 		Int("controls_already_there", r.ControlsAlreadyThere).
 		Int("applicability_flagged", r.ApplicabilityFlagged).
@@ -186,6 +222,10 @@ func logResult(r Result) {
 		Int("risk_mappings_unplaceable", len(r.MappingsUnplaceable)).
 		Int("risk_mappings_collapsed", len(r.MappingsCollapsed)).
 		Msg("controlchain: reconciled")
+	if len(r.RequirementsUnplaceable) > 0 {
+		log.Warn().Strs("ids", uuidStrings(r.RequirementsUnplaceable)).
+			Msg("controlchain: requirements not split, the row has the nil tenant")
+	}
 	if len(r.LinksUnplaceable) > 0 {
 		log.Warn().Strs("ids", uuidStrings(r.LinksUnplaceable)).
 			Msg("controlchain: evidence links not carried, an end does not resolve in the link's tenant")
@@ -269,6 +309,9 @@ func reconcileTx(tx *gorm.DB) (Result, error) {
 	var newEdges []CanonicalEdgeRow
 	planned := map[edgeKey]bool{} // every edge the legacy rows imply, present or not
 	plan := func(e canonical.Edge) (isNew bool, err error) {
+		if err := e.Validate(); err != nil {
+			return false, fmt.Errorf("%w: edge %s %s %s of tenant %s is invalid: %v; nothing was written", ErrNotReconciled, e.From.ID, e.Verb, e.To.ID, e.TenantID, err)
+		}
 		row, err := EdgeToRow(e)
 		if err != nil {
 			return false, err
@@ -287,6 +330,10 @@ func reconcileTx(tx *gorm.DB) (Result, error) {
 
 	plannedControls := make([]idTenant, 0, len(reqs))
 	for _, r := range reqs {
+		if r.TenantID == uuid.Nil {
+			res.RequirementsUnplaceable = append(res.RequirementsUnplaceable, r.ID)
+			continue
+		}
 		control, defaulted := SplitControl(RequirementRow{
 			ID: r.ID, TenantID: r.TenantID, Name: r.Name, Description: r.Description, Status: r.Status,
 			CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt, DeletedAt: r.DeletedAt,
@@ -404,7 +451,7 @@ func reconcileTx(tx *gorm.DB) (Result, error) {
 			return res, fmt.Errorf("%w: edge %s %s %s of tenant %s is not in canonical_edges after the insert; nothing was written", ErrNotReconciled, k.FromID, k.Verb, k.ToID, k.Tenant)
 		}
 	}
-	if got := int64(res.ControlsCreated + res.ControlsAlreadyThere); got != res.Requirements {
+	if got := int64(res.ControlsCreated + res.ControlsAlreadyThere + len(res.RequirementsUnplaceable)); got != res.Requirements {
 		return res, fmt.Errorf("%w: %d controls accounted for, compliance_controls has %d rows; nothing was written", ErrNotReconciled, got, res.Requirements)
 	}
 	if got := int64(res.LinksCarried + len(res.LinksUnplaceable)); got != res.Links {
