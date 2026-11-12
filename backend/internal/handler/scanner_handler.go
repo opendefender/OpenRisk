@@ -18,6 +18,7 @@ import (
 	scanapp "github.com/opendefender/openrisk/internal/application/scanner"
 	"github.com/opendefender/openrisk/internal/domain"
 	"github.com/opendefender/openrisk/internal/infrastructure/redis"
+	"github.com/opendefender/openrisk/internal/middleware"
 	scanpkg "github.com/opendefender/openrisk/internal/scanner"
 	authpkg "github.com/opendefender/openrisk/pkg/auth"
 	"github.com/opendefender/openrisk/pkg/validation"
@@ -52,12 +53,22 @@ type ScannerHandler struct {
 	// until wired; the route then answers 503.
 	inventory *invapp.StoreInventoryUseCase
 
+	// heartbeatLimiter throttles POST /scanner/agent/heartbeat per agent.
+	heartbeatLimiter middleware.RateLimitBackend
+
 	// keepalive overrides the stream keepalive interval; zero keeps
 	// sseKeepaliveInterval. Only a test sets it (#962).
 	keepalive time.Duration
 	// deprecatedLifetime overrides the deprecated scan events stream's
 	// ceiling; zero keeps sseDeprecatedStreamLifetime. Only a test sets it (#962).
 	deprecatedLifetime time.Duration
+}
+
+// WithHeartbeatLimiter wires the per-agent throttle on the heartbeat route
+// (#1390). Without it the route is unthrottled, which only tests rely on.
+func (h *ScannerHandler) WithHeartbeatLimiter(l middleware.RateLimitBackend) *ScannerHandler {
+	h.heartbeatLimiter = l
+	return h
 }
 
 // WithInventory wires the software-inventory endpoint (#910).

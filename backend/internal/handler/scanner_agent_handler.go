@@ -229,12 +229,21 @@ func (h *ScannerHandler) queuedJobFrames(ctx context.Context, agent *domain.Scan
 	return frames
 }
 
+// agentHeartbeatLimit is the heartbeats one agent may send per minute (#1390).
+const agentHeartbeatLimit = 12
+
 // AgentHeartbeat POST /scanner/agent/heartbeat — keeps the Agent marked online
 // between scans (the SSE connect only refreshes liveness once). Scoped token.
 func (h *ScannerHandler) AgentHeartbeat(c *fiber.Ctx) error {
 	agent, ok := h.authenticateAgent(c, scanpkg.ScopeStream)
 	if !ok {
 		return nil
+	}
+	// Per agent, after authentication: the route sits outside the user
+	// middleware and an agent beats about once a minute.
+	if h.heartbeatLimiter != nil && !h.heartbeatLimiter.IsAllowed(
+		"scanner-agent-heartbeat:"+agent.ID.String(), agentHeartbeatLimit, time.Minute) {
+		return writeAppError(c, domain.NewRateLimitError("too many heartbeats"))
 	}
 	status := domain.AgentOnline
 	if s := c.Query("status"); s == string(domain.AgentScanning) {

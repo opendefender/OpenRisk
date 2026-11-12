@@ -196,6 +196,46 @@ func (r *GormScannerAgentRepository) Update(ctx context.Context, agent *domain.S
 	return nil
 }
 
+// UpdateLiveness is the only write the heartbeat paths make. The WHERE clause
+// carries the revocation check, so a revocation committed after the caller read
+// its copy of the agent leaves no row to match (#1390).
+func (r *GormScannerAgentRepository) UpdateLiveness(ctx context.Context, id, tenantID uuid.UUID, tokenHash string, status domain.AgentStatus, at time.Time) error {
+	if tenantID == uuid.Nil {
+		return fmt.Errorf("tenant_id is required")
+	}
+	return r.guardedLivenessWrite(ctx, id, tenantID, tokenHash,
+		map[string]interface{}{"status": status, "last_heartbeat": at})
+}
+
+// RecordJobCompletion is the push path's bookkeeping, under the same guard as
+// UpdateLiveness so a push landing after a revocation restores nothing (#1390).
+func (r *GormScannerAgentRepository) RecordJobCompletion(ctx context.Context, id, tenantID uuid.UUID, tokenHash string, jobID uuid.UUID, at time.Time) error {
+	if tenantID == uuid.Nil {
+		return fmt.Errorf("tenant_id is required")
+	}
+	return r.guardedLivenessWrite(ctx, id, tenantID, tokenHash, map[string]interface{}{
+		"status": domain.AgentOnline, "last_heartbeat": at, "last_scan_job_id": jobID,
+	})
+}
+
+// guardedLivenessWrite runs one UPDATE that matches only a live agent still
+// holding tokenHash, so the revocation check and the write cannot be split.
+// Callers pass non-credential columns only.
+func (r *GormScannerAgentRepository) guardedLivenessWrite(ctx context.Context, id, tenantID uuid.UUID, tokenHash string, cols map[string]interface{}) error {
+	result := r.db.WithContext(ctx).
+		Model(&domain.ScannerAgent{}).
+		Where("id = ? AND tenant_id = ? AND token_hash = ? AND token_hash <> '' AND status <> ?",
+			id, tenantID, tokenHash, domain.AgentRevoked).
+		UpdateColumns(cols)
+	if result.Error != nil {
+		return fmt.Errorf("failed to update agent liveness: %w", result.Error)
+	}
+	if result.RowsAffected == 0 {
+		return domain.ErrNotFound
+	}
+	return nil
+}
+
 func (r *GormScannerAgentRepository) Delete(ctx context.Context, id, tenantID uuid.UUID) error {
 	result := r.db.WithContext(ctx).
 		Where("id = ? AND tenant_id = ?", id, tenantID).
