@@ -30,9 +30,6 @@ type MockComplianceRepository struct {
 	listControlsByFrameworkFunc func(ctx context.Context, tenantID, frameworkID uuid.UUID) ([]domain.ComplianceControl, error)
 	updateControlFunc           func(ctx context.Context, c *domain.ComplianceControl) error
 	deleteControlFunc           func(ctx context.Context, id, tenantID uuid.UUID) error
-	createEvidenceFunc          func(ctx context.Context, e *domain.ControlEvidence) error
-	getEvidenceByIDFunc         func(ctx context.Context, id, tenantID uuid.UUID) (*domain.ControlEvidence, error)
-	listEvidencesByControlFunc  func(ctx context.Context, tenantID, controlID uuid.UUID) ([]domain.ControlEvidence, error)
 	countEvidencesByFwFunc      func(ctx context.Context, tenantID, frameworkID uuid.UUID) (map[uuid.UUID]int, error)
 	deleteEvidenceFunc          func(ctx context.Context, id, tenantID uuid.UUID) error
 }
@@ -112,27 +109,6 @@ func (m *MockComplianceRepository) DeleteControl(ctx context.Context, id, tenant
 		return m.deleteControlFunc(ctx, id, tenantID)
 	}
 	return nil
-}
-
-func (m *MockComplianceRepository) CreateEvidence(ctx context.Context, e *domain.ControlEvidence) error {
-	if m.createEvidenceFunc != nil {
-		return m.createEvidenceFunc(ctx, e)
-	}
-	return nil
-}
-
-func (m *MockComplianceRepository) GetEvidenceByID(ctx context.Context, id, tenantID uuid.UUID) (*domain.ControlEvidence, error) {
-	if m.getEvidenceByIDFunc != nil {
-		return m.getEvidenceByIDFunc(ctx, id, tenantID)
-	}
-	return nil, nil
-}
-
-func (m *MockComplianceRepository) ListEvidencesByControl(ctx context.Context, tenantID, controlID uuid.UUID) ([]domain.ControlEvidence, error) {
-	if m.listEvidencesByControlFunc != nil {
-		return m.listEvidencesByControlFunc(ctx, tenantID, controlID)
-	}
-	return []domain.ControlEvidence{}, nil
 }
 
 func (m *MockComplianceRepository) CountEvidencesByFramework(ctx context.Context, tenantID, frameworkID uuid.UUID) (map[uuid.UUID]int, error) {
