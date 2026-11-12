@@ -59,7 +59,11 @@ func TestRegisterAgent_ReEnrollUpdatesInPlace(t *testing.T) {
 		listFunc: func(_ context.Context, _ uuid.UUID) ([]domain.ScannerAgent, error) {
 			return []domain.ScannerAgent{existing}, nil
 		},
-		updateFunc: func(_ context.Context, _ *domain.ScannerAgent) error { updated = true; return nil },
+		reenrollFunc: func(_ context.Context, _ *domain.ScannerAgent) error { updated = true; return nil },
+		updateFunc: func(context.Context, *domain.ScannerAgent) error {
+			t.Fatal("re-enrolment must not use the unguarded Update")
+			return nil
+		},
 		createFunc: func(_ context.Context, _ *domain.ScannerAgent) error {
 			t.Fatal("should not create on re-enroll")
 			return nil
@@ -74,21 +78,29 @@ func TestRegisterAgent_ReEnrollUpdatesInPlace(t *testing.T) {
 
 func TestRevokeAgent_Success(t *testing.T) {
 	tenant, id := uuid.New(), uuid.New()
-	agent := &domain.ScannerAgent{ID: id, TenantID: tenant, Status: domain.AgentOnline, TokenHash: "h"}
-	var revoked *domain.ScannerAgent
+	var calls int
 	repo := &mockAgentRepo{
-		getByIDFunc: func(_ context.Context, _, _ uuid.UUID) (*domain.ScannerAgent, error) { return agent, nil },
-		updateFunc:  func(_ context.Context, a *domain.ScannerAgent) error { revoked = a; return nil },
+		revokeFunc: func(_ context.Context, gotID, gotTenant uuid.UUID) error {
+			calls++
+			assert.Equal(t, id, gotID)
+			assert.Equal(t, tenant, gotTenant)
+			return nil
+		},
+		updateFunc: func(context.Context, *domain.ScannerAgent) error {
+			t.Fatal("revocation must not use the unguarded Update")
+			return nil
+		},
 	}
-	uc := NewRevokeAgentUseCase(repo, newFakeKV())
+	kv := newFakeKV()
+	uc := NewRevokeAgentUseCase(repo, kv)
 	require.NoError(t, uc.Execute(context.Background(), tenant, id))
-	require.NotNil(t, revoked)
-	assert.Equal(t, domain.AgentRevoked, revoked.Status)
-	assert.Empty(t, revoked.TokenHash) // token killed
+	require.NoError(t, uc.Execute(context.Background(), tenant, id), "revoking twice succeeds")
+	assert.Equal(t, 2, calls)
+	assert.Equal(t, 2, kv.messages, "agent.revoked is published on each success")
 }
 
 func TestRevokeAgent_NotFound(t *testing.T) {
-	repo := &mockAgentRepo{getByIDFunc: func(_ context.Context, _, _ uuid.UUID) (*domain.ScannerAgent, error) { return nil, nil }}
+	repo := &mockAgentRepo{revokeFunc: func(context.Context, uuid.UUID, uuid.UUID) error { return domain.ErrNotFound }}
 	uc := NewRevokeAgentUseCase(repo, newFakeKV())
 	err := uc.Execute(context.Background(), uuid.New(), uuid.New())
 	require.Error(t, err)
@@ -115,4 +127,20 @@ func TestListAgents_DowngradesStaleOnline(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, domain.AgentOffline, agents[0].Status) // stale
 	assert.Equal(t, domain.AgentOnline, agents[1].Status)  // fresh
+}
+
+func TestRegisterAgent_RevokedDuringEnrolment_UseCase(t *testing.T) {
+	tenant, cfg := uuid.New(), uuid.New()
+	existing := domain.ScannerAgent{ID: uuid.New(), TenantID: tenant, Hostname: "edge-01", RegistrationConfigID: &cfg, Status: domain.AgentOnline}
+	repo := &mockAgentRepo{
+		listFunc: func(context.Context, uuid.UUID) ([]domain.ScannerAgent, error) {
+			return []domain.ScannerAgent{existing}, nil
+		},
+		reenrollFunc: func(context.Context, *domain.ScannerAgent) error { return domain.ErrConflict },
+	}
+	_, err := NewRegisterAgentUseCase(repo, testKeys(), testCipher()).Execute(context.Background(),
+		RegisterAgentInput{TenantID: tenant, ConfigID: &cfg, Hostname: "edge-01"})
+	require.Error(t, err)
+	assert.ErrorIs(t, err, domain.ErrConflict)
+	assert.Equal(t, 409, domain.HTTPStatusFromError(err))
 }
