@@ -7,6 +7,8 @@ package scanner
 
 import (
 	"context"
+	"errors"
+	"net/http"
 	"strings"
 	"time"
 
@@ -109,7 +111,16 @@ func (uc *RegisterAgentUseCase) Execute(ctx context.Context, in RegisterAgentInp
 			return nil, domain.NewInternalError(err.Error())
 		}
 	} else {
-		if err := uc.repo.Update(ctx, agent); err != nil {
+		// Guarded on status<>'revoked': a revocation that committed after
+		// findReenrollable read the row wins, and the installer retries into a
+		// fresh agent row (#1402).
+		if err := uc.repo.Reenroll(ctx, agent); err != nil {
+			if errors.Is(err, domain.ErrConflict) {
+				return nil, &domain.AppError{
+					Err: domain.ErrConflict, Message: "agent was revoked during enrolment, register again",
+					Code: http.StatusConflict,
+				}
+			}
 			return nil, domain.NewInternalError(err.Error())
 		}
 	}
