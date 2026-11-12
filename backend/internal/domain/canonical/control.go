@@ -5,7 +5,11 @@
 
 package canonical
 
-import "github.com/google/uuid"
+import (
+	"encoding/json"
+
+	"github.com/google/uuid"
+)
 
 // Applicability is a control's scoping (D6, closed). ADR 0003 excludes
 // not_applicable from both sums.
@@ -31,6 +35,13 @@ const (
 
 // Control is the tenant's measure that answers one or more requirements
 // (ADR 0008 D6). observed_at is always null: a design, not an observation (D4).
+//
+// applicability_review_pending is read-only (amendment A10.1): the D7 split
+// sets it on a control it made from a not_applicable row, whose justification
+// is empty and "flagged for the tenant to fill". It is unexported, readable
+// through ApplicabilityReviewPending, never decoded from JSON (A4's pattern),
+// and set in exactly one place, WithApplicabilityReviewPending, which only the
+// split calls. A write that supplies a justification clears it.
 type Control struct {
 	Envelope
 	Name        string  `json:"name"`
@@ -39,8 +50,32 @@ type Control struct {
 	Ownership
 	Applicability              Applicability  `json:"applicability"`
 	ApplicabilityJustification *string        `json:"applicability_justification"`
+	applicabilityReviewPending bool           // read-only, see WithApplicabilityReviewPending
 	DeclaredStatus             DeclaredStatus `json:"declared_status"`
 	Tags                       List[string]   `json:"tags"`
+}
+
+// WithApplicabilityReviewPending is the single entry point of the read-only
+// flag (A10.1), for the D7 split of a not_applicable compliance_controls row.
+// It returns a copy; no request path may call it.
+func WithApplicabilityReviewPending(c Control, pending bool) Control {
+	c.applicabilityReviewPending = pending
+	return c
+}
+
+// ApplicabilityReviewPending tells whether the control still waits for the
+// tenant to justify its not_applicable scoping.
+func (c Control) ApplicabilityReviewPending() bool { return c.applicabilityReviewPending }
+
+// MarshalJSON publishes applicability_review_pending beside the other fields.
+// There is no UnmarshalJSON counterpart on purpose: a decoded Control never
+// carries the flag, because the field is unexported.
+func (c Control) MarshalJSON() ([]byte, error) {
+	type plain Control
+	return json.Marshal(struct {
+		plain
+		ApplicabilityReviewPending bool `json:"applicability_review_pending"`
+	}{plain(c), c.applicabilityReviewPending})
 }
 
 // Validate applies D2, D3, D4 and D6 to a Control.
@@ -56,8 +91,13 @@ func (c Control) Validate() error {
 	}
 	switch c.Applicability {
 	case Applicable:
+		if c.applicabilityReviewPending {
+			return invalid("applicability_review_pending", "is only meaningful on a not_applicable control")
+		}
 	case NotApplicable:
-		if blankPtr(c.ApplicabilityJustification) {
+		// A10.1: the split of a not_applicable row has no justification yet and
+		// carries the pending flag instead; a flagged control that has one is fine.
+		if blankPtr(c.ApplicabilityJustification) && !c.applicabilityReviewPending {
 			return invalid("applicability_justification", "is required when the control is not_applicable")
 		}
 	default:

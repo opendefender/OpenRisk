@@ -8,6 +8,7 @@ package main
 import (
 	coreauth "github.com/opendefender/openrisk/internal/auth"
 	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/internal/infrastructure/controlchain"
 	"github.com/opendefender/openrisk/pkg/cti"
 )
 
@@ -164,6 +165,16 @@ func schemaModels() []interface{} {
 		// control_evidences table is dropped by migration 0084 (#813).
 		&domain.Evidence{},
 		&domain.EvidenceControlLink{},
+		// ADR 0008 control chain (#553, migration 0085): the six tables behind
+		// Requirement -> Control -> Implementation -> Test -> Result -> Evidence.
+		// controlchain.Reconcile fills them from the legacy tables right after
+		// this list is migrated, on every boot.
+		&controlchain.ControlRow{},
+		&controlchain.ControlImplementationRow{},
+		&controlchain.ControlTestRow{},
+		&controlchain.ControlTestResultRow{},
+		&controlchain.ControlGapFindingRow{},
+		&controlchain.CanonicalEdgeRow{},
 		// Security Automation / SOAR (spec §10 « Automatisation »): tenant-scoped
 		// playbooks (trigger + conditions + action chain + SLA policy), their
 		// execution audit trail, and the live SLA countdowns the monitor escalates.
