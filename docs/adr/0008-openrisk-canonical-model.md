@@ -880,3 +880,59 @@ publishes these readings with the schema.
     seconds of issue, so a pasted one cannot be replayed. Meanwhile `?ticket=OPS-12` is an
     ordinary helpdesk link that GRC notes and evidence URLs cite constantly. Refusing that link
     would make legitimate records unprojectable, for no protection. (#1240, 2026-11-09)
+
+### 2026-11-12 — persistence readings and one field (#553)
+
+Tech-lead design gate of #553 (D-108). A10.1 adds a field to D6's `Control`. That is the only
+change of shape. Every other item records how persistence reads text this ADR left open. #542
+publishes the field and these readings with the schema.
+
+- **A10.1 — `Control.applicability_review_pending` (new field, D6, D7).** It is a boolean, not
+  null, and read-only. D7 splits a `not_applicable` row into a control with an empty
+  justification, "flagged for the tenant to fill". D6 refuses that state. This field is the flag:
+  - it is true only on a control the D7 split created from a `not_applicable` row;
+  - while it is true, validation accepts the empty justification;
+  - it becomes false on the first write that supplies a justification;
+  - no write can set it to true, and a decoded record never carries it (A4's pattern).
+
+  Such a control gets `declared_status = not_implemented`. D7 gives `not_applicable` rows no
+  declared status, and D6 requires one.
+- **A10.2 — The split control's envelope (D7).**
+  - `source = openrisk_user`, and `source_id` is the control's own id.
+  - `confidence` is 0.70.
+  - `provenance.method` is `migration` when the boot reconciler writes it, and `manual_entry`
+    when it is mirrored from a requirement just created.
+  - `provenance.actor` is `{system, control_split}`.
+
+  The status it copies was a person's claim, so the class is `user_entered`, not `derived`. The
+  `addressed_by` edge of the split has the same envelope and `coverage = full`.
+- **A10.3 — Edge storage (D5).** Stored edges are rows of one table, keyed
+  `(tenant_id, from_type, from_id, verb, to_type, to_id, qualifier)`. The `qualifier` is stored
+  as the nil uuid when absent, so the key is total, as `EdgeKey` already treats it.
+  `to.tenant_id` is not stored: it equals `tenant_id` by construction and is filled when the
+  target resolves. An edge has no `deleted_at`. It is live when both ends are live, and it is
+  removed by a hard delete that is journaled in the audit trail.
+- **A10.4 — Fields, not rows.** `implemented_by` and `tested_by` are persisted only as
+  `ControlImplementation.control_id` and `ControlTest.implementation_id`, and are never stored
+  as edge rows. The read projection emits them. This is D6's "mirrors the edge" read literally.
+  D5's "the inverse is a reading" also forbids storing them twice.
+- **A10.5 — `ControlTestResult` rows carry `tenant_id` (D1, D2).** The rows sit in their own
+  table, and each row carries the test's `tenant_id`. This is ABSOLUTE RULE 2 in persistence. The
+  sub-record in the contract stays without it, as D2 keeps `deleted_at` out of the contract.
+- **A10.6 — Where `control_gap` findings live (D6, D7).** They are stored in their own table,
+  not in `vulnerabilities`. D7 maps that table to findings of kind `vulnerability` only. Writing
+  gaps there would put them in the scanner's dedup, SLA and risk-proposal paths. A `Finding` id
+  resolves in either table, and uuids do not collide.
+- **A10.7 — Gap identity (D2, D3).** A `control_gap` has `source = openrisk_derived` and
+  `source_id` = the id of the test that raised it. That is D2's identity rule, so a test has one
+  gap for its whole life:
+  - a later failing result updates the gap, and reopens it if it was `remediated`;
+  - an `accepted` or `false_positive` verdict is kept;
+  - each failing result adds its own `raised_by` edge, qualified by its `result_id`;
+  - the gap's confidence is the confidence of the latest failing result (D3's derived row);
+  - its `severity` is `medium` when raised, with `provenance.rule` saying so, because D6 gives
+    neither the test nor the control a severity.
+- **A10.8 — The migration places no link on a result (D7, EvidenceControlLink).** "Moves each
+  link onto a test result where one exists" places nothing when #553 migrates, because no
+  `ControlTestResult` exists before #553. Every carried link becomes the transitional
+  `Control --evidenced_by--> Evidence`.

@@ -212,6 +212,44 @@ func TestCanonical_Control_Refusals(t *testing.T) {
 	})
 }
 
+// TestCanonical_Control_ApplicabilityReviewPending is amendment A10.1: the
+// flag lets the D7 split of a not_applicable row validate without a
+// justification, is read-only, and is published but never decoded.
+func TestCanonical_Control_ApplicabilityReviewPending(t *testing.T) {
+	flagged := func() canonical.Control {
+		c := validControl()
+		c.Applicability = canonical.NotApplicable
+		return canonical.WithApplicabilityReviewPending(c, true)
+	}
+	t.Run("pending not_applicable control validates without a justification", func(t *testing.T) {
+		c := flagged()
+		assert.True(t, c.ApplicabilityReviewPending())
+		require.NoError(t, c.Validate())
+	})
+	t.Run("without the flag the justification is still required", func(t *testing.T) {
+		c := flagged()
+		c = canonical.WithApplicabilityReviewPending(c, false)
+		requireRefused(t, c.Validate(), "applicability_justification")
+	})
+	t.Run("a flag on an applicable control is refused", func(t *testing.T) {
+		c := canonical.WithApplicabilityReviewPending(validControl(), true)
+		requireRefused(t, c.Validate(), "applicability_review_pending")
+	})
+	t.Run("it is published", func(t *testing.T) {
+		raw, err := json.Marshal(flagged())
+		require.NoError(t, err)
+		assert.Contains(t, string(raw), `"applicability_review_pending":true`)
+		raw, err = json.Marshal(validControl())
+		require.NoError(t, err)
+		assert.Contains(t, string(raw), `"applicability_review_pending":false`)
+	})
+	t.Run("a request body never sets it", func(t *testing.T) {
+		var c canonical.Control
+		require.NoError(t, json.Unmarshal([]byte(`{"name":"x","applicability":"not_applicable","applicability_review_pending":true}`), &c))
+		assert.False(t, c.ApplicabilityReviewPending())
+	})
+}
+
 func TestCanonical_ControlImplementation_Refusals(t *testing.T) {
 	cases := []struct {
 		name   string

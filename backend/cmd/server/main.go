@@ -70,6 +70,7 @@ import (
 	"github.com/opendefender/openrisk/internal/infrastructure/authmail"
 	"github.com/opendefender/openrisk/internal/infrastructure/authmfa"
 	autoinfra "github.com/opendefender/openrisk/internal/infrastructure/automation"
+	"github.com/opendefender/openrisk/internal/infrastructure/controlchain"
 	"github.com/opendefender/openrisk/internal/infrastructure/ctimatch"
 	"github.com/opendefender/openrisk/internal/infrastructure/database"
 	"github.com/opendefender/openrisk/internal/infrastructure/demoseed"
@@ -236,6 +237,16 @@ func main() {
 	log.Println("Database: Running Auto-Migrations...")
 	if err := database.DB.AutoMigrate(schemaModels()...); err != nil {
 		log.Fatalf("Database Migration Failed: %v", err)
+	}
+
+	// ADR 0008 control chain (#553, D-108): the split Control of every compliance
+	// control and the edges of its evidence links and risk mappings. It needs the
+	// tables AutoMigrate has just built, and it must run on a DB_HOST-only boot,
+	// which never runs the SQL layer below. Insert-only and idempotent. A database
+	// error stops the boot; counts that do not reconcile roll back, are logged at
+	// error level and let the boot go on (D-108, amended 2026-11-12).
+	if err := controlchain.ReconcileAtBoot(context.Background(), database.DB); err != nil {
+		log.Fatalf("Control chain reconciliation failed: %v", err)
 	}
 
 	// Run the additive SQL migration layer (if DATABASE_URL is set), on top of the

@@ -146,6 +146,20 @@ groups:
           summary: "OpenRisk backend is down"
           description: "OpenRisk backend has been down for more than 1 minute"
 
+      # Control chain (#553, D-108 amended 2026-11-12): the boot-time
+      # reconciliation was refused and rolled back, and the boot went on. Nothing
+      # was written, the legacy compliance tables are intact, but the chain stays
+      # empty or stale until a code fix: find the "reconciliation refused" error
+      # line in the backend log of the same boot.
+      - alert: ControlChainReconcileRefused
+        expr: max(openrisk_control_chain_reconcile_refused) == 1
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Control chain reconciliation refused at boot"
+          description: "The boot-time reconciliation of the control chain did not reconcile and rolled back. The legacy compliance tables are intact; the chain is not populated. Read the 'controlchain: reconciliation refused' error in the backend log of this boot."
+
       # ===== LOGIN & SECURITY ALERTS =====
       - alert: HighLoginFailureRate
         expr: |
