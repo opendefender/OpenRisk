@@ -4789,7 +4789,9 @@ paths:
         '401':
           description: Unauthorized
         '403':
-          description: The caller lacks risks:update, or the session carries no tenant
+          description: >-
+            The caller lacks risks:update, the action is `delete` and the caller
+            lacks risks:delete (#1423), or the session carries no tenant.
         '404':
           description: >-
             At least one id could not be resolved — absent, or belonging to
