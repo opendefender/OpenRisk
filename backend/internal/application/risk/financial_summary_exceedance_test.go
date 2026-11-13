@@ -6,6 +6,7 @@
 package risk
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"testing"
@@ -13,6 +14,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/opendefender/openrisk/internal/domain"
 	"github.com/opendefender/openrisk/pkg/crq"
+	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -99,11 +101,19 @@ func TestFinancialSummaryPage_NotFound(t *testing.T) {
 	assert.Nil(t, sum.RiskAppetiteXAF)
 }
 
-// A failing appetite read leaves the appetite unset; the page still loads.
+// A failing appetite read leaves the appetite unset; the page still loads, and
+// the failure is logged rather than dropped (#712).
 func TestFinancialSummaryPage_AppetiteReadFails(t *testing.T) {
+	var buf bytes.Buffer
+	tenant := uuid.New()
 	sum, err := newPageUC(pageRisks()).WithAppetiteReader(mockAppetite{err: errors.New("db down")}).
-		Execute(context.Background(), uuid.New())
+		WithLogger(zerolog.New(&buf)).
+		Execute(context.Background(), tenant)
 	require.NoError(t, err)
 	assert.Nil(t, sum.RiskAppetiteXAF)
 	assert.NotNil(t, sum.LossExceedance)
+	assert.Contains(t, buf.String(), `"level":"warn"`)
+	assert.Contains(t, buf.String(), "db down")
+	assert.Contains(t, buf.String(), "risk appetite read failed")
+	assert.Contains(t, buf.String(), tenant.String())
 }

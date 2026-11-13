@@ -139,7 +139,8 @@ func NewFinancialSummaryUseCase(lister FinancialRiskLister, quantifier *crq.Quan
 	return &FinancialSummaryUseCase{lister: lister, quantifier: quantifier, log: zerolog.Nop(), now: time.Now}
 }
 
-// WithLogger attaches the logger that reports a failing coverage aggregate (#712).
+// WithLogger attaches the logger that reports a failing coverage aggregate or
+// appetite read (#712).
 func (uc *FinancialSummaryUseCase) WithLogger(l zerolog.Logger) *FinancialSummaryUseCase {
 	uc.log = l
 	return uc
@@ -318,9 +319,13 @@ func (uc *FinancialSummaryUseCase) Execute(ctx context.Context, tenantID uuid.UU
 	sum.Treatments = treatments
 
 	if uc.appetite != nil {
-		// A failing read leaves the appetite unset rather than failing the page.
+		// A failing read leaves the appetite unset rather than failing the page,
+		// and is logged rather than dropped (#712).
 		if v, aErr := uc.appetite.OrgRiskAppetite(ctx, tenantID); aErr == nil {
 			sum.RiskAppetiteXAF = v
+		} else {
+			uc.log.Warn().Err(aErr).Str("tenant_id", tenantID.String()).
+				Msg("financial summary: risk appetite read failed, appetite left unset")
 		}
 	}
 
