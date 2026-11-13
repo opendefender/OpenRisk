@@ -107,8 +107,10 @@ func TestRiskBulkDelete_OtherActionsStillNeedOnlyUpdate(t *testing.T) {
 	assert.Zero(t, repo.deletes)
 }
 
-// The route guard still applies first: no update right, no bulk at all.
-func TestRiskBulkDelete_NotFound_NoUpdateRightNeverReachesTheHandler(t *testing.T) {
+// The route guard still applies first: no update right, no bulk at all. (The
+// not-found path of this use case is TestBulkAction_NotFound in
+// application/risk/bulk_action_test.go.)
+func TestRiskBulkDelete_Unauthorized_NoUpdateRightNeverReachesTheHandler(t *testing.T) {
 	repo := &bulkDeleteRepo{}
 	status := postLegacyBulk(t, repo, deleteBody(), "risks:read", "risks:delete")
 	assert.Equal(t, fiber.StatusForbidden, status)
