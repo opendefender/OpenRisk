@@ -11,6 +11,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/internal/infrastructure/tenantguard"
 	"gorm.io/gorm"
 )
 
@@ -268,7 +269,7 @@ func (us *UserService) GetUserTenantCount(ctx context.Context, userID uuid.UUID)
 func (us *UserService) GetHighestUserRole(ctx context.Context, userID uuid.UUID) (domain.RoleLevel, error) {
 	var level int
 
-	err := us.db.WithContext(ctx).
+	err := tenantguard.CrossTenant(us.db.WithContext(ctx), "identity lookup: the user's own roles in every organisation they belong to").
 		Model(&domain.RoleEnhanced{}).
 		Joins("JOIN user_tenants ON roles.id = user_tenants.role_id").
 		Where("user_tenants.user_id = ?", userID).

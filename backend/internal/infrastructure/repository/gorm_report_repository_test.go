@@ -11,6 +11,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/internal/testsupport/testdb"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/driver/sqlite"
@@ -19,7 +20,7 @@ import (
 
 func setupReportRepo(t *testing.T) *GormReportRepository {
 	t.Helper()
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	db, err := testdb.Open(t, sqlite.Open(":memory:"), &gorm.Config{})
 	require.NoError(t, err)
 	require.NoError(t, db.AutoMigrate(&domain.Report{}, &domain.ReportComment{}))
 	return NewGormReportRepository(db)
@@ -188,4 +189,24 @@ func TestReportRepo_DeleteTakesItsComments(t *testing.T) {
 	comments, err = repo.ListComments(ctx, tenant, rep.ID)
 	require.NoError(t, err)
 	assert.Empty(t, comments, "a review remark on a report that no longer exists is litter, not history")
+}
+
+// #808 criterion 4: UpdateProgress carries the tenant, so a worker holding the
+// wrong tenant for an id writes nothing.
+func TestReportRepo_UpdateProgress_CarriesTenant(t *testing.T) {
+	repo := setupReportRepo(t)
+	ctx := context.Background()
+	tenantA, tenantB := uuid.New(), uuid.New()
+	rep := seedReport(t, repo, tenantA, domain.ReportRunRunning)
+
+	require.NoError(t, repo.UpdateProgress(ctx, tenantB, rep.ID, 77, "foreign"))
+	got, err := repo.GetByID(ctx, tenantA, rep.ID)
+	require.NoError(t, err)
+	assert.NotEqual(t, 77, got.Progress, "another tenant must not move the progress")
+
+	require.NoError(t, repo.UpdateProgress(ctx, tenantA, rep.ID, 77, "rendering"))
+	got, err = repo.GetByID(ctx, tenantA, rep.ID)
+	require.NoError(t, err)
+	assert.Equal(t, 77, got.Progress)
+	assert.Equal(t, "rendering", got.Step)
 }

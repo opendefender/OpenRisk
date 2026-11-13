@@ -21,6 +21,7 @@ import (
 
 	coreauth "github.com/opendefender/openrisk/internal/auth"
 	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/internal/testsupport/testdb"
 	authpkg "github.com/opendefender/openrisk/pkg/auth"
 )
 
@@ -83,7 +84,7 @@ var loginNow = time.Date(2026, 8, 24, 12, 0, 0, 0, time.UTC)
 func newLoginHarness(t *testing.T, role domain.MemberRole) (*LoginUseCase, *loginUsers, *MockMFARepository, *authpkg.RSAKeys) {
 	t.Helper()
 
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	db, err := testdb.Open(t, sqlite.Open(":memory:"), &gorm.Config{})
 	require.NoError(t, err)
 	require.NoError(t, db.Exec(`
 		CREATE TABLE refresh_tokens (

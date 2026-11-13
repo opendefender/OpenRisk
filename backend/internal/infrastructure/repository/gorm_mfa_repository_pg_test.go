@@ -19,6 +19,7 @@ import (
 	"gorm.io/gorm/logger"
 
 	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/internal/testsupport/testdb"
 )
 
 // #754 — the sqlite tests fail the second write with a GORM callback; this one
@@ -30,7 +31,7 @@ func TestGormMFARepository_DisableMFA_Postgres(t *testing.T) {
 	if dsn == "" {
 		t.Skip("DATABASE_URL not set")
 	}
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
+	db, err := testdb.Open(t, postgres.Open(dsn), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
 	require.NoError(t, err)
 
 	rollback := errors.New("rollback")

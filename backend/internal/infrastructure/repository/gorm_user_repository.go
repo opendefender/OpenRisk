@@ -13,6 +13,7 @@ import (
 	"gorm.io/gorm/clause"
 
 	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/internal/infrastructure/tenantguard"
 )
 
 // GormUserRepository implements domain.UserRepository using GORM
@@ -202,7 +203,7 @@ func (r *GormUserRepository) CreateOrganizationMember(ctx context.Context, membe
 // endpoint independently re-validates against the same is_active predicate.
 func (r *GormUserRepository) ListActiveMemberships(ctx context.Context, userID uuid.UUID) ([]*domain.OrganizationMember, error) {
 	var members []*domain.OrganizationMember
-	err := r.db.WithContext(ctx).
+	err := tenantguard.CrossTenant(r.db.WithContext(ctx), "identity lookup: the authenticated user's own memberships, before an org is chosen").
 		Preload("Organization").
 		Where("user_id = ? AND is_active = ?", userID, true).
 		Find(&members).Error

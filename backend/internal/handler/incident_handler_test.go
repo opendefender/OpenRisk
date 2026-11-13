@@ -20,13 +20,14 @@ import (
 
 	"github.com/opendefender/openrisk/internal/domain"
 	"github.com/opendefender/openrisk/internal/service"
+	"github.com/opendefender/openrisk/internal/testsupport/testdb"
 )
 
 // setupIncidentDB creates an in-memory SQLite DB with the incident tables via
 // AutoMigrate — the same models cmd/server/main.go now migrates (M5).
 func setupIncidentDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{TranslateError: true})
+	db, err := testdb.Open(t, sqlite.Open(":memory:"), &gorm.Config{TranslateError: true})
 	require.NoError(t, err)
 	require.NoError(t, db.AutoMigrate(&domain.Incident{}, &domain.IncidentTimeline{}, &domain.IncidentAction{}))
 	return db

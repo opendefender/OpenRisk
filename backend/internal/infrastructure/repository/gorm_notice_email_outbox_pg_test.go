@@ -27,6 +27,7 @@ import (
 	"gorm.io/gorm/logger"
 
 	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/internal/testsupport/testdb"
 )
 
 const outboxMigration = "../../../../migrations/0081_notice_email_outbox"
@@ -40,7 +41,7 @@ func outboxSchema(t *testing.T, autoMigrate bool) (*gorm.DB, string) {
 		t.Skip("DATABASE_URL not set")
 	}
 	schema := "outbox_997_" + strings.ReplaceAll(uuid.New().String(), "-", "")[:12]
-	admin, err := gorm.Open(postgres.Open(dsn), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
+	admin, err := testdb.Open(t, postgres.Open(dsn), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
 	require.NoError(t, err)
 	require.NoError(t, admin.Exec(fmt.Sprintf(`CREATE SCHEMA %s`, schema)).Error)
 	t.Cleanup(func() {
@@ -55,7 +56,7 @@ func outboxSchema(t *testing.T, autoMigrate bool) (*gorm.DB, string) {
 	q := u.Query()
 	q.Set("search_path", schema)
 	u.RawQuery = q.Encode()
-	db, err := gorm.Open(postgres.Open(u.String()), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent), TranslateError: true})
+	db, err := testdb.Open(t, postgres.Open(u.String()), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent), TranslateError: true})
 	require.NoError(t, err)
 	sqlDB, err := db.DB()
 	require.NoError(t, err)

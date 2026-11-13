@@ -28,6 +28,7 @@ import (
 	"github.com/opendefender/openrisk/internal/domain"
 	"github.com/opendefender/openrisk/internal/infrastructure/database"
 	"github.com/opendefender/openrisk/internal/middleware"
+	"github.com/opendefender/openrisk/internal/testsupport/testdb"
 	authpkg "github.com/opendefender/openrisk/pkg/auth"
 )
 
@@ -250,7 +251,7 @@ func TestIssueSSOSession_OnboardingFailureRedirects(t *testing.T) {
 	setupSSOSession(t, nil)
 
 	// A user with no tenant, against a database where onboarding cannot write.
-	broken, err := gorm.Open(sqlite.Open("file:"+uuid.NewString()+"?mode=memory"), &gorm.Config{})
+	broken, err := testdb.Open(t, sqlite.Open("file:"+uuid.NewString()+"?mode=memory"), &gorm.Config{})
 	require.NoError(t, err)
 	database.DB = broken
 	orphan := &domain.User{ID: uuid.New(), Email: "new@opendefender.io", IsActive: true}

@@ -16,6 +16,7 @@ import (
 	"gorm.io/gorm/clause"
 
 	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/internal/infrastructure/tenantguard"
 )
 
 // GormRealtimeEventRepository is the durable, per-tenant ordered event log.
@@ -175,7 +176,7 @@ func (r *GormRealtimeEventRepository) Bounds(ctx context.Context, tenantID uuid.
 
 // PurgeBefore drops events older than cutoff, across all tenants.
 func (r *GormRealtimeEventRepository) PurgeBefore(ctx context.Context, cutoff time.Time) (int64, error) {
-	res := r.db.WithContext(ctx).Session(&gorm.Session{SkipHooks: true}).
+	res := tenantguard.CrossTenant(r.db.WithContext(ctx), "realtime event retention purge across every tenant").Session(&gorm.Session{SkipHooks: true}).
 		Where("created_at < ?", cutoff.UTC()).
 		Delete(&domain.RealtimeEvent{})
 	if res.Error != nil {

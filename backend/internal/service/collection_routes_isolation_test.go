@@ -18,6 +18,7 @@ import (
 
 	"github.com/opendefender/openrisk/internal/domain"
 	"github.com/opendefender/openrisk/internal/testsupport/sqliteschema"
+	"github.com/opendefender/openrisk/internal/testsupport/testdb"
 )
 
 // The collection routes of /analytics/* and /dashboard/* (#421).
@@ -44,7 +45,7 @@ var (
 // included) rather than selecting the handful of columns they display.
 func newCollectionDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{
+	db, err := testdb.Open(t, sqlite.Open(":memory:"), &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Silent),
 	})
 	require.NoError(t, err)

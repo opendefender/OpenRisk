@@ -20,6 +20,7 @@ import (
 
 	"github.com/opendefender/openrisk/internal/domain"
 	"github.com/opendefender/openrisk/internal/infrastructure/repository"
+	"github.com/opendefender/openrisk/internal/testsupport/testdb"
 )
 
 // #1213 — the bulk assign path against the real schema: the plans land with
@@ -31,7 +32,7 @@ func TestBulkAssign_Postgres(t *testing.T) {
 	if dsn == "" {
 		t.Skip("DATABASE_URL not set")
 	}
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
+	db, err := testdb.Open(t, postgres.Open(dsn), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
 	require.NoError(t, err)
 
 	rollback := errors.New("rollback")

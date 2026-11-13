@@ -28,6 +28,7 @@ import (
 	"github.com/opendefender/openrisk/internal/domain"
 	"github.com/opendefender/openrisk/internal/infrastructure/repository"
 	"github.com/opendefender/openrisk/internal/middleware"
+	"github.com/opendefender/openrisk/internal/testsupport/testdb"
 	authpkg "github.com/opendefender/openrisk/pkg/auth"
 	rt "github.com/opendefender/openrisk/pkg/realtime"
 )
@@ -77,7 +78,7 @@ type streamServerOptions struct {
 func newStreamTestEnvWith(t *testing.T, opts apprealtime.HubOptions, srv streamServerOptions) *streamTestEnv {
 	t.Helper()
 
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	db, err := testdb.Open(t, sqlite.Open(":memory:"), &gorm.Config{})
 	require.NoError(t, err)
 	require.NoError(t, db.AutoMigrate(&domain.RealtimeEvent{}))
 

@@ -14,6 +14,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/internal/testsupport/testdb"
 )
 
 // setupCustomFieldDB builds the custom_fields/templates tables by hand — GORM's
@@ -21,7 +22,7 @@ import (
 // sqlite rejects (the service always sets the ID explicitly anyway).
 func setupCustomFieldDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{TranslateError: true})
+	db, err := testdb.Open(t, sqlite.Open(":memory:"), &gorm.Config{TranslateError: true})
 	require.NoError(t, err)
 	require.NoError(t, db.Exec(`
 		CREATE TABLE custom_fields (

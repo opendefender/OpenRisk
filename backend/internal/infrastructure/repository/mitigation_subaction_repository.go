@@ -183,26 +183,18 @@ func (r *GormMitigationSubActionRepository) Update(tenantID string, subaction *d
 	return nil
 }
 
-// Delete soft-deletes a subaction
+// ownsMitigation is the tenant gate of mitigation_subactions, which has no
+// tenant_id column: a sub-action is visible only through a mitigation of tenantID.
+func (r *GormMitigationSubActionRepository) ownsMitigation(tenantID string) *gorm.DB {
+	return r.db.Model(&domain.Mitigation{}).Select("id").Where("tenant_id = ? AND deleted_at IS NULL", tenantID)
+}
+
+// Delete soft-deletes a subaction. One statement, gated by the parent: an
+// unknown id and another tenant's id both delete nothing and answer
+// ErrNotFound, so the answer never confirms that a foreign id exists (#808).
 func (r *GormMitigationSubActionRepository) Delete(tenantID string, id uuid.UUID) error {
-	// Verify tenant ownership
-	var subaction domain.MitigationSubAction
-	if err := r.db.Where("id = ?", id).First(&subaction).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return domain.ErrNotFound
-		}
-		return fmt.Errorf("failed to get subaction: %w", err)
-	}
-
-	var mitigation domain.Mitigation
-	if err := r.db.Where("id = ? AND tenant_id = ?", subaction.MitigationID, tenantID).First(&mitigation).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return domain.ErrForbidden
-		}
-		return fmt.Errorf("failed to verify mitigation: %w", err)
-	}
-
-	result := r.db.Delete(&domain.MitigationSubAction{}, "id = ?", id)
+	result := r.db.Where("id = ? AND mitigation_id IN (?)", id, r.ownsMitigation(tenantID)).
+		Delete(&domain.MitigationSubAction{})
 
 	if result.Error != nil {
 		return fmt.Errorf("failed to delete subaction: %w", result.Error)

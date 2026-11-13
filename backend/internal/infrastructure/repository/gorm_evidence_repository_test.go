@@ -12,6 +12,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/internal/testsupport/testdb"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/driver/sqlite"
@@ -24,7 +25,7 @@ import (
 // class of failure.
 func setupEvidenceRepo(t *testing.T) (*GormEvidenceRepository, *gorm.DB) {
 	t.Helper()
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{DisableForeignKeyConstraintWhenMigrating: true})
+	db, err := testdb.Open(t, sqlite.Open(":memory:"), &gorm.Config{DisableForeignKeyConstraintWhenMigrating: true})
 	require.NoError(t, err)
 	require.NoError(t, db.AutoMigrate(
 		&domain.Evidence{},
@@ -216,7 +217,12 @@ func TestEvidenceRepo_ListExpiringAndReminderStamp(t *testing.T) {
 
 	// Stamped at send time, as the worker does — the row already exists, so the
 	// stamp necessarily lands after the write that created it.
-	require.NoError(t, repo.MarkReminded(ctx, due.ID, time.Now()))
+	// #808: a stamp carrying another tenant's id touches nothing.
+	require.NoError(t, repo.MarkReminded(ctx, uuid.New(), due.ID, time.Now()))
+	got, err = repo.ListExpiring(ctx, now, domain.EvidenceExpiryWindow, 100)
+	require.NoError(t, err)
+	require.Len(t, got, 1, "a foreign tenant must not be able to stamp the reminder")
+	require.NoError(t, repo.MarkReminded(ctx, tenant, due.ID, time.Now()))
 	got, err = repo.ListExpiring(ctx, now, domain.EvidenceExpiryWindow, 100)
 	require.NoError(t, err)
 	assert.Empty(t, got, "a stamped reminder must not fire again on the next tick")

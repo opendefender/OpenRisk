@@ -12,6 +12,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/internal/infrastructure/tenantguard"
 	"gorm.io/gorm"
 )
 
@@ -102,6 +103,23 @@ func (rs *RoleService) GetRoleByName(ctx context.Context, tenantID uuid.UUID, na
 	return &role, nil
 }
 
+// GetPredefinedRoleByName retrieves a predefined role. Predefined roles are
+// shared by every tenant and carry no tenant of their own, so the lookup is
+// cross-tenant by nature; it answers a custom role of no tenant.
+func (rs *RoleService) GetPredefinedRoleByName(ctx context.Context, name string) (*domain.RoleEnhanced, error) {
+	var role domain.RoleEnhanced
+	err := tenantguard.CrossTenant(rs.db.WithContext(ctx), "predefined roles are shared by every tenant and hold no tenant of their own").
+		Where("is_predefined = true AND name = ? AND deleted_at IS NULL", name).
+		First(&role).Error
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, fmt.Errorf("role '%s' not found", name)
+		}
+		return nil, err
+	}
+	return &role, nil
+}
+
 // GetRolesByTenant retrieves all roles for a tenant
 func (rs *RoleService) GetRolesByTenant(ctx context.Context, tenantID uuid.UUID) ([]domain.RoleEnhanced, error) {
 	var roles []domain.RoleEnhanced
@@ -167,7 +185,7 @@ func (rs *RoleService) DeleteRole(ctx context.Context, tenantID, roleID uuid.UUI
 // row anywhere must still block.
 func (rs *RoleService) ensureRoleUnassigned(ctx context.Context, roleID uuid.UUID) error {
 	var count int64
-	if err := rs.db.WithContext(ctx).
+	if err := tenantguard.CrossTenant(rs.db.WithContext(ctx), "a role held in any organisation blocks its deletion; zero versus non-zero is all that is read").
 		Model(&domain.UserTenant{}).
 		Where("role_id = ?", roleID).
 		Count(&count).Error; err != nil {
@@ -252,7 +270,7 @@ func (rs *RoleService) InitializeDefaultRoles(ctx context.Context) error {
 
 	for _, predefined := range predefinedRoles {
 		// Check if already exists
-		existing, _ := rs.GetRoleByName(ctx, uuid.Nil, predefined.Name)
+		existing, _ := rs.GetPredefinedRoleByName(ctx, predefined.Name)
 		if existing != nil {
 			continue
 		}

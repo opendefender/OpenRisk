@@ -17,11 +17,12 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/internal/testsupport/testdb"
 )
 
 func setupVendorAssessmentRepo(t *testing.T) (*GormVendorAssessmentRepository, *gorm.DB) {
 	t.Helper()
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	db, err := testdb.Open(t, sqlite.Open(":memory:"), &gorm.Config{})
 	require.NoError(t, err)
 	// These models carry no Postgres-only default, so sqlite builds them from
 	// the model itself — no hand-written DDL to drift.

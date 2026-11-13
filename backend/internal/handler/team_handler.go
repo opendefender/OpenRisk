@@ -198,7 +198,7 @@ func UpdateTeam(c *fiber.Ctx) error {
 		team.Description = input.Description
 	}
 
-	if err := database.DB.Save(&team).Error; err != nil {
+	if err := database.DB.Where("tenant_id = ?", team.TenantID).Updates(&team).Error; err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to update team"})
 	}
 
@@ -236,7 +236,7 @@ func DeleteTeam(c *fiber.Ctx) error {
 		if err := tx.Where("team_id = ?", team.ID).Delete(&domain.TeamMember{}).Error; err != nil {
 			return err
 		}
-		return tx.Delete(&team).Error
+		return tx.Where("tenant_id = ?", team.TenantID).Delete(&team).Error
 	}); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to delete team"})
 	}

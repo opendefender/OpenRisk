@@ -21,6 +21,7 @@ import (
 	"github.com/opendefender/openrisk/internal/domain"
 	"github.com/opendefender/openrisk/internal/infrastructure/database"
 	"github.com/opendefender/openrisk/internal/infrastructure/repository"
+	"github.com/opendefender/openrisk/internal/infrastructure/tenantguard"
 	"github.com/opendefender/openrisk/internal/middleware"
 )
 
@@ -64,7 +65,8 @@ func ensureUserOrganization(user *domain.User) error {
 
 	// Reuse an existing membership if one exists but DefaultOrgID was never set.
 	var existing domain.OrganizationMember
-	if err := database.DB.Where("user_id = ?", user.ID).First(&existing).Error; err == nil {
+	if err := tenantguard.CrossTenant(database.DB, "identity lookup: the authenticated user's own memberships, before an org is chosen").
+		Where("user_id = ?", user.ID).First(&existing).Error; err == nil {
 		user.DefaultOrgID = &existing.OrganizationID
 		return database.DB.Model(user).Update("default_org_id", existing.OrganizationID).Error
 	}

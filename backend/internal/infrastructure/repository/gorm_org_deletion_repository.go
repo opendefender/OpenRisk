@@ -11,6 +11,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/internal/infrastructure/tenantguard"
 	"gorm.io/gorm"
 )
 
@@ -57,7 +58,7 @@ func (r *GormOrgDeletionRepository) Cancel(ctx context.Context, tenant, by uuid.
 // design — the purge worker sweeps every tenant.
 func (r *GormOrgDeletionRepository) ListDue(ctx context.Context, now time.Time) ([]domain.OrgDeletionRequest, error) {
 	var out []domain.OrgDeletionRequest
-	err := r.db.WithContext(ctx).
+	err := tenantguard.CrossTenant(r.db.WithContext(ctx), "org deletion purge sweep across tenants; each row carries its tenant").
 		Where("status = ? AND scheduled_purge_at <= ?", domain.DeletionPending, now).
 		Find(&out).Error
 	return out, err

@@ -19,11 +19,12 @@ import (
 
 	"github.com/opendefender/openrisk/internal/domain"
 	"github.com/opendefender/openrisk/internal/testsupport/sqliteschema"
+	"github.com/opendefender/openrisk/internal/testsupport/testdb"
 )
 
 func setupInventoryRepo(t *testing.T) *GormHostInventoryRepository {
 	t.Helper()
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
+	db, err := testdb.Open(t, sqlite.Open(":memory:"), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
 	require.NoError(t, err)
 	require.NoError(t, db.Exec(`CREATE TABLE host_inventories (id TEXT PRIMARY KEY)`).Error)
 	require.NoError(t, sqliteschema.Reconcile(db, "host_inventories", &domain.HostInventory{}))

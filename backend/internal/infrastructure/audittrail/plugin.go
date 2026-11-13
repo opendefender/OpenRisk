@@ -15,6 +15,7 @@ import (
 
 	"github.com/opendefender/openrisk/internal/domain"
 	"github.com/opendefender/openrisk/internal/infrastructure/repository"
+	"github.com/opendefender/openrisk/internal/infrastructure/tenantguard"
 )
 
 // Plugin is a GORM plugin that appends an immutable domain.AuditEvent whenever a
@@ -105,7 +106,8 @@ func (p *Plugin) beforeUpdate(db *gorm.DB) {
 	}
 	fresh := reflect.New(db.Statement.Schema.ModelType).Interface()
 	// Same session (same tx/conn), no hooks, silent — read the pre-image by PK.
-	tx := db.Session(&gorm.Session{NewDB: true, SkipHooks: true})
+	// The pre-image of the row the already-guarded statement is updating.
+	tx := tenantguard.CrossTenant(db.Session(&gorm.Session{NewDB: true, SkipHooks: true}), "audit pre-image of the row the already-guarded statement is updating")
 	if err := tx.Where("id = ?", id).Take(fresh).Error; err != nil {
 		return
 	}

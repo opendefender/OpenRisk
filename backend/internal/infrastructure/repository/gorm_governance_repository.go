@@ -15,6 +15,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/internal/infrastructure/tenantguard"
 )
 
 // Governance stores (spec §15). Three focused repositories — the immutable audit
@@ -41,6 +42,11 @@ func (r *GormAuditEventRepository) Append(ctx context.Context, e *domain.AuditEv
 }
 
 func (r *GormAuditEventRepository) List(ctx context.Context, tenantID uuid.UUID, f domain.AuditEventFilter) ([]domain.AuditEvent, int64, error) {
+	// A nil tenant reads nobody's data. Answered here, before any query, so the
+	// tenant guard never sees a statement bound to uuid.Nil (#808).
+	if tenantID == uuid.Nil {
+		return []domain.AuditEvent{}, 0, nil
+	}
 	q := r.db.WithContext(ctx).Model(&domain.AuditEvent{}).Where("tenant_id = ?", tenantID)
 	if f.EntityType != "" {
 		q = q.Where("entity_type = ?", f.EntityType)
@@ -304,7 +310,7 @@ func (r *GormApprovalRepository) ListRequests(ctx context.Context, tenantID uuid
 // (each row carries its own). Drives the expiry sweep, which has no session.
 func (r *GormApprovalRepository) ListExpired(ctx context.Context, now time.Time) ([]domain.ApprovalRequest, error) {
 	var out []domain.ApprovalRequest
-	if err := r.db.WithContext(ctx).
+	if err := tenantguard.CrossTenant(r.db.WithContext(ctx), "approval expiry sweep across tenants; each row carries its tenant").
 		Where("status = ? AND expires_at IS NOT NULL AND expires_at < ?", domain.ApprovalPending, now).
 		Limit(500).
 		Find(&out).Error; err != nil {

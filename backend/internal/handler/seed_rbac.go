@@ -16,9 +16,9 @@ import (
 	"context"
 	"log"
 
-	"github.com/google/uuid"
 	"github.com/opendefender/openrisk/internal/domain"
 	"github.com/opendefender/openrisk/internal/infrastructure/database"
+	"github.com/opendefender/openrisk/internal/infrastructure/tenantguard"
 	"github.com/opendefender/openrisk/internal/service"
 )
 
@@ -51,7 +51,7 @@ func SeedRBAC() {
 	}
 
 	// 3) mirror every Organization as an RBAC Tenant, and every membership as a UserTenant.
-	adminRole, _ := roleSvc.GetRoleByName(ctx, uuid.Nil, "Admin")
+	adminRole, _ := roleSvc.GetPredefinedRoleByName(ctx, "Admin")
 
 	var orgs []domain.Organization
 	db.Find(&orgs)
@@ -78,7 +78,7 @@ func SeedRBAC() {
 
 	if adminRole != nil {
 		var members []domain.OrganizationMember
-		db.Find(&members)
+		tenantguard.CrossTenant(db, "boot seed mirrors every organisation membership into user_tenants").Find(&members)
 		for _, m := range members {
 			var ut domain.UserTenant
 			if err := db.Where("user_id = ? AND tenant_id = ?", m.UserID, m.OrganizationID).First(&ut).Error; err == nil {

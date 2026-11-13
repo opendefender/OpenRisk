@@ -14,6 +14,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/internal/infrastructure/tenantguard"
 )
 
 // ---------------------------------------------------------------------------
@@ -84,7 +85,7 @@ func (r *GormScanConfigRepository) Update(ctx context.Context, cfg *domain.ScanC
 // tenant-scoped by design — the scheduler worker runs globally.
 func (r *GormScanConfigRepository) ListDueScheduled(ctx context.Context, now time.Time) ([]domain.ScanConfig, error) {
 	var cfgs []domain.ScanConfig
-	err := r.db.WithContext(ctx).
+	err := tenantguard.CrossTenant(r.db.WithContext(ctx), "scan scheduler sweeps every tenant; the tenant is re-derived from each config").
 		Where("enabled = ? AND schedule_minutes > 0 AND (next_run_at IS NULL OR next_run_at <= ?)", true, now).
 		Find(&cfgs).Error
 	return cfgs, err
@@ -156,7 +157,7 @@ func (r *GormScannerAgentRepository) GetByTokenHash(ctx context.Context, tokenHa
 		return nil, nil
 	}
 	var agent domain.ScannerAgent
-	err := r.db.WithContext(ctx).
+	err := tenantguard.CrossTenant(r.db.WithContext(ctx), "agent authentication: the token hash resolves the tenant").
 		Where("token_hash = ? AND status <> ?", tokenHash, domain.AgentRevoked).
 		First(&agent).Error
 	if err != nil {

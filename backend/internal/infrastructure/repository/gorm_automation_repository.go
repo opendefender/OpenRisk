@@ -11,6 +11,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/internal/infrastructure/tenantguard"
 	"gorm.io/gorm"
 )
 
@@ -86,6 +87,11 @@ func (r *GormAutomationRuleRepository) GetByID(ctx context.Context, id, tenantID
 
 func (r *GormAutomationRuleRepository) List(ctx context.Context, tenantID uuid.UUID) ([]domain.AutomationRule, error) {
 	var rules []domain.AutomationRule
+	// A nil tenant reads nobody's data. Answered here, before any query, so the
+	// tenant guard never sees a statement bound to uuid.Nil (#808).
+	if tenantID == uuid.Nil {
+		return rules, nil
+	}
 	err := r.db.WithContext(ctx).
 		Where("tenant_id = ?", tenantID).
 		Order("priority ASC, created_at DESC").
@@ -304,7 +310,7 @@ func (r *GormSLATrackerRepository) ListOpen(ctx context.Context, tenantID uuid.U
 // escalate_at has elapsed. Each row carries its own tenant_id.
 func (r *GormSLATrackerRepository) ListBreaching(ctx context.Context, now time.Time) ([]domain.SLATracker, error) {
 	var out []domain.SLATracker
-	err := r.db.WithContext(ctx).
+	err := tenantguard.CrossTenant(r.db.WithContext(ctx), "SLA breach sweep across tenants; each row carries its tenant").
 		Where("status IN ? AND escalate_at IS NOT NULL AND escalate_at <= ?",
 			[]domain.SLAStatus{domain.SLAOpen, domain.SLABreached}, now).
 		Order("escalate_at ASC").
@@ -418,7 +424,7 @@ func (r *GormAutomationChannelRepository) Get(ctx context.Context, tenantID uuid
 
 func (r *GormSLATrackerRepository) ListOpenLinkedToRisk(ctx context.Context) ([]domain.SLATracker, error) {
 	var out []domain.SLATracker
-	err := r.db.WithContext(ctx).
+	err := tenantguard.CrossTenant(r.db.WithContext(ctx), "SLA auto-close sweep across tenants; each row carries its tenant").
 		Where("risk_id IS NOT NULL AND status IN ?",
 			[]domain.SLAStatus{domain.SLAOpen, domain.SLABreached, domain.SLAEscalated}).
 		Limit(500).
@@ -427,6 +433,11 @@ func (r *GormSLATrackerRepository) ListOpenLinkedToRisk(ctx context.Context) ([]
 }
 
 func (r *GormSLATrackerRepository) Stats(ctx context.Context, tenantID uuid.UUID) (domain.SLAStats, error) {
+	// A nil tenant reads nobody's data. Answered before any query so the tenant
+	// guard never sees a statement bound to uuid.Nil (#808).
+	if tenantID == uuid.Nil {
+		return domain.SLAStats{}, nil
+	}
 	var rows []struct {
 		Status string
 		Count  int64

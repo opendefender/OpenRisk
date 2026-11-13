@@ -15,6 +15,7 @@ import (
 	"gorm.io/gorm/clause"
 
 	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/internal/infrastructure/tenantguard"
 )
 
 // GormEvidenceRepository implements domain.EvidenceRepository.
@@ -254,7 +255,7 @@ func (r *GormEvidenceRepository) ListExpiring(ctx context.Context, now time.Time
 		limit = 500
 	}
 	var out []domain.Evidence
-	err := r.db.WithContext(ctx).
+	err := tenantguard.CrossTenant(r.db.WithContext(ctx), "evidence expiry sweep across tenants; each row carries its tenant").
 		Where("valid_until IS NOT NULL AND valid_until <= ?", now.Add(window)).
 		Where("review = ?", domain.EvidenceReviewAccepted).
 		// "Not reminded since the artifact last changed" rather than "never
@@ -267,9 +268,9 @@ func (r *GormEvidenceRepository) ListExpiring(ctx context.Context, now time.Time
 	return out, err
 }
 
-func (r *GormEvidenceRepository) MarkReminded(ctx context.Context, id uuid.UUID, at time.Time) error {
+func (r *GormEvidenceRepository) MarkReminded(ctx context.Context, tenantID, id uuid.UUID, at time.Time) error {
 	return r.db.WithContext(ctx).
 		Model(&domain.Evidence{}).
-		Where("id = ?", id).
+		Where("id = ? AND tenant_id = ?", id, tenantID).
 		UpdateColumn("reminder_sent_at", at).Error
 }

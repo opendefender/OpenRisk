@@ -21,6 +21,7 @@ import (
 	"github.com/opendefender/openrisk/internal/domain"
 	"github.com/opendefender/openrisk/internal/infrastructure/repository"
 	"github.com/opendefender/openrisk/internal/testsupport/sqliteschema"
+	"github.com/opendefender/openrisk/internal/testsupport/testdb"
 	"github.com/opendefender/openrisk/pkg/crypto"
 	"github.com/opendefender/openrisk/pkg/otp"
 )
@@ -31,7 +32,7 @@ var gateKey = []byte("0123456789abcdef0123456789abcdef")
 
 func newGate(t *testing.T) (*Gate, uuid.UUID, uuid.UUID, string) {
 	t.Helper()
-	db, err := gorm.Open(sqlite.Open("file:gate_"+uuid.NewString()+"?mode=memory&cache=private"),
+	db, err := testdb.Open(t, sqlite.Open("file:gate_"+uuid.NewString()+"?mode=memory&cache=private"),
 		&gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
 	require.NoError(t, err)
 	require.NoError(t, db.Exec(`CREATE TABLE mfa_secrets (id TEXT PRIMARY KEY)`).Error)

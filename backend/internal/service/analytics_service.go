@@ -54,6 +54,11 @@ func (s *AnalyticsService) GetRiskMetrics(ctx context.Context, tenantID uuid.UUI
 		RisksByFramework: make(map[string]int64),
 		RisksByStatus:    make(map[string]int64),
 	}
+	// A nil tenant reads nobody's data. Answered here, before any query, so the
+	// tenant guard never sees a statement bound to uuid.Nil (#808).
+	if tenantID == uuid.Nil {
+		return metrics, nil
+	}
 
 	// Total risks
 	s.scoped(ctx, tenantID).Model(&domain.Risk{}).Count(&metrics.TotalRisks)
@@ -207,6 +212,11 @@ type MitigationMetrics struct {
 func (s *AnalyticsService) GetMitigationMetrics(ctx context.Context, tenantID uuid.UUID) (*MitigationMetrics, error) {
 	metrics := &MitigationMetrics{
 		MitigationsByRisk: make(map[string]int64),
+	}
+	// A nil tenant reads nobody's data. Answered here, before any query, so the
+	// tenant guard never sees a statement bound to uuid.Nil (#808).
+	if tenantID == uuid.Nil {
+		return metrics, nil
 	}
 
 	// Total mitigations

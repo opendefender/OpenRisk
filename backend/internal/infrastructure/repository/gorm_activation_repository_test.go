@@ -17,6 +17,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/internal/testsupport/testdb"
 )
 
 // The schema comes from AutoMigrate on the real models rather than hand-written
@@ -25,7 +26,7 @@ import (
 // product bug, not a test bug.
 func setupActivationRepo(t *testing.T) *GormActivationRepository {
 	t.Helper()
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	db, err := testdb.Open(t, sqlite.Open(":memory:"), &gorm.Config{})
 	require.NoError(t, err)
 	require.NoError(t, db.AutoMigrate(
 		&domain.ActivationEvent{},

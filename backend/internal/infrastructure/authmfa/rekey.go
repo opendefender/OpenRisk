@@ -12,6 +12,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/internal/infrastructure/tenantguard"
 	"github.com/opendefender/openrisk/pkg/crypto"
 )
 
@@ -41,7 +42,7 @@ func RekeySecrets(ctx context.Context, db *gorm.DB, from, to []byte) (RekeyResul
 		ID              uuid.UUID
 		SecretEncrypted string
 	}
-	if err := db.WithContext(ctx).Unscoped().Model(&domain.MFASecret{}).
+	if err := tenantguard.CrossTenant(db.WithContext(ctx), "MFA key rotation re-encrypts every secret in the deployment").Unscoped().Model(&domain.MFASecret{}).
 		Select("id", "secret_encrypted").Find(&rows).Error; err != nil {
 		return res, err
 	}
@@ -58,7 +59,7 @@ func RekeySecrets(ctx context.Context, db *gorm.DB, from, to []byte) (RekeyResul
 		if err != nil {
 			return res, err
 		}
-		upd := db.WithContext(ctx).Unscoped().Model(&domain.MFASecret{}).
+		upd := tenantguard.CrossTenant(db.WithContext(ctx), "MFA key rotation re-encrypts every secret in the deployment").Unscoped().Model(&domain.MFASecret{}).
 			Where("id = ? AND secret_encrypted = ?", row.ID, row.SecretEncrypted).
 			UpdateColumn("secret_encrypted", next)
 		if upd.Error != nil {

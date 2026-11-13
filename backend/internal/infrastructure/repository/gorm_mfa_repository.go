@@ -53,7 +53,7 @@ func (r *GormMFARepository) GetMFASecret(ctx context.Context, userID, tenantID u
 // code, and writing it back would lower the mark and re-open the replay #849
 // closes. ConsumeTOTPStep is its only writer.
 func (r *GormMFARepository) UpdateMFASecret(ctx context.Context, secret *domain.MFASecret) error {
-	return r.db.WithContext(ctx).Omit("last_totp_step").Save(secret).Error
+	return updateInTenant(r.db.WithContext(ctx), secret.TenantID, secret, "last_totp_step")
 }
 
 // ConsumeTOTPStep records that a code for step was accepted, and reports false

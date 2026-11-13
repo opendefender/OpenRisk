@@ -51,6 +51,11 @@ func (r *GormEntitlementRepository) PlanAndRegion(ctx context.Context, tenant uu
 // aggregates the two configurable outbound connectors (vulnerability integrations +
 // scanner configs). Unknown keys count as 0 (never blocks).
 func (r *GormEntitlementRepository) Count(ctx context.Context, tenant uuid.UUID, key ent.LimitKey) (int, error) {
+	// A nil tenant counts nobody's rows. Answered before any query so the tenant
+	// guard never sees a statement bound to uuid.Nil (#808).
+	if tenant == uuid.Nil {
+		return 0, nil
+	}
 	db := r.db.WithContext(ctx)
 	var n int64
 	switch key {

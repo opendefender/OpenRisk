@@ -15,6 +15,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/internal/infrastructure/tenantguard"
 )
 
 // GormNoticeEmailOutbox is the notice e-mail outbox and its throttle (#997,
@@ -154,7 +155,8 @@ func (r *GormNoticeEmailOutbox) Enqueue(ctx context.Context, row domain.NoticeEm
 // send: it crashed the process each time. It is marked failed, kept and logged
 // by the caller, rather than taken again forever.
 func (r *GormNoticeEmailOutbox) ClaimDue(ctx context.Context, limit int, lease time.Duration, maxAttempts int) ([]domain.NoticeEmailOutbox, error) {
-	if err := r.db.WithContext(ctx).Exec(`
+	sys := tenantguard.CrossTenant(r.db.WithContext(ctx), "outbox delivery claims due rows of every tenant, fairly ranked per tenant")
+	if err := sys.Exec(`
 		UPDATE notice_email_outbox
 		   SET status = ?, locked_until = NULL,
 		       last_error = 'no outcome recorded after the last attempt (the send never returned)'
@@ -177,7 +179,7 @@ func (r *GormNoticeEmailOutbox) ClaimDue(ctx context.Context, limit int, lease t
 	// against the row's latest version, so a row another replica claimed
 	// between the ranking and the lock is skipped, never claimed twice.
 	var rows []domain.NoticeEmailOutbox
-	err := r.db.WithContext(ctx).Raw(`
+	err := sys.Raw(`
 		WITH ranked AS (
 		     SELECT n.id, n.due_at, row_number() OVER (PARTITION BY n.tenant_id ORDER BY n.due_at, n.id) AS turn
 		       FROM notice_email_outbox n
@@ -215,7 +217,7 @@ func (r *GormNoticeEmailOutbox) ClaimDue(ctx context.Context, limit int, lease t
 		if !row.Grouped || row.ResourceID == nil {
 			continue
 		}
-		if err := r.db.WithContext(ctx).Exec(`
+		if err := sys.Exec(`
 			UPDATE notice_email_throttle SET sent_at = GREATEST(sent_at, now())
 			 WHERE tenant_id = ? AND user_id = ? AND resource_type = ? AND resource_id = ?`,
 			row.TenantID, row.UserID, row.ResourceType, *row.ResourceID).Error; err != nil {
@@ -261,6 +263,7 @@ func (r *GormNoticeEmailOutbox) Close(ctx context.Context, row domain.NoticeEmai
 // failed rows after a month (they are what an operator looks at), and throttle
 // stamps older than the longest window.
 func (r *GormNoticeEmailOutbox) Prune(ctx context.Context) (int64, error) {
+	sys := tenantguard.CrossTenant(r.db.WithContext(ctx), "outbox retention purge across every tenant")
 	var total int64
 	for _, q := range []struct {
 		sql  string
@@ -272,7 +275,7 @@ func (r *GormNoticeEmailOutbox) Prune(ctx context.Context) (int64, error) {
 			[]interface{}{domain.NoticeEmailFailed}},
 		{`DELETE FROM notice_email_throttle WHERE sent_at < now() - interval '25 hours'`, nil},
 	} {
-		res := r.db.WithContext(ctx).Exec(q.sql, q.args...)
+		res := sys.Exec(q.sql, q.args...)
 		if res.Error != nil {
 			return total, res.Error
 		}

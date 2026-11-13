@@ -12,6 +12,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/internal/testsupport/testdb"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/driver/sqlite"
@@ -30,7 +31,7 @@ func setupComplianceRepoWithEvidence(t *testing.T) (*GormComplianceRepository, *
 
 func setupComplianceRepo(t *testing.T) *GormComplianceRepository {
 	t.Helper()
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{
+	db, err := testdb.Open(t, sqlite.Open(":memory:"), &gorm.Config{
 		// Required for errors.Is(err, gorm.ErrDuplicatedKey) to work — see
 		// gorm_compliance_repository.go's CreateFramework/CreateControl.
 		TranslateError: true,

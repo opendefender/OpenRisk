@@ -22,6 +22,7 @@ import (
 
 	"github.com/opendefender/openrisk/internal/infrastructure/database"
 	"github.com/opendefender/openrisk/internal/middleware"
+	"github.com/opendefender/openrisk/internal/testsupport/testdb"
 	authpkg "github.com/opendefender/openrisk/pkg/auth"
 )
 
@@ -33,7 +34,7 @@ import (
 func newBulkAssignHandlerDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	dsn := "file:bulk_handler_" + uuid.New().String() + "?mode=memory&cache=private"
-	db, err := gorm.Open(sqlite.Open(dsn), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
+	db, err := testdb.Open(t, sqlite.Open(dsn), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
 	require.NoError(t, err)
 	// Only the columns the template lookup reads or filters on.
 	require.NoError(t, db.Exec(`CREATE TABLE mitigations (
@@ -108,7 +109,7 @@ func TestBulkAssignHandler_Unauthorized(t *testing.T) {
 func newBulkGetHandlerDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	dsn := "file:bulk_get_handler_" + uuid.New().String() + "?mode=memory&cache=private"
-	db, err := gorm.Open(sqlite.Open(dsn), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
+	db, err := testdb.Open(t, sqlite.Open(dsn), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
 	require.NoError(t, err)
 	// jsonb → TEXT; filter_query and update_data stay NULL in these tests.
 	require.NoError(t, db.Exec(`CREATE TABLE bulk_operations (
