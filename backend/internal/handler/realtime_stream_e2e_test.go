@@ -72,6 +72,11 @@ type streamServerOptions struct {
 	// SendBuffer, when set, caps each accepted socket's kernel send buffer so a
 	// client that stops reading blocks the server's writes quickly.
 	SendBuffer int
+	// Mount, when set, registers extra routes on the same app, after the
+	// stand-in auth middleware and before the listener starts. The risk-created
+	// regression (#348) uses it to put the real POST /risks behind the same
+	// server the stream is read from.
+	Mount func(app *fiber.App, pub *apprealtime.Publisher)
 }
 
 func newStreamTestEnvWith(t *testing.T, opts apprealtime.HubOptions, srv streamServerOptions) *streamTestEnv {
@@ -127,6 +132,9 @@ func newStreamTestEnvWith(t *testing.T, opts apprealtime.HubOptions, srv streamS
 	})
 	app.Get("/api/v1/realtime/events", h.Stream)
 	app.Get("/api/v1/realtime/catalog", h.Catalog)
+	if srv.Mount != nil {
+		srv.Mount(app, pub)
+	}
 
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(t, err)
