@@ -9,7 +9,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -266,4 +268,29 @@ func TestImportAssets_OverCapacityWritesNothing(t *testing.T) {
 	require.ErrorAs(t, err, &over)
 	assert.Equal(t, 2, over.Requested)
 	assert.Empty(t, tx.committed)
+}
+
+// A multibyte rune straddling byte 64 must not leave a broken tail: Postgres
+// rejects invalid UTF-8 and the whole import would roll back.
+func TestTruncateCorrelationID_CutsAtRuneBoundary(t *testing.T) {
+	straddle := strings.Repeat("a", maxCorrelationIDLen-1) + "é" // é spans bytes 63-64
+	got := truncateCorrelationID(straddle)
+	assert.True(t, utf8.ValidString(got))
+	assert.Equal(t, strings.Repeat("a", maxCorrelationIDLen-1), got)
+
+	assert.Equal(t, "abc", truncateCorrelationID("abc"))
+	assert.Equal(t, "ab", truncateCorrelationID("a\xffb"), "invalid UTF-8 is dropped")
+	exact := strings.Repeat("é", maxCorrelationIDLen/2)
+	assert.Equal(t, exact, truncateCorrelationID(exact))
+}
+
+func TestImportAssets_CorrelationIDWithMultibyteStaysValidUTF8(t *testing.T) {
+	tx := &fakeAssetTx{outbox: &fakeOutbox{}}
+	id := strings.Repeat("a", maxCorrelationIDLen-1) + "日本"
+	_, err := NewImportAssetsUseCase(tx.run, tx.names).Execute(context.Background(), uuid.New(),
+		ImportAssetsInput{CSV: []byte("name\nA\n"), CorrelationID: id})
+	require.NoError(t, err)
+	require.Len(t, tx.events, 1)
+	assert.True(t, utf8.ValidString(tx.events[0].CorrelationID))
+	assert.LessOrEqual(t, len(tx.events[0].CorrelationID), maxCorrelationIDLen)
 }

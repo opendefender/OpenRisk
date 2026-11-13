@@ -68,14 +68,14 @@ func (s *fakeStore) MarkPublished(_ context.Context, tenant uuid.UUID, ids []uui
 	return int64(len(ids)), nil
 }
 
-func (s *fakeStore) Retry(_ context.Context, tenant, id uuid.UUID, notBefore time.Time, reason string) error {
+func (s *fakeStore) Retry(_ context.Context, tenant, id uuid.UUID, _, notBefore time.Time, reason string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.retries = append(s.retries, retryCall{tenant, id, notBefore, reason})
 	return nil
 }
 
-func (s *fakeStore) Release(_ context.Context, _ uuid.UUID, ids []uuid.UUID) error {
+func (s *fakeStore) Release(_ context.Context, _ uuid.UUID, ids []uuid.UUID, _ time.Time) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.released = append(s.released, ids...)

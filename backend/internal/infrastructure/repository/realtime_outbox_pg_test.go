@@ -421,7 +421,7 @@ func TestRealtimeOutbox_PerTenantOrderAndIsolation(t *testing.T) {
 	assert.Equal(t, int64(3), e2[0].Sequence, "tx2 queued behind tx1 and took the next positions")
 
 	// Back off A's head: the pass delivers other tenants only, none of A's.
-	require.NoError(t, events.Retry(ctx, a, e1[0].ID, time.Now().Add(time.Hour), "test"))
+	require.NoError(t, db.Exec(`UPDATE realtime_events SET locked_until = now() + interval '1 hour' WHERE tenant_id = ? AND id = ?`, a, e1[0].ID).Error)
 	more := enlistIn(t, db, events, b, 2)
 	sink.mu.Lock()
 	sink.got = nil
@@ -579,8 +579,9 @@ func TestRealtimeOutbox_StoreStatementsAreTenantGated(t *testing.T) {
 	n, err := events.MarkPublished(ctx, b, []uuid.UUID{ev.ID})
 	require.NoError(t, err)
 	assert.Zero(t, n)
-	require.NoError(t, events.Retry(ctx, b, ev.ID, time.Now().Add(time.Hour), "x"))
-	require.NoError(t, events.Release(ctx, b, []uuid.UUID{ev.ID}))
+	lease := *claimed[0].LockedUntil
+	require.NoError(t, events.Retry(ctx, b, ev.ID, lease, time.Now().Add(time.Hour), "x"))
+	require.NoError(t, events.Release(ctx, b, []uuid.UUID{ev.ID}, lease))
 	require.NoError(t, events.Abandon(ctx, b, ev.ID, "x"))
 
 	row := rowOf(t, db, a, ev.ID)
@@ -593,8 +594,8 @@ func TestRealtimeOutbox_StoreStatementsAreTenantGated(t *testing.T) {
 	// Fail closed without a tenant.
 	_, err = events.MarkPublished(ctx, uuid.Nil, []uuid.UUID{ev.ID})
 	require.Error(t, err)
-	require.Error(t, events.Retry(ctx, uuid.Nil, ev.ID, time.Now(), "x"))
-	require.Error(t, events.Release(ctx, uuid.Nil, []uuid.UUID{ev.ID}))
+	require.Error(t, events.Retry(ctx, uuid.Nil, ev.ID, lease, time.Now(), "x"))
+	require.Error(t, events.Release(ctx, uuid.Nil, []uuid.UUID{ev.ID}, lease))
 	require.Error(t, events.Abandon(ctx, uuid.Nil, ev.ID, "x"))
 
 	// The owner can.
@@ -608,9 +609,9 @@ func TestRealtimeOutbox_ReleaseGivesTheAttemptBack(t *testing.T) {
 	ctx := context.Background()
 	tenant := uuid.New()
 	ev := enlistIn(t, db, events, tenant, 1)[0]
-	_, err := events.ClaimPending(ctx, 16, 100, time.Minute)
+	claimed, err := events.ClaimPending(ctx, 16, 100, time.Minute)
 	require.NoError(t, err)
-	require.NoError(t, events.Release(ctx, tenant, []uuid.UUID{ev.ID}))
+	require.NoError(t, events.Release(ctx, tenant, []uuid.UUID{ev.ID}, *claimed[0].LockedUntil))
 	row := rowOf(t, db, tenant, ev.ID)
 	assert.Equal(t, 0, row.Attempts)
 	assert.Nil(t, row.LockedUntil)
@@ -618,6 +619,59 @@ func TestRealtimeOutbox_ReleaseGivesTheAttemptBack(t *testing.T) {
 	again, err := events.ClaimPending(ctx, 16, 100, time.Minute)
 	require.NoError(t, err)
 	assert.Len(t, again, 1)
+}
+
+// Relay A's lease expires and relay B claims the rows; A then fails to finish
+// and calls Retry/Release with its old lease. B's lease and attempt count stay.
+func TestRealtimeOutbox_StaleLeaseCannotTouchANewerClaim(t *testing.T) {
+	db, events := rtOutboxDB(t)
+	ctx := context.Background()
+	tenant := uuid.New()
+	evs := enlistIn(t, db, events, tenant, 2)
+
+	first, err := events.ClaimPending(ctx, 16, 100, time.Minute)
+	require.NoError(t, err)
+	require.Len(t, first, 2)
+	staleLease := *first[0].LockedUntil
+
+	// A's lease expires; B claims both rows.
+	require.NoError(t, db.Exec(`UPDATE realtime_events SET locked_until = now() - interval '1 second' WHERE tenant_id = ?`, tenant).Error)
+	second, err := events.ClaimPending(ctx, 16, 100, time.Minute)
+	require.NoError(t, err)
+	require.Len(t, second, 2)
+	bLease := *second[0].LockedUntil
+	require.True(t, bLease.After(staleLease))
+
+	require.NoError(t, events.Retry(ctx, tenant, evs[0].ID, staleLease, time.Now().Add(time.Hour), "late"))
+	require.NoError(t, events.Release(ctx, tenant, []uuid.UUID{evs[0].ID, evs[1].ID}, staleLease))
+
+	for _, ev := range evs {
+		row := rowOf(t, db, tenant, ev.ID)
+		require.NotNil(t, row.LockedUntil)
+		assert.WithinDuration(t, bLease, *row.LockedUntil, time.Millisecond, "B's lease is untouched")
+		assert.Equal(t, 2, row.Attempts, "B's attempt is not given back")
+		assert.Empty(t, row.LastError)
+	}
+	// B's own guarded calls still work.
+	require.NoError(t, events.Release(ctx, tenant, []uuid.UUID{evs[1].ID}, bLease))
+	assert.Nil(t, rowOf(t, db, tenant, evs[1].ID).LockedUntil)
+}
+
+// A tenant whose head is backed off must not fill the tenant LIMIT and starve
+// the tenants behind it.
+func TestRealtimeOutbox_BackedOffTenantDoesNotStarveOthers(t *testing.T) {
+	db, events := rtOutboxDB(t)
+	ctx := context.Background()
+	a, b := uuid.New(), uuid.New()
+	ea := enlistIn(t, db, events, a, 1) // older: would be picked first
+	eb := enlistIn(t, db, events, b, 1)
+	require.NoError(t, db.Exec(`UPDATE realtime_events SET locked_until = now() + interval '1 hour' WHERE tenant_id = ? AND id = ?`, a, ea[0].ID).Error)
+
+	claimed, err := events.ClaimPending(ctx, 1, 100, time.Minute)
+	require.NoError(t, err)
+	require.Len(t, claimed, 1)
+	assert.Equal(t, eb[0].ID, claimed[0].ID)
+	assert.Equal(t, b, claimed[0].TenantID)
 }
 
 // --- AC6: scrape-time gauges ------------------------------------------------

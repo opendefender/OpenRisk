@@ -57,7 +57,10 @@ func (r *GormRealtimeEventRepository) AbandonExpired(ctx context.Context, maxAtt
 
 // ClaimPending leases pending rows for delivery, per tenant in sequence order.
 //
-// Statement 1 locks up to maxTenants tenants through their counter rows with
+// Statement 1 considers only tenants whose first pending row (by sequence) is
+// claimable now, neither leased nor backed off: a tenant whose head is blocked
+// would fill the LIMIT, claim nothing in statement 2 and starve the tenants
+// behind it. It locks up to maxTenants of them through their counter rows with
 // SKIP LOCKED: a tenant another relay is working on, or a tenant with a
 // transaction still in flight (which holds the same counter row), is skipped.
 // That lock is what guarantees no uncommitted lower sequence exists for a
@@ -75,10 +78,11 @@ func (r *GormRealtimeEventRepository) ClaimPending(ctx context.Context, maxTenan
 		cur, err := tx.Raw(`
 			SELECT s.tenant_id
 			  FROM realtime_event_sequences s
-			  JOIN (SELECT tenant_id, MIN(created_at) AS oldest
+			  JOIN (SELECT DISTINCT ON (tenant_id) tenant_id, created_at AS oldest, locked_until
 			          FROM realtime_events
 			         WHERE published_at IS NULL AND abandoned_at IS NULL
-			         GROUP BY tenant_id) p ON p.tenant_id = s.tenant_id
+			         ORDER BY tenant_id, sequence) p ON p.tenant_id = s.tenant_id
+			 WHERE p.locked_until IS NULL OR p.locked_until <= now()
 			 ORDER BY p.oldest
 			 LIMIT ?
 			   FOR UPDATE OF s SKIP LOCKED`, maxTenants).Rows()
@@ -146,8 +150,11 @@ func (r *GormRealtimeEventRepository) MarkPublished(ctx context.Context, tenantI
 }
 
 // Retry records a failed delivery: the row stays pending and is held back until
-// notBefore. The attempt was already counted when it was claimed.
-func (r *GormRealtimeEventRepository) Retry(ctx context.Context, tenantID, id uuid.UUID, notBefore time.Time, reason string) error {
+// notBefore. The attempt was already counted when it was claimed. It acts only
+// while the row still carries the lease this relay was given (locked_until =
+// lease, the deadline ClaimPending returned): if the lease expired and another
+// relay claimed the row, that relay's lease is left alone.
+func (r *GormRealtimeEventRepository) Retry(ctx context.Context, tenantID, id uuid.UUID, lease, notBefore time.Time, reason string) error {
 	if tenantID == uuid.Nil {
 		return fmt.Errorf("tenant_id is required")
 	}
@@ -157,13 +164,16 @@ func (r *GormRealtimeEventRepository) Retry(ctx context.Context, tenantID, id uu
 	return r.db.WithContext(ctx).Session(&gorm.Session{SkipHooks: true}).Exec(`
 		UPDATE realtime_events
 		   SET locked_until = ?, last_error = ?
-		 WHERE tenant_id = ? AND id = ? AND published_at IS NULL AND abandoned_at IS NULL`,
-		notBefore.UTC(), reason, tenantID, id).Error
+		 WHERE tenant_id = ? AND id = ? AND locked_until = ? AND published_at IS NULL AND abandoned_at IS NULL`,
+		notBefore.UTC(), reason, tenantID, id, lease.UTC()).Error
 }
 
 // Release puts claimed rows back without counting the claim as an attempt: they
 // were not tried (they sat behind a failed head, or the relay was stopping).
-func (r *GormRealtimeEventRepository) Release(ctx context.Context, tenantID uuid.UUID, ids []uuid.UUID) error {
+// Like Retry it acts only on rows still carrying the lease deadline this relay
+// was given (one ClaimPending statement stamps one deadline on all its rows),
+// so a row another relay has since claimed keeps its lease and its attempt.
+func (r *GormRealtimeEventRepository) Release(ctx context.Context, tenantID uuid.UUID, ids []uuid.UUID, lease time.Time) error {
 	if tenantID == uuid.Nil {
 		return fmt.Errorf("tenant_id is required")
 	}
@@ -176,8 +186,8 @@ func (r *GormRealtimeEventRepository) Release(ctx context.Context, tenantID uuid
 	return r.db.WithContext(ctx).Session(&gorm.Session{SkipHooks: true}).Exec(`
 		UPDATE realtime_events
 		   SET locked_until = NULL, attempts = GREATEST(attempts - 1, 0)
-		 WHERE tenant_id = ? AND id IN ? AND published_at IS NULL AND abandoned_at IS NULL`,
-		tenantID, ids).Error
+		 WHERE tenant_id = ? AND id IN ? AND locked_until = ? AND published_at IS NULL AND abandoned_at IS NULL`,
+		tenantID, ids, lease.UTC()).Error
 }
 
 // Abandon gives up on one row for good. The row stays in the table with its

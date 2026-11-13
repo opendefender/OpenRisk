@@ -74,8 +74,11 @@ func PrepareForAutoMigrate(db *gorm.DB) error {
 // other four outbox columns, the partial index and the counter table are
 // additive and AutoMigrate creates them.
 //
-// Runs only while the column is absent, so a second call changes nothing. A
-// no-op outside Postgres and on a fresh database.
+// Runs only while the column is absent, so a second call changes nothing. Two
+// replicas booting together may both see it absent: ADD COLUMN IF NOT EXISTS
+// makes the loser wait on the winner's table lock and then skip, and its DROP
+// DEFAULT finds no default to drop, which is harmless. Only the winner
+// backfills. A no-op outside Postgres and on a fresh database.
 func prepareRealtimeOutbox(db *gorm.DB) error {
 	if db.Dialector.Name() != "postgres" {
 		return nil
@@ -84,7 +87,7 @@ func prepareRealtimeOutbox(db *gorm.DB) error {
 		return nil
 	}
 	return db.Transaction(func(tx *gorm.DB) error {
-		if err := tx.Exec(`ALTER TABLE realtime_events ADD COLUMN published_at TIMESTAMPTZ DEFAULT now()`).Error; err != nil {
+		if err := tx.Exec(`ALTER TABLE realtime_events ADD COLUMN IF NOT EXISTS published_at TIMESTAMPTZ DEFAULT now()`).Error; err != nil {
 			return err
 		}
 		return tx.Exec(`ALTER TABLE realtime_events ALTER COLUMN published_at DROP DEFAULT`).Error

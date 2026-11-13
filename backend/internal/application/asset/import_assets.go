@@ -283,9 +283,7 @@ func enlistAssetCreated(ctx context.Context, events domain.RealtimeEventOutbox, 
 		actor = input.ActorID.String()
 	}
 	correlation := input.CorrelationID
-	if len(correlation) > maxCorrelationIDLen {
-		correlation = correlation[:maxCorrelationIDLen]
-	}
+	correlation = truncateCorrelationID(correlation)
 	now := time.Now().UTC()
 	rows := make([]*domain.RealtimeEvent, 0, len(created))
 	for _, a := range created {
@@ -472,4 +470,19 @@ func isBlank(rec []string) bool {
 		}
 	}
 	return true
+}
+
+// truncateCorrelationID cuts the id to maxCorrelationIDLen bytes at a rune
+// boundary and drops invalid UTF-8, which Postgres would reject and roll the
+// whole import back.
+func truncateCorrelationID(s string) string {
+	s = strings.ToValidUTF8(s, "")
+	if len(s) <= maxCorrelationIDLen {
+		return s
+	}
+	cut := maxCorrelationIDLen
+	for cut > 0 && !utf8.RuneStart(s[cut]) {
+		cut--
+	}
+	return s[:cut]
 }

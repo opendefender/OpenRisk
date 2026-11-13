@@ -51,10 +51,13 @@ type OutboxStore interface {
 	// MarkPublished closes delivered rows of one tenant and returns how many it
 	// closed.
 	MarkPublished(ctx context.Context, tenantID uuid.UUID, ids []uuid.UUID) (int64, error)
-	// Retry keeps a failed row pending, held back until notBefore.
-	Retry(ctx context.Context, tenantID, id uuid.UUID, notBefore time.Time, reason string) error
-	// Release puts claimed, untried rows back without counting an attempt.
-	Release(ctx context.Context, tenantID uuid.UUID, ids []uuid.UUID) error
+	// Retry keeps a failed row pending, held back until notBefore. lease is the
+	// deadline ClaimPending stamped on the row; the store acts only while the
+	// row still carries it, so it never touches another relay's newer lease.
+	Retry(ctx context.Context, tenantID, id uuid.UUID, lease, notBefore time.Time, reason string) error
+	// Release puts claimed, untried rows back without counting an attempt, under
+	// the same lease guard as Retry.
+	Release(ctx context.Context, tenantID uuid.UUID, ids []uuid.UUID, lease time.Time) error
 	// Abandon gives up on one row for good.
 	Abandon(ctx context.Context, tenantID, id uuid.UUID, reason string) error
 }
@@ -309,7 +312,7 @@ func (r *OutboxRelay) deliverTenant(ctx context.Context, tenant uuid.UUID, rows 
 		r.recordFailure(book, tenant, *failedRow, failure)
 	}
 	if len(untried) > 0 && tenant != uuid.Nil {
-		if err := r.store.Release(book, tenant, untried); err != nil {
+		if err := r.store.Release(book, tenant, untried, leaseOf(rows[0])); err != nil {
 			log.Printf("realtime outbox: could not release %d row(s): %v", len(untried), err)
 		}
 	}
@@ -359,7 +362,17 @@ func (r *OutboxRelay) recordFailure(ctx context.Context, tenant uuid.UUID, row d
 		return
 	}
 	notBefore := r.now().Add(r.backoff(row.Attempts))
-	if err := r.store.Retry(ctx, tenant, row.ID, notBefore, reason); err != nil {
+	if err := r.store.Retry(ctx, tenant, row.ID, leaseOf(row), notBefore, reason); err != nil {
 		log.Printf("realtime outbox: could not schedule retry of row %s: %v", row.ID, err)
 	}
+}
+
+// leaseOf is the lease deadline ClaimPending stamped on a claimed row. A row
+// without one is never matched by the store's lease guard, which is the safe
+// outcome: the relay then changes nothing and the lease runs out by itself.
+func leaseOf(row domain.RealtimeEvent) time.Time {
+	if row.LockedUntil == nil {
+		return time.Time{}
+	}
+	return *row.LockedUntil
 }
