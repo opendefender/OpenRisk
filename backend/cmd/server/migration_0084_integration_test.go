@@ -146,7 +146,7 @@ func TestMigration0084_Success(t *testing.T) {
 
 	assert.False(t, u.hasTable(t, "control_evidences"), "the legacy table is dropped")
 	v, dirty := u.version(t)
-	assert.Equal(t, uint(84), v)
+	assert.GreaterOrEqual(t, v, uint(84), "0084 applied; later migrations may follow")
 	assert.False(t, dirty)
 
 	for _, row := range []struct{ id, tenant uuid.UUID }{
@@ -185,7 +185,7 @@ func TestMigration0084_NotFound(t *testing.T) {
 		assert.False(t, u.hasTable(t, "control_evidences"))
 		assert.Equal(t, before, u.count(t, `SELECT count(*) FROM evidences`))
 		v, dirty := u.version(t)
-		assert.Equal(t, uint(84), v)
+		assert.GreaterOrEqual(t, v, uint(84), "0084 applied; later migrations may follow")
 		assert.False(t, dirty)
 	})
 	t.Run("empty table", func(t *testing.T) {
@@ -258,7 +258,7 @@ func TestMigration0084_Rollback(t *testing.T) {
 	libraryAfterUp := u.count(t, `SELECT count(*) FROM evidences`)
 
 	m := newMigrator(t, u.dsn)
-	require.NoError(t, m.Steps(-1))
+	require.NoError(t, m.Migrate(lastVersionBefore0084)) // down to 83, through any later migration
 	require.True(t, u.hasTable(t, "control_evidences"))
 	assert.Equal(t, int64(0), u.count(t, `SELECT count(*) FROM control_evidences`), "recreated empty")
 	assert.Equal(t, libraryAfterUp, u.count(t, `SELECT count(*) FROM evidences`), "down leaves the library alone")

@@ -39,13 +39,26 @@ func (r *GormAssetRepository) Create(ctx context.Context, asset *domain.Asset) e
 }
 
 // RunAssetTx runs fn inside one transaction with an asset repository bound to
-// it, for the CSV import that writes every asset or none (#861). It satisfies
+// it, for the CSV import that writes every asset or none (#861). When outbox is
+// not nil, fn also receives the realtime outbox bound to the same transaction
+// (#344, ADR 0010): events it enlists commit or roll back with the assets, and
+// the relay is woken after the COMMIT, never before. It satisfies
 // application/asset.AssetTxRunner.
-func RunAssetTx(db *gorm.DB) func(ctx context.Context, fn func(repo domain.AssetRepository) error) error {
-	return func(ctx context.Context, fn func(repo domain.AssetRepository) error) error {
-		return db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-			return fn(NewGormAssetRepository(tx))
+func RunAssetTx(db *gorm.DB, outbox *GormRealtimeEventRepository) func(ctx context.Context, fn func(repo domain.AssetRepository, events domain.RealtimeEventOutbox) error) error {
+	return func(ctx context.Context, fn func(repo domain.AssetRepository, events domain.RealtimeEventOutbox) error) error {
+		var bound *TxRealtimeOutbox
+		err := db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+			var ob domain.RealtimeEventOutbox
+			if outbox != nil {
+				bound = outbox.Bind(tx)
+				ob = bound
+			}
+			return fn(NewGormAssetRepository(tx), ob)
 		})
+		if err == nil && bound != nil && bound.Enlisted() > 0 {
+			outbox.notifyEnlistCommitted()
+		}
+		return err
 	}
 }
 

@@ -16,6 +16,7 @@ import (
 
 	"github.com/opendefender/openrisk/internal/domain"
 	"github.com/opendefender/openrisk/internal/infrastructure/audittrail"
+	rt "github.com/opendefender/openrisk/pkg/realtime"
 )
 
 // ---------------------------------------------------------------------------
@@ -80,7 +81,11 @@ func AuditMutations(appender AuditAppender, observers ...MutationObserver) fiber
 		}
 
 		col := audittrail.NewCollector()
-		c.SetUserContext(audittrail.WithCollector(c.UserContext(), col))
+		// The enlist mark rides beside the collector: same lifetime, same
+		// mutation-only scope. A use case that writes its realtime events to the
+		// transactional outbox flips it, and the realtime bridge then stays
+		// silent for this request (ADR 0010).
+		c.SetUserContext(rt.WithEnlistMark(audittrail.WithCollector(c.UserContext(), col)))
 
 		err := c.Next()
 
@@ -227,7 +232,12 @@ func actorKind(c *fiber.Ctx, actorID *uuid.UUID) (string, string) {
 
 // requestID returns the caller's correlation id, minting one when absent so
 // every entry can be tied back to a single request even without a gateway.
-func requestID(c *fiber.Ctx) string {
+func requestID(c *fiber.Ctx) string { return RequestID(c) }
+
+// RequestID is the caller's correlation id, minting one when absent. Exported so
+// a handler can hand the same id to a use case that stamps its realtime events
+// with it, which is what ties them to this request's audit entry.
+func RequestID(c *fiber.Ctx) string {
 	for _, h := range []string{"X-Request-ID", "X-Correlation-ID", "X-Request-Id"} {
 		if v := strings.TrimSpace(c.Get(h)); v != "" {
 			return v
