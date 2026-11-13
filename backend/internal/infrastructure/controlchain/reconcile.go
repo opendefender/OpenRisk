@@ -8,6 +8,7 @@ package controlchain
 import (
 	"context"
 	"database/sql"
+	"database/sql/driver"
 	"errors"
 	"fmt"
 	"time"
@@ -183,15 +184,19 @@ func Reconcile(ctx context.Context, db *gorm.DB) (Result, error) {
 			// Session-level, not xact-level: under REPEATABLE READ the first
 			// statement fixes the snapshot, so the lock must come before the
 			// transaction, or the waiting replica reads a state from before the
-			// other one committed. Closing the connection releases it too.
+			// other one committed. lock_timeout bounds the wait: a replica stuck
+			// holding the lock stops this boot loudly instead of hanging it.
+			if err := conn.Exec("SET lock_timeout = '" + lockWait + "'").Error; err != nil {
+				return fmt.Errorf("controlchain.Reconcile: set lock_timeout: %w", err)
+			}
 			if err := conn.Exec("SELECT pg_advisory_lock(?)", advisoryLockKey).Error; err != nil {
+				_ = conn.Exec("RESET lock_timeout").Error
 				return fmt.Errorf("controlchain.Reconcile: advisory lock: %w", err)
 			}
-			defer func() {
-				if err := conn.Exec("SELECT pg_advisory_unlock(?)", advisoryLockKey).Error; err != nil {
-					log.Warn().Err(err).Msg("controlchain: advisory unlock failed; the lock is released when the connection closes")
-				}
-			}()
+			defer unlock(conn)
+			if err := conn.Exec("RESET lock_timeout").Error; err != nil {
+				return fmt.Errorf("controlchain.Reconcile: reset lock_timeout: %w", err)
+			}
 			return run(conn, &sql.TxOptions{Isolation: sql.LevelRepeatableRead})
 		})
 	}
@@ -200,6 +205,26 @@ func Reconcile(ctx context.Context, db *gorm.DB) (Result, error) {
 	}
 	logResult(res)
 	return res, nil
+}
+
+// lockWait is how long a booting replica waits for another one's Reconcile.
+const lockWait = "5min"
+
+// unlock releases the session advisory lock. The pinned connection goes back
+// to the pool afterwards, not closed, so a lock left on it would block every
+// other replica's boot until the pool recycles it. If the unlock fails, the
+// connection is marked bad instead: database/sql then closes it, the session
+// ends, and PostgreSQL releases the lock. It runs on a fresh context, so a
+// cancelled boot context cannot be the reason it fails.
+func unlock(conn *gorm.DB) {
+	err := conn.WithContext(context.Background()).Exec("SELECT pg_advisory_unlock(?)", advisoryLockKey).Error
+	if err == nil {
+		return
+	}
+	log.Warn().Err(err).Msg("controlchain: advisory unlock failed; discarding the connection so its session, and the lock, end")
+	if c, ok := conn.Statement.ConnPool.(*sql.Conn); ok {
+		_ = c.Raw(func(any) error { return driver.ErrBadConn })
+	}
 }
 
 func logResult(r Result) {
@@ -228,11 +253,11 @@ func logResult(r Result) {
 	}
 	if len(r.LinksUnplaceable) > 0 {
 		log.Warn().Strs("ids", uuidStrings(r.LinksUnplaceable)).
-			Msg("controlchain: evidence links not carried, an end does not resolve in the link's tenant")
+			Msg("controlchain: evidence links not carried: an end does not resolve in the link's tenant, or the edge is invalid (e.g. a credential URL in the note)")
 	}
 	if len(r.MappingsUnplaceable) > 0 {
 		log.Warn().Strs("ids", uuidStrings(r.MappingsUnplaceable)).
-			Msg("controlchain: risk mappings not carried, an end does not resolve in the mapping's tenant")
+			Msg("controlchain: risk mappings not carried: an end does not resolve in the mapping's tenant, or the edge is invalid (e.g. a credential URL in the note)")
 	}
 	if len(r.MappingsCollapsed) > 0 {
 		log.Info().Strs("ids", uuidStrings(r.MappingsCollapsed)).
@@ -309,6 +334,8 @@ func reconcileTx(tx *gorm.DB) (Result, error) {
 	var newEdges []CanonicalEdgeRow
 	planned := map[edgeKey]bool{} // every edge the legacy rows imply, present or not
 	plan := func(e canonical.Edge) (isNew bool, err error) {
+		// Link and mapping edges are validated per row before plan; an invalid
+		// edge here is an addressed_by built wholly in code, so a split defect.
 		if err := e.Validate(); err != nil {
 			return false, fmt.Errorf("%w: edge %s %s %s of tenant %s is invalid: %v; nothing was written", ErrNotReconciled, e.From.ID, e.Verb, e.To.ID, e.TenantID, err)
 		}
@@ -376,8 +403,15 @@ func reconcileTx(tx *gorm.DB) (Result, error) {
 			note := l.Note
 			attrs.Note = &note
 		}
-		isNew, err := plan(Edge(l.TenantID, canonical.TypeControl, canonical.ControlIDFor(l.ControlID), canonical.VerbEvidencedBy,
-			canonical.TypeEvidence, l.EvidenceID, attrs, l.ID.String(), l.CreatedAt))
+		e := Edge(l.TenantID, canonical.TypeControl, canonical.ControlIDFor(l.ControlID), canonical.VerbEvidencedBy,
+			canonical.TypeEvidence, l.EvidenceID, attrs, l.ID.String(), l.CreatedAt)
+		// One row's content (a credential URL pasted in a note, say) refuses
+		// that row, never the run for every tenant.
+		if e.Validate() != nil {
+			res.LinksUnplaceable = append(res.LinksUnplaceable, l.ID)
+			continue
+		}
+		isNew, err := plan(e)
 		if err != nil {
 			return res, err
 		}
@@ -406,6 +440,10 @@ func reconcileTx(tx *gorm.DB) (Result, error) {
 		}
 		e := Edge(m.TenantID, canonical.TypeRisk, m.RiskID, canonical.VerbMitigatedBy,
 			canonical.TypeControl, canonical.ControlIDFor(*m.ControlID), attrs, m.ID.String(), m.CreatedAt)
+		if e.Validate() != nil { // per row, as for links
+			res.MappingsUnplaceable = append(res.MappingsUnplaceable, m.ID)
+			continue
+		}
 		row, err := EdgeToRow(e)
 		if err != nil {
 			return res, err

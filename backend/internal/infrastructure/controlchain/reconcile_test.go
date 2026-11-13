@@ -259,6 +259,29 @@ func TestReconcile_ZeroTenantRequirementIsNotSplit(t *testing.T) {
 	assert.Equal(t, int64(0), n, "no split control for the orphan")
 }
 
+// TestReconcile_CredentialNoteIsUnplaceableNotRefused: a credential URL pasted
+// in one tenant's link note refuses that link only; every other row of every
+// tenant is still carried and the run succeeds.
+func TestReconcile_CredentialNoteIsUnplaceableNotRefused(t *testing.T) {
+	clean, err := Reconcile(context.Background(), seed(t).db) // the same data, without the bad row
+	require.NoError(t, err)
+
+	f := seed(t)
+	bad := uuid.New()
+	require.NoError(t, f.db.Exec(`INSERT INTO evidence_control_links (id, tenant_id, evidence_id, control_id, note, created_at)
+		VALUES (?, ?, ?, ?, ?, ?)`, bad, tenantA, f.evA, f.reqA, "see https://h/o?X-Amz-Signature=abc", t0).Error)
+
+	res, err := Reconcile(context.Background(), f.db)
+	require.NoError(t, err, "one row's note never refuses the run")
+	assert.Contains(t, res.LinksUnplaceable, bad)
+	assert.Equal(t, clean.LinksCarried, res.LinksCarried, "every other link is still carried")
+	assert.Equal(t, clean.MappingsCarried, res.MappingsCarried)
+	assert.Equal(t, clean.ControlsCreated, res.ControlsCreated)
+	var n int64
+	require.NoError(t, f.db.Model(&CanonicalEdgeRow{}).Where("tenant_id = ?", tenantB).Count(&n).Error)
+	assert.Positive(t, n, "the other tenant's chain is written")
+}
+
 // TestReconcile_Idempotent: a second run inserts nothing, and one that follows
 // a new legacy row inserts only that row's chain.
 func TestReconcile_Idempotent(t *testing.T) {
