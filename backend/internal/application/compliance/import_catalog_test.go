@@ -128,3 +128,89 @@ func TestImportCatalogUseCase_UnavailableCatalog_Validation(t *testing.T) {
 	require.Error(t, err)
 	assert.ErrorIs(t, err, domain.ErrValidation)
 }
+
+// #809: the catalogs went from summaries (20 NIST families, 12 NIS2 rows, 19
+// DORA articles) to control-level depth. A tenant who imported the old shape
+// and assessed it re-imports to get the new rows. The upgrade is additive: the
+// rows they already hold — and the status they recorded on them — are never
+// touched, rows whose code did not change are not duplicated, and a second
+// re-import adds nothing.
+func TestImportCatalogUseCase_UpgradeFromSummaryCatalog_IsAdditive(t *testing.T) {
+	cases := []struct {
+		key string
+		old []string // codes of the earlier catalog a tenant may already hold
+		// codes the earlier and the current catalog share, which must be skipped
+		kept []string
+	}{
+		{"nist-800-53-r5", []string{"AC", "AT", "AU", "CA", "CM", "CP", "IA", "IR", "MA", "MP", "PE", "PL", "PM", "PS", "PT", "RA", "SA", "SC", "SI", "SR"}, nil},
+		{"nis2-2022-2555", []string{"Art.20", "Art.21(a)", "Art.21(b)", "Art.21(c)", "Art.21(d)", "Art.21(e)", "Art.21(f)", "Art.21(g)", "Art.21(h)", "Art.21(i)", "Art.21(j)", "Art.23"},
+			[]string{"Art.20", "Art.21(a)", "Art.21(b)", "Art.21(c)", "Art.21(d)", "Art.21(e)", "Art.21(f)", "Art.21(g)", "Art.21(h)", "Art.21(i)", "Art.21(j)"}},
+		{"dora-2022-2554", []string{"Art.5", "Art.6", "Art.7", "Art.8", "Art.9", "Art.10", "Art.11", "Art.12", "Art.13", "Art.17", "Art.18", "Art.19", "Art.24", "Art.25", "Art.26", "Art.28", "Art.29", "Art.30", "Art.45"},
+			[]string{"Art.7", "Art.45"}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.key, func(t *testing.T) {
+			tenantID, fwID := uuid.New(), uuid.New()
+			// The tenant's existing rows, each with an assessment on it.
+			stored := map[string]domain.ComplianceControl{}
+			for _, code := range tc.old {
+				stored[code] = domain.ComplianceControl{
+					ID: uuid.New(), TenantID: tenantID, FrameworkID: fwID,
+					ReferenceCode: code, Name: "old " + code, Status: domain.ControlStatusImplemented,
+				}
+			}
+			before := make(map[string]domain.ComplianceControl, len(stored))
+			for k, v := range stored {
+				before[k] = v
+			}
+
+			repo := &MockComplianceRepository{
+				getFrameworkByIDFunc: func(_ context.Context, id, tid uuid.UUID) (*domain.ComplianceFramework, error) {
+					return &domain.ComplianceFramework{ID: fwID, TenantID: tid, CatalogKey: tc.key}, nil
+				},
+				listControlsByFrameworkFunc: func(_ context.Context, tid, fid uuid.UUID) ([]domain.ComplianceControl, error) {
+					require.Equal(t, tenantID, tid)
+					out := make([]domain.ComplianceControl, 0, len(stored))
+					for _, c := range stored {
+						out = append(out, c)
+					}
+					return out, nil
+				},
+				createControlFunc: func(_ context.Context, c *domain.ComplianceControl) error {
+					if _, dup := stored[c.ReferenceCode]; dup {
+						t.Errorf("re-created %q, which the tenant already holds", c.ReferenceCode)
+					}
+					stored[c.ReferenceCode] = *c
+					return nil
+				},
+				updateControlFunc: func(_ context.Context, c *domain.ComplianceControl) error {
+					t.Errorf("an import must not update an existing control (%q)", c.ReferenceCode)
+					return nil
+				},
+				deleteControlFunc: func(_ context.Context, id, _ uuid.UUID) error {
+					t.Errorf("an import must not delete a control (%s)", id)
+					return nil
+				},
+			}
+			uc := NewImportCatalogUseCase(repo)
+
+			first, err := uc.Execute(context.Background(), tenantID, ImportCatalogInput{FrameworkID: fwID, CatalogKey: tc.key})
+			require.NoError(t, err)
+			assert.Equal(t, len(tc.kept), first.Skipped, "codes shared with the earlier catalog are skipped")
+			assert.Equal(t, first.Total-len(tc.kept), first.Imported)
+
+			// Nothing the tenant held was changed or removed.
+			for code, was := range before {
+				now, ok := stored[code]
+				require.True(t, ok, "%s disappeared", code)
+				assert.Equal(t, was, now, "%s was modified", code)
+			}
+			assert.Len(t, stored, len(tc.old)+first.Imported)
+
+			second, err := uc.Execute(context.Background(), tenantID, ImportCatalogInput{FrameworkID: fwID, CatalogKey: tc.key})
+			require.NoError(t, err)
+			assert.Equal(t, 0, second.Imported, "a second re-import adds nothing")
+			assert.Equal(t, second.Total, second.Skipped)
+		})
+	}
+}
