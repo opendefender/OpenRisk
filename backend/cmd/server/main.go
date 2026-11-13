@@ -1509,7 +1509,8 @@ func main() {
 	financialSummaryUseCase := risk.NewFinancialSummaryUseCase(riskRepo, riskQuantifier).
 		WithPresenters(financialPresenters).
 		WithCoverageCounter(riskRepo).
-		WithAppetiteReader(orgRepo)
+		WithAppetiteReader(orgRepo).
+		WithLogger(zeroLogger)
 	financialAnalyticsHandler := handlers.NewFinancialAnalyticsHandler(financialSummaryUseCase).
 		WithCurrencyWriter(orgRepo).
 		WithAppetiteUseCase(risk.NewSetRiskAppetiteUseCase(orgRepo))
