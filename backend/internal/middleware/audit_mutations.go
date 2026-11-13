@@ -116,7 +116,17 @@ func isMutation(method string) bool {
 	return false
 }
 
+// auditSkipSuffix matches the bulk preview of every register (#582, #599):
+// POST /api/v1/<register>/bulk/preview. It is a read that answers "what would
+// this do" and changes nothing, so journalling it as "create preview" would put
+// a creation in the trail that never happened. The apply routes beside it are
+// journalled as usual.
+const auditSkipSuffix = "/bulk/preview"
+
 func skipAudit(path string) bool {
+	if strings.HasSuffix(strings.TrimSuffix(path, "/"), auditSkipSuffix) {
+		return true
+	}
 	for _, p := range auditSkipPrefixes {
 		if strings.HasPrefix(path, p) {
 			return true
