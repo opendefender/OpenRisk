@@ -4,7 +4,7 @@
 // the terms of the GNU Affero General Public License v3.0 (see LICENSE).
 
 // Package tenantwrite is the only way to rewrite a whole row of a tenant-scoped
-// table (#808, D-110).
+// table (#808, D-111).
 //
 // `tx.Where("tenant_id = ?", t).Save(&x)` is a trap: in GORM v1.31 Save falls
 // back to INSERT ... ON CONFLICT UPDATE ALL when its UPDATE matches 0 rows, so a

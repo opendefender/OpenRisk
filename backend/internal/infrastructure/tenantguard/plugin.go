@@ -5,7 +5,7 @@
 
 // Package tenantguard is a GORM plugin that fails any SELECT, UPDATE or DELETE
 // on a tenant-scoped table whose WHERE clause carries no tenant_id or
-// organization_id (#808, D-055 option C, D-110, ADR 0011).
+// organization_id (#808, D-055 option C, D-111, ADR 0011).
 //
 // It is the structural backstop of ABSOLUTE RULE 2: a repository that forgets
 // the tenant filter fails in tests and in staging instead of leaking rows.
@@ -15,7 +15,7 @@
 // CrossTenant or CrossTenantContext and a one-line reason. The reason must be
 // a string literal of at least 15 characters; allowlist_test.go checks it.
 //
-// Honest limits (also recorded in D-110 and ADR 0011):
+// Honest limits (also recorded in D-111 and ADR 0011):
 //   - It only sees queries that run. Coverage is the test suite's coverage, so
 //     staging (TENANT_GUARD=enforce) is where the rest are found.
 //   - It catches a missing filter, not a wrong one (#807): a tenant filter on a

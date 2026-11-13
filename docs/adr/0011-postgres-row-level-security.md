@@ -2,7 +2,7 @@
 
 Status: **proposed**
 Proposed: 2026-11-13, on #808 (criterion 5)
-Builds on: D-055 (owner, 2026-09-28, option C), D-110 (the tenant guard)
+Builds on: D-055 (owner, 2026-09-28, option C), D-111 (the tenant guard)
 Not implemented. D-055 decided a GORM callback now and RLS after the launch behind its own
 ADR. This is that ADR, written so the post-launch decision starts from an evaluation and not
 from a blank page. It is not reopened here.
@@ -14,7 +14,7 @@ RULE 2), enforced by review. Since #808 a GORM callback, `internal/infrastructur
 fails any SELECT, UPDATE or DELETE on a tenant-scoped table whose WHERE has no `tenant_id` or
 `organization_id`; it runs on the whole test suite, in the CI boot, and in staging.
 
-What the guard does not cover (D-110, package doc):
+What the guard does not cover (D-111, package doc):
 - it only sees queries that run, so its coverage is the test suite's plus staging's;
 - it catches a missing filter, not a wrong one (the #807 class): a filter on a joined table
   satisfies it, so does one on the wrong tenant;

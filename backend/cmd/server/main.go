@@ -70,6 +70,7 @@ import (
 	"github.com/opendefender/openrisk/internal/infrastructure/authmail"
 	"github.com/opendefender/openrisk/internal/infrastructure/authmfa"
 	autoinfra "github.com/opendefender/openrisk/internal/infrastructure/automation"
+	"github.com/opendefender/openrisk/internal/infrastructure/controlchain"
 	"github.com/opendefender/openrisk/internal/infrastructure/ctimatch"
 	"github.com/opendefender/openrisk/internal/infrastructure/database"
 	"github.com/opendefender/openrisk/internal/infrastructure/demoseed"
@@ -239,6 +240,16 @@ func main() {
 		log.Fatalf("Database Migration Failed: %v", err)
 	}
 
+	// ADR 0008 control chain (#553, D-108): the split Control of every compliance
+	// control and the edges of its evidence links and risk mappings. It needs the
+	// tables AutoMigrate has just built, and it must run on a DB_HOST-only boot,
+	// which never runs the SQL layer below. Insert-only and idempotent. A database
+	// error stops the boot; counts that do not reconcile roll back, are logged at
+	// error level and let the boot go on (D-108, amended 2026-11-12).
+	if err := controlchain.ReconcileAtBoot(context.Background(), database.DB); err != nil {
+		log.Fatalf("Control chain reconciliation failed: %v", err)
+	}
+
 	// Run the additive SQL migration layer (if DATABASE_URL is set), on top of the
 	// schema AutoMigrate has just built. Fail loudly: a real migration error must
 	// abort the boot rather than let the app serve on a half-applied schema.
@@ -261,7 +272,7 @@ func main() {
 		log.Println("Governance: immutable hash-chained audit-trail plugin installed")
 	}
 
-	// Tenant guard (#808, D-055, D-110): fails a SELECT/UPDATE/DELETE on a
+	// Tenant guard (#808, D-055, D-111): fails a SELECT/UPDATE/DELETE on a
 	// tenant-scoped table whose WHERE carries no tenant. TENANT_GUARD is off,
 	// report or enforce; unset means off (production), staging and the CI boot
 	// set enforce. A typo is fatal: it must not silently mean "off". Installed
@@ -1595,6 +1606,27 @@ func main() {
 	// into main.go (see gorm_risk_repository.go:638). So the use case was
 	// unreachable, and #581's fixes would have landed in dead code.
 	protected.Post("/risks/bulk", riskUpdate, riskHandler.BulkAction)
+
+	// Governed bulk operations on the risk register (#599), the same engine and
+	// shape as vulnerabilities and assets (#582): a preview that writes nothing,
+	// a fingerprint that refuses a selection which moved, and ONE route per
+	// action behind the permission that matches it. The action comes from the
+	// route, so a risks:update holder cannot reach the delete. The legacy route
+	// above needs risks:delete for a delete (#1423) and is deprecated (Sunset:
+	// 31 March 2027).
+	//
+	// Registered here, before the parameterised /risks/:id routes below, so
+	// "bulk" is never parsed as a risk id.
+	riskBulk := handlers.NewBulkHandler(
+		bulkapp.New(repository.NewRiskBulkStore(database.DB), auditChainRepo).
+			WithAfterApply(risk.BulkStateNotices(riskRepo, requestNoticeDispatcher)))
+	riskRead := middleware.RequirePermission("risks:read")
+	protected.Get("/risks/bulk/capabilities", riskRead, riskBulk.Capabilities)
+	protected.Post("/risks/bulk/preview", riskRead, riskBulk.Preview)
+	protected.Post("/risks/bulk/change-status", riskUpdate, riskBulk.Apply(domain.BulkActionChangeStatus))
+	protected.Post("/risks/bulk/add-tags", riskUpdate, riskBulk.Apply(domain.BulkActionAddTags))
+	protected.Post("/risks/bulk/remove-tags", riskUpdate, riskBulk.Apply(domain.BulkActionRemoveTags))
+	protected.Post("/risks/bulk/delete", riskDelete, riskBulk.Apply(domain.BulkActionDelete))
 
 	protected.Post("/risks", riskCreate, capRisks, riskHandler.CreateRisk)
 	// #755 — CSV import. capRisks refuses a tenant already at its limit; the use

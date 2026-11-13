@@ -61,7 +61,7 @@ services:
       dockerfile: backend/Dockerfile
     environment:
       ENV: staging
-      # #808, D-110: the tenant guard refuses a query with no tenant filter.
+      # #808, D-111: the tenant guard refuses a query with no tenant filter.
       TENANT_GUARD: enforce
       # No APP_ENV, so the backend runs as production and needs this (D-065).
       AUDIT_HASH_KEY: ${STAGING_AUDIT_HASH_KEY:?set STAGING_AUDIT_HASH_KEY in .env.staging}

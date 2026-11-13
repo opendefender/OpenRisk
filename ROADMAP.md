@@ -56,6 +56,7 @@ Le test à poser sur chaque issue, et désormais dans le gabarit d'issue (#563) 
 2. **Risk Data Plane** — schéma canonique, bus d'événements, normalisation, provenance, corrélation, graphe d'entités → `Release 1.2`
    - Modèle canonique v1 : ADR 0008 **accepté** (#541, D-087, 2026-11-03). Enveloppe, vocabulaire des relations et tranche GRC spécifiés ; aucun code avant acceptation (D-030).
    - Types Go du modèle canonique v1 (#1240) : `backend/internal/domain/canonical` — enveloppe, registre des sources et règle `confidence/1`, provenance, vocabulaire fermé des relations, les sept entités et `ControlTestResult` avec leur validation, tests de frontière (pureté, score). Aucune table, aucune route : la persistance est #553.
+   - Chaîne de contrôle, tranche S1 (#553, D-108, ADR 0008 A10) : migration `0086_control_chain` (six tables, `tenant_id` indexé en tête), types de lignes et découpe dans `backend/internal/infrastructure/controlchain`, `controlchain.Reconcile` appelé à chaque démarrage après AutoMigrate (insertion seule, idempotent, comptes réconciliés et journalisés, alerte si refus). Chaque ligne `compliance_controls` reçoit un contrôle interne `ControlIDFor(id)` ; liens de preuve et correspondances de risque reportés en arêtes. Aucun lecteur ne lit encore la chaîne, aucune route : écritures miroir #1413, API #1414 à #1417.
 3. **Deux killer workflows** — Signal → Risque → Action → Preuve · Contrôle → Test → Preuve → Écart → Risque → Remédiation → `Release 1.3` et `Release 1.4`
 4. **IA gouvernée** — l'IA propose, l'humain approuve, le système enregistre → `Release 1.5`
 5. **Evidence fabric** — preuve continue, historique immuable, portail auditeur, dossier d'audit → `Release 1.4`
@@ -584,6 +585,24 @@ financière + un plan de traitement suggéré ». Une branche par phase, commits
     requête : `TestNoStaleDecisions` n'accepte que les routes paramétrées et les lectures de
     collection. C'est l'angle mort que le commentaire du paquet décrit lui-même ; la sonde
     manuelle qu'il réclame existe (les deux tests cross-tenant), mais elle n'est pas enregistrée.
+  **Aperçu d'impact et une route par action (#599, 2026-11-13).** Le registre des risques passe
+  sur le moteur partagé de W1-05c (`RiskBulkStore`, `gorm_bulk_stores.go`) :
+  `GET /risks/bulk/capabilities` et `POST /risks/bulk/preview` derrière `risks:read`,
+  `change-status` / `add-tags` / `remove-tags` derrière `risks:update`, `delete` derrière
+  `risks:delete`. L'aperçu ne modifie rien (`TestRiskBulkStore_Preview_Success_WritesNothing` :
+  ligne identique octet pour octet, ni historique ni audit), et une sélection qui a bougé
+  entre aperçu et confirmation répond 409 sans rien écrire
+  (`TestRiskBulkStore_Apply_Conflict_WhenTheSelectionMoved`). L'aperçu d'un changement de
+  statut montre aussi l'état canonique et la phase qu'il déplace (`domain.PredictRiskBulk`,
+  même fonction que l'écriture).
+  **Faille trouvée : oui**, avant ce travail un porteur de `risks:update` pouvait supprimer
+  des risques en masse via `POST /risks/bulk` (action lue dans le corps). Les rôles RSSI, DSI,
+  Propriétaire de risque et Analyste sécurité étaient exposés. Corrigé seul en P0 par #1423.
+  `POST /risks/bulk` est **déprécié** (en-têtes `Deprecation` et `Sunset`, fin le
+  31 mars 2027, D-110).
+  **Reste** : `assign_to` n'est pas sur les routes gouvernées, car l'assignation en masse ne
+  valide pas l'appartenance de l'assigné au tenant (#1426). L'interface de l'aperçu
+  relève de #598.
 - [x] **W1-05c — Actions en masse gouvernées : vulnérabilités et actifs** (#582, enfant C de
   l'épique #235, séquencé après #581, gaté transitivement par **D-036**).
   **Périmètre réellement livré : C1**, pas les six registres annoncés par l'intitulé de l'issue.

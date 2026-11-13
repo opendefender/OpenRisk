@@ -9,7 +9,7 @@ recommends, and surfaces these in the daily brief. Run `/decide` to clear them.
 
 ## Resolved
 
-### D-110 — Tenant guard design: what is scoped, how a query proves its tenant, how the allowlist is written · decided 2026-11-13
+### D-111 — Tenant guard design: what is scoped, how a query proves its tenant, how the allowlist is written · decided 2026-11-13
 **Decided (agent: backend-go, 2026-11-13, under D-089; implements D-055 option C)** — the GORM
 callback of #808 is `internal/infrastructure/tenantguard`. It fails any SELECT, UPDATE or DELETE
 on a tenant-scoped table whose explicit WHERE has no `tenant_id` or `organization_id`. It is
@@ -71,6 +71,31 @@ list) is refused whatever the schema; any other unreadable form is refused when 
 the table. Postgres RLS is
 evaluated, not implemented: `docs/adr/0011-postgres-row-level-security.md`.
 
+
+### D-110 — Risk bulk actions: legacy route sunset date, and assign_to left out of the governed routes · decided 2026-11-13
+**Decided (agent, 2026-11-13)** — #599.
+
+**Question** — #599 moves the risk register onto the governed bulk engine (one route per
+action, preview, fingerprint). Criterion 5 asks for the legacy body-driven
+`POST /risks/bulk` to be removed or deprecated with a date. Separately, `assign_to` is one
+of #581's five actions; should it move too?
+
+**Options**
+- Sunset: (a) remove the legacy route now; (b) deprecate with a date.
+- assign_to: (a) port it as is; (b) port it with a tenant-membership check; (c) leave it on
+  the deprecated route and track it in its own issue.
+
+**Choice** — Sunset (b): `Deprecation: true` and `Sunset: Wed, 31 Mar 2027` on every
+response, with a `Link` to the governed routes. A delete there still needs `risks:delete`
+(#1423). assign_to (c).
+
+**Reason** — Removing the route now would break any API client in the field without notice.
+The UI already uses the governed route, and four and a half months is enough for an API
+client to migrate. For assign_to, the single-row assignment validates that the assignee is
+an active member of the tenant through the ownership manager. The bulk path sets the legacy
+`assigned_to` column with no such check. Porting it as is would give a governed route a
+weaker guarantee than the row route. Porting it properly means building on the ownership
+manager, which is its own piece of work (#1426).
 ### D-109 — Realtime outbox: where the sequence comes from inside a business transaction, and what happens to an event that never goes out · decided 2026-11-12
 **Decided (agent: tech-lead, 2026-11-12, under D-089)** — ADR 0010, #344. Tenant isolation and
 structural design, so an agent decides it and records it here. The owner can overturn it.
@@ -110,6 +135,156 @@ tenants whose hashes collide, and still resets after a purge. (1c) locks nothing
 event. (2a) lets one row stop a tenant's stream for good, which devsecops raised as MEDIUM on the
 notice outbox. (2b) writes a false record. With (2c), an abandoned event is still in the log, clients
 resync through gap detection, and `realtime_outbox_abandoned_total` counts each one.
+
+### D-108 — How the ADR 0008 control chain is persisted, migrated and split (#553) · decided 2026-11-12
+**Decided (agent, 2026-11-12)** — tech-lead design gate of #553. Sixteen design questions from the
+brief, answered below. Every answer is checked against ADR 0008 D5–D7. The persistence readings
+the ADR left open, and the one field it lacked, are recorded as amendment A10 of the ADR. No
+column is dropped or renamed. Nothing irreversible and nothing that spends money, so none of this is
+escalated. The owner may overturn any point.
+
+**The questions and the choices**
+
+1. **Table shape.** Options: one generic edge table, or one join table per verb. **Chosen: one
+   `canonical_edges` table** for the verbs that are stored as rows (`addressed_by`, `applies_to`,
+   `evidenced_by` from a test and from a control, `mitigated_by`, `raised_by`, `indicates`). Reasons:
+   the edge envelope (D5) is the same for every verb; the tenant check on the target
+   (`WHERE id = ? AND tenant_id = ?`) is then written once, in one resolver keyed by entity type,
+   and `TestEdgeWrite_TargetInOtherTenant_404` is one table-driven test over that resolver; the
+   unique key is literally D5's `(tenant_id, from, verb, to, qualifier)`. Per-verb tables would allow
+   foreign keys, but they would also copy the tenant gate seven times, and a copied gate is the
+   defect class this codebase has shipped most. `implemented_by` and `tested_by` are **not** rows:
+   they are the `control_id` and `implementation_id` columns, as D6 says ("mirrors the edge, so the
+   cardinality is a field"). `maps_to` stays in `control_crosswalks` (out of scope).
+2. **Where the backfill runs.** `PrepareForAutoMigrate` runs before the new tables exist, so it
+   cannot insert into them. Options: create the tables in Go before AutoMigrate (a third copy of
+   the DDL), or run after AutoMigrate. **Chosen: `controlchain.Reconcile`, called from `main.go`
+   between `AutoMigrate` and `RunMigrations`, on every boot, with or without `DATABASE_URL`.** It is
+   insert-only and convergent: it creates the split for each requirement that has none, and carries
+   each legacy link that has no edge. It never updates or deletes a row, so a late replay changes
+   nothing that exists (the #1001 lesson). It runs in one transaction under
+   `pg_advisory_xact_lock`, so two replicas booting together cannot both insert. It prints the counts
+   of criterion 7 and fails the boot when they do not reconcile (the 0084 `RAISE` rule). Criterion 8's
+   last sentence is met in substance (the backfill runs on DB_HOST boots), not by its letter.
+3. **`ControlIDFor` in SQL or Go.** Postgres has no SHA-1 without an extension. Options:
+   `CREATE EXTENSION "uuid-ossp"` and a SQL backfill, or Go. **Chosen: Go only**
+   (`canonical.ControlIDFor`, already pinned by `split_test.go`). One implementation, not two that
+   must agree, and no extension for operators of managed or hardened Postgres to grant.
+   `migrations/0086` holds the DDL only and says why.
+4. **Dual-write of status, or cutover.** `compliance_controls.status` is read by ADR 0003's
+   residual, SmartScore factor 4, the tenant score and gap analysis. **Chosen: no status sync in
+   either direction in #553.** The split copies `status` into `declared_status` once. From then on
+   `compliance_controls.status` stays the authority every score reads, and `Control.declared_status`
+   is the canonical claim, written only through the new routes. #555 moves the score readers to
+   the computed status and owns the reconciliation of the two. Syncing either way would either move
+   a residual on a new-route write (criterion 11) or overwrite a control that already answers
+   several requirements from one of them.
+5. **Home of the GORM models.** **Chosen: `backend/internal/infrastructure/controlchain`** (row
+   types, repositories, row↔canonical mappers, the reconciler, the legacy mirror). Use cases in
+   `backend/internal/application/controlchain`, one per file, interfaces declared there.
+   `internal/domain` gains no GORM file: the 30 existing ones are drift, not precedent.
+6. **Legacy write routes.** **Chosen: a one-way mirror, legacy → new, in the same transaction,
+   inside the legacy repositories.** Creating a requirement (by hand or by catalogue import)
+   creates its split control and `addressed_by` edge. Linking or unlinking evidence, and deleting
+   evidence, writes or removes the transitional `Control --evidenced_by--> Evidence` edge. Creating
+   or deleting a risk mapping writes or removes `Risk --mitigated_by--> Control` (removed only when
+   no other live mapping of the same pair remains). Use cases and handlers do not change. **Reader
+   re-pointing (Scope IN of #553) is deferred:** the score readers move in #555 with the computed
+   status, the display readers with the UI issue. Re-pointing them now changes either a score
+   (criterion 11) or a response shape the current UI reads, for no user-visible gain.
+7. **Unplaceable rows.** A legacy row is unplaceable when either end does not resolve in the row's
+   own tenant (missing, or present only in another tenant). It is listed by id, never carried. No
+   link is placed on a test result by the migration, because no result exists yet: every carried
+   link is the transitional control-level edge.
+8. **Soft-deleted rows.** A soft-deleted `compliance_controls` row gets its split control with the
+   same `deleted_at`, so criterion 7's "every row" holds and a deleted requirement never surfaces as
+   a live control. An evidence link whose evidence is soft-deleted is carried. Edges carry no
+   `deleted_at`: an edge is live when both its ends are. A soft-deleted risk mapping is not carried
+   and is counted. Live duplicate mappings of one (risk, control) pair become one edge, and the
+   collapsed row ids are listed. After the split, deleting a requirement through the legacy route
+   leaves its control alone: the control may answer other requirements.
+9. **Permissions.** **Chosen: reuse, no new key.** Controls, implementations, tests and recording a
+   result: `compliance:controls:{read,create,update,delete}` (recording a result is `update`).
+   Evidence on a result: `compliance:evidences:create`. Linking a gap to a risk: `risks:update`
+   (the precedent of `/risks/:id/control-mappings`). Reading from a risk: `risks:read`. No
+   catalogue or preset edit.
+10. **Route prefix.** `/compliance/controls/:controlId` is the Requirement and keeps its meaning.
+    **Chosen:** `/compliance/internal-controls[/:id]`, `/compliance/internal-controls/:id/implementations`,
+    `/compliance/implementations/:id[/tests]`, `/compliance/tests/:id[/results[/:resultId/evidence]]`,
+    `/compliance/tests/:id/control-gaps`, `/compliance/control-gaps/:id/risks`, the requirement side
+    `/compliance/controls/:controlId/internal-controls`, and `/risks/:id/control-gaps`. `gaps` alone
+    is avoided: `/compliance/gap-analysis` already means the computed list. Every route is mounted in
+    `main.go`, where the isolation gate reads, and gets an exact registry entry.
+11. **Source of the split control.** D7 names it for the Requirement only. **Chosen:**
+    `openrisk_user`, `source_id` = the control's own id, confidence 0.70, provenance method
+    `migration` (reconciler) or `manual_entry` (runtime mirror), actor `system` `control_split`
+    (`compliance_controls` records no author). The status it copies was a person's claim; nothing
+    about it was derived or observed. ADR A10.
+12. **An implementation needs `applies_to`.** Enforced in the create use case (at least one asset id,
+    else `ErrValidation`) and written with its edges in one repository transaction. Each asset is
+    resolved `WHERE id = ? AND tenant_id = ? AND deleted_at IS NULL`; a miss is 404. An update that
+    would leave the set empty is refused.
+13. **Gap identity.** **Chosen: D2's identity rule,** `(tenant_id, source = openrisk_derived,
+    source_id = test id)`, a plain unique index, no partial index. One gap per test for its life.
+    A failing result on a `remediated` gap reopens it; `accepted` and `false_positive` keep their
+    human verdict. Each failing result adds a `raised_by` edge qualified by its `result_id`, which
+    keeps the history. `pass` and `inconclusive` change no gap (closing on a pass is #555's status
+    work). Severity is `medium` at raise, with `provenance.rule` saying so, because neither the test
+    nor the control carries one. ADR A10.
+14. **`tenant_id` on results.** **Chosen: persisted** on `control_test_results` (ABSOLUTE RULE 2),
+    copied from the test row resolved under the caller's tenant, never from a body. The canonical
+    sub-record stays without it. ADR A10.
+15. **`evidenced_by` key.** The `canonical_edges` unique key with `qualifier uuid NOT NULL`, the nil
+    uuid standing for "no qualifier", exactly as `canonical.EdgeKey` does. One artifact backs two
+    results of one test as two rows. `evidence_control_links`' pair index is untouched.
+16. **`evidence_required`.** Moving `Control.declared_status` **into** `implemented` requires at least
+    one live, accepted, unexpired `evidences` row reachable from the control: by a transitional
+    control-level `evidenced_by`, or by a test-level `evidenced_by` on one of its live tests. The
+    predicate is the one `GetControlByID` uses today. Re-saving an implemented control is never
+    blocked.
+
+**Also decided**
+- A `not_applicable` row is split to `applicability = not_applicable`, `declared_status =
+  not_implemented`, an empty justification and a read-only `applicability_review_pending = true`.
+  Validation accepts the empty justification only while that flag is set, and no write can set it.
+  This adds one field to D6's `Control`: ADR A10.
+- Results and their evidence edges are append-only: no route updates or deletes either. A wrong
+  attachment is corrected by recording a new result.
+- Deleting a control with live implementations, or an implementation with live tests, answers
+  `ErrConflict`.
+- Criterion 9's "every new table is registered in `internal/security/isolation`": that package
+  is route-keyed and has no table list. #553 adds one (`tables.go`): the six tables, each with a
+  Postgres test that `tenant_id` is `uuid NOT NULL` and leads an index.
+- #553 is split into six issues of about 1,500 changed lines or less. #553 keeps the first
+  (schema, reconciler, criteria 7 and 8). The PO opens the other five.
+
+**Reason** — The single edge table and the Go-only id keep the two checks this design depends on
+(the tenant gate on the target, the deterministic id) in one place each. Leaving the score readers
+alone keeps criterion 11 true by construction instead of by test luck. The insert-only reconciler is
+the only backfill shape that is correct on a DB_HOST boot and on a late SQL replay.
+**Overturn cost** — Per-verb tables later: one data copy per verb, no API change. Reader
+re-pointing earlier: pulled into any slice after the mirror ships.
+
+**Amended (agent, 2026-11-12)** — Q2, the boot policy. Question: when Reconcile's counts do not
+reconcile, stop the boot or boot with an alert? Options: (a) stop, as decided above; (b) roll back,
+log at error level and boot; (c) as (b), with a real alert. **Choice: (c) for
+`controlchain.ErrNotReconciled`, (a) for database errors.** A log line nobody reads is silence, so
+the refusal sets the `openrisk_control_chain_reconcile_refused` gauge to 1, and the
+`ControlChainReconcileRefused` alert (`deployment/monitoring/alerts.yml`, severity critical; run
+once through `promtool check rules` and `promtool test rules` on #553, output in the issue) fires on it. The backend has no
+Sentry client and the repository ships no Loki, so Prometheus is the alert path that exists; an
+install without the monitoring stack gets the error log only. Reason: the transaction rolls back, so nothing is written either way; the legacy tables
+stay the source of truth and no reader uses the chain yet (Q6). Stopping takes every tenant down on
+every boot until a code fix and protects no data. The 0084 `RAISE` precedent guards a drop, which
+loses data; this guards an insert-only copy, which does not. A database error still stops the boot:
+the SQL layer that runs next would fail on it. Implemented by `controlchain.ReconcileAtBoot`, tested
+by `TestReconcileAtBoot_NotReconciledLetsTheBootGoOn`, `_SuccessClearsTheAlert` and
+`_DatabaseErrorStopsTheBoot`. Two review findings follow from it: Reconcile reads under REPEATABLE
+READ on PostgreSQL, so a write during a rolling deploy cannot raise a false alert; and a
+`compliance_controls` row with the nil tenant is listed (`RequirementsUnplaceable`) and not split,
+fail closed like the links. **Revisit**
+when #1413 writes or reads the chain outside Reconcile: a missing chain then misstates coverage, and
+a per-tenant flag is the likely shape.
 
 ### D-107 — Guessing codes from a stolen session: which lock, and whose sign-in it can block · decided 2026-11-11
 **Decided (owner, 2026-11-11)** — "un compteur séparé pour ces deux actions." Option B. Wrong codes and
@@ -1509,7 +1684,7 @@ self-hosted customer is known to run a version older than migration 0052.
 **Blocks** — #813.
 
 ### D-055 — structural tenant guard: a GORM callback now, Postgres RLS after the launch · decided 2026-09-28
-*Implemented by #808; see D-110 and ADR 0011.*
+*Implemented by #808; see D-111 and ADR 0011.*
 
 **Decided (owner)** — **C, matching the recommendation.** The GORM callback (A) is built
 inside #808 before the launch. Postgres Row-Level Security (B) comes after the launch, behind

@@ -19,7 +19,7 @@ import (
 
 // allowedSave is the closed list of production `.Save(x)` calls. Everything else
 // goes through tenantwrite.UpdateInTenant / UpdateInOrganization, because GORM's
-// Save falls back to an upsert when its UPDATE matches 0 rows (#808, D-110).
+// Save falls back to an upsert when its UPDATE matches 0 rows (#808, D-111).
 // Every single-argument .Save( counts, whatever its receiver: the receiver's
 // type is not known to a syntax-only scan, and a receiver spelled
 // database.DB.Scopes(t), conn, orm or a local alias is no safer than db. A call
@@ -31,7 +31,7 @@ var allowedSave = map[string]struct {
 	calls  int
 	reason string
 }{
-	"internal/infrastructure/repository/gorm_user_repository.go|Update":         {1, "users is a deployment-global table, exempt from the tenant guard (D-110); the row is the user's own"},
+	"internal/infrastructure/repository/gorm_user_repository.go|Update":         {1, "users is a deployment-global table, exempt from the tenant guard (D-111); the row is the user's own"},
 	"internal/infrastructure/repository/gorm_organization_repository.go|Update": {1, "organizations has no tenant column: the organization is the tenant and the id is the filter"},
 	"internal/service/marketplace_service.go|UpdateApp":                         {1, "marketplace is not built (ROADMAP 14.18): unrouted, tables not migrated; fix with the module, not here"},
 	"internal/service/marketplace_service.go|UpdateAppSync":                     {1, "marketplace is not built (ROADMAP 14.18): unrouted, tables not migrated; fix with the module, not here"},

@@ -115,23 +115,22 @@ describe('useRiskStore.bulkDelete — governed, one request', () => {
 
   it('sends ONE request to the bulk endpoint, never one DELETE per row', async () => {
     const post = vi.spyOn(api, 'post').mockResolvedValueOnce({
-      data: { total: 2, applied: 2, risk_ids: ['r1', 'r2'], audited: 2 },
+      data: { total: 2, applied: 2, ids: ['r1', 'r2'], audited: 2 },
     });
     const del = vi.spyOn(api, 'delete');
 
     await useRiskStore.getState().bulkDelete(['r1', 'r2']);
 
     expect(post).toHaveBeenCalledTimes(1);
-    expect(post).toHaveBeenCalledWith('/risks/bulk', {
-      type: 'delete',
-      risk_ids: ['r1', 'r2'],
-    });
+    // The governed route behind risks:delete (#599), never the legacy
+    // body-driven /risks/bulk, which an update-only role could reach.
+    expect(post).toHaveBeenCalledWith('/risks/bulk/delete', { ids: ['r1', 'r2'] });
     expect(del).not.toHaveBeenCalled();
   });
 
   it('removes the rows optimistically and clears the selection on success', async () => {
     vi.spyOn(api, 'post').mockResolvedValueOnce({
-      data: { total: 2, applied: 2, risk_ids: ['r1', 'r2'], audited: 2 },
+      data: { total: 2, applied: 2, ids: ['r1', 'r2'], audited: 2 },
     });
 
     await useRiskStore.getState().bulkDelete(['r1', 'r2']);

@@ -4,7 +4,7 @@
 // the terms of the GNU Affero General Public License v3.0 (see LICENSE).
 
 // Package testdb is the only way a test opens a database: gorm.Open with the
-// tenant guard (#808, D-110) installed in Enforce mode. coverage_test.go fails
+// tenant guard (#808, D-111) installed in Enforce mode. coverage_test.go fails
 // the build if a test reaches for gorm.Open directly.
 package testdb
 

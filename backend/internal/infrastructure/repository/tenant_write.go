@@ -14,7 +14,7 @@ import (
 
 // updateInTenant and updateInOrganization are the repository-side names of
 // tenantwrite.UpdateInTenant / UpdateInOrganization. Never `.Save(` a
-// tenant-scoped model (#808, D-110).
+// tenant-scoped model (#808, D-111).
 func updateInTenant(db *gorm.DB, tenantID uuid.UUID, model any, omit ...string) error {
 	return tenantwrite.UpdateInTenant(db, tenantID, model, omit...)
 }
