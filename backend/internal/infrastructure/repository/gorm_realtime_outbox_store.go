@@ -55,19 +55,6 @@ func (r *GormRealtimeEventRepository) AbandonExpired(ctx context.Context, maxAtt
 	return res.RowsAffected, res.Error
 }
 
-// ClaimPending leases pending rows for delivery, per tenant in sequence order.
-//
-// Statement 1 considers only tenants whose first pending row (by sequence) is
-// claimable now, neither leased nor backed off: a tenant whose head is blocked
-// would fill the LIMIT, claim nothing in statement 2 and starve the tenants
-// behind it. It locks up to maxTenants of them through their counter rows with
-// SKIP LOCKED: a tenant another relay is working on, or a tenant with a
-// transaction still in flight (which holds the same counter row), is skipped.
-// That lock is what guarantees no uncommitted lower sequence exists for a
-// tenant whose rows are claimed. Statement 2 is a new statement, so READ
-// COMMITTED gives it a fresh snapshot taken after the locks, and claims at most
-// perTenant rows of each locked tenant, stopping at the first row that is
-// leased or backed off: that row blocks itself and everything after it.
 // lockClaimableTenants is ClaimPending's statement 1. It is a function of its
 // own so the cursor is closed by defer before statement 2 runs on the same tx.
 func lockClaimableTenants(tx *gorm.DB, maxTenants int) ([]uuid.UUID, error) {
@@ -98,6 +85,19 @@ func lockClaimableTenants(tx *gorm.DB, maxTenants int) ([]uuid.UUID, error) {
 	return tenants, cur.Err()
 }
 
+// ClaimPending leases pending rows for delivery, per tenant in sequence order.
+//
+// Statement 1 considers only tenants whose first pending row (by sequence) is
+// claimable now, neither leased nor backed off: a tenant whose head is blocked
+// would fill the LIMIT, claim nothing in statement 2 and starve the tenants
+// behind it. It locks up to maxTenants of them through their counter rows with
+// SKIP LOCKED: a tenant another relay is working on, or a tenant with a
+// transaction still in flight (which holds the same counter row), is skipped.
+// That lock is what guarantees no uncommitted lower sequence exists for a
+// tenant whose rows are claimed. Statement 2 is a new statement, so READ
+// COMMITTED gives it a fresh snapshot taken after the locks, and claims at most
+// perTenant rows of each locked tenant, stopping at the first row that is
+// leased or backed off: that row blocks itself and everything after it.
 func (r *GormRealtimeEventRepository) ClaimPending(ctx context.Context, maxTenants, perTenant int, lease time.Duration) ([]domain.RealtimeEvent, error) {
 	if err := r.requirePostgres(); err != nil {
 		return nil, err
