@@ -9,7 +9,9 @@ export {
   type BulkChangeInput,
   type BulkPhase,
   type BulkRefusal,
+  type ExternalStorePlan,
   type OptimisticPlan,
+  type QueryCachePlan,
   type UseGovernedBulk,
   type UseGovernedBulkOptions,
 } from './useGovernedBulk';

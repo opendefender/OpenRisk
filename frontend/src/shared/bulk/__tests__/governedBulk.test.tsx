@@ -512,3 +512,144 @@ describe('accessibility', () => {
     expect(serious.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
   }, 20_000);
 });
+
+/* ------------------------- #1441: a register whose rows are not in the cache -- */
+
+// The risk register keeps its page in a Zustand store. The guarantees are the
+// same — preview first, fingerprint on the apply, exact undo on a refusal — but
+// the optimistic change is the page's and the hook only decides when to undo it.
+
+
+function ExternalHarness({ refresh }: { refresh: () => void }) {
+  const [rows, setRows] = useState<string[]>(IDS);
+
+  const bulk = useGovernedBulk({
+    register: 'risks',
+    optimistic: {
+      applyExternal: (ids) => {
+        const before = rows;
+        setRows(before.filter((id) => !ids.has(id)));
+        return () => setRows(before);
+      },
+      refresh,
+    },
+  });
+
+  return (
+    <>
+      <BulkBar
+        count={IDS.length}
+        actions={[
+          {
+            key: 'delete',
+            label: 'Delete',
+            danger: true,
+            hidden: !bulk.supports('delete'),
+            run: () => bulk.request({ action: 'delete' }, IDS).catch(() => {}),
+          },
+        ]}
+        buildScope={() => ({
+          scope: 'selection',
+          ids: IDS,
+          rows: [],
+          count: IDS.length,
+          state: { q: '', sort: null, page: 1, pageSize: 50, filters: {} },
+        })}
+        onClear={() => {}}
+        labels={{ selected: (n) => `${n} selected`, clear: 'Clear', failed: 'Failed' }}
+      />
+      <BulkPreviewDialog bulk={bulk} entityLabel="risks" />
+      <output data-testid="rows">{rows.join(',')}</output>
+    </>
+  );
+}
+
+function renderExternal(refresh = vi.fn()) {
+  queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
+  render(
+    <QueryClientProvider client={queryClient}>
+      <ExternalHarness refresh={refresh} />
+    </QueryClientProvider>,
+  );
+  return refresh;
+}
+
+const rowsShown = () => screen.getByTestId('rows').textContent ?? '';
+
+async function confirmDelete(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(await screen.findByTestId('bulk-action-delete'));
+  const dialog = await screen.findByRole('alertdialog');
+  await user.click(within(dialog).getByRole('button', { name: 'Delete' }));
+}
+
+describe('external-store optimistic plan (#1441)', () => {
+  beforeEach(() => {
+    capabilities.mockResolvedValue({ entity_type: 'risk', actions: ['delete'] });
+    preview.mockResolvedValue({ ...A_PREVIEW, action: 'delete', affected: 3, unchanged: 0 });
+  });
+
+  it('previews the risk register and applies nothing before the confirm', async () => {
+    const user = userEvent.setup();
+    renderExternal();
+    await user.click(await screen.findByTestId('bulk-action-delete'));
+
+    await screen.findByRole('alertdialog');
+    expect(preview).toHaveBeenCalledWith('risks', 'delete', IDS, undefined);
+    expect(apply).not.toHaveBeenCalled();
+    expect(rowsShown()).toBe(IDS.join(','));
+  });
+
+  it('sends ONE apply carrying the fingerprint, drops the rows, and refreshes', async () => {
+    let resolveApply: (value: BulkResult) => void = () => {};
+    apply.mockImplementation(() => new Promise((resolve) => (resolveApply = resolve)));
+    const user = userEvent.setup();
+    const refresh = renderExternal();
+
+    await confirmDelete(user);
+
+    await waitFor(() => expect(rowsShown()).toBe(''));
+    expect(apply).toHaveBeenCalledTimes(1);
+    expect(apply).toHaveBeenCalledWith('risks', 'delete', {
+      ids: IDS,
+      status: undefined,
+      justification: undefined,
+      fingerprint: A_PREVIEW.fingerprint,
+    });
+    expect(refresh).not.toHaveBeenCalled();
+
+    resolveApply({ total: 3, applied: 3, ids: IDS, audited: 3 });
+    await waitFor(() => expect(refresh).toHaveBeenCalledTimes(1));
+  });
+
+  it.each([
+    [409, /changed since the preview/i],
+    [404, /no longer exist/i],
+  ])('a %i refusal puts every row back and says so', async (status, message) => {
+    apply.mockRejectedValue(httpError(status));
+    const user = userEvent.setup();
+    const refresh = renderExternal();
+
+    await confirmDelete(user);
+
+    expect(await screen.findByTestId('bulk-preview-refused')).toHaveTextContent(message);
+    expect(rowsShown()).toBe(IDS.join(','));
+    // Re-read the truth rather than trusting the restored rows.
+    expect(refresh).toHaveBeenCalledTimes(1);
+  });
+
+  it('cancelling the preview sends no apply and touches no row', async () => {
+    const user = userEvent.setup();
+    const refresh = renderExternal();
+    await user.click(await screen.findByTestId('bulk-action-delete'));
+    await screen.findByRole('alertdialog');
+
+    await user.keyboard('{Escape}');
+
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
+    expect(apply).not.toHaveBeenCalled();
+    expect(refresh).not.toHaveBeenCalled();
+    expect(rowsShown()).toBe(IDS.join(','));
+  });
+});
