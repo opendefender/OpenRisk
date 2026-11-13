@@ -468,24 +468,19 @@ financière + un plan de traitement suggéré ». Une branche par phase, commits
   Wave 1 a livré les trois manques qui restaient : les vues enregistrées côté serveur (W1-05a),
   les actions en masse transactionnelles et auditées sur les risques (W1-05b), et le mécanisme
   partagé d'aperçu + application gouvernée, appliqué aux vulnérabilités et aux actifs (W1-05c).
-  **Reste ouvert — l'épique n'est pas close.** Trois choses, dont une bloquante :
-  - **Le registre des risques n'utilise pas l'endpoint gouverné qu'il possède** (#598).
-    `POST /api/v1/risks/bulk` est transactionnel, audité et monté
-    (`cmd/server/main.go:1365`), mais `RiskRegisterPage.tsx:489-506` supprime toujours **une
-    requête par ligne** (`await Promise.all(ids.map((id) => deleteRisk(id)))`), et la mutation
-    `useRisks.ts:131` qui appelle l'endpoint n'a **aucun appelant**. Côté serveur la garantie
-    existe ; depuis le siège de l'utilisateur elle n'est pas atteignable. Tant que #598 n'est
-    pas livré, « actions en masse gouvernées sur le registre des risques » ne peut pas être
-    déclaré livré (RÈGLE ABSOLUE 12).
+  **Registre des risques : passé sur le chemin gouverné** (#598, #599, #1441). La suppression
+  en masse fait un aperçu (`POST /risks/bulk/preview`), montre l'impact dans
+  `<BulkPreviewDialog>`, puis envoie **une** requête `POST /risks/bulk/delete` qui porte
+  l'empreinte de l'aperçu ; une sélection modifiée entre-temps (409) ou un id périmé ou
+  étranger (404) est refusé en entier et les lignes reviennent
+  (`RiskRegisterPage.tsx`, `useGovernedBulk.ts`, tests
+  `shared/bulk/__tests__/governedBulk.test.tsx` « external-store optimistic plan (#1441) »).
+  Seule la suppression est proposée ; statut et tags en masse ne le sont pas encore.
+  **Reste ouvert — l'épique n'est pas close.** Deux choses :
   - **Quatre registres sur sept n'ont pas d'actions en masse** : mitigations et incidents (C2),
     jetons d'API (C3), et la piste d'audit de gouvernance **abandonnée avec motif** — elle est
     immuable et chaînée par tenant (`internal/domain/governance.go:96`), y écrire en masse
     casserait la chaîne. C2 et C3 sont désormais déposés en **#600**.
-  - **Le registre des risques n'a pas d'aperçu d'impact** (#599). `/risks/bulk` est une route
-    unique dont l'action vient du **corps** de la requête, alors que #582 a délibérément
-    abandonné cette forme (un porteur de `risks:update` pouvait poster une action `delete`) ;
-    vulnérabilités et actifs ont `capabilities`, `preview`, et une route par action derrière sa
-    propre permission. L'aperçu est ce que #582 appelle « la moitié qui manquait à #581 ».
   - **`docs/MARKETING_CLAIM_MATRIX.md` n'est pas à jour** pour les trois enfants : statut
     `VERIFIED` réservé à `product-verifier` via `/verify-claims`.
   Le reste de la dette de vérification de l'épique (Gap 3, `docs/JOURNAL.md:129`) a été
@@ -602,7 +597,7 @@ financière + un plan de traitement suggéré ». Une branche par phase, commits
   31 mars 2027, D-110).
   **Reste** : `assign_to` n'est pas sur les routes gouvernées, car l'assignation en masse ne
   valide pas l'appartenance de l'assigné au tenant (#1426). L'interface de l'aperçu
-  relève de #598.
+  est branchée par #1441.
 - [x] **W1-05c — Actions en masse gouvernées : vulnérabilités et actifs** (#582, enfant C de
   l'épique #235, séquencé après #581, gaté transitivement par **D-036**).
   **Périmètre réellement livré : C1**, pas les six registres annoncés par l'intitulé de l'issue.
