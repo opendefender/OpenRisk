@@ -1,4 +1,4 @@
--- #344 — undo 0086. Removes the outbox bookkeeping; the events themselves stay.
+-- #344 — undo 0085. Removes the outbox bookkeeping; the events themselves stay.
 BEGIN;
 
 DROP TABLE IF EXISTS realtime_event_sequences;

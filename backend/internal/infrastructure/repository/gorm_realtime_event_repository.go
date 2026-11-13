@@ -271,7 +271,7 @@ func (r *GormRealtimeEventRepository) Bounds(ctx context.Context, tenantID uuid.
 
 // PurgeBefore drops events older than cutoff, across all tenants. A row still
 // waiting for the relay is never purged, whatever its age: it is an
-// announcement not yet made, and legacy rows read as published (migration 0086).
+// announcement not yet made, and legacy rows read as published (migration 0085).
 func (r *GormRealtimeEventRepository) PurgeBefore(ctx context.Context, cutoff time.Time) (int64, error) {
 	// tenant: instance-level retention sweep, cross-tenant by design (see the port).
 	res := r.db.WithContext(ctx).Session(&gorm.Session{SkipHooks: true}).

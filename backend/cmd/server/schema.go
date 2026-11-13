@@ -201,7 +201,7 @@ func schemaModels() []interface{} {
 		// it is where the ordering guarantee lives (unique tenant_id+sequence).
 		&domain.RealtimeEvent{},
 		// Per-tenant sequence allocator and relay lock of the realtime outbox
-		// (#344, migration 0086, ADR 0010).
+		// (#344, migration 0085, ADR 0010).
 		&domain.RealtimeEventSequence{},
 		// Saved table views (#580): the named filter/sort/column combinations a
 		// user keeps for a register and may share with their tenant. Purely

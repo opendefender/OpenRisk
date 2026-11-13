@@ -11,7 +11,7 @@
 --
 -- As created here the table is NOT a transactional outbox: the row is appended
 -- after the business transaction commits, not inside it. Since #344 (migration
--- 0086, ADR 0010) use cases that enlist can write the row inside their own
+-- 0085, ADR 0010) use cases that enlist can write the row inside their own
 -- transaction; every other event keeps the post-commit path. See
 -- docs/W0-07_REALTIME_EVENT_HUB.md (Outbox / Publishing Strategy, Known
 -- Limitation 1).

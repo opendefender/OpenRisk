@@ -298,7 +298,7 @@ aggregate type and id, actor, correlation, causation, payload, occurred-at and
 created-at.
 
 Since #344 the table also carries the outbox bookkeeping (`published_at`,
-`abandoned_at`, `attempts`, `locked_until`, `last_error`, migration `0086`):
+`abandoned_at`, `attempts`, `locked_until`, `last_error`, migration `0085`):
 see "Outbox / Publishing Strategy" below for which events use it.
 
 Retention is instance-wide, 24 h by default, overridable with
@@ -358,7 +358,16 @@ each to the local hub and to the Redis fanout, and marks it published.
   `/metrics` is scraped, so a dead relay shows as a growing lag instead of a
   frozen value; on a read error they emit nothing (alert on `absent()`). Every
   instance reports the same instance-wide value: aggregate with `max()`, never
-  `sum()`.
+  `sum()`. The backlog gauges count neither published nor abandoned rows, so
+  they fall back to 0 after an abandon: the abandoned counter is the signal.
+* **Alerts** (`deployment/monitoring/alerts.yml`, tested by
+  `deployment/monitoring/realtime_outbox_alerts.test.yml`). The 20-attempt cap
+  is acceptable only because an operator is told (D-109, owner, 2026-11-13):
+  * `RealtimeOutboxEventAbandoned`, critical: any abandon in the last 15 min;
+  * `RealtimeOutboxBacklogStale`, warning: the oldest pending event is older
+    than 5 min for 5 min, long before the cap;
+  * `RealtimeOutboxMetricsAbsent`, warning: the backlog gauges have been absent
+    for 10 min.
 
 **Enlisted events today: `asset.created` from `POST /assets/import` only**, one
 event per imported asset. Everything else is on the inline path.

@@ -93,7 +93,7 @@ type RealtimeEvent struct {
 	OccurredAt time.Time `gorm:"not null;index" json:"occurred_at"`
 	CreatedAt  time.Time `gorm:"index" json:"created_at"`
 
-	// Outbox bookkeeping (ADR 0010, migration 0086). Relay state, never part of
+	// Outbox bookkeeping (ADR 0010, migration 0085). Relay state, never part of
 	// the envelope: none of it is serialised. The time columns carry no explicit
 	// type tag: GORM maps time.Time to timestamptz on Postgres, and an explicit
 	// "timestamptz" would stop sqlite (tests) from parsing the value back.

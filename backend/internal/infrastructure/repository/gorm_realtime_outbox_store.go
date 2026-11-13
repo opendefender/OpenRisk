@@ -68,41 +68,46 @@ func (r *GormRealtimeEventRepository) AbandonExpired(ctx context.Context, maxAtt
 // COMMITTED gives it a fresh snapshot taken after the locks, and claims at most
 // perTenant rows of each locked tenant, stopping at the first row that is
 // leased or backed off: that row blocks itself and everything after it.
+// lockClaimableTenants is ClaimPending's statement 1. It is a function of its
+// own so the cursor is closed by defer before statement 2 runs on the same tx.
+func lockClaimableTenants(tx *gorm.DB, maxTenants int) ([]uuid.UUID, error) {
+	// tenant: returns tenant ids only, cross-tenant by design; every later statement is gated by that list.
+	cur, err := tx.Raw(`
+		SELECT s.tenant_id
+		  FROM realtime_event_sequences s
+		  JOIN (SELECT DISTINCT ON (tenant_id) tenant_id, created_at AS oldest, locked_until
+		          FROM realtime_events
+		         WHERE published_at IS NULL AND abandoned_at IS NULL
+		         ORDER BY tenant_id, sequence) p ON p.tenant_id = s.tenant_id
+		 WHERE p.locked_until IS NULL OR p.locked_until <= now()
+		 ORDER BY p.oldest
+		 LIMIT ?
+		   FOR UPDATE OF s SKIP LOCKED`, maxTenants).Rows()
+	if err != nil {
+		return nil, err
+	}
+	defer cur.Close()
+	var tenants []uuid.UUID
+	for cur.Next() {
+		var id uuid.UUID
+		if err := cur.Scan(&id); err != nil {
+			return nil, err
+		}
+		tenants = append(tenants, id)
+	}
+	return tenants, cur.Err()
+}
+
 func (r *GormRealtimeEventRepository) ClaimPending(ctx context.Context, maxTenants, perTenant int, lease time.Duration) ([]domain.RealtimeEvent, error) {
 	if err := r.requirePostgres(); err != nil {
 		return nil, err
 	}
 	var rows []domain.RealtimeEvent
 	err := r.db.WithContext(ctx).Session(&gorm.Session{SkipHooks: true}).Transaction(func(tx *gorm.DB) error {
-		// tenant: returns tenant ids only, cross-tenant by design; every later statement is gated by that list.
-		cur, err := tx.Raw(`
-			SELECT s.tenant_id
-			  FROM realtime_event_sequences s
-			  JOIN (SELECT DISTINCT ON (tenant_id) tenant_id, created_at AS oldest, locked_until
-			          FROM realtime_events
-			         WHERE published_at IS NULL AND abandoned_at IS NULL
-			         ORDER BY tenant_id, sequence) p ON p.tenant_id = s.tenant_id
-			 WHERE p.locked_until IS NULL OR p.locked_until <= now()
-			 ORDER BY p.oldest
-			 LIMIT ?
-			   FOR UPDATE OF s SKIP LOCKED`, maxTenants).Rows()
+		tenants, err := lockClaimableTenants(tx, maxTenants)
 		if err != nil {
 			return err
 		}
-		var tenants []uuid.UUID
-		for cur.Next() {
-			var id uuid.UUID
-			if err := cur.Scan(&id); err != nil {
-				_ = cur.Close()
-				return err
-			}
-			tenants = append(tenants, id)
-		}
-		if err := cur.Err(); err != nil {
-			_ = cur.Close()
-			return err
-		}
-		_ = cur.Close()
 		if len(tenants) == 0 {
 			return nil
 		}

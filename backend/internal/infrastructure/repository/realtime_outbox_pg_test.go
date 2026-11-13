@@ -40,7 +40,7 @@ import (
 
 const (
 	rtLogMigration    = "../../../../migrations/0059_realtime_event_log"
-	rtOutboxMigration = "../../../../migrations/0086_realtime_outbox"
+	rtOutboxMigration = "../../../../migrations/0085_realtime_outbox"
 )
 
 // rtSchema opens a pool whose connections all see a fresh schema.
@@ -743,7 +743,7 @@ func replayJSON(t *testing.T, events *GormRealtimeEventRepository, tenants ...uu
 	return string(b)
 }
 
-func TestMigration0086_LegacyRowsReplayUnchanged(t *testing.T) {
+func TestMigration0085_LegacyRowsReplayUnchanged(t *testing.T) {
 	db := rtSchema(t)
 	ctx := context.Background()
 	require.NoError(t, db.Exec(readSQL(t, rtLogMigration+".up.sql")).Error)
@@ -779,7 +779,7 @@ func TestMigration0086_LegacyRowsReplayUnchanged(t *testing.T) {
 	// Replayed: the file changes no row.
 	digest := tableDigest(t, db)
 	require.NoError(t, db.Exec(up).Error)
-	assert.Equal(t, digest, tableDigest(t, db), "applying 0086 twice changes no row")
+	assert.Equal(t, digest, tableDigest(t, db), "applying 0085 twice changes no row")
 
 	// New rows are born pending; down, then up again.
 	fresh := newEvent(t, a, realtime.AssetCreated, "x")
@@ -797,7 +797,7 @@ func TestMigration0086_LegacyRowsReplayUnchanged(t *testing.T) {
 }
 
 // Reviewer check made executable: the up file adds and never removes.
-func TestMigration0086_IsAdditiveOnly(t *testing.T) {
+func TestMigration0085_IsAdditiveOnly(t *testing.T) {
 	up := readSQL(t, rtOutboxMigration+".up.sql")
 	var code []string
 	for _, line := range strings.Split(up, "\n") {
@@ -808,7 +808,7 @@ func TestMigration0086_IsAdditiveOnly(t *testing.T) {
 	}
 	body := strings.ToUpper(strings.Join(code, "\n"))
 	for _, forbidden := range []string{`\bDROP\s+(TABLE|COLUMN|INDEX|SCHEMA|CONSTRAINT)\b`, `\bRENAME\b`, `\bDELETE\b`, `\bUPDATE\b`, `\bTRUNCATE\b`} {
-		assert.False(t, regexp.MustCompile(forbidden).MatchString(body), "0086 up must not contain %s", forbidden)
+		assert.False(t, regexp.MustCompile(forbidden).MatchString(body), "0085 up must not contain %s", forbidden)
 	}
 }
 

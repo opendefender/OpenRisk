@@ -13,6 +13,18 @@ recommends, and surfaces these in the daily brief. Run `/decide` to clear them.
 **Decided (agent: tech-lead, 2026-11-12, under D-089)** — ADR 0010, #344. Tenant isolation and
 structural design, so an agent decides it and records it here. The owner can overturn it.
 
+**Confirmed (owner, 2026-11-13)** — option (2c) is kept. The cap of 20 attempts (about 1 h) stays,
+but only on one condition: "la limite de 20 tentatives suppose qu'un opérateur soit alerté en cas
+d'abandon. il faut alors qu'on alerte".
+- **Alerts:** `RealtimeOutboxEventAbandoned` is critical and fires on any abandon. Two earlier
+  signals come with it, `RealtimeOutboxBacklogStale` and `RealtimeOutboxMetricsAbsent`. All three
+  are in `deployment/monitoring/alerts.yml`, with the promtool test
+  `realtime_outbox_alerts.test.yml`. They ship in the same PR as the cap (#1422).
+- **Criterion 3 of #344:** amended to match. It now says "retried with backoff until it succeeds or
+  is abandoned after 20 attempts, and an abandon alerts an operator".
+- **Effect on claims:** the product claims "an announcement is delivered, or its abandonment is
+  alerted". It never claims "no announcement is lost".
+
 **Question** — #344 writes `realtime_events` inside the pilot use case's transaction, and a relay
 publishes it afterwards. Two choices have real alternatives. (1) How is the per-tenant `sequence`
 reserved inside a caller's transaction without a race on a tenant's first event, without holding a

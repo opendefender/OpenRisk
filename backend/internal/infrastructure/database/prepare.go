@@ -67,7 +67,7 @@ func PrepareForAutoMigrate(db *gorm.DB) error {
 // a fast default, so every row that exists now reads as published at this
 // moment, and then drops the default so new rows are born NULL (pending).
 //
-// It has to happen here, not only in migrations/0086: the compose files boot
+// It has to happen here, not only in migrations/0085: the compose files boot
 // with DB_HOST and no DATABASE_URL, which skips the SQL layer. AutoMigrate
 // would then add the column with every row NULL and the relay would republish
 // the whole retention window to every connected client (#757 pattern). The
