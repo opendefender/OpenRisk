@@ -23,7 +23,8 @@ import (
 )
 
 // advisoryLockKey serialises Reconcile across replicas booting together. The
-// value is arbitrary and only has to be stable ("553" and the migration number).
+// value is arbitrary and only has to be stable across releases ("553" and the
+// number the migration first had); it is not the migration's version.
 const advisoryLockKey int64 = 553_0085
 
 // ErrNotReconciled is returned when, inside the transaction, what Reconcile
@@ -249,7 +250,7 @@ func logResult(r Result) {
 		Msg("controlchain: reconciled")
 	if len(r.RequirementsUnplaceable) > 0 {
 		log.Warn().Strs("ids", uuidStrings(r.RequirementsUnplaceable)).
-			Msg("controlchain: requirements not split, the row has the nil tenant")
+			Msg("controlchain: requirements not split: the row has the nil tenant, or its control is invalid (e.g. a blank name)")
 	}
 	if len(r.LinksUnplaceable) > 0 {
 		log.Warn().Strs("ids", uuidStrings(r.LinksUnplaceable)).
@@ -365,6 +366,14 @@ func reconcileTx(tx *gorm.DB) (Result, error) {
 			ID: r.ID, TenantID: r.TenantID, Name: r.Name, Description: r.Description, Status: r.Status,
 			CreatedAt: r.CreatedAt, UpdatedAt: r.UpdatedAt, DeletedAt: r.DeletedAt,
 		}, canonical.MethodMigration)
+		// A row the canonical Control refuses (a blank or over-long name, say)
+		// is listed, never written: a later reader that validates would fail on
+		// it. Its links and mappings then resolve to nothing and are listed too.
+		if control.Validate() != nil {
+			res.RequirementsUnplaceable = append(res.RequirementsUnplaceable, r.ID)
+			delete(reqTenant, r.ID)
+			continue
+		}
 		if defaulted {
 			res.StatusDefaulted = append(res.StatusDefaulted, r.ID)
 		}

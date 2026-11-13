@@ -259,6 +259,28 @@ func TestReconcile_ZeroTenantRequirementIsNotSplit(t *testing.T) {
 	assert.Equal(t, int64(0), n, "no split control for the orphan")
 }
 
+// TestReconcile_InvalidRequirementIsNotSplit: a compliance_controls row whose
+// split Control fails canonical validation (a blank name) gets no control and no
+// edge; it is listed, a link to it is listed too, and the counts reconcile.
+func TestReconcile_InvalidRequirementIsNotSplit(t *testing.T) {
+	f := seed(t)
+	blank, link := uuid.New(), uuid.New()
+	require.NoError(t, f.db.Exec(`INSERT INTO compliance_controls (id, tenant_id, name, status, created_at, updated_at)
+		VALUES (?, ?, '', 'implemented', ?, ?)`, blank, tenantA, t0, t0).Error)
+	require.NoError(t, f.db.Exec(`INSERT INTO evidence_control_links (id, tenant_id, evidence_id, control_id, created_at)
+		VALUES (?, ?, ?, ?, ?)`, link, tenantA, f.evA, blank, t0).Error)
+
+	res, err := Reconcile(context.Background(), f.db)
+	require.NoError(t, err, "one invalid row never refuses the run")
+	assert.Equal(t, []uuid.UUID{blank}, res.RequirementsUnplaceable)
+	assert.Contains(t, res.LinksUnplaceable, link)
+	var n int64
+	require.NoError(t, f.db.Model(&ControlRow{}).Where("tenant_id = ? AND id = ?", tenantA, canonical.ControlIDFor(blank)).Count(&n).Error)
+	assert.Equal(t, int64(0), n, "no control for the invalid row")
+	require.NoError(t, f.db.Model(&CanonicalEdgeRow{}).Where("tenant_id = ? AND (from_id = ? OR to_id = ?)", tenantA, canonical.ControlIDFor(blank), canonical.ControlIDFor(blank)).Count(&n).Error)
+	assert.Equal(t, int64(0), n, "no edge to or from it")
+}
+
 // TestReconcile_CredentialNoteIsUnplaceableNotRefused: a credential URL pasted
 // in one tenant's link note refuses that link only; every other row of every
 // tenant is still carried and the run succeeds.
