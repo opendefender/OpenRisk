@@ -148,23 +148,22 @@ func TestRiskBulkRoutes_Unauthorized_UpdateHolderCannotDelete(t *testing.T) {
 	status, _ := f.do(t, "POST", "/api/v1/risks/bulk/delete", `{`+f.ids()+`}`)
 	assert.Equal(t, fiber.StatusForbidden, status, "the delete route needs risks:delete")
 
-	status, body := f.do(t, "POST", "/api/v1/risks/bulk",
+	status, _ = f.do(t, "POST", "/api/v1/risks/bulk",
 		`{"type":"delete","risk_ids":["`+f.id.String()+`"]}`)
-	assert.Equal(t, fiber.StatusBadRequest, status, "the legacy route no longer deletes: %v", body)
-	assert.Contains(t, body["error"], "/risks/bulk/delete")
+	assert.Equal(t, fiber.StatusForbidden, status, "the legacy route needs risks:delete too (#1423)")
 
 	assert.Zero(t, f.store.deletes, "nothing deleted through the governed route")
 	assert.Zero(t, f.legacy.deletes, "nothing deleted through the legacy route")
 }
 
-// The legacy route refuses delete even for a caller who HOLDS risks:delete: the
-// refusal is by construction, not by a second permission check that could drift.
-func TestRiskBulkRoutes_LegacyRouteRefusesDeleteForEveryone(t *testing.T) {
+// Until the sunset, the legacy route still deletes for a caller who HOLDS
+// risks:delete (#1423); the governed route is the replacement, not a removal.
+func TestRiskBulkRoutes_LegacyDeleteStillWorksWithTheDeleteRight(t *testing.T) {
 	f := newRiskBulkApp(t, "risks:*")
 	status, _ := f.do(t, "POST", "/api/v1/risks/bulk",
 		`{"type":"delete","risk_ids":["`+f.id.String()+`"]}`)
-	assert.Equal(t, fiber.StatusBadRequest, status)
-	assert.Zero(t, f.legacy.deletes)
+	assert.Equal(t, fiber.StatusOK, status)
+	assert.Equal(t, 1, f.legacy.deletes)
 }
 
 func TestRiskBulkRoutes_Success_DeleteHolderDeletes(t *testing.T) {

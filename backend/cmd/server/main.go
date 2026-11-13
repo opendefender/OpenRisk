@@ -1565,7 +1565,8 @@ func main() {
 	// a fingerprint that refuses a selection which moved, and ONE route per
 	// action behind the permission that matches it. The action comes from the
 	// route, so a risks:update holder cannot reach the delete. The legacy route
-	// above refuses delete and is deprecated (Sunset: 31 March 2027).
+	// above needs risks:delete for a delete (#1423) and is deprecated (Sunset:
+	// 31 March 2027).
 	//
 	// Registered here, before the parameterised /risks/:id routes below, so
 	// "bulk" is never parsed as a risk id.

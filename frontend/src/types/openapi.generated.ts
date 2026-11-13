@@ -2294,7 +2294,7 @@ export interface paths {
          * Deprecated: apply one action to many risks, all or none
          * @deprecated
          * @description DEPRECATED by #599, removed on 31 March 2027 (the `Sunset` response header carries the date). Use the governed routes under /risks/bulk/{preview,change-status,add-tags,remove-tags,delete}, which take the action from the route and sit behind the permission that matches it.
-         *     `delete` is no longer accepted here and answers 400: this route is behind risks:update and read the action from the body, so a holder of risks:update could delete risks. Delete through /risks/bulk/delete, which requires risks:delete.
+         *     A `delete` here requires risks:delete (#1423): the route is behind risks:update and reads the action from the body, so without that check a holder of risks:update could delete risks. Prefer /risks/bulk/delete, which requires risks:delete by its route.
          *     All-or-nothing (decision D-036). Either every named risk is modified or none is: the batch runs in a single transaction, and one stale, foreign or otherwise unresolvable id fails the whole request without writing anything. There is deliberately no per-item outcome to report.
          *     One audit entry is written per modified risk, carrying the acting user.
          *     A risk id belonging to another tenant answers 404 — identical to a fabricated id — because the tenant predicate is part of the row load.
@@ -4020,10 +4020,10 @@ export interface components {
         };
         BulkRiskActionInput: {
             /**
-             * @description `delete` is no longer accepted (#599); use POST /risks/bulk/delete.
+             * @description `delete` requires risks:delete (#1423); prefer POST /risks/bulk/delete.
              * @enum {string}
              */
-            type: "change_status" | "assign_to" | "add_tags" | "remove_tags";
+            type: "change_status" | "assign_to" | "add_tags" | "remove_tags" | "delete";
             /** @description Repeated ids are de-duplicated before the batch runs. */
             risk_ids: string[];
             /** @description Required for change_status. */
@@ -10209,7 +10209,7 @@ export interface operations {
                     "application/json": components["schemas"]["BulkRiskActionResult"];
                 };
             };
-            /** @description Validation error — empty selection, more than 100 items, an unknown action type, a missing action parameter, or `delete`, which this route no longer performs. */
+            /** @description Validation error — empty selection, more than 100 items, an unknown action type, or a missing action parameter. */
             400: {
                 headers: {
                     [name: string]: unknown;
