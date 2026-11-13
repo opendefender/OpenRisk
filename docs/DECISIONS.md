@@ -56,12 +56,18 @@ owner can overturn it.
   one review round.
 
 **Honest limits** — it only sees queries that run; it catches a missing filter, not a wrong one
-(#807 class). Raw SQL is checked lexically after comments are removed: a predicate inside a
-string literal, a CTE, an `INSERT ... SELECT`, a comma join, or a join glue between two tenant
-columns passes. `.Or()` precedence is approximated (no production query uses it). A preload, and
-a statement reusing the parent's context while it runs (an `AfterFind` hook included), inherits
-the parent's pass. INSERT and upserts are not checked. A table no model gives is read from the
-catalog, and an unreadable `Table(...)` argument is refused. Postgres RLS is
+(#807 class). Raw SQL is checked lexically after comments are removed and string literals
+blanked: a predicate in a CTE or a comma join, a `MERGE`, or a join glue between two tenant
+columns passes; the SELECT part of an `INSERT ... SELECT` is checked like a read. On the builder
+side a right-hand side the guard does not read is accepted (`tenant_id IN (SELECT tenant_id ...)`,
+`= (SELECT ...)`, `= COALESCE(tenant_id, ?)`, a column against another column); only a tenant
+column against itself is refused. A scoped table reached only by `Joins` from an unscoped base
+table is not checked. `.Or()` precedence is approximated (no production query uses it). A
+preload, and a statement reusing the parent's context while it runs (an `AfterFind` hook
+included), inherits the parent's pass. INSERT ... VALUES and upserts are not checked. A table no
+model gives is read from the catalog. A `Table(...)` expression that is not a name (a subquery, a
+list) is refused whatever the schema; any other unreadable form is refused when no model gives
+the table. Postgres RLS is
 evaluated, not implemented: `docs/adr/0011-postgres-row-level-security.md`.
 
 ### D-107 — Guessing codes from a stolen session: which lock, and whose sign-in it can block · decided 2026-11-11

@@ -18,9 +18,14 @@ What the guard does not cover (D-110, package doc):
 - it only sees queries that run, so its coverage is the test suite's plus staging's;
 - it catches a missing filter, not a wrong one (the #807 class): a filter on a joined table
   satisfies it, so does one on the wrong tenant;
-- raw SQL is checked lexically: a predicate inside a string literal, in a CTE, in an
-  `INSERT ... SELECT` or a comma join, or a join glue `ON a.tenant_id = b.tenant_id` with no
-  bound value, passes; an OR inside one raw string is not parsed;
+- raw SQL is checked lexically, after comments are removed and string literals blanked: a
+  predicate in a CTE or a comma join, a `MERGE`, or a join glue `ON a.tenant_id = b.tenant_id`
+  with no bound value, passes; an OR inside one raw string is not parsed; the SELECT part of an
+  `INSERT ... SELECT` is checked like a read;
+- on the builder side, a right-hand side the guard does not read is accepted as a filter
+  (`tenant_id IN (SELECT tenant_id ...)`, `= (SELECT ...)`, `= COALESCE(tenant_id, ?)`, and a
+  column compared with another column); only a tenant column compared with itself is refused;
+- a scoped table reached only through `Joins` from an unscoped base table is not checked;
 - the precedence of `.Or()` is approximated (no production query uses it today);
 - a preload, and any statement reusing the parent's context while it runs (a query from an
   `AfterFind` hook included), inherits the parent's pass without being checked;
