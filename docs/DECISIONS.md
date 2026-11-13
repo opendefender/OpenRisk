@@ -9,6 +9,22 @@ recommends, and surfaces these in the daily brief. Run `/decide` to clear them.
 
 ## Resolved
 
+### D-106 — #327 signup slices: remove unmodified starter risks, count the funnel on-instance, verify email without blocking · decided 2026-11-13
+**Decided (owner, 2026-11-13)**, three answers to the questions of #327:
+- A — « Supprimer les risques d'exemple en un clic mais seulement ceux qui n'ont pas été modifiés, avec une confirmation. »
+- B — « Mesurer le parcours de la landing page jusqu'à l'inscription : un simple compteur agrégé, sans outil externe, conforme à docs/TELEMETRY.md. »
+- C — « Vérifier l'email après l'inscription : oui, une vérification qui ne bloque pas l'accès, envoyée par le transport email déjà en place, sans nouveau fournisseur. »
+
+**What changes** — three children of #327, which stays a tracking parent: #1436 (A), #1437 (B), #1438 (C).
+
+**Interpretations by `po-openrisk` (overturnable)**
+1. "Unmodified" (A): no reliable edited flag exists. `risk_histories` cannot tell, `Risk.AfterSave` writes an `UPDATE` row on every save including creation. The signal is `updated_at = created_at`, plus no mitigation and no linked asset. A system write that bumps `updated_at` makes a row count as modified and keeps it: safe side. Criterion 9 of #1436 proves the signal on the real adoption path or stops.
+2. "Landing page" (B): no landing page exists in this repository (`ROADMAP.md`: not built). The funnel starts at the `/register` view; a landing step is a follow-up once one exists.
+3. "Conforme à TELEMETRY.md" (B): the doc governs what leaves the instance. A Prometheus counter that is never transmitted is read as not "sent" telemetry; it honours `OPENRISK_TELEMETRY=off`, stores nothing per visitor, and the doc gets a section. A strict opt-in reading would measure nothing, a visitor having no admin to consent.
+4. "Ne bloque pas" (C): no feature is gated on verification. Existing accounts are neither marked verified nor shown a banner; SSO accounts are out of scope.
+
+**Unchanged** — D-008 (8 minutes), D-010/D-011 (Aha), D-012 (starter rows are real rows), D-078, no paid or new provider (money stays owner-only).
+
 ### D-110 — Risk bulk actions: legacy route sunset date, and assign_to left out of the governed routes · decided 2026-11-13
 **Decided (agent, 2026-11-13)** — #599.
 
