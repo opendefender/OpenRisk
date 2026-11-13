@@ -142,24 +142,33 @@ func TestPATRoles_FullAccessTokenKeepsOwnerRole(t *testing.T) {
 }
 
 // The guards refuse a scoped token on their own, even if org_roles were set by
-// something other than PATMiddleware.
+// something other than PATMiddleware, and fail closed when the scopes are missing.
 func TestPATRoles_GuardsRefuseScopedTokenWithRoles(t *testing.T) {
-	tenant := uuid.New()
-	app := fiber.New()
-	app.Use(func(c *fiber.Ctx) error {
-		c.Locals("is_pat", true)
-		c.Locals("token_scopes", []string{"risks:read"})
-		c.Locals("org_roles", map[uuid.UUID]string{tenant: "admin"})
-		return c.Next()
-	})
-	ok := func(c *fiber.Ctx) error { return c.SendStatus(fiber.StatusOK) }
-	app.Get("/require-role", RequireRole("admin"), ok)
-	app.Get("/role-guard", RoleGuard("admin"), ok)
+	for name, scopes := range map[string]interface{}{
+		"scoped":  []string{"risks:read"},
+		"missing": nil,
+	} {
+		t.Run(name, func(t *testing.T) {
+			tenant := uuid.New()
+			app := fiber.New()
+			app.Use(func(c *fiber.Ctx) error {
+				c.Locals("is_pat", true)
+				if scopes != nil {
+					c.Locals("token_scopes", scopes)
+				}
+				c.Locals("org_roles", map[uuid.UUID]string{tenant: "admin"})
+				return c.Next()
+			})
+			ok := func(c *fiber.Ctx) error { return c.SendStatus(fiber.StatusOK) }
+			app.Get("/require-role", RequireRole("admin"), ok)
+			app.Get("/role-guard", RoleGuard("admin"), ok)
 
-	for _, path := range []string{"/require-role", "/role-guard"} {
-		if got := patStatus(t, app, "GET", path, "x"); got != fiber.StatusForbidden {
-			t.Errorf("%s: %d, want 403", path, got)
-		}
+			for _, path := range []string{"/require-role", "/role-guard"} {
+				if got := patStatus(t, app, "GET", path, "x"); got != fiber.StatusForbidden {
+					t.Errorf("%s: %d, want 403", path, got)
+				}
+			}
+		})
 	}
 }
 
