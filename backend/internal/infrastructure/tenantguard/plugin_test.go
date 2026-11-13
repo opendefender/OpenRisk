@@ -7,6 +7,7 @@ package tenantguard_test
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"sync"
 	"testing"
@@ -329,5 +330,138 @@ func TestGuard_RawTenantInJoinOn(t *testing.T) {
 	}
 	if err := db.Exec("UPDATE g_items SET tenant_id = ?", "t").Error; !errors.Is(err, tenantguard.ErrUnscopedQuery) {
 		t.Fatalf("assigning tenant_id is not a filter: %v", err)
+	}
+}
+
+// Table forms the guard must resolve (an alias, quotes) or refuse (a subquery, a
+// list): a table it cannot read must not mean "not scoped".
+func TestGuard_TableForms(t *testing.T) {
+	db, c := open(t, tenantguard.Enforce)
+	for name, f := range map[string]func() error{
+		"alias":           func() error { return db.Table("g_items a").Where("id = ?", "1").Find(&[]gItem{}).Error },
+		"as-alias":        func() error { return db.Table("g_items AS a").Where("id = ?", "1").Find(&[]gItem{}).Error },
+		"quoted":          func() error { return db.Table(`"g_items"`).Where("id = ?", "1").Find(&[]gItem{}).Error },
+		"quoted-as":       func() error { return db.Table(`"g_items" AS "a"`).Where("id = ?", "1").Find(&[]gItem{}).Error },
+		"schema":          func() error { return db.Table(`main.g_items`).Where("id = ?", "1").Find(&[]gItem{}).Error },
+		"upper":           func() error { return db.Table("G_ITEMS").Where("id = ?", "1").Find(&[]gItem{}).Error },
+		"alias-no-schema": func() error { return db.Table("g_items a").Where("id = ?", "1").Find(&[]map[string]any{}).Error },
+		"as-no-schema":    func() error { return db.Table("g_items AS a").Where("id = ?", "1").Find(&[]map[string]any{}).Error },
+		"upper-no-schema": func() error { return db.Table("G_ITEMS").Where("id = ?", "1").Find(&[]map[string]any{}).Error },
+		"subquery":        func() error { return db.Table("(select 1) as x").Find(&[]map[string]any{}).Error },
+		"list":            func() error { return db.Table("g_items, g_tags").Find(&[]map[string]any{}).Error },
+	} {
+		before := len(c.rules())
+		if err := f(); !errors.Is(err, tenantguard.ErrUnscopedQuery) {
+			t.Errorf("%s: want ErrUnscopedQuery, got %v", name, err)
+		}
+		if len(c.rules()) != before+1 {
+			t.Errorf("%s: want one violation, got %v", name, c.rules()[before:])
+		}
+	}
+	for _, name := range []string{"subquery", "list"} {
+		_ = name
+	}
+	// A tenant filter on an aliased or quoted table passes.
+	for name, f := range map[string]func() error{
+		"alias": func() error { return db.Table("g_items a").Where("a.tenant_id = ?", "t").Find(&[]gItem{}).Error },
+	} {
+		if err := f(); err != nil {
+			t.Errorf("%s: scoped form refused: %v", name, err)
+		}
+	}
+}
+
+// Nil tenant binds in every spelling: positional, numbered, named, in a raw
+// statement and in a builder expression, and as a null uuid.
+func TestGuard_NilTenantBinds(t *testing.T) {
+	db, _ := open(t, tenantguard.Enforce)
+	nilID := uuid.Nil
+	cases := map[string]func() error{
+		"raw-positional": func() error {
+			return db.Raw("SELECT * FROM g_items WHERE tenant_id = ?", uuid.Nil).Scan(&[]gItem{}).Error
+		},
+		"raw-second": func() error {
+			return db.Raw("SELECT * FROM g_items WHERE name = ? AND tenant_id = ?", "x", uuid.Nil).Scan(&[]gItem{}).Error
+		},
+		"raw-numbered": func() error { return db.Exec("DELETE FROM g_items WHERE tenant_id = $1", uuid.Nil).Error },
+		"raw-named": func() error {
+			return db.Raw("SELECT * FROM g_items WHERE tenant_id = @t", sql.Named("t", uuid.Nil)).Scan(&[]gItem{}).Error
+		},
+		"raw-in": func() error {
+			return db.Raw("SELECT * FROM g_items WHERE tenant_id IN ?", []uuid.UUID{uuid.New(), uuid.Nil}).Scan(&[]gItem{}).Error
+		},
+		"raw-string": func() error {
+			return db.Raw("SELECT * FROM g_items WHERE tenant_id = ?", uuid.Nil.String()).Scan(&[]gItem{}).Error
+		},
+		"raw-ptr": func() error {
+			return db.Raw("SELECT * FROM g_items WHERE tenant_id = ?", &nilID).Scan(&[]gItem{}).Error
+		},
+		"raw-nil":       func() error { return db.Raw("SELECT * FROM g_items WHERE tenant_id = ?", nil).Scan(&[]gItem{}).Error },
+		"builder-named": func() error { return db.Where("tenant_id = @t", sql.Named("t", uuid.Nil)).Find(&[]gItem{}).Error },
+		"builder-map":   func() error { return db.Where("tenant_id = @t", map[string]any{"t": uuid.Nil}).Find(&[]gItem{}).Error },
+		"null-invalid":  func() error { return db.Where("tenant_id = ?", uuid.NullUUID{}).Find(&[]gItem{}).Error },
+		"null-nil":      func() error { return db.Where("tenant_id = ?", uuid.NullUUID{Valid: true}).Find(&[]gItem{}).Error },
+		"builder-nil":   func() error { return db.Where("tenant_id = ?", nil).Find(&[]gItem{}).Error },
+	}
+	for name, f := range cases {
+		if err := f(); !errors.Is(err, tenantguard.ErrUnscopedQuery) {
+			t.Errorf("%s: want ErrUnscopedQuery, got %v", name, err)
+		}
+	}
+	good := uuid.New()
+	for name, f := range map[string]func() error{
+		"raw-named-ok": func() error {
+			return db.Raw("SELECT * FROM g_items WHERE tenant_id = @t", sql.Named("t", good)).Scan(&[]gItem{}).Error
+		},
+		"builder-named": func() error { return db.Where("tenant_id = @t", sql.Named("t", good)).Find(&[]gItem{}).Error },
+		"null-valid": func() error {
+			return db.Where("tenant_id = ?", uuid.NullUUID{Valid: true, UUID: good}).Find(&[]gItem{}).Error
+		},
+	} {
+		if err := f(); err != nil {
+			t.Errorf("%s: a real tenant was refused: %v", name, err)
+		}
+	}
+}
+
+// A predicate that only exists in a comment, or that compares a tenant column
+// with itself, is not a filter.
+func TestGuard_RawCommentsAndColumnAgainstColumn(t *testing.T) {
+	db, _ := open(t, tenantguard.Enforce)
+	for name, f := range map[string]func() error{
+		"line-comment": func() error {
+			return db.Raw("SELECT * FROM g_items WHERE id = ? -- AND tenant_id = ?", "1").Scan(&[]gItem{}).Error
+		},
+		"block-comment": func() error {
+			return db.Raw("SELECT * FROM g_items /* tenant_id = ? */ WHERE id = ?", "1").Scan(&[]gItem{}).Error
+		},
+		"comment-first": func() error { return db.Exec("/* WHERE tenant_id = 1 */ DELETE FROM g_items WHERE id = 'x'").Error },
+		"raw-col-col": func() error {
+			return db.Raw("SELECT * FROM g_items WHERE tenant_id = tenant_id").Scan(&[]gItem{}).Error
+		},
+		"raw-col-col-q": func() error {
+			return db.Raw("SELECT * FROM g_items i WHERE i.tenant_id = i.tenant_id AND id = ?", "1").Scan(&[]gItem{}).Error
+		},
+		"builder-col": func() error { return db.Where("tenant_id = tenant_id").Find(&[]gItem{}).Error },
+	} {
+		if err := f(); !errors.Is(err, tenantguard.ErrUnscopedQuery) {
+			t.Errorf("%s: want ErrUnscopedQuery, got %v", name, err)
+		}
+	}
+	// A real filter next to a comment still passes.
+	if err := db.Raw("SELECT * FROM g_items WHERE tenant_id = ? -- scoped", "t").Scan(&[]gItem{}).Error; err != nil {
+		t.Errorf("scoped statement with a trailing comment refused: %v", err)
+	}
+}
+
+// The error that can travel to an HTTP body never carries a source path.
+func TestGuard_ErrorCarriesNoSourcePath(t *testing.T) {
+	db, _ := open(t, tenantguard.Enforce)
+	err := db.Where("id = ?", "1").First(&gItem{}).Error
+	if err == nil {
+		t.Fatal("want a refusal")
+	}
+	if contains(err.Error(), ".go") || contains(err.Error(), "/") {
+		t.Errorf("guard error leaks a source path: %v", err)
 	}
 }

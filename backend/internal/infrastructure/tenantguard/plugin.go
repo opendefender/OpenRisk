@@ -18,15 +18,26 @@
 // Honest limits (also recorded in D-110 and ADR 0011):
 //   - It only sees queries that run. Coverage is the test suite's coverage, so
 //     staging (TENANT_GUARD=enforce) is where the rest are found.
-//   - It catches a missing filter, not a wrong one: a tenant filter on a
-//     joined table satisfies it, and an OR inside one raw string is not parsed.
-//   - Raw SQL is checked lexically. In tests, a raw query on a table that no
-//     model has touched through that DB is not recognised; staging has the
-//     full registry through WithModels.
+//   - It catches a missing filter, not a wrong one (#807): a tenant filter on a
+//     joined table satisfies it, so does one on the wrong tenant.
+//   - Raw SQL is checked lexically, after comments are removed. A predicate
+//     written inside a string literal, in a CTE, in an INSERT ... SELECT, or a
+//     comma join, and a join glue "ON a.tenant_id = b.tenant_id" with no value
+//     bound anywhere, are read as a filter. An OR inside one raw string is not
+//     parsed.
+//   - The precedence of .Or() is approximated: Where(a).Or(t AND b).Where(t) is
+//     not told apart from the plain forms. No production query uses .Or( today.
+//   - A preload inherits its parent's pass through the statement context, and so
+//     does any statement that reuses that context while the parent runs, a query
+//     issued from an AfterFind hook included. That exemption is not checked.
 //   - INSERT, including ON CONFLICT DO UPDATE upserts, is not checked.
 //   - Only the explicit WHERE is visible to a Before callback. The primary key
 //     condition GORM adds for First(&x), Save and Delete(&x) does not count:
 //     id-only is exactly the defect class.
+//   - A table no schema has been seen on is resolved from the catalog (one query
+//     per table, cached once the table exists). A Table(...) argument that is
+//     not a name, an alias or a quoted name, a subquery for instance, is refused
+//     when no model gives the table.
 package tenantguard
 
 import (
@@ -204,25 +215,43 @@ func (p *Plugin) registerOnly(db *gorm.DB) {
 	}
 }
 
-var plainTable = regexp.MustCompile(`^[a-z_][a-z0-9_]*$`)
+// tableRef reads a Table(...) argument: an optional schema, a table name, with
+// optional quotes, and an optional alias ("risks", "public.risks", `"risks"`,
+// "risks r", "risks AS r", backticks too). Anything else (a subquery, a list) does not resolve.
+var tableRef = regexp.MustCompile("(?i)^\\s*(?:[\"`]?[a-z_][a-z0-9_]*[\"`]?\\.)?[\"`]?([a-z_][a-z0-9_]*)[\"`]?(?:\\s+(?:as\\s+)?[\"`]?[a-z_][a-z0-9_]*[\"`]?)?\\s*$")
 
 // scopedTable resolves the statement's table and whether it is tenant-scoped.
 // The registry is only a cache: a table no schema has been seen on is read from
-// the catalog, so the answer never depends on what ran before.
-func (p *Plugin) scopedTable(db *gorm.DB) (string, bool) {
+// the catalog, so the answer never depends on what ran before. unresolved is
+// true when the statement names a table in a form that cannot be read and no
+// schema says otherwise: the guard then fails closed.
+func (p *Plugin) scopedTable(db *gorm.DB) (table string, scoped, unresolved bool) {
 	stmt := db.Statement
-	table := stmt.Table
-	scoped := false
+	table = stmt.Table
 	if s := stmt.Schema; s != nil {
 		if table == "" {
 			table = s.Table
 		}
 		scoped = p.register(s)
 	}
-	if !scoped && plainTable.MatchString(table) {
-		scoped = p.scopedName(db, table)
+	// GORM keeps the name as written in TableExpr when it carries an alias or a
+	// subquery, and leaves only the alias in Table.
+	written := table
+	if stmt.TableExpr != nil && stmt.TableExpr.SQL != "" {
+		written = stmt.TableExpr.SQL
 	}
-	return table, scoped
+	if !scoped && written != "" {
+		if m := tableRef.FindStringSubmatch(written); m != nil {
+			base := strings.ToLower(m[1])
+			scoped = p.scopedName(db, base)
+			if scoped {
+				table = base
+			}
+		} else if stmt.Schema == nil {
+			unresolved = true
+		}
+	}
+	return table, scoped, unresolved
 }
 
 // scopedName reports whether a table named in raw SQL is tenant-scoped. A table
@@ -305,7 +334,7 @@ func (p *Plugin) check(op string, marks bool) func(*gorm.DB) {
 		if crossTenantReason(stmt.Context) != "" {
 			return
 		}
-		table, scoped := p.scopedTable(db)
+		table, scoped, unresolved := p.scopedTable(db)
 		if marks && stmt.Context != nil {
 			if g, ok := stmt.Context.Value(gatedParentKey{}).(gatedParent); ok && g.stmt != stmt {
 				return // a preload: gated by its parent, which passed
@@ -314,10 +343,12 @@ func (p *Plugin) check(op string, marks bool) func(*gorm.DB) {
 
 		var rule string
 		if stmt.SQL.Len() > 0 {
-			rule = p.checkRaw(db, stmt.SQL.String())
+			rule = p.checkRaw(db, stmt.SQL.String(), stmt.Vars)
 			if rule != "" {
 				table = rawTables(db, stmt.SQL.String(), p)
 			}
+		} else if unresolved {
+			rule = "unresolved-table"
 		} else if scoped {
 			rule = checkWhere(stmt)
 		}
@@ -359,6 +390,9 @@ func (p *Plugin) violation(db *gorm.DB, op, table, rule string) {
 		p.sink(v)
 	}
 	if p.mode == Enforce {
-		_ = db.AddError(fmt.Errorf("%w: %s on %s (%s) from %s", ErrUnscopedQuery, op, table, rule, caller))
+		// The caller's file and line, and the table, go to the log and the sink
+		// only: this error can travel to an HTTP body through a handler that
+		// returns err.Error(), and ErrUnscopedQuery must never carry source paths.
+		_ = db.AddError(fmt.Errorf("%w: %s (%s)", ErrUnscopedQuery, op, rule))
 	}
 }

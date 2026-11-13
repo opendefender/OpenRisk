@@ -6,6 +6,8 @@
 package tenantguard
 
 import (
+	"database/sql"
+	"database/sql/driver"
 	"fmt"
 	"reflect"
 	"regexp"
@@ -18,13 +20,112 @@ import (
 
 // tenantPredicate matches a tenant or organization equality, IN or IS NULL
 // test, with an optional table qualifier. "<>", "!=" and IS NOT NULL do not
-// count; tenant_id IS NULL (system rows) does.
-var tenantPredicate = regexp.MustCompile(`(?i)(?:^|[^a-z0-9_])(?:"?[a-z_][a-z0-9_]*"?\.)?"?(tenant_id|organization_id)"?\s*(?:=|\bIN\b|\bIS\s+NULL\b)`)
+// count; tenant_id IS NULL (system rows) does. Group 1 is the column, group 2
+// the operator.
+var tenantPredicate = regexp.MustCompile(`(?i)(?:^|[^a-z0-9_])(?:"?[a-z_][a-z0-9_]*"?\.)?"?(tenant_id|organization_id)"?\s*(=|\bIN\b|\bIS\s+NULL\b)`)
+
+// predicateRHS reads what follows an "=" or "IN": a bind (?, $n, @name), or a
+// tenant column (tenant_id = tenant_id compares a column with itself).
+var predicateRHS = regexp.MustCompile(`(?i)^\s*\(?\s*(\?|\$(\d+)|@([a-z_][a-z0-9_]*)|(?:"?[a-z_][a-z0-9_]*"?\.)?"?(?:tenant_id|organization_id)"?)`)
+var nextBind = regexp.MustCompile(`(?i)^\s*,\s*(\?|\$(\d+))`)
 
 var (
-	rawTable = regexp.MustCompile(`(?i)\b(?:from|join|update)\s+(?:"?[a-z_][a-z0-9_]*"?\.)?"?([a-z_][a-z0-9_]*)"?`)
-	rawWhere = regexp.MustCompile(`(?i)\b(?:where|on)\b`) // a tenant test in WHERE or in a JOIN ... ON
+	rawTable     = regexp.MustCompile(`(?i)\b(?:from|join|update)\s+(?:"?[a-z_][a-z0-9_]*"?\.)?"?([a-z_][a-z0-9_]*)"?`)
+	rawWhere     = regexp.MustCompile(`(?i)\b(?:where|on)\b`) // a tenant test in WHERE or in a JOIN ... ON
+	rawWhereOnly = regexp.MustCompile(`(?i)\bwhere\b`)
+	blockComment = regexp.MustCompile(`(?s)/\*.*?\*/`)
+	lineComment  = regexp.MustCompile(`--[^\n]*`)
 )
+
+// stripComments removes SQL comments, so a predicate that only exists in a
+// comment does not count. A string literal holding "--" is cut as well, which
+// can only make the guard stricter.
+func stripComments(sql string) string {
+	return lineComment.ReplaceAllString(blockComment.ReplaceAllString(sql, " "), " ")
+}
+
+// scanSQL looks for a tenant filter in sql. region is the offset before which
+// predicates are ignored; whereAt is the offset of the first WHERE (-1 when
+// there is none): from there on a tenant column compared with a tenant column
+// is not a filter. vars are the binds; a bind that is a nil tenant sets nilT.
+func scanSQL(sql string, vars []any, region, whereAt int) (ok, nilT bool) {
+	for _, loc := range tenantPredicate.FindAllStringSubmatchIndex(sql, -1) {
+		if loc[0] < region {
+			continue
+		}
+		op := strings.ToUpper(strings.Join(strings.Fields(sql[loc[4]:loc[5]]), " "))
+		if strings.HasPrefix(op, "IS") {
+			ok = true
+			continue
+		}
+		rhs := predicateRHS.FindStringSubmatchIndex(sql[loc[1]:])
+		if rhs == nil {
+			ok = true // an expression this guard does not parse: lenient
+			continue
+		}
+		start := loc[1] + rhs[0]
+		g := func(i int) string {
+			if rhs[2*i] < 0 {
+				return ""
+			}
+			return sql[loc[1]+rhs[2*i] : loc[1]+rhs[2*i+1]]
+		}
+		tok := g(1)
+		switch {
+		case tok == "?":
+			idx := strings.Count(sql[:loc[1]+rhs[3]-1], "?")
+			nilT = nilT || nilAt(vars, idx)
+			ok = true
+			if op == "IN" {
+				rest := sql[loc[1]+rhs[3]:]
+				for n := 0; n < 1000; n++ {
+					m := nextBind.FindStringSubmatchIndex(rest)
+					if m == nil {
+						break
+					}
+					idx++
+					nilT = nilT || nilAt(vars, idx)
+					rest = rest[m[1]:]
+				}
+			}
+		case strings.HasPrefix(tok, "$"):
+			n := 0
+			fmt.Sscanf(g(2), "%d", &n)
+			nilT = nilT || nilAt(vars, n-1)
+			ok = true
+		case strings.HasPrefix(tok, "@"):
+			nilT = nilT || nilNamed(vars, g(3))
+			ok = true
+		default: // a column
+			if whereAt >= 0 && start >= whereAt {
+				continue // tenant_id = tenant_id filters nothing
+			}
+			ok = true
+		}
+	}
+	return ok, nilT
+}
+
+func nilAt(vars []any, i int) bool {
+	return i >= 0 && i < len(vars) && isNilTenantValue(vars[i])
+}
+
+// nilNamed finds a named bind (sql.NamedArg or map[string]any) and tests it.
+func nilNamed(vars []any, name string) bool {
+	for _, v := range vars {
+		switch t := v.(type) {
+		case sql.NamedArg:
+			if strings.EqualFold(t.Name, name) {
+				return isNilTenantValue(t.Value)
+			}
+		case map[string]any:
+			if x, ok := t[name]; ok {
+				return isNilTenantValue(x)
+			}
+		}
+	}
+	return false
+}
 
 func isTenantColumn(name string) bool {
 	return name == "tenant_id" || name == "organization_id"
@@ -45,12 +146,34 @@ func columnName(c any) string {
 
 func isNilTenantValue(v any) bool {
 	switch t := v.(type) {
+	case nil:
+		return true // tenant_id = NULL matches nothing: a missing tenant
 	case uuid.UUID:
 		return t == uuid.Nil
 	case *uuid.UUID:
 		return t == nil || *t == uuid.Nil
 	case string:
 		return t == uuid.Nil.String()
+	case uuid.NullUUID:
+		return !t.Valid || t.UUID == uuid.Nil
+	case *uuid.NullUUID:
+		return t == nil || !t.Valid || t.UUID == uuid.Nil
+	case driver.Valuer:
+		rv := reflect.ValueOf(v)
+		if rv.Kind() == reflect.Pointer && rv.IsNil() {
+			return true
+		}
+		dv, err := t.Value()
+		if err != nil {
+			return false
+		}
+		if dv == nil {
+			return true
+		}
+		if s, ok := dv.(string); ok {
+			return s == uuid.Nil.String()
+		}
+		return false
 	case fmt.Stringer:
 		rv := reflect.ValueOf(v)
 		if rv.Kind() == reflect.Pointer && rv.IsNil() {
@@ -129,7 +252,7 @@ func evalConjunct(e clause.Expression) eval {
 	case clause.Expr:
 		return evalSQL(v.SQL, v.Vars)
 	case clause.NamedExpr:
-		return evalSQL(v.SQL, nil)
+		return evalSQL(v.SQL, v.Vars)
 	case clause.AndConditions:
 		return evalExprs(v.Exprs)
 	case clause.OrConditions:
@@ -139,16 +262,8 @@ func evalConjunct(e clause.Expression) eval {
 }
 
 func evalSQL(sql string, vars []any) eval {
-	loc := tenantPredicate.FindStringSubmatchIndex(sql)
-	if loc == nil {
-		return eval{}
-	}
-	r := eval{ok: true}
-	k := strings.Count(sql[:loc[0]], "?")
-	if k < len(vars) && isNilTenantValue(vars[k]) {
-		r.nil = true
-	}
-	return r
+	ok, nilT := scanSQL(stripComments(sql), vars, 0, 0)
+	return eval{ok: ok, nil: nilT}
 }
 
 // checkWhere returns the violated rule for a builder statement, or "".
@@ -186,8 +301,10 @@ func hasTenantAnywhere(exprs []clause.Expression) bool {
 	return false
 }
 
-// checkRaw returns the violated rule for a raw statement, or "".
-func (p *Plugin) checkRaw(db *gorm.DB, sql string) string {
+// checkRaw returns the violated rule for a raw statement, or "". vars are the
+// statement's binds, already positional: Raw expands named binds itself.
+func (p *Plugin) checkRaw(db *gorm.DB, sql string, vars []any) string {
+	sql = stripComments(sql)
 	s := strings.TrimLeft(sql, " \t\r\n(")
 	kw := strings.ToUpper(firstWord(s))
 	switch kw {
@@ -205,8 +322,19 @@ func (p *Plugin) checkRaw(db *gorm.DB, sql string) string {
 	if !scoped {
 		return ""
 	}
-	loc := rawWhere.FindStringIndex(sql)
-	if loc != nil && tenantPredicate.MatchString(sql[loc[0]:]) {
+	region := rawWhere.FindStringIndex(sql)
+	if region == nil {
+		return "raw-no-tenant"
+	}
+	whereAt := -1
+	if w := rawWhereOnly.FindStringIndex(sql); w != nil {
+		whereAt = w[0]
+	}
+	ok, nilT := scanSQL(sql, vars, region[0], whereAt)
+	switch {
+	case nilT:
+		return "nil-tenant"
+	case ok:
 		return ""
 	}
 	return "raw-no-tenant"
