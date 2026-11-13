@@ -108,3 +108,21 @@ func TestOAuthLinkRepository_PreAuthLookupAndTouchRunUnderTheGuard(t *testing.T)
 	require.NoError(t, err)
 	assert.NotNil(t, after.LastLoginAt)
 }
+
+// #808: GetOAuthProviderByEmail is the other pre-session OAuth lookup.
+func TestOAuthProviderRepository_GetByEmailRunsUnderTheGuard(t *testing.T) {
+	db, err := testdb.Open(t, sqlite.Open(":memory:"), &gorm.Config{})
+	require.NoError(t, err)
+	require.NoError(t, db.Exec(`CREATE TABLE user_oauth_providers (id TEXT PRIMARY KEY)`).Error)
+	require.NoError(t, sqliteschema.Reconcile(db, "user_oauth_providers", &domain.OAuthProvider{}))
+	repo := NewGormOAuthProviderRepository(db)
+	ctx := context.Background()
+	require.NoError(t, repo.CreateOAuthProvider(ctx, &domain.OAuthProvider{ID: uuid.New(), TenantID: uuid.New(), UserID: uuid.New(), Provider: "github", ProviderUserID: "s", Email: "a@example.com"}))
+
+	got, err := repo.GetOAuthProviderByEmail(ctx, "a@example.com", "github")
+	require.NoError(t, err)
+	require.NotNil(t, got)
+	none, err := repo.GetOAuthProviderByEmail(ctx, "b@example.com", "github")
+	require.NoError(t, err)
+	assert.Nil(t, none)
+}

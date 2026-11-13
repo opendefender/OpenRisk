@@ -148,6 +148,11 @@ type RiskTrendPoint struct {
 
 // GetRiskTrends returns risk trends over time (last N days) for a single tenant
 func (s *AnalyticsService) GetRiskTrends(ctx context.Context, tenantID uuid.UUID, days int) ([]RiskTrendPoint, error) {
+	// A nil tenant reads nobody's data. Answered before any query so the tenant
+	// guard never sees a statement bound to uuid.Nil (#808).
+	if tenantID == uuid.Nil {
+		return []RiskTrendPoint{}, nil
+	}
 	var trends []RiskTrendPoint
 
 	// Generate daily data for last N days
@@ -282,6 +287,11 @@ type FrameworkAnalytics struct {
 
 // GetFrameworkAnalytics returns compliance analytics by framework for a single tenant
 func (s *AnalyticsService) GetFrameworkAnalytics(ctx context.Context, tenantID uuid.UUID) ([]FrameworkAnalytics, error) {
+	// A nil tenant reads nobody's data. Answered before any query so the tenant
+	// guard never sees a statement bound to uuid.Nil (#808).
+	if tenantID == uuid.Nil {
+		return []FrameworkAnalytics{}, nil
+	}
 	var analytics []FrameworkAnalytics
 
 	type frameworkResult struct {
@@ -330,6 +340,15 @@ type DashboardSnapshot struct {
 func (s *AnalyticsService) GetDashboardSnapshot(ctx context.Context, tenantID uuid.UUID) (*DashboardSnapshot, error) {
 	snapshot := &DashboardSnapshot{
 		Timestamp: time.Now(),
+	}
+	// A nil tenant reads nobody's data. Answered before any query so the tenant
+	// guard never sees a statement bound to uuid.Nil (#808).
+	if tenantID == uuid.Nil {
+		snapshot.RiskMetrics = &RiskMetrics{RisksByFramework: map[string]int64{}, RisksByStatus: map[string]int64{}}
+		snapshot.MitigationMetrics = &MitigationMetrics{MitigationsByRisk: map[string]int64{}}
+		snapshot.FrameworkAnalytics = []FrameworkAnalytics{}
+		snapshot.Trends = []RiskTrendPoint{}
+		return snapshot, nil
 	}
 
 	// Get all metrics
