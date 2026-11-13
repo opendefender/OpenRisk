@@ -9,6 +9,34 @@ recommends, and surfaces these in the daily brief. Run `/decide` to clear them.
 
 ## Resolved
 
+### D-109 — Realtime outbox: where the sequence comes from inside a business transaction, and what happens to an event that never goes out · decided 2026-11-12
+**Decided (agent: tech-lead, 2026-11-12, under D-089)** — ADR 0010, #344. Tenant isolation and
+structural design, so an agent decides it and records it here. The owner can overturn it.
+
+**Question** — #344 writes `realtime_events` inside the pilot use case's transaction, and a relay
+publishes it afterwards. Two choices have real alternatives. (1) How is the per-tenant `sequence`
+reserved inside a caller's transaction without a race on a tenant's first event, without holding a
+process mutex for the whole business transaction, and so that sqlite tests still pass? (2) Delivery
+is ordered per tenant and there is no dead-letter queue. What happens to a row that cannot be
+delivered?
+
+**Options**
+- (1a) A counter table `realtime_event_sequences`, one row per tenant, reserved by an upsert.
+  **Chosen.** (1b) `pg_advisory_xact_lock(hashtext(tenant))` then `MAX+1`. (1c) Keep
+  `SELECT … FOR UPDATE` on the head row.
+- (2a) Retry forever. (2b) Mark the row published. (2c) Stop after 20 attempts (backoff 1 s, doubling,
+  capped at 5 min, about one hour in total): the row gets `abandoned_at`, stays replayable, and its
+  tenant moves on. **Chosen.**
+
+**Why** — (1a) is the only option that works the same way on Postgres and sqlite. It closes the
+race on a tenant's first event through the primary key. It keeps sequences in commit order, and
+sequences no longer restart after a full purge. The relay can also lock a tenant through the same
+row, which gives strict per-tenant order without a second lock. (1b) works only on Postgres, couples
+tenants whose hashes collide, and still resets after a purge. (1c) locks nothing for a tenant's first
+event. (2a) lets one row stop a tenant's stream for good, which devsecops raised as MEDIUM on the
+notice outbox. (2b) writes a false record. With (2c), an abandoned event is still in the log, clients
+resync through gap detection, and `realtime_outbox_abandoned_total` counts each one.
+
 ### D-107 — Guessing codes from a stolen session: which lock, and whose sign-in it can block · decided 2026-11-11
 **Decided (owner, 2026-11-11)** — "un compteur séparé pour ces deux actions." Option B. Wrong codes and
 wrong passwords on `POST /auth/mfa/disable` and `POST /auth/mfa/backup-codes/regenerate` count toward

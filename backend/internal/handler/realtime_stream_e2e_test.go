@@ -79,7 +79,7 @@ func newStreamTestEnvWith(t *testing.T, opts apprealtime.HubOptions, srv streamS
 
 	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
 	require.NoError(t, err)
-	require.NoError(t, db.AutoMigrate(&domain.RealtimeEvent{}))
+	require.NoError(t, db.AutoMigrate(&domain.RealtimeEvent{}, &domain.RealtimeEventSequence{}))
 
 	eventLog := repository.NewGormRealtimeEventRepository(db)
 	hub := apprealtime.NewHub(opts)

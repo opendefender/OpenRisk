@@ -16,16 +16,36 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/opendefender/openrisk/internal/domain"
+	rt "github.com/opendefender/openrisk/pkg/realtime"
 )
 
-// fakeAssetTx stages creates and only "commits" them when fn succeeds.
+// fakeOutbox records what a use case enlists; an error makes Enlist fail.
+type fakeOutbox struct {
+	calls int
+	rows  []*domain.RealtimeEvent
+	err   error
+}
+
+func (o *fakeOutbox) Enlist(_ context.Context, events ...*domain.RealtimeEvent) error {
+	o.calls++
+	if o.err != nil {
+		return o.err
+	}
+	o.rows = append(o.rows, events...)
+	return nil
+}
+
+// fakeAssetTx stages creates and only "commits" them when fn succeeds. With an
+// outbox set, the events enlisted are kept only when fn succeeds too.
 type fakeAssetTx struct {
 	committed []*domain.Asset
 	failOn    int // 1-based create call that errors; 0 never
 	existing  map[uuid.UUID][]string
+	outbox    *fakeOutbox
+	events    []*domain.RealtimeEvent // committed events
 }
 
-func (f *fakeAssetTx) run(_ context.Context, fn func(repo domain.AssetRepository) error) error {
+func (f *fakeAssetTx) run(_ context.Context, fn func(repo domain.AssetRepository, events domain.RealtimeEventOutbox) error) error {
 	var staged []*domain.Asset
 	calls := 0
 	repo := &MockAssetRepository{createFunc: func(_ context.Context, a *domain.Asset) error {
@@ -36,10 +56,23 @@ func (f *fakeAssetTx) run(_ context.Context, fn func(repo domain.AssetRepository
 		staged = append(staged, a)
 		return nil
 	}}
-	if err := fn(repo); err != nil {
+	var ob domain.RealtimeEventOutbox
+	var staging *fakeOutbox
+	if f.outbox != nil {
+		staging = &fakeOutbox{err: f.outbox.err}
+		ob = staging
+	}
+	if err := fn(repo, ob); err != nil {
+		if staging != nil {
+			f.outbox.calls += staging.calls
+		}
 		return err
 	}
 	f.committed = append(f.committed, staged...)
+	if staging != nil {
+		f.outbox.calls += staging.calls
+		f.events = append(f.events, staging.rows...)
+	}
 	return nil
 }
 
@@ -91,10 +124,74 @@ func TestImportAssets_NotFound(t *testing.T) {
 }
 
 func TestImportAssets_Unauthorized(t *testing.T) {
-	tx := &fakeAssetTx{}
+	tx := &fakeAssetTx{outbox: &fakeOutbox{}}
 	_, err := importAssets(tx, uuid.Nil, "name\nA\n")
 	require.ErrorIs(t, err, domain.ErrUnauthorized)
 	assert.Empty(t, tx.committed)
+	assert.Zero(t, tx.outbox.calls, "nothing is enlisted without a tenant")
+}
+
+// Success for the outbox: one asset.created per imported asset, one tenant,
+// enlisted in ONE call, correlation carried, and the request marked so the
+// post-commit bridge stays silent.
+func TestImportAssets_EnlistsOneEventPerAsset(t *testing.T) {
+	tx := &fakeAssetTx{outbox: &fakeOutbox{}}
+	tenant, actor := uuid.New(), uuid.New()
+	ctx := rt.WithEnlistMark(context.Background())
+
+	res, err := NewImportAssetsUseCase(tx.run, tx.names).Execute(ctx, tenant, ImportAssetsInput{
+		CSV: []byte("name\nA\nB\nC\n"), ActorID: actor, CorrelationID: "req-1",
+	})
+	require.NoError(t, err)
+	require.Equal(t, 3, res.Created)
+	assert.Equal(t, 1, tx.outbox.calls, "all events are enlisted in one call")
+	require.Len(t, tx.events, 3)
+	for i, ev := range tx.events {
+		assert.Equal(t, tenant, ev.TenantID)
+		assert.Equal(t, string(rt.AssetCreated), ev.Type)
+		assert.Equal(t, res.AssetIDs[i].String(), ev.AggregateID)
+		assert.Equal(t, "asset", ev.AggregateType)
+		assert.Equal(t, "import", ev.Payload["action"])
+		assert.Equal(t, "req-1", ev.CorrelationID)
+		require.NotNil(t, ev.ActorID)
+		assert.Equal(t, actor, *ev.ActorID)
+		assert.NotEqual(t, uuid.Nil, ev.ID)
+	}
+	assert.True(t, rt.Enlisted(ctx), "the request is marked so the bridge does not announce it again")
+}
+
+// Without an outbox wired nothing is marked: the bridge keeps today's event.
+func TestImportAssets_NoOutboxLeavesTheRequestUnmarked(t *testing.T) {
+	tx := &fakeAssetTx{}
+	ctx := rt.WithEnlistMark(context.Background())
+	_, err := NewImportAssetsUseCase(tx.run, tx.names).Execute(ctx, uuid.New(), ImportAssetsInput{CSV: []byte("name\nA\n")})
+	require.NoError(t, err)
+	assert.False(t, rt.Enlisted(ctx))
+}
+
+// An Enlist error rolls the whole import back: no asset is reported, no event
+// is kept, no mark is set.
+func TestImportAssets_EnlistFailureRollsBackImport(t *testing.T) {
+	tx := &fakeAssetTx{outbox: &fakeOutbox{err: errors.New("counter unavailable")}}
+	ctx := rt.WithEnlistMark(context.Background())
+	_, err := NewImportAssetsUseCase(tx.run, tx.names).Execute(ctx, uuid.New(), ImportAssetsInput{CSV: []byte("name\nA\nB\n")})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "import transaction failed")
+	assert.Empty(t, tx.committed)
+	assert.Empty(t, tx.events)
+	assert.False(t, rt.Enlisted(ctx))
+}
+
+// An absurdly long request id is truncated to the column, not allowed to fail
+// the import.
+func TestImportAssets_CorrelationIDIsBounded(t *testing.T) {
+	tx := &fakeAssetTx{outbox: &fakeOutbox{}}
+	long := fmt.Sprintf("%0200d", 7)
+	_, err := NewImportAssetsUseCase(tx.run, tx.names).Execute(context.Background(), uuid.New(),
+		ImportAssetsInput{CSV: []byte("name\nA\n"), CorrelationID: long})
+	require.NoError(t, err)
+	require.Len(t, tx.events, 1)
+	assert.Len(t, tx.events[0].CorrelationID, maxCorrelationIDLen)
 }
 
 func TestImportAssets_Validation_OneBadRowImportsNothing(t *testing.T) {
