@@ -15,6 +15,7 @@ import (
 	"gorm.io/gorm/clause"
 
 	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/internal/infrastructure/tenantguard"
 )
 
 // GormActivationRepository implements domain.ActivationRepository and
@@ -227,7 +228,8 @@ func (r *GormActivationRepository) MarkCelebrated(ctx context.Context, tenantID,
 func (r *GormActivationRepository) BackfillExistingMembers(ctx context.Context) error {
 	// Existing members are past onboarding by definition — they were using the
 	// product before it existed.
-	if err := r.db.WithContext(ctx).Exec(`
+	sys := tenantguard.CrossTenant(r.db.WithContext(ctx), "boot backfill marks every existing member of every tenant as onboarded")
+	if err := sys.Exec(`
 		INSERT INTO onboarding_progress (id, tenant_id, user_id, current_step, completed, completed_at)
 		SELECT gen_random_uuid(), om.organization_id, om.user_id, 'team', true, now()
 		FROM organization_members om
@@ -238,7 +240,7 @@ func (r *GormActivationRepository) BackfillExistingMembers(ctx context.Context) 
 
 	// A signup anchor per organization, so time-to-Aha has an honest t0 for
 	// tenants that predate the metric (their organization's creation date).
-	if err := r.db.WithContext(ctx).Exec(`
+	if err := sys.Exec(`
 		INSERT INTO activation_events (id, tenant_id, user_id, event_key, occurred_at)
 		SELECT gen_random_uuid(), o.id, o.owner_id, ?, o.created_at
 		FROM organizations o

@@ -13,6 +13,7 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+	"gorm.io/driver/postgres"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 
@@ -463,5 +464,94 @@ func TestGuard_ErrorCarriesNoSourcePath(t *testing.T) {
 	}
 	if contains(err.Error(), ".go") || contains(err.Error(), "/") {
 		t.Errorf("guard error leaks a source path: %v", err)
+	}
+}
+
+type gDTO struct {
+	ID   string
+	Name string
+}
+
+// A Table(...) expression that is not a name is refused whatever schema the
+// destination or the Model carries: the schema does not describe what the
+// expression reads.
+func TestGuard_UnreadableTableExpressionIsRefusedWithASchema(t *testing.T) {
+	db, c := open(t, tenantguard.Enforce)
+	for name, f := range map[string]func() error{
+		"subquery-dto-dest":   func() error { return db.Table("(SELECT * FROM g_items) AS x").Find(&[]gDTO{}).Error },
+		"subquery-with-model": func() error { return db.Model(&gTag{}).Table("(SELECT id AS id FROM g_items) x").Find(&[]gTag{}).Error },
+		"list-dto-dest":       func() error { return db.Table("g_tags, g_items").Find(&[]gDTO{}).Error },
+	} {
+		before := len(c.rules())
+		if err := f(); !errors.Is(err, tenantguard.ErrUnscopedQuery) {
+			t.Errorf("%s: want ErrUnscopedQuery, got %v", name, err)
+		}
+		if r := c.rules(); len(r) != before+1 || r[len(r)-1] != "unresolved-table" {
+			t.Errorf("%s: want one unresolved-table, got %v", name, r[before:])
+		}
+	}
+}
+
+// A numbered bind list ($1, $2) is read in full, like a ? list: the Postgres
+// dialect writes IN ($1,$2). DryRun, so nothing connects; WithModels registers
+// the table so no catalog query is needed.
+func TestGuard_NilTenantInANumberedINList(t *testing.T) {
+	db, err := gorm.Open(postgres.New(postgres.Config{DSN: "host=127.0.0.1 port=1 user=x dbname=x sslmode=disable"}),
+		&gorm.Config{DryRun: true, DisableAutomaticPing: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := db.Use(tenantguard.New(tenantguard.Enforce, tenantguard.WithModels(&gItem{}))); err != nil {
+		t.Fatal(err)
+	}
+	err = db.Raw("SELECT * FROM g_items WHERE tenant_id IN ?", []uuid.UUID{uuid.New(), uuid.Nil}).Scan(&[]gItem{}).Error
+	if !errors.Is(err, tenantguard.ErrUnscopedQuery) {
+		t.Fatalf("a nil tenant second in the list must be refused, got %v", err)
+	}
+	// DryRun answers "unsupported" for Scan; what matters is that it is not a refusal.
+	if err := db.Raw("SELECT * FROM g_items WHERE tenant_id IN ?", []uuid.UUID{uuid.New(), uuid.New()}).Scan(&[]gItem{}).Error; errors.Is(err, tenantguard.ErrUnscopedQuery) {
+		t.Fatalf("a list of real tenants must pass: %v", err)
+	}
+}
+
+// A "?" inside a string literal is not a bind: counting it moved the bind index
+// off the nil tenant.
+func TestGuard_QuestionMarkInALiteralDoesNotShiftTheBinds(t *testing.T) {
+	db, _ := open(t, tenantguard.Enforce)
+	err := db.Raw("SELECT * FROM g_items WHERE name = 'what?' AND tenant_id = ?", uuid.Nil).Scan(&[]gItem{}).Error
+	if !errors.Is(err, tenantguard.ErrUnscopedQuery) {
+		t.Fatalf("nil tenant after a literal with ? must be refused, got %v", err)
+	}
+	err = db.Raw("SELECT * FROM g_items WHERE name = 'it''s -- ? /* x */' AND tenant_id = ?", "t").Scan(&[]gItem{}).Error
+	if err != nil {
+		t.Fatalf("a literal holding comment markers must not hide the real filter: %v", err)
+	}
+	// A predicate that only exists inside a literal is not a filter.
+	err = db.Raw("SELECT * FROM g_items WHERE name = 'tenant_id = 1'").Scan(&[]gItem{}).Error
+	if !errors.Is(err, tenantguard.ErrUnscopedQuery) {
+		t.Fatalf("a predicate in a literal is not a filter, got %v", err)
+	}
+}
+
+// The SELECT part of an INSERT ... SELECT is read like any read: it copies rows.
+func TestGuard_InsertSelectIsCheckedAsARead(t *testing.T) {
+	db, c := open(t, tenantguard.Enforce)
+	err := db.Exec("INSERT INTO g_tags (id, item_id, label) SELECT id, id, name FROM g_items").Error
+	if !errors.Is(err, tenantguard.ErrUnscopedQuery) {
+		t.Fatalf("an unscoped INSERT ... SELECT must be refused, got %v", err)
+	}
+	if r := c.rules(); len(r) != 1 || r[0] != "raw-no-tenant" {
+		t.Fatalf("want one raw-no-tenant, got %v", r)
+	}
+	if err := db.Exec("INSERT INTO g_tags (id, item_id, label) SELECT id, id, name FROM g_items WHERE tenant_id = ?", "t").Error; err != nil {
+		t.Fatalf("a scoped INSERT ... SELECT must pass: %v", err)
+	}
+	err = db.Exec("INSERT INTO g_tags (id, item_id, label) SELECT id, id, name FROM g_items WHERE tenant_id = ?", uuid.Nil).Error
+	if !errors.Is(err, tenantguard.ErrUnscopedQuery) {
+		t.Fatalf("a nil tenant in the SELECT must be refused, got %v", err)
+	}
+	// INSERT ... VALUES is not a read and stays unchecked.
+	if err := db.Exec("INSERT INTO g_tags (id, item_id, label) VALUES ('a', 'b', 'c')").Error; err != nil {
+		t.Fatalf("INSERT ... VALUES must pass: %v", err)
 	}
 }

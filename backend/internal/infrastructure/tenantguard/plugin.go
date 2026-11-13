@@ -20,11 +20,18 @@
 //     staging (TENANT_GUARD=enforce) is where the rest are found.
 //   - It catches a missing filter, not a wrong one (#807): a tenant filter on a
 //     joined table satisfies it, so does one on the wrong tenant.
-//   - Raw SQL is checked lexically, after comments are removed. A predicate
-//     written inside a string literal, in a CTE, in an INSERT ... SELECT, or a
-//     comma join, and a join glue "ON a.tenant_id = b.tenant_id" with no value
-//     bound anywhere, are read as a filter. An OR inside one raw string is not
-//     parsed.
+//   - Raw SQL is checked lexically, after comments are removed and string
+//     literals blanked. A predicate in a CTE or a comma join, a MERGE, and a join
+//     glue "ON a.tenant_id = b.tenant_id" with no value bound anywhere, are read
+//     as a filter. An OR inside one raw string is not parsed. The SELECT part of
+//     an INSERT ... SELECT is checked like a read.
+//   - On the builder side a right-hand side the guard does not read is accepted
+//     as a filter: tenant_id IN (SELECT tenant_id ...), tenant_id = (SELECT ...),
+//     tenant_id = COALESCE(tenant_id, ?), and a column compared with another
+//     column (a.tenant_id = b.col). Only a tenant column compared with itself is
+//     refused.
+//   - A scoped table reached only through Joins from an unscoped base table is
+//     not checked: Table("g_tags t").Joins("JOIN g_items ...").
 //   - The precedence of .Or() is approximated: Where(a).Or(t AND b).Where(t) is
 //     not told apart from the plain forms. No production query uses .Or( today.
 //   - A preload inherits its parent's pass through the statement context, and so
@@ -36,8 +43,8 @@
 //     id-only is exactly the defect class.
 //   - A table no schema has been seen on is resolved from the catalog (one query
 //     per table, cached once the table exists). A Table(...) argument that is
-//     not a name, an alias or a quoted name, a subquery for instance, is refused
-//     when no model gives the table.
+//     not a name, an alias or a quoted name (a subquery, a list) is always refused;
+//     any other unreadable form is refused when no model gives the table.
 package tenantguard
 
 import (
@@ -223,8 +230,9 @@ var tableRef = regexp.MustCompile("(?i)^\\s*(?:[\"`]?[a-z_][a-z0-9_]*[\"`]?\\.)?
 // scopedTable resolves the statement's table and whether it is tenant-scoped.
 // The registry is only a cache: a table no schema has been seen on is read from
 // the catalog, so the answer never depends on what ran before. unresolved is
-// true when the statement names a table in a form that cannot be read and no
-// schema says otherwise: the guard then fails closed.
+// true when the statement names a table in a form that cannot be read: a Table(...)
+// expression that is not a name always, any other form when no schema gives the
+// table. The guard then fails closed.
 func (p *Plugin) scopedTable(db *gorm.DB) (table string, scoped, unresolved bool) {
 	stmt := db.Statement
 	table = stmt.Table
@@ -240,14 +248,19 @@ func (p *Plugin) scopedTable(db *gorm.DB) (table string, scoped, unresolved bool
 	if stmt.TableExpr != nil && stmt.TableExpr.SQL != "" {
 		written = stmt.TableExpr.SQL
 	}
-	if !scoped && written != "" {
+	if written != "" {
 		if m := tableRef.FindStringSubmatch(written); m != nil {
-			base := strings.ToLower(m[1])
-			scoped = p.scopedName(db, base)
-			if scoped {
-				table = base
+			if !scoped {
+				base := strings.ToLower(m[1])
+				scoped = p.scopedName(db, base)
+				if scoped {
+					table = base
+				}
 			}
-		} else if stmt.Schema == nil {
+		} else if stmt.Schema == nil || stmt.TableExpr != nil {
+			// A Table(...) expression that is not a name (a subquery, a list) is
+			// refused whatever the schema says: the schema describes the Model,
+			// not the rows the expression reads.
 			unresolved = true
 		}
 	}

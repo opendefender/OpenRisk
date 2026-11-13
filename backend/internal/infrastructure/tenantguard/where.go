@@ -33,15 +33,56 @@ var (
 	rawTable     = regexp.MustCompile(`(?i)\b(?:from|join|update)\s+(?:"?[a-z_][a-z0-9_]*"?\.)?"?([a-z_][a-z0-9_]*)"?`)
 	rawWhere     = regexp.MustCompile(`(?i)\b(?:where|on)\b`) // a tenant test in WHERE or in a JOIN ... ON
 	rawWhereOnly = regexp.MustCompile(`(?i)\bwhere\b`)
-	blockComment = regexp.MustCompile(`(?s)/\*.*?\*/`)
-	lineComment  = regexp.MustCompile(`--[^\n]*`)
+	rawSelect    = regexp.MustCompile(`(?i)\bselect\b`)
 )
 
-// stripComments removes SQL comments, so a predicate that only exists in a
-// comment does not count. A string literal holding "--" is cut as well, which
-// can only make the guard stricter.
+// stripComments makes sql safe to scan: comments become a space and the content
+// of a string literal is blanked (the quotes stay), so a predicate that only
+// exists in a comment or a literal does not count and a "?" inside a literal is
+// not counted as a bind. One pass; a ” inside a literal is an escaped quote.
 func stripComments(sql string) string {
-	return lineComment.ReplaceAllString(blockComment.ReplaceAllString(sql, " "), " ")
+	var b strings.Builder
+	b.Grow(len(sql))
+	for i := 0; i < len(sql); {
+		switch {
+		case sql[i] == '\'':
+			b.WriteByte('\'')
+			i++
+			for i < len(sql) {
+				if sql[i] == '\'' {
+					if i+1 < len(sql) && sql[i+1] == '\'' {
+						b.WriteString("xx")
+						i += 2
+						continue
+					}
+					break
+				}
+				b.WriteByte('x')
+				i++
+			}
+			if i < len(sql) {
+				b.WriteByte('\'')
+				i++
+			}
+		case strings.HasPrefix(sql[i:], "--"):
+			for i < len(sql) && sql[i] != '\n' {
+				i++
+			}
+			b.WriteByte(' ')
+		case strings.HasPrefix(sql[i:], "/*"):
+			end := strings.Index(sql[i+2:], "*/")
+			if end < 0 {
+				i = len(sql)
+			} else {
+				i += 2 + end + 2
+			}
+			b.WriteByte(' ')
+		default:
+			b.WriteByte(sql[i])
+			i++
+		}
+	}
+	return b.String()
 }
 
 // scanSQL looks for a tenant filter in sql. region is the offset before which
@@ -93,6 +134,20 @@ func scanSQL(sql string, vars []any, region, whereAt int) (ok, nilT bool) {
 			fmt.Sscanf(g(2), "%d", &n)
 			nilT = nilT || nilAt(vars, n-1)
 			ok = true
+			if op == "IN" {
+				rest := sql[loc[1]+rhs[3]:]
+				for k := 0; k < 1000; k++ {
+					m := nextBind.FindStringSubmatchIndex(rest)
+					if m == nil {
+						break
+					}
+					if rest[m[2]] == '$' {
+						fmt.Sscanf(rest[m[4]:m[5]], "%d", &n)
+						nilT = nilT || nilAt(vars, n-1)
+					}
+					rest = rest[m[1]:]
+				}
+			}
 		case strings.HasPrefix(tok, "@"):
 			nilT = nilT || nilNamed(vars, g(3))
 			ok = true
@@ -307,13 +362,20 @@ func (p *Plugin) checkRaw(db *gorm.DB, sql string, vars []any) string {
 	sql = stripComments(sql)
 	s := strings.TrimLeft(sql, " \t\r\n(")
 	kw := strings.ToUpper(firstWord(s))
+	from := 0 // the SELECT part of an INSERT ... SELECT is read like any read
 	switch kw {
 	case "SELECT", "WITH", "UPDATE", "DELETE":
+	case "INSERT":
+		loc := rawSelect.FindStringIndex(sql)
+		if loc == nil {
+			return "" // INSERT ... VALUES is not checked
+		}
+		from = loc[0]
 	default:
 		return ""
 	}
 	scoped := false
-	for _, m := range rawTable.FindAllStringSubmatch(sql, -1) {
+	for _, m := range rawTable.FindAllStringSubmatch(sql[from:], -1) {
 		if p.scopedName(db, strings.ToLower(m[1])) {
 			scoped = true
 			break
@@ -322,15 +384,15 @@ func (p *Plugin) checkRaw(db *gorm.DB, sql string, vars []any) string {
 	if !scoped {
 		return ""
 	}
-	region := rawWhere.FindStringIndex(sql)
+	region := rawWhere.FindStringIndex(sql[from:])
 	if region == nil {
 		return "raw-no-tenant"
 	}
 	whereAt := -1
-	if w := rawWhereOnly.FindStringIndex(sql); w != nil {
-		whereAt = w[0]
+	if w := rawWhereOnly.FindStringIndex(sql[from:]); w != nil {
+		whereAt = from + w[0]
 	}
-	ok, nilT := scanSQL(sql, vars, region[0], whereAt)
+	ok, nilT := scanSQL(sql, vars, from+region[0], whereAt)
 	switch {
 	case nilT:
 		return "nil-tenant"
