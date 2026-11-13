@@ -164,17 +164,6 @@ func (m *MockMFARepository) GetOAuthProvider(ctx context.Context, userID, tenant
 	return m.oauthProviders[key], nil
 }
 
-func (m *MockMFARepository) GetOAuthProviderByEmail(ctx context.Context, email, provider string) (*domain.OAuthProvider, error) {
-	key := email + ":" + provider
-	return m.oauthProviders[key], nil
-}
-
-func (m *MockMFARepository) UpdateOAuthProvider(ctx context.Context, provider *domain.OAuthProvider) error {
-	key := provider.UserID.String() + ":" + provider.Provider
-	m.oauthProviders[key] = provider
-	return nil
-}
-
 func (m *MockMFARepository) ListOAuthProviders(ctx context.Context, userID, tenantID uuid.UUID) ([]*domain.OAuthProvider, error) {
 	var providers []*domain.OAuthProvider
 	for _, provider := range m.oauthProviders {

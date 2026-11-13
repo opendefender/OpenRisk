@@ -14,6 +14,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/internal/infrastructure/tenantguard"
 )
 
 // GormHostInventoryRepository stores host inventories (#910). Every query is
@@ -45,7 +46,7 @@ func (r *GormHostInventoryRepository) Replace(ctx context.Context, inv *domain.H
 			inv.ID = existing.ID
 			inv.CreatedAt = existing.CreatedAt
 			inv.MatchedAt = existing.MatchedAt
-			if err := tx.Save(inv).Error; err != nil {
+			if err := updateInTenant(tx, inv.TenantID, inv); err != nil {
 				return err
 			}
 		case errors.Is(err, gorm.ErrRecordNotFound):
@@ -129,6 +130,6 @@ func (r *GormHostInventoryRepository) MarkMatched(ctx context.Context, tenantID,
 func (r *GormHostInventoryRepository) TenantsWithInventories(ctx context.Context) ([]uuid.UUID, error) {
 	var ids []uuid.UUID
 	// Tenant-agnostic by design: enumerates tenants for the scheduler, reads no tenant data.
-	err := r.db.WithContext(ctx).Model(&domain.HostInventory{}).Distinct("tenant_id").Pluck("tenant_id", &ids).Error
+	err := tenantguard.CrossTenant(r.db.WithContext(ctx), "tenant enumeration for the daily re-match; reads no tenant data").Model(&domain.HostInventory{}).Distinct("tenant_id").Pluck("tenant_id", &ids).Error
 	return ids, err
 }

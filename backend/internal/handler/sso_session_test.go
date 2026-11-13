@@ -28,6 +28,7 @@ import (
 	"github.com/opendefender/openrisk/internal/domain"
 	"github.com/opendefender/openrisk/internal/infrastructure/database"
 	"github.com/opendefender/openrisk/internal/middleware"
+	"github.com/opendefender/openrisk/internal/testsupport/testdb"
 	authpkg "github.com/opendefender/openrisk/pkg/auth"
 )
 
@@ -250,7 +251,7 @@ func TestIssueSSOSession_OnboardingFailureRedirects(t *testing.T) {
 	setupSSOSession(t, nil)
 
 	// A user with no tenant, against a database where onboarding cannot write.
-	broken, err := gorm.Open(sqlite.Open("file:"+uuid.NewString()+"?mode=memory"), &gorm.Config{})
+	broken, err := testdb.Open(t, sqlite.Open("file:"+uuid.NewString()+"?mode=memory"), &gorm.Config{})
 	require.NoError(t, err)
 	database.DB = broken
 	orphan := &domain.User{ID: uuid.New(), Email: "new@opendefender.io", IsActive: true}
@@ -281,8 +282,8 @@ func (l linkedRepo) FindByProviderSubject(context.Context, string, string) (*dom
 func (l linkedRepo) ListByUser(context.Context, uuid.UUID) ([]domain.OAuthProvider, error) {
 	return nil, nil
 }
-func (l linkedRepo) Create(context.Context, *domain.OAuthProvider) error    { return nil }
-func (l linkedRepo) TouchLogin(context.Context, uuid.UUID, time.Time) error { return nil }
+func (l linkedRepo) Create(context.Context, *domain.OAuthProvider) error               { return nil }
+func (l linkedRepo) TouchLogin(context.Context, uuid.UUID, uuid.UUID, time.Time) error { return nil }
 
 // oauthSignIn drives /login?return_to=… then /callback for a linked user.
 func oauthSignIn(t *testing.T, fx *ssoFixture, returnTo string) *http.Response {

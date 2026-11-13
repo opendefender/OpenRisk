@@ -14,13 +14,14 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/internal/testsupport/testdb"
 )
 
 // setupTeamDB builds the teams/team_members tables by hand (AutoMigrate would
 // emit the Postgres-only gen_random_uuid() default which sqlite rejects).
 func setupTeamDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{TranslateError: true})
+	db, err := testdb.Open(t, sqlite.Open(":memory:"), &gorm.Config{TranslateError: true})
 	require.NoError(t, err)
 	require.NoError(t, db.Exec(`
 		CREATE TABLE teams (

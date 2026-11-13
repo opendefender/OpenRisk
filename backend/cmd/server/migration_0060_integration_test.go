@@ -44,6 +44,7 @@ import (
 	"github.com/opendefender/openrisk/internal/domain"
 	"github.com/opendefender/openrisk/internal/infrastructure/database"
 	"github.com/opendefender/openrisk/internal/migrations"
+	"github.com/opendefender/openrisk/internal/testsupport/testdb"
 )
 
 const (
@@ -108,7 +109,7 @@ func withParams(t *testing.T, dsn string, params map[string]string) string {
 func openGorm(t *testing.T, dsn string) *gorm.DB {
 	t.Helper()
 	// The options database.Connect uses.
-	db, err := gorm.Open(postgres.New(postgres.Config{DSN: dsn}), &gorm.Config{
+	db, err := testdb.Open(t, postgres.New(postgres.Config{DSN: dsn}), &gorm.Config{
 		Logger:                                   logger.Default.LogMode(logger.Silent),
 		TranslateError:                           true,
 		DisableForeignKeyConstraintWhenMigrating: true,

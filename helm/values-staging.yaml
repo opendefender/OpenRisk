@@ -15,7 +15,11 @@ backend:
     repository: ghcr.io/alex-dembele/openrisk-backend
     tag: "latest"
     pullPolicy: Always
-  
+
+  env:
+    # #808, D-111: staging runs the tenant guard in enforce mode; production leaves it off.
+    TENANT_GUARD: "enforce"
+
   resources:
     requests:
       cpu: 200m

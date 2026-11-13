@@ -14,6 +14,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/internal/infrastructure/tenantguard"
 )
 
 // GormReportRepository implements domain.ReportRepository.
@@ -69,10 +70,10 @@ func (r *GormReportRepository) Update(ctx context.Context, rep *domain.Report) e
 // Separate from Update because it runs on every step of a render, and touching
 // the artifact column on each tick would be gratuitous IO on a multi-megabyte
 // blob.
-func (r *GormReportRepository) UpdateProgress(ctx context.Context, id uuid.UUID, progress int, step string) error {
+func (r *GormReportRepository) UpdateProgress(ctx context.Context, tenantID, id uuid.UUID, progress int, step string) error {
 	return r.db.WithContext(ctx).
 		Model(&domain.Report{}).
-		Where("id = ?", id).
+		Where("id = ? AND tenant_id = ?", id, tenantID).
 		Updates(map[string]any{"progress": progress, "step": step, "updated_at": time.Now()}).Error
 }
 
@@ -238,7 +239,7 @@ func (r *GormReportRepository) ClaimQueued(ctx context.Context) (*domain.Report,
 	// claim whose exclusivity is never actually tested.
 	for attempt := 0; attempt < 5; attempt++ {
 		var candidate domain.Report
-		err := r.db.WithContext(ctx).
+		err := tenantguard.CrossTenant(r.db.WithContext(ctx), "report queue claims the oldest queued job of any tenant").
 			Where("run_state = ?", domain.ReportRunQueued).
 			Order("created_at ASC").
 			First(&candidate).Error
@@ -251,7 +252,7 @@ func (r *GormReportRepository) ClaimQueued(ctx context.Context) (*domain.Report,
 
 		res := r.db.WithContext(ctx).
 			Model(&domain.Report{}).
-			Where("id = ? AND run_state = ?", candidate.ID, domain.ReportRunQueued).
+			Where("id = ? AND tenant_id = ? AND run_state = ?", candidate.ID, candidate.TenantID, domain.ReportRunQueued).
 			Updates(map[string]any{
 				"run_state":  domain.ReportRunRunning,
 				"step":       "starting",
@@ -270,7 +271,7 @@ func (r *GormReportRepository) ClaimQueued(ctx context.Context) (*domain.Report,
 
 		// Re-read so the render sees the row as it now stands, params included.
 		var full domain.Report
-		if err := r.db.WithContext(ctx).Where("id = ?", candidate.ID).First(&full).Error; err != nil {
+		if err := r.db.WithContext(ctx).Where("id = ? AND tenant_id = ?", candidate.ID, candidate.TenantID).First(&full).Error; err != nil {
 			return nil, err
 		}
 		return &full, nil

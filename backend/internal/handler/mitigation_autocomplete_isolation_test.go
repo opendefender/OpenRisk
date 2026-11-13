@@ -21,6 +21,7 @@ import (
 
 	"github.com/opendefender/openrisk/internal/infrastructure/database"
 	"github.com/opendefender/openrisk/internal/middleware"
+	"github.com/opendefender/openrisk/internal/testsupport/testdb"
 )
 
 // Probe for POST /scanner/mitigations/auto-complete.
@@ -93,7 +94,7 @@ func newAutoCompleteProbe(t *testing.T) *autoCompleteProbe {
 	t.Helper()
 
 	dsn := "file:autocomplete_isolation_" + uuid.New().String() + "?mode=memory&cache=private"
-	db, err := gorm.Open(sqlite.Open(dsn), &gorm.Config{})
+	db, err := testdb.Open(t, sqlite.Open(dsn), &gorm.Config{})
 	require.NoError(t, err)
 	// Explicit DDL rather than AutoMigrate: the domain models carry Postgres
 	// defaults (gen_random_uuid(), ::jsonb) that sqlite rejects. The columns and

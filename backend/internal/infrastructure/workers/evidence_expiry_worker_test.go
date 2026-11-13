@@ -28,7 +28,7 @@ func (s *fakeExpiryStore) ListExpiring(context.Context, time.Time, time.Duration
 	return s.rows, nil
 }
 
-func (s *fakeExpiryStore) MarkReminded(_ context.Context, id uuid.UUID, _ time.Time) error {
+func (s *fakeExpiryStore) MarkReminded(_ context.Context, _, id uuid.UUID, _ time.Time) error {
 	if s.stampFails {
 		return errors.New("db down")
 	}

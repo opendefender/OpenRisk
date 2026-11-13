@@ -13,6 +13,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/internal/infrastructure/tenantguard"
 )
 
 // GormMitigationDueRepository is a focused, cross-tenant view of mitigation
@@ -40,7 +41,7 @@ func (r *GormMitigationDueRepository) ListDueForReminder(ctx context.Context, no
 	horizon := now.AddDate(0, 0, widest)
 
 	var rows []domain.Mitigation
-	err := r.db.WithContext(ctx).
+	err := tenantguard.CrossTenant(r.db.WithContext(ctx), "mitigation due sweep across tenants; each row carries its tenant").
 		Where("due_date IS NOT NULL AND due_date <= ?", horizon).
 		Where("status NOT IN ?", []domain.MitigationStatus{domain.MitigationDone, domain.MitigationCancelled}).
 		Where("deleted_at IS NULL").

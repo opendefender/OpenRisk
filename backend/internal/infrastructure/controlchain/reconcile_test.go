@@ -18,6 +18,7 @@ import (
 	"gorm.io/gorm/logger"
 
 	"github.com/opendefender/openrisk/internal/domain/canonical"
+	"github.com/opendefender/openrisk/internal/testsupport/testdb"
 	"github.com/opendefender/openrisk/pkg/monitoring"
 )
 
@@ -25,7 +26,7 @@ import (
 // as the columns it reads, and the six tables built from the row types.
 func legacyDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db, err := gorm.Open(sqlite.Open("file::memory:"), &gorm.Config{
+	db, err := testdb.Open(t, sqlite.Open("file::memory:"), &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Silent), TranslateError: true,
 	})
 	require.NoError(t, err)

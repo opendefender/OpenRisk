@@ -34,6 +34,7 @@ import (
 	assetuc "github.com/opendefender/openrisk/internal/application/asset"
 	apprealtime "github.com/opendefender/openrisk/internal/application/realtime"
 	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/internal/testsupport/testdb"
 	"github.com/opendefender/openrisk/pkg/monitoring"
 	"github.com/opendefender/openrisk/pkg/realtime"
 )
@@ -51,7 +52,7 @@ func rtSchema(t *testing.T) *gorm.DB {
 		t.Skip("DATABASE_URL not set")
 	}
 	schema := "rt344_" + strings.ReplaceAll(uuid.New().String(), "-", "")[:12]
-	admin, err := gorm.Open(postgres.Open(dsn), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
+	admin, err := testdb.Open(t, postgres.Open(dsn), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
 	require.NoError(t, err)
 	require.NoError(t, admin.Exec(fmt.Sprintf(`CREATE SCHEMA %s`, schema)).Error)
 	t.Cleanup(func() {
@@ -72,7 +73,7 @@ func rtOpen(t *testing.T, dsn, schema string) *gorm.DB {
 	q := u.Query()
 	q.Set("search_path", schema)
 	u.RawQuery = q.Encode()
-	db, err := gorm.Open(postgres.Open(u.String()), &gorm.Config{
+	db, err := testdb.Open(t, postgres.Open(u.String()), &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Silent), TranslateError: true,
 		// The pilot's Asset pulls in risks through its many-to-many link; the
 		// tests are about events, so constraints toward tables they never touch

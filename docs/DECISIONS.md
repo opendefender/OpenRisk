@@ -9,6 +9,69 @@ recommends, and surfaces these in the daily brief. Run `/decide` to clear them.
 
 ## Resolved
 
+### D-111 — Tenant guard design: what is scoped, how a query proves its tenant, how the allowlist is written · decided 2026-11-13
+**Decided (agent: backend-go, 2026-11-13, under D-089; implements D-055 option C)** — the GORM
+callback of #808 is `internal/infrastructure/tenantguard`. It fails any SELECT, UPDATE or DELETE
+on a tenant-scoped table whose explicit WHERE has no `tenant_id` or `organization_id`. It is
+installed on every test database through `internal/testsupport/testdb` (Enforce), in staging
+(`TENANT_GUARD=enforce`) and in the CI boot (`TENANT_GUARD=enforce`); production leaves it off
+until the owner decides otherwise. Each choice below is recorded with its alternative so the
+owner can overturn it.
+
+- **What is scoped.** A table whose parsed schema has `tenant_id` or `organization_id`, minus an
+  exemption map. `users` is exempt: identities are deployment-global, `users.tenant_id` is a dead
+  Phase-5 column nobody reads, membership is `organization_members`. Alternative: scope `users`
+  and rewrite 16 measured sites; rejected, it protects a column that carries no meaning.
+- **How a query proves its tenant.** Only the explicit WHERE counts. The primary-key condition
+  GORM adds for `First(&x)`, `Save` and `Delete(&x)` does not, because id-only is exactly the
+  defect class. Alternative: inspect the final SQL; rejected, it would read the implicit pk
+  condition as a pass.
+- **Preloads.** A preload inherits its parent's pass through the statement context; the parent
+  must have passed. Alternative: demand a tenant filter on every preload; rejected, it would
+  force a redundant filter on rows already gated by their parent.
+- **Raw SQL.** Checked lexically (first keyword, table names, a tenant predicate after WHERE).
+  Alternative: ignore raw SQL; rejected, the heaviest queries are raw. Limit: an OR inside one
+  string is not parsed.
+- **Nil tenant.** A tenant filter bound to `uuid.Nil` is a violation (`nil-tenant`), never
+  allowlisted. Code that must answer "empty" for a nil tenant does so before querying. Alternative:
+  accept `tenant_id = nil` as "reads nothing"; rejected, it is the fallback-to-nil defect class.
+- **Allowlist.** `tenantguard.CrossTenant(db, reason)` / `CrossTenantContext(ctx, reason)`. The
+  reason must be a string literal of at least 15 characters on one line, checked by
+  `allowlist_test.go` over the module. `grep -rn 'tenantguard.CrossTenant' backend` is the list.
+  Alternative: a central file of allowed call sites; rejected, it drifts away from the code.
+- **Tests.** `testdb.Open(t, ...)` replaces `gorm.Open` in every test; `testdb/coverage_test.go`
+  fails on any raw `gorm.Open`. Statements issued from a `*_test.go` file (fixtures, assertions)
+  are exempt; a query issued by production code that a test calls is checked. Alternative: a
+  process-wide hook; not possible, GORM callbacks are per `*gorm.DB`.
+- **Writes.** `tenantwrite.UpdateInTenant` / `UpdateInOrganization` replace `Save` on a scoped
+  model. `tx.Where("tenant_id = ?", t).Save(&x)` falls back to INSERT ... ON CONFLICT UPDATE ALL
+  in GORM v1.31 when its UPDATE matches 0 rows, which would overwrite another tenant's row with
+  the same id. The helper also refuses a zero primary key (which would match every row of the
+  tenant) and a model stamped with another tenant. `TestSave_OnlyTheClosedListMayCallGormSave`
+  fails on any `.Save(` on a GORM chain outside a closed list of six sites, each with a reason.
+- **Modes.** `TENANT_GUARD` = `off` (default, production), `report`, `enforce`; a typo is a fatal
+  boot error. Alternative: enforce in production now; deferred, coverage is about 44% and a
+  refused query in production is an outage, so staging finds the rest first.
+- **Split.** `/teams` and `/users` behind use cases (criterion 2) moved to #1419, so each PR fits
+  one review round.
+
+**Honest limits** — it only sees queries that run; it catches a missing filter, not a wrong one
+(#807 class). Raw SQL is checked lexically after comments are removed and string literals
+blanked: a predicate in a CTE or a comma join, a `MERGE`, or a join glue between two tenant
+columns passes; the SELECT part of an `INSERT ... SELECT` is checked like a read. In builder and
+raw SQL alike, a right-hand side the guard does not read is accepted (`tenant_id IN (SELECT tenant_id ...)`,
+`= (SELECT ...)`, `= COALESCE(tenant_id, ?)`, a column against another column); only a tenant
+column against itself is refused. A scoped table reached only by `Joins` from an unscoped base
+table is not checked. The `.Save(` ratchet is syntactic: it does not see a method value
+(`f := db.Save; f(x)`) nor a call inside a package-level function literal. `.Or()` precedence is approximated (no production query uses it). A
+preload, and a statement reusing the parent's context while it runs (an `AfterFind` hook
+included), inherits the parent's pass. INSERT ... VALUES and upserts are not checked. A table no
+model gives is read from the catalog. A `Table(...)` expression that is not a name (a subquery, a
+list) is refused whatever the schema; any other unreadable form is refused when no model gives
+the table. Postgres RLS is
+evaluated, not implemented: `docs/adr/0011-postgres-row-level-security.md`.
+
+
 ### D-110 — Risk bulk actions: legacy route sunset date, and assign_to left out of the governed routes · decided 2026-11-13
 **Decided (agent, 2026-11-13)** — #599.
 
@@ -1621,6 +1684,8 @@ self-hosted customer is known to run a version older than migration 0052.
 **Blocks** — #813.
 
 ### D-055 — structural tenant guard: a GORM callback now, Postgres RLS after the launch · decided 2026-09-28
+*Implemented by #808; see D-111 and ADR 0011.*
+
 **Decided (owner)** — **C, matching the recommendation.** The GORM callback (A) is built
 inside #808 before the launch. Postgres Row-Level Security (B) comes after the launch, behind
 its own ADR. Neither covers #807 (P0, `status:ready`): a query that is filtered but acts on

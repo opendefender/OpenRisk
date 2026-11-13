@@ -9,6 +9,8 @@ import (
 	"fmt"
 
 	"gorm.io/gorm"
+
+	"github.com/opendefender/openrisk/internal/infrastructure/tenantguard"
 )
 
 // PrepareForAutoMigrate performs the data repairs that AutoMigrate cannot do
@@ -101,6 +103,8 @@ func prepareRealtimeOutbox(db *gorm.DB) error {
 // deployments that skip the SQL layer; AutoMigrate changes the column default.
 // Idempotent, and a no-op on a fresh database.
 func retireStarterPlan(db *gorm.DB) error {
+	// Boot schema preparation maintains every tenant's rows before any session exists.
+	db = tenantguard.CrossTenant(db, "boot schema preparation maintains every tenant before any session exists")
 	if !db.Migrator().HasTable("organizations") {
 		return nil
 	}
@@ -114,6 +118,8 @@ func retireStarterPlan(db *gorm.DB) error {
 // than left to a model tag. Idempotent; a no-op outside Postgres and on a
 // fresh database.
 func prepareScanJobType(db *gorm.DB) error {
+	// Boot schema preparation maintains every tenant's rows before any session exists.
+	db = tenantguard.CrossTenant(db, "boot schema preparation maintains every tenant before any session exists")
 	if db.Dialector.Name() != "postgres" {
 		return nil
 	}
@@ -136,6 +142,8 @@ func prepareScanJobType(db *gorm.DB) error {
 // backfilled plan cannot fall through to an earlier nudge worded as overdue.
 // A no-op outside Postgres and on a fresh database.
 func prepareMitigationOverdueReminder(db *gorm.DB) error {
+	// Boot schema preparation maintains every tenant's rows before any session exists.
+	db = tenantguard.CrossTenant(db, "boot schema preparation maintains every tenant before any session exists")
 	if db.Dialector.Name() != "postgres" {
 		return nil
 	}
@@ -177,6 +185,8 @@ const overdueReminderBackfill = `UPDATE mitigations
 // Mirrors migrations/0067_personal_access_tokens_tenant.up.sql. Idempotent; a
 // no-op outside Postgres and on a fresh database.
 func backfillPersonalAccessTokenTenant(db *gorm.DB) error {
+	// Boot schema preparation maintains every tenant's rows before any session exists.
+	db = tenantguard.CrossTenant(db, "boot schema preparation maintains every tenant before any session exists")
 	if db.Dialector.Name() != "postgres" {
 		return nil
 	}
@@ -214,6 +224,8 @@ func backfillPersonalAccessTokenTenant(db *gorm.DB) error {
 // the composite key cannot be violated by rows that were unique on user_id.
 // Idempotent; a no-op outside Postgres and on a fresh database.
 func prepareOnboardingProgressPerOrg(db *gorm.DB) error {
+	// Boot schema preparation maintains every tenant's rows before any session exists.
+	db = tenantguard.CrossTenant(db, "boot schema preparation maintains every tenant before any session exists")
 	if db.Dialector.Name() != "postgres" {
 		return nil
 	}
@@ -249,6 +261,8 @@ func prepareOnboardingProgressPerOrg(db *gorm.DB) error {
 // the boot, and refusing to start is a worse outcome than converging the data.
 // Idempotent; a no-op on a fresh database and outside Postgres.
 func prepareMembershipIntegrity(db *gorm.DB) error {
+	// Boot schema preparation maintains every tenant's rows before any session exists.
+	db = tenantguard.CrossTenant(db, "boot schema preparation maintains every tenant before any session exists")
 	if db.Dialector.Name() != "postgres" {
 		return nil
 	}
@@ -295,6 +309,8 @@ func prepareMembershipIntegrity(db *gorm.DB) error {
 // does not exist yet — there, AutoMigrate builds the table and migration 0062
 // creates the index right after.
 func prepareVendorAssessmentTokens(db *gorm.DB) error {
+	// Boot schema preparation maintains every tenant's rows before any session exists.
+	db = tenantguard.CrossTenant(db, "boot schema preparation maintains every tenant before any session exists")
 	if db.Dialector.Name() != "postgres" {
 		return nil
 	}
@@ -316,6 +332,8 @@ func prepareVendorAssessmentTokens(db *gorm.DB) error {
 // migrations/0057_refresh_token_family_rotation.up.sql. Idempotent; a no-op on a
 // fresh database where the table does not exist yet.
 func backfillRefreshTokenFamilies(db *gorm.DB) error {
+	// Boot schema preparation maintains every tenant's rows before any session exists.
+	db = tenantguard.CrossTenant(db, "boot schema preparation maintains every tenant before any session exists")
 	if db.Dialector.Name() != "postgres" {
 		return nil
 	}
@@ -344,6 +362,8 @@ func backfillRefreshTokenFamilies(db *gorm.DB) error {
 // hashes would be the one lie an audit trail cannot tell. This mirrors
 // migrations/0048_audit_trail_hash_chain.up.sql exactly.
 func backfillAuditSequences(db *gorm.DB) error {
+	// Boot schema preparation maintains every tenant's rows before any session exists.
+	db = tenantguard.CrossTenant(db, "boot schema preparation maintains every tenant before any session exists")
 	// Nothing to do when the table or the column is not there yet — a fresh
 	// database creates both correctly during AutoMigrate.
 	if !db.Migrator().HasTable("audit_events") || !db.Migrator().HasColumn("audit_events", "sequence") {

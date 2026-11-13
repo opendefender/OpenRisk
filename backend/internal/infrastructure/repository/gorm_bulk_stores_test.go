@@ -16,6 +16,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/internal/testsupport/testdb"
 )
 
 // #582 against real SQL.
@@ -26,7 +27,7 @@ import (
 // byte-identical, which no fake can demonstrate.
 func setupBulkStores(t *testing.T) (*VulnerabilityBulkStore, *AssetBulkStore, *gorm.DB) {
 	t.Helper()
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	db, err := testdb.Open(t, sqlite.Open(":memory:"), &gorm.Config{})
 	require.NoError(t, err)
 	createTableFromModel(t, db, &domain.Vulnerability{})
 	createTableFromModel(t, db, &domain.Asset{})

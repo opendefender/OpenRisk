@@ -53,7 +53,7 @@ func (r *GormMFARepository) GetMFASecret(ctx context.Context, userID, tenantID u
 // code, and writing it back would lower the mark and re-open the replay #849
 // closes. ConsumeTOTPStep is its only writer.
 func (r *GormMFARepository) UpdateMFASecret(ctx context.Context, secret *domain.MFASecret) error {
-	return r.db.WithContext(ctx).Omit("last_totp_step").Save(secret).Error
+	return updateInTenant(r.db.WithContext(ctx), secret.TenantID, secret, "last_totp_step")
 }
 
 // ConsumeTOTPStep records that a code for step was accepted, and reports false
@@ -304,27 +304,6 @@ func (r *GormOAuthProviderRepository) GetOAuthProvider(ctx context.Context, user
 		return nil, err
 	}
 	return &provider, nil
-}
-
-// GetOAuthProviderByEmail retrieves OAuth provider by email and provider name (NO tenant filter - for OAuth flow)
-func (r *GormOAuthProviderRepository) GetOAuthProviderByEmail(ctx context.Context, email, provider string) (*domain.OAuthProvider, error) {
-	var oauthProvider domain.OAuthProvider
-	err := r.db.WithContext(ctx).
-		Where("email = ? AND provider = ?", email, provider).
-		First(&oauthProvider).Error
-
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, nil
-		}
-		return nil, err
-	}
-	return &oauthProvider, nil
-}
-
-// UpdateOAuthProvider updates an existing OAuth provider
-func (r *GormOAuthProviderRepository) UpdateOAuthProvider(ctx context.Context, provider *domain.OAuthProvider) error {
-	return r.db.WithContext(ctx).Save(provider).Error
 }
 
 // ListOAuthProviders lists all OAuth providers for user (Tenant-scoped)

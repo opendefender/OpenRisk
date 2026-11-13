@@ -21,7 +21,7 @@ import (
 // tenant_id and each reminder is addressed with it.
 type EvidenceExpiryStore interface {
 	ListExpiring(ctx context.Context, now time.Time, window time.Duration, limit int) ([]domain.Evidence, error)
-	MarkReminded(ctx context.Context, id uuid.UUID, at time.Time) error
+	MarkReminded(ctx context.Context, tenantID, id uuid.UUID, at time.Time) error
 }
 
 // NotifyExpiryFunc raises the reminder for whoever owns the artifact. Wired in
@@ -97,7 +97,7 @@ func (w *EvidenceExpiryWorker) Sweep(ctx context.Context) {
 		// Stamp FIRST. An artifact whose notification fails must not be re-notified
 		// every hour until someone renews it; a missed nudge is a smaller harm than
 		// an hourly one, and it is the same trade the mitigation sweep makes.
-		if err := w.store.MarkReminded(ctx, ev.ID, now); err != nil {
+		if err := w.store.MarkReminded(ctx, ev.TenantID, ev.ID, now); err != nil {
 			w.logger.Warn().Err(err).Str("evidence_id", ev.ID.String()).
 				Msg("evidence expiry: could not stamp reminder — skipped to avoid resending in a loop")
 			continue

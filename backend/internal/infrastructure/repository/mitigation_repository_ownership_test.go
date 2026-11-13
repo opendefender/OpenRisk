@@ -24,6 +24,7 @@ import (
 	"gorm.io/gorm/logger"
 
 	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/internal/testsupport/testdb"
 )
 
 type ownershipRow struct {
@@ -121,7 +122,7 @@ func TestGormMitigationRepository_UpdateClearsOwnership_Postgres(t *testing.T) {
 		t.Skip("DATABASE_URL not set")
 	}
 	schema := "mit_1104_" + strings.ReplaceAll(uuid.New().String(), "-", "")[:12]
-	admin, err := gorm.Open(postgres.Open(dsn), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
+	admin, err := testdb.Open(t, postgres.Open(dsn), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
 	require.NoError(t, err)
 	require.NoError(t, admin.Exec(fmt.Sprintf(`CREATE SCHEMA %s`, schema)).Error)
 	t.Cleanup(func() {
@@ -135,7 +136,7 @@ func TestGormMitigationRepository_UpdateClearsOwnership_Postgres(t *testing.T) {
 	q := u.Query()
 	q.Set("search_path", schema)
 	u.RawQuery = q.Encode()
-	db, err := gorm.Open(postgres.Open(u.String()), &gorm.Config{
+	db, err := testdb.Open(t, postgres.Open(u.String()), &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Silent), DisableForeignKeyConstraintWhenMigrating: true,
 	})
 	require.NoError(t, err)

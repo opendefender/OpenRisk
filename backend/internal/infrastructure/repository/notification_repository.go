@@ -117,7 +117,7 @@ func (r *NotificationRepository) UpdateNotificationPreferences(userID, tenantID 
 		if err != nil {
 			return err
 		}
-		return r.db.Model(prefs).Updates(updates).Error
+		return r.db.Model(prefs).Where("tenant_id = ?", tenantID).Updates(updates).Error
 	}
 	return nil
 }

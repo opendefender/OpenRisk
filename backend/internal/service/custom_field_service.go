@@ -15,6 +15,7 @@ import (
 
 	"github.com/opendefender/openrisk/internal/domain"
 	"github.com/opendefender/openrisk/internal/infrastructure/database"
+	"github.com/opendefender/openrisk/internal/infrastructure/tenantwrite"
 )
 
 // CustomFieldService handles custom field operations
@@ -163,7 +164,7 @@ func (s *CustomFieldService) UpdateCustomField(tenantID, fieldID uuid.UUID, req 
 		field.ReadOnly = *req.ReadOnly
 	}
 
-	if err := s.db.Save(field).Error; err != nil {
+	if err := tenantwrite.UpdateInTenant(s.db, field.TenantID, field); err != nil {
 		return nil, fmt.Errorf("failed to update custom field: %w", err)
 	}
 

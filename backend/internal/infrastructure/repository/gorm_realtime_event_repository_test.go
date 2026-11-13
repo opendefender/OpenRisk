@@ -18,6 +18,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/internal/testsupport/testdb"
 	"github.com/opendefender/openrisk/pkg/realtime"
 )
 
@@ -27,7 +28,7 @@ import (
 // trail hit before its model was made sqlite-compatible.
 func setupRealtimeRepo(t *testing.T) *GormRealtimeEventRepository {
 	t.Helper()
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	db, err := testdb.Open(t, sqlite.Open(":memory:"), &gorm.Config{})
 	require.NoError(t, err)
 	require.NoError(t, db.AutoMigrate(&domain.RealtimeEvent{}, &domain.RealtimeEventSequence{}))
 	return NewGormRealtimeEventRepository(db)

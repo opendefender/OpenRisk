@@ -15,6 +15,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/opendefender/openrisk/internal/domain/timeframe"
+	"github.com/opendefender/openrisk/internal/testsupport/testdb"
 )
 
 // The clock every test resolves its window against, so assertions about day
@@ -26,7 +27,7 @@ var statsNow = time.Date(2026, 8, 21, 13, 0, 0, 0, time.UTC)
 // away from the model, which is how TestRiskCRUDFlow spent months red.
 func newStatsDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	db, err := testdb.Open(t, sqlite.Open(":memory:"), &gorm.Config{})
 	require.NoError(t, err)
 	require.NoError(t, db.Exec(`
 		CREATE TABLE risks (

@@ -23,6 +23,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/internal/infrastructure/tenantguard"
 	authpkg "github.com/opendefender/openrisk/pkg/auth"
 )
 
@@ -307,7 +308,8 @@ func (tm *TokenManager) RefreshTokenPair(ctx context.Context, refreshTokenValue 
 	tokenHash := hashToken(refreshTokenValue)
 
 	var refreshToken RefreshToken
-	if err := tm.db.WithContext(ctx).Where("token_hash = ?", tokenHash).First(&refreshToken).Error; err != nil {
+	lookup := tenantguard.CrossTenant(tm.db.WithContext(ctx), "refresh: the token hash resolves the session's tenant; none is known yet")
+	if err := lookup.Where("token_hash = ?", tokenHash).First(&refreshToken).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, ErrRefreshTokenInvalid
 		}
@@ -331,7 +333,7 @@ func (tm *TokenManager) RefreshTokenPair(ctx context.Context, refreshTokenValue 
 
 	if refreshToken.IsExpired() {
 		// Clean up the dead token; a later replay reads as invalid, not reuse.
-		tm.db.WithContext(ctx).Delete(&refreshToken)
+		tm.db.WithContext(ctx).Where("tenant_id = ?", refreshToken.TenantID).Delete(&refreshToken)
 		return nil, ErrRefreshTokenExpired
 	}
 
@@ -342,7 +344,7 @@ func (tm *TokenManager) RefreshTokenPair(ctx context.Context, refreshTokenValue 
 	// the window.
 	if refreshToken.RotatedAt == nil {
 		res := tm.db.WithContext(ctx).Model(&RefreshToken{}).
-			Where("id = ? AND rotated_at IS NULL", refreshToken.ID).
+			Where("id = ? AND tenant_id = ? AND rotated_at IS NULL", refreshToken.ID, refreshToken.TenantID).
 			Update("rotated_at", time.Now())
 		if res.Error != nil {
 			return nil, fmt.Errorf("failed to rotate refresh token: %w", res.Error)
@@ -353,7 +355,7 @@ func (tm *TokenManager) RefreshTokenPair(ctx context.Context, refreshTokenValue 
 			// burst as ours, past it — or if the row is gone, swept by a
 			// revocation — the lineage is compromised (#777).
 			var claimed RefreshToken
-			if err := tm.db.WithContext(ctx).First(&claimed, "id = ?", refreshToken.ID).Error; err != nil ||
+			if err := tm.db.WithContext(ctx).First(&claimed, "id = ? AND tenant_id = ?", refreshToken.ID, refreshToken.TenantID).Error; err != nil ||
 				!rotatedWithinGrace(claimed.RotatedAt) {
 				tm.revokeFamily(ctx, refreshToken.FamilyID)
 				return nil, ErrRefreshTokenReuse
@@ -434,7 +436,7 @@ func (tm *TokenManager) RefreshTokenPair(ctx context.Context, refreshTokenValue 
 	// until a pass finds nothing (sweepRefreshTokens): our token was committed
 	// before this read, this read came before their first pass committed, so
 	// their next pass sees our token and takes it.
-	if !tm.tokenExists(ctx, refreshToken.ID) {
+	if !tm.tokenExists(ctx, refreshToken.TenantID, refreshToken.ID) {
 		tm.revokeFamily(ctx, refreshToken.FamilyID)
 		return nil, ErrRefreshTokenReuse
 	}
@@ -500,7 +502,8 @@ func (tm *TokenManager) issueSuccessor(ctx context.Context, prev RefreshToken, s
 	}
 	if createErr := tm.db.WithContext(ctx).Create(row).Error; createErr != nil {
 		var existing RefreshToken
-		if err := tm.db.WithContext(ctx).First(&existing, "token_hash = ?", row.TokenHash).Error; err != nil {
+		reread := tenantguard.CrossTenant(tm.db.WithContext(ctx), "refresh: the token hash resolves the session's tenant; none is known yet")
+		if err := reread.First(&existing, "token_hash = ?", row.TokenHash).Error; err != nil {
 			return nil, fmt.Errorf("failed to store refresh token: %w", createErr)
 		}
 		if existing.RotatedAt != nil {
@@ -524,10 +527,11 @@ func rotatedWithinGrace(rotatedAt *time.Time) bool {
 }
 
 // tokenExists reports whether a refresh token row is still stored, by primary
-// key. Used to re-check a revocation that may have landed mid-rotation.
-func (tm *TokenManager) tokenExists(ctx context.Context, id uuid.UUID) bool {
+// key and its tenant. Used to re-check a revocation that may have landed
+// mid-rotation.
+func (tm *TokenManager) tokenExists(ctx context.Context, tenantID, id uuid.UUID) bool {
 	var n int64
-	if err := tm.db.WithContext(ctx).Model(&RefreshToken{}).Where("id = ?", id).Count(&n).Error; err != nil {
+	if err := tm.db.WithContext(ctx).Model(&RefreshToken{}).Where("id = ? AND tenant_id = ?", id, tenantID).Count(&n).Error; err != nil {
 		// Treat an unreadable state as revoked: refusing a refresh costs a
 		// re-authentication, keeping one alive costs a live session.
 		return false
@@ -570,7 +574,8 @@ const maxRevocationSweeps = 5
 // refresh path takes no lock and runs no extra query.
 func (tm *TokenManager) sweepRefreshTokens(ctx context.Context, query string, args ...interface{}) error {
 	for i := 0; i < maxRevocationSweeps; i++ {
-		res := tm.db.WithContext(ctx).Where(query, args...).Delete(&RefreshToken{})
+		sweep := tenantguard.CrossTenant(tm.db.WithContext(ctx), "revocation covers a user's or family's tokens in every organisation")
+		res := sweep.Where(query, args...).Delete(&RefreshToken{})
 		if res.Error != nil {
 			return res.Error
 		}
@@ -585,7 +590,8 @@ func (tm *TokenManager) sweepRefreshTokens(ctx context.Context, query string, ar
 // Reuse detection only needs a spent token to survive its own validity window, so
 // pruning by ExpiresAt is safe. Intended to be called periodically by a worker.
 func (tm *TokenManager) PruneExpiredTokens(ctx context.Context) (int64, error) {
-	res := tm.db.WithContext(ctx).Where("expires_at < ?", time.Now()).Delete(&RefreshToken{})
+	prune := tenantguard.CrossTenant(tm.db.WithContext(ctx), "expired refresh token purge across every tenant")
+	res := prune.Where("expires_at < ?", time.Now()).Delete(&RefreshToken{})
 	return res.RowsAffected, res.Error
 }
 
@@ -593,7 +599,8 @@ func (tm *TokenManager) PruneExpiredTokens(ctx context.Context) (int64, error) {
 func (tm *TokenManager) RevokeRefreshToken(ctx context.Context, refreshTokenValue string) error {
 	tokenHash := hashToken(refreshTokenValue)
 
-	result := tm.db.WithContext(ctx).Where("token_hash = ?", tokenHash).Delete(&RefreshToken{})
+	revoke := tenantguard.CrossTenant(tm.db.WithContext(ctx), "logout: the token hash resolves the session's tenant; none is known yet")
+	result := revoke.Where("token_hash = ?", tokenHash).Delete(&RefreshToken{})
 	if result.Error != nil {
 		return fmt.Errorf("failed to revoke refresh token: %w", result.Error)
 	}

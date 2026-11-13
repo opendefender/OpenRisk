@@ -27,6 +27,7 @@ import (
 	"github.com/opendefender/openrisk/internal/infrastructure/repository"
 	"github.com/opendefender/openrisk/internal/middleware"
 	"github.com/opendefender/openrisk/internal/testsupport/sqliteschema"
+	"github.com/opendefender/openrisk/internal/testsupport/testdb"
 	"github.com/opendefender/openrisk/pkg/crq"
 )
 
@@ -43,7 +44,7 @@ func newImportApp(t *testing.T) *importApp {
 	t.Helper()
 
 	dsn := "file:risk_import_" + uuid.New().String() + "?mode=memory&cache=private"
-	db, err := gorm.Open(sqlite.Open(dsn), &gorm.Config{})
+	db, err := testdb.Open(t, sqlite.Open(dsn), &gorm.Config{})
 	require.NoError(t, err)
 	require.NoError(t, db.AutoMigrate(&UserT{}, &MitigationT{}, &RiskHistoryT{}))
 	createRisksTable(t, db)

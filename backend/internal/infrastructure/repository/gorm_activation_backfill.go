@@ -14,6 +14,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/internal/infrastructure/tenantguard"
 )
 
 // Seeding the checklist from data that already exists.
@@ -194,7 +195,7 @@ func backfillActivationSource(tx *gorm.DB, src activationSource) error {
 // tenantsWithEvent returns the tenants that already have an occurrence of a key.
 func tenantsWithEvent(tx *gorm.DB, key domain.ActivationEventKey) (map[uuid.UUID]struct{}, error) {
 	out := map[uuid.UUID]struct{}{}
-	rows, err := tx.Model(&domain.ActivationEvent{}).
+	rows, err := tenantguard.CrossTenant(tx, "boot backfill enumerates tenants having an event").Model(&domain.ActivationEvent{}).
 		Select("DISTINCT tenant_id").
 		Where("event_key = ?", string(key)).
 		Rows()
@@ -223,7 +224,7 @@ func tenantsWithEvent(tx *gorm.DB, key domain.ActivationEventKey) (map[uuid.UUID
 // One grouped query per step, never one per tenant: an install with a thousand
 // organizations must not issue a thousand statements at boot.
 func tenantsHoldingEvidence(tx *gorm.DB, src activationSource) ([]derivedTenant, error) {
-	q := tx.Model(src.Model).
+	q := tenantguard.CrossTenant(tx, "boot backfill: first evidence per tenant, grouped across every tenant").Model(src.Model).
 		Select(fmt.Sprintf("%s AS tenant_id, MIN(%s) AS first_at", src.TenantCol, src.TimeCol)).
 		Where(fmt.Sprintf("%s IS NOT NULL", src.TenantCol)).
 		Group(src.TenantCol)

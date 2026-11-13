@@ -22,6 +22,7 @@ import (
 
 	scanapp "github.com/opendefender/openrisk/internal/application/scanner"
 	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/internal/testsupport/testdb"
 )
 
 // pgAgentFixture seeds a live agent in the real scanner_agents table. Not a
@@ -32,7 +33,7 @@ func pgAgentFixture(t *testing.T) (*GormScannerAgentRepository, *domain.ScannerA
 	if dsn == "" {
 		t.Skip("DATABASE_URL not set")
 	}
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
+	db, err := testdb.Open(t, postgres.Open(dsn), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
 	require.NoError(t, err)
 	repo := NewGormScannerAgentRepository(db)
 	agent := &domain.ScannerAgent{

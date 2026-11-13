@@ -15,6 +15,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/internal/infrastructure/tenantguard"
 )
 
 // GormVendorAssessmentRepository persists questionnaire templates, vendor
@@ -291,7 +292,7 @@ func (r *GormVendorAssessmentRepository) FindTokenByHash(ctx context.Context, ha
 	}
 	var tok domain.VendorAssessmentToken
 	// Cross-tenant BY NECESSITY: no session exists yet, and the tenant is what this row resolves to (ADR 0004 D4).
-	err := r.db.WithContext(ctx).Where("token_hash = ?", hash).First(&tok).Error
+	err := tenantguard.CrossTenant(r.db.WithContext(ctx), "vendor token: no session exists yet, the token resolves the tenant (ADR 0004 D4)").Where("token_hash = ?", hash).First(&tok).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, nil
 	}

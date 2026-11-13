@@ -25,6 +25,7 @@ import (
 	"github.com/opendefender/openrisk/internal/domain"
 	"github.com/opendefender/openrisk/internal/infrastructure/repository"
 	scanpkg "github.com/opendefender/openrisk/internal/scanner"
+	"github.com/opendefender/openrisk/internal/testsupport/testdb"
 	authpkg "github.com/opendefender/openrisk/pkg/auth"
 )
 
@@ -43,7 +44,7 @@ import (
 // stale token hash back over a revocation.
 func agentTestRepo(t *testing.T) *repository.GormScannerAgentRepository {
 	t.Helper()
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	db, err := testdb.Open(t, sqlite.Open(":memory:"), &gorm.Config{})
 	require.NoError(t, err)
 	// Each SQLite connection to :memory: is its own empty database. A live
 	// stream reads from its own goroutine, so pin the pool to one connection.

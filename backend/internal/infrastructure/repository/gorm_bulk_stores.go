@@ -82,7 +82,7 @@ func bulkApply[T any](
 			}
 			after := project(&row)
 
-			if err := tx.Save(&row).Error; err != nil {
+			if err := updateInTenant(tx, tenantID, &row); err != nil {
 				return fmt.Errorf("failed to update %s %s: %w", entity, id, err)
 			}
 

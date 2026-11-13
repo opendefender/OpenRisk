@@ -6,6 +6,8 @@
 package handler
 
 import (
+	"errors"
+	"log"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -248,7 +250,13 @@ func DeleteSubAction(c *fiber.Ctx) error {
 		return c.Status(404).JSON(fiber.Map{"error": "Subaction not found"})
 	}
 	if err := subactionRepo.Delete(ctx.OrganizationID.String(), uuid.MustParse(subactionID)); err != nil {
-		return c.Status(400).JSON(fiber.Map{"error": err.Error()})
+		if errors.Is(err, domain.ErrNotFound) {
+			return c.Status(404).JSON(fiber.Map{"error": "Subaction not found"})
+		}
+		// Never err.Error() here: it can carry a driver or guard message. The
+		// detail stays in the log.
+		log.Printf("delete subaction %s: %v", subactionID, err)
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to delete subaction"})
 	}
 
 	// Removing a step changes the denominator too — deleting the last open one

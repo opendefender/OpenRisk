@@ -13,6 +13,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/internal/infrastructure/tenantguard"
 )
 
 // sessionRow maps the refresh_tokens table locally.
@@ -57,7 +58,7 @@ func NewGormSessionRepository(db *gorm.DB) *GormSessionRepository {
 // invites pointless "revoke" clicks on a credential that is already dead.
 func (r *GormSessionRepository) ListByUser(ctx context.Context, userID uuid.UUID) ([]domain.SessionRecord, error) {
 	var tokens []sessionRow
-	err := r.db.WithContext(ctx).
+	err := tenantguard.CrossTenant(r.db.WithContext(ctx), "a user's own sessions span every organisation they belong to").
 		// A rotated token is spent: it stays in the table for reuse detection
 		// only, and its successor is the live session. Listing it would show one
 		// device once per refresh.
@@ -93,7 +94,7 @@ func (r *GormSessionRepository) ListByUser(ctx context.Context, userID uuid.UUID
 
 // Revoke deletes one session belonging to the user, reporting whether it existed.
 func (r *GormSessionRepository) Revoke(ctx context.Context, userID, sessionID uuid.UUID) (bool, error) {
-	res := r.db.WithContext(ctx).
+	res := tenantguard.CrossTenant(r.db.WithContext(ctx), "a user's own sessions span every organisation they belong to").
 		Where("id = ? AND user_id = ?", sessionID, userID).
 		Delete(&sessionRow{})
 	if res.Error != nil {
@@ -142,7 +143,7 @@ func (r *GormSessionRepository) RevokeAllExceptFamily(ctx context.Context, userI
 // absent.
 func (r *GormSessionRepository) HasLiveSession(ctx context.Context, userID, family uuid.UUID) (bool, error) {
 	var n int64
-	err := r.db.WithContext(ctx).Model(&sessionRow{}).
+	err := tenantguard.CrossTenant(r.db.WithContext(ctx), "a user's own sessions span every organisation they belong to").Model(&sessionRow{}).
 		// Account-wide on purpose, no tenant_id: a session belongs to its user.
 		//
 		// Wall clock on purpose, for the reason given in ListByUser (#419).
@@ -178,12 +179,12 @@ func (r *GormSessionRepository) sweep(ctx context.Context, cond string, args ...
 	var live int64
 	for i := 0; i < maxRevocationSweeps; i++ {
 		// cond carries the user_id scope; see the callers.
-		active := r.db.WithContext(ctx).Where(cond, args...).Where("rotated_at IS NULL").Delete(&sessionRow{})
+		active := tenantguard.CrossTenant(r.db.WithContext(ctx), "a user's own sessions span every organisation they belong to").Where(cond, args...).Where("rotated_at IS NULL").Delete(&sessionRow{})
 		if active.Error != nil {
 			return live, active.Error
 		}
 		// cond carries the user_id scope; see the callers.
-		spent := r.db.WithContext(ctx).Where(cond, args...).Where("rotated_at IS NOT NULL").Delete(&sessionRow{})
+		spent := tenantguard.CrossTenant(r.db.WithContext(ctx), "a user's own sessions span every organisation they belong to").Where(cond, args...).Where("rotated_at IS NOT NULL").Delete(&sessionRow{})
 		if spent.Error != nil {
 			return live, spent.Error
 		}
@@ -212,7 +213,7 @@ func (r *GormSessionRepository) HasSeenDevice(ctx context.Context, userID uuid.U
 		return true, nil
 	}
 	var count int64
-	err := r.db.WithContext(ctx).
+	err := tenantguard.CrossTenant(r.db.WithContext(ctx), "a user's own sessions span every organisation they belong to").
 		Model(&sessionRow{}).
 		Where("user_id = ? AND device_fingerprint = ?", userID, fingerprint).
 		Count(&count).Error
