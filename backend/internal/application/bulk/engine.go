@@ -22,6 +22,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"time"
 
 	"github.com/google/uuid"
@@ -218,8 +219,14 @@ func (e *Engine) Apply(ctx context.Context, caller Caller, req Request) (*Result
 			return nil, wrapStoreErr(err)
 		}
 		if current := domain.BulkFingerprint(rows); current != req.Fingerprint {
-			return nil, domain.NewConflictError(
-				"the selection changed since it was previewed", "fingerprint")
+			// Not NewConflictError: that one is for duplicates and appends
+			// "already exists", which made this read "the selection changed
+			// since it was previewed already exists".
+			return nil, &domain.AppError{
+				Err:     domain.ErrConflict,
+				Message: "the selection changed since it was previewed: preview it again before applying",
+				Code:    http.StatusConflict,
+			}
 		}
 	}
 

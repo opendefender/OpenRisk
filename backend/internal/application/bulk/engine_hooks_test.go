@@ -8,6 +8,7 @@ package bulk
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/google/uuid"
@@ -111,4 +112,21 @@ func TestBulkEngine_RefusesTagActionsOnARegisterWithoutTags(t *testing.T) {
 		Request{IDs: []uuid.UUID{a}, Change: domain.BulkChange{Action: domain.BulkActionAddTags, Tags: []string{"x"}}})
 	require.Error(t, err)
 	assert.True(t, errors.Is(err, domain.ErrValidation))
+}
+
+// The 409 says what happened and what to do, and nothing about duplicates.
+func TestBulkEngine_Conflict_MessageIsReadable(t *testing.T) {
+	store := newFakeStore()
+	tenant := uuid.New()
+	a := store.seed(tenant, "a", "open")
+	e, _ := newEngine(store)
+
+	_, err := e.Apply(context.Background(), Caller{TenantID: tenant, UserID: uuid.New()},
+		Request{IDs: []uuid.UUID{a}, Change: statusChange("closed"), Fingerprint: strings.Repeat("0", 64)})
+	require.Error(t, err)
+	assert.True(t, errors.Is(err, domain.ErrConflict))
+	assert.Equal(t, 409, domain.HTTPStatusFromError(err))
+	msg := domain.MessageFromError(err)
+	assert.Contains(t, msg, "changed since it was previewed")
+	assert.NotContains(t, msg, "already exists")
 }
