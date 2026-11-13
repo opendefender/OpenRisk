@@ -111,18 +111,10 @@ func NewPublisher(log EventLog, hub *Hub, opts ...PublisherOption) *Publisher {
 func (p *Publisher) Publish(ctx context.Context, env rt.Envelope) (rt.Envelope, error) {
 	start := p.now()
 
-	env = p.applyDefaults(env)
-	env.Payload = rt.SanitizePayload(env.Payload)
-
-	if err := env.Validate(); err != nil {
-		monitoring.RealtimePublishFailuresTotal.WithLabelValues("invalid").Inc()
-		return env, fmt.Errorf("realtime publish refused: %w", err)
-	}
-
-	row, err := domain.NewRealtimeEvent(env)
+	row, err := domain.PrepareRealtimeEvent(env, p.now())
 	if err != nil {
 		monitoring.RealtimePublishFailuresTotal.WithLabelValues("invalid").Inc()
-		return env, err
+		return env, fmt.Errorf("realtime publish refused: %w", err)
 	}
 	if err := p.log.Append(ctx, row); err != nil {
 		monitoring.RealtimePublishFailuresTotal.WithLabelValues("log").Inc()
@@ -157,29 +149,4 @@ func (p *Publisher) Publish(ctx context.Context, env rt.Envelope) (rt.Envelope, 
 
 	monitoring.RealtimePublishLatencySeconds.Observe(p.now().Sub(start).Seconds())
 	return env, nil
-}
-
-// applyDefaults fills the fields the publisher owns.
-//
-// The event id and the payload version are minted here, never taken from a
-// caller: the id is the deduplication key every consumer keys on, and letting a
-// caller choose it would let one caller make two different events collide. The
-// version comes from the catalog so a publisher cannot claim a version the
-// catalog does not publish.
-func (p *Publisher) applyDefaults(env rt.Envelope) rt.Envelope {
-	env.ID = uuid.NewString()
-	env.EnvelopeVersion = rt.EnvelopeVersion
-	if desc, ok := rt.Lookup(env.Type); ok {
-		env.Version = desc.Version
-		if env.Aggregate.Type == "" {
-			env.Aggregate.Type = desc.Aggregate
-		}
-	}
-	if env.OccurredAt.IsZero() {
-		env.OccurredAt = p.now()
-	}
-	env.OccurredAt = env.OccurredAt.UTC()
-	// Sequence is the log's to assign; a caller-supplied one is discarded.
-	env.Sequence = 0
-	return env
 }

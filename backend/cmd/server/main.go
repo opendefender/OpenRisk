@@ -419,6 +419,17 @@ func main() {
 	go workers.NewRealtimeRetentionWorker(realtimeEventLog, realtimeRetention, zeroLogger).Start(context.Background())
 	log.Printf("Realtime: event hub started (durable log + per-tenant fanout + domain relay, replay window %s)", realtimeRetention)
 
+	// Transactional outbox (#344, ADR 0010): use cases that enlist write their
+	// events inside their own transaction; this relay publishes them after
+	// commit, at least once, per tenant in sequence order. Woken at once by an
+	// enlisting commit, polled every 2s otherwise.
+	realtimeOutboxRelay := apprealtime.NewOutboxRelay(realtimeEventLog, apprealtime.NewHubSink(realtimeHub, redisClientInstance))
+	realtimeOutboxWorker := workers.NewRealtimeOutboxWorker(realtimeOutboxRelay, zeroLogger)
+	realtimeEventLog.OnEnlistCommitted(realtimeOutboxWorker.Wake)
+	monitoring.MustRegisterRealtimeOutboxCollector(realtimeEventLog.PendingStats)
+	realtimeOutboxCtx, stopRealtimeOutbox := context.WithCancel(context.Background())
+	go realtimeOutboxWorker.Start(realtimeOutboxCtx)
+
 	// =========================================================================
 	// 4. HEXAGONAL ARCHITECTURE WIRING (Integrations)
 	// =========================================================================
@@ -1952,7 +1963,7 @@ func main() {
 	// #861 — CSV import of the inventory: every row or none, one transaction,
 	// and the plan cap checked against the whole file.
 	assetImportHandler := handlers.NewAssetImportHandler(
-		assetapp.NewImportAssetsUseCase(repository.RunAssetTx(database.DB), repository.ListAssetNames(database.DB)).
+		assetapp.NewImportAssetsUseCase(repository.RunAssetTx(database.DB, realtimeEventLog), repository.ListAssetNames(database.DB)).
 			WithActivation(activationRecorder).
 			WithCapacity(func(ctx context.Context, tenant uuid.UUID) (int, error) {
 				_, limit, used, _, err := entitlementService.Capacity(ctx, tenant, ent.LimitAssets)
@@ -3608,6 +3619,19 @@ func main() {
 	// Timeout de 5 secondes pour finir les requêtes en cours
 	if err := app.Shutdown(); err != nil {
 		log.Fatal("Forced shutdown:", err)
+	}
+
+	// The realtime outbox relay finishes its pass, up to a deadline. Past it, the
+	// rows it had not delivered go back and another replica, or the next boot,
+	// delivers them with the same ids. After app.Shutdown so no new enlist can
+	// arrive (#344).
+	stopRealtimeOutbox()
+	{
+		outboxDrainCtx, cancelOutboxDrain := context.WithTimeout(context.Background(), 10*time.Second)
+		if err := realtimeOutboxWorker.Drain(outboxDrainCtx); err != nil {
+			log.Println("Realtime: outbox rows still in flight at shutdown were put back for the next relay")
+		}
+		cancelOutboxDrain()
 	}
 
 	// The notice e-mail worker finishes its batch, up to a deadline. Past it,

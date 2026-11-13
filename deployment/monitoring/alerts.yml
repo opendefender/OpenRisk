@@ -346,3 +346,41 @@ groups:
         annotations:
           summary: "Realtime delivery lag above 10s (p95)"
           description: "P95 delay between a business change and it reaching a client socket is {{ $value | humanizeDuration }}. Screens are visibly behind the data."
+
+      # ===== REALTIME OUTBOX (#344, ADR 0010, D-109) =====
+      # The relay gives up on an event after 20 failed attempts (about 1 h).
+      # D-109 accepts that cap only because an operator is told: any abandon
+      # fires. The counter is per process, so increase() absorbs restarts.
+      - alert: RealtimeOutboxEventAbandoned
+        expr: sum(increase(openrisk_realtime_outbox_abandoned_total[15m])) > 0
+        for: 0m
+        labels:
+          severity: critical
+          team: platform
+        annotations:
+          summary: "Realtime announcements were abandoned by the outbox relay"
+          description: "{{ $value | printf \"%.0f\" }} realtime event(s) were given up after the attempt cap in the last 15 min. Connected users will only see those changes after a gap resync or a reload. Find them with: SELECT id, tenant_id, sequence, attempts, last_error FROM realtime_events WHERE abandoned_at IS NOT NULL ORDER BY abandoned_at DESC; and the log line 'realtime outbox: abandoned row'. Rows are purged with retention (24 h by default)."
+
+      # Early warning, long before the cap: the oldest event still waiting.
+      # Every replica reports the same instance-wide value, hence max().
+      - alert: RealtimeOutboxBacklogStale
+        expr: max(openrisk_realtime_outbox_oldest_pending_seconds) > 300
+        for: 5m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "Realtime outbox has events waiting more than 5 min"
+          description: "The oldest unpublished realtime event is {{ $value | humanizeDuration }} old and {{ with query \"max(openrisk_realtime_outbox_pending)\" }}{{ . | first | value | printf \"%.0f\" }}{{ end }} wait. Deliveries are failing (check Redis and openrisk_realtime_outbox_publish_failures_total). After about 1 h of failures they are abandoned."
+
+      # The backlog gauges are computed at scrape time and emit nothing when the
+      # database read fails, so silence must alert too.
+      - alert: RealtimeOutboxMetricsAbsent
+        expr: absent(openrisk_realtime_outbox_pending)
+        for: 10m
+        labels:
+          severity: warning
+          team: platform
+        annotations:
+          summary: "Realtime outbox backlog metrics are missing"
+          description: "openrisk_realtime_outbox_pending has not been scraped for 10 min: the backlog read is failing or the API is down. Abandoned or stuck announcements would go unnoticed."
