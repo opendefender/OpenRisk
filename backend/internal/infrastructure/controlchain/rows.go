@@ -9,7 +9,7 @@
 //
 // The row types here are the persistence shape of amendment A10; the canonical
 // records live in internal/domain/canonical. Every row carries tenant_id, and
-// every constraint migration 0085 declares is also declared as a check: or
+// every constraint migration 0086 declares is also declared as a check: or
 // index tag, because a schema built by AutoMigrate alone (a compose boot never
 // runs the SQL layer) must refuse the same rows.
 package controlchain
@@ -30,7 +30,7 @@ const (
 	TableCanonicalEdges         = "canonical_edges"
 )
 
-// Tables lists the six tables of migration 0085.
+// Tables lists the six tables of migration 0086.
 func Tables() []string {
 	return []string{
 		TableControls, TableControlImplementations, TableControlTests,

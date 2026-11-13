@@ -165,7 +165,7 @@ func schemaModels() []interface{} {
 		// control_evidences table is dropped by migration 0084 (#813).
 		&domain.Evidence{},
 		&domain.EvidenceControlLink{},
-		// ADR 0008 control chain (#553, migration 0085): the six tables behind
+		// ADR 0008 control chain (#553, migration 0086): the six tables behind
 		// Requirement -> Control -> Implementation -> Test -> Result -> Evidence.
 		// controlchain.Reconcile fills them from the legacy tables right after
 		// this list is migrated, on every boot.

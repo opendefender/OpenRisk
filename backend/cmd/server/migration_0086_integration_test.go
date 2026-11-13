@@ -7,10 +7,10 @@
 
 package main
 
-// #553 (D-108) — migration 0085 creates the six control-chain tables, and
+// #553 (D-108) — migration 0086 creates the six control-chain tables, and
 // controlchain.Reconcile fills them from the legacy compliance tables. These
 // tests start from the previous release's shape (AutoMigrate without the six
-// tables, SQL layer at 84), seed a populated two-tenant database, and run the
+// tables, SQL layer at 85), seed a populated two-tenant database, and run the
 // migration through golang-migrate, so the SQL DDL is what is under test.
 //
 // Runs in the CI "Backend Integration Tests" job (DATABASE_URL, -tags=integration).
@@ -35,7 +35,7 @@ import (
 	"github.com/opendefender/openrisk/pkg/scoring"
 )
 
-const lastVersionBefore0085 = 84
+const lastVersionBefore0086 = 85
 
 var (
 	tenantA553 = uuid.MustParse("00000000-0000-4000-8553-00000000000a")
@@ -62,15 +62,15 @@ func (c *chain553) sqlExec(t *testing.T, q string, args ...any) {
 	require.NoError(t, c.db.Exec(q, args...).Error, q)
 }
 
-// pre0085DB builds the previous release's schema in a throwaway PostgreSQL
-// schema (every model but the six new ones, SQL layer at 84) and seeds it.
-func pre0085DB(t *testing.T) *chain553 {
+// pre0086DB builds the previous release's schema in a throwaway PostgreSQL
+// schema (every model but the six new ones, SQL layer at 85) and seeds it.
+func pre0086DB(t *testing.T) *chain553 {
 	t.Helper()
 	base := os.Getenv("DATABASE_URL")
 	if base == "" {
 		t.Skip("DATABASE_URL not set")
 	}
-	schema := "mig0085_" + strings.ReplaceAll(uuid.New().String(), "-", "")[:12]
+	schema := "mig0086_" + strings.ReplaceAll(uuid.New().String(), "-", "")[:12]
 	admin := openGorm(t, base)
 	require.NoError(t, admin.Exec(fmt.Sprintf(`CREATE SCHEMA %s`, schema)).Error)
 	t.Cleanup(func() { _ = admin.Exec(fmt.Sprintf(`DROP SCHEMA %s CASCADE`, schema)).Error })
@@ -95,9 +95,9 @@ func pre0085DB(t *testing.T) *chain553 {
 	}
 	require.NoError(t, database.PrepareForAutoMigrate(c.db))
 	require.NoError(t, c.db.AutoMigrate(previous...))
-	require.NoError(t, newMigrator(t, c.dsn).Migrate(lastVersionBefore0085))
+	require.NoError(t, newMigrator(t, c.dsn).Migrate(lastVersionBefore0086))
 	for _, table := range controlchain.Tables() {
-		require.False(t, c.hasTable(t, table), "%s belongs to 0085", table)
+		require.False(t, c.hasTable(t, table), "%s belongs to 0086", table)
 	}
 	c.seed(t)
 	return c
@@ -217,22 +217,22 @@ func (c *chain553) scores(t *testing.T) scores553 {
 
 func (c *chain553) up(t *testing.T) {
 	t.Helper()
-	require.NoError(t, newMigrator(t, c.dsn).Migrate(85))
+	require.NoError(t, newMigrator(t, c.dsn).Migrate(86))
 	for _, table := range controlchain.Tables() {
 		require.True(t, c.hasTable(t, table), table)
 	}
 }
 
-// TestMigration0085_Success — the migration builds the six tables, Reconcile
+// TestMigration0086_Success — the migration builds the six tables, Reconcile
 // fills them, the counts reconcile with count(*), and no score moves.
-func TestMigration0085_Success(t *testing.T) {
-	c := pre0085DB(t)
+func TestMigration0086_Success(t *testing.T) {
+	c := pre0086DB(t)
 	md5Before := c.legacyMD5(t)
 	scoresBefore := c.scores(t)
 
 	c.up(t)
 	v, dirty := c.version(t)
-	assert.Equal(t, uint(85), v)
+	assert.Equal(t, uint(86), v)
 	assert.False(t, dirty)
 
 	// The SQL-built tables are the ones the row types describe: AutoMigrate over
@@ -297,10 +297,10 @@ func TestMigration0085_Success(t *testing.T) {
 	assert.Equal(t, md5Before, c.legacyMD5(t))
 }
 
-// TestMigration0085_ConcurrentReconcile — replicas booting together: the
+// TestMigration0086_ConcurrentReconcile — replicas booting together: the
 // advisory lock makes one of them do the work and the others find it done.
-func TestMigration0085_ConcurrentReconcile(t *testing.T) {
-	c := pre0085DB(t)
+func TestMigration0086_ConcurrentReconcile(t *testing.T) {
+	c := pre0086DB(t)
 	c.up(t)
 
 	const replicas = 4
@@ -336,11 +336,11 @@ func TestMigration0085_ConcurrentReconcile(t *testing.T) {
 	}
 }
 
-// TestMigration0085_Rollback — down removes the six tables and nothing else;
-// the legacy tables are byte-identical to before 0085 ever ran, and the next
+// TestMigration0086_Rollback — down removes the six tables and nothing else;
+// the legacy tables are byte-identical to before 0086 ever ran, and the next
 // boot rebuilds the chain.
-func TestMigration0085_Rollback(t *testing.T) {
-	c := pre0085DB(t)
+func TestMigration0086_Rollback(t *testing.T) {
+	c := pre0086DB(t)
 	md5Before := c.legacyMD5(t)
 	scoresBefore := c.scores(t)
 	tables := func() int64 {
@@ -359,7 +359,7 @@ func TestMigration0085_Rollback(t *testing.T) {
 		assert.False(t, c.hasTable(t, table), "%s is gone after down", table)
 	}
 	v, dirty := c.version(t)
-	assert.Equal(t, uint(84), v)
+	assert.Equal(t, uint(85), v)
 	assert.False(t, dirty)
 	assert.Equal(t, tablesBefore, tables(), "down touched no other table")
 	assert.Equal(t, md5Before, c.legacyMD5(t), "compliance_controls, evidence_control_links and risk_control_mappings are byte-identical")
@@ -373,10 +373,10 @@ func TestMigration0085_Rollback(t *testing.T) {
 	assert.Equal(t, int64(12), c.count(t, `SELECT count(*) FROM canonical_edges`))
 }
 
-// TestMigration0085_AutoMigrateOnly — a compose boot never runs the SQL layer:
-// AutoMigrate alone must build tables that refuse what 0085's refuse.
-func TestMigration0085_AutoMigrateOnly(t *testing.T) {
-	c := pre0085DB(t)
+// TestMigration0086_AutoMigrateOnly — a compose boot never runs the SQL layer:
+// AutoMigrate alone must build tables that refuse what 0086's refuse.
+func TestMigration0086_AutoMigrateOnly(t *testing.T) {
+	c := pre0086DB(t)
 	require.NoError(t, c.db.AutoMigrate(controlchain.Models()...))
 	res, err := controlchain.Reconcile(context.Background(), c.db)
 	require.NoError(t, err)

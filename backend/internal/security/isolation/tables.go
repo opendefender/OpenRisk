@@ -15,7 +15,7 @@ package isolation
 // migration, and a new table of the ADR 0008 control chain is not "registered"
 // until it is here.
 var TenantTables = []string{
-	// The control chain (migration 0085, #553).
+	// The control chain (migration 0086, #553).
 	"controls",
 	"control_implementations",
 	"control_tests",

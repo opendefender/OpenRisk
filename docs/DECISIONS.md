@@ -83,7 +83,7 @@ escalated. The owner may overturn any point.
    `CREATE EXTENSION "uuid-ossp"` and a SQL backfill, or Go. **Chosen: Go only**
    (`canonical.ControlIDFor`, already pinned by `split_test.go`). One implementation, not two that
    must agree, and no extension for operators of managed or hardened Postgres to grant.
-   `migrations/0085` holds the DDL only and says why.
+   `migrations/0086` holds the DDL only and says why.
 4. **Dual-write of status, or cutover.** `compliance_controls.status` is read by ADR 0003's
    residual, SmartScore factor 4, the tenant score and gap analysis. **Chosen: no status sync in
    either direction in #553.** The split copies `status` into `declared_status` once. From then on
