@@ -41,6 +41,11 @@ func (c catalogFile) render(job string) ([]byte, error) {
 	var b bytes.Buffer
 	fmt.Fprintf(&b, header, job)
 	for _, l := range c.Provenance {
+		// Provenance lines are comments; some come from the downloaded source.
+		// A line break would end the comment and turn the rest into Go code.
+		if strings.ContainsAny(l, "\r\n") {
+			return nil, fmt.Errorf("provenance line contains a line break: %q", l)
+		}
 		if l == "" {
 			b.WriteString("//\n")
 			continue

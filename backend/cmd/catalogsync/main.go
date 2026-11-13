@@ -28,6 +28,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	neturl "net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -136,11 +137,15 @@ func (f fetcher) download(url string, header map[string]string) ([]byte, error) 
 		if err != nil {
 			return nil, err
 		}
-		// The largest source (the NIST catalogue) is about 4 MB.
-		body, err := io.ReadAll(io.LimitReader(resp.Body, 64<<20))
+		// The largest source (the NIST catalogue) is about 4 MB. A body over
+		// the cap is an error, never a silently truncated source.
+		body, err := io.ReadAll(io.LimitReader(resp.Body, maxSourceBytes+1))
 		resp.Body.Close()
 		if err != nil {
 			return nil, err
+		}
+		if len(body) > maxSourceBytes {
+			return nil, fmt.Errorf("GET %s: body larger than %d bytes", url, maxSourceBytes)
 		}
 		switch {
 		case resp.StatusCode == http.StatusOK:
@@ -150,14 +155,25 @@ func (f fetcher) download(url string, header map[string]string) ([]byte, error) 
 			if err != nil {
 				return nil, fmt.Errorf("GET %s: %s without a usable Location", url, resp.Status)
 			}
-			if !strings.EqualFold(loc.Hostname(), req.URL.Hostname()) {
-				return nil, fmt.Errorf("GET %s: redirect to another host %q refused", url, loc.Host)
+			if url, err = nextHop(req.URL, loc); err != nil {
+				return nil, err
 			}
-			loc.Scheme = "https"
-			url = loc.String()
 		default:
 			return nil, fmt.Errorf("GET %s: %s", url, resp.Status)
 		}
 	}
 	return nil, fmt.Errorf("GET %s: too many redirects", url)
+}
+
+const maxSourceBytes = 64 << 20
+
+// nextHop decides where a redirect may lead: the same host only, and always
+// over https, whatever scheme the Location names.
+func nextHop(from, loc *neturl.URL) (string, error) {
+	if !strings.EqualFold(loc.Hostname(), from.Hostname()) {
+		return "", fmt.Errorf("GET %s: redirect to another host %q refused", from, loc.Host)
+	}
+	next := *loc
+	next.Scheme = "https"
+	return next.String(), nil
 }

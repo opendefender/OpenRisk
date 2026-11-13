@@ -6,8 +6,12 @@ package main
 // NIS2 — the rows a person chose.
 //
 // Art. 20 (governance), every measure of Art. 21(2)(a)-(j) with the paragraphs
-// around them, and the reporting obligations of Art. 23 that fall on the entity
-// (paragraphs 5 to 11 address CSIRTs, authorities and the Commission).
+// around them, and the reporting obligations of Art. 23 that fall on the
+// entity: paragraphs 1-4, the 24-hour derogation for trust service providers
+// (the second subparagraph of paragraph 4), and paragraph 7, under which the
+// authority may require the entity to inform the public. Paragraphs 5, 6 and
+// 8 to 11 address CSIRTs, authorities, single points of contact and the
+// Commission.
 //
 // Codes "Art.20" and "Art.21(a)" … "Art.21(j)" keep the codes the earlier
 // catalogue used — "Art.21(a)" is Art. 21(2)(a) — so a tenant who imported it
@@ -25,9 +29,9 @@ var nis2Rows = []euRow{
 	{"Art.21(e)", "Sécurité de l'acquisition, du développement et de la maintenance", 21, 2, "e"},
 	{"Art.21(f)", "Évaluation de l'efficacité des mesures", 21, 2, "f"},
 	{"Art.21(g)", "Cyberhygiène et formation à la cybersécurité", 21, 2, "g"},
-	{"Art.21(h)", "Cryptographie et chiffrement", 21, 2, "h"},
+	{"Art.21(h)", "Cryptographie et, le cas échéant, chiffrement", 21, 2, "h"},
 	{"Art.21(i)", "Sécurité des ressources humaines, contrôle d'accès et gestion des actifs", 21, 2, "i"},
-	{"Art.21(j)", "Authentification multifacteur et communications sécurisées", 21, 2, "j"},
+	{"Art.21(j)", "Authentification multifacteur ou continue et communications sécurisées, selon les besoins", 21, 2, "j"},
 	{"Art.21(3)", "Vulnérabilités propres aux fournisseurs et prestataires", 21, 3, ""},
 	{"Art.21(4)", "Mesures correctives en cas de non-conformité", 21, 4, ""},
 	{"Art.23(1)", "Notification des incidents importants", 23, 1, ""},
@@ -38,4 +42,6 @@ var nis2Rows = []euRow{
 	{"Art.23(4)(c)", "Rapport intermédiaire sur demande", 23, 4, "c"},
 	{"Art.23(4)(d)", "Rapport final sous un mois", 23, 4, "d"},
 	{"Art.23(4)(e)", "Rapport d'avancement pour un incident en cours", 23, 4, "e"},
+	{"Art.23(4)(al.2)", "Notification sous 24 heures (prestataires de services de confiance)", 23, 4, "al.2"},
+	{"Art.23(7)", "Information du public sur un incident important, à la demande de l'autorité", 23, 7, ""},
 }

@@ -166,6 +166,7 @@ func TestImportCatalogUseCase_UpgradeFromSummaryCatalog_IsAdditive(t *testing.T)
 
 			repo := &MockComplianceRepository{
 				getFrameworkByIDFunc: func(_ context.Context, id, tid uuid.UUID) (*domain.ComplianceFramework, error) {
+					require.Equal(t, tenantID, tid)
 					return &domain.ComplianceFramework{ID: fwID, TenantID: tid, CatalogKey: tc.key}, nil
 				},
 				listControlsByFrameworkFunc: func(_ context.Context, tid, fid uuid.UUID) ([]domain.ComplianceControl, error) {
@@ -177,6 +178,8 @@ func TestImportCatalogUseCase_UpgradeFromSummaryCatalog_IsAdditive(t *testing.T)
 					return out, nil
 				},
 				createControlFunc: func(_ context.Context, c *domain.ComplianceControl) error {
+					require.Equal(t, tenantID, c.TenantID, "a created row carries the importing tenant")
+					require.Equal(t, fwID, c.FrameworkID)
 					if _, dup := stored[c.ReferenceCode]; dup {
 						t.Errorf("re-created %q, which the tenant already holds", c.ReferenceCode)
 					}

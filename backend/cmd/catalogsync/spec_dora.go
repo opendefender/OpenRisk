@@ -10,9 +10,11 @@ package main
 // article with no numbered paragraph is one row. Art. 45 (information sharing)
 // stays as the one article-level row the earlier catalogue carried.
 //
-// Codes: "Art.6(4)" is Art. 6, paragraph 4. "Art.7", "Art.23" and "Art.45"
-// keep the code the earlier, article-level catalogue used, so a tenant who
-// imported it does not get them twice.
+// Codes: "Art.6(4)" is Art. 6, paragraph 4. An article with no numbered
+// paragraph (Art. 7, Art. 23) is one row under its article code; "Art.7" and
+// "Art.45" are also the codes the earlier, article-level catalogue used, so a
+// tenant who imported it does not get them twice. "Art.45" is the whole
+// article, as it was: its paragraph 3 (notifying participation) is mandatory.
 //
 // The name is ours: a short label for the paragraph. The description is the
 // paragraph itself, verbatim, extracted by the generator.
@@ -25,8 +27,8 @@ var doraRows = []euRow{
 	{"Art.6(1)", "Cadre de gestion du risque TIC solide et documenté", 6, 1, ""},
 	{"Art.6(2)", "Contenu du cadre : stratégies, politiques, procédures, protocoles et outils", 6, 2, ""},
 	{"Art.6(3)", "Réduction de l'incidence du risque TIC et information des autorités", 6, 3, ""},
-	{"Art.6(4)", "Fonction de contrôle indépendante et trois lignes de défense", 6, 4, ""},
-	{"Art.6(5)", "Documentation et réexamen annuel du cadre", 6, 5, ""},
+	{"Art.6(4)", "Fonction de contrôle indépendante et séparation des fonctions de gestion, de contrôle et d'audit", 6, 4, ""},
+	{"Art.6(5)", "Documentation et réexamen du cadre (annuel, périodique pour les microentreprises)", 6, 5, ""},
 	{"Art.6(6)", "Audit interne du cadre de gestion du risque TIC", 6, 6, ""},
 	{"Art.6(7)", "Suivi formel des constatations d'audit TIC", 6, 7, ""},
 	{"Art.6(8)", "Stratégie de résilience opérationnelle numérique", 6, 8, ""},
@@ -53,7 +55,7 @@ var doraRows = []euRow{
 	{"Art.11(3)", "Plans de réponse et de rétablissement des TIC", 11, 3, ""},
 	{"Art.11(4)", "Plans de continuité testés périodiquement", 11, 4, ""},
 	{"Art.11(5)", "Analyse des incidences sur les activités (BIA)", 11, 5, ""},
-	{"Art.11(6)", "Tests annuels des plans de continuité et de communication de crise", 11, 6, ""},
+	{"Art.11(6)", "Tests des plans de continuité (au moins annuels) et des plans de communication de crise", 11, 6, ""},
 	{"Art.11(7)", "Fonction de gestion de crise", 11, 7, ""},
 	{"Art.11(8)", "Registre des activités pendant les perturbations", 11, 8, ""},
 	{"Art.11(9)", "Résultats des tests de continuité (dépositaires centraux)", 11, 9, ""},
@@ -101,13 +103,14 @@ var doraRows = []euRow{
 	{"Art.25(1)", "Tests des outils et systèmes de TIC", 25, 1, ""},
 	{"Art.25(2)", "Évaluations de vulnérabilité avant déploiement (DCT et CCP)", 25, 2, ""},
 	{"Art.25(3)", "Tests des microentreprises", 25, 3, ""},
-	{"Art.26(1)", "Tests de pénétration fondés sur la menace (TLPT)", 26, 1, ""},
+	{"Art.26(1)", "Tests de pénétration fondés sur la menace (TLPT) des entités désignées", 26, 1, ""},
 	{"Art.26(2)", "Périmètre des TLPT : fonctions critiques en production", 26, 2, ""},
 	{"Art.26(3)", "Inclusion des prestataires tiers TIC dans les TLPT", 26, 3, ""},
 	{"Art.26(4)", "Tests groupés impliquant un prestataire tiers TIC", 26, 4, ""},
 	{"Art.26(5)", "Contrôles efficaces de gestion des risques pendant les TLPT", 26, 5, ""},
 	{"Art.26(6)", "Synthèse, plans de mesures correctives et documentation", 26, 6, ""},
-	{"Art.26(8)", "Recours aux testeurs et testeurs internes", 26, 8, ""},
+	{"Art.26(7)", "Notification de l'attestation TLPT et responsabilité de l'entité", 26, 7, ""},
+	{"Art.26(8)", "Recours aux testeurs, testeurs internes et testeurs externes des établissements importants", 26, 8, ""},
 	{"Art.27(1)", "Exigences applicables aux testeurs", 27, 1, ""},
 	{"Art.27(2)", "Conditions du recours aux testeurs internes", 27, 2, ""},
 	{"Art.27(3)", "Contrats avec les testeurs externes", 27, 3, ""},
@@ -122,14 +125,14 @@ var doraRows = []euRow{
 	{"Art.28(7)", "Motifs de résiliation des accords contractuels", 28, 7, ""},
 	{"Art.28(8)", "Stratégies de sortie", 28, 8, ""},
 	{"Art.29(1)", "Évaluation du risque de concentration", 29, 1, ""},
-	{"Art.29(2)", "Sous-traitance des fonctions critiques ou importantes", 29, 2, ""},
+	{"Art.29(2)", "Sous-traitance des fonctions critiques ou importantes, insolvabilité et prestataires de pays tiers", 29, 2, ""},
 	{"Art.30(1)", "Droits et obligations consignés par écrit", 30, 1, ""},
 	{"Art.30(2)", "Clauses contractuelles minimales", 30, 2, ""},
 	{"Art.30(3)", "Clauses pour les fonctions critiques ou importantes", 30, 3, ""},
 	{"Art.30(4)", "Clauses contractuelles types", 30, 4, ""},
 
 	// Chapitre VI — Partage d'informations
-	{"Art.45", "Partage d'informations et de renseignements sur les cybermenaces", 45, 1, ""},
+	{"Art.45", "Partage d'informations sur les cybermenaces (facultatif) et notification de la participation", 45, 0, ""},
 }
 
 // doraExcluded are the provisions inside Art. 5-30 that address the European
@@ -137,7 +140,7 @@ var doraRows = []euRow{
 // not the financial entity. A financial entity cannot evidence or close them,
 // so they are not rows of its register.
 var doraExcluded = []euExclusion{
-	{11, []int{11}, "mandat aux AES (normes techniques de réglementation)"},
+	{11, []int{11}, "orientations communes des AES (coûts et pertes)"},
 	{15, nil, "mandat aux AES (normes techniques de réglementation)"},
 	{16, []int{3}, "mandat aux AES (normes techniques de réglementation)"},
 	{18, []int{3, 4}, "mandat aux AES (normes techniques de réglementation)"},
@@ -145,7 +148,7 @@ var doraExcluded = []euExclusion{
 	{20, nil, "mandat aux AES (contenu et modèles des notifications)"},
 	{21, nil, "rapport des AES sur la centralisation des notifications"},
 	{22, nil, "retour d'information des autorités et rapport des AES"},
-	{26, []int{7, 9, 10, 11}, "attestation et désignation par les autorités ; mandat aux AES"},
+	{26, []int{9, 10, 11}, "désignation d'une autorité par les États membres ; mandat aux AES"},
 	{28, []int{9, 10}, "mandat aux AES (normes techniques)"},
 	{30, []int{5}, "mandat aux AES (normes techniques de réglementation)"},
 }

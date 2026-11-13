@@ -4,6 +4,7 @@
 package main
 
 import (
+	neturl "net/url"
 	"strings"
 	"testing"
 )
@@ -210,5 +211,50 @@ func TestSpecs_UniqueCodesAndReasonedExclusions(t *testing.T) {
 		if e.Reason == "" {
 			t.Errorf("art. %d excluded without a reason", e.Art)
 		}
+	}
+}
+
+func TestNextHop_SameHostOnlyAndAlwaysHTTPS(t *testing.T) {
+	from, _ := neturl.Parse("https://publications.europa.eu/resource/celex/32022L2555")
+	for _, tc := range []struct {
+		loc, want string
+		ok        bool
+	}{
+		{"http://publications.europa.eu/resource/cellar/x/DOC_1", "https://publications.europa.eu/resource/cellar/x/DOC_1", true},
+		{"https://PUBLICATIONS.europa.eu/a", "https://PUBLICATIONS.europa.eu/a", true},
+		{"https://evil.example/a", "", false},
+		{"http://127.0.0.1/a", "", false},
+	} {
+		loc, _ := neturl.Parse(tc.loc)
+		got, err := nextHop(from, loc)
+		if (err == nil) != tc.ok || got != tc.want {
+			t.Errorf("%s: got %q, %v", tc.loc, got, err)
+		}
+	}
+}
+
+func TestRender_RefusesALineBreakInProvenance(t *testing.T) {
+	f := catalogFile{Key: "k", VarName: "v", Provenance: []string{"title\nfunc init() {}"}}
+	if _, err := f.render("x"); err == nil {
+		t.Error("a line break in provenance must fail the generation")
+	}
+}
+
+// "al.N" selects an unnumbered subparagraph: here the derogation that follows
+// the point list, without the points before it.
+func TestEuText_Subparagraph(t *testing.T) {
+	a := fixtureAct(t)
+	got, err := euText(a, euRow{Code: "x", Art: 2, Para: 2, Point: "al.2"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != "Par dérogation au point b), un prestataire notifie autrement." {
+		t.Errorf("got %q", got)
+	}
+	if c := (euRow{Art: 2, Para: 2, Point: "al.2"}).cite(); c != "art. 2, paragraphe 2, deuxième alinéa" {
+		t.Errorf("cite = %q", c)
+	}
+	if _, err := euText(a, euRow{Code: "x", Art: 2, Para: 2, Point: "al.3"}); err == nil {
+		t.Error("a missing subparagraph must fail")
 	}
 }

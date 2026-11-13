@@ -171,6 +171,42 @@ func point(block []string, p string) (chapeau, lines []string, err error) {
 	return block[:first], block[start:end], nil
 }
 
+// Point "al.N" selects the Nth subparagraph (alinéa) of a paragraph, for an
+// obligation that sits in an unnumbered subparagraph, such as the 24-hour
+// derogation at the end of NIS2 Art. 23(4).
+func alineaNum(p string) (int, bool) {
+	if !strings.HasPrefix(p, "al.") {
+		return 0, false
+	}
+	n, err := strconv.Atoi(strings.TrimPrefix(p, "al."))
+	return n, err == nil && n >= 1 && n < len(ordinalFR)
+}
+
+var ordinalFR = []string{"", "premier", "deuxième", "troisième", "quatrième", "cinquième"}
+
+// alinea returns the nth subparagraph of a paragraph block. A subparagraph
+// starts on a line in upper case that is not a point label nor a point's
+// text (a point's text starts in lower case).
+func alinea(block []string, n int) ([]string, error) {
+	starts := []int{0}
+	for i := 1; i < len(block); i++ {
+		if pointRE.MatchString(block[i]) || pointRE.MatchString(block[i-1]) {
+			continue
+		}
+		if r := []rune(block[i]); len(r) > 0 && unicode.IsUpper(r[0]) {
+			starts = append(starts, i)
+		}
+	}
+	if n > len(starts) {
+		return nil, fmt.Errorf("subparagraph %d not found (%d present)", n, len(starts))
+	}
+	end := len(block)
+	if n < len(starts) {
+		end = starts[n]
+	}
+	return block[starts[n-1]:end], nil
+}
+
 func nextLetter(p string) string {
 	if len(p) != 1 {
 		return ""
@@ -207,7 +243,9 @@ func (s euRow) cite() string {
 	if s.Para > 0 {
 		c += ", paragraphe " + strconv.Itoa(s.Para)
 	}
-	if s.Point != "" {
+	if n, ok := alineaNum(s.Point); ok {
+		c += ", " + ordinalFR[n] + " alinéa"
+	} else if s.Point != "" {
 		c += ", point " + s.Point + ")"
 	}
 	return c
@@ -229,6 +267,13 @@ func euText(a act, s euRow) (string, error) {
 	}
 	if s.Point == "" {
 		return joinText(block), nil
+	}
+	if n, ok := alineaNum(s.Point); ok {
+		al, err := alinea(block, n)
+		if err != nil {
+			return "", fmt.Errorf("%s: %w", s.Code, err)
+		}
+		return joinText(al), nil
 	}
 	chapeau, pt, err := point(block, s.Point)
 	if err != nil {
