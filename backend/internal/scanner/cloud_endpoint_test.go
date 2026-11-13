@@ -96,9 +96,11 @@ func TestCloudScannerValidate_DockerSocketNeedsOperatorOptIn(t *testing.T) {
 	}
 }
 
-// #1315: a GCP service-account key carries the token_uri the SDK POSTs a signed
-// assertion to. It is tenant input, so it gets the same address rules.
-func TestCloudScannerValidate_GCPTokenURI(t *testing.T) {
+// #1315, GHSA-jxfm-p72g-w272: only a Google service-account key is accepted.
+// Another credential type (external_account) makes the auth library fetch
+// tenant-chosen URLs, and a service account's token_uri is where the SDK POSTs
+// a signed assertion, so it must be one of Google's token endpoints.
+func TestCloudScannerValidate_GCPServiceAccountKey(t *testing.T) {
 	s := NewGCPScanner(nil)
 	cfg := func(key string) ScanConfig {
 		return ScanConfig{Provider: domain.ProviderGCP, Credentials: map[string]string{"service_account_json": key}}
@@ -106,9 +108,20 @@ func TestCloudScannerValidate_GCPTokenURI(t *testing.T) {
 	for _, key := range []string{
 		`{"type":"service_account","project_id":"p"}`, // no token_uri: Google's default
 		`{"type":"service_account","token_uri":"https://oauth2.googleapis.com/token"}`,
-		`not json`, // left to the collector to report
+		`{"type":"service_account","token_uri":"https://accounts.google.com/o/oauth2/token"}`,
+		`{"type":"service_account","universe_domain":"googleapis.com"}`,
 	} {
 		assert.NoError(t, s.Validate(context.Background(), cfg(key)), key)
+	}
+
+	refused := []string{
+		`   `,
+		`not json`,
+		`{"project_id":"p"}`,
+		`{"type":"authorized_user"}`,
+		`{"type":"external_account","credential_source":{"url":"http://169.254.169.254/computeMetadata/v1/"},"token_url":"https://attacker.example/token"}`,
+		`{"type":"impersonated_service_account","service_account_impersonation_url":"https://attacker.example/"}`,
+		`{"type":"service_account","universe_domain":"attacker.example"}`,
 	}
 	for _, uri := range []string{
 		"http://169.254.169.254/computeMetadata/v1/",
@@ -117,12 +130,29 @@ func TestCloudScannerValidate_GCPTokenURI(t *testing.T) {
 		"https://10.0.0.5/token",
 		"https://[::1]/token",
 		"http://oauth2.googleapis.com/token",
+		"https://oauth2.googleapis.com.attacker.example/token",
+		"https://attacker.example/token",
 		"gopher://127.0.0.1:6379/_x",
 	} {
-		err := s.Validate(context.Background(), cfg(`{"type":"service_account","token_uri":"`+uri+`"}`))
-		require.Error(t, err, uri)
-		assert.ErrorIs(t, err, domain.ErrValidation, uri)
-		assert.True(t, netguard.IsDenied(err), "%s: %v", uri, err)
-		assert.NotContains(t, err.Error(), uri, "the 400 message must not echo the key's token_uri")
+		refused = append(refused, `{"type":"service_account","token_uri":"`+uri+`"}`)
 	}
+	for _, key := range refused {
+		err := s.Validate(context.Background(), cfg(key))
+		require.Error(t, err, key)
+		assert.ErrorIs(t, err, domain.ErrValidation, key)
+		for _, secret := range []string{"169.254.169.254", "attacker.example", "127.0.0.1"} {
+			assert.NotContains(t, err.Error(), secret, "the 400 message must not echo the key's values")
+		}
+	}
+}
+
+// An empty key is refused by the required-credential check, before the SDK
+// could fall back to the API pod's own identity.
+func TestCloudScannerValidate_GCPEmptyKey(t *testing.T) {
+	err := NewGCPScanner(nil).Validate(context.Background(), ScanConfig{
+		Provider:    domain.ProviderGCP,
+		Credentials: map[string]string{"service_account_json": "", "project_id": "p"},
+	})
+	require.Error(t, err)
+	assert.ErrorIs(t, err, domain.ErrValidation)
 }
