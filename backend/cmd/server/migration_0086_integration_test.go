@@ -23,6 +23,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -202,11 +203,13 @@ func (c *chain553) scores(t *testing.T) scores553 {
 	s.Credits = map[uuid.UUID][]scoring.ControlCredit{}
 	s.Resid = map[uuid.UUID]scoring.Residual{}
 	posture := repository.NewGormPostureRepository(c.db)
+	// One instant for every snapshot, so before and after read the same validity window (#419).
+	asOf := time.Date(2026, 11, 13, 12, 0, 0, 0, time.UTC)
 	for _, r := range []struct {
 		tenant, risk uuid.UUID
 		score        float64
 	}{{tenantA553, c.riskA, 6.4}, {tenantB553, c.riskB, 3.0}} {
-		credits, err := posture.ControlCreditsByRisk(context.Background(), r.tenant, []uuid.UUID{r.risk})
+		credits, err := posture.ControlCreditsByRisk(context.Background(), r.tenant, []uuid.UUID{r.risk}, asOf)
 		require.NoError(t, err)
 		s.Credits[r.risk] = credits[r.risk]
 		s.Resid[r.risk] = scoring.ComputeResidual(r.score, credits[r.risk])
