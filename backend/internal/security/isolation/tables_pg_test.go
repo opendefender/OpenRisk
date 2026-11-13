@@ -17,6 +17,7 @@ import (
 	"gorm.io/gorm/logger"
 
 	"github.com/opendefender/openrisk/internal/infrastructure/controlchain"
+	"github.com/opendefender/openrisk/internal/testsupport/testdb"
 )
 
 // TestTenantTables_AreTheControlChainTables keeps the list and the row types in
@@ -38,7 +39,7 @@ func TestTenantTables_Postgres(t *testing.T) {
 	if dsn == "" {
 		t.Skip("DATABASE_URL not set")
 	}
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
+	db, err := testdb.Open(t, postgres.Open(dsn), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
 	require.NoError(t, err)
 	var present bool
 	require.NoError(t, db.Raw(`SELECT to_regclass('controls') IS NOT NULL`).Scan(&present).Error)
