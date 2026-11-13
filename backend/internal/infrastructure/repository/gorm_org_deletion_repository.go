@@ -64,9 +64,9 @@ func (r *GormOrgDeletionRepository) ListDue(ctx context.Context, now time.Time) 
 	return out, err
 }
 
-func (r *GormOrgDeletionRepository) MarkCompleted(ctx context.Context, id uuid.UUID, at time.Time) error {
+func (r *GormOrgDeletionRepository) MarkCompleted(ctx context.Context, organizationID, id uuid.UUID, at time.Time) error {
 	return r.db.WithContext(ctx).Model(&domain.OrgDeletionRequest{}).
-		Where("id = ?", id).
+		Where("id = ? AND organization_id = ?", id, organizationID).
 		Updates(map[string]interface{}{"status": domain.DeletionCompleted, "completed_at": at}).Error
 }
 

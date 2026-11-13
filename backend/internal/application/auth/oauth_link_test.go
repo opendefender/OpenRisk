@@ -48,7 +48,7 @@ func (f *fakeLinks) Create(_ context.Context, link *domain.OAuthProvider) error 
 	return nil
 }
 
-func (f *fakeLinks) TouchLogin(_ context.Context, id uuid.UUID, _ time.Time) error {
+func (f *fakeLinks) TouchLogin(_ context.Context, _, id uuid.UUID, _ time.Time) error {
 	f.touched = append(f.touched, id)
 	return nil
 }

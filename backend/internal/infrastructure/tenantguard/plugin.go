@@ -32,6 +32,7 @@ package tenantguard
 import (
 	"context"
 	"fmt"
+	"regexp"
 	"strings"
 	"sync"
 
@@ -182,9 +183,18 @@ func schemaScoped(s *schema.Schema) bool {
 	return t || o
 }
 
+// register records a parsed schema. A table is scoped if ANY schema over it is:
+// two structs can map one table (a narrow read model beside the entity), and the
+// narrow one must not switch the guard off for the table. Only a positive answer
+// is cached here; a table a schema calls unscoped is confirmed by the catalog.
 func (p *Plugin) register(s *schema.Schema) bool {
 	scoped := schemaScoped(s)
-	p.tables.Store(s.Table, scoped)
+	if prev, ok := p.tables.Load(s.Table); ok && prev.(bool) {
+		scoped = true
+	}
+	if scoped {
+		p.tables.Store(s.Table, true)
+	}
 	return scoped
 }
 
@@ -194,19 +204,25 @@ func (p *Plugin) registerOnly(db *gorm.DB) {
 	}
 }
 
+var plainTable = regexp.MustCompile(`^[a-z_][a-z0-9_]*$`)
+
 // scopedTable resolves the statement's table and whether it is tenant-scoped.
-func (p *Plugin) scopedTable(stmt *gorm.Statement) (string, bool) {
+// The registry is only a cache: a table no schema has been seen on is read from
+// the catalog, so the answer never depends on what ran before.
+func (p *Plugin) scopedTable(db *gorm.DB) (string, bool) {
+	stmt := db.Statement
 	table := stmt.Table
-	if s := stmt.Schema; s != nil && (table == "" || table == s.Table) {
-		return s.Table, p.register(s)
-	}
+	scoped := false
 	if s := stmt.Schema; s != nil {
-		p.register(s)
+		if table == "" {
+			table = s.Table
+		}
+		scoped = p.register(s)
 	}
-	if v, ok := p.tables.Load(table); ok {
-		return table, v.(bool)
+	if !scoped && plainTable.MatchString(table) {
+		scoped = p.scopedName(db, table)
 	}
-	return table, false
+	return table, scoped
 }
 
 // scopedName reports whether a table named in raw SQL is tenant-scoped. A table
@@ -289,7 +305,7 @@ func (p *Plugin) check(op string, marks bool) func(*gorm.DB) {
 		if crossTenantReason(stmt.Context) != "" {
 			return
 		}
-		table, scoped := p.scopedTable(stmt)
+		table, scoped := p.scopedTable(db)
 		if marks && stmt.Context != nil {
 			if g, ok := stmt.Context.Value(gatedParentKey{}).(gatedParent); ok && g.stmt != stmt {
 				return // a preload: gated by its parent, which passed

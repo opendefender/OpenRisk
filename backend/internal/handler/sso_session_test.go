@@ -282,8 +282,8 @@ func (l linkedRepo) FindByProviderSubject(context.Context, string, string) (*dom
 func (l linkedRepo) ListByUser(context.Context, uuid.UUID) ([]domain.OAuthProvider, error) {
 	return nil, nil
 }
-func (l linkedRepo) Create(context.Context, *domain.OAuthProvider) error    { return nil }
-func (l linkedRepo) TouchLogin(context.Context, uuid.UUID, time.Time) error { return nil }
+func (l linkedRepo) Create(context.Context, *domain.OAuthProvider) error               { return nil }
+func (l linkedRepo) TouchLogin(context.Context, uuid.UUID, uuid.UUID, time.Time) error { return nil }
 
 // oauthSignIn drives /login?return_to=… then /callback for a linked user.
 func oauthSignIn(t *testing.T, fx *ssoFixture, returnTo string) *http.Response {

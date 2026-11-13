@@ -39,7 +39,7 @@ func (m *memStore) ListDue(context.Context, time.Time) ([]domain.OrgDeletionRequ
 	}
 	return nil, nil
 }
-func (m *memStore) MarkCompleted(_ context.Context, id uuid.UUID, _ time.Time) error {
+func (m *memStore) MarkCompleted(_ context.Context, _, id uuid.UUID, _ time.Time) error {
 	m.completed = append(m.completed, id)
 	return nil
 }

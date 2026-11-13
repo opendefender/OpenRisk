@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/google/uuid"
 	"github.com/opendefender/openrisk/internal/infrastructure/database"
 )
 
@@ -103,6 +104,10 @@ func GetRiskDistribution(c *fiber.Ctx) error {
 	var results []RiskDistributionData
 
 	tenantID := safeGetUUID(c, "tenant_id")
+	// A nil tenant sees nothing. Answered before any query (#808).
+	if tenantID == uuid.Nil {
+		return c.JSON([]RiskDistributionData{})
+	}
 
 	// Requête groupée pour compter les risques par niveau
 	err := database.DB.Table("risks").
@@ -204,6 +209,10 @@ func GetTopVulnerabilities(c *fiber.Ctx) error {
 	}
 
 	tenantID := safeGetUUID(c, "tenant_id")
+	// A nil tenant sees nothing. Answered before any query (#808).
+	if tenantID == uuid.Nil {
+		return c.JSON([]TopVulnerability{})
+	}
 
 	var vulnerabilities []TopVulnerability
 

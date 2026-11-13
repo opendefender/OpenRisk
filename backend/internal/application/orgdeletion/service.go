@@ -39,7 +39,7 @@ type Store interface {
 	Create(ctx context.Context, req *domain.OrgDeletionRequest) error
 	Cancel(ctx context.Context, tenant uuid.UUID, by uuid.UUID, at time.Time) error
 	ListDue(ctx context.Context, now time.Time) ([]domain.OrgDeletionRequest, error)
-	MarkCompleted(ctx context.Context, id uuid.UUID, at time.Time) error
+	MarkCompleted(ctx context.Context, organizationID, id uuid.UUID, at time.Time) error
 }
 
 // OrgReader returns the organization's exact name (for the typed confirmation).
@@ -176,7 +176,7 @@ func (s *Service) RunDuePurges(ctx context.Context) (int, error) {
 		if err := s.purger.PurgeTenant(ctx, req.OrganizationID); err != nil {
 			continue
 		}
-		if err := s.store.MarkCompleted(ctx, req.ID, s.now()); err != nil {
+		if err := s.store.MarkCompleted(ctx, req.OrganizationID, req.ID, s.now()); err != nil {
 			continue
 		}
 		purged++
