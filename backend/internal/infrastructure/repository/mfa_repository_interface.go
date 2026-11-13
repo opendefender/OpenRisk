@@ -45,8 +45,6 @@ type MFARepository interface {
 type OAuthProviderRepository interface {
 	CreateOAuthProvider(ctx context.Context, provider *domain.OAuthProvider) error
 	GetOAuthProvider(ctx context.Context, userID, tenantID uuid.UUID, providerName string) (*domain.OAuthProvider, error)
-	GetOAuthProviderByEmail(ctx context.Context, email, provider string) (*domain.OAuthProvider, error)
-	UpdateOAuthProvider(ctx context.Context, provider *domain.OAuthProvider) error
 	ListOAuthProviders(ctx context.Context, userID, tenantID uuid.UUID) ([]*domain.OAuthProvider, error)
 	DeleteOAuthProvider(ctx context.Context, providerID, tenantID uuid.UUID) error
 }

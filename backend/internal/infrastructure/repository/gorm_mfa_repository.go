@@ -12,7 +12,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/opendefender/openrisk/internal/domain"
-	"github.com/opendefender/openrisk/internal/infrastructure/tenantguard"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
@@ -305,27 +304,6 @@ func (r *GormOAuthProviderRepository) GetOAuthProvider(ctx context.Context, user
 		return nil, err
 	}
 	return &provider, nil
-}
-
-// GetOAuthProviderByEmail retrieves OAuth provider by email and provider name (NO tenant filter - for OAuth flow)
-func (r *GormOAuthProviderRepository) GetOAuthProviderByEmail(ctx context.Context, email, provider string) (*domain.OAuthProvider, error) {
-	var oauthProvider domain.OAuthProvider
-	err := tenantguard.CrossTenant(r.db.WithContext(ctx), "OAuth sign-in: the provider email resolves the link's tenant; no session yet").
-		Where("email = ? AND provider = ?", email, provider).
-		First(&oauthProvider).Error
-
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, nil
-		}
-		return nil, err
-	}
-	return &oauthProvider, nil
-}
-
-// UpdateOAuthProvider updates an existing OAuth provider
-func (r *GormOAuthProviderRepository) UpdateOAuthProvider(ctx context.Context, provider *domain.OAuthProvider) error {
-	return r.db.WithContext(ctx).Save(provider).Error
 }
 
 // ListOAuthProviders lists all OAuth providers for user (Tenant-scoped)
