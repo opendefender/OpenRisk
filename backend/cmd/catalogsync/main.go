@@ -75,7 +75,7 @@ func run(args []string, stdout, stderr io.Writer) int {
 			return 1
 		}
 		path := filepath.Join(*out, name)
-		if err := os.WriteFile(path, code, 0o644); err != nil {
+		if err := os.WriteFile(path, code, 0o600); err != nil {
 			fmt.Fprintf(stderr, "%s: %v\n", k, err)
 			return 1
 		}
@@ -112,7 +112,7 @@ func (f fetcher) get(file, url string, header map[string]string) (source, error)
 		}
 		body = b
 		if f.save != "" {
-			if err := os.WriteFile(filepath.Join(f.save, file), body, 0o644); err != nil {
+			if err := os.WriteFile(filepath.Join(f.save, file), body, 0o600); err != nil {
 				return source{}, err
 			}
 		}
