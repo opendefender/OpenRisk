@@ -2291,12 +2291,140 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Apply one action to many risks, all or none
-         * @description All-or-nothing (decision D-036). Either every named risk is modified or none is: the batch runs in a single transaction, and one stale, foreign or otherwise unresolvable id fails the whole request without writing anything. There is deliberately no per-item outcome to report.
+         * Deprecated: apply one action to many risks, all or none
+         * @deprecated
+         * @description DEPRECATED by #599, removed on 31 March 2027 (the `Sunset` response header carries the date). Use the governed routes under /risks/bulk/{preview,change-status,add-tags,remove-tags,delete}, which take the action from the route and sit behind the permission that matches it.
+         *     `delete` is no longer accepted here and answers 400: this route is behind risks:update and read the action from the body, so a holder of risks:update could delete risks. Delete through /risks/bulk/delete, which requires risks:delete.
+         *     All-or-nothing (decision D-036). Either every named risk is modified or none is: the batch runs in a single transaction, and one stale, foreign or otherwise unresolvable id fails the whole request without writing anything. There is deliberately no per-item outcome to report.
          *     One audit entry is written per modified risk, carrying the acting user.
          *     A risk id belonging to another tenant answers 404 — identical to a fabricated id — because the tenant predicate is part of the row load.
          */
         post: operations["bulkRiskAction"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/risks/bulk/capabilities": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Which bulk actions the risk register supports
+         * @description A compiled-in vocabulary, identical for every tenant, so the bulk bar never offers an action the server would refuse. No table is read. assign_to is absent: it stays on the deprecated POST /risks/bulk until it validates the assignee's tenant membership.
+         */
+        get: operations["risksBulkCapabilities"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/risks/bulk/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * What a bulk action on risks would change — mutates nothing
+         * @description Returns the affected count and a bounded sample of exactly what would change, including the canonical state and phase a status change moves, and writes nothing. Also returns a `fingerprint`: send it back with the apply and a selection that moved underneath the user is refused with 409 rather than silently applied to the new set.
+         *     Behind risks:read — it discloses only the current state of risks the caller can already fetch individually.
+         */
+        post: operations["risksBulkPreview"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/risks/bulk/change-status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Apply "change_status" to many risks, all or none
+         * @description All-or-nothing (decision D-036): either every named risk is changed or none is. One audit entry is written per modified risk, carrying the acting user. Risks from another tenant answer 404, identical to fabricated ids. Residual acceptance (`accepted`) is refused: it needs a per-risk approval and an end date (#811).
+         *     The action is fixed by the route, not read from the body, so this endpoint's permission always matches what it performs. Requires `risks:update`.
+         */
+        post: operations["risksBulkChangeStatus"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/risks/bulk/add-tags": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Apply "add_tags" to many risks, all or none
+         * @description All-or-nothing (decision D-036): either every named risk is changed or none is. One audit entry is written per modified risk, carrying the acting user. Risks from another tenant answer 404, identical to fabricated ids.
+         *     The action is fixed by the route, not read from the body, so this endpoint's permission always matches what it performs. Requires `risks:update`.
+         */
+        post: operations["risksBulkAddTags"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/risks/bulk/remove-tags": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Apply "remove_tags" to many risks, all or none
+         * @description All-or-nothing (decision D-036): either every named risk is changed or none is. One audit entry is written per modified risk, carrying the acting user. Risks from another tenant answer 404, identical to fabricated ids. Removing a tag a risk does not carry is a no-op.
+         *     The action is fixed by the route, not read from the body, so this endpoint's permission always matches what it performs. Requires `risks:update`.
+         */
+        post: operations["risksBulkRemoveTags"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/risks/bulk/delete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Apply "delete" to many risks, all or none
+         * @description All-or-nothing (decision D-036): either every named risk is changed or none is. One audit entry is written per modified risk, carrying the acting user. Risks from another tenant answer 404, identical to fabricated ids.
+         *     The action is fixed by the route, not read from the body, so this endpoint's permission always matches what it performs. Requires `risks:delete`.
+         */
+        post: operations["risksBulkDelete"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3891,8 +4019,11 @@ export interface components {
             updated_at?: string;
         };
         BulkRiskActionInput: {
-            /** @enum {string} */
-            type: "change_status" | "assign_to" | "add_tags" | "remove_tags" | "delete";
+            /**
+             * @description `delete` is no longer accepted (#599); use POST /risks/bulk/delete.
+             * @enum {string}
+             */
+            type: "change_status" | "assign_to" | "add_tags" | "remove_tags";
             /** @description Repeated ids are de-duplicated before the batch runs. */
             risk_ids: string[];
             /** @description Required for change_status. */
@@ -3919,21 +4050,25 @@ export interface components {
         BulkCapabilities: {
             /** @example vulnerability */
             entity_type?: string;
-            /** @description Only the actions this register can actually perform. Assets expose delete alone — domain.Asset has no Status, no Tags, and a free-text Owner, so nothing else from the frozen action set maps onto it. */
-            actions?: ("change_status" | "delete")[];
+            /** @description Only the actions this register can actually perform. Assets expose delete alone — domain.Asset has no Status, no Tags, and a free-text Owner, so nothing else from the frozen action set maps onto it. The tag actions exist only on the risk register. */
+            actions?: ("change_status" | "delete" | "add_tags" | "remove_tags")[];
         };
         BulkPreviewInput: {
             /** @enum {string} */
-            action: "change_status" | "delete";
+            action: "change_status" | "delete" | "add_tags" | "remove_tags";
             ids: string[];
             /** @description The target value, for change_status. */
             status?: string;
+            /** @description The labels, for add_tags and remove_tags. */
+            tags?: string[];
         };
         BulkApplyInput: {
             /** @description Repeated ids are de-duplicated before the batch runs. */
             ids: string[];
             /** @description The target value, for the change-status route. */
             status?: string;
+            /** @description The labels, for the add-tags and remove-tags routes. */
+            tags?: string[];
             /** @description Recorded on every audit entry the change produces. */
             justification?: string;
             /** @description The value returned by the preview. When present it must still match the selection's current state, or the request is refused with 409. Omit it to apply without previewing. */
@@ -3967,7 +4102,7 @@ export interface components {
             /** @description Pass to the apply call to detect a selection that moved. */
             fingerprint?: string;
             /** @enum {string} */
-            action?: "change_status" | "delete";
+            action?: "change_status" | "delete" | "add_tags" | "remove_tags";
         };
         BulkResult: {
             total?: number;
@@ -10074,7 +10209,7 @@ export interface operations {
                     "application/json": components["schemas"]["BulkRiskActionResult"];
                 };
             };
-            /** @description Validation error — empty selection, more than 100 items, an unknown action type, or a missing action parameter. */
+            /** @description Validation error — empty selection, more than 100 items, an unknown action type, a missing action parameter, or `delete`, which this route no longer performs. */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -10097,6 +10232,279 @@ export interface operations {
             };
             /** @description At least one id could not be resolved — absent, or belonging to another tenant, deliberately indistinguishable. Nothing was modified. */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    risksBulkCapabilities: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The supported actions */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BulkCapabilities"];
+                };
+            };
+            /** @description The caller lacks risks:read */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    risksBulkPreview: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BulkPreviewInput"];
+            };
+        };
+        responses: {
+            /** @description The impact statement */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BulkPreview"];
+                };
+            };
+            /** @description Validation error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The caller lacks risks:read, or the session carries no tenant */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    risksBulkChangeStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BulkApplyInput"];
+            };
+        };
+        responses: {
+            /** @description The batch was applied in full */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BulkResult"];
+                };
+            };
+            /** @description Validation error — empty selection, over 100 items, or an invalid status or tag */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The caller lacks risks:update, or the session carries no tenant */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description An id did not resolve — absent, or another tenant's, deliberately indistinguishable. Nothing was modified. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The selection changed since it was previewed. Nothing was modified. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    risksBulkAddTags: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BulkApplyInput"];
+            };
+        };
+        responses: {
+            /** @description The batch was applied in full */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BulkResult"];
+                };
+            };
+            /** @description Validation error — empty selection, over 100 items, or an invalid status or tag */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The caller lacks risks:update, or the session carries no tenant */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description An id did not resolve — absent, or another tenant's, deliberately indistinguishable. Nothing was modified. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The selection changed since it was previewed. Nothing was modified. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    risksBulkRemoveTags: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BulkApplyInput"];
+            };
+        };
+        responses: {
+            /** @description The batch was applied in full */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BulkResult"];
+                };
+            };
+            /** @description Validation error — empty selection, over 100 items, or an invalid status or tag */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The caller lacks risks:update, or the session carries no tenant */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description An id did not resolve — absent, or another tenant's, deliberately indistinguishable. Nothing was modified. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The selection changed since it was previewed. Nothing was modified. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    risksBulkDelete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BulkApplyInput"];
+            };
+        };
+        responses: {
+            /** @description The batch was applied in full */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BulkResult"];
+                };
+            };
+            /** @description Validation error — empty selection, over 100 items, or an invalid status or tag */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The caller lacks risks:delete, or the session carries no tenant */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description An id did not resolve — absent, or another tenant's, deliberately indistinguishable. Nothing was modified. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The selection changed since it was previewed. Nothing was modified. */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

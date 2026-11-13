@@ -38,6 +38,12 @@ import (
 // delete. A register declares which it supports; the engine refuses the rest
 // rather than pretending. Adding assign_to or tags means adding the columns
 // first, which is a different issue.
+//
+// The risk register (#599) does carry Tags, so add_tags and remove_tags join
+// the set — they are #581's actions, not new ones, and only the risk store
+// declares them. assign_to is still absent: the risk register's single-row
+// assignment validates the assignee's tenant membership through the ownership
+// manager, and a bulk path without that check would be a weaker copy of it.
 // ---------------------------------------------------------------------------
 
 // BulkAction is the closed set of generalised bulk actions.
@@ -46,6 +52,8 @@ type BulkAction string
 const (
 	BulkActionChangeStatus BulkAction = "change_status"
 	BulkActionDelete       BulkAction = "delete"
+	BulkActionAddTags      BulkAction = "add_tags"
+	BulkActionRemoveTags   BulkAction = "remove_tags"
 )
 
 // MaxBulkItems caps one request, carried over from #581 unchanged. The cap is
@@ -58,6 +66,8 @@ type BulkChange struct {
 	// Status is the target value for change_status. Its vocabulary is the
 	// module's, so the module validates it — the engine only carries it.
 	Status string `json:"status,omitempty"`
+	// Tags are the labels add_tags and remove_tags act on.
+	Tags []string `json:"tags,omitempty"`
 	// Justification is recorded on every audit entry the change produces.
 	Justification string `json:"justification,omitempty"`
 }
@@ -69,6 +79,16 @@ func (c BulkChange) Validate() error {
 	case BulkActionChangeStatus:
 		if strings.TrimSpace(c.Status) == "" {
 			return NewValidationError("status is required for change_status")
+		}
+		return nil
+	case BulkActionAddTags, BulkActionRemoveTags:
+		for _, t := range c.Tags {
+			if strings.TrimSpace(t) == "" {
+				return NewValidationError("a tag in the selection is empty")
+			}
+		}
+		if len(c.Tags) == 0 {
+			return NewValidationError(fmt.Sprintf("tags are required for %s", c.Action))
 		}
 		return nil
 	case BulkActionDelete:
@@ -90,10 +110,83 @@ func (c BulkChange) PredictOn(before map[string]interface{}) map[string]interfac
 	for k, v := range before {
 		after[k] = v
 	}
-	if c.Action == BulkActionChangeStatus {
+	switch c.Action {
+	case BulkActionChangeStatus:
 		after["status"] = c.Status
+	case BulkActionAddTags:
+		after["tags"] = AddTags(snapshotTags(before["tags"]), c.Tags)
+	case BulkActionRemoveTags:
+		after["tags"] = RemoveTags(snapshotTags(before["tags"]), c.Tags)
 	}
 	return after
+}
+
+// BulkPredictor is implemented by a store whose change is more than a plain
+// field write. A risk's status change goes through Risk.SetState, which also
+// moves the canonical state and the lifecycle phase; the generic PredictOn
+// would show the status alone and the preview would understate the change.
+// The store predicts with the same function it applies, so the two cannot
+// drift.
+type BulkPredictor interface {
+	PredictBulk(row BulkRow, change BulkChange) map[string]interface{}
+}
+
+// AddTags unions two tag sets and returns a SORTED slice. Sorted rather than
+// map-iteration order: Go randomises map iteration, so an unsorted result would
+// make the same request look like a different change on every call.
+func AddTags(existing, added []string) []string {
+	set := make(map[string]struct{}, len(existing)+len(added))
+	for _, t := range existing {
+		set[t] = struct{}{}
+	}
+	for _, t := range added {
+		set[t] = struct{}{}
+	}
+	return sortedTagSet(set)
+}
+
+// RemoveTags subtracts the given tags. A tag that is already absent is a no-op,
+// never an error: the caller has the outcome they asked for.
+func RemoveTags(existing, removed []string) []string {
+	drop := make(map[string]struct{}, len(removed))
+	for _, t := range removed {
+		drop[t] = struct{}{}
+	}
+	keep := make(map[string]struct{}, len(existing))
+	for _, t := range existing {
+		if _, gone := drop[t]; !gone {
+			keep[t] = struct{}{}
+		}
+	}
+	return sortedTagSet(keep)
+}
+
+func sortedTagSet(set map[string]struct{}) []string {
+	out := make([]string, 0, len(set))
+	for k := range set {
+		out = append(out, k)
+	}
+	sort.Strings(out)
+	return out
+}
+
+// snapshotTags reads a snapshot's tags value. A store projects []string; a
+// value that went through JSON comes back as []interface{}.
+func snapshotTags(v interface{}) []string {
+	switch tags := v.(type) {
+	case []string:
+		return tags
+	case []interface{}:
+		out := make([]string, 0, len(tags))
+		for _, t := range tags {
+			if s, ok := t.(string); ok {
+				out = append(out, s)
+			}
+		}
+		return out
+	default:
+		return nil
+	}
 }
 
 // BulkRow is one row as the engine sees it: an id and the narrow snapshot of the

@@ -111,10 +111,17 @@ type Journal interface {
 	Append(ctx context.Context, e *domain.AuditEvent) error
 }
 
+// AfterApply runs once a batch has committed and been journalled. It is how a
+// register adds a side effect the engine knows nothing about — the risk
+// register tells each owner their risk moved (#757). It never runs for a batch
+// that failed, so a rolled-back change has told nobody anything.
+type AfterApply func(ctx context.Context, caller Caller, change domain.BulkChange, mutations []domain.BulkMutation)
+
 // Engine runs bulk operations for ONE register.
 type Engine struct {
-	store   domain.BulkStore
-	journal Journal
+	store      domain.BulkStore
+	journal    Journal
+	afterApply AfterApply
 }
 
 // New wires an engine. The journal is required, not optional: #581's whole
@@ -122,6 +129,12 @@ type Engine struct {
 // this" unanswerable, and an optional dependency is one somebody forgets.
 func New(store domain.BulkStore, journal Journal) *Engine {
 	return &Engine{store: store, journal: journal}
+}
+
+// WithAfterApply attaches a post-commit hook. Nil-safe.
+func (e *Engine) WithAfterApply(hook AfterApply) *Engine {
+	e.afterApply = hook
+	return e
 }
 
 // EntityType is the register this engine serves.
@@ -135,7 +148,9 @@ func (e *Engine) SupportedActions() []domain.BulkAction { return e.store.Support
 // Preview reports what a change would do. It MUST NOT mutate anything: it goes
 // through LoadBulk, which is the read-only half of the port, and computes the
 // after-state with domain.BulkChange.PredictOn — the same function the store
-// applies, so the preview cannot drift from the mutation it precedes.
+// applies, so the preview cannot drift from the mutation it precedes. A store
+// whose change is more than a field write implements domain.BulkPredictor, and
+// its prediction is used instead.
 func (e *Engine) Preview(ctx context.Context, caller Caller, req Request) (*Preview, error) {
 	ids, err := e.validate(caller, req)
 	if err != nil {
@@ -169,7 +184,7 @@ func (e *Engine) Preview(ctx context.Context, caller Caller, req Request) (*Prev
 
 	for _, row := range rows {
 		before := row.Snapshot
-		after := req.Change.PredictOn(before)
+		after := e.predict(row, req.Change)
 		changed := domain.BulkChangedFields(before, after)
 
 		// A delete changes no field but certainly affects the row.
@@ -229,7 +244,18 @@ func (e *Engine) Apply(ctx context.Context, caller Caller, req Request) (*Result
 		result.IDs = append(result.IDs, m.ID)
 	}
 	result.Audited = e.journalAll(ctx, caller, req.Change, mutations)
+	if e.afterApply != nil && len(mutations) > 0 {
+		e.afterApply(ctx, caller, req.Change, mutations)
+	}
 	return result, nil
+}
+
+// predict is the after-state the preview shows for one row.
+func (e *Engine) predict(row domain.BulkRow, change domain.BulkChange) map[string]interface{} {
+	if p, ok := e.store.(domain.BulkPredictor); ok {
+		return p.PredictBulk(row, change)
+	}
+	return change.PredictOn(row.Snapshot)
 }
 
 // validate applies every module-agnostic guard, in the order that fails
@@ -302,8 +328,13 @@ func (e *Engine) journalAll(
 	}
 
 	summary := fmt.Sprintf("bulk %s on %s", change.Action, e.store.EntityType())
-	if change.Action == domain.BulkActionChangeStatus {
+	switch change.Action {
+	case domain.BulkActionChangeStatus:
 		summary = fmt.Sprintf("bulk status change to %q on %s", change.Status, e.store.EntityType())
+	case domain.BulkActionAddTags:
+		summary = fmt.Sprintf("bulk add tags %v on %s", change.Tags, e.store.EntityType())
+	case domain.BulkActionRemoveTags:
+		summary = fmt.Sprintf("bulk remove tags %v on %s", change.Tags, e.store.EntityType())
 	}
 	if change.Justification != "" {
 		summary = fmt.Sprintf("%s — %s", summary, change.Justification)

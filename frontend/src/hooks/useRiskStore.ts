@@ -6,7 +6,7 @@
 import { create } from 'zustand';
 import { registerTenantStore } from '../lib/sessionScope';
 import { api } from '../lib/api';
-import { riskService } from '../services/riskService';
+import { bulkService } from '../services/bulkService';
 import type { Asset } from './useAssetStore';
 import type { RiskControlMapping } from '../services/taxonomyService';
 import type { RiskState } from '../features/risks/useLifecycle';
@@ -319,8 +319,11 @@ export const useRiskStore = create<RiskStore>((set, get) => ({
 
   // bulk operations
   //
-  // ONE request, not one per row (#598). `POST /risks/bulk` is transactional and
-  // audited (#581): the batch either applies to every id or to none, and each
+  // ONE request, not one per row (#598), to `POST /risks/bulk/delete` (#599):
+  // the governed route behind risks:delete. The legacy `POST /risks/bulk` no
+  // longer deletes — it sat behind risks:update and read the action from the
+  // body, so an update-only role could delete. The batch is transactional and
+  // audited (#581): it either applies to every id or to none, and each
   // deleted risk gets an audit entry naming the actor. The previous
   // implementation fanned out `DELETE /risks/:id` through `Promise.all` under a
   // comment claiming "backend may not provide bulk delete endpoint" — it does,
@@ -339,7 +342,7 @@ export const useRiskStore = create<RiskStore>((set, get) => ({
       selectedIds: [],
     }));
     try {
-      await riskService.bulkAction({ type: 'delete', risk_ids: ids });
+      await bulkService.apply('risks', 'delete', { ids });
     } catch (err) {
       set({ risks: prev, total: prevTotal, selectedIds: prevSelection });
       throw err;

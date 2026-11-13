@@ -1560,6 +1560,26 @@ func main() {
 	// unreachable, and #581's fixes would have landed in dead code.
 	protected.Post("/risks/bulk", riskUpdate, riskHandler.BulkAction)
 
+	// Governed bulk operations on the risk register (#599), the same engine and
+	// shape as vulnerabilities and assets (#582): a preview that writes nothing,
+	// a fingerprint that refuses a selection which moved, and ONE route per
+	// action behind the permission that matches it. The action comes from the
+	// route, so a risks:update holder cannot reach the delete. The legacy route
+	// above refuses delete and is deprecated (Sunset: 31 March 2027).
+	//
+	// Registered here, before the parameterised /risks/:id routes below, so
+	// "bulk" is never parsed as a risk id.
+	riskBulk := handlers.NewBulkHandler(
+		bulkapp.New(repository.NewRiskBulkStore(database.DB), auditChainRepo).
+			WithAfterApply(risk.BulkStateNotices(riskRepo, requestNoticeDispatcher)))
+	riskRead := middleware.RequirePermission("risks:read")
+	protected.Get("/risks/bulk/capabilities", riskRead, riskBulk.Capabilities)
+	protected.Post("/risks/bulk/preview", riskRead, riskBulk.Preview)
+	protected.Post("/risks/bulk/change-status", riskUpdate, riskBulk.Apply(domain.BulkActionChangeStatus))
+	protected.Post("/risks/bulk/add-tags", riskUpdate, riskBulk.Apply(domain.BulkActionAddTags))
+	protected.Post("/risks/bulk/remove-tags", riskUpdate, riskBulk.Apply(domain.BulkActionRemoveTags))
+	protected.Post("/risks/bulk/delete", riskDelete, riskBulk.Apply(domain.BulkActionDelete))
+
 	protected.Post("/risks", riskCreate, capRisks, riskHandler.CreateRisk)
 	// #755 — CSV import. capRisks refuses a tenant already at its limit; the use
 	// case then refuses a file that would carry it past.

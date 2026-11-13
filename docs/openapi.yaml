@@ -4755,8 +4755,20 @@ paths:
     post:
       tags:
         - Risks
-      summary: Apply one action to many risks, all or none
+      summary: "Deprecated: apply one action to many risks, all or none"
+      deprecated: true
       description: >-
+        DEPRECATED by #599, removed on 31 March 2027 (the `Sunset` response
+        header carries the date). Use the governed routes under
+        /risks/bulk/{preview,change-status,add-tags,remove-tags,delete}, which
+        take the action from the route and sit behind the permission that
+        matches it.
+
+        `delete` is no longer accepted here and answers 400: this route is
+        behind risks:update and read the action from the body, so a holder of
+        risks:update could delete risks. Delete through /risks/bulk/delete,
+        which requires risks:delete.
+
         All-or-nothing (decision D-036). Either every named risk is modified or
         none is: the batch runs in a single transaction, and one stale, foreign
         or otherwise unresolvable id fails the whole request without writing
@@ -4785,7 +4797,8 @@ paths:
         '400':
           description: >-
             Validation error — empty selection, more than 100 items, an unknown
-            action type, or a missing action parameter.
+            action type, a missing action parameter, or `delete`, which this
+            route no longer performs.
         '401':
           description: Unauthorized
         '403':
@@ -4794,6 +4807,191 @@ paths:
           description: >-
             At least one id could not be resolved — absent, or belonging to
             another tenant, deliberately indistinguishable. Nothing was modified.
+
+  # ==================== RISK REGISTER, GOVERNED BULK (#599) ====================
+
+  /risks/bulk/capabilities:
+    get:
+      tags: [Risks]
+      summary: Which bulk actions the risk register supports
+      description: >-
+        A compiled-in vocabulary, identical for every tenant, so the bulk bar
+        never offers an action the server would refuse. No table is read.
+        assign_to is absent: it stays on the deprecated POST /risks/bulk until
+        it validates the assignee's tenant membership.
+      operationId: risksBulkCapabilities
+      security: [{bearerAuth: []}]
+      responses:
+        '200':
+          description: The supported actions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BulkCapabilities'
+        '403': {description: The caller lacks risks:read}
+
+  /risks/bulk/preview:
+    post:
+      tags: [Risks]
+      summary: What a bulk action on risks would change — mutates nothing
+      description: >-
+        Returns the affected count and a bounded sample of exactly what would
+        change, including the canonical state and phase a status change moves,
+        and writes nothing. Also returns a `fingerprint`: send it back with the
+        apply and a selection that moved underneath the user is refused with
+        409 rather than silently applied to the new set.
+
+        Behind risks:read — it discloses only the current state of risks the
+        caller can already fetch individually.
+      operationId: risksBulkPreview
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BulkPreviewInput'
+      responses:
+        '200':
+          description: The impact statement
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BulkPreview'
+        '400': {description: Validation error}
+        '403': {description: "The caller lacks risks:read, or the session carries no tenant"}
+
+  /risks/bulk/change-status:
+    post:
+      tags: [Risks]
+      summary: Apply "change_status" to many risks, all or none
+      description: >-
+        All-or-nothing (decision D-036): either every named risk is changed or
+        none is. One audit entry is written per modified risk, carrying the
+        acting user. Risks from another tenant answer 404, identical to
+        fabricated ids. Residual acceptance (`accepted`) is refused: it needs a per-risk approval and an end date (#811).
+
+        The action is fixed by the route, not read from the body, so this
+        endpoint's permission always matches what it performs. Requires
+        `risks:update`.
+      operationId: risksBulkChangeStatus
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BulkApplyInput'
+      responses:
+        '200':
+          description: The batch was applied in full
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BulkResult'
+        '400': {description: "Validation error — empty selection, over 100 items, or an invalid status or tag"}
+        '403': {description: "The caller lacks risks:update, or the session carries no tenant"}
+        '404': {description: "An id did not resolve — absent, or another tenant's, deliberately indistinguishable. Nothing was modified."}
+        '409': {description: The selection changed since it was previewed. Nothing was modified.}
+
+  /risks/bulk/add-tags:
+    post:
+      tags: [Risks]
+      summary: Apply "add_tags" to many risks, all or none
+      description: >-
+        All-or-nothing (decision D-036): either every named risk is changed or
+        none is. One audit entry is written per modified risk, carrying the
+        acting user. Risks from another tenant answer 404, identical to
+        fabricated ids.
+
+        The action is fixed by the route, not read from the body, so this
+        endpoint's permission always matches what it performs. Requires
+        `risks:update`.
+      operationId: risksBulkAddTags
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BulkApplyInput'
+      responses:
+        '200':
+          description: The batch was applied in full
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BulkResult'
+        '400': {description: "Validation error — empty selection, over 100 items, or an invalid status or tag"}
+        '403': {description: "The caller lacks risks:update, or the session carries no tenant"}
+        '404': {description: "An id did not resolve — absent, or another tenant's, deliberately indistinguishable. Nothing was modified."}
+        '409': {description: The selection changed since it was previewed. Nothing was modified.}
+
+  /risks/bulk/remove-tags:
+    post:
+      tags: [Risks]
+      summary: Apply "remove_tags" to many risks, all or none
+      description: >-
+        All-or-nothing (decision D-036): either every named risk is changed or
+        none is. One audit entry is written per modified risk, carrying the
+        acting user. Risks from another tenant answer 404, identical to
+        fabricated ids. Removing a tag a risk does not carry is a no-op.
+
+        The action is fixed by the route, not read from the body, so this
+        endpoint's permission always matches what it performs. Requires
+        `risks:update`.
+      operationId: risksBulkRemoveTags
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BulkApplyInput'
+      responses:
+        '200':
+          description: The batch was applied in full
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BulkResult'
+        '400': {description: "Validation error — empty selection, over 100 items, or an invalid status or tag"}
+        '403': {description: "The caller lacks risks:update, or the session carries no tenant"}
+        '404': {description: "An id did not resolve — absent, or another tenant's, deliberately indistinguishable. Nothing was modified."}
+        '409': {description: The selection changed since it was previewed. Nothing was modified.}
+
+  /risks/bulk/delete:
+    post:
+      tags: [Risks]
+      summary: Apply "delete" to many risks, all or none
+      description: >-
+        All-or-nothing (decision D-036): either every named risk is changed or
+        none is. One audit entry is written per modified risk, carrying the
+        acting user. Risks from another tenant answer 404, identical to
+        fabricated ids.
+
+        The action is fixed by the route, not read from the body, so this
+        endpoint's permission always matches what it performs. Requires
+        `risks:delete`.
+      operationId: risksBulkDelete
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BulkApplyInput'
+      responses:
+        '200':
+          description: The batch was applied in full
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BulkResult'
+        '400': {description: "Validation error — empty selection, over 100 items, or an invalid status or tag"}
+        '403': {description: "The caller lacks risks:delete, or the session carries no tenant"}
+        '404': {description: "An id did not resolve — absent, or another tenant's, deliberately indistinguishable. Nothing was modified."}
+        '409': {description: The selection changed since it was previewed. Nothing was modified.}
 
   # ==================== GOVERNED BULK OPERATIONS (#582) ====================
 
@@ -7488,7 +7686,9 @@ components:
       properties:
         type:
           type: string
-          enum: [change_status, assign_to, add_tags, remove_tags, delete]
+          description: >-
+            `delete` is no longer accepted (#599); use POST /risks/bulk/delete.
+          enum: [change_status, assign_to, add_tags, remove_tags]
         risk_ids:
           type: array
           minItems: 1
@@ -7553,9 +7753,10 @@ components:
             Only the actions this register can actually perform. Assets expose
             delete alone — domain.Asset has no Status, no Tags, and a free-text
             Owner, so nothing else from the frozen action set maps onto it.
+            The tag actions exist only on the risk register.
           items:
             type: string
-            enum: [change_status, delete]
+            enum: [change_status, delete, add_tags, remove_tags]
 
     BulkPreviewInput:
       type: object
@@ -7563,7 +7764,7 @@ components:
       properties:
         action:
           type: string
-          enum: [change_status, delete]
+          enum: [change_status, delete, add_tags, remove_tags]
         ids:
           type: array
           minItems: 1
@@ -7572,6 +7773,11 @@ components:
         status:
           type: string
           description: The target value, for change_status.
+        tags:
+          type: array
+          maxItems: 50
+          description: The labels, for add_tags and remove_tags.
+          items: {type: string, maxLength: 100}
 
     BulkApplyInput:
       type: object
@@ -7586,6 +7792,11 @@ components:
         status:
           type: string
           description: The target value, for the change-status route.
+        tags:
+          type: array
+          maxItems: 50
+          description: The labels, for the add-tags and remove-tags routes.
+          items: {type: string, maxLength: 100}
         justification:
           type: string
           maxLength: 1000
@@ -7642,7 +7853,7 @@ components:
           description: Pass to the apply call to detect a selection that moved.
         action:
           type: string
-          enum: [change_status, delete]
+          enum: [change_status, delete, add_tags, remove_tags]
 
     BulkResult:
       type: object

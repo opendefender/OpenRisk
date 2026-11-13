@@ -833,18 +833,29 @@ func (h *RiskHandler) DeleteRisk(c *fiber.Ctx) error {
 // Bulk actions — POST /api/v1/risks/bulk (#581)
 // ---------------------------------------------------------------------------
 
-// BulkAction applies one mutation to a set of risks, all or none (D-036).
+// LegacyBulkSunset is when POST /risks/bulk stops answering (#599). Until then
+// it carries Deprecation and Sunset headers pointing at the governed routes.
+const LegacyBulkSunset = "Wed, 31 Mar 2027 00:00:00 GMT"
+
+// BulkAction is the LEGACY body-driven bulk route, POST /risks/bulk (#581).
+// Deprecated by #599 in favour of /risks/bulk/{preview,change-status,add-tags,
+// remove-tags,delete}, which take the action from the route and sit behind the
+// permission that matches it.
 //
-// The route is guarded by RequirePermission("risks:update") at registration, so
-// a caller without it never reaches this function — that is criterion 8, and it
-// is enforced by middleware rather than re-implemented here.
+// It refuses delete. The route is mounted behind risks:update alone and read
+// the action from the body, so any holder of risks:update could post
+// {"type":"delete"} and delete risks without holding risks:delete — the RSSI,
+// DSI, risk-owner and security-analyst presets were all in that position.
+// Deletion is now reachable only through POST /risks/bulk/delete, behind
+// risks:delete.
 //
-// Errors are mapped through writeAppError, not flattened to 500. That matters:
-// a stale or foreign id must come back 404, and the previous handler turned
-// every use-case error into "failed to perform bulk action" with a 500, which
-// made a perfectly ordinary "one of your ids no longer exists" indistinguishable
-// from a server fault.
+// Errors are mapped through writeAppError, not flattened to 500: a stale or
+// foreign id must come back 404.
 func (h *RiskHandler) BulkAction(c *fiber.Ctx) error {
+	c.Set("Deprecation", "true")
+	c.Set("Sunset", LegacyBulkSunset)
+	c.Set("Link", `</api/v1/risks/bulk/preview>; rel="successor-version"`)
+
 	if h.bulkActionUC == nil {
 		return c.Status(fiber.StatusNotImplemented).
 			JSON(fiber.Map{"error": "bulk actions are not enabled"})
@@ -853,6 +864,13 @@ func (h *RiskHandler) BulkAction(c *fiber.Ctx) error {
 	var req risk.BulkActionRequest
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request body"})
+	}
+
+	// Checked before anything is read or written. The action was taken from the
+	// body behind risks:update, so this is the only place that can stop it.
+	if req.Type == risk.BulkActionDeleteRisks {
+		return writeAppError(c, domain.NewValidationError(
+			"delete is not accepted on POST /risks/bulk: use POST /risks/bulk/delete, which requires risks:delete"))
 	}
 
 	// Identity comes from the signed session only. The tenant is what every read

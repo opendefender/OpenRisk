@@ -133,9 +133,13 @@ export interface UpdateRiskInput {
  * flat, and it omitted `remove_tags` entirely. Nothing called it, so the
  * mismatch never surfaced — the endpoint itself was mounted only inside a
  * RegisterRoutes function that main.go never invoked.
+ *
+ * @deprecated since #599, removed on 31 March 2027. Use `bulkService` with the
+ * `risks` register. `delete` is no longer accepted here: it is
+ * `bulkService.apply('risks', 'delete', …)`, behind risks:delete.
  */
 export interface BulkRiskActionInput {
-  type: 'change_status' | 'assign_to' | 'add_tags' | 'remove_tags' | 'delete';
+  type: 'change_status' | 'assign_to' | 'add_tags' | 'remove_tags';
   risk_ids: string[];
   /** change_status */
   status?: RiskStatus;
