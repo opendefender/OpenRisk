@@ -83,9 +83,7 @@ func (r *GormMFAPolicyRepository) SaveMFAPolicy(ctx context.Context, p *domain.M
 	existing.GraceDays = p.GraceDays
 	existing.UpdatedByID = p.UpdatedByID
 	existing.UpdatedAt = now
-	if err := r.db.WithContext(ctx).
-		Where("tenant_id = ?", p.TenantID).
-		Save(existing).Error; err != nil {
+	if err := updateInTenant(r.db.WithContext(ctx), p.TenantID, existing); err != nil {
 		return err
 	}
 	*p = *existing

@@ -133,3 +133,25 @@ func TestCustomField_DuplicateWithinTenant(t *testing.T) {
 	_, err = svc.CreateCustomField(tenant, user, newField("Owner"))
 	require.Error(t, err, "a tenant cannot define the same field name twice for a scope")
 }
+
+// #808: UpdateCustomField writes through the tenant, and another tenant's id
+// updates nothing.
+func TestCustomField_Update_TenantScopedWrite(t *testing.T) {
+	db := setupCustomFieldDB(t)
+	svc := &CustomFieldService{db: db}
+	tenantA, tenantB, user := uuid.New(), uuid.New(), uuid.New()
+
+	field, err := svc.CreateCustomField(tenantA, user, newField("Owner"))
+	require.NoError(t, err)
+
+	visible := false
+	updated, err := svc.UpdateCustomField(tenantA, field.ID, &domain.UpdateCustomFieldRequest{DisplayName: "Owner (renamed)", Visible: &visible})
+	require.NoError(t, err)
+	require.Equal(t, "Owner (renamed)", updated.DisplayName)
+
+	_, err = svc.UpdateCustomField(tenantB, field.ID, &domain.UpdateCustomFieldRequest{DisplayName: "stolen"})
+	require.Error(t, err, "another tenant must not update this field")
+	got, err := svc.GetCustomField(tenantA, field.ID)
+	require.NoError(t, err)
+	require.Equal(t, "Owner (renamed)", got.DisplayName)
+}

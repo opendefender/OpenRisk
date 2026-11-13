@@ -109,20 +109,63 @@ func TestOAuthLinkRepository_PreAuthLookupAndTouchRunUnderTheGuard(t *testing.T)
 	assert.NotNil(t, after.LastLoginAt)
 }
 
-// #808: GetOAuthProviderByEmail is the other pre-session OAuth lookup.
-func TestOAuthProviderRepository_GetByEmailRunsUnderTheGuard(t *testing.T) {
+// #808: re-ingesting a finding that already exists updates it through its
+// tenant, and the same finding of another tenant is left alone.
+func TestVulnerabilityRepo_UpsertReIngest_WritesThroughTheTenant(t *testing.T) {
+	repo, db := setupVulnStatsRepo(t)
+	ctx := context.Background()
+	a, b := uuid.New(), uuid.New()
+	mk := func(tenant uuid.UUID, title string) *domain.Vulnerability {
+		return &domain.Vulnerability{ID: uuid.New(), TenantID: tenant, Source: "scanner", ExternalID: "ext-1", CVEID: "CVE-2026-0001", Title: title, Severity: domain.VulnSeverity("high"), Status: domain.VulnStatusOpen}
+	}
+	created, err := repo.Upsert(ctx, mk(a, "first"))
+	require.NoError(t, err)
+	require.True(t, created)
+	_, err = repo.Upsert(ctx, mk(b, "tenant b"))
+	require.NoError(t, err)
+
+	created, err = repo.Upsert(ctx, mk(a, "refreshed"))
+	require.NoError(t, err)
+	assert.False(t, created, "the second ingest updates the existing finding")
+
+	var gotA, gotB domain.Vulnerability
+	require.NoError(t, db.Where("tenant_id = ?", a).First(&gotA).Error)
+	require.NoError(t, db.Where("tenant_id = ?", b).First(&gotB).Error)
+	assert.Equal(t, "refreshed", gotA.Title)
+	assert.Equal(t, "tenant b", gotB.Title)
+
+	gotA.Title = "via update"
+	require.NoError(t, repo.Update(ctx, &gotA))
+	foreign := gotA
+	foreign.TenantID = b
+	assert.Error(t, repo.Update(ctx, &foreign), "a row of tenant a must not be written under tenant b")
+}
+
+// #808: an organisation role is rewritten through its organisation.
+func TestOrganizationRoleRepository_Update_WritesThroughTheOrganisation(t *testing.T) {
 	db, err := testdb.Open(t, sqlite.Open(":memory:"), &gorm.Config{})
 	require.NoError(t, err)
-	require.NoError(t, db.Exec(`CREATE TABLE user_oauth_providers (id TEXT PRIMARY KEY)`).Error)
-	require.NoError(t, sqliteschema.Reconcile(db, "user_oauth_providers", &domain.OAuthProvider{}))
-	repo := NewGormOAuthProviderRepository(db)
+	require.NoError(t, db.Exec(`CREATE TABLE organization_roles (id TEXT PRIMARY KEY)`).Error)
+	require.NoError(t, sqliteschema.Reconcile(db, "organization_roles", &domain.OrganizationRole{}))
+	repo := NewGormOrganizationRoleRepository(db)
 	ctx := context.Background()
-	require.NoError(t, repo.CreateOAuthProvider(ctx, &domain.OAuthProvider{ID: uuid.New(), TenantID: uuid.New(), UserID: uuid.New(), Provider: "github", ProviderUserID: "s", Email: "a@example.com"}))
 
-	got, err := repo.GetOAuthProviderByEmail(ctx, "a@example.com", "github")
+	org := uuid.New()
+	role := &domain.OrganizationRole{ID: uuid.New(), OrganizationID: org, Name: "auditor", IsActive: true, Permissions: []byte("[]")}
+	require.NoError(t, repo.Create(ctx, role))
+
+	role.Name = "auditor (renamed)"
+	require.NoError(t, repo.Update(ctx, role))
+	got, err := repo.GetByOrganizationID(ctx, org)
 	require.NoError(t, err)
-	require.NotNil(t, got)
-	none, err := repo.GetOAuthProviderByEmail(ctx, "b@example.com", "github")
+	require.Len(t, got, 1)
+	assert.Equal(t, "auditor (renamed)", got[0].Name)
+
+	foreign := *role
+	foreign.OrganizationID = uuid.New()
+	foreign.Name = "stolen"
+	assert.Error(t, repo.Update(ctx, &foreign), "another organisation must not rewrite this role")
+	got, err = repo.GetByOrganizationID(ctx, org)
 	require.NoError(t, err)
-	assert.Nil(t, none)
+	assert.Equal(t, "auditor (renamed)", got[0].Name)
 }

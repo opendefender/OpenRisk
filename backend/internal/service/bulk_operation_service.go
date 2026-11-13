@@ -20,6 +20,7 @@ import (
 	"github.com/opendefender/openrisk/internal/domain"
 	"github.com/opendefender/openrisk/internal/infrastructure/database"
 	"github.com/opendefender/openrisk/internal/infrastructure/repository"
+	"github.com/opendefender/openrisk/internal/infrastructure/tenantwrite"
 )
 
 // BulkOperationService handles async bulk operations
@@ -407,7 +408,7 @@ func (s *BulkOperationService) updateRiskFromData(risk *domain.Risk, data map[st
 		risk.Owner = owner
 	}
 
-	return s.db.Save(risk).Error
+	return tenantwrite.UpdateInTenant(s.db, risk.TenantID, risk)
 }
 
 // logBulkOperationSuccess logs a successful resource processing

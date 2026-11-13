@@ -330,7 +330,7 @@ func (r *GormNoticeEmailPolicyRepository) SaveNoticeEmailPolicy(ctx context.Cont
 	// Struct-form update so the audit trail records the before and after.
 	existing.WindowMinutes = p.WindowMinutes
 	existing.UpdatedByID = p.UpdatedByID
-	if err := r.db.WithContext(ctx).Where("tenant_id = ?", p.TenantID).Save(existing).Error; err != nil {
+	if err := updateInTenant(r.db.WithContext(ctx), p.TenantID, existing); err != nil {
 		return err
 	}
 	*p = *existing
