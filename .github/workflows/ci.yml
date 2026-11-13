@@ -187,6 +187,8 @@ jobs:
           CTI_SYNC_ENABLED: 'false'
           PASSWORD_HIBP_DISABLED: 'true'
           OPENRISK_DEPLOYMENT: self_hosted
+          # #808: the production boot path (seeds, backfills) runs under the tenant guard.
+          TENANT_GUARD: enforce
         run: |
           mkdir -p "$RUNNER_TEMP/keys"
           ( umask 077 && openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out "$RUNNER_TEMP/keys/private.pem" 2>/dev/null )

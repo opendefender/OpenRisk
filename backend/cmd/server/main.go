@@ -84,6 +84,7 @@ import (
 	redisclient "github.com/opendefender/openrisk/internal/infrastructure/redis"
 	"github.com/opendefender/openrisk/internal/infrastructure/repository"
 	"github.com/opendefender/openrisk/internal/infrastructure/scanmitigation"
+	"github.com/opendefender/openrisk/internal/infrastructure/tenantguard"
 	"github.com/opendefender/openrisk/internal/infrastructure/vulnlookup"
 	"github.com/opendefender/openrisk/internal/infrastructure/vulnrisk"
 	"github.com/opendefender/openrisk/internal/infrastructure/workers"
@@ -258,6 +259,22 @@ func main() {
 		log.Printf("audit trail: failed to install GORM plugin: %v", err)
 	} else {
 		log.Println("Governance: immutable hash-chained audit-trail plugin installed")
+	}
+
+	// Tenant guard (#808, D-055, D-110): fails a SELECT/UPDATE/DELETE on a
+	// tenant-scoped table whose WHERE carries no tenant. TENANT_GUARD is off,
+	// report or enforce; unset means off (production), staging and the CI boot
+	// set enforce. A typo is fatal: it must not silently mean "off". Installed
+	// before the seeds so they run under it too.
+	guardMode, err := tenantguard.ParseMode(os.Getenv("TENANT_GUARD"))
+	if err != nil {
+		log.Fatalf("TENANT_GUARD: %v", err)
+	}
+	if guardMode != tenantguard.Off {
+		if err := database.DB.Use(tenantguard.New(guardMode, tenantguard.WithModels(schemaModels()...))); err != nil {
+			log.Fatalf("tenant guard: %v", err)
+		}
+		log.Printf("Security: tenant guard installed (%s)", guardMode)
 	}
 
 	// Création du compte Admin par défaut si la DB est vide
