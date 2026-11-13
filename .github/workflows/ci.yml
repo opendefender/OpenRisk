@@ -200,6 +200,11 @@ jobs:
           for i in $(seq 1 90); do
             if curl -fsS http://localhost:8080/api/v1/health >/dev/null; then
               kill "$PID"; wait "$PID" || true
+              # #808: seeds and backfills swallow their errors and log them, so the
+              # tenant guard's refusals are only visible here. Any line fails the job.
+              if grep -n 'tenantguard' "$RUNNER_TEMP/boot.log"; then
+                echo "the boot ran a query the tenant guard refused (#808)"; exit 1
+              fi
               echo "schema built after ${i}s"; exit 0
             fi
             kill -0 "$PID" 2>/dev/null || break

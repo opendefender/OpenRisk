@@ -51,10 +51,15 @@ func SeedRBAC() {
 	}
 
 	// 3) mirror every Organization as an RBAC Tenant, and every membership as a UserTenant.
-	adminRole, _ := roleSvc.GetPredefinedRoleByName(ctx, "Admin")
+	adminRole, err := roleSvc.GetPredefinedRoleByName(ctx, "Admin")
+	if err != nil {
+		log.Printf("SeedRBAC: Admin role not found: %v", err)
+	}
 
 	var orgs []domain.Organization
-	db.Find(&orgs)
+	if err := db.Find(&orgs).Error; err != nil {
+		log.Printf("SeedRBAC: list organizations failed: %v", err)
+	}
 	for _, org := range orgs {
 		var existing domain.Tenant
 		if err := db.Where("id = ?", org.ID).First(&existing).Error; err == nil {
@@ -78,7 +83,9 @@ func SeedRBAC() {
 
 	if adminRole != nil {
 		var members []domain.OrganizationMember
-		tenantguard.CrossTenant(db, "boot seed mirrors every organisation membership into user_tenants").Find(&members)
+		if err := tenantguard.CrossTenant(db, "boot seed mirrors every organisation membership into user_tenants").Find(&members).Error; err != nil {
+			log.Printf("SeedRBAC: list memberships failed: %v", err)
+		}
 		for _, m := range members {
 			var ut domain.UserTenant
 			if err := db.Where("user_id = ? AND tenant_id = ?", m.UserID, m.OrganizationID).First(&ut).Error; err == nil {
