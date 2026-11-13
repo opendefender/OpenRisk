@@ -58,11 +58,12 @@ owner can overturn it.
 **Honest limits** — it only sees queries that run; it catches a missing filter, not a wrong one
 (#807 class). Raw SQL is checked lexically after comments are removed and string literals
 blanked: a predicate in a CTE or a comma join, a `MERGE`, or a join glue between two tenant
-columns passes; the SELECT part of an `INSERT ... SELECT` is checked like a read. On the builder
-side a right-hand side the guard does not read is accepted (`tenant_id IN (SELECT tenant_id ...)`,
+columns passes; the SELECT part of an `INSERT ... SELECT` is checked like a read. In builder and
+raw SQL alike, a right-hand side the guard does not read is accepted (`tenant_id IN (SELECT tenant_id ...)`,
 `= (SELECT ...)`, `= COALESCE(tenant_id, ?)`, a column against another column); only a tenant
 column against itself is refused. A scoped table reached only by `Joins` from an unscoped base
-table is not checked. `.Or()` precedence is approximated (no production query uses it). A
+table is not checked. The `.Save(` ratchet is syntactic: it does not see a method value
+(`f := db.Save; f(x)`) nor a call inside a package-level function literal. `.Or()` precedence is approximated (no production query uses it). A
 preload, and a statement reusing the parent's context while it runs (an `AfterFind` hook
 included), inherits the parent's pass. INSERT ... VALUES and upserts are not checked. A table no
 model gives is read from the catalog. A `Table(...)` expression that is not a name (a subquery, a

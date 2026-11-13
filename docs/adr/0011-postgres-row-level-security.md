@@ -22,10 +22,12 @@ What the guard does not cover (D-110, package doc):
   predicate in a CTE or a comma join, a `MERGE`, or a join glue `ON a.tenant_id = b.tenant_id`
   with no bound value, passes; an OR inside one raw string is not parsed; the SELECT part of an
   `INSERT ... SELECT` is checked like a read;
-- on the builder side, a right-hand side the guard does not read is accepted as a filter
+- in builder and raw SQL alike, a right-hand side the guard does not read is accepted as a filter
   (`tenant_id IN (SELECT tenant_id ...)`, `= (SELECT ...)`, `= COALESCE(tenant_id, ?)`, and a
   column compared with another column); only a tenant column compared with itself is refused;
 - a scoped table reached only through `Joins` from an unscoped base table is not checked;
+- the `.Save(` ratchet is syntactic: it does not see a method value (`f := db.Save; f(x)`) nor a
+  call inside a package-level function literal;
 - the precedence of `.Or()` is approximated (no production query uses it today);
 - a preload, and any statement reusing the parent's context while it runs (a query from an
   `AfterFind` hook included), inherits the parent's pass without being checked;

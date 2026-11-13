@@ -25,13 +25,16 @@
 //     glue "ON a.tenant_id = b.tenant_id" with no value bound anywhere, are read
 //     as a filter. An OR inside one raw string is not parsed. The SELECT part of
 //     an INSERT ... SELECT is checked like a read.
-//   - On the builder side a right-hand side the guard does not read is accepted
-//     as a filter: tenant_id IN (SELECT tenant_id ...), tenant_id = (SELECT ...),
+//   - In builder and raw SQL alike, a right-hand side the guard does not read is
+//     accepted as a filter: tenant_id IN (SELECT tenant_id ...), tenant_id = (SELECT ...),
 //     tenant_id = COALESCE(tenant_id, ?), and a column compared with another
 //     column (a.tenant_id = b.col). Only a tenant column compared with itself is
 //     refused.
 //   - A scoped table reached only through Joins from an unscoped base table is
 //     not checked: Table("g_tags t").Joins("JOIN g_items ...").
+//   - The .Save( ratchet (tenantwrite) is syntactic: it does not see a method
+//     value (f := db.Save; f(x)) nor a call inside a package-level function
+//     literal.
 //   - The precedence of .Or() is approximated: Where(a).Or(t AND b).Where(t) is
 //     not told apart from the plain forms. No production query uses .Or( today.
 //   - A preload inherits its parent's pass through the statement context, and so
