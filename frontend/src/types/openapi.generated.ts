@@ -10088,7 +10088,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description The caller lacks risks:update, or the session carries no tenant */
+            /** @description The caller lacks risks:update, the action is `delete` and the caller lacks risks:delete (#1423), or the session carries no tenant. */
             403: {
                 headers: {
                     [name: string]: unknown;
