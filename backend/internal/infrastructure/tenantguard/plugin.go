@@ -37,6 +37,7 @@ import (
 
 	"github.com/rs/zerolog/log"
 	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 	"gorm.io/gorm/schema"
 
 	"github.com/opendefender/openrisk/internal/domain"
@@ -208,9 +209,35 @@ func (p *Plugin) scopedTable(stmt *gorm.Statement) (string, bool) {
 	return table, false
 }
 
-func (p *Plugin) scopedName(table string) bool {
-	v, ok := p.tables.Load(table)
-	return ok && v.(bool)
+// scopedName reports whether a table named in raw SQL is tenant-scoped. A table
+// no model has been used on yet is resolved from the database itself (does it
+// have a tenant_id or organization_id column), so the answer never depends on
+// which statement ran before. Only a table that exists is cached: one created
+// later is looked at again.
+func (p *Plugin) scopedName(db *gorm.DB, table string) bool {
+	if v, ok := p.tables.Load(table); ok {
+		return v.(bool)
+	}
+	if _, ok := exempt[table]; ok {
+		return false
+	}
+	if strings.HasPrefix(table, "sqlite_") || strings.HasPrefix(table, "pg_") || table == "information_schema" || table == "dual" {
+		return false
+	}
+	// The probe runs on a session that carries a CrossTenant reason, so the
+	// guard skips its own metadata queries instead of recursing into them.
+	ctx := db.Statement.Context
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	ctx = CrossTenantContext(ctx, "tenantguard resolves a table's columns from the catalog")
+	m := db.Session(&gorm.Session{NewDB: true, Context: ctx, Logger: logger.Discard}).Migrator()
+	if !m.HasTable(table) {
+		return false
+	}
+	scoped := m.HasColumn(table, "tenant_id") || m.HasColumn(table, "organization_id")
+	p.tables.Store(table, scoped)
+	return scoped
 }
 
 type (
@@ -271,9 +298,9 @@ func (p *Plugin) check(op string, marks bool) func(*gorm.DB) {
 
 		var rule string
 		if stmt.SQL.Len() > 0 {
-			rule = p.checkRaw(stmt.SQL.String())
+			rule = p.checkRaw(db, stmt.SQL.String())
 			if rule != "" {
-				table = rawTables(stmt.SQL.String(), p)
+				table = rawTables(db, stmt.SQL.String(), p)
 			}
 		} else if scoped {
 			rule = checkWhere(stmt)

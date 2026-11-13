@@ -286,3 +286,48 @@ func contains(s, sub string) bool {
 	}
 	return false
 }
+
+// Regression (#808): raw SQL used to be checked only against tables a model had
+// already touched on this DB, so the first raw statement of a fresh DB passed
+// or not depending on what ran before. The answer must come from the catalog.
+func TestGuard_RawFirstStatementOnFreshDB(t *testing.T) {
+	stmts := map[string]func(*gorm.DB) error{
+		"select": func(db *gorm.DB) error {
+			return db.Raw("SELECT * FROM g_items WHERE id = ?", "1").Scan(&[]gItem{}).Error
+		},
+		"update": func(db *gorm.DB) error { return db.Exec("UPDATE g_items SET name = 'x' WHERE id = ?", "1").Error },
+		"delete": func(db *gorm.DB) error { return db.Exec("DELETE FROM g_items WHERE id = ?", "1").Error },
+	}
+	for name, run := range stmts {
+		db, c := open(t, tenantguard.Enforce) // AutoMigrate only: no model statement has run
+		if err := run(db); !errors.Is(err, tenantguard.ErrUnscopedQuery) {
+			t.Errorf("%s as first statement: want ErrUnscopedQuery, got %v", name, err)
+		}
+		if r := c.rules(); len(r) != 1 || r[0] != "raw-no-tenant" {
+			t.Errorf("%s: want one raw-no-tenant, got %v", name, r)
+		}
+		// A table created by raw DDL, never seen by any model, is resolved too.
+		if err := db.Exec("CREATE TABLE ddl_only (id TEXT, tenant_id TEXT)").Error; err != nil {
+			t.Fatal(err)
+		}
+		if err := db.Exec("DELETE FROM ddl_only WHERE id = 'x'").Error; !errors.Is(err, tenantguard.ErrUnscopedQuery) {
+			t.Errorf("%s: DDL-only table not recognised: %v", name, err)
+		}
+		if err := db.Exec("DELETE FROM ddl_only WHERE tenant_id = 't'").Error; err != nil {
+			t.Errorf("%s: scoped raw statement refused: %v", name, err)
+		}
+	}
+}
+
+// A tenant test in a JOIN ... ON counts, and a tenant column that is only
+// assigned (SET tenant_id = ?) does not.
+func TestGuard_RawTenantInJoinOn(t *testing.T) {
+	db, _ := open(t, tenantguard.Enforce)
+	ok := db.Raw("SELECT t.id FROM g_tags t JOIN g_items i ON i.id = t.item_id AND i.tenant_id = ? WHERE t.id = ?", "t", "1").Scan(&[]gTag{}).Error
+	if ok != nil {
+		t.Fatalf("tenant in JOIN ON must pass: %v", ok)
+	}
+	if err := db.Exec("UPDATE g_items SET tenant_id = ?", "t").Error; !errors.Is(err, tenantguard.ErrUnscopedQuery) {
+		t.Fatalf("assigning tenant_id is not a filter: %v", err)
+	}
+}

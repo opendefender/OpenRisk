@@ -23,7 +23,7 @@ var tenantPredicate = regexp.MustCompile(`(?i)(?:^|[^a-z0-9_])(?:"?[a-z_][a-z0-9
 
 var (
 	rawTable = regexp.MustCompile(`(?i)\b(?:from|join|update)\s+(?:"?[a-z_][a-z0-9_]*"?\.)?"?([a-z_][a-z0-9_]*)"?`)
-	rawWhere = regexp.MustCompile(`(?i)\bwhere\b`)
+	rawWhere = regexp.MustCompile(`(?i)\b(?:where|on)\b`) // a tenant test in WHERE or in a JOIN ... ON
 )
 
 func isTenantColumn(name string) bool {
@@ -187,7 +187,7 @@ func hasTenantAnywhere(exprs []clause.Expression) bool {
 }
 
 // checkRaw returns the violated rule for a raw statement, or "".
-func (p *Plugin) checkRaw(sql string) string {
+func (p *Plugin) checkRaw(db *gorm.DB, sql string) string {
 	s := strings.TrimLeft(sql, " \t\r\n(")
 	kw := strings.ToUpper(firstWord(s))
 	switch kw {
@@ -197,7 +197,7 @@ func (p *Plugin) checkRaw(sql string) string {
 	}
 	scoped := false
 	for _, m := range rawTable.FindAllStringSubmatch(sql, -1) {
-		if p.scopedName(strings.ToLower(m[1])) {
+		if p.scopedName(db, strings.ToLower(m[1])) {
 			scoped = true
 			break
 		}
@@ -213,10 +213,10 @@ func (p *Plugin) checkRaw(sql string) string {
 }
 
 // rawTables names the scoped tables of a raw statement for the violation.
-func rawTables(sql string, p *Plugin) string {
+func rawTables(db *gorm.DB, sql string, p *Plugin) string {
 	var out []string
 	for _, m := range rawTable.FindAllStringSubmatch(sql, -1) {
-		if p.scopedName(strings.ToLower(m[1])) {
+		if p.scopedName(db, strings.ToLower(m[1])) {
 			out = append(out, strings.ToLower(m[1]))
 		}
 	}
