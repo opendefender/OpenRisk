@@ -355,3 +355,27 @@ func TestInheritedCoverage_UnknownFrameworkIsNotFound(t *testing.T) {
 		t.Fatal("another tenant's framework must not be readable")
 	}
 }
+
+// The far-end control lookups are judged at the use case's own clock, the same
+// instant it hands to CountCoveringByFramework, never at the repository's wall
+// clock (#419).
+func TestInheritedCoverage_LooksUpControlsAtItsOwnClock(t *testing.T) {
+	f := setupCoverage(t)
+	frozen := time.Date(2026, 3, 1, 9, 0, 0, 0, time.UTC)
+	f.uc.WithClock(func() time.Time { return frozen })
+
+	f.link(f.iso[0], f.soc[0], domain.CoverageFull)
+	f.evidenceOn(f.iso[0], 1)
+
+	if _, err := f.uc.Execute(context.Background(), f.tenant, f.socID); err != nil {
+		t.Fatalf("execute: %v", err)
+	}
+	if len(f.repo.seenGetControlAsOf) == 0 {
+		t.Fatal("no control lookup was made")
+	}
+	for i, at := range f.repo.seenGetControlAsOf {
+		if !at.Equal(frozen) {
+			t.Fatalf("lookup %d judged at %v, want the injected clock %v", i, at, frozen)
+		}
+	}
+}

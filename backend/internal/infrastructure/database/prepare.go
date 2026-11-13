@@ -59,7 +59,41 @@ func PrepareForAutoMigrate(db *gorm.DB) error {
 	if err := prepareScanJobType(db); err != nil {
 		return fmt.Errorf("scan_jobs: %w", err)
 	}
+	if err := prepareRealtimeOutbox(db); err != nil {
+		return fmt.Errorf("realtime_events: %w", err)
+	}
 	return nil
+}
+
+// prepareRealtimeOutbox adds realtime_events.published_at (#344, ADR 0010) with
+// a fast default, so every row that exists now reads as published at this
+// moment, and then drops the default so new rows are born NULL (pending).
+//
+// It has to happen here, not only in migrations/0085: the compose files boot
+// with DB_HOST and no DATABASE_URL, which skips the SQL layer. AutoMigrate
+// would then add the column with every row NULL and the relay would republish
+// the whole retention window to every connected client (#757 pattern). The
+// other four outbox columns, the partial index and the counter table are
+// additive and AutoMigrate creates them.
+//
+// Runs only while the column is absent, so a second call changes nothing. Two
+// replicas booting together may both see it absent: ADD COLUMN IF NOT EXISTS
+// makes the loser wait on the winner's table lock and then skip, and its DROP
+// DEFAULT finds no default to drop, which is harmless. Only the winner
+// backfills. A no-op outside Postgres and on a fresh database.
+func prepareRealtimeOutbox(db *gorm.DB) error {
+	if db.Dialector.Name() != "postgres" {
+		return nil
+	}
+	if !db.Migrator().HasTable("realtime_events") || db.Migrator().HasColumn("realtime_events", "published_at") {
+		return nil
+	}
+	return db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Exec(`ALTER TABLE realtime_events ADD COLUMN IF NOT EXISTS published_at TIMESTAMPTZ DEFAULT now()`).Error; err != nil {
+			return err
+		}
+		return tx.Exec(`ALTER TABLE realtime_events ALTER COLUMN published_at DROP DEFAULT`).Error
+	})
 }
 
 // retireStarterPlan moves every organisation still on the legacy 'starter'

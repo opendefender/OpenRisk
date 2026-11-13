@@ -476,6 +476,9 @@ func (r *GormRiskRepository) MonthlyRiskTrend(ctx context.Context, tenantID uuid
 	if months <= 0 {
 		months = 6
 	}
+	// The wall clock is correct here (#419): the only caller, the executive
+	// dashboard, owns no clock seam, so "this month" means the same month to
+	// both of them.
 	now := time.Now().UTC()
 	since := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.UTC).AddDate(0, -(months - 1), 0)
 

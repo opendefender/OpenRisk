@@ -53,7 +53,7 @@ func newAssetImportApp(t *testing.T) *assetImportApp {
 		c.Locals("permissions", *h.perms)
 		return c.Next()
 	})
-	handler := NewAssetImportHandler(assetuc.NewImportAssetsUseCase(repository.RunAssetTx(db), repository.ListAssetNames(db)))
+	handler := NewAssetImportHandler(assetuc.NewImportAssetsUseCase(repository.RunAssetTx(db, nil), repository.ListAssetNames(db)))
 	app.Post("/api/v1/assets/import", middleware.RequirePermission("assets:create"), handler.ImportAssets)
 	h.app = app
 	return h

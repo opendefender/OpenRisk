@@ -30,7 +30,7 @@ import (
 // A narrow port rather than domain.ComplianceRepository so the library cannot
 // quietly grow the ability to mutate the control register.
 type ControlLookup interface {
-	GetControlByID(ctx context.Context, id uuid.UUID, tenantID uuid.UUID) (*domain.ComplianceControl, error)
+	GetControlByID(ctx context.Context, id uuid.UUID, tenantID uuid.UUID, asOf time.Time) (*domain.ComplianceControl, error)
 	ListControlsByFramework(ctx context.Context, tenantID uuid.UUID, frameworkID uuid.UUID) ([]domain.ComplianceControl, error)
 	GetFrameworkByID(ctx context.Context, id uuid.UUID, tenantID uuid.UUID) (*domain.ComplianceFramework, error)
 	ListFrameworks(ctx context.Context, tenantID uuid.UUID) ([]domain.ComplianceFramework, error)
@@ -276,7 +276,7 @@ func (s *Service) List(ctx context.Context, tenantID uuid.UUID, f domain.Evidenc
 
 // ListByControl returns the artifacts attached to one control.
 func (s *Service) ListByControl(ctx context.Context, tenantID, controlID uuid.UUID) ([]domain.Evidence, error) {
-	control, err := s.controls.GetControlByID(ctx, controlID, tenantID)
+	control, err := s.controls.GetControlByID(ctx, controlID, tenantID, s.now())
 	if err != nil {
 		return nil, err
 	}
@@ -485,11 +485,12 @@ func (s *Service) Unlink(ctx context.Context, tenantID, evidenceID, controlID uu
 // tenant's. All-or-nothing: a partial link would leave the user believing they
 // attached proof to controls they did not.
 func (s *Service) assertControlsOwned(ctx context.Context, tenantID uuid.UUID, ids []uuid.UUID) error {
+	now := s.now()
 	for _, cid := range ids {
 		if cid == uuid.Nil {
 			return domain.NewValidationError("invalid control id")
 		}
-		c, err := s.controls.GetControlByID(ctx, cid, tenantID)
+		c, err := s.controls.GetControlByID(ctx, cid, tenantID, now)
 		if err != nil {
 			return err
 		}
@@ -543,7 +544,7 @@ func (s *Service) decorateMany(ctx context.Context, tenantID uuid.UUID, items []
 	refs := make(map[uuid.UUID]domain.EvidenceControlRef, len(controlIDs))
 	frameworkNames := map[uuid.UUID]string{}
 	for cid := range controlIDs {
-		c, err := s.controls.GetControlByID(ctx, cid, tenantID)
+		c, err := s.controls.GetControlByID(ctx, cid, tenantID, now)
 		if err != nil || c == nil {
 			// A link to a control that has since been deleted: skip the label rather
 			// than fail the read. The link is cleaned up when the control's framework

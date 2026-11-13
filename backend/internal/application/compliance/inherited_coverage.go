@@ -179,7 +179,7 @@ func (uc *GetInheritedCoverageUseCase) Execute(ctx context.Context, tenantID, fr
 	now := uc.now()
 
 	for id := range farEnds {
-		c, err := uc.repo.GetControlByID(ctx, id, tenantID)
+		c, err := uc.repo.GetControlByID(ctx, id, tenantID, now)
 		if err != nil || c == nil {
 			// A crosswalk to a control that has since been deleted inherits nothing.
 			// Skipping beats failing the whole view over one stale link.

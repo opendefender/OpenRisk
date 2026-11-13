@@ -9,36 +9,42 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 
 	"github.com/opendefender/openrisk/internal/domain"
 	"github.com/opendefender/openrisk/internal/infrastructure/tenantguard"
 )
 
-// GormRealtimeEventRepository is the durable, per-tenant ordered event log.
+// GormRealtimeEventRepository is the durable, per-tenant ordered event log, and
+// the outbox store for use cases that enlist their events (ADR 0010).
 //
-// Appending is serialised per tenant so two concurrent publishers can never
-// claim the same sequence number — the same three-layer guarantee the audit
-// chain uses, for the same reason:
+// Sequences come from one counter row per tenant (realtime_event_sequences),
+// allocated by a single upsert inside the writing transaction:
 //
-//   - inside the process, a per-tenant mutex;
-//   - inside the database, the append reads the tenant's current head
-//     FOR UPDATE (Postgres);
-//   - the unique index on (tenant_id, sequence) is the final backstop: a racing
-//     insert fails loudly rather than silently forking the order.
+//   - on Postgres the upsert holds the counter row lock until that transaction
+//     ends, so two transactions of one tenant serialise there, including the
+//     very first event of a tenant, where there is no head row to lock;
+//   - the counter is seeded from MAX(sequence) of the tenant's rows and never
+//     falls below it, so a legacy tenant, or a rolling deploy where an older
+//     binary still appends by MAX+1, heals itself;
+//   - the unique index on (tenant_id, sequence) is the final backstop.
 //
-// Honest limit: the FOR UPDATE row lock is what makes this correct across
-// multiple API instances. On SQLite (tests) the locking clause is skipped and
-// the process mutex plus the unique index carry the guarantee.
+// The inline Append also keeps a per-tenant process mutex, which only spares
+// the database a futile round of lock waits inside one process; it is not what
+// makes the order correct, and the transaction-bound Enlist does not use it (a
+// process mutex must never wrap a business transaction).
 type GormRealtimeEventRepository struct {
 	db *gorm.DB
 
 	mu    sync.Mutex
 	locks map[uuid.UUID]*sync.Mutex
+
+	// wake is called after a transaction that enlisted events has committed.
+	wake atomic.Pointer[func()]
 }
 
 // NewGormRealtimeEventRepository builds the durable event log.
@@ -57,10 +63,6 @@ func (r *GormRealtimeEventRepository) tenantLock(tenantID uuid.UUID) *sync.Mutex
 	return l
 }
 
-func (r *GormRealtimeEventRepository) supportsRowLock() bool {
-	return r.db.Dialector.Name() == "postgres"
-}
-
 // maxReplayLimit caps one replay response.
 //
 // A reconnecting client asks for everything it missed; without a cap, a client
@@ -70,7 +72,9 @@ func (r *GormRealtimeEventRepository) supportsRowLock() bool {
 // received — so the cap costs nothing and removes the burst.
 const maxReplayLimit = 500
 
-// Append assigns the next per-tenant sequence and stores the event.
+// Append assigns the next per-tenant sequence and stores the event, already
+// marked published: this is the post-commit path, the publisher delivers it
+// right after, and the relay must never see it.
 //
 // The caller's Sequence is ignored and overwritten: a publisher can never choose
 // its own position in a tenant's order.
@@ -89,6 +93,8 @@ func (r *GormRealtimeEventRepository) Append(ctx context.Context, e *domain.Real
 		e.OccurredAt = now
 	}
 	e.CreatedAt = now
+	e.PublishedAt = &now
+	e.AbandonedAt, e.LockedUntil, e.Attempts, e.LastError = nil, nil, 0, ""
 
 	lock := r.tenantLock(e.TenantID)
 	lock.Lock()
@@ -100,24 +106,114 @@ func (r *GormRealtimeEventRepository) Append(ctx context.Context, e *domain.Real
 	// every mutation produce two entries.
 	return r.db.WithContext(ctx).Session(&gorm.Session{SkipHooks: true}).
 		Transaction(func(tx *gorm.DB) error {
-			q := tx.Model(&domain.RealtimeEvent{}).Where("tenant_id = ?", e.TenantID)
-			if r.supportsRowLock() {
-				q = q.Clauses(clause.Locking{Strength: "UPDATE"})
+			first, err := allocateRealtimeSequence(tx, e.TenantID, 1)
+			if err != nil {
+				return err
 			}
-			var head domain.RealtimeEvent
-			err := q.Order("sequence DESC").Limit(1).Take(&head).Error
-			switch {
-			case err == nil:
-				e.Sequence = head.Sequence + 1
-			case err == gorm.ErrRecordNotFound:
-				// Sequences start at 1 so that zero can mean "no cursor yet"
-				// without ambiguity on the wire.
-				e.Sequence = 1
-			default:
-				return fmt.Errorf("failed to read realtime log head: %w", err)
-			}
+			e.Sequence = first
 			return tx.Create(e).Error
 		})
+}
+
+// allocateRealtimeSequence reserves n consecutive sequences for a tenant inside
+// tx and returns the first. The upsert takes the counter row lock, which tx
+// holds until it ends.
+func allocateRealtimeSequence(tx *gorm.DB, tenantID uuid.UUID, n int) (int64, error) {
+	greatest := "GREATEST"
+	if tx.Dialector.Name() == "sqlite" {
+		greatest = "MAX"
+	}
+	var last int64
+	err := tx.Raw(`INSERT INTO realtime_event_sequences (tenant_id, last_sequence, updated_at)
+VALUES (?, COALESCE((SELECT MAX(sequence) FROM realtime_events WHERE tenant_id = ?), 0) + ?, ?)
+ON CONFLICT (tenant_id) DO UPDATE
+   SET last_sequence = `+greatest+`(realtime_event_sequences.last_sequence,
+                                  COALESCE((SELECT MAX(sequence) FROM realtime_events WHERE tenant_id = ?), 0)) + ?,
+       updated_at = excluded.updated_at
+RETURNING last_sequence`,
+		tenantID, tenantID, n, time.Now().UTC(), tenantID, n).Scan(&last).Error
+	if err != nil {
+		return 0, fmt.Errorf("failed to allocate realtime sequence: %w", err)
+	}
+	return last - int64(n) + 1, nil
+}
+
+// OnEnlistCommitted registers the function called after a transaction that
+// enlisted events has committed (it wakes the relay). Set once at boot.
+func (r *GormRealtimeEventRepository) OnEnlistCommitted(wake func()) {
+	if wake == nil {
+		r.wake.Store(nil)
+		return
+	}
+	r.wake.Store(&wake)
+}
+
+// notifyEnlistCommitted calls the registered wake function, if any. The
+// function must not block.
+func (r *GormRealtimeEventRepository) notifyEnlistCommitted() {
+	if w := r.wake.Load(); w != nil {
+		(*w)()
+	}
+}
+
+// Bind returns the outbox bound to tx, the caller's open transaction.
+func (r *GormRealtimeEventRepository) Bind(tx *gorm.DB) *TxRealtimeOutbox {
+	return &TxRealtimeOutbox{tx: tx}
+}
+
+// TxRealtimeOutbox writes events inside the caller's transaction. It implements
+// domain.RealtimeEventOutbox.
+type TxRealtimeOutbox struct {
+	tx       *gorm.DB
+	enlisted int
+}
+
+// Enlisted is how many events this transaction has enlisted so far.
+func (o *TxRealtimeOutbox) Enlisted() int { return o.enlisted }
+
+// Enlist stores events as unpublished rows in the caller's transaction, with
+// consecutive per-tenant sequences in slice order. Every event must carry an id
+// and the same non-nil tenant; anything else is a validation error, which rolls
+// the caller back rather than storing a row in the wrong place.
+//
+// It must be the LAST write of the transaction: the tenant's sequence counter
+// stays locked until commit.
+func (o *TxRealtimeOutbox) Enlist(ctx context.Context, events ...*domain.RealtimeEvent) error {
+	if len(events) == 0 {
+		return nil
+	}
+	var tenant uuid.UUID
+	for i, e := range events {
+		if e == nil || e.ID == uuid.Nil || e.TenantID == uuid.Nil {
+			return domain.NewValidationError("realtime outbox: every event needs an id and a tenant")
+		}
+		if i == 0 {
+			tenant = e.TenantID
+		} else if e.TenantID != tenant {
+			return domain.NewValidationError("realtime outbox: all events of one call must belong to one tenant")
+		}
+	}
+	// SkipHooks: see Append. Same transaction as the caller.
+	s := o.tx.WithContext(ctx).Session(&gorm.Session{SkipHooks: true})
+	first, err := allocateRealtimeSequence(s, tenant, len(events))
+	if err != nil {
+		return err
+	}
+	now := time.Now().UTC()
+	for i, e := range events {
+		e.Sequence = first + int64(i)
+		e.CreatedAt = now
+		if e.OccurredAt.IsZero() {
+			e.OccurredAt = now
+		}
+		e.PublishedAt, e.AbandonedAt, e.LockedUntil = nil, nil, nil
+		e.Attempts, e.LastError = 0, ""
+	}
+	if err := s.CreateInBatches(events, 200).Error; err != nil {
+		return fmt.Errorf("failed to enlist realtime events: %w", err)
+	}
+	o.enlisted += len(events)
+	return nil
 }
 
 // Replay returns the tenant's events after a cursor, oldest first.
@@ -174,10 +270,12 @@ func (r *GormRealtimeEventRepository) Bounds(ctx context.Context, tenantID uuid.
 	return oldest, newest, nil
 }
 
-// PurgeBefore drops events older than cutoff, across all tenants.
+// PurgeBefore drops events older than cutoff, across all tenants. A row still
+// waiting for the relay is never purged, whatever its age: it is an
+// announcement not yet made, and legacy rows read as published (migration 0085).
 func (r *GormRealtimeEventRepository) PurgeBefore(ctx context.Context, cutoff time.Time) (int64, error) {
 	res := tenantguard.CrossTenant(r.db.WithContext(ctx), "realtime event retention purge across every tenant").Session(&gorm.Session{SkipHooks: true}).
-		Where("created_at < ?", cutoff.UTC()).
+		Where("created_at < ? AND (published_at IS NOT NULL OR abandoned_at IS NOT NULL)", cutoff.UTC()).
 		Delete(&domain.RealtimeEvent{})
 	if res.Error != nil {
 		return 0, fmt.Errorf("failed to purge realtime events: %w", res.Error)

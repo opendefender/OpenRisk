@@ -14,6 +14,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 
 	assetuc "github.com/opendefender/openrisk/internal/application/asset"
+	"github.com/opendefender/openrisk/internal/middleware"
 )
 
 // AssetImportHandler serves POST /assets/import (#861).
@@ -60,7 +61,9 @@ func (h *AssetImportHandler) ImportAssets(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "validation_failed", "message": "The file cannot be read."})
 	}
 
-	result, err := h.uc.Execute(c.UserContext(), tenantID(c), assetuc.ImportAssetsInput{CSV: data})
+	result, err := h.uc.Execute(c.UserContext(), tenantID(c), assetuc.ImportAssetsInput{
+		CSV: data, ActorID: userID(c), CorrelationID: middleware.RequestID(c),
+	})
 	if err != nil {
 		var rej *assetuc.ImportRejectedError
 		if errors.As(err, &rej) {

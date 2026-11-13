@@ -199,13 +199,13 @@ func TestGetControlByID_CrossTenantReturnsNil(t *testing.T) {
 	}))
 
 	// TenantA can access it
-	got, err := repo.GetControlByID(ctx, controlID, tenantA)
+	got, err := repo.GetControlByID(ctx, controlID, tenantA, time.Now())
 	require.NoError(t, err)
 	require.NotNil(t, got, "TenantA must see its own control")
 	assert.Equal(t, "A.5.1.1 Policies for information security", got.Name)
 
 	// TenantB CANNOT access it (cross-tenant → nil, nil = 404)
-	got, err = repo.GetControlByID(ctx, controlID, tenantB)
+	got, err = repo.GetControlByID(ctx, controlID, tenantB, time.Now())
 	require.NoError(t, err)
 	assert.Nil(t, got, "Cross-tenant access must return nil (404), not an error or data leak")
 }
@@ -274,7 +274,7 @@ func TestDeleteControl_CrossTenantReturnsError(t *testing.T) {
 	assert.Contains(t, err.Error(), "not found")
 
 	// Verify the control still exists for tenantA
-	got, err := repo.GetControlByID(ctx, controlID, tenantA)
+	got, err := repo.GetControlByID(ctx, controlID, tenantA, time.Now())
 	require.NoError(t, err)
 	require.NotNil(t, got, "Control must still exist after cross-tenant delete attempt")
 }
@@ -307,7 +307,7 @@ func TestUpdateControl_CrossTenantFails(t *testing.T) {
 	require.Error(t, err, "Cross-tenant update must fail")
 
 	// Verify original data is untouched
-	got, err := repo.GetControlByID(ctx, controlID, tenantA)
+	got, err := repo.GetControlByID(ctx, controlID, tenantA, time.Now())
 	require.NoError(t, err)
 	require.NotNil(t, got)
 	assert.Equal(t, "Original Name", got.Name)
@@ -382,7 +382,7 @@ func TestCountEvidencesByFramework_ScopedByTenantAndFramework(t *testing.T) {
 	expired := time.Now().Add(-24 * time.Hour)
 	attach(t, evRepo, tenantA, ctrl2, &expired)
 
-	counts, err := repo.CountEvidencesByFramework(ctx, tenantA, frameworkID)
+	counts, err := repo.CountEvidencesByFramework(ctx, tenantA, frameworkID, time.Now())
 	require.NoError(t, err)
 	assert.Equal(t, 2, counts[ctrl1], "ctrl1 must count only tenantA's 2 evidences, not the stray tenantB one")
 	assert.Equal(t, 1, counts[ctrl2])
@@ -390,7 +390,7 @@ func TestCountEvidencesByFramework_ScopedByTenantAndFramework(t *testing.T) {
 	assert.Len(t, counts, 2, "only tenantA controls with evidence in this framework appear")
 
 	// tenantB sees only its own control's single evidence.
-	countsB, err := repo.CountEvidencesByFramework(ctx, tenantB, frameworkID)
+	countsB, err := repo.CountEvidencesByFramework(ctx, tenantB, frameworkID, time.Now())
 	require.NoError(t, err)
 	assert.Equal(t, 1, countsB[ctrl1B])
 	assert.Len(t, countsB, 1)
@@ -447,4 +447,85 @@ func TestCreateControl_DuplicateReferenceCode_Conflict(t *testing.T) {
 		ReferenceCode: "A.5.1.1", Name: "Same code, different tenant",
 	})
 	require.NoError(t, err)
+}
+
+// =============================================================================
+// #419 — evidence validity is judged at the caller's instant, never time.Now()
+//
+// The compliance repository used to read the wall clock inside both evidence
+// predicates, while the evidence service judges the same valid_until with its
+// injected clock (domain.Evidence.Covers). In production both are the wall
+// clock, so nothing showed; the moment anything set a clock, the two answered
+// different questions about the same artifact. Same class of defect as #409.
+//
+// The expiry instant is fixed in the past on purpose: against the old code,
+// every "before expiry" case reads zero, so these tests cannot pass by luck.
+// They never depend on the wall clock, so they cannot expire either.
+// =============================================================================
+
+var evidenceExpiry419 = time.Date(2026, 8, 27, 9, 0, 0, 0, time.UTC)
+
+// evidenceBoundaryCases pins the predicate at the expiry instant itself:
+// `valid_until > asOf`, so proof whose valid_until IS asOf has lapsed, exactly
+// as domain.Evidence.Covers decides. A drift to >= fails "exactly at expiry".
+var evidenceBoundaryCases = []struct {
+	name string
+	asOf time.Time
+	want int
+}{
+	{"a day before expiry it covers", evidenceExpiry419.Add(-24 * time.Hour), 1},
+	{"a second before expiry it covers", evidenceExpiry419.Add(-time.Second), 1},
+	{"exactly at expiry it has lapsed", evidenceExpiry419, 0},
+	{"a day after expiry it has lapsed", evidenceExpiry419.Add(24 * time.Hour), 0},
+}
+
+func TestGetControlByID_JudgesEvidenceExpiryAgainstTheGivenInstant(t *testing.T) {
+	repo, evRepo := setupComplianceRepoWithEvidence(t)
+	ctx := context.Background()
+	tenantA, tenantB := uuid.New(), uuid.New()
+
+	ctrl := &domain.ComplianceControl{ID: uuid.New(), TenantID: tenantA, FrameworkID: uuid.New(), ReferenceCode: "A.5.28", Name: "Collection of evidence"}
+	require.NoError(t, repo.CreateControl(ctx, ctrl))
+	expiry := evidenceExpiry419
+	attach(t, evRepo, tenantA, ctrl.ID, &expiry)
+
+	for _, tc := range evidenceBoundaryCases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := repo.GetControlByID(ctx, ctrl.ID, tenantA, tc.asOf)
+			require.NoError(t, err)
+			require.NotNil(t, got)
+			assert.Equal(t, tc.want, got.EvidenceCount,
+				"EvidenceCount at %s — the count is not using the instant it was given", tc.asOf.Format(time.RFC3339))
+		})
+	}
+
+	// Still tenant-scoped at any instant: tenant B never reads tenant A's control.
+	other, err := repo.GetControlByID(ctx, ctrl.ID, tenantB, evidenceExpiry419.Add(-24*time.Hour))
+	require.NoError(t, err)
+	assert.Nil(t, other, "tenant B must not read tenant A's control")
+}
+
+func TestCountEvidencesByFramework_JudgesEvidenceExpiryAgainstTheGivenInstant(t *testing.T) {
+	repo, evRepo := setupComplianceRepoWithEvidence(t)
+	ctx := context.Background()
+	tenantA, tenantB := uuid.New(), uuid.New()
+	framework := uuid.New()
+
+	ctrl := &domain.ComplianceControl{ID: uuid.New(), TenantID: tenantA, FrameworkID: framework, ReferenceCode: "A.5.28", Name: "Collection of evidence"}
+	require.NoError(t, repo.CreateControl(ctx, ctrl))
+	expiry := evidenceExpiry419
+	attach(t, evRepo, tenantA, ctrl.ID, &expiry)
+
+	for _, tc := range evidenceBoundaryCases {
+		t.Run(tc.name, func(t *testing.T) {
+			counts, err := repo.CountEvidencesByFramework(ctx, tenantA, framework, tc.asOf)
+			require.NoError(t, err)
+			assert.Equal(t, tc.want, counts[ctrl.ID],
+				"count at %s — the count is not using the instant it was given", tc.asOf.Format(time.RFC3339))
+		})
+	}
+
+	countsB, err := repo.CountEvidencesByFramework(ctx, tenantB, framework, evidenceExpiry419.Add(-24*time.Hour))
+	require.NoError(t, err)
+	assert.Empty(t, countsB, "tenant B must not see tenant A's evidence counts")
 }

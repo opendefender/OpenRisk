@@ -190,10 +190,12 @@ handler's replay/live overlap suppression, and in the frontend client.
 ## Ordering
 
 **Guaranteed:** a total order per tenant *in the durable log*. `sequence` is a
-monotonic per-tenant counter assigned inside the append transaction, protected
-by a per-tenant mutex, a `SELECT … FOR UPDATE` on Postgres, and a unique index on
-`(tenant_id, sequence)` as the final backstop. A racing publisher fails loudly
-rather than silently forking the order.
+monotonic per-tenant counter allocated from one row per tenant
+(`realtime_event_sequences`) inside the writing transaction; the counter row
+lock is held until that transaction ends, so two transactions of one tenant
+cannot interleave their positions, including the very first event of a tenant.
+A unique index on `(tenant_id, sequence)` is the final backstop. A racing
+publisher fails loudly rather than silently forking the order.
 
 **Guaranteed:** replay is delivered oldest-first.
 
@@ -295,8 +297,14 @@ Other bounds, all enforced and all documented in `GET /realtime/catalog`:
 aggregate type and id, actor, correlation, causation, payload, occurred-at and
 created-at.
 
+Since #344 the table also carries the outbox bookkeeping (`published_at`,
+`abandoned_at`, `attempts`, `locked_until`, `last_error`, migration `0085`):
+see "Outbox / Publishing Strategy" below for which events use it.
+
 Retention is instance-wide, 24 h by default, overridable with
-`REALTIME_REPLAY_RETENTION_HOURS` (0 disables the sweep). The
+`REALTIME_REPLAY_RETENTION_HOURS` (0 disables the sweep). A row still waiting
+for the relay (neither published nor abandoned) is never purged, whatever its
+age. The
 `RealtimeRetentionWorker` sweeps hourly and once at boot. Without it the replay
 window would be "whatever the disk allows" — a promise nobody made and nobody
 can keep.
@@ -307,27 +315,75 @@ were derived from.
 
 ## Outbox / Publishing Strategy
 
-**This is an event log, not a transactional outbox, and the difference is
-stated rather than glossed over.**
+Decision: ADR `docs/adr/0010-realtime-transactional-outbox.md`, D-109.
 
-The row is appended *after* the business transaction commits. A crash in that
-window loses the event: the database says the risk changed, the stream says
-nothing.
+There are **two paths into `realtime_events`**, and the difference is stated
+rather than glossed over.
 
-Why that was accepted here:
+**Enlisted (transactional outbox).** A use case that enlists writes its event
+rows inside its own database transaction, unpublished. They commit or roll back
+with the business change, so a crash after COMMIT leaves both. A relay worker
+then publishes them after commit: it claims pending rows with a lease, delivers
+each to the local hub and to the Redis fanout, and marks it published.
 
-* the stream is **never** the source of truth. A client that misses an event and
-  later resyncs reads exactly the state the API would have given it;
-* every client already has a resync path, exercised on cursor expiry, buffer
-  overflow and gap detection;
-* a true outbox means threading a transaction handle through every mutating use
-  case in the codebase — a change far larger than this wave, and one that would
-  touch code paths this wave otherwise leaves alone.
+* **At-least-once.** A row is marked published only after delivery succeeded. A
+  crash between the two, or a lease that expires while a delivery is in flight,
+  delivers it again. Exactly-once is not claimed.
+* **Dedup key: `id`.** The event id is minted once, when the event is prepared,
+  and stored as the row's primary key. Every redelivery carries the same `id`;
+  the hub's recent-id window, the stream handler and the frontend client all
+  deduplicate on it.
+* **Order: per tenant, by `sequence`.** A tenant's rows are delivered one after
+  another in ascending `sequence`. A row that fails, is backed off or is leased
+  by another relay blocks every later row of that tenant (enforced in the claim
+  SQL). There is no order across tenants.
+* **Retry and give-up.** A failed delivery keeps the row pending, counts the
+  attempt, and backs off (1 s, doubling, capped at 5 min). After 20 attempts the
+  row is abandoned (`abandoned_at`): it stays in the table, a replay still
+  serves it, and `openrisk_realtime_outbox_abandoned_total` rises. A row that
+  keeps crashing the relay is abandoned the same way once its lease expires.
+* **Replay serves pending rows.** A committed row is a fact; `published_at` is
+  relay bookkeeping. A client that reconnects before the relay ran gets the
+  event from the replay, and the later live delivery with the same `id` is
+  absorbed by the replay/live overlap suppression. Hiding pending rows would
+  hand out replays with holes in the middle, which the client reads as a gap.
+* **Isolation.** Rows are claimed and closed per tenant, every per-row
+  statement filters on `tenant_id`, and a row with no tenant, or whose envelope
+  names another one, is never delivered and is abandoned.
+* **Metrics** (no labels, scrape-time): `openrisk_realtime_outbox_pending`,
+  `openrisk_realtime_outbox_oldest_pending_seconds`,
+  `openrisk_realtime_outbox_publish_failures_total`,
+  `openrisk_realtime_outbox_abandoned_total`,
+  `openrisk_realtime_outbox_published_total`. The two gauges are computed when
+  `/metrics` is scraped, so a dead relay shows as a growing lag instead of a
+  frozen value; on a read error they emit nothing (alert on `absent()`). Every
+  instance reports the same instance-wide value: aggregate with `max()`, never
+  `sum()`. The backlog gauges count neither published nor abandoned rows, so
+  they fall back to 0 after an abandon: the abandoned counter is the signal.
+* **Alerts** (`deployment/monitoring/alerts.yml`, tested by
+  `deployment/monitoring/realtime_outbox_alerts.test.yml`). The 20-attempt cap
+  is acceptable only because an operator is told (D-109, owner, 2026-11-13):
+  * `RealtimeOutboxEventAbandoned`, critical: any abandon in the last 15 min;
+  * `RealtimeOutboxBacklogStale`, warning: the oldest pending event is older
+    than 5 min for 5 min, long before the cap;
+  * `RealtimeOutboxMetricsAbsent`, warning: the backlog gauges have been absent
+    for 10 min.
 
-What closing it would take, if a future consumer needs it: give the repositories
-a transaction-scoped variant, have the mutation bridge enlist in the caller's
-transaction, and add a publisher worker that drains unpublished rows. The table
-is already shaped for it — it only lacks a `published_at` column and the worker.
+**Enlisted events today: `asset.created` from `POST /assets/import` only**, one
+event per imported asset. Everything else is on the inline path.
+
+**Inline (post-commit).** `Publisher.Publish` appends the row after the business
+transaction commits, stores it already published, and delivers it. A crash in
+that window loses the event: the database says the risk changed, the stream says
+nothing. This was accepted because the stream is **never** the source of truth:
+a client that misses an event and later resyncs reads exactly the state the API
+would have given it, and every client already has a resync path (cursor expiry,
+buffer overflow, gap detection). Enlisting a use case needs a transaction handle
+through it, so it is done one use case at a time.
+
+A request whose use case enlisted its events publishes nothing through the
+post-commit bridge (a request-scoped mark), so a change is never announced twice
+under two ids.
 
 ## Canonical Domain Events
 
@@ -623,8 +679,12 @@ ordering and audit correlation all proved live. A defect the live run found
 
 ## Known Limitations
 
-1. Not a transactional outbox — the append follows the commit, so a crash in
-   between loses the event.
+1. Only the enlisted events are transactional: `asset.created` from
+   `POST /assets/import`. Every other mutation, including a single
+   `asset.created` through `POST /assets`, stays on the post-commit path, so a
+   crash between the commit and the append loses that event. An inline event can
+   also overtake enlisted rows still waiting for the relay; the client sees the
+   gap in `sequence` and resyncs.
 2. At-least-once, not exactly-once. Ordering is total only within the log.
 3. Authorization at connect: a session revoked mid-stream keeps its stream until
    it ends.
@@ -642,8 +702,8 @@ ordering and audit correlation all proved live. A defect the live run found
 ## Follow-up Work
 
 1. **Load test** the hub and publish real numbers.
-2. **Close the outbox gap** for events where losing one matters, by enlisting
-   the append in the caller's transaction and adding a drain worker.
+2. **Enlist the remaining mutations** in the outbox, one use case at a time
+   (follow-up issue to be opened with the #344 PR: `After merge: #<m>`).
 3. **Wire the notification centre** to the stream so a notification appears
    without a refetch.
 4. **Retire the three legacy SSE endpoints** once nothing calls them.

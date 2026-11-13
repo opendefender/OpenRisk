@@ -62,6 +62,12 @@ func (r *GormSessionRepository) ListByUser(ctx context.Context, userID uuid.UUID
 		// A rotated token is spent: it stays in the table for reuse detection
 		// only, and its successor is the live session. Listing it would show one
 		// device once per refresh.
+		//
+		// The wall clock is correct here, not a missing parameter (#419): a
+		// session lives or dies by internal/auth.TokenManager, which issues and
+		// refreshes it against time.Now() too, and no caller of this repository
+		// (application/auth/sessions.go) owns an injected clock. Listing on any
+		// other clock could show a session the token manager would refuse.
 		Where("user_id = ? AND expires_at > ? AND rotated_at IS NULL", userID, time.Now()).
 		Order("COALESCE(last_used_at, created_at) DESC").
 		Find(&tokens).Error
@@ -139,6 +145,8 @@ func (r *GormSessionRepository) HasLiveSession(ctx context.Context, userID, fami
 	var n int64
 	err := tenantguard.CrossTenant(r.db.WithContext(ctx), "a user's own sessions span every organisation they belong to").Model(&sessionRow{}).
 		// Account-wide on purpose, no tenant_id: a session belongs to its user.
+		//
+		// Wall clock on purpose, for the reason given in ListByUser (#419).
 		Where("user_id = ? AND family_id = ? AND rotated_at IS NULL AND expires_at > ?", userID, family, time.Now()).
 		Count(&n).Error
 	return n > 0, err

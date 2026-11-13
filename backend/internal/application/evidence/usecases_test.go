@@ -187,9 +187,12 @@ func (r *fakeRepo) MarkReminded(context.Context, uuid.UUID, uuid.UUID, time.Time
 type fakeControls struct {
 	controls   map[uuid.UUID]domain.ComplianceControl
 	frameworks map[uuid.UUID]domain.ComplianceFramework
+	// seenAsOf records the instant every control lookup was judged at (#419).
+	seenAsOf []time.Time
 }
 
-func (f *fakeControls) GetControlByID(_ context.Context, id, tenantID uuid.UUID) (*domain.ComplianceControl, error) {
+func (f *fakeControls) GetControlByID(_ context.Context, id, tenantID uuid.UUID, asOf time.Time) (*domain.ComplianceControl, error) {
+	f.seenAsOf = append(f.seenAsOf, asOf)
 	c, ok := f.controls[id]
 	if !ok || c.TenantID != tenantID {
 		return nil, nil
@@ -502,3 +505,30 @@ func TestDownload_RefusesEvidenceThatHoldsNoFile(t *testing.T) {
 }
 
 func evAt(t time.Time) *time.Time { return &t }
+
+// The control lookups judge evidence validity at the service's own clock, not
+// at the repository's wall clock (#419): the service and the count it reads
+// must agree about whether the same artifact has expired.
+func TestService_LooksUpControlsAtItsOwnClock(t *testing.T) {
+	f := setup(t)
+	ctx := context.Background()
+
+	if _, err := f.svc.Create(ctx, f.tenant, CreateInput{
+		Title: "ISO certificate 2026", Type: "attestation", Filename: "iso.pdf",
+		Content: strings.NewReader("PDF"), ControlIDs: []uuid.UUID{f.c1, f.c2},
+	}); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	if _, err := f.svc.ListByControl(ctx, f.tenant, f.c1); err != nil {
+		t.Fatalf("ListByControl: %v", err)
+	}
+
+	if len(f.controls.seenAsOf) == 0 {
+		t.Fatal("no control lookup was made")
+	}
+	for i, at := range f.controls.seenAsOf {
+		if !at.Equal(f.now) {
+			t.Fatalf("lookup %d judged at %v, want the injected clock %v", i, at, f.now)
+		}
+	}
+}

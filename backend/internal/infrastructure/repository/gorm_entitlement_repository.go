@@ -50,7 +50,13 @@ func (r *GormEntitlementRepository) PlanAndRegion(ctx context.Context, tenant uu
 // Count returns the current usage of a capped resource for a tenant. "Integrations"
 // aggregates the two configurable outbound connectors (vulnerability integrations +
 // scanner configs). Unknown keys count as 0 (never blocks).
-func (r *GormEntitlementRepository) Count(ctx context.Context, tenant uuid.UUID, key ent.LimitKey) (int, error) {
+//
+// asOf is the caller's instant, never the wall clock read here: it decides
+// which pending invitations are still redeemable and which month is "this
+// month", and the entitlements service judges the plan and trial with its own
+// injected clock. Two clocks would let one request see a trial as live and a
+// seat as expired at the same time (#419).
+func (r *GormEntitlementRepository) Count(ctx context.Context, tenant uuid.UUID, key ent.LimitKey, asOf time.Time) (int, error) {
 	// A nil tenant counts nobody's rows. Answered before any query so the tenant
 	// guard never sees a statement bound to uuid.Nil (#808).
 	if tenant == uuid.Nil {
@@ -69,7 +75,7 @@ func (r *GormEntitlementRepository) Count(ctx context.Context, tenant uuid.UUID,
 			return 0, err
 		}
 		if err := db.Model(&domain.Invitation{}).
-			Where("organization_id = ? AND status = ? AND expires_at > ?", tenant, domain.InvitationPending, time.Now().UTC()).
+			Where("organization_id = ? AND status = ? AND expires_at > ?", tenant, domain.InvitationPending, asOf.UTC()).
 			Count(&pending).Error; err != nil {
 			return 0, err
 		}
@@ -113,7 +119,7 @@ func (r *GormEntitlementRepository) Count(ctx context.Context, tenant uuid.UUID,
 	case ent.LimitScansPerMonth:
 		// Every job started this calendar month (UTC), whoever started it: a
 		// click, the scheduler or an automation rule.
-		now := time.Now().UTC()
+		now := asOf.UTC()
 		since := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.UTC)
 		if err := db.Model(&domain.ScanJob{}).
 			Where("tenant_id = ? AND created_at >= ?", tenant, since).Count(&n).Error; err != nil {
