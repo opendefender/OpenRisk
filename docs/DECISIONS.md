@@ -9,6 +9,30 @@ recommends, and surfaces these in the daily brief. Run `/decide` to clear them.
 
 ## Resolved
 
+### D-110 — Risk bulk actions: legacy route sunset date, and assign_to left out of the governed routes · decided 2026-11-13
+**Decided (agent, 2026-11-13)** — #599.
+
+**Question** — #599 moves the risk register onto the governed bulk engine (one route per
+action, preview, fingerprint). Criterion 5 asks for the legacy body-driven
+`POST /risks/bulk` to be removed or deprecated with a date. Separately, `assign_to` is one
+of #581's five actions; should it move too?
+
+**Options**
+- Sunset: (a) remove the legacy route now; (b) deprecate with a date.
+- assign_to: (a) port it as is; (b) port it with a tenant-membership check; (c) leave it on
+  the deprecated route and track it in its own issue.
+
+**Choice** — Sunset (b): `Deprecation: true` and `Sunset: Wed, 31 Mar 2027` on every
+response, with a `Link` to the governed routes. A delete there still needs `risks:delete`
+(#1423). assign_to (c).
+
+**Reason** — Removing the route now would break any API client in the field without notice.
+The UI already uses the governed route, and four and a half months is enough for an API
+client to migrate. For assign_to, the single-row assignment validates that the assignee is
+an active member of the tenant through the ownership manager. The bulk path sets the legacy
+`assigned_to` column with no such check. Porting it as is would give a governed route a
+weaker guarantee than the row route. Porting it properly means building on the ownership
+manager, which is its own piece of work (#1426).
 ### D-109 — Realtime outbox: where the sequence comes from inside a business transaction, and what happens to an event that never goes out · decided 2026-11-12
 **Decided (agent: tech-lead, 2026-11-12, under D-089)** — ADR 0010, #344. Tenant isolation and
 structural design, so an agent decides it and records it here. The owner can overturn it.

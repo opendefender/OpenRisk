@@ -322,3 +322,52 @@ func (s *AssetBulkStore) ApplyBulk(
 func (s *AssetBulkStore) DeleteBulk(ctx context.Context, tenantID uuid.UUID, ids []uuid.UUID) ([]domain.BulkMutation, error) {
 	return bulkDelete(ctx, s.db, tenantID, ids, "asset", assetRow)
 }
+
+// ===========================================================================
+// Risks — change_status + add_tags + remove_tags + delete (#599)
+// ===========================================================================
+
+// RiskBulkStore puts the risk register on the shared engine, so it gets the
+// preview, the fingerprint and one route per action like the registers built
+// after it. What a risk bulk change does to a row lives in the domain
+// (Risk.ApplyBulkChange); this store only reads and writes, tenant-scoped.
+type RiskBulkStore struct{ db *gorm.DB }
+
+// NewRiskBulkStore wires the store.
+func NewRiskBulkStore(db *gorm.DB) *RiskBulkStore { return &RiskBulkStore{db: db} }
+
+func (s *RiskBulkStore) EntityType() string { return "risk" }
+
+func (s *RiskBulkStore) SupportedBulkActions() []domain.BulkAction {
+	out := make([]domain.BulkAction, len(domain.RiskBulkActions))
+	copy(out, domain.RiskBulkActions)
+	return out
+}
+
+func (s *RiskBulkStore) ValidateBulkChange(change domain.BulkChange) error {
+	return domain.ValidateRiskBulkChange(change)
+}
+
+// PredictBulk implements domain.BulkPredictor: a status change moves the
+// canonical state and the phase as well, and the preview must say so.
+func (s *RiskBulkStore) PredictBulk(row domain.BulkRow, change domain.BulkChange) map[string]interface{} {
+	return domain.PredictRiskBulk(row, change)
+}
+
+func (s *RiskBulkStore) LoadBulk(ctx context.Context, tenantID uuid.UUID, ids []uuid.UUID) ([]domain.BulkRow, error) {
+	return bulkLoad(ctx, s.db, tenantID, ids, "risk", domain.RiskBulkRow)
+}
+
+func (s *RiskBulkStore) ApplyBulk(
+	ctx context.Context, tenantID uuid.UUID, ids []uuid.UUID, change domain.BulkChange,
+) ([]domain.BulkMutation, error) {
+	return bulkApply(ctx, s.db, tenantID, ids, "risk", domain.RiskBulkRow,
+		func(r *domain.Risk) error {
+			r.ApplyBulkChange(change)
+			return nil
+		})
+}
+
+func (s *RiskBulkStore) DeleteBulk(ctx context.Context, tenantID uuid.UUID, ids []uuid.UUID) ([]domain.BulkMutation, error) {
+	return bulkDelete(ctx, s.db, tenantID, ids, "risk", domain.RiskBulkRow)
+}

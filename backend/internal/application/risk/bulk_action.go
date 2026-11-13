@@ -8,7 +8,6 @@ package risk
 import (
 	"context"
 	"fmt"
-	"sort"
 	"time"
 
 	"github.com/google/uuid"
@@ -198,7 +197,7 @@ func (uc *BulkActionUseCase) Execute(
 		return uc.apply(ctx, tenantID, ids, performedBy, input,
 			fmt.Sprintf("bulk add tags %v", input.Tags),
 			func(r *domain.Risk) error {
-				r.Tags = addTags(r.Tags, input.Tags)
+				r.Tags = domain.AddTags(r.Tags, input.Tags)
 				return nil
 			})
 
@@ -213,7 +212,7 @@ func (uc *BulkActionUseCase) Execute(
 		return uc.apply(ctx, tenantID, ids, performedBy, input,
 			fmt.Sprintf("bulk remove tags %v", input.Tags),
 			func(r *domain.Risk) error {
-				r.Tags = removeTags(r.Tags, input.Tags)
+				r.Tags = domain.RemoveTags(r.Tags, input.Tags)
 				return nil
 			})
 
@@ -380,48 +379,4 @@ func distinctIDs(ids []uuid.UUID) ([]uuid.UUID, error) {
 		out = append(out, id)
 	}
 	return out, nil
-}
-
-// addTags unions the two sets and returns a SORTED slice.
-//
-// The order is sorted rather than map-iteration order, which is what the
-// previous implementation returned: Go randomises map iteration, so the same
-// request produced a different column order on every call and every write looked
-// like a change in the trail.
-func addTags(existing, added []string) []string {
-	set := make(map[string]struct{}, len(existing)+len(added))
-	for _, t := range existing {
-		set[t] = struct{}{}
-	}
-	for _, t := range added {
-		set[t] = struct{}{}
-	}
-	return sortedKeys(set)
-}
-
-// removeTags subtracts the given tags. A tag the risk does not carry is a no-op,
-// never an error — asking to remove a label that is already absent has got the
-// outcome the caller wanted.
-func removeTags(existing, removed []string) []string {
-	drop := make(map[string]struct{}, len(removed))
-	for _, t := range removed {
-		drop[t] = struct{}{}
-	}
-	keep := make(map[string]struct{}, len(existing))
-	for _, t := range existing {
-		if _, gone := drop[t]; gone {
-			continue
-		}
-		keep[t] = struct{}{}
-	}
-	return sortedKeys(keep)
-}
-
-func sortedKeys(set map[string]struct{}) []string {
-	out := make([]string, 0, len(set))
-	for k := range set {
-		out = append(out, k)
-	}
-	sort.Strings(out)
-	return out
 }
