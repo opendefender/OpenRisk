@@ -842,12 +842,12 @@ const LegacyBulkSunset = "Wed, 31 Mar 2027 00:00:00 GMT"
 // remove-tags,delete}, which take the action from the route and sit behind the
 // permission that matches it.
 //
-// It refuses delete. The route is mounted behind risks:update alone and read
-// the action from the body, so any holder of risks:update could post
-// {"type":"delete"} and delete risks without holding risks:delete — the RSSI,
-// DSI, risk-owner and security-analyst presets were all in that position.
-// Deletion is now reachable only through POST /risks/bulk/delete, behind
-// risks:delete.
+// A delete on this route needs risks:delete (#1423). The route is mounted
+// behind risks:update and reads the action from the body, so without that check
+// every risks:update holder could delete risks — the RSSI, DSI, risk-owner and
+// security-analyst presets hold update without delete. Until the sunset, a
+// caller who holds risks:delete may still delete here; the governed
+// POST /risks/bulk/delete is the replacement.
 //
 // Errors are mapped through writeAppError, not flattened to 500: a stale or
 // foreign id must come back 404.
@@ -866,11 +866,18 @@ func (h *RiskHandler) BulkAction(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request body"})
 	}
 
-	// Checked before anything is read or written. The action was taken from the
-	// body behind risks:update, so this is the only place that can stop it.
-	if req.Type == risk.BulkActionDeleteRisks {
-		return writeAppError(c, domain.NewValidationError(
-			"delete is not accepted on POST /risks/bulk: use POST /risks/bulk/delete, which requires risks:delete"))
+	// #1423 (P0) — the route is mounted behind risks:update and the action comes
+	// from the body, so the route guard alone let every risks:update holder
+	// delete risks: the RSSI, DSI, risk-owner and security-analyst presets hold
+	// update without delete. A delete needs risks:delete, asked of the SAME
+	// wildcard-aware checker RequirePermission uses, before anything is read or
+	// written. POST /risks/bulk/delete (#599) is the per-route replacement.
+	if req.Type == risk.BulkActionDeleteRisks &&
+		!middleware.NewPermissionChecker(c).HasPermission("risks:delete") {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"code":    "FORBIDDEN",
+			"message": "Missing required permission: [risks:delete]",
+		})
 	}
 
 	// Identity comes from the signed session only. The tenant is what every read
