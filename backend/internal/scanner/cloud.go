@@ -113,21 +113,45 @@ func httpsEndpoint(key string) func(map[string]string) error {
 	}
 }
 
-// validateGCPTokenURI checks the token_uri inside a service-account key: the
-// SDK POSTs a signed assertion there, so it is an address the API process
-// connects to (#1315). Absent means Google's default. A key that is not JSON is
-// left to the collector, which reports it.
-func validateGCPTokenURI(creds map[string]string) error {
+// gcpTokenURIs are the token endpoints Google writes into a service-account key:
+// the current one and the legacy one older keys still carry.
+var gcpTokenURIs = map[string]bool{
+	"https://oauth2.googleapis.com/token":        true,
+	"https://accounts.google.com/o/oauth2/token": true,
+}
+
+// CheckGCPServiceAccountKey accepts only a Google service-account key
+// (GHSA-jxfm-p72g-w272). Any other credential type makes the Google auth
+// library fetch tenant-chosen URLs (an external_account's credential_source.url
+// and token_url), and the token_uri of a service account is where the SDK POSTs
+// a signed assertion, so it must be Google's. Absent means Google's default.
+// The errors never echo the key's values.
+func CheckGCPServiceAccountKey(saJSON string) error {
 	var key struct {
-		TokenURI string `json:"token_uri"`
+		Type           string `json:"type"`
+		TokenURI       string `json:"token_uri"`
+		UniverseDomain string `json:"universe_domain"`
 	}
-	if json.Unmarshal([]byte(creds["service_account_json"]), &key) != nil || strings.TrimSpace(key.TokenURI) == "" {
-		return nil
+	if strings.TrimSpace(saJSON) == "" {
+		return fmt.Errorf("credential \"service_account_json\" is empty")
 	}
-	if err := netguard.ValidateURL(key.TokenURI); err != nil {
-		return fmt.Errorf("credential \"service_account_json\" token_uri: %w", err)
+	if err := json.Unmarshal([]byte(saJSON), &key); err != nil {
+		return fmt.Errorf("credential \"service_account_json\" is not valid JSON")
+	}
+	if key.Type != "service_account" {
+		return fmt.Errorf("credential \"service_account_json\" must be a service account key (type \"service_account\")")
+	}
+	if key.TokenURI != "" && !gcpTokenURIs[key.TokenURI] {
+		return fmt.Errorf("credential \"service_account_json\" token_uri must be Google's token endpoint")
+	}
+	if key.UniverseDomain != "" && key.UniverseDomain != "googleapis.com" {
+		return fmt.Errorf("credential \"service_account_json\" universe_domain must be googleapis.com")
 	}
 	return nil
+}
+
+func validateGCPServiceAccountKey(creds map[string]string) error {
+	return CheckGCPServiceAccountKey(creds["service_account_json"])
 }
 
 func validateDockerHost(creds map[string]string) error {
@@ -223,7 +247,7 @@ func NewGCPScanner(collector CloudCollector) Scanner {
 		name:      "GCP Cloud Scanner",
 		provider:  domain.ProviderGCP,
 		required:  []string{"service_account_json"},
-		endpoints: validateGCPTokenURI,
+		endpoints: validateGCPServiceAccountKey,
 		collector: collector,
 	}
 }
