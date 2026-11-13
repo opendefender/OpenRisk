@@ -15,10 +15,12 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 	"unicode/utf8"
 
 	"github.com/google/uuid"
 	"github.com/opendefender/openrisk/internal/domain"
+	rt "github.com/opendefender/openrisk/pkg/realtime"
 )
 
 // ---------------------------------------------------------------------------
@@ -74,8 +76,10 @@ var importCriticalities = map[string]domain.AssetCriticality{
 }
 
 // AssetTxRunner runs fn inside one database transaction with an asset
-// repository bound to it. An error from fn rolls everything back.
-type AssetTxRunner func(ctx context.Context, fn func(repo domain.AssetRepository) error) error
+// repository bound to it, and the realtime outbox bound to the same
+// transaction (nil when the outbox is not wired). An error from fn rolls
+// everything back, enlisted events included.
+type AssetTxRunner func(ctx context.Context, fn func(repo domain.AssetRepository, events domain.RealtimeEventOutbox) error) error
 
 // ExistingAssetNames lists the names of the tenant's live assets, tenant-scoped.
 type ExistingAssetNames func(ctx context.Context, tenantID uuid.UUID) ([]string, error)
@@ -87,7 +91,15 @@ type ImportCapacity func(ctx context.Context, tenantID uuid.UUID) (remaining int
 // ImportAssetsInput is one uploaded file.
 type ImportAssetsInput struct {
 	CSV []byte
+	// ActorID is the user who imported; uuid.Nil means unknown. Optional.
+	ActorID uuid.UUID
+	// CorrelationID is the request id, stamped on the realtime events so they
+	// can be tied to the request's audit entry. Optional.
+	CorrelationID string
 }
+
+// maxCorrelationIDLen matches the realtime_events.correlation_id column.
+const maxCorrelationIDLen = 64
 
 // ImportRowError locates one problem in the file; same wire shape as the risk
 // import's. Line is 1-based with the header on line 1; 0 means the whole file.
@@ -206,7 +218,8 @@ func (uc *ImportAssetsUseCase) Execute(ctx context.Context, tenantID uuid.UUID, 
 	}
 
 	created := make([]*domain.Asset, 0, len(rows))
-	err := uc.inTx(ctx, func(repo domain.AssetRepository) error {
+	enlisted := false
+	err := uc.inTx(ctx, func(repo domain.AssetRepository, events domain.RealtimeEventOutbox) error {
 		create := NewCreateAssetUseCase(repo)
 		for _, row := range rows {
 			a, err := create.Execute(ctx, tenantID, row.input)
@@ -219,6 +232,15 @@ func (uc *ImportAssetsUseCase) Execute(ctx context.Context, tenantID uuid.UUID, 
 			}
 			created = append(created, a)
 		}
+		// The realtime events are the LAST write of the transaction (Enlist holds
+		// the tenant's sequence counter until commit). They commit with the
+		// assets or not at all; the relay announces them after commit.
+		if events != nil && len(created) > 0 {
+			if err := enlistAssetCreated(ctx, events, tenantID, input, created); err != nil {
+				return err
+			}
+			enlisted = true
+		}
 		return nil
 	})
 	if err != nil {
@@ -227,6 +249,12 @@ func (uc *ImportAssetsUseCase) Execute(ctx context.Context, tenantID uuid.UUID, 
 			return nil, rej
 		}
 		return nil, domain.NewInternalError(fmt.Sprintf("import transaction failed: %v", err))
+	}
+
+	if enlisted {
+		// Tell the post-commit realtime bridge this request already announced
+		// its events, so the first asset is not announced twice.
+		rt.MarkEnlisted(ctx)
 	}
 
 	result := &ImportAssetsResult{
@@ -245,6 +273,34 @@ func (uc *ImportAssetsUseCase) Execute(ctx context.Context, tenantID uuid.UUID, 
 		})
 	}
 	return result, nil
+}
+
+// enlistAssetCreated writes one asset.created event per imported asset to the
+// transactional outbox, in one call. Any error rolls the whole import back.
+func enlistAssetCreated(ctx context.Context, events domain.RealtimeEventOutbox, tenantID uuid.UUID, input ImportAssetsInput, created []*domain.Asset) error {
+	actor := ""
+	if input.ActorID != uuid.Nil {
+		actor = input.ActorID.String()
+	}
+	correlation := input.CorrelationID
+	correlation = truncateCorrelationID(correlation)
+	now := time.Now().UTC()
+	rows := make([]*domain.RealtimeEvent, 0, len(created))
+	for _, a := range created {
+		row, err := domain.PrepareRealtimeEvent(rt.Envelope{
+			Type:          rt.AssetCreated,
+			TenantID:      tenantID.String(),
+			ActorID:       actor,
+			Aggregate:     rt.Aggregate{ID: a.ID.String()},
+			CorrelationID: correlation,
+			Payload:       map[string]any{"action": "import"},
+		}, now)
+		if err != nil {
+			return err
+		}
+		rows = append(rows, row)
+	}
+	return events.Enlist(ctx, rows...)
 }
 
 func nameKey(s string) string { return strings.ToLower(strings.TrimSpace(s)) }
@@ -414,4 +470,19 @@ func isBlank(rec []string) bool {
 		}
 	}
 	return true
+}
+
+// truncateCorrelationID cuts the id to maxCorrelationIDLen bytes at a rune
+// boundary and drops invalid UTF-8, which Postgres would reject and roll the
+// whole import back.
+func truncateCorrelationID(s string) string {
+	s = strings.ToValidUTF8(s, "")
+	if len(s) <= maxCorrelationIDLen {
+		return s
+	}
+	cut := maxCorrelationIDLen
+	for cut > 0 && !utf8.RuneStart(s[cut]) {
+		cut--
+	}
+	return s[:cut]
 }

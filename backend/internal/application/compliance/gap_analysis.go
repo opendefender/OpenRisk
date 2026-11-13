@@ -7,6 +7,7 @@ package compliance
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/opendefender/openrisk/internal/domain"
@@ -103,7 +104,7 @@ func (uc *GetGapAnalysisUseCase) Execute(ctx context.Context, tenantID uuid.UUID
 		}
 
 		// Evidence counts in one grouped query per framework (no N+1).
-		evCounts, err := uc.repo.CountEvidencesByFramework(ctx, tenantID, fw.ID)
+		evCounts, err := uc.repo.CountEvidencesByFramework(ctx, tenantID, fw.ID, time.Now())
 		if err != nil {
 			return nil, err
 		}

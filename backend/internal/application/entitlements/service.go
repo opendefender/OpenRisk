@@ -34,8 +34,13 @@ type SubscriptionReader interface {
 
 // UsageCounter counts the current usage of a capped resource for a tenant.
 // Optional (nil-safe): without it, usage reads as 0 and limits are advisory.
+//
+// asOf is the instant "current" means — which invitations are still
+// redeemable, which calendar month is being counted. It is the service's own
+// clock, so the plan it resolves and the usage it counts are judged at the
+// same moment (#419).
 type UsageCounter interface {
-	Count(ctx context.Context, tenant uuid.UUID, key ent.LimitKey) (int, error)
+	Count(ctx context.Context, tenant uuid.UUID, key ent.LimitKey, asOf time.Time) (int, error)
 }
 
 // Service resolves and enforces entitlements.
@@ -201,7 +206,7 @@ func (s *Service) Capacity(ctx context.Context, tenant uuid.UUID, key ent.LimitK
 		return true, ent.Unlimited, -1, plan, nil
 	}
 	if s.usage != nil {
-		if used, err = s.usage.Count(ctx, tenant, key); err != nil {
+		if used, err = s.usage.Count(ctx, tenant, key, s.now()); err != nil {
 			// Fail OPEN on a counting error: refusing a legitimate write because a
 			// COUNT query hiccuped is worse than briefly allowing one over. Logged,
 			// so a count that keeps failing is a visible missing cap (#783).

@@ -837,7 +837,8 @@ func (h *RiskHandler) DeleteRisk(c *fiber.Ctx) error {
 //
 // The route is guarded by RequirePermission("risks:update") at registration, so
 // a caller without it never reaches this function — that is criterion 8, and it
-// is enforced by middleware rather than re-implemented here.
+// is enforced by middleware rather than re-implemented here. A delete also needs
+// risks:delete, checked below because the action is only known from the body.
 //
 // Errors are mapped through writeAppError, not flattened to 500. That matters:
 // a stale or foreign id must come back 404, and the previous handler turned
@@ -853,6 +854,20 @@ func (h *RiskHandler) BulkAction(c *fiber.Ctx) error {
 	var req risk.BulkActionRequest
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request body"})
+	}
+
+	// #1423 (P0) — the route is mounted behind risks:update and the action comes
+	// from the body, so the route guard alone let every risks:update holder
+	// delete risks: the RSSI, DSI, risk-owner and security-analyst presets hold
+	// update without delete. A delete needs risks:delete, asked of the SAME
+	// wildcard-aware checker RequirePermission uses, before anything is read or
+	// written. #599 replaces this with one route per action.
+	if req.Type == risk.BulkActionDeleteRisks &&
+		!middleware.NewPermissionChecker(c).HasPermission("risks:delete") {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"code":    "FORBIDDEN",
+			"message": "Missing required permission: [risks:delete]",
+		})
 	}
 
 	// Identity comes from the signed session only. The tenant is what every read

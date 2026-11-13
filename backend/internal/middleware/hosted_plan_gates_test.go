@@ -8,6 +8,7 @@ package middleware
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
@@ -38,7 +39,7 @@ func gateApp(tenant uuid.UUID, gate fiber.Handler) *fiber.App {
 
 type fixedUsage map[ent.LimitKey]int
 
-func (u fixedUsage) Count(_ context.Context, _ uuid.UUID, k ent.LimitKey) (int, error) {
+func (u fixedUsage) Count(_ context.Context, _ uuid.UUID, k ent.LimitKey, _ time.Time) (int, error) {
 	return u[k], nil
 }
 

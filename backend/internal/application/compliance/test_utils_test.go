@@ -10,6 +10,7 @@ import (
 	"context"
 	"io"
 	"sync"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/opendefender/openrisk/internal/domain"
@@ -19,14 +20,16 @@ import (
 // domain.ComplianceRepository, mirroring internal/application/risk's
 // MockRiskRepository pattern (function fields, nil-safe defaults).
 type MockComplianceRepository struct {
-	createFrameworkFunc         func(ctx context.Context, fw *domain.ComplianceFramework) error
-	getFrameworkByIDFunc        func(ctx context.Context, id, tenantID uuid.UUID) (*domain.ComplianceFramework, error)
-	listFrameworksFunc          func(ctx context.Context, tenantID uuid.UUID) ([]domain.ComplianceFramework, error)
-	updateFrameworkFunc         func(ctx context.Context, fw *domain.ComplianceFramework) error
-	deleteFrameworkFunc         func(ctx context.Context, id, tenantID uuid.UUID) error
-	deleteControlsByFwFunc      func(ctx context.Context, tenantID, frameworkID uuid.UUID) (int64, error)
-	createControlFunc           func(ctx context.Context, c *domain.ComplianceControl) error
-	getControlByIDFunc          func(ctx context.Context, id, tenantID uuid.UUID) (*domain.ComplianceControl, error)
+	createFrameworkFunc    func(ctx context.Context, fw *domain.ComplianceFramework) error
+	getFrameworkByIDFunc   func(ctx context.Context, id, tenantID uuid.UUID) (*domain.ComplianceFramework, error)
+	listFrameworksFunc     func(ctx context.Context, tenantID uuid.UUID) ([]domain.ComplianceFramework, error)
+	updateFrameworkFunc    func(ctx context.Context, fw *domain.ComplianceFramework) error
+	deleteFrameworkFunc    func(ctx context.Context, id, tenantID uuid.UUID) error
+	deleteControlsByFwFunc func(ctx context.Context, tenantID, frameworkID uuid.UUID) (int64, error)
+	createControlFunc      func(ctx context.Context, c *domain.ComplianceControl) error
+	getControlByIDFunc     func(ctx context.Context, id, tenantID uuid.UUID) (*domain.ComplianceControl, error)
+	// seenGetControlAsOf records the instant every GetControlByID was judged at (#419).
+	seenGetControlAsOf          []time.Time
 	listControlsByFrameworkFunc func(ctx context.Context, tenantID, frameworkID uuid.UUID) ([]domain.ComplianceControl, error)
 	updateControlFunc           func(ctx context.Context, c *domain.ComplianceControl) error
 	deleteControlFunc           func(ctx context.Context, id, tenantID uuid.UUID) error
@@ -83,7 +86,8 @@ func (m *MockComplianceRepository) CreateControl(ctx context.Context, c *domain.
 	return nil
 }
 
-func (m *MockComplianceRepository) GetControlByID(ctx context.Context, id, tenantID uuid.UUID) (*domain.ComplianceControl, error) {
+func (m *MockComplianceRepository) GetControlByID(ctx context.Context, id, tenantID uuid.UUID, asOf time.Time) (*domain.ComplianceControl, error) {
+	m.seenGetControlAsOf = append(m.seenGetControlAsOf, asOf)
 	if m.getControlByIDFunc != nil {
 		return m.getControlByIDFunc(ctx, id, tenantID)
 	}
@@ -111,7 +115,7 @@ func (m *MockComplianceRepository) DeleteControl(ctx context.Context, id, tenant
 	return nil
 }
 
-func (m *MockComplianceRepository) CountEvidencesByFramework(ctx context.Context, tenantID, frameworkID uuid.UUID) (map[uuid.UUID]int, error) {
+func (m *MockComplianceRepository) CountEvidencesByFramework(ctx context.Context, tenantID, frameworkID uuid.UUID, _ time.Time) (map[uuid.UUID]int, error) {
 	if m.countEvidencesByFwFunc != nil {
 		return m.countEvidencesByFwFunc(ctx, tenantID, frameworkID)
 	}

@@ -98,7 +98,7 @@ func (r *GormComplianceRepository) CreateControl(ctx context.Context, control *d
 
 // GetControlByID retrieves a control by ID scoped to a tenant.
 // Returns (nil, nil) if not found or belongs to another tenant.
-func (r *GormComplianceRepository) GetControlByID(ctx context.Context, id uuid.UUID, tenantID uuid.UUID) (*domain.ComplianceControl, error) {
+func (r *GormComplianceRepository) GetControlByID(ctx context.Context, id uuid.UUID, tenantID uuid.UUID, asOf time.Time) (*domain.ComplianceControl, error) {
 	var control domain.ComplianceControl
 	err := r.db.WithContext(ctx).
 		Where("id = ? AND tenant_id = ?", id, tenantID).
@@ -119,12 +119,17 @@ func (r *GormComplianceRepository) GetControlByID(ctx context.Context, id uuid.U
 	// The count is what the "cannot mark implemented without proof" rule reads, so
 	// a failure here must not silently report zero and block a legitimate edit:
 	// the error propagates.
+	//
+	// Validity is judged at asOf, the caller's instant, not at time.Now(): the
+	// evidence service judges the same valid_until with its injected clock, and
+	// the two must not disagree about whether one artifact has expired (#419).
+	// The predicate is strict: proof whose valid_until IS asOf has lapsed.
 	var n int64
 	if err := r.db.WithContext(ctx).
 		Table("evidence_control_links l").
 		Joins("JOIN evidences e ON e.id = l.evidence_id AND e.tenant_id = l.tenant_id AND e.deleted_at IS NULL").
 		Where("l.tenant_id = ? AND l.control_id = ?", tenantID, id).
-		Where("e.review = ? AND (e.valid_until IS NULL OR e.valid_until > ?)", domain.EvidenceReviewAccepted, time.Now()).
+		Where("e.review = ? AND (e.valid_until IS NULL OR e.valid_until > ?)", domain.EvidenceReviewAccepted, asOf).
 		Count(&n).Error; err != nil {
 		return nil, fmt.Errorf("failed to count control evidence: %w", err)
 	}
@@ -274,10 +279,11 @@ func (r *GormComplianceRepository) DeleteControlsByFramework(ctx context.Context
 // worklist. The alternative — counting a file nobody could defend to an auditor
 // — is the failure mode this module exists to remove.
 //
-// "Currently" is evaluated against time.Now() inside the repository because the
-// port carries no clock. Callers that need a specific instant use
-// domain.EvidenceRepository.CountCoveringByFramework, which takes one.
-func (r *GormComplianceRepository) CountEvidencesByFramework(ctx context.Context, tenantID uuid.UUID, frameworkID uuid.UUID) (map[uuid.UUID]int, error) {
+// "Currently" means at asOf, the caller's instant. It used to be time.Now()
+// read here, so any caller with an injected clock would have disagreed with
+// this count about whether the same artifact had expired (#419). Same strict
+// predicate as domain.Evidence.Covers.
+func (r *GormComplianceRepository) CountEvidencesByFramework(ctx context.Context, tenantID uuid.UUID, frameworkID uuid.UUID, asOf time.Time) (map[uuid.UUID]int, error) {
 	type row struct {
 		ControlID uuid.UUID
 		Count     int
@@ -289,7 +295,7 @@ func (r *GormComplianceRepository) CountEvidencesByFramework(ctx context.Context
 		Joins("JOIN evidences e ON e.id = l.evidence_id AND e.tenant_id = l.tenant_id AND e.deleted_at IS NULL").
 		Joins("JOIN compliance_controls c ON c.id = l.control_id AND c.tenant_id = l.tenant_id AND c.deleted_at IS NULL").
 		Where("l.tenant_id = ? AND c.framework_id = ?", tenantID, frameworkID).
-		Where("e.review = ? AND (e.valid_until IS NULL OR e.valid_until > ?)", domain.EvidenceReviewAccepted, time.Now()).
+		Where("e.review = ? AND (e.valid_until IS NULL OR e.valid_until > ?)", domain.EvidenceReviewAccepted, asOf).
 		Group("l.control_id").
 		Scan(&rows).Error
 	if err != nil {

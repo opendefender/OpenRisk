@@ -138,6 +138,13 @@ func (b *MutationBridge) ObserveMutation(c *fiber.Ctx, ev *domain.AuditEvent) {
 	if b == nil || b.pub == nil || ev == nil {
 		return
 	}
+	// A request whose use case enlisted its events in the transactional outbox
+	// publishes nothing here: the relay announces them, and announcing the same
+	// change again under a second id would be a phantom duplicate (ADR 0010).
+	// The audit entry itself is untouched.
+	if rt.Enlisted(c.UserContext()) {
+		return
+	}
 	env, ok := b.envelopeFor(c, ev)
 	if !ok {
 		return
