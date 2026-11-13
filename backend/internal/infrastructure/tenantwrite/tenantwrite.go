@@ -53,12 +53,22 @@ func update(db *gorm.DB, column string, id uuid.UUID, model any, omit ...string)
 	for rv.Kind() == reflect.Pointer {
 		rv = rv.Elem()
 	}
-	pk := stmt.Schema.PrioritizedPrimaryField
-	if pk == nil {
+	if len(stmt.Schema.PrimaryFields) == 0 {
 		return domain.NewValidationError("tenantwrite: model has no primary key")
 	}
-	if _, zero := pk.ValueOf(ctx, rv); zero {
-		return domain.NewValidationError("primary key is required")
+	// The row is named by an explicit condition on every key column, so the
+	// guarantee does not rest on the condition GORM adds from the model.
+	type keyCond struct {
+		col string
+		val any
+	}
+	keys := make([]keyCond, 0, len(stmt.Schema.PrimaryFields))
+	for _, pk := range stmt.Schema.PrimaryFields {
+		v, zero := pk.ValueOf(ctx, rv)
+		if zero {
+			return domain.NewValidationError("primary key is required")
+		}
+		keys = append(keys, keyCond{pk.DBName, v})
 	}
 	owner := stmt.Schema.FieldsByDBName[column]
 	if owner == nil {
@@ -68,7 +78,11 @@ func update(db *gorm.DB, column string, id uuid.UUID, model any, omit ...string)
 		return domain.NewForbiddenError("the record belongs to another tenant")
 	}
 
-	q := db.Model(model).Where(column+" = ?", id).Select("*")
+	q := db.Model(model).Where(column+" = ?", id)
+	for _, k := range keys {
+		q = q.Where(k.col+" = ?", k.val)
+	}
+	q = q.Select("*")
 	if len(omit) > 0 {
 		q = q.Omit(omit...)
 	}
