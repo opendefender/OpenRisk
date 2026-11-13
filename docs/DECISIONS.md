@@ -43,10 +43,12 @@ owner can overturn it.
   fails on any raw `gorm.Open`. Statements issued from a `*_test.go` file (fixtures, assertions)
   are exempt; a query issued by production code that a test calls is checked. Alternative: a
   process-wide hook; not possible, GORM callbacks are per `*gorm.DB`.
-- **Writes.** `updateInTenant` / `updateInOrganization` replace `Save` on a scoped model.
-  `tx.Where("tenant_id = ?", t).Save(&x)` falls back to INSERT ... ON CONFLICT UPDATE ALL in GORM
-  v1.31 when its UPDATE matches 0 rows, which would overwrite another tenant's row with the same
-  id. Code review rejects `.Save(` on a tenant-scoped model.
+- **Writes.** `tenantwrite.UpdateInTenant` / `UpdateInOrganization` replace `Save` on a scoped
+  model. `tx.Where("tenant_id = ?", t).Save(&x)` falls back to INSERT ... ON CONFLICT UPDATE ALL
+  in GORM v1.31 when its UPDATE matches 0 rows, which would overwrite another tenant's row with
+  the same id. The helper also refuses a zero primary key (which would match every row of the
+  tenant) and a model stamped with another tenant. `TestSave_OnlyTheClosedListMayCallGormSave`
+  fails on any `.Save(` on a GORM chain outside a closed list of six sites, each with a reason.
 - **Modes.** `TENANT_GUARD` = `off` (default, production), `report`, `enforce`; a typo is a fatal
   boot error. Alternative: enforce in production now; deferred, coverage is about 44% and a
   refused query in production is an outage, so staging finds the rest first.
@@ -54,7 +56,12 @@ owner can overturn it.
   one review round.
 
 **Honest limits** — it only sees queries that run; it catches a missing filter, not a wrong one
-(#807 class); raw SQL is checked lexically; INSERT and upserts are not checked. Postgres RLS is
+(#807 class). Raw SQL is checked lexically after comments are removed: a predicate inside a
+string literal, a CTE, an `INSERT ... SELECT`, a comma join, or a join glue between two tenant
+columns passes. `.Or()` precedence is approximated (no production query uses it). A preload, and
+a statement reusing the parent's context while it runs (an `AfterFind` hook included), inherits
+the parent's pass. INSERT and upserts are not checked. A table no model gives is read from the
+catalog, and an unreadable `Table(...)` argument is refused. Postgres RLS is
 evaluated, not implemented: `docs/adr/0011-postgres-row-level-security.md`.
 
 ### D-107 — Guessing codes from a stolen session: which lock, and whose sign-in it can block · decided 2026-11-11

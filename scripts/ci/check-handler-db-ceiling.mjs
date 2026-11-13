@@ -17,6 +17,10 @@
 // (recursive), *_test.go excluded, comments stripped first. String, raw-string
 // and rune literals are respected so a URL in a string is not a comment.
 //
+// Limit: only the literal `database.DB` is counted. A handler that reaches the
+// database through another name (a package-level alias, a `db` field filled from
+// database.DB elsewhere, a passed-in *gorm.DB) is not seen by this check.
+//
 // Usage (from the repository root):
 //   node scripts/ci/check-handler-db-ceiling.mjs            check (CI)
 //   node scripts/ci/check-handler-db-ceiling.mjs --update   re-freeze after a reduction

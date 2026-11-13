@@ -17,13 +17,20 @@ fails any SELECT, UPDATE or DELETE on a tenant-scoped table whose WHERE has no `
 What the guard does not cover (D-110, package doc):
 - it only sees queries that run, so its coverage is the test suite's plus staging's;
 - it catches a missing filter, not a wrong one (the #807 class): a filter on a joined table
-  satisfies it, and an OR inside one raw SQL string is not parsed;
-- raw SQL is checked lexically;
+  satisfies it, so does one on the wrong tenant;
+- raw SQL is checked lexically: a predicate inside a string literal, in a CTE, in an
+  `INSERT ... SELECT` or a comma join, or a join glue `ON a.tenant_id = b.tenant_id` with no
+  bound value, passes; an OR inside one raw string is not parsed;
+- the precedence of `.Or()` is approximated (no production query uses it today);
+- a preload, and any statement reusing the parent's context while it runs (a query from an
+  `AfterFind` hook included), inherits the parent's pass without being checked;
 - INSERT, including `ON CONFLICT DO UPDATE`, is not checked;
 - it is off in production unless `TENANT_GUARD` is set.
 
-Inventory of what an RLS policy would have to cover: 84 `TenantID` fields and 11
-`OrganizationID` fields in the domain models; tables gated only through a parent
+Inventory of what an RLS policy would have to cover: about 90 `TenantID` fields and 11
+`OrganizationID` fields in the domain models (93 and 11 on 2026-11-13, from
+`grep -rnE '^\s+TenantID\s' backend/internal/domain --include=*.go | grep -v _test | wc -l`,
+and the same with `OrganizationID`; some are not models); tables gated only through a parent
 (`team_members`, `mitigation_subactions`, `risk_histories`, `risk_assets`, and others); and the
 global tables that must stay outside it (`users`, `organizations`, `roles`, `permissions`).
 
@@ -36,14 +43,19 @@ database can answer it for every path.
 Enable and force row-level security on every tenant-scoped table.
 
 - `ALTER TABLE ... ENABLE ROW LEVEL SECURITY` and `FORCE ROW LEVEL SECURITY`, with the policy
-  `USING (tenant_id = current_setting('app.tenant_id', true)::uuid)` and the same `WITH CHECK`.
-  Tables keyed by `organization_id` use that column.
+  `USING (tenant_id = NULLIF(current_setting('app.tenant_id', true), '')::uuid)` and the same
+  `WITH CHECK`. `NULLIF` matters: once `SET LOCAL` has run on a pooled connection,
+  `current_setting` answers an empty string, not NULL, and `''::uuid` raises an error instead of
+  matching nothing. Tables keyed by `organization_id` use that column.
 - The application connects as a non-owner role without `BYPASSRLS`.
 - The tenant is set with `SET LOCAL app.tenant_id` inside a per-request transaction, from a GORM
   `ConnPool` / `BeginTx` wrapper. A plain `SET` is rejected: it leaks across pooled connections.
-- Workers and backfills use a separate `openrisk_system` role with `BYPASSRLS`. Its users map
-  one to one onto the guard's `CrossTenant` allowlist
-  (`grep -rn 'tenantguard.CrossTenant' backend`), which is the list of queries that need it.
+- Workers and backfills use a separate `openrisk_system` role with `BYPASSRLS`. The guard's
+  `CrossTenant` allowlist (`grep -rn 'tenantguard.CrossTenant' backend`) is a starting
+  inventory of what needs it, not a one-to-one map: about twenty of its sites are on the
+  request path (pre-session token lookups, a user's own sessions across organisations), where
+  the system role cannot be used and a narrower policy is needed (for instance a lookup
+  function owned by the system role, called with the token hash).
 - Migrations run as the table owner.
 - Parent-gated tables get either `EXISTS` policies through the parent, or a denormalised
   `tenant_id` column added in two releases (expand, then contract), per CLAUDE.md.
