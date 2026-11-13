@@ -140,9 +140,13 @@ func (uc *PostureUseCase) Execute(ctx context.Context, tenantID, userID uuid.UUI
 	for _, r := range top {
 		ids = append(ids, r.ID)
 	}
+	// One instant for the whole summary: the credits are judged at the moment
+	// the summary says it was generated, so a test clock (or a replay) gets a
+	// summary that agrees with itself (#419).
+	asOf := uc.now()
 	credits := map[uuid.UUID][]scoring.ControlCredit{}
 	if len(ids) > 0 {
-		credits, err = uc.reader.ControlCreditsByRisk(ctx, tenantID, ids)
+		credits, err = uc.reader.ControlCreditsByRisk(ctx, tenantID, ids, asOf)
 		if err != nil {
 			return nil, err
 		}
@@ -162,7 +166,7 @@ func (uc *PostureUseCase) Execute(ctx context.Context, tenantID, userID uuid.UUI
 		CoveragePercent:        coveragePercent(controls),
 		TopRisks:               views,
 		ResidualFormulaVersion: scoring.ResidualFormulaVersion,
-		GeneratedAt:            uc.now(),
+		GeneratedAt:            asOf,
 	}
 
 	if !summary.IsRevealable() {

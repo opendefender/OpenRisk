@@ -74,7 +74,7 @@ type ComplianceSource interface {
 	GetFrameworkByID(ctx context.Context, id, tenantID uuid.UUID) (*domain.ComplianceFramework, error)
 	ListFrameworks(ctx context.Context, tenantID uuid.UUID) ([]domain.ComplianceFramework, error)
 	ListControlsByFramework(ctx context.Context, tenantID, frameworkID uuid.UUID) ([]domain.ComplianceControl, error)
-	CountEvidencesByFramework(ctx context.Context, tenantID, frameworkID uuid.UUID) (map[uuid.UUID]int, error)
+	CountEvidencesByFramework(ctx context.Context, tenantID, frameworkID uuid.UUID, asOf time.Time) (map[uuid.UUID]int, error)
 }
 
 // EvidenceSource reads the evidence library.
@@ -224,7 +224,10 @@ func buildCompliance(ctx context.Context, s Sources, req Request, progress Progr
 	if err != nil {
 		return c, err
 	}
-	evCounts, err := s.Compliance.CountEvidencesByFramework(ctx, req.TenantID, fw.ID)
+	// Judged at the wall clock, the same clock the cover page's "Generated on"
+	// reads: the builder runs in the report worker, which has no clock seam
+	// (report.Service's clock stamps approval and publication, never a build).
+	evCounts, err := s.Compliance.CountEvidencesByFramework(ctx, req.TenantID, fw.ID, time.Now())
 	if err != nil {
 		return c, err
 	}

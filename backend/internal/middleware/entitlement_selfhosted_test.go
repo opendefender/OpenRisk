@@ -9,6 +9,7 @@ import (
 	"context"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
@@ -20,7 +21,7 @@ import (
 
 type capacityTestUsage int
 
-func (u capacityTestUsage) Count(context.Context, uuid.UUID, ent.LimitKey) (int, error) {
+func (u capacityTestUsage) Count(context.Context, uuid.UUID, ent.LimitKey, time.Time) (int, error) {
 	return int(u), nil
 }
 

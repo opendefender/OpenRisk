@@ -35,6 +35,8 @@ type fakePostureReader struct {
 	fail bool
 	// seenTenants records every tenant the use case actually asked about.
 	seenTenants []uuid.UUID
+	// seenAsOf records the instant each credits read was judged at.
+	seenAsOf []time.Time
 }
 
 func newFakePostureReader() *fakePostureReader {
@@ -75,8 +77,9 @@ func (f *fakePostureReader) TopRisks(_ context.Context, tenantID uuid.UUID, limi
 	return rs, nil
 }
 
-func (f *fakePostureReader) ControlCreditsByRisk(_ context.Context, tenantID uuid.UUID, ids []uuid.UUID) (map[uuid.UUID][]scoring.ControlCredit, error) {
+func (f *fakePostureReader) ControlCreditsByRisk(_ context.Context, tenantID uuid.UUID, ids []uuid.UUID, asOf time.Time) (map[uuid.UUID][]scoring.ControlCredit, error) {
 	f.seenTenants = append(f.seenTenants, tenantID)
+	f.seenAsOf = append(f.seenAsOf, asOf)
 	if f.fail {
 		return nil, errors.New("mapping store down")
 	}
@@ -152,6 +155,29 @@ func TestPostureSummary_Success(t *testing.T) {
 	}
 	if has, _ := repo.HasEvent(context.Background(), tenant, domain.ActivationPostureRevealed); !has {
 		t.Error("posture.revealed must be recorded on a successful reveal")
+	}
+}
+
+// The credits are judged at the use case's own clock, the same instant the
+// summary is stamped with — not at the repository's wall clock (#419).
+func TestPostureSummary_JudgesCreditsAtItsOwnClock(t *testing.T) {
+	reader := newFakePostureReader()
+	tenant, user := uuid.New(), uuid.New()
+	seedRevealable(reader, tenant)
+
+	frozen := time.Date(2026, 3, 1, 9, 0, 0, 0, time.UTC)
+	uc := newPosture(reader, newFakeRepo())
+	uc.now = func() time.Time { return frozen }
+
+	got, err := uc.Execute(context.Background(), tenant, user)
+	if err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+	if len(reader.seenAsOf) != 1 || !reader.seenAsOf[0].Equal(frozen) {
+		t.Fatalf("credits judged at %v, want the injected clock %v", reader.seenAsOf, frozen)
+	}
+	if !got.GeneratedAt.Equal(frozen) {
+		t.Errorf("GeneratedAt = %v, want %v", got.GeneratedAt, frozen)
 	}
 }
 

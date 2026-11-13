@@ -73,7 +73,7 @@ func (uc *GenerateComplianceReportUseCase) Execute(
 		return nil, err
 	}
 
-	evidenceCounts, err := uc.repo.CountEvidencesByFramework(ctx, tenantID, frameworkID)
+	evidenceCounts, err := uc.repo.CountEvidencesByFramework(ctx, tenantID, frameworkID, time.Now())
 	if err != nil {
 		return nil, err
 	}

@@ -7,6 +7,7 @@ package ai
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -66,7 +67,7 @@ func (uc *AnalyzeEvidenceUseCase) Execute(ctx context.Context, tenantID, evidenc
 	// Analysing against a specific control is a per-control call, which is how the
 	// UI invokes it from the control drawer.
 	if links, err := uc.compliance.ListLinks(ctx, tenantID, []uuid.UUID{evidence.ID}); err == nil && len(links) > 0 {
-		if control, err := uc.compliance.GetControlByID(ctx, links[0].ControlID, tenantID); err == nil && control != nil {
+		if control, err := uc.compliance.GetControlByID(ctx, links[0].ControlID, tenantID, time.Now()); err == nil && control != nil {
 			ec.ControlCode = control.ReferenceCode
 			ec.ControlName = control.Name
 			ec.ControlDescription = control.Description

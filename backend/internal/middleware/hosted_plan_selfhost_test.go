@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
@@ -77,7 +78,7 @@ func TestSelfHostedCaps_Unauthorized(t *testing.T) {
 
 type failingUsage struct{}
 
-func (failingUsage) Count(context.Context, uuid.UUID, ent.LimitKey) (int, error) {
+func (failingUsage) Count(context.Context, uuid.UUID, ent.LimitKey, time.Time) (int, error) {
 	return 0, errors.New("relation \"scan_jobs\" does not exist")
 }
 
