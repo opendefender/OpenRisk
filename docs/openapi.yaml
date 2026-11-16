@@ -5780,7 +5780,7 @@ components:
           description: Human sessions only. Omitted means manual_upload. automated_collector and api_pull are rejected (400).
         observed_from: { type: string, format: date-time, description: Defaults to collected_at }
         observed_to: { type: string, format: date-time, description: Defaults to collected_at; must not be after collected_at }
-        signature: { type: string, format: byte, description: Optional base64 detached signature, at most 8 KiB decoded. Stored, never verified. }
+        signature: { type: string, format: byte, description: 'Optional base64 detached signature, at most 8 KiB decoded. Stored, never verified.' }
         signature_algorithm: { type: string, maxLength: 32, description: Required with a signature }
         collector_kind: { type: string, readOnly: true, description: Server-set (user); a posted value is ignored }
         collector_ref: { type: string, readOnly: true, description: Server-set (the authenticated user id); a posted value is ignored }

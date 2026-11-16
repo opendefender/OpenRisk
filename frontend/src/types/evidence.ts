@@ -11,10 +11,7 @@ export type EvidenceReview = 'pending' | 'accepted' | 'rejected';
 export type EvidenceSource = 'manual' | 'integration' | 'scanner' | 'automation';
 /** How the proof reached the register; its own axis, distinct from the source (ADR 0008 A11). */
 export type EvidenceCollectionMethod =
-  | 'manual_upload'
-  | 'automated_collector'
-  | 'api_pull'
-  | 'attestation';
+  'manual_upload' | 'automated_collector' | 'api_pull' | 'attestation';
 export type EvidenceCollectorKind = 'user' | 'connector' | 'job';
 /** Derived by the server: 'hashed' (a hash was taken), 'unhashed' (legacy file), 'none' (no file). */
 export type EvidenceIntegrity = 'hashed' | 'unhashed' | 'none';
