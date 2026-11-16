@@ -1280,6 +1280,50 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/controls/{controlId}/exceptions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the exceptions of a control, newest first (#1428)
+         * @description Requires `compliance:controls:read`. `status` is derived at the instant of the request: an exception past its `expires_at` reads `expired` without any job having run.
+         */
+        get: operations["listControlExceptions"];
+        put?: never;
+        /**
+         * Record an exception on a control (#1428)
+         * @description A time-boxed, owned, justified waiver of one control. `controlId` is the canonical control id (`controls.id`), not the legacy `compliance_controls` id of `/compliance/controls/{controlId}`. Requires `compliance:controls:update`. The owner must be an active member of the caller's organization, `expires_at` is required and strictly in the future and at most 366 days away, `starts_at` defaults to now and may not be more than 5 minutes in the past. The tenant and the approver come from the session, never from the body. The write and its audit entry are one transaction. Errors carry a stable code in `error` (`control_exception.*`) that the client maps to a localized message.
+         */
+        post: operations["createControlException"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/control-exceptions/{exceptionId}/revoke": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Revoke an exception before its expiry (#1428)
+         * @description Requires `compliance:controls:update`. An exception already revoked or already expired answers 409. An id of another organization answers 404, like an id that does not exist.
+         */
+        post: operations["revokeControlException"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/compliance/evidences/{evidenceId}/download": {
         parameters: {
             query?: never;
@@ -3182,6 +3226,57 @@ export interface components {
             name: string;
             description?: string;
             source_reference?: string;
+        };
+        CreateControlExceptionInput: {
+            /**
+             * Format: uuid
+             * @description An active member of the caller's organization.
+             */
+            owner_id: string;
+            /** @description Trimmed, not empty, at most 2000 characters. */
+            reason: string;
+            /**
+             * Format: date-time
+             * @description Defaults to now; must be before `expires_at` and not more than 5 minutes before the request instant (clock-skew tolerance).
+             */
+            starts_at?: string;
+            /**
+             * Format: date-time
+             * @description Required, strictly after the request instant and at most 366 days after it (one year; an exception is renewed, never open-ended).
+             */
+            expires_at: string;
+        };
+        RevokeControlExceptionInput: {
+            reason?: string;
+        };
+        ControlException: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            control_id: string;
+            /** Format: uuid */
+            owner_id: string;
+            reason: string;
+            /** Format: uuid */
+            approved_by: string;
+            /** Format: date-time */
+            starts_at: string;
+            /** Format: date-time */
+            expires_at: string;
+            /**
+             * @description Derived at the instant of the request, never stored.
+             * @enum {string}
+             */
+            status: "open" | "expired" | "revoked";
+            /** Format: date-time */
+            revoked_at?: string;
+            /** Format: uuid */
+            revoked_by?: string;
+            revoke_reason?: string;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
         };
         /** @description Partial update — omitted fields are left unchanged. */
         UpdateControlInput: {
@@ -8380,6 +8475,173 @@ export interface operations {
             };
             /** @description Control not found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    listControlExceptions: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                controlId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The control's exceptions */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ControlException"][];
+                    };
+                };
+            };
+            /** @description Invalid control id */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No tenant or user in the session */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing `compliance:controls:read` */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Control not found in the caller's organization */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    createControlException: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                controlId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateControlExceptionInput"];
+            };
+        };
+        responses: {
+            /** @description Exception recorded */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ControlException"];
+                };
+            };
+            /** @description Validation error (`control_exception.*` code in `error`) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No tenant or user in the session */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing `compliance:controls:update` */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Control not found in the caller's organization */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    revokeControlException: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                exceptionId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["RevokeControlExceptionInput"];
+            };
+        };
+        responses: {
+            /** @description Exception revoked */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ControlException"];
+                };
+            };
+            /** @description Invalid id or revocation reason too long */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No tenant or user in the session */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing `compliance:controls:update` */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Exception not found in the caller's organization */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Already revoked, or already expired */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
