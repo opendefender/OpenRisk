@@ -16,6 +16,7 @@ import (
 
 	"github.com/opendefender/openrisk/internal/application/evidence"
 	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/pkg/fileupload"
 )
 
 // EvidenceHandler serves the evidence library.
@@ -405,8 +406,13 @@ func (h *EvidenceHandler) Download(c *fiber.Ctx) error {
 	if name == "" {
 		name = ev.Title
 	}
-	c.Set(fiber.HeaderContentDisposition, fmt.Sprintf(`attachment; filename="%s"`, name))
+	// The name is the uploader's: build the header through the RFC 6266 helper so
+	// a quote or CR/LF in it cannot split the header. octet-stream plus an
+	// explicit nosniff and a sandbox CSP mean no browser renders the bytes (#1316).
+	c.Set(fiber.HeaderContentDisposition, fileupload.AttachmentHeader(name))
 	c.Set(fiber.HeaderContentType, "application/octet-stream")
+	c.Set("X-Content-Type-Options", "nosniff")
+	c.Set("Content-Security-Policy", "default-src 'none'; sandbox")
 	return c.SendStream(content)
 }
 

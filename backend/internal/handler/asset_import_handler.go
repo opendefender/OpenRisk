@@ -15,6 +15,7 @@ import (
 
 	assetuc "github.com/opendefender/openrisk/internal/application/asset"
 	"github.com/opendefender/openrisk/internal/middleware"
+	"github.com/opendefender/openrisk/pkg/fileupload"
 )
 
 // AssetImportHandler serves POST /assets/import (#861).
@@ -59,6 +60,11 @@ func (h *AssetImportHandler) ImportAssets(c *fiber.Ctx) error {
 	data, err := io.ReadAll(io.LimitReader(f, assetuc.MaxImportBytes+1))
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "validation_failed", "message": "The file cannot be read."})
+	}
+
+	// The type is decided from the bytes, not the .csv extension the client chose.
+	if _, err := fileupload.CSV.Check(data); err != nil {
+		return importUploadError(c, err)
 	}
 
 	result, err := h.uc.Execute(c.UserContext(), tenantID(c), assetuc.ImportAssetsInput{

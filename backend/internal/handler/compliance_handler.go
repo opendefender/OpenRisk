@@ -7,7 +7,7 @@ package handler
 
 import (
 	"errors"
-	"fmt"
+	"github.com/opendefender/openrisk/pkg/fileupload"
 	"github.com/opendefender/openrisk/pkg/monitoring"
 	"strings"
 
@@ -352,7 +352,7 @@ func (h *ComplianceHandler) GenerateReport(c *fiber.Ctx) error {
 	monitoring.RecordReportGenerated("compliance")
 	filename := reportFilename(data.FrameworkName, data.FrameworkVersion)
 	c.Set("Content-Type", "application/pdf")
-	c.Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", filename))
+	c.Set("Content-Disposition", fileupload.AttachmentHeader(filename))
 	return c.Send(pdf)
 }
 

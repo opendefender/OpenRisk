@@ -1,0 +1,94 @@
+# Uploads, input validation and output encoding audit (#1316)
+
+Scope: every route that accepts a file, every route that serves one back, and
+every user free-text field that is rendered to another user. Status of each row
+is what a passing test proves, nothing more (CLAUDE.md rule 12). Tests live in
+`backend/` and run with `go test ./...`.
+
+## 1. Upload endpoints
+
+Common rules for the evidence and import rows: the type is decided from the
+bytes with `http.DetectContentType` (`backend/pkg/fileupload`), never from the
+client `Content-Type` or the extension; rejections are `ErrValidation`
+(400, 413 for oversize) through `writeAppError`; every query filters by
+`tenant_id` (evidence repository `GetByID(ctx, tenantID, id)`, controls through
+`ControlLookup.GetControlByID(.., tenantID, ..)`).
+
+| Route | Handler | Size limit | Sniffed allowlist | Stored name | Test |
+|---|---|---|---|---|---|
+| `POST /evidence` (multipart, file optional) | `internal/handler/evidence_handler.go:77` -> `evidence.Service.Create` | 3 MB (`fileupload.EvidenceMaxBytes`, read through `io.LimitReader(max+1)`); below the 4 MB Fiber body limit, no figure is promised in the UI | pdf, png, jpeg, webp, text/plain (UTF-8, CSV/TXT), zip (OOXML). Refused: html, xml/svg (also a bare `<svg`), octet-stream/exe, anything else | `<tenant>/<uuid><ext>`, ext from the sniffed type (`pkg/storage/local.go` `Save`); client name kept only in `evidences.filename` | `TestCreate_StoresUnderAServerGeneratedName`, `TestCreate_RejectsWrongTypeBySniffing`, `TestCreate_RejectsOversize`, `TestCreate_RejectsEmptyFile`, `TestCreate_Unauthorized_WithoutTenant` (`internal/application/evidence`); `TestSave_KeyNeverCarriesTheClientFilename` (`pkg/storage`); `TestEvidenceUpload_*` (`internal/handler/upload_audit_test.go`) |
+| `POST /compliance/controls/:controlId/evidences` | `evidence_handler.go:171` -> same `Service.Create` | same | same | same | `TestEvidenceUpload_Success_StoredNameIsServerGenerated`, `_WrongType_ScriptBearingFilesAreRejected` (HTML, SVG, XML-SVG, exe declared as `application/pdf`), `_Oversize_Is413`, `_Unauthorized_RoleWithoutCreatePermission` (403), `_CrossTenant_ControlOfAnotherTenantIsNotFound` (404) |
+| `POST /risks/import` (CSV, not stored) | `internal/handler/risk_import_handler.go:36` | 2 MB (existing `risk.MaxImportBytes`; 413) | text/plain only (`fileupload.CSV`); the `.csv` extension check is kept as a first gate | not stored | `TestRiskImportHTTP_RefusesBinaryNamedCSV`, `TestRiskImportHTTP_Oversize_Is413`, existing `TestRiskImportHTTP_Unauthorized`, `_RowsLandOnlyInCallersTenant` |
+| `POST /assets/import` (CSV, not stored) | `internal/handler/asset_import_handler.go:38` | 2 MB (`asset.MaxImportBytes`; 413) | same | not stored | `TestAssetImportHTTP_RefusesBinaryNamedCSV`, `TestAssetImportHTTP_Oversize_Is413`, existing `TestAssetImportHTTP_Unauthorized`, `_RowsLandOnlyInCallersTenant` |
+| `PUT /users/me/avatar` | `internal/handler/profile_handler.go:51` | 1 MB (`pkg/imageupload`) | png, jpeg, webp (svg refused) | server key, served with nosniff (`profile_handler.go:88`) | pre-existing, `pkg/imageupload/imageupload_test.go` (not re-proven here) |
+| `PUT /organization/logo` | `internal/handler/organization_member_handler.go:293` | 1 MB (`pkg/imageupload`) | same | server key, nosniff (`:326`) | pre-existing, same package tests |
+
+Import error body is unchanged for the frontend: `{"error":"validation_failed","message":...}`;
+the refusal is built from a typed domain error (`importUploadError`).
+
+### Dead upload code (not routed, not fixed)
+
+- `internal/handler/organization_handler.go:262` `MigrationHandler.UploadMigrationFile`: only reachable through
+  `RegisterMigrationRoutes` (`:367`), which nothing calls (grep over `backend/`: definition only).
+- `internal/api/http/handlers/risks.go:515` `ImportRisks`: package `internal/api/http/handlers` is imported by no file.
+
+If either is ever wired it must go through `fileupload` first.
+
+## 2. Downloads
+
+| Route | Handler | Headers | Test |
+|---|---|---|---|
+| `GET /evidence/:evidenceId/download`, `GET /compliance/evidences/:evidenceId/download` | `evidence_handler.go:394` | `Content-Disposition` from `fileupload.AttachmentHeader` (RFC 6266: ASCII fallback with quotes, backslashes, `%`, `;`, CR/LF and control chars removed, UTF-8 name in `filename*=`), `Content-Type: application/octet-stream`, `X-Content-Type-Options: nosniff`, `Content-Security-Policy: default-src 'none'; sandbox` | `TestEvidenceDownload_HeadersWithHostileFilename` (`a"\r\nX-Evil: 1.pdf`), `TestEvidenceDownload_UTF8FilenameIsPercentEncoded`, `TestEvidenceDownload_CrossTenant_NotFound` (compliance_handler_test.go), `TestEvidenceDownload_CrossTenant_NoBytesLeak`; `TestAttachmentHeader_*` (`pkg/fileupload`) |
+| `GET /reports/:reportId/download`, `GET /reports/jobs/:jobId/download`, compliance report, board report | `report_handler.go`, `report_job_handler.go`, `compliance_handler.go`, `board_report_handler.go` | server-generated bytes; the filename (framework name, period label, stored report name) now goes through `AttachmentHeader` | `TestAttachmentHeader_*`; no per-route handler test added |
+| exports with fixed names (`export_handler`, `governance_handler`, `analytics_handler`, `trend_handler`, `org_deletion_handler`) | as named | constant filenames or a date/number built server-side; unchanged | none needed (no user-derived value) |
+| every API response | `middleware.SecurityHeaders` (`cmd/server/main.go:527`, global `app.Use`) | `X-Content-Type-Options: nosniff` (helmet default) | `TestSecurityHeaders_NosniffOnEveryResponse` |
+
+## 3. Free-text fields rendered back to users
+
+Frontend: no `dangerouslySetInnerHTML` / `innerHTML` in `frontend/src` (grep), so
+React renders every value as text. API: Fiber's JSON encoder is `encoding/json`,
+which writes `<`, `>` and `&` as `<`, `>`, `&`; the bytes are
+stored verbatim and encoded on output, losslessly. Responses are
+`application/json`. Payloads used: `<script>alert(1)</script>` and
+`"><img src=x onerror=alert(1)>`.
+
+| Field | Where rendered | Encoding | Test |
+|---|---|---|---|
+| risk `title`, `description` | `GET /risks/:id`, lists | JSON-escaped | `TestOutputEncoding_RiskThroughHandler` (CSV import -> `RiskHandler.GetRisk`), `TestOutputEncoding_EveryFreeTextField` |
+| asset `name`, `type`, `owner` | asset endpoints | JSON-escaped | `TestOutputEncoding_EveryFreeTextField` (entity level) |
+| evidence `title`, `description`, `filename`, `source_detail`, `review_note`, `external_url` | evidence create/list/get | JSON-escaped; filename in `Content-Disposition` per section 2 | `TestOutputEncoding_EvidenceThroughHandler` (title + description through the handler), `TestOutputEncoding_EveryFreeTextField` (all six, entity level) |
+| organization `name`, `industry` | organization endpoints | JSON-escaped | `TestOutputEncoding_EveryFreeTextField` (entity level) |
+| user `full_name`, `bio`, `department`, `phone` | profile/member endpoints | JSON-escaped | `TestOutputEncoding_EveryFreeTextField` (entity level) |
+| mitigation `title`, `description` | mitigation endpoints | JSON-escaped | `TestOutputEncoding_EveryFreeTextField` (entity level) |
+| compliance framework / control `name`, `description` | compliance endpoints | JSON-escaped | `TestOutputEncoding_EveryFreeTextField` (entity level) |
+| user `full_name` in the welcome email | HTML email (`pkg/notify/email_service.go`) | `html/template` auto-escape; the plain-text fallback, which is also sent as the HTML body, now `html.EscapeString`s the name | `TestSendWelcomeEmail_EscapesTheFullName` |
+
+There is no comment entity in `internal/domain`.
+
+## 4. Findings
+
+- Fiber's JSON encoder does escape HTML characters: no change to global behaviour was needed or made.
+- Fixed: evidence uploads had no type check at all and kept the client name in the stored key; the download header
+  interpolated the raw filename (quote and CR/LF injection); CSV imports trusted the extension; the welcome-email
+  fallback body interpolated the name unescaped.
+- Filename `%q` in the report/board/compliance downloads was safe against header splitting but not RFC 6266 and
+  broke non-ASCII names; replaced by the shared helper.
+
+## 5. Limits / not covered
+
+- Free-text fields outside the list above (any not named in section 3) were not enumerated; the entity-level test
+  proves the encoder, not that no handler writes raw HTML or a non-JSON content type elsewhere. Only risk and
+  evidence are proven through their real handler; asset, organization, user, mitigation and compliance rows are
+  proven at the entity level.
+- Sniffing reads the first 512 bytes (`http.DetectContentType`). A valid PDF or ZIP header followed by arbitrary
+  content passes: the files are served only as `application/octet-stream` attachments with nosniff and a sandbox
+  CSP, never inline. There is no malware scan and no deep OOXML/PDF structure validation. `application/zip` also
+  admits any zip (jar, apk), not only Office files.
+- Text evidence is accepted as `text/plain` without checking it is not markup beyond what the sniffer and the
+  `<svg` check detect.
+- Existing stored evidence keeps its old key (`<uuid>-<client name>`); only new uploads get the server name. No
+  migration was written.
+- Fiber's 4 MB body limit still applies first; an oversize body is refused by Fiber before the handler (its own 413).
+- No live-environment proof was produced from this change: every claim above is a unit or in-process API test
+  (sqlite, local storage). The live-proof note required by the Definition of Done is not written here.
+- OpenAPI spec not updated: no route or request shape changed, only new 400/413 responses on existing routes.

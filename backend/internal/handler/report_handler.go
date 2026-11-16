@@ -20,6 +20,7 @@ import (
 
 	appreport "github.com/opendefender/openrisk/internal/application/report"
 	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/pkg/fileupload"
 )
 
 // ReportProgressChannel is the Redis channel the worker publishes progress on.
@@ -225,7 +226,7 @@ func (h *ReportHandler) Download(c *fiber.Ctx) error {
 	if err != nil {
 		return writeAppError(c, err)
 	}
-	c.Set(fiber.HeaderContentDisposition, fmt.Sprintf(`attachment; filename="%s"`, rep.Filename))
+	c.Set(fiber.HeaderContentDisposition, fileupload.AttachmentHeader(rep.Filename))
 	c.Set(fiber.HeaderContentType, rep.ContentType)
 	// The hash travels with the download so a client can check the file it
 	// received against what the platform recorded, without a second request.

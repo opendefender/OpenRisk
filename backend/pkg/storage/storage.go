@@ -26,8 +26,9 @@ var ErrNotFound = errors.New("storage: key not found")
 // own internal layout (local filesystem path, S3 object key, etc.).
 type Storage interface {
 	// Save persists content under a new key namespaced by tenantID, and
-	// returns that key. filename is used only to keep a human-readable
-	// suffix; it is sanitized and must not be trusted as a path.
+	// returns that key. The key is server-generated ("<tenant>/<uuid><ext>");
+	// only the extension of filename is kept, so a client-supplied name never
+	// reaches storage.
 	Save(ctx context.Context, tenantID uuid.UUID, filename string, content io.Reader) (key string, err error)
 
 	// Open returns a reader for the content stored under key.

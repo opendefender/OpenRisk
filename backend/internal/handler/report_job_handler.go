@@ -6,12 +6,11 @@
 package handler
 
 import (
-	"fmt"
-
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 	"github.com/opendefender/openrisk/internal/application/reportjob"
 	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/pkg/fileupload"
 )
 
 // ReportJobHandler exposes report generation as addressable jobs.
@@ -102,6 +101,6 @@ func (h *ReportJobHandler) Download(c *fiber.Ctx) error {
 		filename = "report"
 	}
 	c.Set("Content-Type", contentType)
-	c.Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", filename))
+	c.Set("Content-Disposition", fileupload.AttachmentHeader(filename))
 	return c.Send(job.Artifact)
 }

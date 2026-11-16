@@ -105,3 +105,22 @@ func TestOpen_RejectsKeyEscapingBasePath(t *testing.T) {
 	_, err := s.Open(context.Background(), "../../../../etc/passwd")
 	require.True(t, errors.Is(err, ErrNotFound))
 }
+
+func TestSave_KeyNeverCarriesTheClientFilename(t *testing.T) {
+	s := newTestStorage(t)
+	tenantID := uuid.New()
+	for filename, wantExt := range map[string]string{
+		"payroll-secret.PDF":      ".pdf",
+		"x.<script>alert(1)":      "",
+		"report.tar.gz":           ".gz",
+		"no-extension":            "",
+		"evil.averyveryverylongx": "",
+	} {
+		key, err := s.Save(context.Background(), tenantID, filename, strings.NewReader("x"))
+		require.NoError(t, err)
+		rest := strings.TrimPrefix(key, tenantID.String()+"/")
+		_, perr := uuid.Parse(strings.TrimSuffix(rest, wantExt))
+		require.NoError(t, perr, "key %q for %q must be <uuid>%s", key, filename, wantExt)
+		require.False(t, strings.Contains(key, "payroll"))
+	}
+}

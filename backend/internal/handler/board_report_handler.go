@@ -8,7 +8,7 @@ package handler
 import (
 	"context"
 	"encoding/json"
-	"fmt"
+	"github.com/opendefender/openrisk/pkg/fileupload"
 	"github.com/opendefender/openrisk/pkg/monitoring"
 	"strings"
 
@@ -182,7 +182,7 @@ func (h *BoardReportHandler) DownloadPDF(c *fiber.Ctx) error {
 
 	filename := boardReportFilename(br.PeriodLabel)
 	c.Set("Content-Type", "application/pdf")
-	c.Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", filename))
+	c.Set("Content-Disposition", fileupload.AttachmentHeader(filename))
 	return c.Send(pdf)
 }
 
