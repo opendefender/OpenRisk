@@ -18,6 +18,7 @@ import (
 	"gorm.io/gorm/logger"
 
 	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/internal/testsupport/testdb"
 )
 
 // patPGSchema creates a private schema holding the users, organizations and
@@ -34,7 +35,7 @@ func patPGSchema(t *testing.T) func() *gorm.DB {
 	schema := "pat782_" + strings.ReplaceAll(uuid.NewString()[:8], "-", "")
 	cfg := &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)}
 
-	admin, err := gorm.Open(postgres.Open(dsn), cfg)
+	admin, err := testdb.Open(t, postgres.Open(dsn), cfg)
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
@@ -59,7 +60,7 @@ func patPGSchema(t *testing.T) func() *gorm.DB {
 
 	open := func() *gorm.DB {
 		t.Helper()
-		db, err := gorm.Open(postgres.Open(scoped), cfg)
+		db, err := testdb.Open(t, postgres.Open(scoped), cfg)
 		if err != nil {
 			t.Fatalf("open %s: %v", schema, err)
 		}

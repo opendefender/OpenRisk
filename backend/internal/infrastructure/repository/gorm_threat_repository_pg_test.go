@@ -22,6 +22,7 @@ import (
 
 	"github.com/opendefender/openrisk/internal/application/threatintel"
 	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/internal/testsupport/testdb"
 	"github.com/opendefender/openrisk/pkg/cti"
 )
 
@@ -34,7 +35,7 @@ func TestThreatRepository_Postgres(t *testing.T) {
 	if dsn == "" {
 		t.Skip("DATABASE_URL not set")
 	}
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
+	db, err := testdb.Open(t, postgres.Open(dsn), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
 	require.NoError(t, err)
 	var hasTable bool
 	db.Raw(`SELECT to_regclass('public.cti_threat_dismissals') IS NOT NULL`).Scan(&hasTable)

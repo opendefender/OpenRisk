@@ -14,6 +14,8 @@ import (
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
+
+	"github.com/opendefender/openrisk/internal/testsupport/testdb"
 )
 
 // A database from before #782 has personal_access_tokens without tenant_id.
@@ -26,7 +28,7 @@ func TestBackfillPersonalAccessTokenTenant_Postgres(t *testing.T) {
 		t.Skip("DATABASE_URL not set")
 	}
 	cfg := &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)}
-	admin, err := gorm.Open(postgres.Open(dsn), cfg)
+	admin, err := testdb.Open(t, postgres.Open(dsn), cfg)
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
@@ -44,7 +46,7 @@ func TestBackfillPersonalAccessTokenTenant_Postgres(t *testing.T) {
 	if !strings.Contains(dsn, "://") {
 		scoped = dsn + " search_path=" + schema
 	}
-	db, err := gorm.Open(postgres.Open(scoped), cfg)
+	db, err := testdb.Open(t, postgres.Open(scoped), cfg)
 	if err != nil {
 		t.Fatalf("open schema: %v", err)
 	}

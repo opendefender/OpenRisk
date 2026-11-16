@@ -338,5 +338,5 @@ type EvidenceRepository interface {
 	// have not been reminded since their last change — the worker's query.
 	ListExpiring(ctx context.Context, now time.Time, window time.Duration, limit int) ([]Evidence, error)
 	// MarkReminded stamps the reminder time.
-	MarkReminded(ctx context.Context, id uuid.UUID, at time.Time) error
+	MarkReminded(ctx context.Context, tenantID, id uuid.UUID, at time.Time) error
 }

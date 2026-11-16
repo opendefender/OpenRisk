@@ -13,6 +13,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/internal/infrastructure/tenantguard"
 )
 
 // GormPersonalAccessTokenRepository implements PersonalAccessTokenRepository using GORM
@@ -35,7 +36,7 @@ func (r *GormPersonalAccessTokenRepository) Create(ctx context.Context, token *d
 // the token may act in. Every other method below filters on tenant_id.
 func (r *GormPersonalAccessTokenRepository) GetByTokenHash(ctx context.Context, hash string) (*domain.PersonalAccessToken, error) {
 	var token domain.PersonalAccessToken
-	err := r.db.WithContext(ctx).
+	err := tenantguard.CrossTenant(r.db.WithContext(ctx), "PAT authentication: the token hash resolves the only tenant the token may act in").
 		Where("token_hash = ?", hash).
 		First(&token).Error
 	if err != nil {

@@ -27,6 +27,7 @@ import (
 	"github.com/opendefender/openrisk/internal/domain"
 	"github.com/opendefender/openrisk/internal/infrastructure/database"
 	"github.com/opendefender/openrisk/internal/middleware"
+	"github.com/opendefender/openrisk/internal/testsupport/testdb"
 )
 
 type clearOwnershipRig struct {
@@ -39,7 +40,7 @@ type clearOwnershipRig struct {
 func newClearOwnershipRig(t *testing.T) *clearOwnershipRig {
 	t.Helper()
 	dsn := "file:mitigation_clear_" + uuid.New().String() + "?mode=memory&cache=private"
-	db, err := gorm.Open(sqlite.Open(dsn), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
+	db, err := testdb.Open(t, sqlite.Open(dsn), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
 	require.NoError(t, err)
 	require.NoError(t, db.Exec(`CREATE TABLE mitigations (
 		id TEXT PRIMARY KEY, tenant_id TEXT, risk_id TEXT,

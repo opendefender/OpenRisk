@@ -14,6 +14,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/internal/infrastructure/tenantguard"
 )
 
 // The relay's side of the realtime outbox (ADR 0010). It satisfies
@@ -46,7 +47,7 @@ func (r *GormRealtimeEventRepository) AbandonExpired(ctx context.Context, maxAtt
 		return 0, err
 	}
 	// tenant: instance-level poison-row sweep, cross-tenant by design; touches only relay bookkeeping columns.
-	res := r.db.WithContext(ctx).Session(&gorm.Session{SkipHooks: true}).Exec(`
+	res := tenantguard.CrossTenant(r.db.WithContext(ctx), "realtime outbox poison-row sweep across every tenant; touches only relay bookkeeping columns").Session(&gorm.Session{SkipHooks: true}).Exec(`
 		UPDATE realtime_events
 		   SET abandoned_at = now(), locked_until = NULL,
 		       last_error = 'abandoned: no outcome recorded after the last attempt (the relay never returned)'
@@ -59,7 +60,7 @@ func (r *GormRealtimeEventRepository) AbandonExpired(ctx context.Context, maxAtt
 // own so the cursor is closed by defer before statement 2 runs on the same tx.
 func lockClaimableTenants(tx *gorm.DB, maxTenants int) ([]uuid.UUID, error) {
 	// tenant: returns tenant ids only, cross-tenant by design; every later statement is gated by that list.
-	cur, err := tx.Raw(`
+	cur, err := tenantguard.CrossTenant(tx, "outbox claim statement 1 returns tenant ids only; every later statement is gated by that list").Raw(`
 		SELECT s.tenant_id
 		  FROM realtime_event_sequences s
 		  JOIN (SELECT DISTINCT ON (tenant_id) tenant_id, created_at AS oldest, locked_until
@@ -220,7 +221,7 @@ func (r *GormRealtimeEventRepository) PendingStats(ctx context.Context) (int64, 
 		Oldest *time.Time
 	}
 	// tenant: aggregate-only gauge over the whole instance, no row data leaves.
-	err := r.db.WithContext(ctx).Raw(`
+	err := tenantguard.CrossTenant(r.db.WithContext(ctx), "aggregate-only gauge over the whole instance; no row data leaves").Raw(`
 		SELECT COUNT(*) AS n, MIN(created_at) AS oldest
 		  FROM realtime_events
 		 WHERE published_at IS NULL AND abandoned_at IS NULL`).Scan(&res).Error

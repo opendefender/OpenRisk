@@ -11,6 +11,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/internal/infrastructure/tenantguard"
 	"gorm.io/gorm"
 )
 
@@ -93,7 +94,7 @@ func (r *GormVulnIntegrationRepository) GetIntegrationByWebhookToken(ctx context
 		return nil, nil
 	}
 	var in domain.VulnIntegration
-	err := r.db.WithContext(ctx).
+	err := tenantguard.CrossTenant(r.db.WithContext(ctx), "webhook authentication: the token resolves the integration's tenant; no session yet").
 		Where("webhook_token = ? AND webhook_enabled = ? AND enabled = ?", token, true, true).
 		First(&in).Error
 	if err == gorm.ErrRecordNotFound {

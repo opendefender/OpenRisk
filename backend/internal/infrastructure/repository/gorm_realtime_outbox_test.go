@@ -23,6 +23,7 @@ import (
 	assetuc "github.com/opendefender/openrisk/internal/application/asset"
 	"github.com/opendefender/openrisk/internal/domain"
 	"github.com/opendefender/openrisk/internal/testsupport/sqliteschema"
+	"github.com/opendefender/openrisk/internal/testsupport/testdb"
 	"github.com/opendefender/openrisk/pkg/realtime"
 )
 
@@ -218,7 +219,7 @@ func TestRealtimeRepo_EnlistKeepsTenantsIndependent(t *testing.T) {
 
 func assetImportDB(t *testing.T) (*gorm.DB, *GormRealtimeEventRepository) {
 	t.Helper()
-	db, err := gorm.Open(sqlite.Open("file:rt_outbox_"+uuid.NewString()+"?mode=memory&cache=private"), &gorm.Config{})
+	db, err := testdb.Open(t, sqlite.Open("file:rt_outbox_"+uuid.NewString()+"?mode=memory&cache=private"), &gorm.Config{})
 	require.NoError(t, err)
 	require.NoError(t, db.Exec(`CREATE TABLE assets (id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, name TEXT NOT NULL,
 		criticality TEXT NOT NULL DEFAULT 'MEDIUM', created_at DATETIME, updated_at DATETIME, deleted_at DATETIME)`).Error)

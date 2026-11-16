@@ -57,6 +57,11 @@ func (r *GormEntitlementRepository) PlanAndRegion(ctx context.Context, tenant uu
 // injected clock. Two clocks would let one request see a trial as live and a
 // seat as expired at the same time (#419).
 func (r *GormEntitlementRepository) Count(ctx context.Context, tenant uuid.UUID, key ent.LimitKey, asOf time.Time) (int, error) {
+	// A nil tenant counts nobody's rows. Answered before any query so the tenant
+	// guard never sees a statement bound to uuid.Nil (#808).
+	if tenant == uuid.Nil {
+		return 0, nil
+	}
 	db := r.db.WithContext(ctx)
 	var n int64
 	switch key {

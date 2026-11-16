@@ -17,11 +17,12 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/internal/testsupport/testdb"
 )
 
 func setupUserEmailRepo(t *testing.T) (*GormUserRepository, *gorm.DB) {
 	t.Helper()
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	db, err := testdb.Open(t, sqlite.Open(":memory:"), &gorm.Config{})
 	require.NoError(t, err)
 	// Hand-written: both models carry Postgres-only defaults sqlite rejects. The
 	// email column is unique and case-sensitive, as in production.

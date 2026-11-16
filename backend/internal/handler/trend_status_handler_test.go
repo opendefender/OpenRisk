@@ -20,6 +20,7 @@ import (
 
 	"github.com/opendefender/openrisk/internal/middleware"
 	"github.com/opendefender/openrisk/internal/service"
+	"github.com/opendefender/openrisk/internal/testsupport/testdb"
 )
 
 // The two reachable risk-trend endpoints must answer "insufficient_data" on a
@@ -27,7 +28,7 @@ import (
 
 func trendDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	db, err := testdb.Open(t, sqlite.Open(":memory:"), &gorm.Config{})
 	require.NoError(t, err)
 	require.NoError(t, db.Exec(`CREATE TABLE risks (
 		id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, status TEXT, score REAL DEFAULT 0,

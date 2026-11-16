@@ -13,6 +13,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/internal/infrastructure/tenantguard"
 )
 
 // GormRiskReviewRepository is a focused, cross-tenant view of risks used by the
@@ -28,7 +29,7 @@ func NewGormRiskReviewRepository(db *gorm.DB) *GormRiskReviewRepository {
 // ListDueForReview returns risks (across all tenants) whose review is due.
 func (r *GormRiskReviewRepository) ListDueForReview(ctx context.Context, now time.Time) ([]domain.Risk, error) {
 	var risks []domain.Risk
-	err := r.db.WithContext(ctx).
+	err := tenantguard.CrossTenant(r.db.WithContext(ctx), "risk review sweep across tenants; each row carries its tenant").
 		Where("review_interval_days > 0 AND next_review_at IS NOT NULL AND next_review_at <= ?", now).
 		Limit(500).
 		Find(&risks).Error
@@ -37,9 +38,9 @@ func (r *GormRiskReviewRepository) ListDueForReview(ctx context.Context, now tim
 
 // BumpNextReview pushes a risk's next review out by one cadence so the owner is
 // nudged once per interval, not once per worker tick.
-func (r *GormRiskReviewRepository) BumpNextReview(ctx context.Context, id uuid.UUID, next time.Time) error {
+func (r *GormRiskReviewRepository) BumpNextReview(ctx context.Context, tenantID, id uuid.UUID, next time.Time) error {
 	return r.db.WithContext(ctx).
 		Model(&domain.Risk{}).
-		Where("id = ?", id).
+		Where("id = ? AND tenant_id = ?", id, tenantID).
 		Update("next_review_at", next).Error
 }
