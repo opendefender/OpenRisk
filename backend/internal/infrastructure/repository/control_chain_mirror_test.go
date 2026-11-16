@@ -819,6 +819,8 @@ func runMirrorSuite(t *testing.T, s mirrorSuite) {
 		"TestControlImplementation_AuditFailureRollsTheWriteBack":      s.TestControlImplementation_AuditFailureRollsTheWriteBack,
 		"TestControlImplementation_ParentChainLiveness":                s.TestControlImplementation_ReadsFilterOnTheLivenessOfTheParentChain,
 		"TestControlImplementation_ReplaceDeletesStaleEdge":            s.TestControlImplementation_ReplaceDeletesTheEdgeOfADeletedAsset,
+		"TestControlTest_CreateBlocksOnImplementationDelete":           s.TestControlTest_CreateBlocksOnAConcurrentImplementationDelete,
+		"TestControlImplementation_CreateBlocksOnControlDelete":        s.TestControlImplementation_CreateBlocksOnAConcurrentControlDelete,
 		"TestControlTest_CreateReadEditDelete_Success":                 s.TestControlTest_CreateReadEditDelete_Success,
 		"TestControlTest_NotFound":                                     s.TestControlTest_NotFound,
 		"TestControlTest_Unauthorized":                                 s.TestControlTest_Unauthorized_NilTenantTouchesNothing,

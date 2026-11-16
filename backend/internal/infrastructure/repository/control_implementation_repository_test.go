@@ -14,6 +14,8 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	ctlapp "github.com/opendefender/openrisk/internal/application/controlchain"
 	"github.com/opendefender/openrisk/internal/domain"
@@ -635,4 +637,129 @@ func (s mirrorSuite) TestControlImplementation_ReplaceDeletesTheEdgeOfADeletedAs
 	var raw []uuid.UUID
 	require.NoError(t, e.db.Model(&controlchain.CanonicalEdgeRow{}).Where("tenant_id = ? AND from_id = ? AND verb = ?", tenant, impl.ID, "applies_to").Pluck("to_id", &raw).Error)
 	assert.Equal(t, []uuid.UUID{a3}, raw, "the stale edge is gone from the table")
+}
+
+// ---------------------------------------------------------------------------
+// Concurrency (Postgres only): the parent row locks of CreateTest and
+// CreateImplementation. A second transaction plays the delete: it takes the
+// parent's row lock and soft-deletes it, as DeleteImplementation and S3's
+// DeleteControl do, and holds it open. The create must block on the lock, and once
+// the delete commits it must answer ErrNotFound and leave no live child.
+
+// waitForLockWait polls pg_stat_activity until some backend waits on a lock, so
+// "the create is blocked" is observed, not assumed. The timeout only bounds a
+// failure; it is not what makes the test pass.
+func waitForLockWait(t *testing.T, db *gorm.DB) {
+	t.Helper()
+	deadline := time.Now().Add(15 * time.Second)
+	for time.Now().Before(deadline) {
+		var n int64
+		require.NoError(t, db.Raw("SELECT count(*) FROM pg_stat_activity WHERE wait_event_type = 'Lock' AND datname = current_database()").Scan(&n).Error)
+		if n > 0 {
+			return
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	t.Fatal("no backend is waiting on a lock: the create did not block on the parent row")
+}
+
+// lockedDelete begins a transaction that locks the row of table (tenant and id in
+// the WHERE), soft-deletes it, and returns the transaction left open.
+func lockedDelete(t *testing.T, db *gorm.DB, model any, table string, tenant, id uuid.UUID) *gorm.DB {
+	t.Helper()
+	tx := db.Begin()
+	require.NoError(t, tx.Error)
+	require.NoError(t, tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("tenant_id = ? AND id = ? AND deleted_at IS NULL", tenant, id).Take(model).Error)
+	require.NoError(t, tx.Table(table).Where("tenant_id = ? AND id = ?", tenant, id).Updates(map[string]any{"deleted_at": libNow}).Error)
+	return tx
+}
+
+func (s mirrorSuite) TestControlTest_CreateBlocksOnAConcurrentImplementationDelete(t *testing.T) {
+	e := s.env(t).chain(t)
+	if e.db.Dialector.Name() != "postgres" {
+		t.Skip("row locks are a Postgres behaviour")
+	}
+	ctx := context.Background()
+	tenant := uuid.New()
+	impl := e.newImpl(t, tenant, e.newControl(t, tenant, "c").ID, e.asset(t, tenant))
+
+	tx := lockedDelete(t, e.db, &controlchain.ControlImplementationRow{}, "control_implementations", tenant, impl.ID)
+	committed := false
+	defer func() {
+		if !committed {
+			tx.Rollback()
+		}
+	}()
+
+	late := userTest(tenant, impl.ID, "late")
+	done := make(chan error, 1)
+	go func() {
+		done <- e.tests.CreateTest(ctx, tenant, late, testAudit(tenant, late.ID, domain.AuditActionCreate))
+	}()
+
+	waitForLockWait(t, e.db)
+	select {
+	case err := <-done:
+		t.Fatalf("CreateTest returned while the implementation row was locked: %v", err)
+	default:
+	}
+
+	require.NoError(t, tx.Commit().Error)
+	committed = true
+	select {
+	case err := <-done:
+		require.ErrorIs(t, err, domain.ErrNotFound)
+	case <-time.After(15 * time.Second):
+		t.Fatal("CreateTest did not finish after the delete committed")
+	}
+	var live int64
+	require.NoError(t, e.db.Model(&controlchain.ControlTestRow{}).Where("tenant_id = ? AND implementation_id = ? AND deleted_at IS NULL", tenant, impl.ID).Count(&live).Error)
+	assert.Zero(t, live, "no live test under a deleted implementation")
+	var total int64
+	require.NoError(t, e.db.Model(&controlchain.ControlTestRow{}).Where("tenant_id = ? AND implementation_id = ?", tenant, impl.ID).Count(&total).Error)
+	assert.Zero(t, total, "the refused create left no row at all")
+}
+
+func (s mirrorSuite) TestControlImplementation_CreateBlocksOnAConcurrentControlDelete(t *testing.T) {
+	e := s.env(t).chain(t)
+	if e.db.Dialector.Name() != "postgres" {
+		t.Skip("row locks are a Postgres behaviour")
+	}
+	ctx := context.Background()
+	tenant := uuid.New()
+	ctl := e.newControl(t, tenant, "c")
+	asset := e.asset(t, tenant)
+
+	tx := lockedDelete(t, e.db, &controlchain.ControlRow{}, "controls", tenant, ctl.ID)
+	committed := false
+	defer func() {
+		if !committed {
+			tx.Rollback()
+		}
+	}()
+
+	late := userImplementation(tenant, ctl.ID)
+	done := make(chan error, 1)
+	go func() {
+		done <- e.impls.CreateImplementation(ctx, tenant, late, []canonical.Edge{appliesEdge(tenant, late.ID, asset)},
+			implAudit(tenant, late.ID, domain.AuditActionCreate))
+	}()
+
+	waitForLockWait(t, e.db)
+	select {
+	case err := <-done:
+		t.Fatalf("CreateImplementation returned while the control row was locked: %v", err)
+	default:
+	}
+
+	require.NoError(t, tx.Commit().Error)
+	committed = true
+	select {
+	case err := <-done:
+		require.ErrorIs(t, err, domain.ErrNotFound)
+	case <-time.After(15 * time.Second):
+		t.Fatal("CreateImplementation did not finish after the delete committed")
+	}
+	assert.Zero(t, e.implRows(t, tenant), "no implementation under a deleted control")
+	assert.Zero(t, e.edgeCount(t, tenant, canonical.VerbAppliesTo), "and no edge")
 }
