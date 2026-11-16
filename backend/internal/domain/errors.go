@@ -31,6 +31,9 @@ type AppError struct {
 	Detail string
 	// Code is the HTTP status code
 	Code int
+	// Reason is an optional stable machine-readable code the client can switch
+	// on (and map to a translated message). Empty for the common errors.
+	Reason string
 }
 
 func (e *AppError) Error() string {
@@ -75,6 +78,24 @@ func NewConflictError(resource, field string) *AppError {
 		Message: fmt.Sprintf("%s already exists", resource),
 		Detail:  fmt.Sprintf("duplicate field: %s", field),
 		Code:    http.StatusConflict,
+	}
+}
+
+// ReasonEvidenceIntegrity is the stable code of a stored artifact whose bytes no
+// longer match the hash taken at ingest.
+const ReasonEvidenceIntegrity = "evidence_integrity_mismatch"
+
+// NewEvidenceIntegrityError reports that the stored bytes of an artifact do not
+// match its content hash. It is an ErrConflict answered with 409: the record
+// and the blob disagree, and the content is refused. The message is fixed and
+// carries no hash, path or content.
+func NewEvidenceIntegrityError(id any) *AppError {
+	return &AppError{
+		Err:     ErrConflict,
+		Message: "evidence integrity check failed: the stored file does not match its recorded hash",
+		Detail:  fmt.Sprintf("id=%v", id),
+		Code:    http.StatusConflict,
+		Reason:  ReasonEvidenceIntegrity,
 	}
 }
 
@@ -187,6 +208,16 @@ func HTTPStatusFromError(err error) int {
 		return appErr.Code
 	}
 	return http.StatusInternalServerError
+}
+
+// ReasonFromError returns the stable machine-readable code of an AppError, or
+// "" when the error carries none.
+func ReasonFromError(err error) string {
+	var appErr *AppError
+	if errors.As(err, &appErr) {
+		return appErr.Reason
+	}
+	return ""
 }
 
 // MessageFromError extracts the user-facing message from an error.

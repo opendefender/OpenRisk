@@ -163,6 +163,33 @@ type Evidence struct {
 	Source       EvidenceSource `gorm:"type:varchar(20);not null;default:'manual';index" json:"source"`
 	SourceDetail string         `gorm:"size:255;not null;default:''" json:"source_detail"`
 
+	// ---- Record integrity (#554) ----
+
+	// ContentHash is the SHA-256 (lower-case hex) of the exact bytes saved,
+	// computed server-side at ingest and never accepted from a client. Empty on
+	// rows that predate #554 and on evidence that holds no file; Download serves
+	// such a file but flags it unverified. It is not in the repository's Update
+	// column list: nothing but Create ever writes it.
+	ContentHash   string `gorm:"type:varchar(64);not null;default:''" json:"content_hash"`
+	HashAlgorithm string `gorm:"type:varchar(16);not null;default:''" json:"hash_algorithm"`
+	// ObservedFrom..ObservedTo is the period the proof describes; the invariant
+	// is ObservedFrom <= ObservedTo <= CollectedAt. A point-in-time observation
+	// stores both equal to CollectedAt.
+	ObservedFrom *time.Time `json:"observed_from"`
+	ObservedTo   *time.Time `json:"observed_to"`
+	// CollectionMethod is how the proof reached the register. Its own axis,
+	// distinct from Source (see ADR 0008 A11).
+	CollectionMethod CollectionMethod `gorm:"type:varchar(24);not null;default:''" json:"collection_method"`
+	// CollectorKind and CollectorRef name who or what collected it. The ref is an
+	// identifier (a user id, a connector name, a job name), never a credential.
+	CollectorKind CollectorKind `gorm:"type:varchar(16);not null;default:''" json:"collector_kind"`
+	CollectorRef  string        `gorm:"size:128;not null;default:''" json:"collector_ref"`
+	// Signature is an optional base64 detached signature. Stored, never verified
+	// here, and kept out of the JSON (up to 8 KiB per row on a list page); the
+	// record shows its presence as Signed.
+	Signature          string `gorm:"type:text;not null;default:''" json:"-"`
+	SignatureAlgorithm string `gorm:"size:32;not null;default:''" json:"signature_algorithm"`
+
 	// Ownership — who answers for this proof, who must refresh it, who validates
 	// it. Same embedded block as Risk/Mitigation/Incident/RemediationPlan.
 	Ownership `gorm:"embedded"`
@@ -192,6 +219,12 @@ type Evidence struct {
 	Controls []EvidenceControlRef `gorm:"-" json:"controls,omitempty"`
 	// CollectedByEmail resolves the actor for display; empty when unresolvable.
 	CollectedByEmail string `gorm:"-" json:"collected_by_email,omitempty"`
+	// Integrity, Signed, Assurance and Confidence are derived on read from the
+	// stored fields (see evidence_integrity.go); there is no column for any.
+	Integrity  EvidenceIntegrity `gorm:"-" json:"integrity"`
+	Signed     bool              `gorm:"-" json:"signed"`
+	Assurance  EvidenceAssurance `gorm:"-" json:"assurance"`
+	Confidence float64           `gorm:"-" json:"confidence"`
 }
 
 func (Evidence) TableName() string { return "evidences" }
@@ -265,6 +298,7 @@ func (e *Evidence) DaysUntil(now time.Time) *int {
 func (e *Evidence) Decorate(now time.Time) {
 	e.Status = e.EffectiveStatus(now)
 	e.DaysUntilExpiry = e.DaysUntil(now)
+	e.DeriveIntegrity()
 	if e.ControlIDs == nil {
 		e.ControlIDs = []uuid.UUID{}
 	}

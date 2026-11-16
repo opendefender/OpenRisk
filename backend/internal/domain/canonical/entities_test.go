@@ -372,6 +372,33 @@ func TestCanonical_Evidence_Refusals(t *testing.T) {
 		{"external_url over 2048", "external_url", func(e *canonical.Evidence) {
 			e.ExternalURL = ptr("https://docs.example.com/" + strings.Repeat("a", 2048))
 		}},
+		// A11 (#554).
+		{"content_hash not sha-256 hex", "content_hash", func(e *canonical.Evidence) {
+			e.ContentHash, e.HashAlgorithm = ptr("ABC"), ptr("sha256")
+		}},
+		{"content_hash without sha256", "hash_algorithm", func(e *canonical.Evidence) {
+			e.ContentHash, e.HashAlgorithm = ptr(strings.Repeat("a", 64)), nil
+		}},
+		{"observed_from after observed_to", "observed_from", func(e *canonical.Evidence) {
+			e.ObservedFrom, e.ObservedTo = ptr(observed.Add(time.Hour)), ptr(observed)
+		}},
+		{"observed_to after observed_at", "observed_to", func(e *canonical.Evidence) {
+			e.ObservedFrom, e.ObservedTo = ptr(observed), ptr(observed.Add(time.Hour))
+		}},
+		{"collection_method outside the four", "collection_method", func(e *canonical.Evidence) {
+			m := canonical.CollectionMethod("carrier_pigeon")
+			e.CollectionMethod = &m
+		}},
+		{"automated method without collector_ref", "collector_ref", func(e *canonical.Evidence) {
+			m := canonical.MethodAPIPull
+			e.CollectionMethod, e.CollectorRef = &m, nil
+		}},
+		{"collector_ref with a secret-shaped value", "collector_ref", func(e *canonical.Evidence) {
+			e.CollectorRef = ptr("token=abc def")
+		}},
+		{"signature without algorithm", "signature_algorithm", func(e *canonical.Evidence) {
+			e.Signature = ptr("c2ln")
+		}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -489,10 +516,12 @@ func TestCanonical_EnvelopeJSON_RoundTrip(t *testing.T) {
 		"observed_at", "confidence", "provenance", "relationships",
 		"title", "kind", "description", "file_ref", "filename", "external_url", "valid_until",
 		"collected_by", "review", "owner_id", "assignee_id", "reviewer_id",
+		"content_hash", "hash_algorithm", "observed_from", "observed_to", "collection_method",
+		"collector_kind", "collector_ref", "signature", "signature_algorithm",
 	} {
 		assert.Contains(t, m, key)
 	}
-	assert.Len(t, m, 23, "Evidence carries the 11 envelope fields and D6's 12 own fields, no more")
+	assert.Len(t, m, 32, "Evidence carries the 11 envelope fields, D6's 12 own fields and A11's 9 record-integrity fields, no more")
 
 	t.Run("empty lists encode as [], never null", func(t *testing.T) {
 		for name, record := range map[string]any{

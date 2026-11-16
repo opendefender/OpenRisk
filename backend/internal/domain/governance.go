@@ -93,6 +93,9 @@ const (
 	AuditActionExport   AuditAction = "export"
 	AuditActionTransfer AuditAction = "transfer" // ownership handed to another member
 	AuditActionDefer    AuditAction = "defer"    // approval request deferred to the next committee
+	// AuditActionIntegrityAlert is recorded (EntityType "evidence") when a stored
+	// artifact fails its hash check on download (#554).
+	AuditActionIntegrityAlert AuditAction = "integrity_alert"
 )
 
 // AuditEvent is one immutable row in the audit trail. There is intentionally no
