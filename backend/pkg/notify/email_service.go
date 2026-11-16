@@ -8,6 +8,7 @@ package notify
 import (
 	"context"
 	"fmt"
+	"html"
 	"html/template"
 	"strings"
 
@@ -51,7 +52,8 @@ func (s *EmailService) SendWelcomeEmail(ctx context.Context, userEmail, fullName
 	htmlBody, err := s.renderTemplate("welcome_email.html", templateData)
 	if err != nil {
 		// Fallback to plain text if template fails
-		htmlBody = s.getPlainWelcomeEmail(fullName)
+		// The body is sent as HTML, so the name is escaped here too (#1316).
+		htmlBody = s.getPlainWelcomeEmail(html.EscapeString(fullName))
 	}
 
 	// Send email using the service interface

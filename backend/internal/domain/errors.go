@@ -86,6 +86,16 @@ func NewValidationError(message string) *AppError {
 	}
 }
 
+// NewPayloadTooLargeError is a validation error (ErrValidation) answered with
+// 413: the request is well formed but its content is over the accepted size.
+func NewPayloadTooLargeError(message string) *AppError {
+	return &AppError{
+		Err:     ErrValidation,
+		Message: message,
+		Code:    http.StatusRequestEntityTooLarge,
+	}
+}
+
 // NewOutboundDeniedError reports a URL the server refuses to call: loopback,
 // link-local (cloud metadata), a private range or a non-https scheme (#1315).
 // It is a validation error (400) that keeps its cause, so errors.Is matches

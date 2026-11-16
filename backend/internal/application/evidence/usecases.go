@@ -14,12 +14,14 @@ package evidence
 
 import (
 	"context"
+	"errors"
 	"io"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/pkg/fileupload"
 	"github.com/opendefender/openrisk/pkg/storage"
 )
 
@@ -172,7 +174,14 @@ func (s *Service) Create(ctx context.Context, tenantID uuid.UUID, in CreateInput
 	}
 
 	if in.Content != nil {
-		key, err := s.storage.Save(ctx, tenantID, in.Filename, in.Content)
+		// The type is decided from the bytes, never from the client's filename or
+		// Content-Type (#1316). The stored name is server-generated from that type;
+		// the client's name survives only in ev.Filename, for display.
+		file, err := fileupload.Evidence.Read(in.Content)
+		if err != nil {
+			return nil, fileValidationError(err)
+		}
+		key, err := s.storage.Save(ctx, tenantID, "evidence"+file.Extension, file.Reader())
 		if err != nil {
 			return nil, domain.NewInternalError("failed to store evidence file: " + err.Error())
 		}
@@ -200,6 +209,20 @@ func (s *Service) Create(ctx context.Context, tenantID uuid.UUID, in CreateInput
 	}
 
 	return s.decorateOne(ctx, tenantID, ev)
+}
+
+// fileValidationError maps an upload rejection to a typed domain error.
+func fileValidationError(err error) error {
+	switch {
+	case errors.Is(err, fileupload.ErrTooLarge):
+		return domain.NewPayloadTooLargeError("The file is larger than 3 MB.")
+	case errors.Is(err, fileupload.ErrEmpty):
+		return domain.NewValidationError("The file is empty.")
+	case errors.Is(err, fileupload.ErrUnsupported):
+		return domain.NewValidationError("This file type is not allowed. Attach a PDF, PNG, JPEG, WebP, text or Office (docx, xlsx, pptx) file.")
+	default:
+		return domain.NewInternalError("failed to read uploaded file: " + err.Error())
+	}
 }
 
 // =============================================================================

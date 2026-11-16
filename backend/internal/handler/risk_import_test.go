@@ -82,6 +82,8 @@ func newImportApp(t *testing.T) *importApp {
 		WithAssets(repository.ListImportAssetRefs(db)))
 
 	app.Post("/api/v1/risks/import", middleware.RequirePermission("risks:create"), handler.ImportRisks)
+	// Read-back route for the output-encoding proof (#1316).
+	app.Get("/api/v1/risks/:id", handler.GetRisk)
 	h.app = app
 	return h
 }

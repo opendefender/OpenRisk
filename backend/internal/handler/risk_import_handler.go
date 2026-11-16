@@ -16,6 +16,7 @@ import (
 	"github.com/opendefender/openrisk/internal/application/risk"
 	"github.com/opendefender/openrisk/internal/domain"
 	"github.com/opendefender/openrisk/pkg/events"
+	"github.com/opendefender/openrisk/pkg/fileupload"
 )
 
 // WithImport attaches the CSV import use case behind POST /risks/import.
@@ -63,6 +64,11 @@ func (h *RiskHandler) ImportRisks(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "validation_failed", "message": "The file cannot be read."})
 	}
 
+	// The type is decided from the bytes, not the .csv extension the client chose.
+	if _, err := fileupload.CSV.Check(data); err != nil {
+		return importUploadError(c, err)
+	}
+
 	tenant, actor := tenantID(c), userID(c)
 	result, err := h.importRisksUC.Execute(auditCtx(c), tenant, risk.ImportRisksInput{CSV: data, ImportedBy: actor})
 	if err != nil {
@@ -108,4 +114,22 @@ func (h *RiskHandler) ImportRisks(c *fiber.Ctx) error {
 	}
 
 	return c.JSON(result)
+}
+
+// importUploadError answers a CSV upload the byte check refused. It goes through
+// the typed domain error (ErrValidation, 413 when oversize) and keeps the
+// {error, message} body the import screens already parse.
+func importUploadError(c *fiber.Ctx, err error) error {
+	var verr error
+	switch {
+	case errors.Is(err, fileupload.ErrTooLarge):
+		verr = domain.NewPayloadTooLargeError("The file is larger than 2 MB. Split it into several files.")
+	case errors.Is(err, fileupload.ErrEmpty):
+		verr = domain.NewValidationError("The file is empty.")
+	default:
+		verr = domain.NewValidationError("Only CSV (UTF-8 text) files can be imported.")
+	}
+	return c.Status(domain.HTTPStatusFromError(verr)).JSON(fiber.Map{
+		"error": "validation_failed", "message": domain.MessageFromError(verr),
+	})
 }
