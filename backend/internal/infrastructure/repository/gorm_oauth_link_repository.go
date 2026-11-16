@@ -14,6 +14,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/internal/infrastructure/tenantguard"
 )
 
 // GormOAuthLinkRepository stores which providers sign a user in.
@@ -41,7 +42,7 @@ func (r *GormOAuthLinkRepository) FindByProviderSubject(ctx context.Context, pro
 		return nil, nil
 	}
 	var link domain.OAuthProvider
-	err := r.db.WithContext(ctx).
+	err := tenantguard.CrossTenant(r.db.WithContext(ctx), "OAuth sign-in: the provider subject resolves the link's tenant; no session yet").
 		Where("provider = ? AND provider_user_id = ?", provider, subject).
 		First(&link).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -56,7 +57,7 @@ func (r *GormOAuthLinkRepository) FindByProviderSubject(ctx context.Context, pro
 // ListByUser returns every provider linked to a user.
 func (r *GormOAuthLinkRepository) ListByUser(ctx context.Context, userID uuid.UUID) ([]domain.OAuthProvider, error) {
 	var links []domain.OAuthProvider
-	if err := r.db.WithContext(ctx).Where("user_id = ?", userID).Find(&links).Error; err != nil {
+	if err := tenantguard.CrossTenant(r.db.WithContext(ctx), "a user's own provider links span every organisation they belong to").Where("user_id = ?", userID).Find(&links).Error; err != nil {
 		return nil, err
 	}
 	return links, nil
@@ -71,9 +72,9 @@ func (r *GormOAuthLinkRepository) Create(ctx context.Context, link *domain.OAuth
 //
 // Best-effort by contract: the caller ignores the error, because failing to
 // update a timestamp must not fail an otherwise valid sign-in.
-func (r *GormOAuthLinkRepository) TouchLogin(ctx context.Context, id uuid.UUID, at time.Time) error {
+func (r *GormOAuthLinkRepository) TouchLogin(ctx context.Context, tenantID, id uuid.UUID, at time.Time) error {
 	return r.db.WithContext(ctx).
 		Model(&domain.OAuthProvider{}).
-		Where("id = ?", id).
+		Where("id = ? AND tenant_id = ?", id, tenantID).
 		Update("last_login_at", at).Error
 }

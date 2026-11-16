@@ -104,7 +104,9 @@ func (f *fakeEvidenceCounts) ControlsWithCoverage(context.Context, uuid.UUID, uu
 func (f *fakeEvidenceCounts) ListExpiring(context.Context, time.Time, time.Duration, int) ([]domain.Evidence, error) {
 	return nil, nil
 }
-func (f *fakeEvidenceCounts) MarkReminded(context.Context, uuid.UUID, time.Time) error { return nil }
+func (f *fakeEvidenceCounts) MarkReminded(context.Context, uuid.UUID, uuid.UUID, time.Time) error {
+	return nil
+}
 
 // --- fixture ---------------------------------------------------------------
 

@@ -67,6 +67,18 @@ jobs:
           go mod tidy
           git diff --exit-code go.mod go.sum || (echo "go.mod or go.sum is not tidy" && exit 1)
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      # #808, D-055: handlers may not gain direct database.DB access. Per-file
+      # ceiling, exact match: a reduction lowers backend/.handler-db-ceiling.json
+      # in the same PR (`node scripts/ci/check-handler-db-ceiling.mjs --update`).
+      - name: Handler database.DB ratchet (may only go down)
+        run: |
+          node --test scripts/ci/check-handler-db-ceiling.test.mjs
+          node scripts/ci/check-handler-db-ceiling.mjs
+
   backend-unit-tests:
     name: Backend Unit Tests
     runs-on: ubuntu-latest
@@ -175,6 +187,8 @@ jobs:
           CTI_SYNC_ENABLED: 'false'
           PASSWORD_HIBP_DISABLED: 'true'
           OPENRISK_DEPLOYMENT: self_hosted
+          # #808: the production boot path (seeds, backfills) runs under the tenant guard.
+          TENANT_GUARD: enforce
         run: |
           mkdir -p "$RUNNER_TEMP/keys"
           ( umask 077 && openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out "$RUNNER_TEMP/keys/private.pem" 2>/dev/null )
@@ -186,6 +200,11 @@ jobs:
           for i in $(seq 1 90); do
             if curl -fsS http://localhost:8080/api/v1/health >/dev/null; then
               kill "$PID"; wait "$PID" || true
+              # #808: seeds and backfills swallow their errors and log them, so the
+              # tenant guard's refusals are only visible here. Any line fails the job.
+              if grep -n 'tenantguard' "$RUNNER_TEMP/boot.log"; then
+                echo "the boot ran a query the tenant guard refused (#808)"; exit 1
+              fi
               echo "schema built after ${i}s"; exit 0
             fi
             kill -0 "$PID" 2>/dev/null || break

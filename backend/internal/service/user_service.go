@@ -264,28 +264,6 @@ func (us *UserService) GetUserTenantCount(ctx context.Context, userID uuid.UUID)
 	return count, err
 }
 
-// GetHighestUserRole retrieves the highest-level role a user has across all tenants
-func (us *UserService) GetHighestUserRole(ctx context.Context, userID uuid.UUID) (domain.RoleLevel, error) {
-	var level int
-
-	err := us.db.WithContext(ctx).
-		Model(&domain.RoleEnhanced{}).
-		Joins("JOIN user_tenants ON roles.id = user_tenants.role_id").
-		Where("user_tenants.user_id = ?", userID).
-		Order("roles.level DESC").
-		Limit(1).
-		Pluck("roles.level", &level).Error
-
-	if err != nil {
-		if err == gorm.ErrRecordNotFound {
-			return 0, fmt.Errorf("user has no roles")
-		}
-		return 0, err
-	}
-
-	return domain.RoleLevel(level), nil
-}
-
 // ListUsersByRole retrieves all users with a specific role in a tenant
 func (us *UserService) ListUsersByRole(ctx context.Context, tenantID uuid.UUID, roleID uuid.UUID, limit int, offset int) ([]domain.UserTenant, int64, error) {
 	var userTenants []domain.UserTenant

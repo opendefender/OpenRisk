@@ -19,6 +19,7 @@ import (
 	"gorm.io/gorm/clause"
 
 	"github.com/opendefender/openrisk/internal/domain/canonical"
+	"github.com/opendefender/openrisk/internal/infrastructure/tenantguard"
 	"github.com/opendefender/openrisk/pkg/monitoring"
 )
 
@@ -280,6 +281,10 @@ func uuidStrings(ids []uuid.UUID) []string {
 
 func reconcileTx(tx *gorm.DB) (Result, error) {
 	var res Result
+
+	// The reconcile is a boot pass over every tenant's control sources and
+	// edges, inside one transaction; each row it writes carries its own tenant.
+	tx = tenantguard.CrossTenant(tx, "boot reconcile of the control chain reads and writes every tenant's rows; each row carries its tenant")
 
 	// Source tables, soft-deleted rows included (D-108 Q8).
 	var reqs []reqSrc

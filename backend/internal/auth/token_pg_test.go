@@ -22,6 +22,7 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 
+	"github.com/opendefender/openrisk/internal/testsupport/testdb"
 	authpkg "github.com/opendefender/openrisk/pkg/auth"
 )
 
@@ -33,7 +34,7 @@ func newPgTokenHarness(t *testing.T) (*TokenManager, *gorm.DB) {
 	if dsn == "" {
 		t.Skip("DATABASE_URL not set")
 	}
-	admin, err := gorm.Open(postgres.Open(dsn), &gorm.Config{Logger: logger.Discard})
+	admin, err := testdb.Open(t, postgres.Open(dsn), &gorm.Config{Logger: logger.Discard})
 	require.NoError(t, err)
 	schema := "auth_test_" + strings.ReplaceAll(uuid.NewString(), "-", "")[:12]
 	require.NoError(t, admin.Exec("CREATE SCHEMA "+schema).Error)
@@ -49,7 +50,7 @@ func newPgTokenHarness(t *testing.T) (*TokenManager, *gorm.DB) {
 	q := u.Query()
 	q.Set("search_path", schema)
 	u.RawQuery = q.Encode()
-	db, err := gorm.Open(postgres.Open(u.String()), &gorm.Config{Logger: logger.Discard})
+	db, err := testdb.Open(t, postgres.Open(u.String()), &gorm.Config{Logger: logger.Discard})
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		if sqlDB, err := db.DB(); err == nil {

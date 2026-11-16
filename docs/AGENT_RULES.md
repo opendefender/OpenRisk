@@ -88,7 +88,7 @@ constitution; this file is its operating detail (#1277).
 
 | # | Rule | Enforced by | Status |
 |---|---|---|---|
-| 8.1 | CLAUDE.md's absolute rules: tenant filter, typed errors, three tests per use case, no `any`, three UI states, Zod, transactions. | CI (tenant isolation gate, lint, typecheck), review | ✅ CI · 🔧 #1271 |
+| 8.1 | CLAUDE.md's absolute rules: tenant filter, typed errors, three tests per use case, no `any`, three UI states, Zod, transactions. | CI (tenant isolation gate, tenant guard callback (#808), handler `database.DB` ratchet, lint, typecheck), review | ✅ CI · 🔧 #1271 |
 | 8.2 | A UI change is checked in a real browser, with figures (`always-verify-live`). | review | 🔧 #1271 |
 | 8.3 | A test that fails then passes is flaky. The second flaky failure opens a bug and gets fixed; it is not rerun a third time. Quarantine never covers tenant isolation or authz tests. | #1254 | 🔧 #1254 |
 | 8.4 | Never weaken or delete an assertion to make a test pass. | review | 🔧 #1271 |

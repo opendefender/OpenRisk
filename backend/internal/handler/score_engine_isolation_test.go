@@ -12,6 +12,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
+
+	"github.com/opendefender/openrisk/internal/testsupport/testdb"
 )
 
 // TestScoreEngine_AssetLoadTenantScoped guards the tenant filter added to the
@@ -19,7 +21,7 @@ import (
 // asset UUIDs and fold their criticality into a computed score; the scoped query
 // must return zero foreign assets.
 func TestScoreEngine_AssetLoadTenantScoped(t *testing.T) {
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	db, err := testdb.Open(t, sqlite.Open(":memory:"), &gorm.Config{})
 	require.NoError(t, err)
 	require.NoError(t, db.Exec(`CREATE TABLE assets (id TEXT PRIMARY KEY, tenant_id TEXT, deleted_at DATETIME);`).Error)
 

@@ -192,3 +192,32 @@ func TestSubActionHasCycle_Unauthorized(t *testing.T) {
 	require.NoError(t, err)
 	assert.False(t, cycle, "the walk never follows another tenant's rows")
 }
+
+// --- Delete ------------------------------------------------------------------
+
+// #808 criterion 4: Delete is one statement gated by the parent mitigation. A
+// foreign id deletes nothing and answers ErrNotFound, exactly like an unknown
+// one, so the answer never confirms that the id exists elsewhere.
+func TestMitigationSubAction_Delete_CrossTenant(t *testing.T) {
+	f := newSubActionFixture(t)
+	theirs := f.seed(t, f.planB, "Tenant B work", false, nil)
+
+	err := f.repo.Delete(f.tenantA.String(), theirs.ID)
+	assert.ErrorIs(t, err, domain.ErrNotFound)
+	assert.NotErrorIs(t, err, domain.ErrForbidden)
+	assert.ErrorIs(t, f.repo.Delete(f.tenantA.String(), uuid.New()), domain.ErrNotFound, "unknown and foreign ids must read alike")
+
+	list, err := f.repo.List(f.tenantB.String(), f.planB.ID)
+	require.NoError(t, err)
+	assert.Len(t, list, 1, "the foreign sub-action must survive")
+}
+
+func TestMitigationSubAction_Delete_OwnTenant(t *testing.T) {
+	f := newSubActionFixture(t)
+	mine := f.seed(t, f.planA, "Mine", false, nil)
+
+	require.NoError(t, f.repo.Delete(f.tenantA.String(), mine.ID))
+	list, err := f.repo.List(f.tenantA.String(), f.planA.ID)
+	require.NoError(t, err)
+	assert.Empty(t, list)
+}

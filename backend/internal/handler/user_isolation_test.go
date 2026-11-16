@@ -15,6 +15,7 @@ import (
 
 	"github.com/opendefender/openrisk/internal/domain"
 	"github.com/opendefender/openrisk/internal/infrastructure/database"
+	"github.com/opendefender/openrisk/internal/testsupport/testdb"
 )
 
 // withUserDB points the package-global database.DB at a fresh in-memory sqlite
@@ -22,7 +23,7 @@ import (
 // legacy /users handlers touch.
 func withUserDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	db, err := testdb.Open(t, sqlite.Open(":memory:"), &gorm.Config{})
 	require.NoError(t, err)
 	require.NoError(t, db.Exec(`CREATE TABLE users (id TEXT PRIMARY KEY, email TEXT, is_active NUMERIC DEFAULT 1, deleted_at DATETIME);`).Error)
 	require.NoError(t, db.Exec(`CREATE TABLE organization_members (id TEXT PRIMARY KEY, organization_id TEXT, user_id TEXT, role TEXT);`).Error)

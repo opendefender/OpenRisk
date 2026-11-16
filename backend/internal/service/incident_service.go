@@ -259,7 +259,7 @@ func (s *IncidentService) UpdateIncident(tenantID string, incidentID uint, req d
 		}
 	}
 
-	if err := s.db.Model(incident).Updates(updates).Error; err != nil {
+	if err := s.db.Model(incident).Where("tenant_id = ?", incident.TenantID).Updates(updates).Error; err != nil {
 		return nil, fmt.Errorf("failed to update incident: %w", err)
 	}
 

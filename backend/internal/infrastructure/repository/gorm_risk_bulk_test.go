@@ -20,6 +20,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/internal/testsupport/testdb"
 )
 
 // #581 criterion 1 — all-or-nothing.
@@ -32,7 +33,7 @@ import (
 // not have.
 func setupRiskBulkRepo(t *testing.T) (*GormRiskRepository, *gorm.DB) {
 	t.Helper()
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	db, err := testdb.Open(t, sqlite.Open(":memory:"), &gorm.Config{})
 	require.NoError(t, err)
 
 	// The fixture schema is DERIVED from the model rather than hand-written.

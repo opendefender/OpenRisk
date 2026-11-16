@@ -145,6 +145,11 @@ func (r *GormAuditChainRepository) seal(tx *gorm.DB, e *domain.AuditEvent) error
 
 // List returns a filtered, paginated page of the trail (newest first).
 func (r *GormAuditChainRepository) List(ctx context.Context, tenantID uuid.UUID, f domain.AuditEventFilter) ([]domain.AuditEvent, int64, error) {
+	// A nil tenant reads nobody's data. Answered before any query so the tenant
+	// guard never sees a statement bound to uuid.Nil (#808).
+	if tenantID == uuid.Nil {
+		return []domain.AuditEvent{}, 0, nil
+	}
 	q := r.filtered(ctx, tenantID, f)
 
 	var total int64
@@ -167,6 +172,11 @@ func (r *GormAuditChainRepository) List(ctx context.Context, tenantID uuid.UUID,
 // verification and export need. Bounded to keep a runaway export from pinning
 // the process; the bound is reported honestly by the caller.
 func (r *GormAuditChainRepository) ListAll(ctx context.Context, tenantID uuid.UUID, f domain.AuditEventFilter) ([]domain.AuditEvent, error) {
+	// A nil tenant reads nobody's data. Answered before any query so the tenant
+	// guard never sees a statement bound to uuid.Nil (#808).
+	if tenantID == uuid.Nil {
+		return []domain.AuditEvent{}, nil
+	}
 	q := r.filtered(ctx, tenantID, f)
 	limit := f.Limit
 	if limit <= 0 {

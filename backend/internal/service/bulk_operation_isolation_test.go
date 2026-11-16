@@ -15,6 +15,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/opendefender/openrisk/internal/infrastructure/database"
+	"github.com/opendefender/openrisk/internal/testsupport/testdb"
 )
 
 // setupBulkTestDB spins up an in-memory sqlite with a minimal risks table (only
@@ -23,7 +24,7 @@ import (
 func setupBulkTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	dsn := "file:bulk_" + uuid.New().String() + "?mode=memory&cache=private"
-	db, err := gorm.Open(sqlite.Open(dsn), &gorm.Config{})
+	db, err := testdb.Open(t, sqlite.Open(dsn), &gorm.Config{})
 	if err != nil {
 		t.Fatalf("open sqlite: %v", err)
 	}

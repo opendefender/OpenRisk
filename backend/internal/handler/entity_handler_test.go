@@ -28,6 +28,7 @@ import (
 	"github.com/opendefender/openrisk/internal/middleware"
 	"github.com/opendefender/openrisk/internal/service"
 	"github.com/opendefender/openrisk/internal/testsupport/sqliteschema"
+	"github.com/opendefender/openrisk/internal/testsupport/testdb"
 )
 
 // The universal drawer through the real HTTP stack.
@@ -62,7 +63,7 @@ type drawerFixture struct {
 // drifting away from production's.
 func setupDrawer(t *testing.T, permissions []string) *drawerFixture {
 	t.Helper()
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{TranslateError: true})
+	db, err := testdb.Open(t, sqlite.Open(":memory:"), &gorm.Config{TranslateError: true})
 	require.NoError(t, err)
 
 	// Several models carry Postgres-only DDL — a gen_random_uuid() default, a

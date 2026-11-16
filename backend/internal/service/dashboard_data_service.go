@@ -54,6 +54,11 @@ func (s *DashboardDataService) GetDashboardMetrics(ctx context.Context, tenantID
 	metrics := &DashboardMetrics{
 		UpdatedAt: time.Now(),
 	}
+	// A nil tenant reads nobody's data. Answered here, before any query, so the
+	// tenant guard never sees a statement bound to uuid.Nil (#808).
+	if tenantID == uuid.Nil {
+		return metrics, nil
+	}
 
 	// Get total and active risks
 	s.scoped(ctx, tenantID).Model(&domain.Risk{}).Count(&metrics.TotalRisks)
@@ -205,6 +210,11 @@ type MitigationStatus struct {
 // GetMitigationStatus returns mitigation count by status (tenant-scoped)
 func (s *DashboardDataService) GetMitigationStatus(ctx context.Context, tenantID uuid.UUID) (*MitigationStatus, error) {
 	status := &MitigationStatus{}
+	// A nil tenant reads nobody's data. Answered here, before any query, so the
+	// tenant guard never sees a statement bound to uuid.Nil (#808).
+	if tenantID == uuid.Nil {
+		return status, nil
+	}
 
 	s.scoped(ctx, tenantID).Model(&domain.Mitigation{}).
 		Where("status = ?", "completed").
@@ -319,6 +329,11 @@ type MitigationProgress struct {
 
 // GetMitigationProgress returns mitigations with progress tracking (tenant-scoped)
 func (s *DashboardDataService) GetMitigationProgress(ctx context.Context, tenantID uuid.UUID, limit int) ([]MitigationProgress, error) {
+	// A nil tenant reads nobody's data. Answered here, before any query, so the
+	// tenant guard never sees a statement bound to uuid.Nil (#808).
+	if tenantID == uuid.Nil {
+		return []MitigationProgress{}, nil
+	}
 	if limit <= 0 {
 		limit = 10
 	}

@@ -41,6 +41,7 @@ import (
 	authhandler "github.com/opendefender/openrisk/internal/handler/auth"
 	"github.com/opendefender/openrisk/internal/infrastructure/repository"
 	"github.com/opendefender/openrisk/internal/testsupport/sqliteschema"
+	"github.com/opendefender/openrisk/internal/testsupport/testdb"
 	authpkg "github.com/opendefender/openrisk/pkg/auth"
 	"github.com/opendefender/openrisk/pkg/monitoring"
 )
@@ -61,7 +62,7 @@ type migrationFixture struct {
 func newMigrationFixture(t *testing.T, stored string) *migrationFixture {
 	t.Helper()
 
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
+	db, err := testdb.Open(t, sqlite.Open(":memory:"), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
 	require.NoError(t, err)
 	for _, ddl := range []string{
 		`CREATE TABLE users (id TEXT PRIMARY KEY)`,
