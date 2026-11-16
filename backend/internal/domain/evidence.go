@@ -186,7 +186,7 @@ type Evidence struct {
 	CollectorRef  string        `gorm:"size:128;not null;default:''" json:"collector_ref"`
 	// Signature is an optional base64 detached signature. Stored, never verified
 	// here, and kept out of the JSON (up to 8 KiB per row on a list page); the
-	// record shows its presence as Signed.
+	// record shows its presence as SignaturePresent.
 	Signature          string `gorm:"type:text;not null;default:''" json:"-"`
 	SignatureAlgorithm string `gorm:"size:32;not null;default:''" json:"signature_algorithm"`
 
@@ -219,12 +219,14 @@ type Evidence struct {
 	Controls []EvidenceControlRef `gorm:"-" json:"controls,omitempty"`
 	// CollectedByEmail resolves the actor for display; empty when unresolvable.
 	CollectedByEmail string `gorm:"-" json:"collected_by_email,omitempty"`
-	// Integrity, Signed, Assurance and Confidence are derived on read from the
+	// Integrity, the signature flags, Assurance and Confidence are derived on read from the
 	// stored fields (see evidence_integrity.go); there is no column for any.
-	Integrity  EvidenceIntegrity `gorm:"-" json:"integrity"`
-	Signed     bool              `gorm:"-" json:"signed"`
-	Assurance  EvidenceAssurance `gorm:"-" json:"assurance"`
-	Confidence float64           `gorm:"-" json:"confidence"`
+	Integrity EvidenceIntegrity `gorm:"-" json:"integrity"`
+	// SignatureVerified is always false until a verifier exists.
+	SignaturePresent  bool              `gorm:"-" json:"signature_present"`
+	SignatureVerified bool              `gorm:"-" json:"signature_verified"`
+	Assurance         EvidenceAssurance `gorm:"-" json:"assurance"`
+	Confidence        float64           `gorm:"-" json:"confidence"`
 }
 
 func (Evidence) TableName() string { return "evidences" }

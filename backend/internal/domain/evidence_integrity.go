@@ -43,7 +43,10 @@ func CollectionMethods() []CollectionMethod {
 	return []CollectionMethod{CollectionManualUpload, CollectionAutomatedCollect, CollectionAPIPull, CollectionAttestation}
 }
 
-// CollectionMethodForSource derives the method when a client omits it. An
+// CollectionMethodForSource maps a legacy source to a method. It is the mapping
+// the migration backfill uses for rows that predate #554. It is NOT applied to
+// a human (HTTP) request, which derives manual_upload when it omits the method:
+// a source label sent by a client must not imply an automated collection. An
 // attestation is only ever explicit: no source implies one.
 func CollectionMethodForSource(s EvidenceSource) CollectionMethod {
 	switch s {
@@ -176,20 +179,27 @@ func (m CollectionMethod) BaseAssurance() EvidenceAssurance {
 	return AssuranceLow
 }
 
-// AssuranceFor derives assurance: the method's base level, lowered by one level
-// (floor low) when the record carries no signature.
-func AssuranceFor(m CollectionMethod, signed bool) EvidenceAssurance {
-	a := m.BaseAssurance()
-	if signed {
-		return a
+// AssuranceFor derives assurance. The method's base level is reached ONLY with
+// a verified signature. A signature that is present but unverified sits one
+// level below base; no signature sits two levels below (floor low). Nothing
+// verifies a signature yet, so signatureVerified is always false in practice and
+// `high` is unreachable today.
+func AssuranceFor(m CollectionMethod, signaturePresent, signatureVerified bool) EvidenceAssurance {
+	r := AssuranceRank(m.BaseAssurance())
+	switch {
+	case signatureVerified:
+	case signaturePresent:
+		r--
+	default:
+		r -= 2
 	}
-	if r := AssuranceRank(a); r > 0 {
-		return assuranceOrder[r-1]
+	if r < 0 {
+		r = 0
 	}
-	return AssuranceLow
+	return assuranceOrder[r]
 }
 
-// DeriveIntegrity fills the computed integrity, signed, assurance and confidence
+// DeriveIntegrity fills the computed integrity, signature flags, assurance and confidence
 // fields. Pure: nothing is written to the database.
 func (e *Evidence) DeriveIntegrity() {
 	switch {
@@ -200,8 +210,10 @@ func (e *Evidence) DeriveIntegrity() {
 	default:
 		e.Integrity = IntegrityNone
 	}
-	e.Signed = e.Signature != ""
-	e.Assurance = AssuranceFor(e.CollectionMethod, e.Signed)
+	e.SignaturePresent = e.Signature != ""
+	// No verifier exists yet: a stored signature is never reported as verified.
+	e.SignatureVerified = false
+	e.Assurance = AssuranceFor(e.CollectionMethod, e.SignaturePresent, e.SignatureVerified)
 	e.Confidence = e.CollectionMethod.BaseConfidence()
 }
 
@@ -256,17 +268,17 @@ func (e *Evidence) ValidateCollection() error {
 	if e.CollectionMethod.IsAutomated() && strings.TrimSpace(e.CollectorRef) == "" {
 		return NewValidationError("collector_ref is required for an automated collection method")
 	}
-	if e.CollectorRef != "" {
+	switch {
+	case e.CollectorRef != "":
 		if !collectorRefPattern.MatchString(e.CollectorRef) {
 			return NewValidationError("collector_ref must be 1-128 characters of A-Z a-z 0-9 . _ : @ / - (an identifier, never a credential)")
 		}
 		if _, err := ParseCollectorKind(string(e.CollectorKind)); err != nil {
 			return err
 		}
-	} else if e.CollectorKind != "" {
-		if _, err := ParseCollectorKind(string(e.CollectorKind)); err != nil {
-			return err
-		}
+	case e.CollectorKind != "":
+		// A kind without a ref names nobody: rejected explicitly.
+		return NewValidationError("collector_kind requires collector_ref")
 	}
 	if e.Signature != "" {
 		if len(e.Signature) > base64.StdEncoding.EncodedLen(MaxSignatureBytes) {

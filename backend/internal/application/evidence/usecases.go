@@ -47,6 +47,10 @@ type UserLookup interface {
 	EmailsByIDs(ctx context.Context, ids []uuid.UUID) (map[uuid.UUID]string, error)
 }
 
+// maxEvidenceServe bounds the bytes Download buffers to re-hash (64 MiB). The
+// upload limit is far lower; this caps a blob swapped for a huge file on disk.
+const maxEvidenceServe = 64 << 20
+
 // IntegrityAudit is the narrow audit port the evidence library needs: append one
 // event to the tenant's audit chain. domain.AuditEventRepository's chain
 // implementation satisfies it; the library cannot read the trail through it.
@@ -129,10 +133,12 @@ type CreateInput struct {
 	// Record integrity (#554). There is deliberately no hash field: the content
 	// hash is computed here from the bytes, never taken from the caller.
 	//
-	// CollectionMethod empty derives from Source. ObservedFrom/ObservedTo empty
-	// default to the collection instant. CollectorKind/CollectorRef empty default
-	// to the collecting user for a human method; an automated method must name
-	// its collector. Signature is base64, stored and never verified.
+	// CollectionMethod empty derives manual_upload on the human path (a source
+	// label never implies an automated method). Only manual_upload and
+	// attestation are accepted there. CollectorKind/CollectorRef are IGNORED on
+	// the human path: they are forced to user / CollectedBy. ObservedFrom/
+	// ObservedTo empty default to the collection instant. Signature is base64,
+	// stored and never verified.
 	CollectionMethod   string
 	ObservedFrom       *time.Time
 	ObservedTo         *time.Time
@@ -140,6 +146,12 @@ type CreateInput struct {
 	CollectorRef       string
 	Signature          string
 	SignatureAlgorithm string
+
+	// serverCollected marks a record collected by a server-side collector. It is
+	// unexported on purpose: a handler (another package) cannot set it from
+	// request data. No ingest entry point sets it yet; when one exists it is the
+	// only place allowed to. A human session (the HTTP path) leaves it false.
+	serverCollected bool
 }
 
 func (s *Service) Create(ctx context.Context, tenantID uuid.UUID, in CreateInput) (*domain.Evidence, error) {
@@ -221,6 +233,22 @@ func (s *Service) Create(ctx context.Context, tenantID uuid.UUID, in CreateInput
 			return nil, err
 		}
 		ev.CollectionMethod = method
+	}
+	if !in.serverCollected {
+		// Human session: method, collector identity and signature are
+		// client-asserted, so they may not claim a machine collected the proof.
+		if ev.CollectionMethod.IsAutomated() {
+			return nil, domain.NewValidationError("automated_collector and api_pull are reserved for a server-side collector")
+		}
+		if ev.CollectionMethod == "" {
+			ev.CollectionMethod = domain.CollectionManualUpload
+		}
+		// Collector identity is the authenticated user, whatever the client sent.
+		ev.CollectorKind, ev.CollectorRef = "", ""
+		if ev.CollectedBy != nil {
+			ev.CollectorKind = domain.CollectorUser
+			ev.CollectorRef = ev.CollectedBy.String()
+		}
 	}
 	ev.ApplyRecordDefaults()
 	if err := ev.ValidateRecord(); err != nil {
@@ -401,12 +429,15 @@ func (s *Service) Download(ctx context.Context, tenantID, actorID, id uuid.UUID)
 	if err != nil {
 		return nil, nil, false, domain.NewInternalError("evidence file is missing from storage: " + err.Error())
 	}
-	data, err := io.ReadAll(handle)
+	data, err := io.ReadAll(io.LimitReader(handle, maxEvidenceServe+1))
 	_ = handle.Close()
 	if err != nil {
 		return nil, nil, false, domain.NewInternalError("failed to read evidence file: " + err.Error())
 	}
 
+	if int64(len(data)) > maxEvidenceServe {
+		return nil, nil, false, domain.NewInternalError("evidence file exceeds the size the server will serve")
+	}
 	if ev.ContentHash == "" {
 		// Legacy row (or one whose hash was blanked): served, flagged unverified.
 		return ev, io.NopCloser(bytes.NewReader(data)), false, nil
@@ -455,7 +486,10 @@ func (s *Service) recordIntegrityAlert(ctx context.Context, tenantID, actorID uu
 	} else {
 		event.ActorType = domain.AuditActorUnattributed
 	}
-	if err := s.audit.Append(ctx, event); err != nil {
+	// Detached from the request: a client that hangs up must not drop the alert.
+	actx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+	defer cancel()
+	if err := s.audit.Append(actx, event); err != nil {
 		// The refusal stands; only the record of it is missing, and that is loud.
 		log.Error().Err(err).Str("tenant_id", tenantID.String()).Str("evidence_id", ev.ID.String()).
 			Msg("evidence integrity alert could not be appended to the audit chain")

@@ -118,7 +118,8 @@ func TestEvidence_Success(t *testing.T) {
 	require.Equal(t, want, ev.ContentHash, "the client-sent hash must be ignored")
 	require.Equal(t, "sha256", ev.HashAlgorithm)
 	require.Equal(t, domain.IntegrityHashed, ev.Integrity)
-	require.False(t, ev.Signed)
+	require.False(t, ev.SignaturePresent)
+	require.False(t, ev.SignatureVerified)
 
 	// Read back through GET and straight from the database.
 	status, raw := e.get(t, app, http.MethodGet, "/api/v1/evidence/"+ev.ID.String())
@@ -254,7 +255,7 @@ func TestEvidence_Unauthorized(t *testing.T) {
 	require.Equal(t, "A's proof", row.Title)
 }
 
-// AC4, AC5, AC7 over HTTP: the three refusals are 400.
+// AC4, AC5 over HTTP, and the reserved automated methods: all 400.
 func TestEvidence_RecordValidationIs400(t *testing.T) {
 	e := newEvIntEnv(t)
 	app := e.appFor(e.tenantA)
@@ -269,18 +270,68 @@ func TestEvidence_RecordValidationIs400(t *testing.T) {
 		"observed_from after observed_to": {"observed_from": "2026-08-09", "observed_to": "2026-08-08"},
 		"observed_to after collected_at":  {"observed_from": "2026-08-09", "observed_to": "2026-08-11"},
 		"unknown collection method":       {"collection_method": "carrier_pigeon"},
-		"automated source, no collector":  {"source": "integration"},
+		"automated_collector over HTTP":   {"collection_method": "automated_collector", "collector_ref": "scanner-1"},
+		"api_pull over HTTP":              {"collection_method": "api_pull", "collector_ref": "okta:prod"},
 	}
 	for name, extra := range cases {
 		status, _, raw := jsonPost(t, app, "/api/v1/evidence", base(extra))
 		require.Equal(t, 400, status, "%s: %s", name, raw)
 	}
-	status, _, raw := jsonPost(t, app, "/api/v1/evidence", base(map[string]any{"source": "integration", "collector_ref": "okta:prod"}))
+}
+
+// A source label sent over HTTP never yields an automated method, and a posted
+// collector is replaced by the authenticated user. Max assurance is moderate.
+func TestEvidence_HTTPCannotClaimAnAutomatedCollector(t *testing.T) {
+	e := newEvIntEnv(t)
+	app := e.appFor(e.tenantA)
+	status, _, raw := jsonPost(t, app, "/api/v1/evidence", map[string]any{
+		"title": "x", "description": "d", "collected_at": "2026-08-10", "source": "integration",
+		"collector_kind": "connector", "collector_ref": "okta:prod",
+		"signature": "c2ln", "signature_algorithm": "ed25519",
+	})
 	require.Equal(t, 201, status, string(raw))
 	var ev domain.Evidence
 	require.NoError(t, json.Unmarshal(raw, &ev))
-	require.Equal(t, domain.CollectionAPIPull, ev.CollectionMethod)
-	require.Equal(t, domain.AssuranceSubstantial, ev.Assurance, "unsigned api_pull is one level below high")
+	require.Equal(t, domain.CollectionManualUpload, ev.CollectionMethod)
+	require.Equal(t, domain.CollectorUser, ev.CollectorKind)
+	require.Equal(t, e.userA.String(), ev.CollectorRef)
+	require.True(t, ev.SignaturePresent)
+	require.False(t, ev.SignatureVerified)
+	require.Equal(t, domain.AssuranceLow, ev.Assurance, "signed but unverified manual_upload is one below moderate")
+}
+
+// The read model carries the derived fields on the wire, on Get and on List.
+func TestEvidence_ReadJSONCarriesTheDerivedFields(t *testing.T) {
+	e := newEvIntEnv(t)
+	app := e.appFor(e.tenantA)
+	ev := e.create(t, app, map[string]string{"title": "proof"})
+	keys := []string{"assurance", "confidence", "integrity", "signature_present", "signature_verified", "content_hash", "collector_kind", "collector_ref"}
+
+	status, raw := e.get(t, app, http.MethodGet, "/api/v1/evidence/"+ev.ID.String())
+	require.Equal(t, 200, status)
+	var one map[string]json.RawMessage
+	require.NoError(t, json.Unmarshal(raw, &one))
+	for _, k := range keys {
+		require.Contains(t, one, k, "Get: %s", k)
+	}
+	require.Equal(t, "false", string(one["signature_present"]))
+	require.Equal(t, "false", string(one["signature_verified"]))
+	require.NotContains(t, one, "signature", "the signature itself is never serialised")
+
+	status, raw = e.get(t, app, http.MethodGet, "/api/v1/evidence")
+	require.Equal(t, 200, status)
+	var list struct {
+		Items []map[string]json.RawMessage `json:"items"`
+	}
+	if err := json.Unmarshal(raw, &list); err != nil || len(list.Items) == 0 {
+		var arr []map[string]json.RawMessage
+		require.NoError(t, json.Unmarshal(raw, &arr), string(raw))
+		list.Items = arr
+	}
+	require.NotEmpty(t, list.Items)
+	for _, k := range keys {
+		require.Contains(t, list.Items[0], k, "List: %s", k)
+	}
 }
 
 // Update can never rewrite the integrity of the record, even when a client

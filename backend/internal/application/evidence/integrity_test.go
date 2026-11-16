@@ -10,6 +10,7 @@ import (
 	"context"
 	"encoding/base64"
 	"errors"
+	"io"
 	"strings"
 	"testing"
 	"time"
@@ -207,40 +208,64 @@ func TestCreate_RejectsAMethodOutsideTheFour(t *testing.T) {
 	}
 }
 
-func TestCreate_DerivesTheMethodFromTheSource(t *testing.T) {
+// Human path: a source label never implies an automated method.
+func TestCreate_HumanPathDerivesManualUploadWhateverTheSource(t *testing.T) {
 	f := setup(t)
-	for src, want := range map[string]domain.CollectionMethod{
-		"": domain.CollectionManualUpload, "manual": domain.CollectionManualUpload,
-		"integration": domain.CollectionAPIPull, "scanner": domain.CollectionAutomatedCollect,
-		"automation": domain.CollectionAutomatedCollect,
-	} {
-		in := CreateInput{Title: "x", Description: "s", Source: src}
-		if want == domain.CollectionAPIPull || want == domain.CollectionAutomatedCollect {
-			in.CollectorRef = "collector-1"
-		}
-		ev, err := f.svc.Create(context.Background(), f.tenant, in)
+	for _, src := range []string{"", "manual", "integration", "scanner", "automation"} {
+		ev, err := f.svc.Create(context.Background(), f.tenant, CreateInput{Title: "x", Description: "s", Source: src})
 		if err != nil {
 			t.Fatalf("source %q: %v", src, err)
 		}
-		if ev.CollectionMethod != want {
-			t.Errorf("source %q: %q, want %q", src, ev.CollectionMethod, want)
+		if ev.CollectionMethod != domain.CollectionManualUpload {
+			t.Errorf("source %q: %q, want manual_upload", src, ev.CollectionMethod)
 		}
 	}
 }
 
-// AC7.
-func TestCreate_AutomatedSourceNeedsACollectorRef(t *testing.T) {
+// A user session cannot claim a machine collected the proof.
+func TestCreate_UserSessionCannotPostAnAutomatedMethod(t *testing.T) {
 	f := setup(t)
-	for _, src := range []string{"integration", "scanner", "automation"} {
-		_, err := f.svc.Create(context.Background(), f.tenant, CreateInput{Title: "x", Description: "s", Source: src})
+	for _, m := range []string{"automated_collector", "api_pull"} {
+		_, err := f.svc.Create(context.Background(), f.tenant, CreateInput{
+			Title: "x", Description: "s", CollectionMethod: m, CollectorRef: "scanner-1", CollectedBy: uuid.New(),
+		})
 		if !errors.Is(err, domain.ErrValidation) {
-			t.Errorf("%s without collector_ref: want ErrValidation, got %v", src, err)
+			t.Errorf("%s over the human path: want ErrValidation, got %v", m, err)
 		}
 	}
-	// Explicit automated method on a manual source needs one too.
-	_, err := f.svc.Create(context.Background(), f.tenant, CreateInput{Title: "x", Description: "s", CollectionMethod: "automated_collector"})
+}
+
+// A posted collector_kind / collector_ref is replaced by user / the user id.
+func TestCreate_PostedCollectorIsReplacedByTheUser(t *testing.T) {
+	f := setup(t)
+	u := uuid.New()
+	ev, err := f.svc.Create(context.Background(), f.tenant, CreateInput{
+		Title: "x", Description: "s", CollectedBy: u, CollectorKind: "connector", CollectorRef: "okta:prod",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ev.CollectorKind != domain.CollectorUser || ev.CollectorRef != u.String() {
+		t.Fatalf("collector: %q %q", ev.CollectorKind, ev.CollectorRef)
+	}
+}
+
+// AC7 stays in the domain for a future server-side ingest; only the in-package
+// (unexported) flag reaches it, never a request.
+func TestCreate_ServerCollectedAutomatedNeedsACollectorRef(t *testing.T) {
+	f := setup(t)
+	_, err := f.svc.Create(context.Background(), f.tenant, CreateInput{Title: "x", Description: "s", CollectionMethod: "automated_collector", serverCollected: true})
 	if !errors.Is(err, domain.ErrValidation) {
-		t.Errorf("explicit method: %v", err)
+		t.Fatalf("automated without collector_ref: %v", err)
+	}
+	ev, err := f.svc.Create(context.Background(), f.tenant, CreateInput{
+		Title: "x", Description: "s", CollectionMethod: "automated_collector", CollectorRef: "scanner-7", serverCollected: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if ev.CollectorKind != domain.CollectorJob {
+		t.Fatalf("automated kind default: %q", ev.CollectorKind)
 	}
 }
 
@@ -254,14 +279,15 @@ func TestCreate_ManualCollectorDefaultsToTheCollectingUser(t *testing.T) {
 }
 
 // AC3 end to end: the record shows the signature as absent, and assurance is
-// lower than for the same evidence with one. Never verified, only stored.
+// lower than for the same evidence with one (attestation: moderate vs low).
+// Never verified, only stored.
 func TestCreate_SignatureAbsentLowersAssurance(t *testing.T) {
 	f := setup(t)
-	unsigned := uploaded(t, f, CreateInput{})
 	sig := base64.StdEncoding.EncodeToString([]byte("detached-signature"))
-	signed := uploaded(t, f, CreateInput{Signature: sig, SignatureAlgorithm: "ed25519"})
-	if unsigned.Signed || !signed.Signed {
-		t.Fatalf("signed flags: %v %v", unsigned.Signed, signed.Signed)
+	unsigned := uploaded(t, f, CreateInput{CollectionMethod: "attestation"})
+	signed := uploaded(t, f, CreateInput{CollectionMethod: "attestation", Signature: sig, SignatureAlgorithm: "ed25519"})
+	if unsigned.SignaturePresent || !signed.SignaturePresent || signed.SignatureVerified {
+		t.Fatalf("signature flags: %v %v verified=%v", unsigned.SignaturePresent, signed.SignaturePresent, signed.SignatureVerified)
 	}
 	if domain.AssuranceRank(unsigned.Assurance) >= domain.AssuranceRank(signed.Assurance) {
 		t.Fatalf("assurance unsigned %s signed %s", unsigned.Assurance, signed.Assurance)
@@ -275,16 +301,31 @@ func TestCreate_SignatureAbsentLowersAssurance(t *testing.T) {
 	}
 }
 
+// Over the human path the best reachable assurance is moderate.
+func TestCreate_MaxAssuranceOverTheHumanPathIsModerate(t *testing.T) {
+	f := setup(t)
+	sig := base64.StdEncoding.EncodeToString([]byte("sig"))
+	best := domain.AssuranceLow
+	for _, m := range []string{"manual_upload", "attestation"} {
+		for _, signature := range []string{"", sig} {
+			ev := uploaded(t, f, CreateInput{CollectionMethod: m, Signature: signature, SignatureAlgorithm: "ed25519"})
+			if domain.AssuranceRank(ev.Assurance) > domain.AssuranceRank(best) {
+				best = ev.Assurance
+			}
+		}
+	}
+	if best != domain.AssuranceModerate {
+		t.Fatalf("max assurance over HTTP = %s, want moderate", best)
+	}
+}
+
 // AC6 via the read model: the derived confidence follows the table.
 func TestRead_ExposesDerivedConfidenceFromTheMethodTable(t *testing.T) {
 	f := setup(t)
 	manual := uploaded(t, f, CreateInput{})
-	auto := uploaded(t, f, CreateInput{CollectionMethod: "automated_collector", CollectorRef: "scanner-7"})
+	auto := uploaded(t, f, CreateInput{CollectionMethod: "automated_collector", CollectorRef: "scanner-7", serverCollected: true})
 	if manual.Confidence != 0.70 || auto.Confidence != 0.80 || manual.Confidence >= auto.Confidence {
 		t.Fatalf("confidence manual %v auto %v", manual.Confidence, auto.Confidence)
-	}
-	if auto.CollectorKind != domain.CollectorJob {
-		t.Fatalf("automated kind default: %q", auto.CollectorKind)
 	}
 }
 
@@ -319,5 +360,30 @@ func TestUpdate_LegacyRowWithoutObservationGetsThePointInTimeDefault(t *testing.
 	got, err := f.svc.Update(context.Background(), f.tenant, ev.ID, UpdateInput{Title: &title})
 	if err != nil || got.ObservedFrom == nil || !got.ObservedFrom.Equal(got.CollectedAt) {
 		t.Fatalf("legacy update: %v %+v", err, got)
+	}
+}
+
+type oversizeReader struct{ n int64 }
+
+func (r *oversizeReader) Read(p []byte) (int, error) {
+	if r.n <= 0 {
+		return 0, io.EOF
+	}
+	if int64(len(p)) > r.n {
+		p = p[:r.n]
+	}
+	r.n -= int64(len(p))
+	return len(p), nil
+}
+func (r *oversizeReader) Close() error { return nil }
+
+// B: a blob above the serve cap is refused, nothing is served.
+func TestDownload_RefusesABlobAboveTheServeCap(t *testing.T) {
+	f := setup(t)
+	ev := uploaded(t, f, CreateInput{})
+	f.store.openOverride = &oversizeReader{n: maxEvidenceServe + 10}
+	_, rc, _, err := f.svc.Download(context.Background(), f.tenant, uuid.New(), ev.ID)
+	if err == nil || rc != nil {
+		t.Fatalf("want an error and no content, got err=%v rc=%v", err, rc)
 	}
 }

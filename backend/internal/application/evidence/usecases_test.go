@@ -236,6 +236,8 @@ type fakeStorage struct {
 	// names records the filename argument of every Save: the use case must pass
 	// a server-generated name, never the client's (#1316).
 	names []string
+	// openOverride, when set, is returned by Open instead of the saved bytes.
+	openOverride io.ReadCloser
 }
 
 func newFakeStorage() *fakeStorage { return &fakeStorage{saved: map[string][]byte{}} }
@@ -249,6 +251,9 @@ func (s *fakeStorage) Save(_ context.Context, tenantID uuid.UUID, filename strin
 }
 
 func (s *fakeStorage) Open(_ context.Context, key string) (io.ReadCloser, error) {
+	if s.openOverride != nil {
+		return s.openOverride, nil
+	}
 	b, ok := s.saved[key]
 	if !ok {
 		return nil, io.EOF

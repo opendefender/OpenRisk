@@ -101,38 +101,54 @@ func TestMethodConfidence_FollowsTheDocumentedTable(t *testing.T) {
 	}
 }
 
-// AC3: an unsigned record has lower assurance than the same record signed.
+// AC3: an unsigned record has lower assurance than the same record signed, and
+// the base level is reached only with a verified signature.
 func TestAssurance_UnsignedIsLowerThanSigned(t *testing.T) {
-	want := map[domain.CollectionMethod][2]domain.EvidenceAssurance{ // {signed, unsigned}
-		domain.CollectionAutomatedCollect: {domain.AssuranceHigh, domain.AssuranceSubstantial},
-		domain.CollectionAPIPull:          {domain.AssuranceHigh, domain.AssuranceSubstantial},
-		domain.CollectionAttestation:      {domain.AssuranceSubstantial, domain.AssuranceModerate},
-		domain.CollectionManualUpload:     {domain.AssuranceModerate, domain.AssuranceLow},
+	type row struct{ verified, present, none domain.EvidenceAssurance }
+	want := map[domain.CollectionMethod]row{
+		domain.CollectionAutomatedCollect: {domain.AssuranceHigh, domain.AssuranceSubstantial, domain.AssuranceModerate},
+		domain.CollectionAPIPull:          {domain.AssuranceHigh, domain.AssuranceSubstantial, domain.AssuranceModerate},
+		domain.CollectionAttestation:      {domain.AssuranceSubstantial, domain.AssuranceModerate, domain.AssuranceLow},
+		domain.CollectionManualUpload:     {domain.AssuranceModerate, domain.AssuranceLow, domain.AssuranceLow},
 	}
 	for m, w := range want {
-		signed, unsigned := domain.AssuranceFor(m, true), domain.AssuranceFor(m, false)
-		if signed != w[0] || unsigned != w[1] {
-			t.Errorf("%s: signed %s unsigned %s, want %v", m, signed, unsigned, w)
+		v, p, n := domain.AssuranceFor(m, true, true), domain.AssuranceFor(m, true, false), domain.AssuranceFor(m, false, false)
+		if v != w.verified || p != w.present || n != w.none {
+			t.Errorf("%s: verified %s present %s none %s, want %+v", m, v, p, n, w)
 		}
-		if domain.AssuranceRank(unsigned) >= domain.AssuranceRank(signed) {
+		if domain.AssuranceRank(n) >= domain.AssuranceRank(p) && m != domain.CollectionManualUpload {
 			t.Errorf("%s: unsigned must rank below signed", m)
 		}
 	}
-	// Floor: an unknown method is already low and stays low.
-	if domain.AssuranceFor("", false) != domain.AssuranceLow {
+	if domain.AssuranceRank(domain.AssuranceFor(domain.CollectionAttestation, false, false)) >= domain.AssuranceRank(domain.AssuranceFor(domain.CollectionAttestation, true, false)) {
+		t.Error("attestation: unsigned must be lower than signed")
+	}
+	if domain.AssuranceFor("", false, false) != domain.AssuranceLow {
 		t.Fatal("assurance never drops below low")
+	}
+}
+
+// Nothing verifies a signature, so a derived record never reaches the base and
+// never reads high.
+func TestDeriveIntegrity_HighIsUnreachableToday(t *testing.T) {
+	for _, m := range domain.CollectionMethods() {
+		e := &domain.Evidence{CollectionMethod: m, Signature: "c2ln"}
+		e.DeriveIntegrity()
+		if e.SignatureVerified || e.Assurance == domain.AssuranceHigh {
+			t.Errorf("%s: verified=%v assurance=%s", m, e.SignatureVerified, e.Assurance)
+		}
 	}
 }
 
 func TestDeriveIntegrity_ShowsSignatureAbsentAndHashState(t *testing.T) {
 	e := &domain.Evidence{CollectionMethod: domain.CollectionManualUpload, FileRef: "k"}
 	e.DeriveIntegrity()
-	if e.Signed || e.Integrity != domain.IntegrityUnhashed {
+	if e.SignaturePresent || e.Integrity != domain.IntegrityUnhashed {
 		t.Fatalf("legacy file row: %+v", e)
 	}
 	e.ContentHash, e.Signature = strings.Repeat("a", 64), "c2ln"
 	e.DeriveIntegrity()
-	if !e.Signed || e.Integrity != domain.IntegrityHashed || e.Assurance != domain.AssuranceModerate {
+	if !e.SignaturePresent || e.SignatureVerified || e.Integrity != domain.IntegrityHashed || e.Assurance != domain.AssuranceLow {
 		t.Fatalf("hashed and signed: %+v", e)
 	}
 	n := &domain.Evidence{}
@@ -186,6 +202,7 @@ func TestValidateCollection_CollectorRules(t *testing.T) {
 		ok   bool
 	}{
 		{"manual, no collector", domain.Evidence{CollectionMethod: domain.CollectionManualUpload}, true},
+		{"kind without ref", domain.Evidence{CollectionMethod: domain.CollectionManualUpload, CollectorKind: domain.CollectorUser}, false},
 		{"automated without ref", domain.Evidence{CollectionMethod: domain.CollectionAutomatedCollect}, false},
 		{"api_pull without ref", domain.Evidence{CollectionMethod: domain.CollectionAPIPull, CollectorKind: domain.CollectorConnector}, false},
 		{"automated with ref", domain.Evidence{CollectionMethod: domain.CollectionAPIPull, CollectorKind: domain.CollectorConnector, CollectorRef: "okta:prod/users"}, true},
