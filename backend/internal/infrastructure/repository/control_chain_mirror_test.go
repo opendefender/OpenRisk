@@ -610,6 +610,24 @@ func (s mirrorSuite) TestEdgeWrite_TargetInOtherTenant_404(t *testing.T) {
 			_, err := e.mapping(t, a, e.risk(t, a), &req, "")
 			return err
 		}},
+		{"addressed_by: the requirement is another tenant's (link of a control of tenant A)", func(e *mirrorEnv, a, b uuid.UUID) error {
+			l := e.lib(t)
+			ctl := l.newControl(t, a, "A's control")
+			_, err := l.link(t, a, ctl.ID, e.requirement(t, b, "B's requirement"))
+			return err
+		}},
+		{"addressed_by: the control is another tenant's (link of a requirement of tenant A)", func(e *mirrorEnv, a, b uuid.UUID) error {
+			l := e.lib(t)
+			ctl := l.newControl(t, b, "B's control")
+			_, err := l.link(t, a, ctl.ID, e.requirement(t, a, "A's requirement"))
+			return err
+		}},
+		{"addressed_by: both ends are another tenant's (tenant A names tenant B's control and requirement)", func(e *mirrorEnv, a, b uuid.UUID) error {
+			l := e.lib(t)
+			ctl := l.newControl(t, b, "B's control")
+			_, err := l.link(t, a, ctl.ID, e.requirement(t, b, "B's requirement"))
+			return err
+		}},
 		{"evidenced_by (control level): the evidence is another tenant's", func(e *mirrorEnv, a, b uuid.UUID) error {
 			return e.link(t, a, e.evidence(t, b), e.requirement(t, a, "A.5.1"), "")
 		}},
@@ -633,6 +651,12 @@ func (s mirrorSuite) TestEdgeWrite_TargetInOtherTenant_404(t *testing.T) {
 			}
 			assert.Zero(t, e.edgeCount(t, b, canonical.VerbMitigatedBy)+e.edgeCount(t, b, canonical.VerbEvidencedBy),
 				"nothing was written into tenant B's chain by tenant A's request")
+			// addressed_by: a requirement made by the legacy write carries its split edge and
+			// nothing else may exist, in either tenant (AC3, the S2 resolver).
+			for _, tenant := range []uuid.UUID{a, b} {
+				assert.EqualValues(t, e.requirementCount(t, tenant), e.edgeCount(t, tenant, canonical.VerbAddressedBy),
+					"no addressed_by edge beyond the split ones")
+			}
 		})
 	}
 }
@@ -740,6 +764,15 @@ func runMirrorSuite(t *testing.T, s mirrorSuite) {
 		"TestMappingDelete_Unauthorized":                               s.TestMappingDelete_Unauthorized_NilTenantKeepsTheEdge,
 		"TestEdgeWrite_TargetInOtherTenant_404":                        s.TestEdgeWrite_TargetInOtherTenant_404,
 		"TestMirror_NeverChangesARiskScore":                            s.TestMirror_NeverChangesARiskScore,
+		"TestControlLibrary_CreateReadEditDelete_Success":              s.TestControlLibrary_CreateReadEditDelete_Success,
+		"TestControlLibrary_PendingFlagClearIsWritten":                 s.TestControlLibrary_PendingFlagClearIsWritten,
+		"TestControlLibrary_Unauthorized":                              s.TestControlLibrary_Unauthorized_NilTenantTouchesNothing,
+		"TestControlLibrary_CrossTenantIsInvisible":                    s.TestControlLibrary_CrossTenantIsInvisible,
+		"TestControlLibrary_AuditFailureRollsTheWriteBack":             s.TestControlLibrary_AuditFailureRollsTheWriteBack,
+		"TestControlLibrary_OneControlTwoRequirementsReadBackFromBoth": s.TestControlLibrary_OneControlTwoRequirementsReadBackFromBoth,
+		"TestControlLibrary_ReadsFilterOnTheLivenessOfBothEnds":        s.TestControlLibrary_ReadsFilterOnTheLivenessOfBothEnds,
+		"TestControlLibrary_UnlinkDeletesOnlyThatEdge":                 s.TestControlLibrary_UnlinkDeletesOnlyThatEdge,
+		"TestControlLibrary_EvidenceProbe":                             s.TestControlLibrary_EvidenceProbe,
 	} {
 		t.Run(name, fn)
 	}
