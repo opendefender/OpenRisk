@@ -1850,6 +1850,33 @@ func main() {
 	protected.Post("/compliance/internal-controls/:controlId/requirements/:requirementId", complianceControlUpdate, internalControlHandler.Link)
 	protected.Delete("/compliance/internal-controls/:controlId/requirements/:requirementId", complianceControlUpdate, internalControlHandler.Unlink)
 	protected.Get("/compliance/controls/:controlId/internal-controls", complianceControlRead, internalControlHandler.ListForRequirement)
+	// Implementations and test definitions of a control (#1415, #553 S4). Same
+	// permissions as the library: read, create, update and delete of controls (D-108
+	// Q9). The write and its audit entry share one transaction, as above.
+	implementationRepo := controlchain.NewImplementationRepository(database.DB, auditChainRepo)
+	controlTestRepo := controlchain.NewTestRepository(database.DB, auditChainRepo)
+	implementationHandler := handlers.NewControlImplementationHandler(
+		ctlchainapp.NewCreateImplementationUseCase(implementationRepo, ownershipService, internalControlClock),
+		ctlchainapp.NewGetImplementationUseCase(implementationRepo),
+		ctlchainapp.NewListImplementationsUseCase(implementationRepo),
+		ctlchainapp.NewUpdateImplementationUseCase(implementationRepo, ownershipService, internalControlClock),
+		ctlchainapp.NewDeleteImplementationUseCase(implementationRepo, internalControlClock))
+	controlTestHandler := handlers.NewControlTestDefinitionHandler(
+		ctlchainapp.NewCreateTestUseCase(controlTestRepo, internalControlClock),
+		ctlchainapp.NewGetTestUseCase(controlTestRepo),
+		ctlchainapp.NewListTestsUseCase(controlTestRepo),
+		ctlchainapp.NewUpdateTestUseCase(controlTestRepo, internalControlClock),
+		ctlchainapp.NewDeleteTestUseCase(controlTestRepo, internalControlClock))
+	protected.Get("/compliance/internal-controls/:controlId/implementations", complianceControlRead, implementationHandler.List)
+	protected.Post("/compliance/internal-controls/:controlId/implementations", complianceControlCreate, implementationHandler.Create)
+	protected.Get("/compliance/implementations/:implementationId", complianceControlRead, implementationHandler.Get)
+	protected.Patch("/compliance/implementations/:implementationId", complianceControlUpdate, implementationHandler.Update)
+	protected.Delete("/compliance/implementations/:implementationId", complianceControlDelete, implementationHandler.Delete)
+	protected.Get("/compliance/implementations/:implementationId/tests", complianceControlRead, controlTestHandler.List)
+	protected.Post("/compliance/implementations/:implementationId/tests", complianceControlCreate, controlTestHandler.Create)
+	protected.Get("/compliance/tests/:testId", complianceControlRead, controlTestHandler.Get)
+	protected.Patch("/compliance/tests/:testId", complianceControlUpdate, controlTestHandler.Update)
+	protected.Delete("/compliance/tests/:testId", complianceControlDelete, controlTestHandler.Delete)
 	// Per-control evidence, served by the LIBRARY (application/evidence), not by
 	// the old one-file-one-control use cases. The paths are unchanged so existing
 	// clients keep working; what changes is that an upload here lands in the

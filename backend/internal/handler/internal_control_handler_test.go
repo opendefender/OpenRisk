@@ -59,6 +59,8 @@ func newIntCtlStack(t *testing.T) *intCtlStack {
 	require.NoError(t, db.Exec(`CREATE TABLE compliance_controls (id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, framework_id TEXT NOT NULL,
 		reference_code TEXT NOT NULL DEFAULT '', name TEXT NOT NULL, description TEXT, source_reference TEXT NOT NULL DEFAULT '',
 		status TEXT NOT NULL DEFAULT 'not_implemented', created_at DATETIME, updated_at DATETIME, deleted_at DATETIME)`).Error)
+	// The columns the applies_to resolver reads (#1415); the model has columns SQLite cannot hold.
+	require.NoError(t, db.Exec(`CREATE TABLE assets (id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, name TEXT NOT NULL DEFAULT '', deleted_at DATETIME)`).Error)
 	require.NoError(t, db.AutoMigrate(&domain.Evidence{}, &domain.AuditEvent{}))
 	require.NoError(t, db.AutoMigrate(controlchain.Models()...))
 
@@ -73,6 +75,16 @@ func newIntCtlStack(t *testing.T) *intCtlStack {
 		ctlchain.NewUpdateUseCase(repo, owners, clock), ctlchain.NewDeleteUseCase(repo, clock),
 		ctlchain.NewLinkUseCase(repo, clock), ctlchain.NewUnlinkUseCase(repo, clock),
 		ctlchain.NewListRequirementsUseCase(repo), ctlchain.NewListForRequirementUseCase(repo))
+
+	implRepo := controlchain.NewImplementationRepository(db, chain)
+	testRepo := controlchain.NewTestRepository(db, chain)
+	implHandler := handler.NewControlImplementationHandler(
+		ctlchain.NewCreateImplementationUseCase(implRepo, owners, clock), ctlchain.NewGetImplementationUseCase(implRepo),
+		ctlchain.NewListImplementationsUseCase(implRepo), ctlchain.NewUpdateImplementationUseCase(implRepo, owners, clock),
+		ctlchain.NewDeleteImplementationUseCase(implRepo, clock))
+	testHandler := handler.NewControlTestDefinitionHandler(
+		ctlchain.NewCreateTestUseCase(testRepo, clock), ctlchain.NewGetTestUseCase(testRepo), ctlchain.NewListTestsUseCase(testRepo),
+		ctlchain.NewUpdateTestUseCase(testRepo, clock), ctlchain.NewDeleteTestUseCase(testRepo, clock))
 
 	app := fiber.New()
 	api := app.Group("/api/v1")
@@ -102,6 +114,16 @@ func newIntCtlStack(t *testing.T) *intCtlStack {
 	api.Post("/compliance/internal-controls/:controlId/requirements/:requirementId", update, h.Link)
 	api.Delete("/compliance/internal-controls/:controlId/requirements/:requirementId", update, h.Unlink)
 	api.Get("/compliance/controls/:controlId/internal-controls", read, h.ListForRequirement)
+	api.Get("/compliance/internal-controls/:controlId/implementations", read, implHandler.List)
+	api.Post("/compliance/internal-controls/:controlId/implementations", create, implHandler.Create)
+	api.Get("/compliance/implementations/:implementationId", read, implHandler.Get)
+	api.Patch("/compliance/implementations/:implementationId", update, implHandler.Update)
+	api.Delete("/compliance/implementations/:implementationId", del, implHandler.Delete)
+	api.Get("/compliance/implementations/:implementationId/tests", read, testHandler.List)
+	api.Post("/compliance/implementations/:implementationId/tests", create, testHandler.Create)
+	api.Get("/compliance/tests/:testId", read, testHandler.Get)
+	api.Patch("/compliance/tests/:testId", update, testHandler.Update)
+	api.Delete("/compliance/tests/:testId", del, testHandler.Delete)
 	s.app = app
 	return s
 }
@@ -155,6 +177,13 @@ func (s *intCtlStack) requirement(t *testing.T, tenant uuid.UUID, name string) u
 	require.NoError(t, s.db.Exec(`INSERT INTO compliance_controls (id, tenant_id, framework_id, reference_code, name, status, created_at, updated_at)
 		VALUES (?, ?, ?, ?, ?, 'not_implemented', ?, ?)`, id, tenant, uuid.New(), name[:3], name, intCtlNow, intCtlNow).Error)
 	return id
+}
+
+func (s *intCtlStack) asset(t *testing.T, tenant uuid.UUID) string {
+	t.Helper()
+	id := uuid.New()
+	require.NoError(t, s.db.Exec(`INSERT INTO assets (id, tenant_id, name) VALUES (?, ?, 'core banking')`, id, tenant).Error)
+	return id.String()
 }
 
 func (s *intCtlStack) createControl(t *testing.T, who intCtlReq, name string) string {
@@ -386,6 +415,71 @@ func TestCanonicalWrite_EnvelopeNotClientWritable(t *testing.T) {
 	assert.JSONEq(t, before.Provenance, after.Provenance)
 	assert.Equal(t, before.ApplicabilityReviewPending, after.ApplicabilityReviewPending)
 	assert.Nil(t, after.ObservedAt)
+
+	// #1415 AC5: the same holds for an implementation and for a test, on create and on edit.
+	asset := s.asset(t, s.tenantA)
+	status, body = s.do(t, a, http.MethodPost, base+"/"+id+"/implementations",
+		`{"description":"Quarterly review","applies_to":[{"type":"Asset","id":"`+asset+`"}],`+envelope+`}`)
+	require.Equal(t, http.StatusCreated, status, "%v", body)
+	implID := body["id"].(string)
+	assert.NotEqual(t, forgedID, implID, "the id is the server's")
+	assert.Equal(t, "openrisk_user", body["source"])
+	assert.Equal(t, implID, body["source_id"])
+	assert.EqualValues(t, 0.7, body["confidence"])
+	assert.Equal(t, map[string]any{"method": "manual_entry", "actor": map[string]any{"kind": "user", "id": s.userA.String()}, "confidence_rule": "confidence/1"}, body["provenance"])
+	assert.Nil(t, body["observed_at"])
+	assert.Nil(t, body["source_version"])
+	var implRow controlchain.ControlImplementationRow
+	require.NoError(t, s.db.Where("id = ?", implID).Take(&implRow).Error)
+	assert.Equal(t, s.tenantA, implRow.TenantID, "the tenant is the session's")
+	assert.Nil(t, implRow.ObservedAt)
+	assert.Nil(t, implRow.SourceVersion)
+	assert.EqualValues(t, 1, s.count(t, &controlchain.ControlImplementationRow{}), "no second row under the forged id or tenant")
+
+	implBefore := implRow
+	status, body = s.do(t, a, http.MethodPatch, "/api/v1/compliance/implementations/"+implID, `{"description":"Renamed",`+envelope+`}`)
+	require.Equal(t, http.StatusOK, status, "%v", body)
+	var implAfter controlchain.ControlImplementationRow
+	require.NoError(t, s.db.Where("id = ?", implID).Take(&implAfter).Error)
+	assert.Equal(t, "Renamed", implAfter.Description)
+	assert.Equal(t, implBefore.TenantID, implAfter.TenantID)
+	assert.Equal(t, implBefore.Source, implAfter.Source)
+	assert.Equal(t, implBefore.SourceID, implAfter.SourceID)
+	assert.Equal(t, implBefore.Confidence, implAfter.Confidence)
+	assert.JSONEq(t, implBefore.Provenance, implAfter.Provenance)
+	assert.Equal(t, implBefore.ControlID, implAfter.ControlID, "the control is not editable either")
+	assert.Nil(t, implAfter.ObservedAt)
+
+	status, body = s.do(t, a, http.MethodPost, "/api/v1/compliance/implementations/"+implID+"/tests",
+		`{"name":"Review","checks":"list matches HR","method":"manual","procedure":"export and compare","pass_criteria":"no orphan",`+envelope+`}`)
+	require.Equal(t, http.StatusCreated, status, "%v", body)
+	testID := body["id"].(string)
+	assert.NotEqual(t, forgedID, testID)
+	assert.Equal(t, "openrisk_user", body["source"])
+	assert.Equal(t, testID, body["source_id"])
+	assert.EqualValues(t, 0.7, body["confidence"])
+	assert.Equal(t, map[string]any{"method": "manual_entry", "actor": map[string]any{"kind": "user", "id": s.userA.String()}, "confidence_rule": "confidence/1"}, body["provenance"])
+	assert.Nil(t, body["source_version"])
+	var testRow controlchain.ControlTestRow
+	require.NoError(t, s.db.Where("id = ?", testID).Take(&testRow).Error)
+	assert.Equal(t, s.tenantA, testRow.TenantID)
+	assert.Nil(t, testRow.ObservedAt, "a definition is not observed (D4)")
+	assert.Nil(t, testRow.SourceVersion)
+	assert.EqualValues(t, 1, s.count(t, &controlchain.ControlTestRow{}))
+
+	testBefore := testRow
+	status, body = s.do(t, a, http.MethodPatch, "/api/v1/compliance/tests/"+testID, `{"name":"Renamed",`+envelope+`}`)
+	require.Equal(t, http.StatusOK, status, "%v", body)
+	var testAfter controlchain.ControlTestRow
+	require.NoError(t, s.db.Where("id = ?", testID).Take(&testAfter).Error)
+	assert.Equal(t, "Renamed", testAfter.Name)
+	assert.Equal(t, testBefore.TenantID, testAfter.TenantID)
+	assert.Equal(t, testBefore.Source, testAfter.Source)
+	assert.Equal(t, testBefore.SourceID, testAfter.SourceID)
+	assert.Equal(t, testBefore.Confidence, testAfter.Confidence)
+	assert.JSONEq(t, testBefore.Provenance, testAfter.Provenance)
+	assert.Equal(t, testBefore.ImplementationID, testAfter.ImplementationID)
+	assert.Nil(t, testAfter.ObservedAt)
 
 	// The pending flag cannot be set by a request, on a not_applicable control either.
 	status, body = s.do(t, a, http.MethodPost, base, `{"name":"NA","applicability":"not_applicable","applicability_review_pending":true}`)

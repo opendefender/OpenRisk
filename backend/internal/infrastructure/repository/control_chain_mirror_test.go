@@ -21,6 +21,7 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 
+	ctlapp "github.com/opendefender/openrisk/internal/application/controlchain"
 	"github.com/opendefender/openrisk/internal/domain"
 	"github.com/opendefender/openrisk/internal/domain/canonical"
 	"github.com/opendefender/openrisk/internal/infrastructure/controlchain"
@@ -634,6 +635,39 @@ func (s mirrorSuite) TestEdgeWrite_TargetInOtherTenant_404(t *testing.T) {
 		{"evidenced_by (control level): the control is another tenant's", func(e *mirrorEnv, a, b uuid.UUID) error {
 			return e.link(t, a, e.evidence(t, a), e.requirement(t, b, "A.5.1"), "")
 		}},
+		{"applies_to: the asset is another tenant's (create of an implementation of tenant A's control)", func(e *mirrorEnv, a, b uuid.UUID) error {
+			c := e.chain(t)
+			ctl := c.newControl(t, a, "A's control")
+			impl := userImplementation(a, ctl.ID)
+			return c.impls.CreateImplementation(ctx, a, impl, []canonical.Edge{appliesEdge(a, impl.ID, c.asset(t, b))},
+				implAudit(a, impl.ID, domain.AuditActionCreate))
+		}},
+		{"applies_to: one asset is tenant A's, the other tenant B's", func(e *mirrorEnv, a, b uuid.UUID) error {
+			c := e.chain(t)
+			ctl := c.newControl(t, a, "A's control")
+			impl := userImplementation(a, ctl.ID)
+			return c.impls.CreateImplementation(ctx, a, impl,
+				[]canonical.Edge{appliesEdge(a, impl.ID, c.asset(t, a)), appliesEdge(a, impl.ID, c.asset(t, b))},
+				implAudit(a, impl.ID, domain.AuditActionCreate))
+		}},
+		{"applies_to: the control is another tenant's (implementation of tenant B's control)", func(e *mirrorEnv, a, b uuid.UUID) error {
+			c := e.chain(t)
+			ctl := c.newControl(t, b, "B's control")
+			impl := userImplementation(a, ctl.ID)
+			return c.impls.CreateImplementation(ctx, a, impl, []canonical.Edge{appliesEdge(a, impl.ID, c.asset(t, a))},
+				implAudit(a, impl.ID, domain.AuditActionCreate))
+		}},
+		{"applies_to: the asset is another tenant's (replacement of the targets of an implementation)", func(e *mirrorEnv, a, b uuid.UUID) error {
+			c := e.chain(t)
+			impl := c.newImpl(t, a, c.newControl(t, a, "A's control").ID, c.asset(t, a))
+			foreign := c.asset(t, b)
+			_, err := c.impls.UpdateImplementation(ctx, a, impl.ID, func(cur ctlapp.ImplementationRecord) (canonical.ControlImplementation, []canonical.Edge, []uuid.UUID, *domain.AuditEvent, error) {
+				return cur.Implementation, []canonical.Edge{appliesEdge(a, impl.ID, foreign)}, cur.AppliesTo, implAudit(a, impl.ID, domain.AuditActionUpdate), nil
+			})
+			// The failed edit left tenant A's own edge in place.
+			assert.Equal(t, 1, c.edgeCount(t, a, canonical.VerbAppliesTo))
+			return err
+		}},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -651,6 +685,11 @@ func (s mirrorSuite) TestEdgeWrite_TargetInOtherTenant_404(t *testing.T) {
 			}
 			assert.Zero(t, e.edgeCount(t, b, canonical.VerbMitigatedBy)+e.edgeCount(t, b, canonical.VerbEvidencedBy),
 				"nothing was written into tenant B's chain by tenant A's request")
+			assert.Zero(t, e.edgeCount(t, b, canonical.VerbAppliesTo), "no applies_to edge in tenant B")
+			var impls int64
+			require.NoError(t, e.db.Model(&controlchain.ControlImplementationRow{}).Where("tenant_id = ? AND source = 'openrisk_user' AND description = 'Quarterly review' AND status = 'in_place'", a).
+				Count(&impls).Error)
+			assert.Equal(t, int64(e.edgeCount(t, a, canonical.VerbAppliesTo)), impls, "an implementation of A exists only with its own edge (the replacement case's)")
 			// addressed_by: a requirement made by the legacy write carries its split edge and
 			// nothing else may exist, in either tenant (AC3, the S2 resolver).
 			for _, tenant := range []uuid.UUID{a, b} {
@@ -773,6 +812,17 @@ func runMirrorSuite(t *testing.T, s mirrorSuite) {
 		"TestControlLibrary_ReadsFilterOnTheLivenessOfBothEnds":        s.TestControlLibrary_ReadsFilterOnTheLivenessOfBothEnds,
 		"TestControlLibrary_UnlinkDeletesOnlyThatEdge":                 s.TestControlLibrary_UnlinkDeletesOnlyThatEdge,
 		"TestControlLibrary_EvidenceProbe":                             s.TestControlLibrary_EvidenceProbe,
+		"TestControlImplementation_CreateReadEditDelete_Success":       s.TestControlImplementation_CreateReadEditDelete_Success,
+		"TestControlImplementation_NotFound":                           s.TestControlImplementation_NotFound,
+		"TestControlImplementation_Unauthorized":                       s.TestControlImplementation_Unauthorized_NilTenantTouchesNothing,
+		"TestControlImplementation_CrossTenantIsInvisible":             s.TestControlImplementation_CrossTenantIsInvisible,
+		"TestControlImplementation_AuditFailureRollsTheWriteBack":      s.TestControlImplementation_AuditFailureRollsTheWriteBack,
+		"TestControlImplementation_ParentChainLiveness":                s.TestControlImplementation_ReadsFilterOnTheLivenessOfTheParentChain,
+		"TestControlTest_CreateReadEditDelete_Success":                 s.TestControlTest_CreateReadEditDelete_Success,
+		"TestControlTest_NotFound":                                     s.TestControlTest_NotFound,
+		"TestControlTest_Unauthorized":                                 s.TestControlTest_Unauthorized_NilTenantTouchesNothing,
+		"TestControlTest_CrossTenantIsInvisible":                       s.TestControlTest_CrossTenantIsInvisible,
+		"TestControlTest_AuditFailureRollsTheWriteBack":                s.TestControlTest_AuditFailureRollsTheWriteBack,
 	} {
 		t.Run(name, fn)
 	}
