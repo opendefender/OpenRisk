@@ -16,7 +16,7 @@ client `Content-Type` or the extension; rejections are `ErrValidation`
 
 | Route | Handler | Size limit | Sniffed allowlist | Stored name | Test |
 |---|---|---|---|---|---|
-| `POST /evidence` (multipart, file optional) | `internal/handler/evidence_handler.go:77` -> `evidence.Service.Create` | 3 MB (`fileupload.EvidenceMaxBytes`, read through `io.LimitReader(max+1)`); below the 4 MB Fiber body limit, no figure is promised in the UI | pdf, png, jpeg, webp, text/plain (UTF-8, CSV/TXT), zip (OOXML). Refused: html, xml/svg, octet-stream/exe, anything else. text/plain must be valid UTF-8 over the whole body (UTF-16 BOMs refused) and, for evidence, must not contain (case-insensitive, anywhere) `<svg`, `:svg` (namespace-prefixed SVG), `<script`, `<html`, `<!doctype`, `<iframe`, `<object`, `<embed` or `javascript:`; CSV imports only require valid UTF-8 and no UTF-16 BOM | `<tenant>/<uuid><ext>`, ext from the sniffed type (`pkg/storage/local.go` `Save`); client name kept only in `evidences.filename` | `TestCreate_StoresUnderAServerGeneratedName`, `TestCreate_RejectsWrongTypeBySniffing`, `TestCreate_RejectsOversize`, `TestCreate_RejectsEmptyFile`, `TestCreate_Unauthorized_WithoutTenant` (`internal/application/evidence`); `TestSave_KeyNeverCarriesTheClientFilename` (`pkg/storage`); `TestEvidenceUpload_*` (`internal/handler/upload_audit_test.go`) |
+| `POST /evidence` (multipart, file optional) | `internal/handler/evidence_handler.go:77` -> `evidence.Service.Create` | 3 MB (`fileupload.EvidenceMaxBytes`, read through `io.LimitReader(max+1)`); below the 4 MB Fiber body limit, no figure is promised in the UI | pdf, png, jpeg, webp, text/plain (UTF-8, CSV/TXT), zip (OOXML). Refused: html, xml/svg, octet-stream/exe, anything else. text/plain must be valid UTF-8 over the whole body (UTF-16 BOMs refused) and, for evidence, must not contain (case-insensitive, anywhere) `<svg`, `:svg` (namespace-prefixed SVG), `<script`, `<html`, `<!doctype`, `<iframe`, `<object`, `<embed` or `javascript:`; CSV imports only refuse a UTF-16 BOM and binary content: encoding past the sniff window is left to the importers, which answer 422 `not_utf8` ("save it as CSV UTF-8") | `<tenant>/<uuid><ext>`, ext from the sniffed type (`pkg/storage/local.go` `Save`); client name kept only in `evidences.filename` | `TestCreate_StoresUnderAServerGeneratedName`, `TestCreate_RejectsWrongTypeBySniffing`, `TestCreate_RejectsOversize`, `TestCreate_RejectsEmptyFile`, `TestCreate_Unauthorized_WithoutTenant` (`internal/application/evidence`); `TestSave_KeyNeverCarriesTheClientFilename` (`pkg/storage`); `TestEvidenceUpload_*` (`internal/handler/upload_audit_test.go`) |
 | `POST /compliance/controls/:controlId/evidences` | `evidence_handler.go:171` -> same `Service.Create` | same | same | same | `TestEvidenceUpload_Success_StoredNameIsServerGenerated`, `_WrongType_ScriptBearingFilesAreRejected` (HTML, SVG, XML-SVG, exe declared as `application/pdf`), `_Oversize_Is413`, `_Unauthorized_RoleWithoutCreatePermission` (403), `_CrossTenant_ControlOfAnotherTenantIsNotFound` (404) |
 | `POST /risks/import` (CSV, not stored) | `internal/handler/risk_import_handler.go:36` | 2 MB (existing `risk.MaxImportBytes`; 413) | text/plain only (`fileupload.CSV`); the `.csv` extension check is kept as a first gate | not stored | `TestRiskImportHTTP_RefusesBinaryNamedCSV`, `TestRiskImportHTTP_Oversize_Is413`, existing `TestRiskImportHTTP_Unauthorized`, `_RowsLandOnlyInCallersTenant` |
 | `POST /assets/import` (CSV, not stored) | `internal/handler/asset_import_handler.go:38` | 2 MB (`asset.MaxImportBytes`; 413) | same | not stored | `TestAssetImportHTTP_RefusesBinaryNamedCSV`, `TestAssetImportHTTP_Oversize_Is413`, existing `TestAssetImportHTTP_Unauthorized`, `_RowsLandOnlyInCallersTenant` |
@@ -96,3 +96,115 @@ There is no comment entity in `internal/domain`.
 - No live-environment proof was produced from this change: every claim above is a unit or in-process API test
   (sqlite, local storage). The live-proof note required by the Definition of Done is not written here.
 - OpenAPI spec not updated: no route or request shape changed, only new 400/413 responses on existing routes.
+
+## Live proof (2026-11-16)
+
+Real server, real PostgreSQL, curl only. Every status and header below was copied from the run; request bodies
+are the fixtures named in each row. HEAD `502f1c5a` plus the uncommitted audit doc.
+
+### Environment
+
+- Go 1.26.8; `postgres:16-alpine` (PostgreSQL 16.15) as `or1316-pg` on `127.0.0.1:55432`; `redis:7-alpine`
+  (7.4.12) as `or1316-redis` on `127.0.0.1:56379`; server on `:18316` (8080 was taken by another container).
+- Build and boot: `cd backend && go build -o <scratch>/server ./cmd/server`, then run with
+  `PORT=18316 APP_ENV=development OPENRISK_DEPLOYMENT=self_hosted DATABASE_URL=<elided> MIGRATIONS_DIR=<repo>/migrations
+  DB_HOST/DB_PORT/DB_USER/DB_PASSWORD/DB_NAME=<throwaway> REDIS_URL=redis://127.0.0.1:56379/0 REDIS_HOST REDIS_PORT
+  RSA_PRIVATE_KEY_PATH/RSA_PUBLIC_KEY_PATH=<throwaway 2048-bit pair> STORAGE_DRIVER=local STORAGE_LOCAL_PATH=<scratch>/uploads
+  PASSWORD_HIBP_DISABLED=true EMAIL_TRANSPORT=log`. All secrets were generated for this run and discarded.
+- Two tenants through the app's own `POST /api/v1/auth/register` (201 each), then `POST /api/v1/auth/login`
+  (200). The session is cookie based (`or_access`, `or_csrf`); mutating calls send the `or_csrf` value in the
+  `X-CSRF-Token` header. Tenant A = `5f36260a-...` (owner role), tenant B = `f9b27bbe-...`.
+- Routes are under `/api/v1` (`/evidence`, `/compliance/controls/:id/evidences`, `/risks/import`, `/assets/import`,
+  `/users/me/avatar`).
+
+### Evidence upload (`POST /evidence`, multipart)
+
+| Case | Status | Result |
+|---|---|---|
+| real 80-byte PDF, client name `client-secret-name.pdf` | 201 | `file_ref` = `5f36260a-.../1cb80338-....pdf`; `filename` field keeps the client name |
+| storage dir after the upload (`find <scratch>/uploads -type f`) | n/a | `uploads/5f36260a-e152-4a1c-86ec-aed54439edc5/1cb80338-ed5e-4960-822c-7219e253debc.pdf`: `<tenant>/<uuid>.pdf`, no client name |
+| HTML named `x.pdf`, declared `application/pdf` | 400 | `{"error":"This file type is not allowed. Attach a PDF, PNG, JPEG, WebP, text or Office (docx, xlsx, pptx) file."}` |
+| SVG with `<script>`, named `x.pdf`, declared `application/pdf` | 400 | same body |
+| UTF-8 BOM + `<html>`, named `x.pdf` | 400 | same body |
+| 300 random bytes named `.csv` declared `text/csv` | 400 | same body |
+| 3,500,000-byte text file (over 3 MB cap) | 413 | `{"error":"The file is larger than 3 MB."}` (handler's own refusal, below Fiber's limit) |
+| 4,600,000-byte text file (over Fiber's 4 MB body limit) | 413 | `{"error":true,"msg":"Request Entity Too Large"}` (Fiber's own response, before the handler) |
+| storage dir after all rejections | n/a | unchanged: the rejected files wrote nothing |
+
+curl prints an interim `HTTP/1.1 100 Continue` for the two large bodies; the final codes above were taken with
+`-w %{http_code}`.
+
+### Download headers (`GET /evidence/:id/download`, also `/compliance/evidences/:id/download`)
+
+Every download, whatever the stored name, returned `200`, `Content-Type: application/octet-stream`,
+`X-Content-Type-Options: nosniff`, `Cache-Control: no-store`, `Content-Security-Policy: default-src 'none'; sandbox`.
+The body of the stored PDF was byte-identical to the upload (`cmp`).
+
+| Uploaded filename | `Content-Disposition` |
+|---|---|
+| `client-secret-name.pdf` | `attachment; filename="client-secret-name.pdf"` |
+| `résumé-é.pdf` | `attachment; filename="r_sum_-_.pdf"; filename*=UTF-8''r%C3%A9sum%C3%A9-%C3%A9.pdf` |
+| `a\"x; X-Evil: 1.pdf` (raw multipart, quote and semicolon) | `attachment; filename="ax X-Evil: 1.pdf"; filename*=UTF-8''a%22x%3B%20X-Evil%3A%201.pdf` |
+| `a"\r\nX-Evil: 1.pdf` sent through curl `-F` | curl percent-encoded CR/LF to `%0D%0A` in the multipart header, so the server stored the literal text `a%22%0D%0AX-Evil: 1.pdf`; header was `filename="a220D0AX-Evil: 1.pdf"; filename*=UTF-8''a%2522%250D%250AX-Evil%3A%201.pdf` |
+
+No response in any of these carried an `X-Evil` header (the header filter printed none).
+
+### Cross-tenant (tenant B against tenant A's objects)
+
+| Request by B | Status | Body |
+|---|---|---|
+| `GET /evidence/<A id>/download` | 404 | `{"error":"evidence not found"}` |
+| `GET /evidence/<A id>` | 404 | `{"error":"evidence not found"}` |
+| `GET /compliance/evidences/<A id>/download` | 404 | `{"error":"evidence not found"}` |
+| `POST /compliance/controls/<A control>/evidences` with a valid PDF | 404 | `{"error":"control not found"}` |
+| `GET /compliance/controls/<A control>/evidences` | 404 | `{"error":"control not found"}` |
+| `GET /evidence` (B's own list) | 200 | `{"items":[],"total":0,...}`: none of A's rows |
+| `GET /users/<A id>/avatar` | 404 | `{"error":"avatar not found"}` |
+
+The same upload by A to its own control returned 201. After B's attempts the storage dir held only A's tenant
+directory (no directory for B).
+
+### CSV imports
+
+| Request | Status | Body |
+|---|---|---|
+| `POST /risks/import`, 300 random bytes named `.csv` | 400 | `{"error":"validation_failed","message":"Only CSV (UTF-8 text) files can be imported."}` |
+| `POST /risks/import`, valid CSV | 200 | `{"created":1,"rejected":0,"risk_ids":[...],"errors":[]}` |
+| `POST /risks/import`, 2.2 MB file | 413 | not body-captured (`-w %{http_code}` only) |
+| `POST /assets/import`, binary named `.csv` | 400 | same `validation_failed` body |
+| `POST /assets/import`, valid CSV | 200 | `{"created":1,"rejected":0,"asset_ids":[...],"errors":[]}` |
+
+### Output encoding
+
+`POST /risks` with `title` = `<script>alert(1)</script>` and `description` = `"><img src=x onerror=alert(1)>`
+returned 201; `GET /risks/<id>` returned `200`, `Content-Type: application/json`. Raw response bytes contain
+`"title":"<script>alert(1)</script>"`; `grep -c '<script'` on the raw response = 0 and
+`grep -o '\\u003cscript'` = 2 occurrences. So the literal `<script` does NOT appear on the wire: Fiber's
+encoder escapes it as `<script`, as section 3 states (a JSON parser decodes it back losslessly). The first
+create attempt with `probability` 3 was refused 400 (`Probability is too large (maximum 1)`), a payload error,
+not an encoding result.
+
+### Avatar (`PUT /users/me/avatar`, field `file`)
+
+| Request | Status | Body |
+|---|---|---|
+| SVG with `<script>` declared `image/png` | 400 | `{"error":"avatar: image must be PNG, JPEG or WebP"}` |
+| HTML declared `image/png` | 400 | same |
+| 1x1 PNG | 200 | profile JSON with `has_avatar:true` |
+
+`GET /users/<id>/avatar` (owner): `200`, `Content-Type: image/png`, `X-Content-Type-Options: nosniff`.
+
+### Limits
+
+- Not run: `PUT /organization/logo`, the report, board-report and compliance-report downloads, UTF-16 BOM text,
+  a text file containing each refused marker, a zip/OOXML upload, a JPEG/WebP avatar. Covered only by the unit and
+  in-process tests listed above.
+- A literal CR/LF in a filename cannot be produced through curl `-F` (it percent-encodes them) and the
+  multipart parser did not hand the server a raw CR/LF in my raw-body attempt; the CR/LF case is proven only by
+  `TestEvidenceDownload_HeadersWithHostileFilename`, not live. The live run proves quote, semicolon, `%`, and
+  non-ASCII handling.
+- Single run on one host, one request per case: no concurrency, no repeat. Role/permission refusals (403) were not
+  exercised live (both users are organisation owners).
+- Free-text encoding was proven live for risk title/description only, not for the other fields in section 3.
+- The frontend (`a.download` use of the raw filename, #1448) is not exercised: curl only.
+- Server log checked for `panic`: 0 occurrences. No ZAP/fuzzing, no k6.
