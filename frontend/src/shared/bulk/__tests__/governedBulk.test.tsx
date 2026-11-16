@@ -519,7 +519,6 @@ describe('accessibility', () => {
 // same — preview first, fingerprint on the apply, exact undo on a refusal — but
 // the optimistic change is the page's and the hook only decides when to undo it.
 
-
 function ExternalHarness({ refresh }: { refresh: () => void }) {
   const [rows, setRows] = useState<string[]>(IDS);
 
