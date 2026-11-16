@@ -16,7 +16,7 @@ client `Content-Type` or the extension; rejections are `ErrValidation`
 
 | Route | Handler | Size limit | Sniffed allowlist | Stored name | Test |
 |---|---|---|---|---|---|
-| `POST /evidence` (multipart, file optional) | `internal/handler/evidence_handler.go:77` -> `evidence.Service.Create` | 3 MB (`fileupload.EvidenceMaxBytes`, read through `io.LimitReader(max+1)`); below the 4 MB Fiber body limit, no figure is promised in the UI | pdf, png, jpeg, webp, text/plain (UTF-8, CSV/TXT), zip (OOXML). Refused: html, xml/svg (also a bare `<svg`), octet-stream/exe, anything else | `<tenant>/<uuid><ext>`, ext from the sniffed type (`pkg/storage/local.go` `Save`); client name kept only in `evidences.filename` | `TestCreate_StoresUnderAServerGeneratedName`, `TestCreate_RejectsWrongTypeBySniffing`, `TestCreate_RejectsOversize`, `TestCreate_RejectsEmptyFile`, `TestCreate_Unauthorized_WithoutTenant` (`internal/application/evidence`); `TestSave_KeyNeverCarriesTheClientFilename` (`pkg/storage`); `TestEvidenceUpload_*` (`internal/handler/upload_audit_test.go`) |
+| `POST /evidence` (multipart, file optional) | `internal/handler/evidence_handler.go:77` -> `evidence.Service.Create` | 3 MB (`fileupload.EvidenceMaxBytes`, read through `io.LimitReader(max+1)`); below the 4 MB Fiber body limit, no figure is promised in the UI | pdf, png, jpeg, webp, text/plain (UTF-8, CSV/TXT), zip (OOXML). Refused: html, xml/svg, octet-stream/exe, anything else. text/plain must be valid UTF-8 over the whole body (UTF-16 BOMs refused) and, for evidence, must not contain (case-insensitive, anywhere) `<svg`, `:svg` (namespace-prefixed SVG), `<script`, `<html`, `<!doctype`, `<iframe`, `<object`, `<embed` or `javascript:`; CSV imports only require valid UTF-8 and no UTF-16 BOM | `<tenant>/<uuid><ext>`, ext from the sniffed type (`pkg/storage/local.go` `Save`); client name kept only in `evidences.filename` | `TestCreate_StoresUnderAServerGeneratedName`, `TestCreate_RejectsWrongTypeBySniffing`, `TestCreate_RejectsOversize`, `TestCreate_RejectsEmptyFile`, `TestCreate_Unauthorized_WithoutTenant` (`internal/application/evidence`); `TestSave_KeyNeverCarriesTheClientFilename` (`pkg/storage`); `TestEvidenceUpload_*` (`internal/handler/upload_audit_test.go`) |
 | `POST /compliance/controls/:controlId/evidences` | `evidence_handler.go:171` -> same `Service.Create` | same | same | same | `TestEvidenceUpload_Success_StoredNameIsServerGenerated`, `_WrongType_ScriptBearingFilesAreRejected` (HTML, SVG, XML-SVG, exe declared as `application/pdf`), `_Oversize_Is413`, `_Unauthorized_RoleWithoutCreatePermission` (403), `_CrossTenant_ControlOfAnotherTenantIsNotFound` (404) |
 | `POST /risks/import` (CSV, not stored) | `internal/handler/risk_import_handler.go:36` | 2 MB (existing `risk.MaxImportBytes`; 413) | text/plain only (`fileupload.CSV`); the `.csv` extension check is kept as a first gate | not stored | `TestRiskImportHTTP_RefusesBinaryNamedCSV`, `TestRiskImportHTTP_Oversize_Is413`, existing `TestRiskImportHTTP_Unauthorized`, `_RowsLandOnlyInCallersTenant` |
 | `POST /assets/import` (CSV, not stored) | `internal/handler/asset_import_handler.go:38` | 2 MB (`asset.MaxImportBytes`; 413) | same | not stored | `TestAssetImportHTTP_RefusesBinaryNamedCSV`, `TestAssetImportHTTP_Oversize_Is413`, existing `TestAssetImportHTTP_Unauthorized`, `_RowsLandOnlyInCallersTenant` |
@@ -38,7 +38,7 @@ If either is ever wired it must go through `fileupload` first.
 
 | Route | Handler | Headers | Test |
 |---|---|---|---|
-| `GET /evidence/:evidenceId/download`, `GET /compliance/evidences/:evidenceId/download` | `evidence_handler.go:394` | `Content-Disposition` from `fileupload.AttachmentHeader` (RFC 6266: ASCII fallback with quotes, backslashes, `%`, `;`, CR/LF and control chars removed, UTF-8 name in `filename*=`), `Content-Type: application/octet-stream`, `X-Content-Type-Options: nosniff`, `Content-Security-Policy: default-src 'none'; sandbox` | `TestEvidenceDownload_HeadersWithHostileFilename` (`a"\r\nX-Evil: 1.pdf`), `TestEvidenceDownload_UTF8FilenameIsPercentEncoded`, `TestEvidenceDownload_CrossTenant_NotFound` (compliance_handler_test.go), `TestEvidenceDownload_CrossTenant_NoBytesLeak`; `TestAttachmentHeader_*` (`pkg/fileupload`) |
+| `GET /evidence/:evidenceId/download`, `GET /compliance/evidences/:evidenceId/download` | `evidence_handler.go:394` | `Content-Disposition` from `fileupload.AttachmentHeader` (RFC 6266: ASCII fallback with quotes, backslashes, `%`, `;`, CR/LF and control chars removed, UTF-8 name in `filename*=`), `Content-Type: application/octet-stream`, `X-Content-Type-Options: nosniff`, `Cache-Control: no-store`, `Content-Security-Policy: default-src 'none'; sandbox` | `TestEvidenceDownload_HeadersWithHostileFilename` (`a"\r\nX-Evil: 1.pdf`), `TestEvidenceDownload_UTF8FilenameIsPercentEncoded`, `TestEvidenceDownload_CrossTenant_NotFound` (compliance_handler_test.go), `TestEvidenceDownload_CrossTenant_NoBytesLeak`; `TestAttachmentHeader_*` (`pkg/fileupload`) |
 | `GET /reports/:reportId/download`, `GET /reports/jobs/:jobId/download`, compliance report, board report | `report_handler.go`, `report_job_handler.go`, `compliance_handler.go`, `board_report_handler.go` | server-generated bytes; the filename (framework name, period label, stored report name) now goes through `AttachmentHeader` | `TestAttachmentHeader_*`; no per-route handler test added |
 | exports with fixed names (`export_handler`, `governance_handler`, `analytics_handler`, `trend_handler`, `org_deletion_handler`) | as named | constant filenames or a date/number built server-side; unchanged | none needed (no user-derived value) |
 | every API response | `middleware.SecurityHeaders` (`cmd/server/main.go:527`, global `app.Use`) | `X-Content-Type-Options: nosniff` (helmet default) | `TestSecurityHeaders_NosniffOnEveryResponse` |
@@ -47,7 +47,7 @@ If either is ever wired it must go through `fileupload` first.
 
 Frontend: no `dangerouslySetInnerHTML` / `innerHTML` in `frontend/src` (grep), so
 React renders every value as text. API: Fiber's JSON encoder is `encoding/json`,
-which writes `<`, `>` and `&` as `<`, `>`, `&`; the bytes are
+which writes `<`, `>` and `&` as `\u003c`, `\u003e` and `\u0026`; the bytes are
 stored verbatim and encoded on output, losslessly. Responses are
 `application/json`. Payloads used: `<script>alert(1)</script>` and
 `"><img src=x onerror=alert(1)>`.
@@ -84,8 +84,12 @@ There is no comment entity in `internal/domain`.
   content passes: the files are served only as `application/octet-stream` attachments with nosniff and a sandbox
   CSP, never inline. There is no malware scan and no deep OOXML/PDF structure validation. `application/zip` also
   admits any zip (jar, apk), not only Office files.
-- Text evidence is accepted as `text/plain` without checking it is not markup beyond what the sniffer and the
-  `<svg` check detect.
+- Text evidence that legitimately mentions one of the refused markers (for example a runbook quoting `<script>`) is
+  refused: a deliberate false positive. The marker list is a denylist on top of the allowlist, not a parser.
+- Open MEDIUM: the downloaded file keeps the uploader's name and extension (for example `report.hta`, or a name with
+  bidi-override characters), and the frontend uses the raw `filename` JSON field for `a.download`
+  (`frontend/src/features/evidence/EvidenceLibraryPage.tsx:105`, `frontend/src/services/complianceService.ts:174`).
+  Tracked as #1448.
 - Existing stored evidence keeps its old key (`<uuid>-<client name>`); only new uploads get the server name. No
   migration was written.
 - Fiber's 4 MB body limit still applies first; an oversize body is refused by Fiber before the handler (its own 413).

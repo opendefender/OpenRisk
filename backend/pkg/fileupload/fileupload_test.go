@@ -40,6 +40,15 @@ func TestEvidencePolicy_AcceptsAllowlistBySniffing(t *testing.T) {
 func TestEvidencePolicy_RefusesActiveContentAndUnknownBinaries(t *testing.T) {
 	for name, body := range map[string][]byte{
 		"html": htmlBytes, "svg": svgBytes, "xml-svg": xmlSVG, "exe": exeBytes, "nul": {0, 1, 2, 3},
+		"utf16-be bom":     append([]byte("\xfe\xff"), exeBytes...),
+		"utf16-le bom":     append([]byte("\xff\xfe"), exeBytes...),
+		"utf8 bom html":    []byte("\xef\xbb\xbf<html><script>alert(1)</script>"),
+		"doctype svg":      []byte("<!DOCTYPE svg><svg onload=alert(1)>"),
+		"formfeed svg":     []byte("\f<svg onload=alert(1)>"),
+		"prefixed svg":     []byte("<a:svg xmlns:a='http://www.w3.org/2000/svg'/>"),
+		"script after 512": append(bytes.Repeat([]byte("a"), 600), []byte("<ScRiPt>alert(1)</script>")...),
+		"javascript uri":   []byte("click javascript:alert(1)"),
+		"binary after 512": append(bytes.Repeat([]byte("a"), 600), 0xff, 0xfe, 0x00),
 	} {
 		if _, err := Evidence.Read(bytes.NewReader(body)); !errors.Is(err, ErrUnsupported) {
 			t.Errorf("%s: want ErrUnsupported, got %v", name, err)
@@ -63,6 +72,16 @@ func TestCSVPolicy_RefusesBinaryAcceptsText(t *testing.T) {
 	}
 	if _, err := CSV.Check(exeBytes); !errors.Is(err, ErrUnsupported) {
 		t.Fatalf("exe: got %v", err)
+	}
+	late := append(bytes.Repeat([]byte("a"), 600), 0xff, 0xfe, 0x00, 0x01)
+	if _, err := CSV.Check(late); !errors.Is(err, ErrUnsupported) {
+		t.Fatalf("binary after 512 text bytes: got %v", err)
+	}
+	if _, err := CSV.Check(append([]byte("\xff\xfe"), []byte("a,b\n")...)); !errors.Is(err, ErrUnsupported) {
+		t.Fatalf("utf-16 bom: got %v", err)
+	}
+	if _, err := CSV.Check([]byte("title,impact\nthe <script> tag,3\n")); err != nil {
+		t.Fatalf("a CSV cell may mention words: %v", err)
 	}
 	if _, err := CSV.Check([]byte("title,impact\nx,3\n")); err != nil {
 		t.Fatalf("csv: %v", err)

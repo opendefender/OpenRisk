@@ -19,6 +19,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"unicode/utf8"
 )
 
 var (
@@ -48,12 +49,21 @@ type Policy struct {
 	// Allowed maps a sniffed media type (no parameters) to the extension the
 	// file is stored under. The extension is server-chosen, never the client's.
 	Allowed map[string]string
+	// RefuseMarkup makes a text/plain upload fail when it contains active-content
+	// markers (see markupMarkers). Set for files that are stored and served back.
+	RefuseMarkup bool
 }
+
+// markupMarkers are refused (case-insensitively) anywhere in text evidence: the
+// sniffer only looks at the first 512 bytes and a leading tag it does not know
+// (<a:svg>, <!DOCTYPE svg>) reads as plain text.
+var markupMarkers = []string{"<svg", ":svg", "<script", "<html", "<!doctype", "<iframe", "<object", "<embed", "javascript:"}
 
 // Evidence is the allowlist for proof artifacts. text/html and text/xml (SVG)
 // are absent on purpose: they are documents that carry script.
 var Evidence = Policy{
-	MaxBytes: EvidenceMaxBytes,
+	MaxBytes:     EvidenceMaxBytes,
+	RefuseMarkup: true,
 	Allowed: map[string]string{
 		"application/pdf": ".pdf",
 		"image/png":       ".png",
@@ -102,7 +112,31 @@ func (p Policy) Check(data []byte) (*File, error) {
 	if !ok {
 		return nil, ErrUnsupported
 	}
+	if ct == "text/plain" && !acceptableText(data, p.RefuseMarkup) {
+		return nil, ErrUnsupported
+	}
 	return &File{ContentType: ct, Extension: ext, Data: data}, nil
+}
+
+// acceptableText applies to text/plain, which the sniffer grants to any bytes
+// without a binary marker in the first 512: the whole body must be valid UTF-8,
+// UTF-16 (BOM) is refused, and with refuseMarkup active-content markers are too.
+func acceptableText(data []byte, refuseMarkup bool) bool {
+	if bytes.HasPrefix(data, []byte{0xFE, 0xFF}) || bytes.HasPrefix(data, []byte{0xFF, 0xFE}) {
+		return false
+	}
+	if !utf8.Valid(data) {
+		return false
+	}
+	if refuseMarkup {
+		low := strings.ToLower(string(data))
+		for _, m := range markupMarkers {
+			if strings.Contains(low, m) {
+				return false
+			}
+		}
+	}
+	return true
 }
 
 // Sniff returns the media type of data, without parameters. DetectContentType
@@ -119,7 +153,7 @@ func Sniff(data []byte) string {
 			head = head[:512]
 		}
 		head = bytes.TrimPrefix(head, []byte("\xef\xbb\xbf"))
-		head = bytes.TrimLeft(head, " \t\r\n")
+		head = bytes.TrimLeft(head, " \t\r\n\f\v")
 		if len(head) >= 4 && strings.EqualFold(string(head[:4]), "<svg") {
 			return "image/svg+xml"
 		}

@@ -8,7 +8,6 @@ package handler
 import (
 	"context"
 	"encoding/json"
-	"github.com/opendefender/openrisk/pkg/fileupload"
 	"github.com/opendefender/openrisk/pkg/monitoring"
 	"strings"
 
@@ -18,6 +17,7 @@ import (
 	"github.com/opendefender/openrisk/internal/application/board"
 	"github.com/opendefender/openrisk/internal/domain"
 	"github.com/opendefender/openrisk/pkg/ai"
+	"github.com/opendefender/openrisk/pkg/fileupload"
 	"github.com/opendefender/openrisk/pkg/report"
 )
 

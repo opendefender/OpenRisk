@@ -412,6 +412,7 @@ func (h *EvidenceHandler) Download(c *fiber.Ctx) error {
 	c.Set(fiber.HeaderContentDisposition, fileupload.AttachmentHeader(name))
 	c.Set(fiber.HeaderContentType, "application/octet-stream")
 	c.Set("X-Content-Type-Options", "nosniff")
+	c.Set(fiber.HeaderCacheControl, "no-store")
 	c.Set("Content-Security-Policy", "default-src 'none'; sandbox")
 	return c.SendStream(content)
 }

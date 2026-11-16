@@ -222,6 +222,7 @@ func TestEvidenceDownload_HeadersWithHostileFilename(t *testing.T) {
 	require.NotContains(t, cd, "\n")
 	require.Equal(t, 2, strings.Count(cd, `"`), "no inner quote survives: %q", cd)
 	require.Equal(t, "nosniff", h.Get("X-Content-Type-Options"))
+	require.Equal(t, "no-store", h.Get("Cache-Control"))
 	require.Equal(t, "default-src 'none'; sandbox", h.Get("Content-Security-Policy"))
 	require.Equal(t, "application/octet-stream", h.Get("Content-Type"))
 }

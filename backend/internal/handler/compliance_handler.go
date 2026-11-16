@@ -7,7 +7,6 @@ package handler
 
 import (
 	"errors"
-	"github.com/opendefender/openrisk/pkg/fileupload"
 	"github.com/opendefender/openrisk/pkg/monitoring"
 	"strings"
 
@@ -18,6 +17,7 @@ import (
 	"github.com/opendefender/openrisk/internal/domain"
 	"github.com/opendefender/openrisk/internal/middleware"
 	ent "github.com/opendefender/openrisk/pkg/entitlements"
+	"github.com/opendefender/openrisk/pkg/fileupload"
 	"github.com/opendefender/openrisk/pkg/report"
 	"github.com/opendefender/openrisk/pkg/validation"
 )
