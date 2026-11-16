@@ -474,7 +474,8 @@ financière + un plan de traitement suggéré ». Une branche par phase, commits
   l'empreinte de l'aperçu ; une sélection modifiée entre-temps (409) ou un id périmé ou
   étranger (404) est refusé en entier et les lignes reviennent
   (`RiskRegisterPage.tsx`, `useGovernedBulk.ts`, tests
-  `shared/bulk/__tests__/governedBulk.test.tsx` « external-store optimistic plan (#1441) »).
+  `shared/bulk/__tests__/governedBulk.test.tsx` « external-store optimistic plan (#1441) »,
+  `features/risks/__tests__/riskBulkDelete.test.tsx`).
   Seule la suppression est proposée ; statut et tags en masse ne le sont pas encore.
   **Reste ouvert — l'épique n'est pas close.** Deux choses :
   - **Quatre registres sur sept n'ont pas d'actions en masse** : mitigations et incidents (C2),
