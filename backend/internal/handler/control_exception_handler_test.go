@@ -30,6 +30,7 @@ import (
 	"github.com/opendefender/openrisk/internal/infrastructure/controlexception"
 	"github.com/opendefender/openrisk/internal/infrastructure/repository"
 	"github.com/opendefender/openrisk/internal/middleware"
+	"github.com/opendefender/openrisk/internal/testsupport/testdb"
 )
 
 // #1428 — the three routes through the real HTTP stack: the permission guards,
@@ -61,7 +62,7 @@ type ctlExcStack struct {
 
 func newCtlExcStack(t *testing.T) *ctlExcStack {
 	t.Helper()
-	db, err := gorm.Open(sqlite.Open("file:ctlexc"+uuid.NewString()+"?mode=memory&cache=shared"), &gorm.Config{
+	db, err := testdb.Open(t, sqlite.Open("file:ctlexc"+uuid.NewString()+"?mode=memory&cache=shared"), &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Silent),
 	})
 	require.NoError(t, err)

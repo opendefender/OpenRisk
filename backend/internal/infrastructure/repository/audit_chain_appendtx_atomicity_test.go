@@ -24,6 +24,7 @@ import (
 	"gorm.io/gorm/logger"
 
 	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/internal/testsupport/testdb"
 )
 
 // #1428 — AppendTx is a shared mechanism, tested on its own with a stand-in
@@ -54,7 +55,7 @@ func throwawayPG(t *testing.T) *gorm.DB {
 		t.Skip("DATABASE_URL not set")
 	}
 	open := func(dsn string) *gorm.DB {
-		db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
+		db, err := testdb.Open(t, postgres.Open(dsn), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
 		require.NoError(t, err)
 		return db
 	}
@@ -140,7 +141,7 @@ func TestAppendTx_Postgres_AtomicInBothDirections(t *testing.T) {
 }
 
 func TestAppendTx_SQLite_SkipsAdvisoryLockAndStillWorks(t *testing.T) {
-	db, err := gorm.Open(sqlite.Open("file:appendtx"+uuid.NewString()+"?mode=memory&cache=shared"),
+	db, err := testdb.Open(t, sqlite.Open("file:appendtx"+uuid.NewString()+"?mode=memory&cache=shared"),
 		&gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
 	require.NoError(t, err)
 	require.NoError(t, db.AutoMigrate(&domain.AuditEvent{}, &appendTxWidget{}))

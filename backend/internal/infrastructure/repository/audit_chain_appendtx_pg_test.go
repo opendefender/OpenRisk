@@ -23,6 +23,7 @@ import (
 	"gorm.io/gorm/logger"
 
 	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/internal/testsupport/testdb"
 )
 
 // #1428 — AppendTx seals an entry on the caller's transaction. Appenders that
@@ -38,7 +39,7 @@ func TestAuditChain_InterleavedAppendAndAppendTx_Postgres(t *testing.T) {
 		t.Skip("DATABASE_URL not set")
 	}
 	open := func(dsn string) *gorm.DB {
-		db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
+		db, err := testdb.Open(t, postgres.Open(dsn), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
 		require.NoError(t, err)
 		return db
 	}

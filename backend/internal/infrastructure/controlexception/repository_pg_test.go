@@ -25,6 +25,7 @@ import (
 	"github.com/opendefender/openrisk/internal/domain"
 	"github.com/opendefender/openrisk/internal/infrastructure/controlchain"
 	"github.com/opendefender/openrisk/internal/infrastructure/repository"
+	"github.com/opendefender/openrisk/internal/testsupport/testdb"
 )
 
 // #1428 — the repository on the database it runs on. Tenant B reads and revokes
@@ -53,7 +54,7 @@ func openPG(t *testing.T) *pgFixture {
 		t.Skip("DATABASE_URL not set")
 	}
 	open := func(dsn string) *gorm.DB {
-		db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
+		db, err := testdb.Open(t, postgres.Open(dsn), &gorm.Config{
 			Logger:                                   logger.Default.LogMode(logger.Silent),
 			DisableForeignKeyConstraintWhenMigrating: true,
 		})
