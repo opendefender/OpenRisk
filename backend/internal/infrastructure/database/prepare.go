@@ -62,8 +62,73 @@ func PrepareForAutoMigrate(db *gorm.DB) error {
 	if err := prepareRealtimeOutbox(db); err != nil {
 		return fmt.Errorf("realtime_events: %w", err)
 	}
+	if err := prepareEvidenceRecordIntegrity(db); err != nil {
+		return fmt.Errorf("evidences: %w", err)
+	}
 	return nil
 }
+
+// prepareEvidenceRecordIntegrity adds the record-integrity columns of evidences
+// (#554) and backfills collection_method from source and the observation period
+// from collected_at, so a legacy row never reads as an empty method.
+//
+// It has to happen here, not only in migrations/0088: the compose files boot
+// with DB_HOST and no DATABASE_URL, which skips the SQL layer, and AutoMigrate
+// alone would leave every existing row with an empty method. content_hash is
+// deliberately not backfilled (a legacy blob was never hashed; those rows are
+// served flagged unverified).
+//
+// Runs once: only while collection_method does not exist yet; a late replay of
+// the SQL migration is a no-op because it touches only rows still empty. A
+// no-op outside Postgres and on a fresh database.
+func prepareEvidenceRecordIntegrity(db *gorm.DB) error {
+	// Boot schema preparation maintains every tenant's rows before any session exists.
+	db = tenantguard.CrossTenant(db, "boot schema preparation maintains every tenant before any session exists")
+	if db.Dialector.Name() != "postgres" {
+		return nil
+	}
+	if !db.Migrator().HasTable("evidences") || db.Migrator().HasColumn("evidences", "collection_method") {
+		return nil
+	}
+	return db.Transaction(func(tx *gorm.DB) error {
+		for _, col := range []string{
+			"content_hash varchar(64) NOT NULL DEFAULT ''",
+			"hash_algorithm varchar(16) NOT NULL DEFAULT ''",
+			"observed_from timestamptz",
+			"observed_to timestamptz",
+			"collection_method varchar(24) NOT NULL DEFAULT ''",
+			"collector_kind varchar(16) NOT NULL DEFAULT ''",
+			"collector_ref varchar(128) NOT NULL DEFAULT ''",
+			"signature text NOT NULL DEFAULT ''",
+			"signature_algorithm varchar(32) NOT NULL DEFAULT ''",
+		} {
+			if err := tx.Exec(`ALTER TABLE evidences ADD COLUMN IF NOT EXISTS ` + col).Error; err != nil {
+				return err
+			}
+		}
+		if err := tx.Exec(evidenceMethodBackfill).Error; err != nil {
+			return err
+		}
+		return tx.Exec(evidenceObservationBackfill).Error
+	})
+}
+
+// evidenceMethodBackfill and evidenceObservationBackfill mirror
+// migrations/0088_evidence_record_integrity (and domain.CollectionMethodForSource).
+const evidenceMethodBackfill = `UPDATE evidences
+   SET collection_method = CASE source
+         WHEN 'integration' THEN 'api_pull'
+         WHEN 'scanner'     THEN 'automated_collector'
+         WHEN 'automation'  THEN 'automated_collector'
+         ELSE 'manual_upload'
+       END
+ WHERE collection_method = ''`
+
+const evidenceObservationBackfill = `UPDATE evidences
+   SET observed_from = collected_at,
+       observed_to   = collected_at
+ WHERE observed_from IS NULL
+   AND observed_to IS NULL`
 
 // prepareRealtimeOutbox adds realtime_events.published_at (#344, ADR 0010) with
 // a fast default, so every row that exists now reads as published at this
