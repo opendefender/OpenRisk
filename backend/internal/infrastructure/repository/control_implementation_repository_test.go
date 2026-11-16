@@ -646,21 +646,25 @@ func (s mirrorSuite) TestControlImplementation_ReplaceDeletesTheEdgeOfADeletedAs
 // DeleteControl do, and holds it open. The create must block on the lock, and once
 // the delete commits it must answer ErrNotFound and leave no live child.
 
-// waitForLockWait polls pg_stat_activity until some backend waits on a lock, so
-// "the create is blocked" is observed, not assumed. The timeout only bounds a
-// failure; it is not what makes the test pass.
-func waitForLockWait(t *testing.T, db *gorm.DB) {
+// waitForLockWait polls pg_stat_activity until a backend is blocked by holder,
+// the transaction that holds the parent row lock, so "the create is blocked" is
+// observed, not assumed. Matching the blocker, not any lock wait, keeps a wait
+// from another package's tests in the shared database from ending the poll. The
+// timeout only bounds a failure; it is not what makes the test pass.
+func waitForLockWait(t *testing.T, db, holder *gorm.DB) {
 	t.Helper()
+	var pid int64
+	require.NoError(t, holder.Raw("SELECT pg_backend_pid()").Scan(&pid).Error)
 	deadline := time.Now().Add(15 * time.Second)
 	for time.Now().Before(deadline) {
 		var n int64
-		require.NoError(t, db.Raw("SELECT count(*) FROM pg_stat_activity WHERE wait_event_type = 'Lock' AND datname = current_database()").Scan(&n).Error)
+		require.NoError(t, db.Raw("SELECT count(*) FROM pg_stat_activity WHERE ? = ANY(pg_blocking_pids(pid))", pid).Scan(&n).Error)
 		if n > 0 {
 			return
 		}
 		time.Sleep(10 * time.Millisecond)
 	}
-	t.Fatal("no backend is waiting on a lock: the create did not block on the parent row")
+	t.Fatal("no backend is blocked by the delete: the create did not block on the parent row")
 }
 
 // lockedDelete begins a transaction that locks the row of table (tenant and id in
@@ -697,7 +701,7 @@ func (s mirrorSuite) TestControlTest_CreateBlocksOnAConcurrentImplementationDele
 		done <- e.tests.CreateTest(ctx, tenant, late, testAudit(tenant, late.ID, domain.AuditActionCreate))
 	}()
 
-	waitForLockWait(t, e.db)
+	waitForLockWait(t, e.db, tx)
 	select {
 	case err := <-done:
 		t.Fatalf("CreateTest returned while the implementation row was locked: %v", err)
@@ -745,7 +749,7 @@ func (s mirrorSuite) TestControlImplementation_CreateBlocksOnAConcurrentControlD
 			implAudit(tenant, late.ID, domain.AuditActionCreate))
 	}()
 
-	waitForLockWait(t, e.db)
+	waitForLockWait(t, e.db, tx)
 	select {
 	case err := <-done:
 		t.Fatalf("CreateImplementation returned while the control row was locked: %v", err)
