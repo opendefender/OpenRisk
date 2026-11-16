@@ -40,8 +40,11 @@ const (
 // sets it on a control it made from a not_applicable row, whose justification
 // is empty and "flagged for the tenant to fill". It is unexported, readable
 // through ApplicabilityReviewPending, never decoded from JSON (A4's pattern),
-// and set in exactly one place, WithApplicabilityReviewPending, which only the
-// split calls. A write that supplies a justification clears it.
+// and written in exactly one place, WithApplicabilityReviewPending, which the split
+// calls to set it. The server clears it (#1414, D-114): when the stored control has it and
+// a write supplies a non-empty justification, or makes the control applicable,
+// the use case calls WithApplicabilityReviewPending(c, false) in that same write.
+// No request sets it, and no request body has a field for it.
 type Control struct {
 	Envelope
 	Name        string  `json:"name"`
@@ -56,8 +59,9 @@ type Control struct {
 }
 
 // WithApplicabilityReviewPending is the single entry point of the read-only
-// flag (A10.1), for the D7 split of a not_applicable compliance_controls row.
-// It returns a copy; no request path may call it.
+// flag (A10.1): the D7 split of a not_applicable compliance_controls row sets it,
+// and the control use case clears it (pending false) in the write that answers
+// the review. It returns a copy; no request body reaches it.
 func WithApplicabilityReviewPending(c Control, pending bool) Control {
 	c.applicabilityReviewPending = pending
 	return c

@@ -39,6 +39,7 @@ import (
 	bulkapp "github.com/opendefender/openrisk/internal/application/bulk"
 	"github.com/opendefender/openrisk/internal/application/compliance"
 	"github.com/opendefender/openrisk/internal/application/complianceaudit"
+	ctlchainapp "github.com/opendefender/openrisk/internal/application/controlchain"
 	ctlexcapp "github.com/opendefender/openrisk/internal/application/controlexception"
 	entapp "github.com/opendefender/openrisk/internal/application/entitlements"
 	"github.com/opendefender/openrisk/internal/application/entity"
@@ -1821,6 +1822,33 @@ func main() {
 	protected.Post("/controls/:controlId/exceptions", complianceControlUpdate, controlExceptionHandler.Create)
 	protected.Get("/controls/:controlId/exceptions", complianceControlRead, controlExceptionHandler.List)
 	protected.Post("/control-exceptions/:exceptionId/revoke", complianceControlUpdate, controlExceptionHandler.Revoke)
+	// Internal control library and requirement links (#1414, #553 S3, D-114). The
+	// control id is the CANONICAL one (controls.id); on the requirement-side read
+	// :controlId is the legacy compliance_controls id, as in the routes around it.
+	// Link and unlink take the update permission (control-mappings' precedent). The
+	// writes append their audit entry in their own transaction and mark the request
+	// journaled, as the exceptions do.
+	internalControlRepo := controlchain.NewControlRepository(database.DB, auditChainRepo)
+	internalControlClock := func() time.Time { return time.Now().UTC() }
+	internalControlHandler := handlers.NewInternalControlHandler(
+		ctlchainapp.NewCreateUseCase(internalControlRepo, ownershipService, internalControlClock),
+		ctlchainapp.NewGetUseCase(internalControlRepo),
+		ctlchainapp.NewListUseCase(internalControlRepo),
+		ctlchainapp.NewUpdateUseCase(internalControlRepo, ownershipService, internalControlClock),
+		ctlchainapp.NewDeleteUseCase(internalControlRepo, internalControlClock),
+		ctlchainapp.NewLinkUseCase(internalControlRepo, internalControlClock),
+		ctlchainapp.NewUnlinkUseCase(internalControlRepo, internalControlClock),
+		ctlchainapp.NewListRequirementsUseCase(internalControlRepo),
+		ctlchainapp.NewListForRequirementUseCase(internalControlRepo))
+	protected.Get("/compliance/internal-controls", complianceControlRead, internalControlHandler.List)
+	protected.Post("/compliance/internal-controls", complianceControlCreate, internalControlHandler.Create)
+	protected.Get("/compliance/internal-controls/:controlId", complianceControlRead, internalControlHandler.Get)
+	protected.Patch("/compliance/internal-controls/:controlId", complianceControlUpdate, internalControlHandler.Update)
+	protected.Delete("/compliance/internal-controls/:controlId", complianceControlDelete, internalControlHandler.Delete)
+	protected.Get("/compliance/internal-controls/:controlId/requirements", complianceControlRead, internalControlHandler.ListRequirements)
+	protected.Post("/compliance/internal-controls/:controlId/requirements/:requirementId", complianceControlUpdate, internalControlHandler.Link)
+	protected.Delete("/compliance/internal-controls/:controlId/requirements/:requirementId", complianceControlUpdate, internalControlHandler.Unlink)
+	protected.Get("/compliance/controls/:controlId/internal-controls", complianceControlRead, internalControlHandler.ListForRequirement)
 	// Per-control evidence, served by the LIBRARY (application/evidence), not by
 	// the old one-file-one-control use cases. The paths are unchanged so existing
 	// clients keep working; what changes is that an upload here lands in the
