@@ -74,7 +74,8 @@ func Resolve(ctx context.Context, tx *gorm.DB, tenant uuid.UUID, t canonical.Ent
 	}
 	et, ok := entityTables[t]
 	if !ok {
-		return fmt.Errorf("controlchain.Resolve: %w: no table is registered for entity type %q", domain.ErrValidation, t)
+		log.Error().Str("entity_type", string(t)).Msg("controlchain: no table is registered for this entity type")
+		return domain.NewValidationError("the entity type cannot be resolved")
 	}
 	q := tx.WithContext(ctx).Table(et.table).Where("id = ? AND tenant_id = ?", id, tenant)
 	if et.softDelete {
@@ -234,7 +235,8 @@ func MirrorRequirementCreated(ctx context.Context, tx *gorm.DB, req RequirementR
 		canonical.TypeControl, canonical.ControlIDFor(req.ID), canonical.EdgeAttributes{Coverage: &full},
 		req.ID.String(), req.CreatedAt, mirrorMethod)
 	if err := e.Validate(); err != nil {
-		return fmt.Errorf("controlchain.mirror: %w: addressed_by edge of requirement %s: %v", domain.ErrValidation, req.ID, err)
+		log.Error().Str("requirement_id", req.ID.String()).Err(err).Msg("controlchain: addressed_by edge refused")
+		return domain.NewValidationError("the requirement cannot be carried onto the control chain")
 	}
 	return putEdge(ctx, tx, e, req.ID)
 }

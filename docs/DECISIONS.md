@@ -76,6 +76,15 @@ No reader reads the chain yet (#555), no route exists (#1414).
   leave one edge for a link that is gone. It needs a person clicking in the same second as a boot,
   and no reader uses the chain yet. A chain-versus-legacy check belongs to #555, when a reader is
   re-pointed.
+- Known, not fixed: two mapping deletes of the same (risk, control) pair committing at the same time
+  under READ COMMITTED can each count the other mapping as live, and neither removes the edge. It
+  needs two people deleting the two mappings of one pair in the same second, and no reader uses the
+  chain yet. The fix (a per-pair `pg_advisory_xact_lock`, or `FOR UPDATE` on the pair's mappings)
+  belongs with the same #555 chain-versus-legacy check.
+- Conditions on later slices (devsecops, 2026-11-16): every chain reader in #555 re-resolves both ends
+  of an edge through `controlchain.Resolve` (a soft-deleted requirement or risk keeps its control and
+  edges); the control API in #1414 never accepts a client-chosen control id, since `controls.id` is
+  global and `ControlIDFor` is public, so a chosen id could pre-squat another tenant's split control.
 - Unlink with the nil tenant now returns ErrForbidden; it used to succeed on zero rows. Evidence
   delete and mapping delete already answered ErrNotFound.
 

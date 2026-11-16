@@ -209,7 +209,7 @@ func Reconcile(ctx context.Context, db *gorm.DB) (Result, error) {
 			// convergent, so a fresh attempt sees that row and plans around it.
 			var err error
 			for attempt := 1; attempt <= serializationAttempts; attempt++ {
-				if err = run(conn, &sql.TxOptions{Isolation: sql.LevelRepeatableRead}); !isSerializationFailure(err) {
+				if err = run(conn, &sql.TxOptions{Isolation: sql.LevelRepeatableRead}); !isSerializationFailure(err) || ctx.Err() != nil {
 					break
 				}
 				log.Warn().Int("attempt", attempt).Msg("controlchain: reconcile hit a concurrent mirror write, retrying on a fresh snapshot")
