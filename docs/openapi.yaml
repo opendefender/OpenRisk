@@ -3327,7 +3327,8 @@ paths:
         id of `/compliance/controls/{controlId}`. Requires
         `compliance:controls:update`. The owner must be an active member of the
         caller's organization, `expires_at` is required and strictly in the
-        future, `starts_at` defaults to now. The tenant and the approver come from
+        future and at most 366 days away, `starts_at` defaults to now and may not
+        be more than 5 minutes in the past. The tenant and the approver come from
         the session, never from the body. The write and its audit entry are one
         transaction. Errors carry a stable code in `error`
         (`control_exception.*`) that the client maps to a localized message.
@@ -6509,11 +6510,11 @@ components:
         starts_at:
           type: string
           format: date-time
-          description: Defaults to now; must be before `expires_at`.
+          description: Defaults to now; must be before `expires_at` and not more than 5 minutes before the request instant (clock-skew tolerance).
         expires_at:
           type: string
           format: date-time
-          description: Required, strictly after the request instant.
+          description: Required, strictly after the request instant and at most 366 days after it (one year; an exception is renewed, never open-ended).
 
     RevokeControlExceptionInput:
       type: object

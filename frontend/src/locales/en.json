@@ -2212,6 +2212,8 @@
       "expires_at_required": "An expiry date is required.",
       "expires_at_in_past": "The expiry date must be in the future.",
       "starts_at_not_before_expires_at": "The start date must be before the expiry date.",
+      "expires_at_too_far": "The expiry date is too far away (366 days maximum). Renew the exception instead.",
+      "starts_at_in_past": "The start date cannot be in the past.",
       "revoke_reason_too_long": "The revocation reason is too long (2000 characters maximum).",
       "invalid_body": "The request body is invalid.",
       "invalid_control_id": "The control identifier is invalid.",

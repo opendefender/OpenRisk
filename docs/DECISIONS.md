@@ -9,6 +9,21 @@ recommends, and surfaces these in the daily brief. Run `/decide` to clear them.
 
 ## Resolved
 
+### D-112 — Control exceptions (#1428): how long one may run, and whether one can be backdated · decided 2026-11-16
+**Decided (agent, 2026-11-16)**, for #1428. The issue forbids an open-ended exception but gives no maximum, and says nothing of a start in the past.
+
+**Question** — what is the maximum length of a control exception, and can its start be backdated?
+
+**Options**
+- Length: no bound / 1 year / 3 years / a per-tenant setting.
+- Start: allow backdating / refuse it.
+
+**Choice** — `expires_at` at most 366 days after the caller's instant, fixed for every tenant (`domain.ControlExceptionMaxHorizon`, code `control_exception.expires_at_too_far`). `starts_at` not earlier than 5 minutes before the caller's instant (`domain.ControlExceptionStartSkew`, code `control_exception.starts_at_in_past`).
+
+**Reason** — with no bound, a date of 9999-12-31 is an exception that never ends, which is what the issue forbids. One year makes the exception a decision that is reviewed and renewed; three years leaves a waiver unreviewed through a full audit cycle. A per-tenant setting adds a configuration surface, and a tenant could raise it to "forever"; it can be added later without breaking this default. A backdated start would let an exception cover a period already past, and once #555 reads `ActiveAt` it would rewrite the control's history. The 5 minutes only absorb clock skew between client and server.
+
+**Reversible** — both are constants plus a test row each; a per-tenant horizon, if asked for, replaces the constant behind the same code.
+
 ### D-106 — #327 signup slices: remove unmodified starter risks, count the funnel on-instance, verify email without blocking · decided 2026-11-13
 **Decided (owner, 2026-11-13)**, three answers to the questions of #327:
 - A — « Supprimer les risques d'exemple en un clic mais seulement ceux qui n'ont pas été modifiés, avec une confirmation. »

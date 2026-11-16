@@ -228,6 +228,14 @@ func TestCreateException_Validation(t *testing.T) {
 		{"no expires_at", func(_ *fixture, in *CreateInput) { in.ExpiresAt = nil }, domain.CtlExcExpiresRequired},
 		{"expires_at in the past", func(_ *fixture, in *CreateInput) { in.ExpiresAt = &past }, domain.CtlExcExpiresInPast},
 		{"expires_at is the caller's instant", func(_ *fixture, in *CreateInput) { n := now; in.ExpiresAt = &n }, domain.CtlExcExpiresInPast},
+		{"expires_at past the horizon", func(_ *fixture, in *CreateInput) {
+			e := now.Add(domain.ControlExceptionMaxHorizon + time.Second)
+			in.ExpiresAt = &e
+		}, domain.CtlExcExpiresTooFar},
+		{"starts_at before the skew tolerance", func(_ *fixture, in *CreateInput) {
+			s := now.Add(-domain.ControlExceptionStartSkew - time.Second)
+			in.StartsAt = &s
+		}, domain.CtlExcStartsInPast},
 		{"starts_at equals expires_at", func(_ *fixture, in *CreateInput) { s := *in.ExpiresAt; in.StartsAt = &s }, domain.CtlExcStartsNotBeforeEnds},
 		{"starts_at after expires_at", func(_ *fixture, in *CreateInput) { s := in.ExpiresAt.Add(time.Hour); in.StartsAt = &s }, domain.CtlExcStartsNotBeforeEnds},
 		{"empty reason", func(_ *fixture, in *CreateInput) { in.Reason = "   " }, domain.CtlExcReasonRequired},
@@ -237,6 +245,12 @@ func TestCreateException_Validation(t *testing.T) {
 			f.owners[[2]uuid.UUID{tenantB, foreignOwner}] = true
 			in.OwnerID = foreignOwner
 		}, domain.CtlExcOwnerInvalid},
+		{"owner deactivated in this tenant", func(f *fixture, in *CreateInput) {
+			deactivated := uuid.New()
+			f.owners[[2]uuid.UUID{tenantA, deactivated}] = false
+			in.OwnerID = deactivated
+		}, domain.CtlExcOwnerInvalid},
+		{"owner unknown", func(_ *fixture, in *CreateInput) { in.OwnerID = uuid.New() }, domain.CtlExcOwnerInvalid},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

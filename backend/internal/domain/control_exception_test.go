@@ -83,6 +83,19 @@ func TestNewControlException_Validation(t *testing.T) {
 		{"zero expires_at", func(i *NewControlExceptionInput) { i.ExpiresAt = &zero }, CtlExcExpiresRequired},
 		{"expires_at in the past", func(i *NewControlExceptionInput) { i.ExpiresAt = &past }, CtlExcExpiresInPast},
 		{"expires_at is now", func(i *NewControlExceptionInput) { n := ctlExcNow; i.ExpiresAt = &n }, CtlExcExpiresInPast},
+		{"expires_at one second past the horizon", func(i *NewControlExceptionInput) {
+			e := ctlExcNow.Add(ControlExceptionMaxHorizon + time.Second)
+			i.ExpiresAt = &e
+		}, CtlExcExpiresTooFar},
+		{"expires_at 9999-12-31", func(i *NewControlExceptionInput) {
+			e := time.Date(9999, 12, 31, 0, 0, 0, 0, time.UTC)
+			i.ExpiresAt = &e
+		}, CtlExcExpiresTooFar},
+		{"starts_at one second before the skew", func(i *NewControlExceptionInput) {
+			s := ctlExcNow.Add(-ControlExceptionStartSkew - time.Second)
+			i.StartsAt = &s
+		}, CtlExcStartsInPast},
+		{"starts_at backdated a year", func(i *NewControlExceptionInput) { s := ctlExcNow.AddDate(-1, 0, 0); i.StartsAt = &s }, CtlExcStartsInPast},
 		{"starts_at equals expires_at", func(i *NewControlExceptionInput) { s := future; i.StartsAt = &s }, CtlExcStartsNotBeforeEnds},
 		{"starts_at after expires_at", func(i *NewControlExceptionInput) { s := future.Add(time.Minute); i.StartsAt = &s }, CtlExcStartsNotBeforeEnds},
 	}
@@ -96,10 +109,21 @@ func TestNewControlException_Validation(t *testing.T) {
 			assert.Equal(t, tc.code, MessageFromError(err))
 		})
 	}
-	// 2000 runes exactly is accepted.
+	// Exactly at the horizon, and exactly at the skew tolerance, are accepted.
 	in := base()
-	in.Reason = strings.Repeat("é", 2000)
+	edge := ctlExcNow.Add(ControlExceptionMaxHorizon)
+	in.ExpiresAt = &edge
 	_, err := NewControlException(in, ctlExcNow)
+	assert.NoError(t, err, "expiry exactly at the horizon")
+	in = base()
+	skew := ctlExcNow.Add(-ControlExceptionStartSkew)
+	in.StartsAt = &skew
+	_, err = NewControlException(in, ctlExcNow)
+	assert.NoError(t, err, "start exactly now-5min")
+	// 2000 runes exactly is accepted.
+	in = base()
+	in.Reason = strings.Repeat("é", 2000)
+	_, err = NewControlException(in, ctlExcNow)
 	assert.NoError(t, err)
 }
 

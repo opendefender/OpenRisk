@@ -19,6 +19,16 @@ import (
 // justification, not a document.
 const ControlExceptionReasonMax = 2000
 
+// ControlExceptionMaxHorizon is the furthest an expiry may lie from the
+// caller's instant: one year. An exception is renewed, not left running, so
+// no date can make it open-ended (D-112).
+const ControlExceptionMaxHorizon = 366 * 24 * time.Hour
+
+// ControlExceptionStartSkew is how far a start may precede the caller's
+// instant, to tolerate clock skew. Anything older would whitewash a past
+// period once the status computation reads ActiveAt (D-112).
+const ControlExceptionStartSkew = 5 * time.Minute
+
 // Stable error codes of the control exception. They are the Message of the typed
 // error, so the client maps each to a localized string (frontend locales,
 // namespace controlException.errors); the text never carries user input.
@@ -30,6 +40,8 @@ const (
 	CtlExcExpiresRequired     = "control_exception.expires_at_required"
 	CtlExcExpiresInPast       = "control_exception.expires_at_in_past"
 	CtlExcStartsNotBeforeEnds = "control_exception.starts_at_not_before_expires_at"
+	CtlExcExpiresTooFar       = "control_exception.expires_at_too_far"
+	CtlExcStartsInPast        = "control_exception.starts_at_in_past"
 	CtlExcRevokeReasonTooLong = "control_exception.revoke_reason_too_long"
 	CtlExcInvalidBody         = "control_exception.invalid_body"
 	CtlExcInvalidControlID    = "control_exception.invalid_control_id"
@@ -111,7 +123,9 @@ type NewControlExceptionInput struct {
 // NewControlException validates the input at the caller's instant and builds the
 // exception. It returns ErrValidation (with a stable code) for: no owner, an
 // empty or over-long reason, no expiry, an expiry that is not strictly after now,
-// or a start that is not strictly before the expiry. StartsAt defaults to now.
+// an expiry more than ControlExceptionMaxHorizon away, a start older than
+// ControlExceptionStartSkew, or a start that is not strictly before the expiry.
+// StartsAt defaults to now.
 func NewControlException(in NewControlExceptionInput, now time.Time) (*ControlException, error) {
 	if in.OwnerID == uuid.Nil {
 		return nil, ctlExcError(ErrValidation, CtlExcOwnerRequired, http.StatusBadRequest)
@@ -130,9 +144,15 @@ func NewControlException(in NewControlExceptionInput, now time.Time) (*ControlEx
 	if !expires.After(now) {
 		return nil, ctlExcError(ErrValidation, CtlExcExpiresInPast, http.StatusBadRequest)
 	}
+	if expires.Sub(now) > ControlExceptionMaxHorizon {
+		return nil, ctlExcError(ErrValidation, CtlExcExpiresTooFar, http.StatusBadRequest)
+	}
 	starts := now.UTC()
 	if in.StartsAt != nil && !in.StartsAt.IsZero() {
 		starts = in.StartsAt.UTC()
+	}
+	if starts.Before(now.Add(-ControlExceptionStartSkew)) {
+		return nil, ctlExcError(ErrValidation, CtlExcStartsInPast, http.StatusBadRequest)
 	}
 	if !starts.Before(expires) {
 		return nil, ctlExcError(ErrValidation, CtlExcStartsNotBeforeEnds, http.StatusBadRequest)

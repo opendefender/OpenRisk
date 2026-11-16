@@ -2212,6 +2212,8 @@
       "expires_at_required": "Une date d'expiration est obligatoire.",
       "expires_at_in_past": "La date d'expiration doit être dans le futur.",
       "starts_at_not_before_expires_at": "La date de début doit précéder la date d'expiration.",
+      "expires_at_too_far": "La date d'expiration est trop lointaine (366 jours maximum). Renouvelez l'exception à la place.",
+      "starts_at_in_past": "La date de début ne peut pas être dans le passé.",
       "revoke_reason_too_long": "Le motif de révocation est trop long (2000 caractères maximum).",
       "invalid_body": "Le corps de la requête est invalide.",
       "invalid_control_id": "L'identifiant du contrôle est invalide.",
