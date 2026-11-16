@@ -501,7 +501,7 @@ func TestUpdateInternalControl_EmptyEditWritesNothing(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, v.ID, got.ID)
 	assert.Equal(t, writes, f.repo.writes)
-	got, err = f.update(f.caller, v.ID, UpdateInput{Name: str("c")})
+	_, err = f.update(f.caller, v.ID, UpdateInput{Name: str("c")})
 	require.NoError(t, err)
 	assert.Equal(t, writes, f.repo.writes, "writing the stored value is not a change")
 }

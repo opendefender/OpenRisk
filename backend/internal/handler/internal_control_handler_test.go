@@ -452,7 +452,7 @@ func TestInternalControlRoutes_EvidenceRequiredAndConflicts(t *testing.T) {
 	srow, err := controlchain.ControlToRow(split, nil)
 	require.NoError(t, err)
 	require.NoError(t, s.db.Create(&srow).Error)
-	status, body = s.do(t, s.asB(), http.MethodDelete, base+"/"+split.ID.String()+"/requirements/"+req.String(), "")
+	status, _ = s.do(t, s.asB(), http.MethodDelete, base+"/"+split.ID.String()+"/requirements/"+req.String(), "")
 	assert.Equal(t, http.StatusNotFound, status, "another tenant's split pair is 404, not 409")
 	status, body = s.do(t, a, http.MethodDelete, base+"/"+split.ID.String()+"/requirements/"+req.String(), "")
 	assert.Equal(t, http.StatusConflict, status)
