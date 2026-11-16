@@ -117,7 +117,9 @@ func (r *TestRepository) CreateTest(ctx context.Context, tenantID uuid.UUID, t c
 		return err
 	}
 	err = r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		if _, err := liveImplementationRow(ctx, tx, tenantID, t.ImplementationID, false); err != nil {
+		// Locked (Postgres) so a concurrent delete of the implementation, which
+		// cascades to its tests, cannot leave this one undeleted under it.
+		if _, err := liveImplementationRow(ctx, tx, tenantID, t.ImplementationID, true); err != nil {
 			return err
 		}
 		if err := tx.Create(&row).Error; err != nil {

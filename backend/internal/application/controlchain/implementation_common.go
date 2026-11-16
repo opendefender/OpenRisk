@@ -41,6 +41,11 @@ type ImplementationRecord struct {
 	// AppliesTo is the ids of the live assets of the tenant the implementation
 	// applies to, sorted.
 	AppliesTo []uuid.UUID
+	// StaleTargets is filled by UpdateImplementation only: the targets of the
+	// implementation's applies_to edges that are not live (their asset was
+	// deleted). They are invisible to readers but still stored, so a replacement
+	// must delete and journal them too.
+	StaleTargets []uuid.UUID
 }
 
 // ImplementationRepository is the persistence the implementation use cases need.
@@ -63,10 +68,10 @@ type ImplementationRepository interface {
 		apply func(cur ImplementationRecord) (next canonical.ControlImplementation, add []canonical.Edge, remove []uuid.UUID, ev *domain.AuditEvent, err error),
 	) (*ImplementationRecord, error)
 	// DeleteImplementation soft-deletes the live implementation and its live
-	// tests after apply accepted it. apply gets the ids of those tests and returns
+	// tests after apply accepted it. apply gets those tests (full rows, for the audit before image) and returns
 	// the audit entries to append, in the same transaction.
 	DeleteImplementation(ctx context.Context, tenantID, id uuid.UUID,
-		apply func(cur ImplementationRecord, testIDs []uuid.UUID) ([]*domain.AuditEvent, error)) error
+		apply func(cur ImplementationRecord, tests []canonical.ControlTest) ([]*domain.AuditEvent, error)) error
 }
 
 // TargetRef names one applies_to target. Only assets in v1: System and Service

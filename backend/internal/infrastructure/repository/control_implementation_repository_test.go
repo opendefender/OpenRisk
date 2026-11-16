@@ -217,8 +217,10 @@ func (s mirrorSuite) TestControlImplementation_CreateReadEditDelete_Success(t *t
 	// Delete is soft, cascades to the tests, keeps the edges, and journals each.
 	tc := e.newTest(t, tenant, impl.ID, "Review")
 	pre := e.auditCount(t, tenant)
-	require.NoError(t, e.impls.DeleteImplementation(ctx, tenant, impl.ID, func(cur ctlapp.ImplementationRecord, tests []uuid.UUID) ([]*domain.AuditEvent, error) {
-		assert.Equal(t, []uuid.UUID{tc.ID}, tests)
+	require.NoError(t, e.impls.DeleteImplementation(ctx, tenant, impl.ID, func(cur ctlapp.ImplementationRecord, tests []canonical.ControlTest) ([]*domain.AuditEvent, error) {
+		require.Len(t, tests, 1)
+		assert.Equal(t, tc.ID, tests[0].ID)
+		assert.Equal(t, "Review", tests[0].Name, "the full row, for the audit before image")
 		return []*domain.AuditEvent{implAudit(tenant, impl.ID, domain.AuditActionDelete), testAudit(tenant, tc.ID, domain.AuditActionDelete)}, nil
 	}))
 	_, err = e.impls.GetImplementation(ctx, tenant, impl.ID)
@@ -229,7 +231,7 @@ func (s mirrorSuite) TestControlImplementation_CreateReadEditDelete_Success(t *t
 	assert.NotNil(t, e.deletedAt(t, "control_tests", tenant, tc.ID), "its test went with it")
 	assert.Equal(t, 2, e.edgeCount(t, tenant, canonical.VerbAppliesTo), "the edges are kept")
 	assert.EqualValues(t, pre+2, e.auditCount(t, tenant))
-	require.ErrorIs(t, e.impls.DeleteImplementation(ctx, tenant, impl.ID, func(ctlapp.ImplementationRecord, []uuid.UUID) ([]*domain.AuditEvent, error) {
+	require.ErrorIs(t, e.impls.DeleteImplementation(ctx, tenant, impl.ID, func(ctlapp.ImplementationRecord, []canonical.ControlTest) ([]*domain.AuditEvent, error) {
 		return []*domain.AuditEvent{implAudit(tenant, impl.ID, domain.AuditActionDelete)}, nil
 	}), domain.ErrNotFound, "deleting twice")
 	list, err = e.impls.ListImplementations(ctx, tenant, ctl.ID, 100, 0)
@@ -298,7 +300,7 @@ func (s mirrorSuite) TestControlImplementation_Unauthorized_NilTenantTouchesNoth
 		return cur.Implementation, nil, nil, implAudit(tenant, impl.ID, domain.AuditActionUpdate), nil
 	})
 	require.ErrorIs(t, err, domain.ErrForbidden)
-	require.ErrorIs(t, e.impls.DeleteImplementation(ctx, uuid.Nil, impl.ID, func(ctlapp.ImplementationRecord, []uuid.UUID) ([]*domain.AuditEvent, error) {
+	require.ErrorIs(t, e.impls.DeleteImplementation(ctx, uuid.Nil, impl.ID, func(ctlapp.ImplementationRecord, []canonical.ControlTest) ([]*domain.AuditEvent, error) {
 		return []*domain.AuditEvent{implAudit(tenant, impl.ID, domain.AuditActionDelete)}, nil
 	}), domain.ErrForbidden)
 	other := userImplementation(uuid.Nil, ctl.ID)
@@ -335,7 +337,7 @@ func (s mirrorSuite) TestControlImplementation_CrossTenantIsInvisible(t *testing
 		return cur.Implementation, nil, []uuid.UUID{asset}, implAudit(b, impl.ID, domain.AuditActionUpdate), nil
 	})
 	require.ErrorIs(t, err, domain.ErrNotFound)
-	require.ErrorIs(t, e.impls.DeleteImplementation(ctx, b, impl.ID, func(ctlapp.ImplementationRecord, []uuid.UUID) ([]*domain.AuditEvent, error) {
+	require.ErrorIs(t, e.impls.DeleteImplementation(ctx, b, impl.ID, func(ctlapp.ImplementationRecord, []canonical.ControlTest) ([]*domain.AuditEvent, error) {
 		return []*domain.AuditEvent{implAudit(b, impl.ID, domain.AuditActionDelete)}, nil
 	}), domain.ErrNotFound)
 	// The tests of A's implementation are as invisible to B.
@@ -385,7 +387,7 @@ func (s mirrorSuite) TestControlImplementation_AuditFailureRollsTheWriteBack(t *
 	assert.Equal(t, "Quarterly review", got.Implementation.Description)
 	assert.Equal(t, []uuid.UUID{a1}, got.AppliesTo)
 
-	require.Error(t, bad.DeleteImplementation(ctx, tenant, impl.ID, func(ctlapp.ImplementationRecord, []uuid.UUID) ([]*domain.AuditEvent, error) {
+	require.Error(t, bad.DeleteImplementation(ctx, tenant, impl.ID, func(ctlapp.ImplementationRecord, []canonical.ControlTest) ([]*domain.AuditEvent, error) {
 		return []*domain.AuditEvent{implAudit(tenant, impl.ID, domain.AuditActionDelete)}, nil
 	}))
 	assert.Nil(t, e.deletedAt(t, "control_implementations", tenant, impl.ID))
@@ -607,4 +609,30 @@ func (s mirrorSuite) TestControlTest_AuditFailureRollsTheWriteBack(t *testing.T)
 		return testAudit(tenant, tc.ID, domain.AuditActionDelete), nil
 	}))
 	assert.Nil(t, e.deletedAt(t, "control_tests", tenant, tc.ID))
+}
+
+// A replacement hard-deletes every stored applies_to edge it does not want,
+// including the one to a soft-deleted asset (invisible to readers), and hands it
+// to apply so the audit entry can journal it.
+func (s mirrorSuite) TestControlImplementation_ReplaceDeletesTheEdgeOfADeletedAsset(t *testing.T) {
+	e := s.env(t).chain(t)
+	ctx := context.Background()
+	tenant := uuid.New()
+	ctl := e.newControl(t, tenant, "c")
+	a1, a2, a3 := e.asset(t, tenant), e.asset(t, tenant), e.asset(t, tenant)
+	impl := e.newImpl(t, tenant, ctl.ID, a1, a2)
+	require.NoError(t, e.db.Exec("UPDATE assets SET deleted_at = ? WHERE id = ? AND tenant_id = ?", libNow, a2, tenant).Error)
+
+	var seenLive, seenStale []uuid.UUID
+	_, err := e.impls.UpdateImplementation(ctx, tenant, impl.ID, func(cur ctlapp.ImplementationRecord) (canonical.ControlImplementation, []canonical.Edge, []uuid.UUID, *domain.AuditEvent, error) {
+		seenLive, seenStale = cur.AppliesTo, cur.StaleTargets
+		remove := append(append([]uuid.UUID{}, cur.AppliesTo...), cur.StaleTargets...) // replace by {a3}
+		return cur.Implementation, []canonical.Edge{appliesEdge(tenant, impl.ID, a3)}, remove, implAudit(tenant, impl.ID, domain.AuditActionUpdate), nil
+	})
+	require.NoError(t, err)
+	assert.Equal(t, []uuid.UUID{a1}, seenLive)
+	assert.Equal(t, []uuid.UUID{a2}, seenStale, "the edge to the deleted asset is reported")
+	var raw []uuid.UUID
+	require.NoError(t, e.db.Model(&controlchain.CanonicalEdgeRow{}).Where("tenant_id = ? AND from_id = ? AND verb = ?", tenant, impl.ID, "applies_to").Pluck("to_id", &raw).Error)
+	assert.Equal(t, []uuid.UUID{a3}, raw, "the stale edge is gone from the table")
 }

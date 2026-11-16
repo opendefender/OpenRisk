@@ -31,12 +31,14 @@ type fakeChain struct {
 	testDeleted map[uuid.UUID]bool
 	audits      []*domain.AuditEvent
 	writes      int
+	stale       map[uuid.UUID][]uuid.UUID // implementation -> targets whose asset was deleted
 }
 
 func newFakeChain(ctl *fakeRepo) *fakeChain {
 	return &fakeChain{
 		ctl: ctl, assets: map[uuid.UUID]uuid.UUID{}, impls: map[uuid.UUID]ImplementationRecord{},
 		implDeleted: map[uuid.UUID]bool{}, tests: map[uuid.UUID]canonical.ControlTest{}, testDeleted: map[uuid.UUID]bool{},
+		stale: map[uuid.UUID][]uuid.UUID{},
 	}
 }
 
@@ -124,6 +126,7 @@ func (f *fakeChain) UpdateImplementation(_ context.Context, tenant, id uuid.UUID
 	if !ok {
 		return nil, implNotFound()
 	}
+	cur.StaleTargets = f.stale[id]
 	next, add, remove, ev, err := apply(cur)
 	if err != nil {
 		return nil, err
@@ -151,24 +154,29 @@ func (f *fakeChain) UpdateImplementation(_ context.Context, tenant, id uuid.UUID
 	sortIDs(targets)
 	rec := ImplementationRecord{Implementation: next, AppliesTo: targets}
 	f.impls[id] = rec
+	if len(remove) > 0 {
+		f.stale[id] = nil
+	}
 	f.audits = append(f.audits, ev)
 	f.writes++
 	return &rec, nil
 }
 
-func (f *fakeChain) DeleteImplementation(_ context.Context, tenant, id uuid.UUID, apply func(ImplementationRecord, []uuid.UUID) ([]*domain.AuditEvent, error)) error {
+func (f *fakeChain) DeleteImplementation(_ context.Context, tenant, id uuid.UUID, apply func(ImplementationRecord, []canonical.ControlTest) ([]*domain.AuditEvent, error)) error {
 	cur, ok := f.liveImpl(tenant, id)
 	if !ok {
 		return implNotFound()
 	}
+	var tests []canonical.ControlTest
 	var testIDs []uuid.UUID
 	for tid, t := range f.tests {
 		if t.TenantID == tenant && t.ImplementationID == id && !f.testDeleted[tid] {
+			tests = append(tests, t)
 			testIDs = append(testIDs, tid)
 		}
 	}
-	sortIDs(testIDs)
-	evs, err := apply(cur, testIDs)
+	sort.Slice(tests, func(i, j int) bool { return tests[i].ID.String() < tests[j].ID.String() })
+	evs, err := apply(cur, tests)
 	if err != nil {
 		return err
 	}
@@ -518,6 +526,21 @@ func TestUpdateControlImplementation_Success(t *testing.T) {
 	assert.Equal(t, writes, cf.chain.writes)
 }
 
+// A replacement also removes, and journals, the edge to a deleted asset.
+func TestUpdateControlImplementation_JournalsTheEdgeOfADeletedAsset(t *testing.T) {
+	cf := newChainFixture()
+	v := cf.newImpl(cf.assetA)
+	ghost := uuid.New()
+	cf.chain.stale[v.ID] = []uuid.UUID{ghost}
+	repl := []TargetRef{{ID: cf.assetA2}}
+	_, err := NewUpdateImplementationUseCase(cf.chain, cf.owners, clock).Execute(context.Background(), cf.caller, v.ID, UpdateImplementationInput{AppliesTo: &repl})
+	require.NoError(t, err)
+	last := cf.chain.audits[len(cf.chain.audits)-1]
+	before, _ := last.Before["applies_to"].([]string)
+	assert.ElementsMatch(t, []string{cf.assetA.String(), ghost.String()}, before, "the stale edge is in the before set")
+	assert.Empty(t, cf.chain.stale[v.ID], "and was removed")
+}
+
 func TestUpdateControlImplementation_NotFound(t *testing.T) {
 	cf := newChainFixture()
 	v := cf.newImpl(cf.assetA)
@@ -582,6 +605,9 @@ func TestDeleteControlImplementation_Success(t *testing.T) {
 	n := len(cf.chain.audits)
 	require.GreaterOrEqual(t, n, 4)
 	assert.Equal(t, "control_test", cf.chain.audits[n-1].EntityType, "one entry per test")
+	assert.Equal(t, "Quarterly review", cf.chain.audits[n-1].Before["name"], "the cascaded entry carries the full before image")
+	assert.Equal(t, "manual", cf.chain.audits[n-1].Before["method"])
+	assert.NotEmpty(t, cf.chain.audits[n-1].Before["checks"])
 	assert.Equal(t, "control_implementation", cf.chain.audits[n-2].EntityType)
 	assert.Equal(t, domain.AuditActionDelete, cf.chain.audits[n-2].Action)
 	_, err := NewGetImplementationUseCase(cf.chain).Execute(context.Background(), cf.caller, v.ID)

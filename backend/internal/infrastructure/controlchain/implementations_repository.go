@@ -160,6 +160,20 @@ func appliesToAssets(ctx context.Context, tx *gorm.DB, tenantID uuid.UUID, implI
 	return out, nil
 }
 
+// rawTargets returns the asset ids of every applies_to edge of the implementation,
+// live asset or not, read straight from canonical_edges with the tenant.
+func rawTargets(ctx context.Context, tx *gorm.DB, tenantID, implID uuid.UUID) ([]uuid.UUID, error) {
+	var ids []uuid.UUID
+	err := tx.WithContext(ctx).Model(&CanonicalEdgeRow{}).
+		Where("tenant_id = ? AND from_type = ? AND from_id = ? AND verb = ? AND to_type = ?",
+			tenantID, string(canonical.TypeControlImplementation), implID, string(canonical.VerbAppliesTo), string(canonical.TypeAsset)).
+		Pluck("to_id", &ids).Error
+	if err != nil {
+		return nil, fmt.Errorf("controlchain: implementation edges: %w", err)
+	}
+	return ids, nil
+}
+
 func (r *ImplementationRepository) record(ctx context.Context, tx *gorm.DB, tenantID uuid.UUID, row ControlImplementationRow) (ctlapp.ImplementationRecord, error) {
 	ci, err := RowToImplementation(row)
 	if err != nil {
@@ -209,7 +223,17 @@ func (r *ImplementationRepository) CreateImplementation(ctx context.Context, ten
 		return err
 	}
 	err = r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		if err := Resolve(ctx, tx, tenantID, canonical.TypeControl, impl.ControlID); err != nil {
+		// Lock the control (Postgres) so a concurrent delete of it cannot leave this
+		// implementation orphaned.
+		q := tx.Where("tenant_id = ? AND id = ? AND deleted_at IS NULL", tenantID, impl.ControlID)
+		if tx.Dialector.Name() == "postgres" {
+			q = q.Clauses(clause.Locking{Strength: "UPDATE"})
+		}
+		var ctl ControlRow
+		if err := q.Take(&ctl).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return controlNotFound()
+			}
 			return err
 		}
 		if err := tx.Create(&row).Error; err != nil {
@@ -295,6 +319,19 @@ func (r *ImplementationRepository) UpdateImplementation(ctx context.Context, ten
 		if err != nil {
 			return err
 		}
+		raw, err := rawTargets(ctx, tx, tenantID, id)
+		if err != nil {
+			return err
+		}
+		live := make(map[uuid.UUID]bool, len(cur.AppliesTo))
+		for _, a := range cur.AppliesTo {
+			live[a] = true
+		}
+		for _, a := range raw {
+			if !live[a] {
+				cur.StaleTargets = append(cur.StaleTargets, a)
+			}
+		}
 		next, add, remove, ev, err := apply(cur)
 		if err != nil {
 			return err
@@ -347,7 +384,7 @@ func (r *ImplementationRepository) UpdateImplementation(ctx context.Context, ten
 // accepted it, with the audit entries apply returned, in one transaction. The
 // applies_to edges are kept: readers filter on the liveness of both ends.
 func (r *ImplementationRepository) DeleteImplementation(ctx context.Context, tenantID, id uuid.UUID,
-	apply func(cur ctlapp.ImplementationRecord, testIDs []uuid.UUID) ([]*domain.AuditEvent, error),
+	apply func(cur ctlapp.ImplementationRecord, tests []canonical.ControlTest) ([]*domain.AuditEvent, error),
 ) error {
 	if tenantID == uuid.Nil {
 		return domain.ErrForbidden
@@ -361,13 +398,18 @@ func (r *ImplementationRepository) DeleteImplementation(ctx context.Context, ten
 		if err != nil {
 			return err
 		}
-		var testIDs []uuid.UUID
-		if err := tx.Model(&ControlTestRow{}).
-			Where("tenant_id = ? AND implementation_id = ? AND deleted_at IS NULL", tenantID, id).
-			Order("id ASC").Pluck("id", &testIDs).Error; err != nil {
+		var testRows []ControlTestRow
+		if err := tx.Where("tenant_id = ? AND implementation_id = ? AND deleted_at IS NULL", tenantID, id).
+			Order("id ASC").Find(&testRows).Error; err != nil {
 			return err
 		}
-		events, err := apply(cur, testIDs)
+		tests := make([]canonical.ControlTest, len(testRows))
+		for i := range testRows {
+			if tests[i], err = RowToTest(testRows[i]); err != nil {
+				return err
+			}
+		}
+		events, err := apply(cur, tests)
 		if err != nil {
 			return err
 		}

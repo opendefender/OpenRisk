@@ -101,6 +101,7 @@ func (u *UpdateImplementationUseCase) Execute(ctx context.Context, c Caller, id 
 		}
 
 		targets := cur.AppliesTo
+		stored := cur.AppliesTo
 		var add []canonical.Edge
 		var remove []uuid.UUID
 		if want != nil {
@@ -120,14 +121,19 @@ func (u *UpdateImplementationUseCase) Execute(ctx context.Context, c Caller, id 
 					add = append(add, e)
 				}
 			}
-			for _, a := range cur.AppliesTo {
+			// Every stored edge not wanted goes, the ones to a deleted asset included:
+			// a restored asset must not bring a dropped link back, and every hard
+			// delete is journaled in the before set.
+			stored = append(append([]uuid.UUID{}, cur.AppliesTo...), cur.StaleTargets...)
+			sortIDs(stored)
+			for _, a := range stored {
 				if !wanted[a] {
 					remove = append(remove, a)
 				}
 			}
 		}
 
-		before, after := implementationSnapshot(cur.Implementation, cur.AppliesTo), implementationSnapshot(next, targets)
+		before, after := implementationSnapshot(cur.Implementation, stored), implementationSnapshot(next, targets)
 		changed := changedFields(before, after)
 		if len(changed) == 0 {
 			return fail(nil)

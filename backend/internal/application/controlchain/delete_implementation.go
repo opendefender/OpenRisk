@@ -12,6 +12,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/internal/domain/canonical"
 )
 
 // DeleteImplementationUseCase soft-deletes an implementation of the tenant.
@@ -34,16 +35,16 @@ func (u *DeleteImplementationUseCase) Execute(ctx context.Context, c Caller, id 
 		return err
 	}
 	now := u.now().UTC()
-	err := u.repo.DeleteImplementation(ctx, c.TenantID, id, func(cur ImplementationRecord, testIDs []uuid.UUID) ([]*domain.AuditEvent, error) {
+	err := u.repo.DeleteImplementation(ctx, c.TenantID, id, func(cur ImplementationRecord, tests []canonical.ControlTest) ([]*domain.AuditEvent, error) {
 		before := implementationSnapshot(cur.Implementation, cur.AppliesTo)
 		events := []*domain.AuditEvent{
 			auditEventOf(auditImplementationType, c, domain.AuditActionDelete, "control implementation deleted", before, nil,
 				changedFields(before, nil), id, now),
 		}
-		for _, tid := range testIDs {
-			b := domain.JSONMap{"id": tid.String(), "tenant_id": c.TenantID.String(), "implementation_id": id.String()}
+		for _, t := range tests {
+			b := testSnapshot(t)
 			events = append(events, auditEventOf(auditTestType, c, domain.AuditActionDelete,
-				"control test deleted with its implementation", b, nil, changedFields(b, nil), tid, now))
+				"control test deleted with its implementation", b, nil, changedFields(b, nil), t.ID, now))
 		}
 		return events, nil
 	})
