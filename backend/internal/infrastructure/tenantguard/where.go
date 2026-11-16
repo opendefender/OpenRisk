@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"reflect"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/google/uuid"
@@ -130,9 +131,7 @@ func scanSQL(sql string, vars []any, region, whereAt int) (ok, nilT bool) {
 				}
 			}
 		case strings.HasPrefix(tok, "$"):
-			n := 0
-			fmt.Sscanf(g(2), "%d", &n)
-			nilT = nilT || nilAt(vars, n-1)
+			nilT = nilT || nilAt(vars, bindIndex(g(2)))
 			ok = true
 			if op == "IN" {
 				rest := sql[loc[1]+rhs[3]:]
@@ -142,8 +141,7 @@ func scanSQL(sql string, vars []any, region, whereAt int) (ok, nilT bool) {
 						break
 					}
 					if rest[m[2]] == '$' {
-						fmt.Sscanf(rest[m[4]:m[5]], "%d", &n)
-						nilT = nilT || nilAt(vars, n-1)
+						nilT = nilT || nilAt(vars, bindIndex(rest[m[4]:m[5]]))
 					}
 					rest = rest[m[1]:]
 				}
@@ -159,6 +157,16 @@ func scanSQL(sql string, vars []any, region, whereAt int) (ok, nilT bool) {
 		}
 	}
 	return ok, nilT
+}
+
+// bindIndex turns the digits of a $n placeholder into a zero-based index, or
+// -1 when they do not parse, which nilAt reads as no bind.
+func bindIndex(digits string) int {
+	n, err := strconv.Atoi(digits)
+	if err != nil {
+		return -1
+	}
+	return n - 1
 }
 
 func nilAt(vars []any, i int) bool {
