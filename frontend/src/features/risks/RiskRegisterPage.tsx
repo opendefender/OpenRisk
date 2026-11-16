@@ -85,7 +85,7 @@ import { useUIStore } from '../../store/uiStore';
 import { useRiskStore, type RiskPhase } from '../../hooks/useRiskStore';
 import { useFocusParam } from '../../shared/useFocusParam';
 import { useAuthStore } from '../../hooks/useAuthStore';
-import { isMissingRows } from '../../services/bulkService';
+import { BulkPreviewDialog, useGovernedBulk } from '../../shared/bulk';
 import { mapRisk, relTime, type UiRisk } from './riskMap';
 import { EditRiskModal } from './components/EditRiskModal';
 import { ScoreWorking } from './components/ScoreWorking';
@@ -157,7 +157,7 @@ export function RiskRegisterPage() {
   const loadError = useRiskStore((s) => s.error);
   const fetchRisks = useRiskStore((s) => s.fetchRisks);
   const deleteRisk = useRiskStore((s) => s.deleteRisk);
-  const bulkDelete = useRiskStore((s) => s.bulkDelete);
+  const removeOptimistically = useRiskStore((s) => s.removeOptimistically);
   // A read-only member is not offered creation: the server would refuse it
   // (risks:create), after a form had been filled (#739).
   const canCreate = useAuthStore((s) => s.hasPermission('risks:create'));
@@ -506,6 +506,25 @@ export function RiskRegisterPage() {
   ); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* --------------------------------------------------------- bulk actions */
+  // Governed (#582, #1441): preview → confirm → one transactional, audited
+  // `POST /risks/bulk/delete` carrying the preview's fingerprint. A selection
+  // that moved in between (409) or an id that no longer resolves (404) is
+  // refused whole, and the dialog says so — nothing is deleted.
+  //
+  // The register's rows live in the Zustand store, not the query cache, so the
+  // optimistic removal is the store's and the hook decides when to undo it.
+  const bulk = useGovernedBulk({
+    register: 'risks',
+    optimistic: {
+      applyExternal: (ids) => removeOptimistically(ids),
+      refresh: reload,
+    },
+    onApplied: (result) => {
+      const n = result.applied ?? 0;
+      toast.success(tr(`${n} risque(s) supprimé(s)`, `${n} risk(s) deleted`));
+    },
+  });
+
   const bulkActions: BulkAction<UiRisk>[] = useMemo(
     () => [
       {
@@ -513,40 +532,18 @@ export function RiskRegisterPage() {
         label: L.del,
         icon: Trash2,
         danger: true,
-        hidden: !canDelete,
+        // Two gates: the permission the user holds, and what the server says
+        // this register can do. Neither is the enforcement — the route is.
+        hidden: !canDelete || !bulk.supports('delete'),
         // The governed endpoint takes explicit ids and caps a batch at 100, so it
         // cannot address "all N results" — the largest page is exactly 100. This
         // is a property of the API, not a UI limitation we could lift here.
         selectionOnly: true,
-        // ONE request (#598). `POST /risks/bulk` is transactional and audited:
-        // every named risk is deleted or none is, and each deletion is recorded
-        // against the actor. The bar shows its own error state on rejection; the
-        // toast is what says *why*, because under all-or-nothing the fact that
-        // nothing was deleted is the part the user has to know.
-        run: async ({ ids }) => {
-          try {
-            await bulkDelete(ids);
-          } catch (err) {
-            toast.error(
-              isMissingRows(err)
-                ? tr(
-                    'Aucun risque supprimé : la sélection a changé. Rechargez et réessayez.',
-                    'No risk deleted: the selection has changed. Reload and try again.',
-                  )
-                : tr(
-                    `Aucun risque supprimé (${ids.length} sélectionné(s)).`,
-                    `No risk deleted (${ids.length} selected).`,
-                  ),
-            );
-            throw err;
-          }
-          toast.success(tr(`${ids.length} risque(s) supprimé(s)`, `${ids.length} risk(s) deleted`));
-          reload();
-        },
+        run: ({ ids }) => bulk.request({ action: 'delete' }, ids),
       },
     ],
-    [L, canDelete, bulkDelete, reload],
-  ); // eslint-disable-line react-hooks/exhaustive-deps
+    [L, canDelete, bulk],
+  );
 
   const critCount = ui.filter((r) => r.crit === 'critical').length;
 
@@ -843,6 +840,7 @@ export function RiskRegisterPage() {
         onConfirm={confirmDeleteRisk}
         onClose={() => setToDelete(null)}
       />
+      <BulkPreviewDialog bulk={bulk} entityLabel={tr('risques', 'risks')} />
     </PageFrame>
   );
 }
