@@ -10,7 +10,7 @@ recommends, and surfaces these in the daily brief. Run `/decide` to clear them.
 ## Resolved
 
 ### D-114 — Internal control library and requirement links API (#1414): routes, permissions, split controls, evidence, audit · decided 2026-11-16
-**Decided (agent, 2026-11-16)**, for #1414 (#553 slice S3), D-089. Nine points the design left open. Nothing irreversible, nothing that spends money, no migration. The owner may overturn any of them.
+**Decided (agent, 2026-11-16)**, for #1414 (#553 slice S3), D-089. Ten points the design and its security review left open. Nothing irreversible, nothing that spends money, no migration. The owner may overturn any of them.
 
 1. **Route prefix.** Options: D-108 Q10's `/compliance/internal-controls`, or #1428's unprefixed `/controls/...`. **Chosen: `/compliance/internal-controls[/:controlId]`**, with `/compliance/internal-controls/:controlId/requirements[/:requirementId]` for links and `GET /compliance/controls/:controlId/internal-controls` on the requirement side (`:controlId` there is the legacy requirement id). #1428's `/controls/:id/exceptions` is left as is: renaming a shipped route is out of scope. Reason: Q10 was decided first and the compliance prefix is where a client already looks.
 2. **Link and unlink permission.** Options: `create`/`delete` of controls, or `update`. **Chosen: `compliance:controls:update`**, the control-mappings precedent (`main.go`): a link edits what a control addresses, it neither creates nor deletes a control.

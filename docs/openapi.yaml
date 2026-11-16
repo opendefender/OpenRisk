@@ -6925,13 +6925,13 @@ components:
       properties:
         id: { type: string, format: uuid }
         name: { type: string, maxLength: 255 }
-        description: { type: [string, 'null'], maxLength: 10000 }
-        objective: { type: [string, 'null'], maxLength: 10000 }
+        description: { type: [string, 'null'] }
+        objective: { type: [string, 'null'] }
         owner_id: { type: [string, 'null'], format: uuid }
         assignee_id: { type: [string, 'null'], format: uuid }
         reviewer_id: { type: [string, 'null'], format: uuid }
         applicability: { type: string, enum: [applicable, not_applicable] }
-        applicability_justification: { type: [string, 'null'], maxLength: 10000 }
+        applicability_justification: { type: [string, 'null'] }
         applicability_review_pending:
           type: boolean
           description: >-
