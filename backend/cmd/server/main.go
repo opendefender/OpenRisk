@@ -1737,7 +1737,8 @@ func main() {
 	// userRepo resolves "collected by" to an email; optional and nil-safe.
 	evidenceRepo := repository.NewGormEvidenceRepository(database.DB)
 	evidenceService := evidence.NewService(evidenceRepo, complianceRepo, fileStorage).
-		WithUserLookup(userRepo)
+		WithUserLookup(userRepo).
+		WithIntegrityAudit(auditChainRepo)
 	evidenceHandler := handlers.NewEvidenceHandler(evidenceService)
 
 	// Curated crosswalks are materialised at import time and the head start they
