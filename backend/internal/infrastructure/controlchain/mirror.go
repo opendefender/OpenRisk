@@ -61,6 +61,10 @@ var entityTables = map[canonical.EntityType]entityTable{
 	canonical.TypeControl:     {TableControls, true},
 	canonical.TypeRisk:        {"risks", true},
 	canonical.TypeEvidence:    {"evidences", true},
+	// S4 (#1415): an applies_to target and the parents of an implementation and of
+	// a test. assets has deleted_at (gorm.DeletedAt) and a tenant_id column.
+	canonical.TypeAsset:                 {"assets", true},
+	canonical.TypeControlImplementation: {TableControlImplementations, true},
 }
 
 // Resolve is the one gate every mirrored edge passes both of its ends through

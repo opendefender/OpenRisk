@@ -30,6 +30,14 @@ const (
 	IntCtlSplitControl      = "internal_control.split_control_is_managed"
 	IntCtlUnavailable       = "internal_control.unavailable"
 
+	// Implementations and tests of a control (#1415, #553 slice S4).
+	IntCtlImplementationNotFound = "internal_control.implementation_not_found"
+	IntCtlTestNotFound           = "internal_control.test_not_found"
+	IntCtlInvalidImplementation  = "internal_control.invalid_implementation_id"
+	IntCtlInvalidTestID          = "internal_control.invalid_test_id"
+	IntCtlAppliesToRequired      = "internal_control.applies_to_required"
+	IntCtlAppliesToInvalid       = "internal_control.applies_to_invalid"
+
 	// IntCtlEvidenceRequired is the code D-108 Q16 names: a control moves into
 	// declared_status = implemented only on live, accepted, unexpired evidence.
 	IntCtlEvidenceRequired = "evidence_required"

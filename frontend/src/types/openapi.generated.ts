@@ -1324,6 +1324,110 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/compliance/internal-controls/{controlId}/implementations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the implementations of an internal control (#1415)
+         * @description The live implementations of a live control of the caller's organization, oldest first, each with the live assets it applies to. Requires `compliance:controls:read`.
+         */
+        get: operations["listControlImplementations"];
+        put?: never;
+        /**
+         * Add an implementation to an internal control (#1415)
+         * @description Records where a control is in place. At least one `applies_to` asset is required (`internal_control.applies_to_required`, 400); only assets are accepted in v1. The control and every asset are resolved in the caller's organization first: another organization's control or asset answers 404 and nothing is written. The id and the envelope are set by the server (`source` openrisk_user, `confidence` 0.70, provenance `manual_entry` by the caller): a body that carries `id`, `tenant_id`, `source`, `confidence` or `provenance` is accepted and those fields are ignored. The implementation, its `applies_to` edges and its audit entry are one transaction. Requires `compliance:controls:create`.
+         */
+        post: operations["createControlImplementation"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/compliance/implementations/{implementationId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get an implementation (#1415)
+         * @description Requires `compliance:controls:read`. An implementation of another organization, a deleted one, or one whose control is deleted answers 404.
+         */
+        get: operations["getControlImplementation"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete an implementation (#1415)
+         * @description Soft delete (`deleted_at`) of the implementation and, in the same transaction, of its live tests; one audit entry each. The `applies_to` edges are kept and every reader filters on the liveness of both ends. Requires `compliance:controls:delete`.
+         */
+        delete: operations["deleteControlImplementation"];
+        options?: never;
+        head?: never;
+        /**
+         * Edit an implementation (#1415)
+         * @description Partial edit: an omitted field is left alone, a blank `in_place_since` clears it, a null owner, assignee or reviewer clears the slot. `applies_to`, when present, REPLACES the set of targets and must not be empty; new assets are resolved in the caller's organization (another organization's asset answers 404) and the removed targets have their edge hard-deleted, journaled by the audit entry's before and after target sets. The control cannot be changed. Requires `compliance:controls:update`.
+         */
+        patch: operations["updateControlImplementation"];
+        trace?: never;
+    };
+    "/compliance/implementations/{implementationId}/tests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the test definitions of an implementation (#1415)
+         * @description The live tests of a live implementation, by name. Results and evidence are not part of this slice (#1416). Requires `compliance:controls:read`.
+         */
+        get: operations["listControlTests"];
+        put?: never;
+        /**
+         * Define a test of an implementation (#1415)
+         * @description `checks` and `pass_criteria` are required; a manual test needs a `procedure`, an automated one a `collector` (automated collectors themselves are #554); `cadence` is optional and an ISO 8601 duration such as `P30D` or `P3M`. The implementation is resolved in the caller's organization first. The id and the envelope are set by the server; a body that carries them is accepted and they are ignored. Requires `compliance:controls:create`.
+         */
+        post: operations["createControlTest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/compliance/tests/{testId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get a test definition (#1415)
+         * @description Requires `compliance:controls:read`. A test of another organization, a deleted one, or one whose implementation or control is deleted answers 404.
+         */
+        get: operations["getControlTest"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete a test definition (#1415)
+         * @description Soft delete (`deleted_at`). Requires `compliance:controls:delete`.
+         */
+        delete: operations["deleteControlTest"];
+        options?: never;
+        head?: never;
+        /**
+         * Edit a test definition (#1415)
+         * @description Partial edit: an omitted field is left alone, a blank `procedure`, `collector` or `cadence` clears it. The whole result is validated, so a switch of `method` without the procedure or collector it needs is refused. The implementation cannot be changed. Requires `compliance:controls:update`.
+         */
+        patch: operations["updateControlTest"];
+        trace?: never;
+    };
     "/compliance/internal-controls": {
         parameters: {
             query?: never;
@@ -3610,6 +3714,165 @@ export interface components {
             /** @enum {string} */
             declared_status?: "not_implemented" | "in_progress" | "implemented";
             tags?: string[];
+        };
+        AppliesToTarget: {
+            /**
+             * @description Assets only in v1 (System and Service have no model yet, #1217).
+             * @enum {string}
+             */
+            type: "Asset";
+            /** Format: uuid */
+            id: string;
+        };
+        /** @description How one control is in place, with its envelope. The tenant is deliberately not part of it. */
+        ControlImplementation: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            control_id: string;
+            description: string;
+            /** @enum {string} */
+            status: "planned" | "in_progress" | "in_place" | "retired";
+            /** Format: date */
+            in_place_since: string | null;
+            /** Format: uuid */
+            owner_id: string | null;
+            /** Format: uuid */
+            assignee_id: string | null;
+            /** Format: uuid */
+            reviewer_id: string | null;
+            /** @description The live assets of the organization it applies to. */
+            applies_to: components["schemas"]["AppliesToTarget"][];
+            /** @description `openrisk_user` for every implementation in this slice. */
+            source: string;
+            source_id: string;
+            confidence: number;
+            provenance: {
+                /** @example manual_entry */
+                method: string;
+                actor: {
+                    /** @enum {string} */
+                    kind: "user" | "system" | "vendor_contact";
+                    id: string;
+                };
+                confidence_rule: string;
+            };
+            /**
+             * Format: date-time
+             * @description When it was last confirmed in place; null until confirmed.
+             */
+            observed_at: string | null;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        /** @description The id, tenant and envelope are not fields of this body; a request that carries them changes nothing. */
+        CreateControlImplementationInput: {
+            description: string;
+            /**
+             * @default planned
+             * @enum {string}
+             */
+            status: "planned" | "in_progress" | "in_place" | "retired";
+            /** Format: date */
+            in_place_since?: string;
+            /** Format: uuid */
+            owner_id?: string;
+            /** Format: uuid */
+            assignee_id?: string;
+            /** Format: uuid */
+            reviewer_id?: string;
+            applies_to: {
+                /**
+                 * @default Asset
+                 * @enum {string}
+                 */
+                type: "Asset";
+                /** Format: uuid */
+                id: string;
+            }[];
+        };
+        /** @description Partial update. Omitted fields are left unchanged. */
+        UpdateControlImplementationInput: {
+            description?: string;
+            /** @enum {string} */
+            status?: "planned" | "in_progress" | "in_place" | "retired";
+            /** @description A date, or blank to clear it. */
+            in_place_since?: string;
+            /** Format: uuid */
+            owner_id?: string | null;
+            /** Format: uuid */
+            assignee_id?: string | null;
+            /** Format: uuid */
+            reviewer_id?: string | null;
+            /** @description Replaces the whole set of targets. */
+            applies_to?: {
+                /**
+                 * @default Asset
+                 * @enum {string}
+                 */
+                type: "Asset";
+                /** Format: uuid */
+                id: string;
+            }[];
+        };
+        /** @description A test definition of an implementation, with its envelope. Results are not part of it (#1416). The tenant is deliberately not part of it. */
+        ControlTest: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            implementation_id: string;
+            name: string;
+            checks: string;
+            /** @enum {string} */
+            method: "manual" | "automated";
+            procedure: string | null;
+            collector: string | null;
+            /** @description ISO 8601 duration, e.g. P30D or P3M. */
+            cadence: string | null;
+            pass_criteria: string;
+            /** @description `openrisk_user` for every test in this slice. */
+            source: string;
+            source_id: string;
+            confidence: number;
+            provenance: {
+                /** @example manual_entry */
+                method: string;
+                actor: {
+                    /** @enum {string} */
+                    kind: "user" | "system" | "vendor_contact";
+                    id: string;
+                };
+                confidence_rule: string;
+            };
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
+        };
+        /** @description The id, tenant and envelope are not fields of this body; a request that carries them changes nothing. A manual test needs `procedure`, an automated one `collector`. */
+        CreateControlTestInput: {
+            name: string;
+            checks: string;
+            /** @enum {string} */
+            method: "manual" | "automated";
+            procedure?: string;
+            collector?: string;
+            /** @description Optional ISO 8601 duration, e.g. P30D. */
+            cadence?: string;
+            pass_criteria: string;
+        };
+        /** @description Partial update. Omitted fields are left unchanged; a blank procedure, collector or cadence clears it. */
+        UpdateControlTestInput: {
+            name?: string;
+            checks?: string;
+            /** @enum {string} */
+            method?: "manual" | "automated";
+            procedure?: string;
+            collector?: string;
+            cadence?: string;
+            pass_criteria?: string;
         };
         InternalControlRequirement: {
             /** Format: uuid */
@@ -8996,6 +9259,560 @@ export interface operations {
                 };
                 content?: never;
             };
+        };
+    };
+    listControlImplementations: {
+        parameters: {
+            query?: {
+                /** @description Page size, default 100, at most 500. */
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path: {
+                /** @description Canonical control id (`controls.id`). */
+                controlId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The page of implementations */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ControlImplementation"][];
+                    };
+                };
+            };
+            /** @description Invalid control id, `limit` or `offset` */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No tenant or user in the session */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing `compliance:controls:read`; or, from the middleware, `MFA_ENROLLMENT_REQUIRED` */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Control not found in the caller's organization */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            429: components["responses"]["QuotaExceeded"];
+            503: components["responses"]["MFAStatusUnavailable"];
+        };
+    };
+    createControlImplementation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Canonical control id (`controls.id`). */
+                controlId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateControlImplementationInput"];
+            };
+        };
+        responses: {
+            /** @description Implementation created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ControlImplementation"];
+                };
+            };
+            /** @description Validation error: the message names the field and the rule, or is an `internal_control.*` code */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No tenant or user in the session */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing `compliance:controls:create`; or, from the middleware, `CSRF_FAILED` or `MFA_ENROLLMENT_REQUIRED` */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Control or asset not found in the caller's organization */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            429: components["responses"]["QuotaExceeded"];
+            503: components["responses"]["MFAStatusUnavailable"];
+        };
+    };
+    getControlImplementation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Implementation id (`control_implementations.id`). */
+                implementationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The implementation */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ControlImplementation"];
+                };
+            };
+            /** @description Invalid implementation id */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No tenant or user in the session */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing `compliance:controls:read`; or, from the middleware, `MFA_ENROLLMENT_REQUIRED` */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Implementation not found in the caller's organization */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            429: components["responses"]["QuotaExceeded"];
+            503: components["responses"]["MFAStatusUnavailable"];
+        };
+    };
+    deleteControlImplementation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Implementation id (`control_implementations.id`). */
+                implementationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid implementation id */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No tenant or user in the session */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing `compliance:controls:delete`; or, from the middleware, `CSRF_FAILED` or `MFA_ENROLLMENT_REQUIRED` */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Implementation not found in the caller's organization */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            429: components["responses"]["QuotaExceeded"];
+            503: components["responses"]["MFAStatusUnavailable"];
+        };
+    };
+    updateControlImplementation: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Implementation id (`control_implementations.id`). */
+                implementationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateControlImplementationInput"];
+            };
+        };
+        responses: {
+            /** @description The implementation after the edit */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ControlImplementation"];
+                };
+            };
+            /** @description Validation error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No tenant or user in the session */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing `compliance:controls:update`; or, from the middleware, `CSRF_FAILED` or `MFA_ENROLLMENT_REQUIRED` */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Implementation or asset not found in the caller's organization */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            429: components["responses"]["QuotaExceeded"];
+            503: components["responses"]["MFAStatusUnavailable"];
+        };
+    };
+    listControlTests: {
+        parameters: {
+            query?: {
+                /** @description Page size, default 100, at most 500. */
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path: {
+                /** @description Implementation id (`control_implementations.id`). */
+                implementationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The page of test definitions */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ControlTest"][];
+                    };
+                };
+            };
+            /** @description Invalid implementation id, `limit` or `offset` */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No tenant or user in the session */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing `compliance:controls:read`; or, from the middleware, `MFA_ENROLLMENT_REQUIRED` */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Implementation not found in the caller's organization */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            429: components["responses"]["QuotaExceeded"];
+            503: components["responses"]["MFAStatusUnavailable"];
+        };
+    };
+    createControlTest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Implementation id (`control_implementations.id`). */
+                implementationId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateControlTestInput"];
+            };
+        };
+        responses: {
+            /** @description Test defined */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ControlTest"];
+                };
+            };
+            /** @description Validation error naming the field and the rule */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No tenant or user in the session */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing `compliance:controls:create`; or, from the middleware, `CSRF_FAILED` or `MFA_ENROLLMENT_REQUIRED` */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Implementation not found in the caller's organization */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            429: components["responses"]["QuotaExceeded"];
+            503: components["responses"]["MFAStatusUnavailable"];
+        };
+    };
+    getControlTest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Test id (`control_tests.id`). */
+                testId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The test definition */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ControlTest"];
+                };
+            };
+            /** @description Invalid test id */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No tenant or user in the session */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing `compliance:controls:read`; or, from the middleware, `MFA_ENROLLMENT_REQUIRED` */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Test not found in the caller's organization */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            429: components["responses"]["QuotaExceeded"];
+            503: components["responses"]["MFAStatusUnavailable"];
+        };
+    };
+    deleteControlTest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Test id (`control_tests.id`). */
+                testId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Deleted */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Invalid test id */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No tenant or user in the session */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing `compliance:controls:delete`; or, from the middleware, `CSRF_FAILED` or `MFA_ENROLLMENT_REQUIRED` */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Test not found in the caller's organization */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            429: components["responses"]["QuotaExceeded"];
+            503: components["responses"]["MFAStatusUnavailable"];
+        };
+    };
+    updateControlTest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Test id (`control_tests.id`). */
+                testId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateControlTestInput"];
+            };
+        };
+        responses: {
+            /** @description The test after the edit */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ControlTest"];
+                };
+            };
+            /** @description Validation error */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No tenant or user in the session */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing `compliance:controls:update`; or, from the middleware, `CSRF_FAILED` or `MFA_ENROLLMENT_REQUIRED` */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Test not found in the caller's organization */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            429: components["responses"]["QuotaExceeded"];
+            503: components["responses"]["MFAStatusUnavailable"];
         };
     };
     listInternalControls: {

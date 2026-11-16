@@ -53,3 +53,11 @@ func defaultTo(v, def string) string {
 	}
 	return v
 }
+
+// checkMax refuses a text over max runes, for the columns that have a size.
+func checkMax(field string, v *string, max int) error {
+	if v != nil && utf8.RuneCountInString(*v) > max {
+		return domain.NewValidationError(field + " is too long")
+	}
+	return nil
+}

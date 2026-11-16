@@ -3435,6 +3435,412 @@ paths:
         '409':
           description: Already revoked, or already expired
 
+  /compliance/internal-controls/{controlId}/implementations:
+    get:
+      tags: [Compliance]
+      summary: List the implementations of an internal control (#1415)
+      description: >-
+        The live implementations of a live control of the caller's organization,
+        oldest first, each with the live assets it applies to. Requires
+        `compliance:controls:read`.
+      operationId: listControlImplementations
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: controlId
+          in: path
+          required: true
+          description: Canonical control id (`controls.id`).
+          schema: { type: string, format: uuid }
+        - name: limit
+          in: query
+          required: false
+          description: Page size, default 100, at most 500.
+          schema: { type: integer, minimum: 1, maximum: 500 }
+        - name: offset
+          in: query
+          required: false
+          schema: { type: integer, minimum: 0 }
+      responses:
+        '200':
+          description: The page of implementations
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ControlImplementation'
+        '400':
+          description: Invalid control id, `limit` or `offset`
+        '401':
+          description: No tenant or user in the session
+        '403':
+          description: "Missing `compliance:controls:read`; or, from the middleware, `MFA_ENROLLMENT_REQUIRED`"
+        '404':
+          description: Control not found in the caller's organization
+        '429':
+          $ref: '#/components/responses/QuotaExceeded'
+        '503':
+          $ref: '#/components/responses/MFAStatusUnavailable'
+    post:
+      tags: [Compliance]
+      summary: Add an implementation to an internal control (#1415)
+      description: >-
+        Records where a control is in place. At least one `applies_to` asset is
+        required (`internal_control.applies_to_required`, 400); only assets are
+        accepted in v1. The control and every asset are resolved in the caller's
+        organization first: another organization's control or asset answers 404
+        and nothing is written. The id and the envelope are set by the server
+        (`source` openrisk_user, `confidence` 0.70, provenance `manual_entry` by
+        the caller): a body that carries `id`, `tenant_id`, `source`,
+        `confidence` or `provenance` is accepted and those fields are ignored.
+        The implementation, its `applies_to` edges and its audit entry are one
+        transaction. Requires `compliance:controls:create`.
+      operationId: createControlImplementation
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: controlId
+          in: path
+          required: true
+          description: Canonical control id (`controls.id`).
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateControlImplementationInput'
+      responses:
+        '201':
+          description: Implementation created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ControlImplementation'
+        '400':
+          description: "Validation error: the message names the field and the rule, or is an `internal_control.*` code"
+        '401':
+          description: No tenant or user in the session
+        '403':
+          description: "Missing `compliance:controls:create`; or, from the middleware, `CSRF_FAILED` or `MFA_ENROLLMENT_REQUIRED`"
+        '404':
+          description: Control or asset not found in the caller's organization
+        '429':
+          $ref: '#/components/responses/QuotaExceeded'
+        '503':
+          $ref: '#/components/responses/MFAStatusUnavailable'
+
+  /compliance/implementations/{implementationId}:
+    get:
+      tags: [Compliance]
+      summary: Get an implementation (#1415)
+      description: >-
+        Requires `compliance:controls:read`. An implementation of another
+        organization, a deleted one, or one whose control is deleted answers 404.
+      operationId: getControlImplementation
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: implementationId
+          in: path
+          required: true
+          description: Implementation id (`control_implementations.id`).
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: The implementation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ControlImplementation'
+        '400':
+          description: Invalid implementation id
+        '401':
+          description: No tenant or user in the session
+        '403':
+          description: "Missing `compliance:controls:read`; or, from the middleware, `MFA_ENROLLMENT_REQUIRED`"
+        '404':
+          description: Implementation not found in the caller's organization
+        '429':
+          $ref: '#/components/responses/QuotaExceeded'
+        '503':
+          $ref: '#/components/responses/MFAStatusUnavailable'
+    patch:
+      tags: [Compliance]
+      summary: Edit an implementation (#1415)
+      description: >-
+        Partial edit: an omitted field is left alone, a blank `in_place_since`
+        clears it, a null owner, assignee or reviewer clears the slot.
+        `applies_to`, when present, REPLACES the set of targets and must not be
+        empty; new assets are resolved in the caller's organization (another
+        organization's asset answers 404) and the removed targets have their
+        edge hard-deleted, journaled by the audit entry's before and after target
+        sets. The control cannot be changed. Requires `compliance:controls:update`.
+      operationId: updateControlImplementation
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: implementationId
+          in: path
+          required: true
+          description: Implementation id (`control_implementations.id`).
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateControlImplementationInput'
+      responses:
+        '200':
+          description: The implementation after the edit
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ControlImplementation'
+        '400':
+          description: Validation error
+        '401':
+          description: No tenant or user in the session
+        '403':
+          description: "Missing `compliance:controls:update`; or, from the middleware, `CSRF_FAILED` or `MFA_ENROLLMENT_REQUIRED`"
+        '404':
+          description: Implementation or asset not found in the caller's organization
+        '429':
+          $ref: '#/components/responses/QuotaExceeded'
+        '503':
+          $ref: '#/components/responses/MFAStatusUnavailable'
+    delete:
+      tags: [Compliance]
+      summary: Delete an implementation (#1415)
+      description: >-
+        Soft delete (`deleted_at`) of the implementation and, in the same
+        transaction, of its live tests; one audit entry each. The `applies_to`
+        edges are kept and every reader filters on the liveness of both ends.
+        Requires `compliance:controls:delete`.
+      operationId: deleteControlImplementation
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: implementationId
+          in: path
+          required: true
+          description: Implementation id (`control_implementations.id`).
+          schema: { type: string, format: uuid }
+      responses:
+        '204':
+          description: Deleted
+        '400':
+          description: Invalid implementation id
+        '401':
+          description: No tenant or user in the session
+        '403':
+          description: "Missing `compliance:controls:delete`; or, from the middleware, `CSRF_FAILED` or `MFA_ENROLLMENT_REQUIRED`"
+        '404':
+          description: Implementation not found in the caller's organization
+        '429':
+          $ref: '#/components/responses/QuotaExceeded'
+        '503':
+          $ref: '#/components/responses/MFAStatusUnavailable'
+
+  /compliance/implementations/{implementationId}/tests:
+    get:
+      tags: [Compliance]
+      summary: List the test definitions of an implementation (#1415)
+      description: >-
+        The live tests of a live implementation, by name. Results and evidence
+        are not part of this slice (#1416). Requires `compliance:controls:read`.
+      operationId: listControlTests
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: implementationId
+          in: path
+          required: true
+          description: Implementation id (`control_implementations.id`).
+          schema: { type: string, format: uuid }
+        - name: limit
+          in: query
+          required: false
+          description: Page size, default 100, at most 500.
+          schema: { type: integer, minimum: 1, maximum: 500 }
+        - name: offset
+          in: query
+          required: false
+          schema: { type: integer, minimum: 0 }
+      responses:
+        '200':
+          description: The page of test definitions
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ControlTest'
+        '400':
+          description: Invalid implementation id, `limit` or `offset`
+        '401':
+          description: No tenant or user in the session
+        '403':
+          description: "Missing `compliance:controls:read`; or, from the middleware, `MFA_ENROLLMENT_REQUIRED`"
+        '404':
+          description: Implementation not found in the caller's organization
+        '429':
+          $ref: '#/components/responses/QuotaExceeded'
+        '503':
+          $ref: '#/components/responses/MFAStatusUnavailable'
+    post:
+      tags: [Compliance]
+      summary: Define a test of an implementation (#1415)
+      description: >-
+        `checks` and `pass_criteria` are required; a manual test needs a
+        `procedure`, an automated one a `collector` (automated collectors
+        themselves are #554); `cadence` is optional and an ISO 8601 duration
+        such as `P30D` or `P3M`. The implementation is resolved in the caller's
+        organization first. The id and the envelope are set by the server; a body
+        that carries them is accepted and they are ignored. Requires
+        `compliance:controls:create`.
+      operationId: createControlTest
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: implementationId
+          in: path
+          required: true
+          description: Implementation id (`control_implementations.id`).
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateControlTestInput'
+      responses:
+        '201':
+          description: Test defined
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ControlTest'
+        '400':
+          description: Validation error naming the field and the rule
+        '401':
+          description: No tenant or user in the session
+        '403':
+          description: "Missing `compliance:controls:create`; or, from the middleware, `CSRF_FAILED` or `MFA_ENROLLMENT_REQUIRED`"
+        '404':
+          description: Implementation not found in the caller's organization
+        '429':
+          $ref: '#/components/responses/QuotaExceeded'
+        '503':
+          $ref: '#/components/responses/MFAStatusUnavailable'
+
+  /compliance/tests/{testId}:
+    get:
+      tags: [Compliance]
+      summary: Get a test definition (#1415)
+      description: >-
+        Requires `compliance:controls:read`. A test of another organization, a
+        deleted one, or one whose implementation or control is deleted answers 404.
+      operationId: getControlTest
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: testId
+          in: path
+          required: true
+          description: Test id (`control_tests.id`).
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: The test definition
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ControlTest'
+        '400':
+          description: Invalid test id
+        '401':
+          description: No tenant or user in the session
+        '403':
+          description: "Missing `compliance:controls:read`; or, from the middleware, `MFA_ENROLLMENT_REQUIRED`"
+        '404':
+          description: Test not found in the caller's organization
+        '429':
+          $ref: '#/components/responses/QuotaExceeded'
+        '503':
+          $ref: '#/components/responses/MFAStatusUnavailable'
+    patch:
+      tags: [Compliance]
+      summary: Edit a test definition (#1415)
+      description: >-
+        Partial edit: an omitted field is left alone, a blank `procedure`,
+        `collector` or `cadence` clears it. The whole result is validated, so a
+        switch of `method` without the procedure or collector it needs is
+        refused. The implementation cannot be changed. Requires
+        `compliance:controls:update`.
+      operationId: updateControlTest
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: testId
+          in: path
+          required: true
+          description: Test id (`control_tests.id`).
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateControlTestInput'
+      responses:
+        '200':
+          description: The test after the edit
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ControlTest'
+        '400':
+          description: Validation error
+        '401':
+          description: No tenant or user in the session
+        '403':
+          description: "Missing `compliance:controls:update`; or, from the middleware, `CSRF_FAILED` or `MFA_ENROLLMENT_REQUIRED`"
+        '404':
+          description: Test not found in the caller's organization
+        '429':
+          $ref: '#/components/responses/QuotaExceeded'
+        '503':
+          $ref: '#/components/responses/MFAStatusUnavailable'
+    delete:
+      tags: [Compliance]
+      summary: Delete a test definition (#1415)
+      description: Soft delete (`deleted_at`). Requires `compliance:controls:delete`.
+      operationId: deleteControlTest
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: testId
+          in: path
+          required: true
+          description: Test id (`control_tests.id`).
+          schema: { type: string, format: uuid }
+      responses:
+        '204':
+          description: Deleted
+        '400':
+          description: Invalid test id
+        '401':
+          description: No tenant or user in the session
+        '403':
+          description: "Missing `compliance:controls:delete`; or, from the middleware, `CSRF_FAILED` or `MFA_ENROLLMENT_REQUIRED`"
+        '404':
+          description: Test not found in the caller's organization
+        '429':
+          $ref: '#/components/responses/QuotaExceeded'
+        '503':
+          $ref: '#/components/responses/MFAStatusUnavailable'
+
   /compliance/internal-controls:
     get:
       tags: [Compliance]
@@ -7206,6 +7612,160 @@ components:
           type: array
           maxItems: 50
           items: { type: string, maxLength: 64 }
+
+    AppliesToTarget:
+      type: object
+      required: [type, id]
+      properties:
+        type: { type: string, enum: [Asset], description: "Assets only in v1 (System and Service have no model yet, #1217)." }
+        id: { type: string, format: uuid }
+
+    ControlImplementation:
+      type: object
+      description: >-
+        How one control is in place, with its envelope. The tenant is deliberately
+        not part of it.
+      required: [id, control_id, description, status, in_place_since, owner_id, assignee_id, reviewer_id, applies_to, source, source_id, confidence, provenance, observed_at, created_at, updated_at]
+      properties:
+        id: { type: string, format: uuid }
+        control_id: { type: string, format: uuid }
+        description: { type: string }
+        status: { type: string, enum: [planned, in_progress, in_place, retired] }
+        in_place_since: { type: [string, 'null'], format: date }
+        owner_id: { type: [string, 'null'], format: uuid }
+        assignee_id: { type: [string, 'null'], format: uuid }
+        reviewer_id: { type: [string, 'null'], format: uuid }
+        applies_to:
+          type: array
+          description: The live assets of the organization it applies to.
+          items:
+            $ref: '#/components/schemas/AppliesToTarget'
+        source: { type: string, description: "`openrisk_user` for every implementation in this slice." }
+        source_id: { type: string }
+        confidence: { type: number, minimum: 0, maximum: 1 }
+        provenance:
+          type: object
+          required: [method, actor, confidence_rule]
+          properties:
+            method: { type: string, example: manual_entry }
+            actor:
+              type: object
+              required: [kind, id]
+              properties:
+                kind: { type: string, enum: [user, system, vendor_contact] }
+                id: { type: string }
+            confidence_rule: { type: string }
+        observed_at: { type: [string, 'null'], format: date-time, description: "When it was last confirmed in place; null until confirmed." }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    CreateControlImplementationInput:
+      type: object
+      required: [description, applies_to]
+      description: >-
+        The id, tenant and envelope are not fields of this body; a request that
+        carries them changes nothing.
+      properties:
+        description: { type: string, maxLength: 10000 }
+        status: { type: string, enum: [planned, in_progress, in_place, retired], default: planned }
+        in_place_since: { type: string, format: date }
+        owner_id: { type: string, format: uuid }
+        assignee_id: { type: string, format: uuid }
+        reviewer_id: { type: string, format: uuid }
+        applies_to:
+          type: array
+          minItems: 1
+          maxItems: 100
+          items:
+            type: object
+            required: [id]
+            properties:
+              type: { type: string, enum: [Asset], default: Asset }
+              id: { type: string, format: uuid }
+
+    UpdateControlImplementationInput:
+      type: object
+      description: Partial update. Omitted fields are left unchanged.
+      properties:
+        description: { type: string, maxLength: 10000 }
+        status: { type: string, enum: [planned, in_progress, in_place, retired] }
+        in_place_since: { type: string, description: "A date, or blank to clear it." }
+        owner_id: { type: [string, 'null'], format: uuid }
+        assignee_id: { type: [string, 'null'], format: uuid }
+        reviewer_id: { type: [string, 'null'], format: uuid }
+        applies_to:
+          type: array
+          minItems: 1
+          maxItems: 100
+          description: Replaces the whole set of targets.
+          items:
+            type: object
+            required: [id]
+            properties:
+              type: { type: string, enum: [Asset], default: Asset }
+              id: { type: string, format: uuid }
+
+    ControlTest:
+      type: object
+      description: >-
+        A test definition of an implementation, with its envelope. Results are
+        not part of it (#1416). The tenant is deliberately not part of it.
+      required: [id, implementation_id, name, checks, method, procedure, collector, cadence, pass_criteria, source, source_id, confidence, provenance, created_at, updated_at]
+      properties:
+        id: { type: string, format: uuid }
+        implementation_id: { type: string, format: uuid }
+        name: { type: string, maxLength: 255 }
+        checks: { type: string }
+        method: { type: string, enum: [manual, automated] }
+        procedure: { type: [string, 'null'] }
+        collector: { type: [string, 'null'], maxLength: 255 }
+        cadence: { type: [string, 'null'], description: "ISO 8601 duration, e.g. P30D or P3M." }
+        pass_criteria: { type: string }
+        source: { type: string, description: "`openrisk_user` for every test in this slice." }
+        source_id: { type: string }
+        confidence: { type: number, minimum: 0, maximum: 1 }
+        provenance:
+          type: object
+          required: [method, actor, confidence_rule]
+          properties:
+            method: { type: string, example: manual_entry }
+            actor:
+              type: object
+              required: [kind, id]
+              properties:
+                kind: { type: string, enum: [user, system, vendor_contact] }
+                id: { type: string }
+            confidence_rule: { type: string }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
+
+    CreateControlTestInput:
+      type: object
+      required: [name, checks, method, pass_criteria]
+      description: >-
+        The id, tenant and envelope are not fields of this body; a request that
+        carries them changes nothing. A manual test needs `procedure`, an
+        automated one `collector`.
+      properties:
+        name: { type: string, maxLength: 255 }
+        checks: { type: string, maxLength: 10000 }
+        method: { type: string, enum: [manual, automated] }
+        procedure: { type: string, maxLength: 10000 }
+        collector: { type: string, maxLength: 255 }
+        cadence: { type: string, maxLength: 32, description: "Optional ISO 8601 duration, e.g. P30D." }
+        pass_criteria: { type: string, maxLength: 10000 }
+
+    UpdateControlTestInput:
+      type: object
+      description: Partial update. Omitted fields are left unchanged; a blank procedure, collector or cadence clears it.
+      properties:
+        name: { type: string, maxLength: 255 }
+        checks: { type: string, maxLength: 10000 }
+        method: { type: string, enum: [manual, automated] }
+        procedure: { type: string, maxLength: 10000 }
+        collector: { type: string, maxLength: 255 }
+        cadence: { type: string, maxLength: 32 }
+        pass_criteria: { type: string, maxLength: 10000 }
 
     InternalControlRequirement:
       type: object

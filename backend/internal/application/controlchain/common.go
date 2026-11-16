@@ -300,6 +300,13 @@ func sameValue(a, b any) bool {
 // auditEvent builds the entry written in the write's transaction.
 func auditEvent(c Caller, action domain.AuditAction, summary string, before, after domain.JSONMap,
 	changed domain.StringList, entityID uuid.UUID, now time.Time) *domain.AuditEvent {
+	return auditEventOf(auditEntityType, c, action, summary, before, after, changed, entityID, now)
+}
+
+// auditEventOf is auditEvent for any entity of the chain (control, implementation,
+// test): the entity type names what the entry is about.
+func auditEventOf(entityType string, c Caller, action domain.AuditAction, summary string, before, after domain.JSONMap,
+	changed domain.StringList, entityID uuid.UUID, now time.Time) *domain.AuditEvent {
 	actor := c.UserID
 	return &domain.AuditEvent{
 		ID:            uuid.New(),
@@ -308,7 +315,7 @@ func auditEvent(c Caller, action domain.AuditAction, summary string, before, aft
 		ActorType:     c.Origin.ActorType,
 		ActorLabel:    c.Origin.ActorLabel,
 		Action:        action,
-		EntityType:    auditEntityType,
+		EntityType:    entityType,
 		EntityID:      entityID.String(),
 		Summary:       summary,
 		Before:        before,
