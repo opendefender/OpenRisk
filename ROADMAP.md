@@ -62,6 +62,7 @@ Le test à poser sur chaque issue, et désormais dans le gabarit d'issue (#563) 
 3. **Deux killer workflows** — Signal → Risque → Action → Preuve · Contrôle → Test → Preuve → Écart → Risque → Remédiation → `Release 1.3` et `Release 1.4`
 4. **IA gouvernée** — l'IA propose, l'humain approuve, le système enregistre → `Release 1.5`
 5. **Evidence fabric** — preuve continue, historique immuable, portail auditeur, dossier d'audit → `Release 1.4`
+   - Intégrité de l'enregistrement de preuve (#554, D-115, ADR 0008 A11) : empreinte SHA-256 calculée côté serveur au dépôt, revérifiée avant tout octet servi (409 `evidence_integrity_mismatch` + événement d'audit `integrity_alert`, en-tête `X-Evidence-Integrity`), période d'observation, méthode de collecte (4 valeurs), identité du collecteur, signature optionnelle stockée sans vérification, assurance et confiance dérivées à la lecture ; migration `0088_evidence_record_integrity`. **Hors périmètre** : chaîne de garde (#1450), interface (#1451), WORM (#380), fraîcheur (#379), vérification de signature, empreinte des fichiers antérieurs (servis « non vérifié »).
 6. **Écosystème** — SDK, webhooks, API, OSCAL, connecteurs, plugins → `Release 1.6`
 7. **Échelle** — multi-org, entreprise, SaaS, marketplace, benchmarking → à planifier
 

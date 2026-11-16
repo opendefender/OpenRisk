@@ -9,6 +9,16 @@
 export type EvidenceType = 'document' | 'capture' | 'configuration' | 'attestation' | 'log';
 export type EvidenceReview = 'pending' | 'accepted' | 'rejected';
 export type EvidenceSource = 'manual' | 'integration' | 'scanner' | 'automation';
+/** How the proof reached the register; its own axis, distinct from the source (ADR 0008 A11). */
+export type EvidenceCollectionMethod =
+  | 'manual_upload'
+  | 'automated_collector'
+  | 'api_pull'
+  | 'attestation';
+export type EvidenceCollectorKind = 'user' | 'connector' | 'job';
+/** Derived by the server: 'hashed' (a hash was taken), 'unhashed' (legacy file), 'none' (no file). */
+export type EvidenceIntegrity = 'hashed' | 'unhashed' | 'none';
+export type EvidenceAssurance = 'high' | 'substantial' | 'moderate' | 'low';
 
 /**
  * The state an auditor reads. DERIVED by the server from the expiry date and the
@@ -46,6 +56,21 @@ export interface Evidence {
   source: EvidenceSource;
   source_detail: string;
   status: EvidenceStatus;
+  /** SHA-256 hex of the stored bytes, computed by the server; empty on legacy rows. Read-only. */
+  content_hash: string;
+  hash_algorithm: string;
+  observed_from: string | null;
+  observed_to: string | null;
+  collection_method: EvidenceCollectionMethod;
+  collector_kind: EvidenceCollectorKind | '';
+  collector_ref: string;
+  signature_algorithm: string;
+  /** Derived, read-only: false when the record carries no signature. Never verified. */
+  signed: boolean;
+  integrity: EvidenceIntegrity;
+  assurance: EvidenceAssurance;
+  /** Base (unreviewed) confidence of the collection method, 0-1. Derived, read-only. */
+  confidence: number;
   /** Negative once expired; absent when the artifact never expires. */
   days_until_expiry?: number;
   control_ids: string[];

@@ -9,6 +9,46 @@ recommends, and surfaces these in the daily brief. Run `/decide` to clear them.
 
 ## Resolved
 
+### D-115 — Evidence record integrity (#554): hash, verify-on-read, collection method, assurance table · decided 2026-11-16
+**Decided (agent, 2026-11-16)** — under D-089, for #554, after D-114. Nothing irreversible; no money; the migration only adds columns. The owner may overturn any point.
+
+**Choices**
+1. **Cross-tenant (AC8).** Get, download, update and delete of another tenant's evidence answer `ErrNotFound` (404, never 403). The tenant-wide list returns an empty set. The control-scoped list answers 404 through the control lookup.
+2. **Unverified (AC9).** An empty `content_hash` means unverified. Download sets `X-Evidence-Integrity: verified|unverified` (`verified` only after the re-hash matched). Get and List expose a derived read-only `integrity`: `hashed`, `unhashed` (a file with no hash), `none` (a link or statement, no file). **Residual risk, accepted:** a database edit that blanks the hash reads as unverified, not as a failure. Closing it needs immutable storage: #380 (WORM).
+3. **Audit event.** `EntityType "evidence"`, new `AuditActionIntegrityAlert = "integrity_alert"` (15 characters, fits `varchar(24)`), summary `evidence.integrity_alert: ...`. It carries tenant, actor, evidence id and the first 12 characters of the expected and observed hashes, never content.
+4. **Audit port.** A narrow `IntegrityAudit` port on the evidence `Service` through `WithIntegrityAudit` (`NewService` unchanged), backed in `main.go` by the audit chain `Append`. If `Append` fails it is logged (zerolog, no secret, no content) and the integrity error is still returned.
+5. **Actor.** `Download(ctx, tenantID, actorID, id)`; the handler passes the authenticated user.
+6. **Method default.** `collection_method` is optional. Omitted, it derives from `source`: manual -> manual_upload, integration -> api_pull, scanner -> automated_collector, automation -> automated_collector. `attestation` only when explicit. `automated_collector` and `api_pull` require `collector_ref`. The migration and `prepare.go` backfill use the same mapping; a test asserts every `EvidenceSource` value maps.
+7. **Two axes.** The collection method is distinct from the canonical source class. ADR 0008 D7's source mapping is untouched (A11).
+8. **Base values only.** The table holds the BASE (unreviewed) confidence and assurance. The review uplift stays in the canonical envelope confidence and is outside AC6.
+9. **Table.** Assurance `high > substantial > moderate > low`. One pure function (`domain.methodProfiles`, `AssuranceFor`), derived on read, no stored column. No signature lowers the level by one (floor `low`).
+
+| Method | Base assurance, signed | Unsigned | Base confidence (canonical class default) |
+|---|---|---|---|
+| automated_collector | high | substantial | 0.80 (automated_scanner) |
+| api_pull | high | substantial | 0.60 (connector_import) |
+| attestation | substantial | moderate | 0.50 (third_party_attestation) |
+| manual_upload | moderate | low | 0.70 (user_entered) |
+
+   `manual_upload` assurance is strictly lower than `automated_collector`. On confidence, `manual_upload` (0.70) is lower than `automated_collector` (0.80) and each value is within its class ceiling. `api_pull` (0.60) and `attestation` (0.50) sit below `manual_upload` because their class defaults do, which is the canonical rule and not changed here.
+10. **Collector.** `collector_kind` in `user | connector | job`; `collector_ref` 1-128 characters `^[A-Za-z0-9._:@/-]+$`, an identifier, never a credential. manual_upload and attestation default to kind `user`, ref the collecting user id.
+11. **Observation.** `observed_from` and `observed_to` are optional and both default to `collected_at`, stored explicitly. `observed_from <= observed_to <= collected_at`, checked on Create and on Update (again when `collected_at` moves). Both are editable; `content_hash` and `hash_algorithm` are never in the repository Update column list. Legacy backfill: both = `collected_at`. Canonical `observed_at` stays `collected_at`.
+12. **Signature.** Optional, base64, at most 8 KiB decoded; `signature_algorithm` at most 32 characters and required with a signature. Absence reads `signed: false`. Stored, never verified. The signature bytes are not in the JSON.
+13. **Whole blob.** Download reads the whole blob (at most 3 MiB for an upload; a legacy blob may exceed it) and verifies the full hash BEFORE any byte is sent; the storage handle is closed.
+14. **Down migration** drops only the nine new columns. `prepare.go` mirrors the backfill (gated on the column being absent, idempotent, Postgres only, `tenantguard.CrossTenant`).
+15. **Error.** `NewEvidenceIntegrityError`: wraps `ErrConflict`, HTTP 409, stable code `evidence_integrity_mismatch`; FR and EN strings in `frontend/src/locales`. Hash: SHA-256 hex over the exact bytes saved, computed server-side before Save, `hash_algorithm` `sha256`; a client-sent hash is ignored.
+
+**Not done, by scope** — chain of custody (#1450), UI (#1451), WORM (#380), freshness against cadence (#379; so no `TestEvidence_Expired`), signature verification, backfill of legacy hashes (a hash of today's bytes would certify whatever is on disk now).
+**Reversible** — yes: columns are additive; the tables are constants in one file.
+
+### D-114 — Evidence Fabric: who owns the storage layer, #554 or #380 · decided 2026-11-16
+**Decided (po-openrisk, 2026-11-16)** — under D-089, for #554.
+**Question** — #554 (evidence record) and #380 (tamper-evident vault) both claim hashing, chain of custody and integrity verification. One must own the storage layer.
+**Options** — A: #380 owns storage, #554 waits for it. B: #554 owns hash-at-ingest, verify-on-read and custody on the existing `pkg/storage.Storage` port; #380 is narrowed to immutable (WORM) backends, versioning and retention. C: merge the two.
+**Choice** — B. ADR 0008 already assigns hash, observation period and custody to #554; #380 has no acceptance criteria that can be tested as written; the blockers of #554 (#541, #553, #813) are closed, so it can start now. A would hold the Evidence Fabric behind an unrefined issue; C makes an L-sized issue that cannot ship narrow.
+**Consequence** — #554 (record, hash, verify), #1450 (append-only custody, chained into the audit trail), #1451 (UI). #380 stays `needs-refinement` and is re-scoped to WORM backends, versioning, retention, after #554 merges. Freshness against a control's cadence stays with #379. Signature verification (key management) is a later crypto decision.
+**Reversible** — yes; no data or money involved.
+
 ### D-113 — Control exceptions (#1428): how long one may run, and whether one can be backdated · decided 2026-11-16
 **Decided (agent, 2026-11-16)**, for #1428. The issue forbids an open-ended exception but gives no maximum, and says nothing of a start in the past.
 

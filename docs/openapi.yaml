@@ -3457,8 +3457,19 @@ paths:
               schema:
                 type: string
                 format: binary
+          headers:
+            X-Evidence-Integrity:
+              description: |
+                `verified` when the stored bytes were re-hashed and matched the
+                SHA-256 taken at upload; `unverified` for a legacy file with no hash.
+              schema: { type: string, enum: [verified, unverified] }
         '404':
           description: Evidence not found
+        '409':
+          description: |
+            The stored file no longer matches its recorded hash. No content is
+            served; body `code` is `evidence_integrity_mismatch`, and an
+            `integrity_alert` audit event is recorded for the tenant.
 
   /compliance/evidences/{evidenceId}:
     delete:
