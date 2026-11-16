@@ -8,6 +8,7 @@ package controlchain
 import (
 	"context"
 	"sort"
+	"strings"
 	"testing"
 	"time"
 
@@ -831,4 +832,62 @@ func TestListRequirementControls_Unauthorized(t *testing.T) {
 	require.ErrorIs(t, err, domain.ErrUnauthorized)
 	_, err = uc.Execute(context.Background(), Caller{TenantID: tenantA, UserID: uuid.New()}, req)
 	require.ErrorIs(t, err, domain.ErrForbidden)
+}
+
+func TestCreateAndUpdateInternalControl_LongTextIsCapped(t *testing.T) {
+	f := newFixture()
+	atLimit := strings.Repeat("é", maxLongText)
+	over := atLimit + "x"
+	in := ctlInput("c")
+	in.Description, in.Objective = &atLimit, &atLimit
+	v, err := NewCreateUseCase(f.repo, f.owners, clock).Execute(context.Background(), f.caller, in)
+	require.NoError(t, err, "at the limit is accepted")
+
+	for _, field := range []string{"description", "objective", "applicability_justification"} {
+		in := ctlInput("c2")
+		up := UpdateInput{}
+		switch field {
+		case "description":
+			in.Description, up.Description = &over, &over
+		case "objective":
+			in.Objective, up.Objective = &over, &over
+		default:
+			in.ApplicabilityJustification, up.ApplicabilityJustification = &over, &over
+		}
+		_, err := NewCreateUseCase(f.repo, f.owners, clock).Execute(context.Background(), f.caller, in)
+		require.ErrorIs(t, err, domain.ErrValidation, field)
+		assert.Equal(t, field+" is too long", code(err))
+		_, err = f.update(f.caller, v.ID, up)
+		require.ErrorIs(t, err, domain.ErrValidation, field)
+		assert.Equal(t, field+" is too long", code(err))
+	}
+	up := UpdateInput{Objective: &atLimit}
+	_, err = f.update(f.caller, v.ID, up)
+	require.NoError(t, err, "at the limit is accepted on update")
+}
+
+func TestUnlinkInternalControl_SplitPairOfAnotherTenantIsNotFound(t *testing.T) {
+	f := newFixture()
+	theirs := f.splitControl(tenantB, "implemented")
+	var theirReq uuid.UUID
+	for k := range f.repo.edges {
+		if k.tenant == tenantB {
+			theirReq = k.requirement
+		}
+	}
+	uc := NewUnlinkUseCase(f.repo, clock)
+	err := uc.Execute(context.Background(), f.caller, theirs.ID, theirReq)
+	require.ErrorIs(t, err, domain.ErrNotFound, "foreign split pair is 404, not 409")
+	// A fabricated requirement id: the derived control id is absent too.
+	err = uc.Execute(context.Background(), f.caller, canonical.ControlIDFor(uuid.New()), uuid.New())
+	require.ErrorIs(t, err, domain.ErrNotFound)
+
+	own := f.splitControl(tenantA, "implemented")
+	var ownReq uuid.UUID
+	for k := range f.repo.edges {
+		if k.tenant == tenantA {
+			ownReq = k.requirement
+		}
+	}
+	require.ErrorIs(t, uc.Execute(context.Background(), f.caller, own.ID, ownReq), domain.ErrConflict)
 }

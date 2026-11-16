@@ -5,7 +5,38 @@
 
 package controlchain
 
-import "strings"
+import (
+	"strings"
+	"unicode/utf8"
+
+	"github.com/opendefender/openrisk/internal/domain"
+)
+
+// maxLongText bounds description, objective and applicability_justification, in
+// runes. The cap lives in the use cases, not in canonical Control.Validate: a cap
+// there would make the legacy split silently skip a requirement with a long
+// description.
+const maxLongText = 10000
+
+// checkLongText refuses a free text over maxLongText runes.
+func checkLongText(field string, v *string) error {
+	if v != nil && utf8.RuneCountInString(*v) > maxLongText {
+		return domain.NewValidationError(field + " is too long")
+	}
+	return nil
+}
+
+func checkLongTexts(description, objective, justification *string) error {
+	for _, f := range []struct {
+		name string
+		v    *string
+	}{{"description", description}, {"objective", objective}, {"applicability_justification", justification}} {
+		if err := checkLongText(f.name, f.v); err != nil {
+			return err
+		}
+	}
+	return nil
+}
 
 // blankToNil stores a blank text as absent: the model's "no description" is nil,
 // and the not_applicable rule reads a blank justification as missing.

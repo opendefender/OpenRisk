@@ -58,6 +58,9 @@ func (u *UpdateUseCase) Execute(ctx context.Context, c Caller, id uuid.UUID, in 
 	if err := c.authorize(PermissionUpdate); err != nil {
 		return nil, err
 	}
+	if err := checkLongTexts(in.Description, in.Objective, in.ApplicabilityJustification); err != nil {
+		return nil, err
+	}
 	var tags canonical.List[string]
 	if in.Tags != nil {
 		t, err := cleanTags(*in.Tags)

@@ -56,6 +56,9 @@ func (u *CreateUseCase) Execute(ctx context.Context, c Caller, in CreateInput) (
 	if err := c.authorize(PermissionCreate); err != nil {
 		return nil, err
 	}
+	if err := checkLongTexts(in.Description, in.Objective, in.ApplicabilityJustification); err != nil {
+		return nil, err
+	}
 	now := u.now().UTC()
 	tags, err := cleanTags(in.Tags)
 	if err != nil {

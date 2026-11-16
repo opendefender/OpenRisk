@@ -6925,13 +6925,13 @@ components:
       properties:
         id: { type: string, format: uuid }
         name: { type: string, maxLength: 255 }
-        description: { type: [string, 'null'] }
-        objective: { type: [string, 'null'] }
+        description: { type: [string, 'null'], maxLength: 10000 }
+        objective: { type: [string, 'null'], maxLength: 10000 }
         owner_id: { type: [string, 'null'], format: uuid }
         assignee_id: { type: [string, 'null'], format: uuid }
         reviewer_id: { type: [string, 'null'], format: uuid }
         applicability: { type: string, enum: [applicable, not_applicable] }
-        applicability_justification: { type: [string, 'null'] }
+        applicability_justification: { type: [string, 'null'], maxLength: 10000 }
         applicability_review_pending:
           type: boolean
           description: >-
@@ -6971,13 +6971,13 @@ components:
         carries them changes nothing.
       properties:
         name: { type: string, maxLength: 255 }
-        description: { type: string }
-        objective: { type: string }
+        description: { type: string, maxLength: 10000 }
+        objective: { type: string, maxLength: 10000 }
         owner_id: { type: string, format: uuid }
         assignee_id: { type: string, format: uuid }
         reviewer_id: { type: string, format: uuid }
         applicability: { type: string, enum: [applicable, not_applicable], default: applicable }
-        applicability_justification: { type: string }
+        applicability_justification: { type: string, maxLength: 10000 }
         declared_status:
           type: string
           enum: [not_implemented, in_progress, implemented]
@@ -6993,13 +6993,13 @@ components:
       description: Partial update. Omitted fields are left unchanged.
       properties:
         name: { type: string, maxLength: 255 }
-        description: { type: string }
-        objective: { type: string }
+        description: { type: string, maxLength: 10000 }
+        objective: { type: string, maxLength: 10000 }
         owner_id: { type: [string, 'null'], format: uuid }
         assignee_id: { type: [string, 'null'], format: uuid }
         reviewer_id: { type: [string, 'null'], format: uuid }
         applicability: { type: string, enum: [applicable, not_applicable] }
-        applicability_justification: { type: string }
+        applicability_justification: { type: string, maxLength: 10000 }
         declared_status: { type: string, enum: [not_implemented, in_progress, implemented] }
         tags:
           type: array

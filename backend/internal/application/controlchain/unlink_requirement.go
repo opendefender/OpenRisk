@@ -34,6 +34,11 @@ func (u *UnlinkUseCase) Execute(ctx context.Context, c Caller, controlID, requir
 	if err := c.authorize(PermissionUpdate); err != nil {
 		return err
 	}
+	// The tenant gate comes first: 409 only for a control the caller's tenant
+	// owns; a foreign or absent control is 404, whatever the requirement id.
+	if _, err := u.repo.GetControl(ctx, c.TenantID, controlID); err != nil {
+		return fmt.Errorf("application.UnlinkInternalControl: %w", err)
+	}
 	if controlID == canonical.ControlIDFor(requirementID) {
 		return domain.InternalControlError(domain.ErrConflict, domain.IntCtlSplitLink)
 	}

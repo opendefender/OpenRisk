@@ -449,6 +449,11 @@ func TestInternalControlRoutes_EvidenceRequiredAndConflicts(t *testing.T) {
 	// A split control's own link to its requirement is not unlinkable.
 	req := s.requirement(t, s.tenantA, "REQ")
 	split, _ := controlchain.SplitControl(controlchain.RequirementRow{ID: req, TenantID: s.tenantA, Name: "REQ", Status: "not_implemented", CreatedAt: intCtlNow, UpdatedAt: intCtlNow}, canonical.MethodManualEntry)
+	srow, err := controlchain.ControlToRow(split, nil)
+	require.NoError(t, err)
+	require.NoError(t, s.db.Create(&srow).Error)
+	status, body = s.do(t, s.asB(), http.MethodDelete, base+"/"+split.ID.String()+"/requirements/"+req.String(), "")
+	assert.Equal(t, http.StatusNotFound, status, "another tenant's split pair is 404, not 409")
 	status, body = s.do(t, a, http.MethodDelete, base+"/"+split.ID.String()+"/requirements/"+req.String(), "")
 	assert.Equal(t, http.StatusConflict, status)
 	assert.Equal(t, domain.IntCtlSplitLink, body["error"])
