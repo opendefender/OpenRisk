@@ -65,8 +65,10 @@ export interface Evidence {
   collector_kind: EvidenceCollectorKind | '';
   collector_ref: string;
   signature_algorithm: string;
-  /** Derived, read-only: false when the record carries no signature. Never verified. */
-  signed: boolean;
+  /** Derived, read-only: true when the record carries a signature. */
+  readonly signature_present: boolean;
+  /** Derived, read-only: true only when the server verified the signature. */
+  readonly signature_verified: boolean;
   integrity: EvidenceIntegrity;
   assurance: EvidenceAssurance;
   /** Base (unreviewed) confidence of the collection method, 0-1. Derived, read-only. */

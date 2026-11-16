@@ -170,7 +170,7 @@
     "failedToUpdateControl": "Failed to update control",
     "failedToUploadEvidence": "Failed to upload evidence",
     "failedToDeleteEvidence": "Failed to delete evidence",
-    "evidence_integrity_mismatch": "Integrity check failed: the stored file no longer matches the hash recorded when it was uploaded. The file was not served and the event was recorded in the audit trail.",
+    "evidence_integrity_mismatch": "Integrity check failed: the stored file no longer matches its recorded fingerprint. The download was refused and an integrity alert was raised.",
     "failedToCreateAsset": "Failed to create asset",
     "failedToUpdateAsset": "Failed to update asset",
     "failedToDeleteAsset": "Failed to delete asset"

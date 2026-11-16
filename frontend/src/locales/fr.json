@@ -170,7 +170,7 @@
     "failedToUpdateControl": "Échec de la mise à jour du contrôle",
     "failedToUploadEvidence": "Échec du dépôt de la preuve",
     "failedToDeleteEvidence": "Échec de la suppression de la preuve",
-    "evidence_integrity_mismatch": "Contrôle d'intégrité échoué : le fichier stocké ne correspond plus à l'empreinte enregistrée au dépôt. Le fichier n'a pas été servi et l'événement est consigné dans le journal d'audit.",
+    "evidence_integrity_mismatch": "Vérification d'intégrité échouée : le fichier stocké ne correspond plus à son empreinte enregistrée. Le téléchargement a été refusé et une alerte d'intégrité a été émise.",
     "failedToCreateAsset": "Échec de la création de l'actif",
     "failedToUpdateAsset": "Échec de la mise à jour de l'actif",
     "failedToDeleteAsset": "Échec de la suppression de l'actif"
