@@ -22,4 +22,7 @@ var TenantTables = []string{
 	"control_test_results",
 	"control_gap_findings",
 	"canonical_edges",
+	// Control exceptions (migration 0087, #1428). Not a chain table: a decision
+	// recorded about a canonical control, gated on the control of the same tenant.
+	"control_exceptions",
 }

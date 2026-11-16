@@ -96,6 +96,14 @@ func AuditMutations(appender AuditAppender, observers ...MutationObserver) fiber
 			return err
 		}
 
+		// A use case that wrote the entry in the same transaction as its write
+		// marked the collector: a second entry for the request would put one
+		// action in the trail twice. Its observers have nothing to observe either,
+		// there is no sealed entry of this middleware's making.
+		if col.Journaled() {
+			return err
+		}
+
 		ev := buildAuditEvent(c, mw, col)
 		// Best-effort: a trail write must never fail the business call the user
 		// just made successfully.

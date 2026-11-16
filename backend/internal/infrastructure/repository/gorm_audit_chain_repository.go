@@ -25,8 +25,9 @@ import (
 // the same sequence number or link to the same predecessor:
 //
 //   - inside the process, a per-tenant mutex;
-//   - inside the database, the append runs in a transaction that reads the
-//     current head FOR UPDATE (Postgres), and a unique index on
+//   - inside the database, the append runs in a transaction that takes a
+//     per-tenant advisory lock and reads the current head FOR UPDATE
+//     (Postgres), and a unique index on
 //     (tenant_id, sequence) is the final backstop — a racing insert fails
 //     rather than silently forking the chain.
 //
@@ -60,10 +61,47 @@ func (r *GormAuditChainRepository) supportsRowLock() bool {
 	return r.db.Dialector.Name() == "postgres"
 }
 
-// Append seals the event onto the tenant's chain and stores it. The caller's
-// Sequence/PrevHash/Hash fields are ignored and overwritten — a client can never
-// choose its own position in the chain.
+// Append seals the event onto the tenant's chain and stores it, in a transaction
+// of its own. The caller's Sequence/PrevHash/Hash fields are ignored and
+// overwritten — a client can never choose its own position in the chain.
 func (r *GormAuditChainRepository) Append(ctx context.Context, e *domain.AuditEvent) error {
+	if err := checkAuditEvent(e); err != nil {
+		return err
+	}
+
+	lock := r.tenantLock(e.TenantID)
+	lock.Lock()
+	defer lock.Unlock()
+
+	// SkipHooks so an append never re-enters the audittrail GORM plugin.
+	return r.db.WithContext(ctx).Session(&gorm.Session{SkipHooks: true}).
+		Transaction(func(tx *gorm.DB) error { return r.seal(tx, e) })
+}
+
+// AppendTx seals the event onto the tenant's chain on the caller's transaction,
+// so a business write and its audit entry commit or roll back together (#1428).
+// tx must be the *gorm.DB handed to a Transaction callback.
+//
+// On Postgres the append takes a transaction-scoped advisory lock keyed on the
+// tenant before it reads the chain head. The lock is held until the caller's
+// transaction ends, so a concurrent appender (this method or Append) waits for
+// the commit and then reads the new head; the FOR UPDATE on the head row alone
+// would hand the waiter the stale head it read before the wait.
+//
+// The per-tenant process mutex is not taken here: it would be released before
+// the caller commits and so protect nothing. The advisory lock does the work
+// across processes and inside one.
+func (r *GormAuditChainRepository) AppendTx(ctx context.Context, tx *gorm.DB, e *domain.AuditEvent) error {
+	if tx == nil {
+		return fmt.Errorf("nil transaction")
+	}
+	if err := checkAuditEvent(e); err != nil {
+		return err
+	}
+	return r.seal(tx.WithContext(ctx).Session(&gorm.Session{NewDB: true, SkipHooks: true}), e)
+}
+
+func checkAuditEvent(e *domain.AuditEvent) error {
 	if e == nil {
 		return fmt.Errorf("nil audit event")
 	}
@@ -73,30 +111,36 @@ func (r *GormAuditChainRepository) Append(ctx context.Context, e *domain.AuditEv
 	if e.CreatedAt.IsZero() {
 		e.CreatedAt = time.Now().UTC()
 	}
+	return nil
+}
 
-	lock := r.tenantLock(e.TenantID)
-	lock.Lock()
-	defer lock.Unlock()
-
-	// SkipHooks so an append never re-enters the audittrail GORM plugin.
-	return r.db.WithContext(ctx).Session(&gorm.Session{SkipHooks: true}).
-		Transaction(func(tx *gorm.DB) error {
-			q := tx.Model(&domain.AuditEvent{}).Where("tenant_id = ?", e.TenantID)
-			if r.supportsRowLock() {
-				q = q.Clauses(clause.Locking{Strength: "UPDATE"})
-			}
-			var head domain.AuditEvent
-			err := q.Order("sequence DESC").Limit(1).Take(&head).Error
-			switch {
-			case err == nil:
-				e.SealChain(head.Sequence+1, head.Hash)
-			case err == gorm.ErrRecordNotFound:
-				e.SealChain(1, domain.GenesisHash)
-			default:
-				return fmt.Errorf("failed to read audit chain head: %w", err)
-			}
-			return tx.Create(e).Error
-		})
+// seal reads the tenant's chain head under lock and inserts the event after it,
+// on tx.
+func (r *GormAuditChainRepository) seal(tx *gorm.DB, e *domain.AuditEvent) error {
+	if r.supportsRowLock() {
+		// The tenant id is bound into the lock key, so two tenants never wait on
+		// each other.
+		// tenant: an advisory lock keyed on the tenant id, it reads no row.
+		if err := tx.Exec(`SELECT pg_advisory_xact_lock(hashtextextended('audit_chain:' || ?::text, 0))`,
+			e.TenantID.String()).Error; err != nil {
+			return fmt.Errorf("failed to lock audit chain: %w", err)
+		}
+	}
+	q := tx.Model(&domain.AuditEvent{}).Where("tenant_id = ?", e.TenantID)
+	if r.supportsRowLock() {
+		q = q.Clauses(clause.Locking{Strength: "UPDATE"})
+	}
+	var head domain.AuditEvent
+	err := q.Order("sequence DESC").Limit(1).Take(&head).Error
+	switch {
+	case err == nil:
+		e.SealChain(head.Sequence+1, head.Hash)
+	case err == gorm.ErrRecordNotFound:
+		e.SealChain(1, domain.GenesisHash)
+	default:
+		return fmt.Errorf("failed to read audit chain head: %w", err)
+	}
+	return tx.Create(e).Error
 }
 
 // List returns a filtered, paginated page of the trail (newest first).

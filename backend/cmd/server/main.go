@@ -39,6 +39,7 @@ import (
 	bulkapp "github.com/opendefender/openrisk/internal/application/bulk"
 	"github.com/opendefender/openrisk/internal/application/compliance"
 	"github.com/opendefender/openrisk/internal/application/complianceaudit"
+	ctlexcapp "github.com/opendefender/openrisk/internal/application/controlexception"
 	entapp "github.com/opendefender/openrisk/internal/application/entitlements"
 	"github.com/opendefender/openrisk/internal/application/entity"
 	"github.com/opendefender/openrisk/internal/application/evidence"
@@ -71,6 +72,7 @@ import (
 	"github.com/opendefender/openrisk/internal/infrastructure/authmfa"
 	autoinfra "github.com/opendefender/openrisk/internal/infrastructure/automation"
 	"github.com/opendefender/openrisk/internal/infrastructure/controlchain"
+	"github.com/opendefender/openrisk/internal/infrastructure/controlexception"
 	"github.com/opendefender/openrisk/internal/infrastructure/ctimatch"
 	"github.com/opendefender/openrisk/internal/infrastructure/database"
 	"github.com/opendefender/openrisk/internal/infrastructure/demoseed"
@@ -1805,6 +1807,20 @@ func main() {
 	protected.Get("/compliance/controls/:controlId", complianceControlRead, complianceHandler.GetControl)
 	protected.Patch("/compliance/controls/:controlId", complianceControlUpdate, complianceHandler.UpdateControl)
 	protected.Delete("/compliance/controls/:controlId", complianceControlDelete, complianceHandler.DeleteControl)
+	// Control exceptions (#1428, #555 slice 2): a time-boxed, owned, justified waiver
+	// of one control. The id is the CANONICAL control id (controls.id), hence a
+	// namespace of its own and not /compliance/controls/:controlId, which takes the
+	// legacy id. The write and its audit entry are one transaction, so the use case
+	// marks the request journaled and the audit middleware appends no second entry.
+	controlExceptionRepo := controlexception.NewRepository(database.DB, auditChainRepo)
+	controlExceptionClock := func() time.Time { return time.Now().UTC() }
+	controlExceptionHandler := handlers.NewControlExceptionHandler(
+		ctlexcapp.NewCreateUseCase(controlExceptionRepo, ownershipService, controlExceptionClock),
+		ctlexcapp.NewListUseCase(controlExceptionRepo, controlExceptionClock),
+		ctlexcapp.NewRevokeUseCase(controlExceptionRepo, controlExceptionClock))
+	protected.Post("/controls/:controlId/exceptions", complianceControlUpdate, controlExceptionHandler.Create)
+	protected.Get("/controls/:controlId/exceptions", complianceControlRead, controlExceptionHandler.List)
+	protected.Post("/control-exceptions/:exceptionId/revoke", complianceControlUpdate, controlExceptionHandler.Revoke)
 	// Per-control evidence, served by the LIBRARY (application/evidence), not by
 	// the old one-file-one-control use cases. The paths are unchanged so existing
 	// clients keep working; what changes is that an upload here lands in the

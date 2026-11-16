@@ -2202,5 +2202,29 @@
         "description": "Vendor register, questionnaires sent by link, vendor score and automatic reminders."
       }
     }
+  },
+  "controlException": {
+    "errors": {
+      "owner_required": "An owner is required.",
+      "owner_invalid": "The owner must be an active member of your organisation.",
+      "reason_required": "A reason is required.",
+      "reason_too_long": "The reason is too long (2000 characters maximum).",
+      "expires_at_required": "An expiry date is required.",
+      "expires_at_in_past": "The expiry date must be in the future.",
+      "starts_at_not_before_expires_at": "The start date must be before the expiry date.",
+      "expires_at_too_far": "The expiry date is too far away (366 days maximum). Renew the exception instead.",
+      "starts_at_in_past": "The start date cannot be in the past.",
+      "revoke_reason_too_long": "The revocation reason is too long (2000 characters maximum).",
+      "invalid_body": "The request body is invalid.",
+      "invalid_control_id": "The control identifier is invalid.",
+      "invalid_exception_id": "The exception identifier is invalid.",
+      "control_not_found": "Control not found.",
+      "not_found": "Exception not found.",
+      "already_revoked": "This exception has already been revoked.",
+      "already_expired": "This exception has already expired; there is nothing left to revoke.",
+      "forbidden": "You do not have permission to manage control exceptions.",
+      "unauthorized": "You must be signed in to manage control exceptions.",
+      "unavailable": "Control exceptions are temporarily unavailable. Please try again."
+    }
   }
 }

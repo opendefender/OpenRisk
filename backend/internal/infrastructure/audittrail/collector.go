@@ -46,8 +46,9 @@ type Mutation struct {
 // Collector accumulates the mutations of a single request. Safe for concurrent
 // use: a handler may fan out to goroutines that share the request context.
 type Collector struct {
-	mu   sync.Mutex
-	muts []Mutation
+	mu        sync.Mutex
+	muts      []Mutation
+	journaled bool
 }
 
 // NewCollector returns an empty collector.
@@ -61,6 +62,29 @@ func (c *Collector) Add(m Mutation) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	c.muts = append(c.muts, m)
+}
+
+// MarkJournaled records that the request's audit entry was already written, in
+// the same transaction as the business write it describes (#1428). The audit
+// middleware then appends nothing for the request: the trail keeps exactly one
+// entry per mutating call.
+func (c *Collector) MarkJournaled() {
+	if c == nil {
+		return
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.journaled = true
+}
+
+// Journaled reports whether MarkJournaled was called.
+func (c *Collector) Journaled() bool {
+	if c == nil {
+		return false
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.journaled
 }
 
 // Mutations returns a copy of everything observed so far.
