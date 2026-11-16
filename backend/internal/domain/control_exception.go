@@ -21,12 +21,12 @@ const ControlExceptionReasonMax = 2000
 
 // ControlExceptionMaxHorizon is the furthest an expiry may lie from the
 // caller's instant: one year. An exception is renewed, not left running, so
-// no date can make it open-ended (D-112).
+// no date can make it open-ended (D-113).
 const ControlExceptionMaxHorizon = 366 * 24 * time.Hour
 
 // ControlExceptionStartSkew is how far a start may precede the caller's
 // instant, to tolerate clock skew. Anything older would whitewash a past
-// period once the status computation reads ActiveAt (D-112).
+// period once the status computation reads ActiveAt (D-113).
 const ControlExceptionStartSkew = 5 * time.Minute
 
 // Stable error codes of the control exception. They are the Message of the typed
