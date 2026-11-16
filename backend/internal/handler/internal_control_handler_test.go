@@ -465,3 +465,85 @@ func TestInternalControlRoutes_EvidenceRequiredAndConflicts(t *testing.T) {
 	status, _ = s.do(t, a, http.MethodGet, base+"?limit=501", "")
 	assert.Equal(t, http.StatusBadRequest, status)
 }
+
+// QA #1414: a soft-deleted control or requirement is absent on every route that
+// names it (A10.3), not only on the two reads: a stale id must never 200, never
+// link, never edit.
+func TestInternalControlRoutes_SoftDeletedEndsAreNotFound(t *testing.T) {
+	s := newIntCtlStack(t)
+	a := s.asA(intCtlAllPerms)
+	base := "/api/v1/compliance/internal-controls"
+	req := s.requirement(t, s.tenantA, "REQ")
+	gone := s.requirement(t, s.tenantA, "GON")
+	ctl := s.createControl(t, a, "kept")
+	deleted := s.createControl(t, a, "deleted")
+	for _, r := range []uuid.UUID{req, gone} {
+		status, _ := s.do(t, a, http.MethodPost, base+"/"+ctl+"/requirements/"+r.String(), "")
+		require.Equal(t, http.StatusCreated, status)
+	}
+	status, _ := s.do(t, a, http.MethodPost, base+"/"+deleted+"/requirements/"+req.String(), "")
+	require.Equal(t, http.StatusCreated, status)
+
+	// Delete the control through the API; soft-delete the requirement under it.
+	status, _ = s.do(t, a, http.MethodDelete, base+"/"+deleted, "")
+	require.Equal(t, http.StatusNoContent, status)
+	require.NoError(t, s.db.Exec("UPDATE compliance_controls SET deleted_at = ? WHERE id = ?", intCtlNow, gone).Error)
+
+	for name, c := range map[string]struct{ method, path, body string }{
+		"get deleted control":        {http.MethodGet, base + "/" + deleted, ""},
+		"patch deleted control":      {http.MethodPatch, base + "/" + deleted, `{"name":"zombie"}`},
+		"delete deleted control":     {http.MethodDelete, base + "/" + deleted, ""},
+		"requirements of deleted":    {http.MethodGet, base + "/" + deleted + "/requirements", ""},
+		"link deleted control":       {http.MethodPost, base + "/" + deleted + "/requirements/" + req.String(), ""},
+		"unlink deleted control":     {http.MethodDelete, base + "/" + deleted + "/requirements/" + req.String(), ""},
+		"link to deleted req":        {http.MethodPost, base + "/" + ctl + "/requirements/" + gone.String(), ""},
+		"controls of deleted req":    {http.MethodGet, "/api/v1/compliance/controls/" + gone.String() + "/internal-controls", ""},
+		"unknown control id":         {http.MethodGet, base + "/" + uuid.NewString(), ""},
+		"link to unknown req":        {http.MethodPost, base + "/" + ctl + "/requirements/" + uuid.NewString(), ""},
+		"unlink an edge never made":  {http.MethodDelete, base + "/" + ctl + "/requirements/" + uuid.NewString(), ""},
+		"unknown requirement's list": {http.MethodGet, "/api/v1/compliance/controls/" + uuid.NewString() + "/internal-controls", ""},
+	} {
+		st, body := s.do(t, a, c.method, c.path, c.body)
+		assert.Equal(t, http.StatusNotFound, st, name)
+		assert.NotContains(t, body, "data", name)
+	}
+
+	// The requirement soft-deleted since the link drops out of the control's list.
+	st, body := s.do(t, a, http.MethodGet, base+"/"+ctl+"/requirements", "")
+	require.Equal(t, http.StatusOK, st)
+	assert.Len(t, body["data"], 1)
+	// The control deleted since the link drops out of the requirement's list.
+	st, body = s.do(t, a, http.MethodGet, "/api/v1/compliance/controls/"+req.String()+"/internal-controls", "")
+	require.Equal(t, http.StatusOK, st)
+	data := body["data"].([]any)
+	require.Len(t, data, 1)
+	assert.Equal(t, ctl, data[0].(map[string]any)["id"])
+	st, body = s.do(t, a, http.MethodGet, base, "")
+	require.Equal(t, http.StatusOK, st)
+	assert.Len(t, body["data"], 1, "the list hides the deleted control")
+	// The refused write did not resurrect it.
+	var row controlchain.ControlRow
+	require.NoError(t, s.db.Unscoped().Where("id = ?", deleted).Take(&row).Error)
+	assert.NotNil(t, row.DeletedAt)
+	assert.Equal(t, "deleted", row.Name)
+}
+
+// QA #1414 (D-114 points 4 and 5): another tenant asking for a split control gets
+// 404 from delete, never the 409 that would confirm the control exists.
+func TestInternalControlRoutes_SplitControlOfAnotherTenantIsNotFound(t *testing.T) {
+	s := newIntCtlStack(t)
+	base := "/api/v1/compliance/internal-controls"
+	req := s.requirement(t, s.tenantA, "REQ")
+	split, _ := controlchain.SplitControl(controlchain.RequirementRow{ID: req, TenantID: s.tenantA, Name: "REQ", Status: "not_implemented", CreatedAt: intCtlNow, UpdatedAt: intCtlNow}, canonical.MethodManualEntry)
+	row, err := controlchain.ControlToRow(split, nil)
+	require.NoError(t, err)
+	require.NoError(t, s.db.Create(&row).Error)
+
+	status, _ := s.do(t, s.asA(intCtlAllPerms), http.MethodDelete, base+"/"+split.ID.String(), "")
+	require.Equal(t, http.StatusConflict, status, "the owner sees the split refusal")
+
+	status, body := s.do(t, s.asB(), http.MethodDelete, base+"/"+split.ID.String(), "")
+	assert.Equal(t, http.StatusNotFound, status, "%v", body)
+	status, _ = s.do(t, s.asB(), http.MethodPatch, base+"/"+split.ID.String(), `{"tags":["x"]}`)
+	assert.Equal(t, http.StatusNotFound, status)
+}
