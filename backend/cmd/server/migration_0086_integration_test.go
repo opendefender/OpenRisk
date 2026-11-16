@@ -31,6 +31,7 @@ import (
 
 	"github.com/opendefender/openrisk/internal/domain/canonical"
 	"github.com/opendefender/openrisk/internal/infrastructure/controlchain"
+	"github.com/opendefender/openrisk/internal/infrastructure/controlexception"
 	"github.com/opendefender/openrisk/internal/infrastructure/database"
 	"github.com/opendefender/openrisk/internal/infrastructure/repository"
 	"github.com/opendefender/openrisk/pkg/scoring"
@@ -89,7 +90,8 @@ func pre0086DB(t *testing.T) *chain553 {
 	for _, m := range schemaModels() {
 		switch m.(type) {
 		case *controlchain.ControlRow, *controlchain.ControlImplementationRow, *controlchain.ControlTestRow,
-			*controlchain.ControlTestResultRow, *controlchain.ControlGapFindingRow, *controlchain.CanonicalEdgeRow:
+			*controlchain.ControlTestResultRow, *controlchain.ControlGapFindingRow, *controlchain.CanonicalEdgeRow,
+			*controlexception.ExceptionRow: // 0087's table, not the previous release's
 			continue
 		}
 		previous = append(previous, m)

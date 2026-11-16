@@ -3317,6 +3317,123 @@ paths:
         '404':
           description: Control not found
 
+  /controls/{controlId}/exceptions:
+    post:
+      tags: [Compliance]
+      summary: Record an exception on a control (#1428)
+      description: >-
+        A time-boxed, owned, justified waiver of one control. `controlId` is the
+        canonical control id (`controls.id`), not the legacy `compliance_controls`
+        id of `/compliance/controls/{controlId}`. Requires
+        `compliance:controls:update`. The owner must be an active member of the
+        caller's organization, `expires_at` is required and strictly in the
+        future, `starts_at` defaults to now. The tenant and the approver come from
+        the session, never from the body. The write and its audit entry are one
+        transaction. Errors carry a stable code in `error`
+        (`control_exception.*`) that the client maps to a localized message.
+      operationId: createControlException
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: controlId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateControlExceptionInput'
+      responses:
+        '201':
+          description: Exception recorded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ControlException'
+        '400':
+          description: Validation error (`control_exception.*` code in `error`)
+        '401':
+          description: No tenant or user in the session
+        '403':
+          description: Missing `compliance:controls:update`
+        '404':
+          description: Control not found in the caller's organization
+    get:
+      tags: [Compliance]
+      summary: List the exceptions of a control, newest first (#1428)
+      description: >-
+        Requires `compliance:controls:read`. `status` is derived at the instant
+        of the request: an exception past its `expires_at` reads `expired`
+        without any job having run.
+      operationId: listControlExceptions
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: controlId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: The control's exceptions
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [data]
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ControlException'
+        '400':
+          description: Invalid control id
+        '401':
+          description: No tenant or user in the session
+        '403':
+          description: Missing `compliance:controls:read`
+        '404':
+          description: Control not found in the caller's organization
+
+  /control-exceptions/{exceptionId}/revoke:
+    post:
+      tags: [Compliance]
+      summary: Revoke an exception before its expiry (#1428)
+      description: >-
+        Requires `compliance:controls:update`. An exception already revoked or
+        already expired answers 409. An id of another organization answers 404,
+        like an id that does not exist.
+      operationId: revokeControlException
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: exceptionId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RevokeControlExceptionInput'
+      responses:
+        '200':
+          description: Exception revoked
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ControlException'
+        '400':
+          description: Invalid id or revocation reason too long
+        '401':
+          description: No tenant or user in the session
+        '403':
+          description: Missing `compliance:controls:update`
+        '404':
+          description: Exception not found in the caller's organization
+        '409':
+          description: Already revoked, or already expired
+
   /compliance/evidences/{evidenceId}/download:
     get:
       tags: [Compliance]
@@ -6376,6 +6493,55 @@ components:
           type: string
         source_reference:
           type: string
+
+    CreateControlExceptionInput:
+      type: object
+      required: [owner_id, reason, expires_at]
+      properties:
+        owner_id:
+          type: string
+          format: uuid
+          description: An active member of the caller's organization.
+        reason:
+          type: string
+          maxLength: 2000
+          description: Trimmed, not empty, at most 2000 characters.
+        starts_at:
+          type: string
+          format: date-time
+          description: Defaults to now; must be before `expires_at`.
+        expires_at:
+          type: string
+          format: date-time
+          description: Required, strictly after the request instant.
+
+    RevokeControlExceptionInput:
+      type: object
+      properties:
+        reason:
+          type: string
+          maxLength: 2000
+
+    ControlException:
+      type: object
+      required: [id, control_id, owner_id, reason, approved_by, starts_at, expires_at, status, created_at, updated_at]
+      properties:
+        id: { type: string, format: uuid }
+        control_id: { type: string, format: uuid }
+        owner_id: { type: string, format: uuid }
+        reason: { type: string }
+        approved_by: { type: string, format: uuid }
+        starts_at: { type: string, format: date-time }
+        expires_at: { type: string, format: date-time }
+        status:
+          type: string
+          enum: [open, expired, revoked]
+          description: Derived at the instant of the request, never stored.
+        revoked_at: { type: string, format: date-time }
+        revoked_by: { type: string, format: uuid }
+        revoke_reason: { type: string }
+        created_at: { type: string, format: date-time }
+        updated_at: { type: string, format: date-time }
 
     UpdateControlInput:
       type: object

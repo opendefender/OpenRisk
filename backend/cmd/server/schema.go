@@ -9,6 +9,7 @@ import (
 	coreauth "github.com/opendefender/openrisk/internal/auth"
 	"github.com/opendefender/openrisk/internal/domain"
 	"github.com/opendefender/openrisk/internal/infrastructure/controlchain"
+	"github.com/opendefender/openrisk/internal/infrastructure/controlexception"
 	"github.com/opendefender/openrisk/pkg/cti"
 )
 
@@ -175,6 +176,9 @@ func schemaModels() []interface{} {
 		&controlchain.ControlTestResultRow{},
 		&controlchain.ControlGapFindingRow{},
 		&controlchain.CanonicalEdgeRow{},
+		// Control exceptions (#1428, migration 0087): a time-boxed, owned waiver of one
+		// canonical control. Tenant-scoped; status is derived, never stored.
+		&controlexception.ExceptionRow{},
 		// Security Automation / SOAR (spec §10 « Automatisation »): tenant-scoped
 		// playbooks (trigger + conditions + action chain + SLA policy), their
 		// execution audit trail, and the live SLA countdowns the monitor escalates.

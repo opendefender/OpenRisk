@@ -17,17 +17,20 @@ import (
 	"gorm.io/gorm/logger"
 
 	"github.com/opendefender/openrisk/internal/infrastructure/controlchain"
+	"github.com/opendefender/openrisk/internal/infrastructure/controlexception"
 )
 
 // TestTenantTables_AreTheControlChainTables keeps the list and the row types in
-// step: a seventh table of the chain cannot be added without being listed.
+// step: a seventh table of the chain, or a second exception table, cannot be added
+// without being listed. The chain is the six tables of migration 0086; the seventh
+// entry is control_exceptions (migration 0087), which is not a chain table.
 func TestTenantTables_AreTheControlChainTables(t *testing.T) {
-	want := controlchain.Tables()
+	want := append(controlchain.Tables(), controlexception.TableControlExceptions)
 	got := append([]string(nil), TenantTables...)
 	sort.Strings(want)
 	sort.Strings(got)
 	assert.Equal(t, want, got)
-	assert.Len(t, got, 6)
+	assert.Len(t, got, 7)
 }
 
 // TestTenantTables_Postgres asserts, on a migrated PostgreSQL database, that

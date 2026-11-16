@@ -2202,5 +2202,27 @@
         "description": "Registre fournisseurs, questionnaires envoyés par lien, score fournisseur et relances automatiques."
       }
     }
+  },
+  "controlException": {
+    "errors": {
+      "owner_required": "Un responsable est obligatoire.",
+      "owner_invalid": "Le responsable doit être un membre actif de votre organisation.",
+      "reason_required": "Un motif est obligatoire.",
+      "reason_too_long": "Le motif est trop long (2000 caractères maximum).",
+      "expires_at_required": "Une date d'expiration est obligatoire.",
+      "expires_at_in_past": "La date d'expiration doit être dans le futur.",
+      "starts_at_not_before_expires_at": "La date de début doit précéder la date d'expiration.",
+      "revoke_reason_too_long": "Le motif de révocation est trop long (2000 caractères maximum).",
+      "invalid_body": "Le corps de la requête est invalide.",
+      "invalid_control_id": "L'identifiant du contrôle est invalide.",
+      "invalid_exception_id": "L'identifiant de l'exception est invalide.",
+      "control_not_found": "Contrôle introuvable.",
+      "not_found": "Exception introuvable.",
+      "already_revoked": "Cette exception a déjà été révoquée.",
+      "already_expired": "Cette exception a déjà expiré ; il n'y a plus rien à révoquer.",
+      "forbidden": "Vous n'avez pas le droit de gérer les exceptions de contrôle.",
+      "unauthorized": "Vous devez être connecté pour gérer les exceptions de contrôle.",
+      "unavailable": "Les exceptions de contrôle sont momentanément indisponibles. Réessayez."
+    }
   }
 }
