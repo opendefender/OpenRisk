@@ -115,13 +115,14 @@ func ControlToRow(c canonical.Control, deletedAt *time.Time) (ControlRow, error)
 	}, nil
 }
 
-// Edge builds one canonical edge written by the reconciler (D-108 Q11, A10.2):
-// openrisk_user, confidence 0.70, method migration, actor {system,
-// control_split}, source_id the legacy row it was carried from. The target's
+// Edge builds one canonical edge carried from a legacy row (D-108 Q11, A10.2):
+// openrisk_user, confidence 0.70, actor {system, control_split}, source_id the
+// legacy row it was carried from, provenance method as given: migration for the
+// reconciler, manual_entry for a write mirrored live (#1413, R5). The target's
 // tenant is the edge's by construction: the caller resolved both ends in that
 // tenant before building it.
 func Edge(tenant uuid.UUID, fromType canonical.EntityType, fromID uuid.UUID, verb canonical.Verb,
-	toType canonical.EntityType, toID uuid.UUID, attrs canonical.EdgeAttributes, sourceID string, at time.Time,
+	toType canonical.EntityType, toID uuid.UUID, attrs canonical.EdgeAttributes, sourceID string, at time.Time, method canonical.Method,
 ) canonical.Edge {
 	return canonical.Edge{
 		ID:         uuid.New(),
@@ -133,7 +134,7 @@ func Edge(tenant uuid.UUID, fromType canonical.EntityType, fromID uuid.UUID, ver
 		Source:     canonical.SourceOpenRiskUser,
 		SourceID:   sourceID,
 		Confidence: splitConfidence,
-		Provenance: splitProvenance(canonical.MethodMigration),
+		Provenance: splitProvenance(method),
 		CreatedAt:  at,
 		UpdatedAt:  at,
 	}

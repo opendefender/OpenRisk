@@ -20,3 +20,13 @@ var ControlChainReconcileRefused = promauto.NewGauge(prometheus.GaugeOpts{
 	Name:      "control_chain_reconcile_refused",
 	Help:      "1 when the boot-time control chain reconciliation was refused and rolled back, 0 when it reconciled.",
 })
+
+// ControlChainMirrorSkipped counts the legacy writes whose control chain edge
+// was not written (#1413, D-108 follow-up R3/R4): the legacy write succeeded and
+// the chain is left to the boot reconciler, which refuses the same input. The
+// reason label is a closed set: requirement_unsplittable, edge_invalid.
+var ControlChainMirrorSkipped = promauto.NewCounterVec(prometheus.CounterOpts{
+	Namespace: "openrisk",
+	Name:      "control_chain_mirror_skipped_total",
+	Help:      "Legacy compliance writes whose control chain edge was skipped because the chain refuses the input.",
+}, []string{"reason"})

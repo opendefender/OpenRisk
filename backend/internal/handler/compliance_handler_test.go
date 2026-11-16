@@ -23,6 +23,7 @@ import (
 	applicationcompliance "github.com/opendefender/openrisk/internal/application/compliance"
 	applicationevidence "github.com/opendefender/openrisk/internal/application/evidence"
 	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/internal/infrastructure/controlchain"
 	"github.com/opendefender/openrisk/internal/infrastructure/repository"
 	"github.com/opendefender/openrisk/internal/middleware"
 	"github.com/opendefender/openrisk/internal/service"
@@ -67,6 +68,8 @@ func setupComplianceSchema(t *testing.T) *gorm.DB {
 	// DDL: the two tests in this repository that were red for months were both
 	// hand-written DDL that had drifted from the struct it mirrored.
 	require.NoError(t, db.AutoMigrate(&domain.Evidence{}, &domain.EvidenceControlLink{}))
+	// The legacy repositories mirror their writes onto the control chain (#1413).
+	require.NoError(t, db.AutoMigrate(controlchain.Models()...))
 	require.NoError(t, db.Exec(`
 		CREATE TABLE control_mappings (
 			id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL,

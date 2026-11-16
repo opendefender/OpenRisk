@@ -16,6 +16,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/internal/infrastructure/controlchain"
 )
 
 // GormComplianceRepository implements domain.ComplianceRepository using GORM.
@@ -89,7 +90,18 @@ func (r *GormComplianceRepository) CreateControl(ctx context.Context, control *d
 	if control.TenantID == uuid.Nil {
 		return fmt.Errorf("tenant_id is required")
 	}
-	err := r.db.WithContext(ctx).Create(control).Error
+	// One transaction with the control chain mirror (#1413, AC1): the split
+	// control and its addressed_by edge commit with the requirement or not at all.
+	// Manual creation and the catalogue import both come through here.
+	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(control).Error; err != nil {
+			return err
+		}
+		return controlchain.MirrorRequirementCreated(ctx, tx, controlchain.RequirementRow{
+			ID: control.ID, TenantID: control.TenantID, Name: control.Name, Description: control.Description,
+			Status: string(control.Status), CreatedAt: control.CreatedAt, UpdatedAt: control.UpdatedAt,
+		})
+	})
 	if errors.Is(err, gorm.ErrDuplicatedKey) {
 		return domain.NewConflictError("control", "reference_code")
 	}

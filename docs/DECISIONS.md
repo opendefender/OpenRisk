@@ -9,6 +9,85 @@ recommends, and surfaces these in the daily brief. Run `/decide` to clear them.
 
 ## Resolved
 
+### D-112 — Mirroring the legacy requirement, evidence-link and risk-mapping writes onto the control chain (#1413) · decided 2026-11-13
+**Decided (agent, 2026-11-13)** — follow-up to D-108, slice S2 of #553. The orchestrator's design
+gate for #1413, seven questions. Nothing irreversible, nothing that spends money, no column dropped
+or renamed. The owner may overturn any point.
+
+Context: until S2 the chain is written only by `controlchain.Reconcile` at boot. S2 makes the
+legacy repositories also write it, one way, inside their own transaction, so a requirement, link or
+mapping created after the migration has its control and edge without waiting for the next boot.
+Code: `controlchain/mirror.go`, called from `GormComplianceRepository.CreateControl`,
+`GormEvidenceRepository.Link/Unlink/Delete` and `GormRiskControlMappingRepository.Create/Delete`.
+No reader reads the chain yet (#555), no route exists (#1414).
+
+1. **R1 — One resolver for every end of every mirrored edge.** Options: a check per write site, or
+   one function keyed by entity type. **Chosen: `controlchain.Resolve(ctx, tx, tenant, type, id)`**,
+   a registry from `canonical.EntityType` to table, running `WHERE id = ? AND tenant_id = ?` plus
+   `deleted_at IS NULL` where the table has the column. An absent, foreign or deleted target is
+   `domain.ErrNotFound`, so a foreign id is not confirmed to exist (404, never 403). Both ends of
+   every edge go through it, and there is no second gate path. This is the single resolver D-108 Q1
+   promised, and `TestEdgeWrite_TargetInOtherTenant_404` is one table-driven test over it.
+2. **R2 — The control id is global.** `controls.id` is the only primary key and the split id is a pure
+   function of the requirement id. Options: trust the id, or resolve the control back with the tenant
+   after the insert. **Chosen: insert with `ON CONFLICT DO NOTHING`, then resolve with the tenant.** A
+   control of that id owned by another tenant answers ErrNotFound and the transaction rolls back, so
+   neither the requirement nor an edge persists. Reason: `DO NOTHING` alone would have silently
+   attached an edge to another tenant's control.
+3. **R3 — A link or mapping whose requirement has no split control yet** (a legacy row the reconciler
+   could not split, or a write racing the first boot reconcile). Options: fail the legacy write,
+   skip silently, or create the split. **Chosen: create the split lazily from the tenant-filtered
+   requirement row** (same `SplitControl`, method `manual_entry`). If the requirement itself cannot be
+   split (the canonical Control refuses it: a blank name, say), the edge is skipped, the legacy write
+   succeeds, a warning carries ids only (never a note or a name) and
+   `openrisk_control_chain_mirror_skipped_total{reason}` is incremented. On requirement CREATE a
+   refusal rolls back (ErrValidation), because there the chain is the thing being written. Reason: a
+   legacy request must not start failing for a reason the user cannot see (AC5), and the reconciler
+   lists the same rows as unplaceable. A lazily created split has no `addressed_by` edge; the next
+   boot reconcile adds it.
+4. **R4 — An edge the chain refuses because of its note** (a credential URL pasted into it). Options:
+   fail, strip the note, or skip. **Chosen: skip, exactly as Reconcile does for the same input**
+   (reason `edge_invalid`). The legacy row keeps its note as before. Reason: the boot reconciler and
+   the mirror must converge on the same key set; stripping the note would invent content.
+   `TestLink_CredentialNoteKeepsTheLegacyWriteAndWritesNoEdge` runs Reconcile after the mirror and
+   finds the same refusal.
+5. **R5 — Provenance method.** **Chosen: `manual_entry` for every control and edge the mirror writes**;
+   the reconciler keeps `migration`. `controlchain.Edge` gained a `method` parameter. Reason: D3
+   says how a record reached OpenRisk, and a person typed these; `migration` would claim a copy.
+   Source, confidence 0.70 and actor `{system, control_split}` are unchanged.
+6. **R6 — A mitigated_by edge outlives the mapping whose id it carries as `source_id`** (two live
+   mappings of one risk and control are one edge; the first one's id is the source_id). **Chosen:
+   leave it.** The reconciler is insert-only too, and the edge key does not contain the source_id.
+   Deleting a mapping removes the edge only when no other live mapping of the same (risk, control)
+   pair remains (the count excludes the deleted row by id and by `deleted_at`). Recorded, not fixed.
+7. **R7 — A soft-deleted control** is not a live target: the resolver filters `deleted_at IS NULL` on
+   `controls`, `compliance_controls`, `risks` and `evidences`. A requirement's soft delete does not
+   delete its control (out of scope: no status or lifecycle sync before #555).
+
+**Consequences found while building it**
+- Hand-built fixtures that link evidence to, or map a risk to, an id that is not in its table now get
+  ErrNotFound. Two tests that forged a cross-tenant legacy link now assert that the link is refused.
+- A mirror transaction committing a row Reconcile planned to insert, after Reconcile took its
+  REPEATABLE READ snapshot, makes PostgreSQL refuse Reconcile's `ON CONFLICT DO NOTHING` with
+  SQLSTATE 40001, which would have stopped the boot. `Reconcile` now retries, up to three times, on a
+  fresh snapshot under the same advisory lock. `TestMirrorCommitDuringReconcile_DoesNotBreakIt`
+  reproduces it on PostgreSQL.
+- Known, not fixed: an unlink or delete committing between Reconcile's snapshot and its commit can
+  leave one edge for a link that is gone. It needs a person clicking in the same second as a boot,
+  and no reader uses the chain yet. A chain-versus-legacy check belongs to #555, when a reader is
+  re-pointed.
+- Known, not fixed: two mapping deletes of the same (risk, control) pair committing at the same time
+  under READ COMMITTED can each count the other mapping as live, and neither removes the edge. It
+  needs two people deleting the two mappings of one pair in the same second, and no reader uses the
+  chain yet. The fix (a per-pair `pg_advisory_xact_lock`, or `FOR UPDATE` on the pair's mappings)
+  belongs with the same #555 chain-versus-legacy check.
+- Conditions on later slices (devsecops, 2026-11-16): every chain reader in #555 re-resolves both ends
+  of an edge through `controlchain.Resolve` (a soft-deleted requirement or risk keeps its control and
+  edges); the control API in #1414 never accepts a client-chosen control id, since `controls.id` is
+  global and `ControlIDFor` is public, so a chosen id could pre-squat another tenant's split control.
+- Unlink with the nil tenant now returns ErrForbidden; it used to succeed on zero rows. Evidence
+  delete and mapping delete already answered ErrNotFound.
+
 ### D-111 — Tenant guard design: what is scoped, how a query proves its tenant, how the allowlist is written · decided 2026-11-13
 **Decided (agent: backend-go, 2026-11-13, under D-089; implements D-055 option C)** — the GORM
 callback of #808 is `internal/infrastructure/tenantguard`. It fails any SELECT, UPDATE or DELETE
@@ -299,7 +378,8 @@ READ on PostgreSQL, so a write during a rolling deploy cannot raise a false aler
 `compliance_controls` row with the nil tenant is listed (`RequirementsUnplaceable`) and not split,
 fail closed like the links. **Revisit**
 when #1413 writes or reads the chain outside Reconcile: a missing chain then misstates coverage, and
-a per-tenant flag is the likely shape.
+a per-tenant flag is the likely shape. (#1413 writes it, one way, and nothing reads it: see D-112.
+The revisit stands for #555, when a reader is re-pointed.)
 
 ### D-107 — Guessing codes from a stolen session: which lock, and whose sign-in it can block · decided 2026-11-11
 **Decided (owner, 2026-11-11)** — "un compteur séparé pour ces deux actions." Option B. Wrong codes and

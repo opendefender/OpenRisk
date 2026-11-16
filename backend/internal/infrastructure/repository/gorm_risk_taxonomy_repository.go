@@ -11,6 +11,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/internal/infrastructure/controlchain"
 	"gorm.io/gorm"
 )
 
@@ -186,7 +187,14 @@ func (r *GormRiskControlMappingRepository) Create(ctx context.Context, m *domain
 	if m.ID == uuid.Nil {
 		m.ID = uuid.New()
 	}
-	return r.db.WithContext(ctx).Create(m).Error
+	// One transaction with the control chain mirror (#1413): the mitigated_by edge
+	// commits with the mapping or not at all. A framework-only mapping has none.
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(m).Error; err != nil {
+			return err
+		}
+		return controlchain.MirrorMappingCreated(ctx, tx, m.TenantID, m.ID, m.RiskID, m.ControlID, m.Note, m.CreatedAt)
+	})
 }
 
 func (r *GormRiskControlMappingRepository) GetByID(ctx context.Context, id, tenantID uuid.UUID) (*domain.RiskControlMapping, error) {
@@ -251,16 +259,24 @@ func (r *GormRiskControlMappingRepository) ListByRisks(ctx context.Context, tena
 }
 
 func (r *GormRiskControlMappingRepository) Delete(ctx context.Context, id, tenantID uuid.UUID) error {
-	res := r.db.WithContext(ctx).
-		Where("id = ? AND tenant_id = ?", id, tenantID).
-		Delete(&domain.RiskControlMapping{})
-	if res.Error != nil {
-		return res.Error
-	}
-	if res.RowsAffected == 0 {
+	if tenantID == uuid.Nil {
 		return domain.NewNotFoundError("risk control mapping", id)
 	}
-	return nil
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		// The mirror (#1413) needs the pair the mapping named: read it first.
+		var m domain.RiskControlMapping
+		if err := tx.Where("id = ? AND tenant_id = ?", id, tenantID).Limit(1).Find(&m).Error; err != nil {
+			return err
+		}
+		res := tx.Where("id = ? AND tenant_id = ?", id, tenantID).Delete(&domain.RiskControlMapping{})
+		if res.Error != nil {
+			return res.Error
+		}
+		if res.RowsAffected == 0 {
+			return domain.NewNotFoundError("risk control mapping", id)
+		}
+		return controlchain.MirrorMappingDeleted(ctx, tx, tenantID, id, m.RiskID, m.ControlID)
+	})
 }
 
 func (r *GormRiskControlMappingRepository) Exists(ctx context.Context, tenantID, riskID, frameworkID uuid.UUID, controlID *uuid.UUID) (bool, error) {
