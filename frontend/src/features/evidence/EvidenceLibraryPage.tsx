@@ -112,7 +112,7 @@ export function EvidenceLibraryPage() {
       setTimeout(() => URL.revokeObjectURL(url), 0);
     } catch (err) {
       toast.error(
-        await downloadErrorMessage(err, t, tr('Téléchargement impossible', 'Could not download')),
+        await downloadErrorMessage(err, t, t('errors.failedToDownloadEvidence')),
       );
     }
   }

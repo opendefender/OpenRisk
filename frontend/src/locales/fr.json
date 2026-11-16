@@ -169,6 +169,7 @@
     "failedToCreateControl": "Échec de la création du contrôle",
     "failedToUpdateControl": "Échec de la mise à jour du contrôle",
     "failedToUploadEvidence": "Échec du dépôt de la preuve",
+    "failedToDownloadEvidence": "Échec du téléchargement de la preuve",
     "failedToDeleteEvidence": "Échec de la suppression de la preuve",
     "evidence_integrity_mismatch": "Vérification d'intégrité échouée : le fichier stocké ne correspond plus à son empreinte enregistrée. Le téléchargement a été refusé et une alerte d'intégrité a été émise.",
     "failedToCreateAsset": "Échec de la création de l'actif",

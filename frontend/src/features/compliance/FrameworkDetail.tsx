@@ -535,7 +535,7 @@ function EvidenceDrawer({ control, onClose }: { control: ComplianceControl; onCl
                                 await downloadErrorMessage(
                                   err,
                                   t,
-                                  tr('Téléchargement impossible', 'Could not download'),
+                                  t('errors.failedToDownloadEvidence'),
                                 ),
                               ),
                           },
