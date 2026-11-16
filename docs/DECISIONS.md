@@ -12,31 +12,38 @@ recommends, and surfaces these in the daily brief. Run `/decide` to clear them.
 ### D-115 — Evidence record integrity (#554): hash, verify-on-read, collection method, assurance table · decided 2026-11-16
 **Decided (agent, 2026-11-16)** — under D-089, for #554, after D-114. Nothing irreversible; no money; the migration only adds columns. The owner may overturn any point.
 
+**Round 1 (reviewers: devsecops, compliance-officer, code-reviewer)** amended points 6, 9, 10 and 12 and added 16-18 below.
+
 **Choices**
 1. **Cross-tenant (AC8).** Get, download, update and delete of another tenant's evidence answer `ErrNotFound` (404, never 403). The tenant-wide list returns an empty set. The control-scoped list answers 404 through the control lookup.
 2. **Unverified (AC9).** An empty `content_hash` means unverified. Download sets `X-Evidence-Integrity: verified|unverified` (`verified` only after the re-hash matched). Get and List expose a derived read-only `integrity`: `hashed`, `unhashed` (a file with no hash), `none` (a link or statement, no file). **Residual risk, accepted:** a database edit that blanks the hash reads as unverified, not as a failure. Closing it needs immutable storage: #380 (WORM).
 3. **Audit event.** `EntityType "evidence"`, new `AuditActionIntegrityAlert = "integrity_alert"` (15 characters, fits `varchar(24)`), summary `evidence.integrity_alert: ...`. It carries tenant, actor, evidence id and the first 12 characters of the expected and observed hashes, never content.
 4. **Audit port.** A narrow `IntegrityAudit` port on the evidence `Service` through `WithIntegrityAudit` (`NewService` unchanged), backed in `main.go` by the audit chain `Append`. If `Append` fails it is logged (zerolog, no secret, no content) and the integrity error is still returned.
 5. **Actor.** `Download(ctx, tenantID, actorID, id)`; the handler passes the authenticated user.
-6. **Method default.** `collection_method` is optional. Omitted, it derives from `source`: manual -> manual_upload, integration -> api_pull, scanner -> automated_collector, automation -> automated_collector. `attestation` only when explicit. `automated_collector` and `api_pull` require `collector_ref`. The migration and `prepare.go` backfill use the same mapping; a test asserts every `EvidenceSource` value maps.
+6. **Method default and trust.** `collection_method`, collector identity and signature are client-asserted over HTTP, so a human session may only use `manual_upload` or `attestation`. `automated_collector` and `api_pull` sent over HTTP answer `ErrValidation` ("reserved for a server-side collector"). Omitted, the method is `manual_upload` on the HTTP path (a `source` label never implies an automated method); `attestation` only when explicit. The domain keeps the rule that an automated method needs `collector_ref` (AC7) for a future server-side ingest; the service distinguishes the two paths with an unexported `CreateInput.serverCollected` flag the handler cannot set, and no ingest entry point exists yet. `CollectionMethodForSource` is kept unchanged for the migration and `prepare.go` backfill of legacy rows, where every `EvidenceSource` value maps.
 7. **Two axes.** The collection method is distinct from the canonical source class. ADR 0008 D7's source mapping is untouched (A11).
 8. **Base values only.** The table holds the BASE (unreviewed) confidence and assurance. The review uplift stays in the canonical envelope confidence and is outside AC6.
-9. **Table.** Assurance `high > substantial > moderate > low`. One pure function (`domain.methodProfiles`, `AssuranceFor`), derived on read, no stored column. No signature lowers the level by one (floor `low`).
+9. **Table.** Assurance `high > substantial > moderate > low`. One pure function (`domain.methodProfiles`, `AssuranceFor(method, signaturePresent, signatureVerified)`), derived on read, no stored column. The base per method is reached ONLY with a verified signature, which does not exist yet; a signature present but unverified sits one level below base; no signature sits two levels below (floor `low`). `high` is therefore unreachable today, and over HTTP the maximum is `moderate` (a signed attestation).
 
-| Method | Base assurance, signed | Unsigned | Base confidence (canonical class default) |
-|---|---|---|---|
-| automated_collector | high | substantial | 0.80 (automated_scanner) |
-| api_pull | high | substantial | 0.60 (connector_import) |
-| attestation | substantial | moderate | 0.50 (third_party_attestation) |
-| manual_upload | moderate | low | 0.70 (user_entered) |
+| Method | Base (verified signature) | Signature present, unverified | No signature | Base confidence (canonical class default) |
+|---|---|---|---|---|
+| automated_collector | high | substantial | moderate | 0.80 (automated_scanner) |
+| api_pull | high | substantial | moderate | 0.60 (connector_import) |
+| attestation | substantial | moderate | low | 0.50 (third_party_attestation) |
+| manual_upload | moderate | low | low | 0.70 (user_entered) |
+
+   Consequence: for `manual_upload` the floor makes signed-unverified and unsigned both `low`, so a signature does not move it; AC3 (unsigned lower than signed) holds for the other three methods.
 
    `manual_upload` assurance is strictly lower than `automated_collector`. On confidence, `manual_upload` (0.70) is lower than `automated_collector` (0.80) and each value is within its class ceiling. `api_pull` (0.60) and `attestation` (0.50) sit below `manual_upload` because their class defaults do, which is the canonical rule and not changed here.
-10. **Collector.** `collector_kind` in `user | connector | job`; `collector_ref` 1-128 characters `^[A-Za-z0-9._:@/-]+$`, an identifier, never a credential. manual_upload and attestation default to kind `user`, ref the collecting user id.
+10. **Collector.** `collector_kind` in `user | connector | job`; `collector_ref` 1-128 characters `^[A-Za-z0-9._:@/-]+$`, an identifier, never a credential. Over HTTP the collector is forced to kind `user`, ref the authenticated user id, whatever the client posted. A kind without a ref is rejected. Connector and job kinds exist for the future server-side path only.
 11. **Observation.** `observed_from` and `observed_to` are optional and both default to `collected_at`, stored explicitly. `observed_from <= observed_to <= collected_at`, checked on Create and on Update (again when `collected_at` moves). Both are editable; `content_hash` and `hash_algorithm` are never in the repository Update column list. Legacy backfill: both = `collected_at`. Canonical `observed_at` stays `collected_at`.
-12. **Signature.** Optional, base64, at most 8 KiB decoded; `signature_algorithm` at most 32 characters and required with a signature. Absence reads `signed: false`. Stored, never verified. The signature bytes are not in the JSON.
+12. **Signature.** Optional, base64, at most 8 KiB decoded; `signature_algorithm` at most 32 characters and required with a signature. The JSON carries `signature_present` (bool) and `signature_verified` (always false for now), never the signature bytes. Stored, never verified.
 13. **Whole blob.** Download reads the whole blob (at most 3 MiB for an upload; a legacy blob may exceed it) and verifies the full hash BEFORE any byte is sent; the storage handle is closed.
 14. **Down migration** drops only the nine new columns. `prepare.go` mirrors the backfill (gated on the column being absent, idempotent, Postgres only, `tenantguard.CrossTenant`).
 15. **Error.** `NewEvidenceIntegrityError`: wraps `ErrConflict`, HTTP 409, stable code `evidence_integrity_mismatch`; FR and EN strings in `frontend/src/locales`. Hash: SHA-256 hex over the exact bytes saved, computed server-side before Save, `hash_algorithm` `sha256`; a client-sent hash is ignored.
+16. **Assurance is not eIDAS.** The assurance scale is internal to OpenRisk. It is NOT an eIDAS (Regulation (EU) 910/2014) level of assurance, nor a qualified signature or seal level, and must not be presented as one.
+17. **What each axis measures.** `assurance` measures provenance: how the proof was collected and whether it is signed. `confidence` is the inherited canonical source-class default of the content (the class the method is nearest to). They are independent, which is why `api_pull` can have higher assurance and lower confidence than `manual_upload`.
+18. **Update.** `Update` can change `source` and the observation period but never `collection_method` (its own axis), `content_hash` or `hash_algorithm`. **Audit visibility:** `integrity_alert` is in `audit_events` and readable by a tenant admin or root through `GET /governance/audit-events?action=integrity_alert` (tenant-scoped). Download also buffers at most 64 MiB; above that it fails with an internal error and serves nothing. The alert is appended with a context detached from the request cancellation (5 s timeout).
 
 **Not done, by scope** — chain of custody (#1450), UI (#1451), WORM (#380), freshness against cadence (#379; so no `TestEvidence_Expired`), signature verification, backfill of legacy hashes (a hash of today's bytes would certify whatever is on disk now).
 **Reversible** — yes: columns are additive; the tables are constants in one file.

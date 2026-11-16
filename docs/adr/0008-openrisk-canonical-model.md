@@ -952,16 +952,19 @@ Adds nine optional fields to D6's `Evidence`; D6's table, D7's source mapping an
 | `signature` | base64, at most 8 KiB decoded | optional, stored, never verified |
 | `signature_algorithm` | string at most 32 | required when `signature` is present |
 
-- **Two axes.** `source` (D2) says which system the record came from and fixes its source class. `collection_method` says by what act it reached the register. They are independent: D7's mapping of `automation` to `openrisk_derived` is unchanged, while the legacy `source` value maps to a method for the backfill and for an omitted field: manual -> `manual_upload`, integration -> `api_pull`, scanner -> `automated_collector`, automation -> `automated_collector`. `attestation` is never derived.
-- **Derived, not stored.** `integrity` (`hashed` · `unhashed` · `none`), `signed`, `assurance` and `confidence` are computed on read from the stored fields.
+- **Two axes.** `source` (D2) says which system the record came from and fixes its source class. `collection_method` says by what act it reached the register. They are independent: D7's mapping of `automation` to `openrisk_derived` is unchanged, while the legacy `source` value maps to a method for the backfill (migration backfill only): manual -> `manual_upload`, integration -> `api_pull`, scanner -> `automated_collector`, automation -> `automated_collector`. An omitted method on a human (HTTP) request is `manual_upload`, never derived from the source. Over HTTP only `manual_upload` and `attestation` are accepted and the collector is forced to the authenticated user; the automated methods are reserved for a server-side collector. `attestation` is never derived.
+- **Derived, not stored.** `integrity` (`hashed` · `unhashed` · `none`), `signature_present`, `signature_verified` (always false for now), `assurance` and `confidence` are computed on read from the stored fields.
 - **Table (base, unreviewed).** The review uplift of D3 (0.90 for a reviewed `user_entered` record) lives in the envelope `confidence` and is not in this table.
 
-| Method | Assurance signed / unsigned | Base confidence |
-|---|---|---|
-| `automated_collector` | high / substantial | 0.80 |
-| `api_pull` | high / substantial | 0.60 |
-| `attestation` | substantial / moderate | 0.50 |
-| `manual_upload` | moderate / low | 0.70 |
+| Method | Base (verified signature) | Signature present, unverified | No signature | Base confidence |
+|---|---|---|---|---|
+| `automated_collector` | high | substantial | moderate | 0.80 |
+| `api_pull` | high | substantial | moderate | 0.60 |
+| `attestation` | substantial | moderate | low | 0.50 |
+| `manual_upload` | moderate | low | low | 0.70 |
 
-  Order: high > substantial > moderate > low; no signature lowers one level, floor low. The confidence of each method equals the confidence/1 default of its nearest class (`automated_scanner`, `connector_import`, `third_party_attestation`, `user_entered`) and so never exceeds that class's ceiling.
+  Order: high > substantial > moderate > low. The base is reached only with a verified signature, which does not exist yet; unverified-present is one level below, absent two levels below (floor low). `high` is unreachable today; over HTTP the maximum is `moderate`. The confidence of each method equals the confidence/1 default of its nearest class (`automated_scanner`, `connector_import`, `third_party_attestation`, `user_entered`) and so never exceeds that class's ceiling.
+- **What the axes mean.** `assurance` measures provenance (how it was collected and signed); `confidence` is the inherited canonical source-class default of the content. That is why `api_pull` has higher assurance and lower confidence than `manual_upload`.
+- **Not eIDAS.** The assurance scale is internal to OpenRisk. It is NOT an eIDAS (Regulation (EU) 910/2014) level of assurance, nor a qualified signature or seal level.
+- **Update** may change `source` but never `collection_method`.
 - **Migration.** `0088_evidence_record_integrity` is expand-only and mirrored by the boot preparation. Legacy `content_hash` is not backfilled.
