@@ -564,9 +564,12 @@ function ExternalHarness({ refresh }: { refresh: () => void }) {
   );
 }
 
-function renderExternal(refresh = vi.fn()) {
+function renderExternal(refresh = vi.fn(), mutationRetry = 0) {
   queryClient = new QueryClient({
-    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    defaultOptions: {
+      queries: { retry: false },
+      mutations: { retry: mutationRetry, retryDelay: 0 },
+    },
   });
   render(
     <QueryClientProvider client={queryClient}>
@@ -637,6 +640,18 @@ describe('external-store optimistic plan (#1441)', () => {
     expect(rowsShown()).toBe(IDS.join(','));
     // Re-read the truth rather than trusting the restored rows.
     expect(refresh).toHaveBeenCalledTimes(1);
+  });
+
+  it('a refusal is not replayed, whatever the app-wide mutation retry', async () => {
+    apply.mockRejectedValue(httpError(409));
+    const user = userEvent.setup();
+    // main.tsx retries mutations three times; a refused apply must not inherit it.
+    renderExternal(vi.fn(), 3);
+
+    await confirmDelete(user);
+
+    await screen.findByTestId('bulk-preview-refused');
+    expect(apply).toHaveBeenCalledTimes(1);
   });
 
   it('cancelling the preview sends no apply and touches no row', async () => {

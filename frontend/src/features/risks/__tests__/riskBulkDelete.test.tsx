@@ -29,6 +29,7 @@ const http = vi.hoisted(() => ({
     tags: string[];
   }[],
   capabilities: ['delete'] as string[],
+  deleteStatus: 200,
 }));
 
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
@@ -58,6 +59,13 @@ vi.mock('../../../lib/api', () => {
       });
     }
     if (url === '/risks/bulk/delete') {
+      if (http.deleteStatus !== 200)
+        return Promise.reject(
+          Object.assign(new Error('refused'), {
+            isAxiosError: true,
+            response: { status: http.deleteStatus, data: { error: 'refused' } },
+          }),
+        );
       const ids = (body as { ids: string[] }).ids;
       return Promise.resolve({
         data: { total: ids.length, applied: ids.length, ids, audited: ids.length },
@@ -124,6 +132,7 @@ beforeEach(() => {
   http.gets.length = 0;
   http.risks = [risk('r1', 'Ransomware'), risk('r2', 'Phishing'), risk('r3', 'Insider')];
   http.capabilities = ['delete'];
+  http.deleteStatus = 200;
   grant(['risks:read', 'risks:delete']);
   window.history.replaceState(null, '', '/risks');
 });
@@ -168,6 +177,27 @@ describe('#1441 — risk register bulk delete goes through the preview gate', ()
     expect(posted('/risks/bulk')).toEqual([]);
     await waitFor(() => expect(screen.queryByText('Ransomware')).not.toBeInTheDocument());
   });
+
+  it.each([409, 404])(
+    'a %i on confirm deletes nothing, brings the rows back and offers a new preview',
+    async (status) => {
+      http.deleteStatus = status;
+      const user = userEvent.setup();
+      renderPage();
+      await selectTwo(user);
+      await user.click(await screen.findByTestId('bulk-action-delete'));
+      const dialog = await screen.findByRole('alertdialog');
+      await within(dialog).findByTestId('bulk-preview-counts');
+
+      await user.click(within(dialog).getByRole('button', { name: 'Delete' }));
+
+      expect(await within(dialog).findByTestId('bulk-preview-refused')).toBeInTheDocument();
+      expect(within(dialog).getByRole('button', { name: 'Preview again' })).toBeInTheDocument();
+      expect(posted('/risks/bulk/delete')).toHaveLength(1);
+      expect(screen.getByText('Ransomware')).toBeInTheDocument();
+      expect(screen.getByText('Phishing')).toBeInTheDocument();
+    },
+  );
 
   it('cancelling the preview sends no delete and keeps the selection', async () => {
     const user = userEvent.setup();

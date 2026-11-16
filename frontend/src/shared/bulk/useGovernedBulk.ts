@@ -190,6 +190,12 @@ export function useGovernedBulk({
   );
 
   const apply = useMutation({
+    // Never replayed (#1441). The global mutation policy retries three times
+    // with backoff, so a 409 or 404 — the server refusing a set the user did
+    // not see — kept the dialog spinning ~7 s over four identical refusals
+    // before saying so. A refusal cannot change on a retry; previewing again is
+    // the user's call, and the dialog offers it.
+    retry: false,
     mutationFn: ({
       change,
       preview,
