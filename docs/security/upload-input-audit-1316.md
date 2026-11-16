@@ -178,9 +178,9 @@ directory (no directory for B).
 
 `POST /risks` with `title` = `<script>alert(1)</script>` and `description` = `"><img src=x onerror=alert(1)>`
 returned 201; `GET /risks/<id>` returned `200`, `Content-Type: application/json`. Raw response bytes contain
-`"title":"<script>alert(1)</script>"`; `grep -c '<script'` on the raw response = 0 and
+`"title":"\u003cscript\u003ealert(1)\u003c/script\u003e"`; `grep -c '<script'` on the raw response = 0 and
 `grep -o '\\u003cscript'` = 2 occurrences. So the literal `<script` does NOT appear on the wire: Fiber's
-encoder escapes it as `<script`, as section 3 states (a JSON parser decodes it back losslessly). The first
+encoder escapes it as `\u003cscript`, as section 3 states (a JSON parser decodes it back losslessly). The first
 create attempt with `probability` 3 was refused 400 (`Probability is too large (maximum 1)`), a payload error,
 not an encoding result.
 
