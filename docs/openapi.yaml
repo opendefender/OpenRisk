@@ -3829,8 +3829,168 @@ paths:
               schema:
                 type: string
                 format: binary
+          headers:
+            X-Evidence-Integrity:
+              description: |
+                `verified` when the stored bytes were re-hashed and matched the
+                SHA-256 taken at upload; `unverified` for a legacy file with no hash.
+              schema: { type: string, enum: [verified, unverified] }
         '404':
           description: Evidence not found
+        '409':
+          description: |
+            The stored file no longer matches its recorded hash. No content is
+            served; body `code` is `evidence_integrity_mismatch`, and an
+            `integrity_alert` audit event is recorded for the tenant.
+
+  /evidence:
+    get:
+      tags: [Compliance]
+      summary: List the tenant's evidence
+      operationId: listEvidence
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Evidence records of the caller's organization, each with the derived integrity fields
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/EvidenceRecord' }
+        '401':
+          description: No tenant or user in the session
+    post:
+      tags: [Compliance]
+      summary: Create an evidence record (JSON, or multipart with a file)
+      description: |
+        The server computes `content_hash` from the bytes it stores; a client-sent
+        hash is ignored. Over this endpoint (a human session) `collection_method`
+        may only be `manual_upload` or `attestation`; omitted, it is `manual_upload`.
+        `automated_collector` and `api_pull` are reserved for a server-side collector
+        and answer 400. `collector_kind` and `collector_ref` are server-set (user and
+        the authenticated user id) and any posted value is ignored.
+      operationId: createEvidence
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/EvidenceCreateRequest' }
+          multipart/form-data:
+            schema:
+              allOf:
+                - { $ref: '#/components/schemas/EvidenceCreateRequest' }
+                - type: object
+                  properties:
+                    file: { type: string, format: binary }
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EvidenceRecord' }
+        '400':
+          description: |
+            Validation: unknown or reserved collection method, `observed_from` after
+            `observed_to`, `observed_to` after `collected_at`, malformed signature.
+        '401':
+          description: No tenant or user in the session
+
+  /evidence/{evidenceId}:
+    get:
+      tags: [Compliance]
+      summary: Get one evidence record
+      operationId: getEvidence
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: evidenceId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: The record, with the derived read-only integrity fields
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EvidenceRecord' }
+        '401':
+          description: No tenant or user in the session
+        '404':
+          description: Not found in the caller's organization (also for another tenant's id)
+    patch:
+      tags: [Compliance]
+      summary: Update an evidence record
+      description: |
+        Partial update. May change the descriptive fields, `source_detail`,
+        `collected_at`, `valid_until` and the observation period (re-validated
+        against `collected_at`); never `source`, `collection_method`, the
+        collector, the signature, `content_hash` or `hash_algorithm`.
+      operationId: updateEvidence
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: evidenceId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title: { type: string }
+                type: { type: string }
+                description: { type: string }
+                external_url: { type: string }
+                source_detail: { type: string }
+                collected_at: { type: string, format: date-time }
+                valid_until: { type: string, format: date-time }
+                observed_from: { type: string, format: date-time }
+                observed_to: { type: string, format: date-time }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EvidenceRecord' }
+        '400':
+          description: Validation (observation ordering against `collected_at`)
+        '404':
+          description: Not found in the caller's organization
+
+  /evidence/{evidenceId}/download:
+    get:
+      tags: [Compliance]
+      summary: Download an evidence file, re-verified against its hash
+      operationId: downloadEvidence
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: evidenceId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: File content
+          content:
+            application/octet-stream:
+              schema: { type: string, format: binary }
+          headers:
+            X-Evidence-Integrity:
+              description: |
+                `verified` when the stored bytes were re-hashed and matched;
+                `unverified` for a legacy file with no hash.
+              schema: { type: string, enum: [verified, unverified] }
+        '401':
+          description: No tenant or user in the session
+        '404':
+          description: Not found in the caller's organization
+        '409':
+          description: |
+            The stored file no longer matches its recorded hash. No content is
+            served; body `code` is `evidence_integrity_mismatch`. An `integrity_alert`
+            audit event is recorded best-effort for the tenant.
 
   /compliance/evidences/{evidenceId}:
     delete:
@@ -5980,6 +6140,47 @@ components:
             $ref: '#/components/schemas/GuardError'
 
   schemas:
+    EvidenceCreateRequest:
+      type: object
+      required: [title]
+      properties:
+        title: { type: string }
+        description: { type: string }
+        collection_method:
+          type: string
+          enum: [manual_upload, attestation]
+          description: Human sessions only. Omitted means manual_upload. automated_collector and api_pull are rejected (400).
+        observed_from: { type: string, format: date-time, description: Defaults to collected_at }
+        observed_to: { type: string, format: date-time, description: Defaults to collected_at; must not be after collected_at }
+        signature: { type: string, format: byte, description: 'Optional base64 detached signature, at most 8 KiB decoded. Stored, never verified.' }
+        signature_algorithm: { type: string, maxLength: 32, description: Required with a signature }
+        collector_kind: { type: string, readOnly: true, description: Server-set (user); a posted value is ignored }
+        collector_ref: { type: string, readOnly: true, description: Server-set (the authenticated user id); a posted value is ignored }
+    EvidenceRecord:
+      type: object
+      description: |
+        An evidence record. The fields below marked read-only are derived or
+        server-set and never accepted from a client.
+      properties:
+        id: { type: string, format: uuid }
+        title: { type: string }
+        collection_method: { type: string, enum: [manual_upload, automated_collector, api_pull, attestation] }
+        observed_from: { type: string, format: date-time }
+        observed_to: { type: string, format: date-time }
+        signature_algorithm: { type: string }
+        content_hash: { type: string, readOnly: true, description: SHA-256 hex of the stored bytes; empty on legacy rows }
+        hash_algorithm: { type: string, readOnly: true }
+        integrity: { type: string, readOnly: true, enum: [hashed, unhashed, none] }
+        assurance:
+          type: string
+          readOnly: true
+          enum: [high, substantial, moderate, low, minimal]
+          description: Provenance (how collected and signed). Internal OpenRisk scale; not an eIDAS level of assurance.
+        confidence: { type: number, readOnly: true, description: Base confidence inherited from the canonical source-class default of the content }
+        signature_present: { type: boolean, readOnly: true }
+        signature_verified: { type: boolean, readOnly: true, description: Always false until a verifier exists }
+        collector_kind: { type: string, readOnly: true, enum: [user, connector, job] }
+        collector_ref: { type: string, readOnly: true }
     # ========== ACTION CENTER (#429) ==========
     ActionItem:
       type: object

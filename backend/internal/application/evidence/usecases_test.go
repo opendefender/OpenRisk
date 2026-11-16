@@ -236,6 +236,8 @@ type fakeStorage struct {
 	// names records the filename argument of every Save: the use case must pass
 	// a server-generated name, never the client's (#1316).
 	names []string
+	// openOverride, when set, is returned by Open instead of the saved bytes.
+	openOverride io.ReadCloser
 }
 
 func newFakeStorage() *fakeStorage { return &fakeStorage{saved: map[string][]byte{}} }
@@ -249,6 +251,9 @@ func (s *fakeStorage) Save(_ context.Context, tenantID uuid.UUID, filename strin
 }
 
 func (s *fakeStorage) Open(_ context.Context, key string) (io.ReadCloser, error) {
+	if s.openOverride != nil {
+		return s.openOverride, nil
+	}
 	b, ok := s.saved[key]
 	if !ok {
 		return nil, io.EOF
@@ -505,7 +510,7 @@ func TestDownload_RefusesEvidenceThatHoldsNoFile(t *testing.T) {
 	// and saying so beats a 500 out of the storage layer.
 	ev, _ := f.svc.Create(ctx, f.tenant, CreateInput{Title: "in Confluence", ExternalURL: "https://wiki/x"})
 
-	if _, _, err := f.svc.Download(ctx, f.tenant, ev.ID); err == nil {
+	if _, _, _, err := f.svc.Download(ctx, f.tenant, uuid.Nil, ev.ID); err == nil {
 		t.Fatal("expected a validation error for evidence with no file")
 	}
 }
@@ -625,12 +630,12 @@ func TestDownload_NotFound_ForAnotherTenant(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, rc, err := f.svc.Download(ctx, f.tenant, ev.ID); err != nil {
+	if _, rc, _, err := f.svc.Download(ctx, f.tenant, uuid.Nil, ev.ID); err != nil {
 		t.Fatal(err)
 	} else {
 		_ = rc.Close()
 	}
-	if _, _, err := f.svc.Download(ctx, f.other, ev.ID); !errors.Is(err, domain.ErrNotFound) {
+	if _, _, _, err := f.svc.Download(ctx, f.other, uuid.Nil, ev.ID); !errors.Is(err, domain.ErrNotFound) {
 		t.Fatalf("tenant B must get ErrNotFound for tenant A's file, got %v", err)
 	}
 }

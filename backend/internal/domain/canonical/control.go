@@ -41,7 +41,7 @@ const (
 // is empty and "flagged for the tenant to fill". It is unexported, readable
 // through ApplicabilityReviewPending, never decoded from JSON (A4's pattern),
 // and written in exactly one place, WithApplicabilityReviewPending, which the split
-// calls to set it. The server clears it (#1414, D-114): when the stored control has it and
+// calls to set it. The server clears it (#1414, D-116): when the stored control has it and
 // a write supplies a non-empty justification, or makes the control applicable,
 // the use case calls WithApplicabilityReviewPending(c, false) in that same write.
 // No request sets it, and no request body has a field for it.

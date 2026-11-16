@@ -47,13 +47,16 @@ func (r *GormEvidenceRepository) Update(ctx context.Context, e *domain.Evidence)
 		return domain.NewValidationError("tenant_id is required")
 	}
 	// Scoped by id AND tenant: an update is as much a cross-tenant risk as a read.
+	// The column list is an allow-list on purpose: content_hash, hash_algorithm,
+	// collection_method, collector_* and signature* are written by Create only,
+	// so no metadata edit can rewrite the record's integrity (#554).
 	res := r.db.WithContext(ctx).
 		Model(&domain.Evidence{}).
 		Where("id = ? AND tenant_id = ?", e.ID, e.TenantID).
 		Select("title", "type", "description", "file_ref", "filename", "external_url",
 			"collected_at", "valid_until", "review", "review_note", "reviewed_by",
 			"reviewed_at", "source", "source_detail", "owner_id", "assignee_id",
-			"reviewer_id", "updated_at").
+			"reviewer_id", "observed_from", "observed_to", "updated_at").
 		Updates(e)
 	if res.Error != nil {
 		return res.Error

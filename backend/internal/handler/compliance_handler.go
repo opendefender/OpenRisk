@@ -107,7 +107,11 @@ func writeAppError(c *fiber.Ctx, err error) error {
 			"upgrade_url": "/settings?tab=billing",
 		})
 	}
-	return c.Status(domain.HTTPStatusFromError(err)).JSON(fiber.Map{"error": domain.MessageFromError(err)})
+	body := fiber.Map{"error": domain.MessageFromError(err)}
+	if reason := domain.ReasonFromError(err); reason != "" {
+		body["code"] = reason
+	}
+	return c.Status(domain.HTTPStatusFromError(err)).JSON(body)
 }
 
 func tenantID(c *fiber.Ctx) uuid.UUID {

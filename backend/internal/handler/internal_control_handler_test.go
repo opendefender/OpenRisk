@@ -533,7 +533,7 @@ func TestInternalControlRoutes_SoftDeletedEndsAreNotFound(t *testing.T) {
 	assert.Equal(t, "deleted", row.Name)
 }
 
-// QA #1414 (D-114 points 4 and 5): another tenant asking for a split control gets
+// QA #1414 (D-116 points 4 and 5): another tenant asking for a split control gets
 // 404 from delete, never the 409 that would confirm the control exists.
 func TestInternalControlRoutes_SplitControlOfAnotherTenantIsNotFound(t *testing.T) {
 	s := newIntCtlStack(t)

@@ -1738,7 +1738,8 @@ func main() {
 	// userRepo resolves "collected by" to an email; optional and nil-safe.
 	evidenceRepo := repository.NewGormEvidenceRepository(database.DB)
 	evidenceService := evidence.NewService(evidenceRepo, complianceRepo, fileStorage).
-		WithUserLookup(userRepo)
+		WithUserLookup(userRepo).
+		WithIntegrityAudit(auditChainRepo)
 	evidenceHandler := handlers.NewEvidenceHandler(evidenceService)
 
 	// Curated crosswalks are materialised at import time and the head start they
@@ -1822,7 +1823,7 @@ func main() {
 	protected.Post("/controls/:controlId/exceptions", complianceControlUpdate, controlExceptionHandler.Create)
 	protected.Get("/controls/:controlId/exceptions", complianceControlRead, controlExceptionHandler.List)
 	protected.Post("/control-exceptions/:exceptionId/revoke", complianceControlUpdate, controlExceptionHandler.Revoke)
-	// Internal control library and requirement links (#1414, #553 S3, D-114). The
+	// Internal control library and requirement links (#1414, #553 S3, D-116). The
 	// control id is the CANONICAL one (controls.id); on the requirement-side read
 	// :controlId is the legacy compliance_controls id, as in the routes around it.
 	// Link and unlink take the update permission (control-mappings' precedent). The

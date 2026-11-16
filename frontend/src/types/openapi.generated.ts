@@ -1461,6 +1461,73 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/evidence": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List the tenant's evidence */
+        get: operations["listEvidence"];
+        put?: never;
+        /**
+         * Create an evidence record (JSON, or multipart with a file)
+         * @description The server computes `content_hash` from the bytes it stores; a client-sent
+         *     hash is ignored. Over this endpoint (a human session) `collection_method`
+         *     may only be `manual_upload` or `attestation`; omitted, it is `manual_upload`.
+         *     `automated_collector` and `api_pull` are reserved for a server-side collector
+         *     and answer 400. `collector_kind` and `collector_ref` are server-set (user and
+         *     the authenticated user id) and any posted value is ignored.
+         */
+        post: operations["createEvidence"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/evidence/{evidenceId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get one evidence record */
+        get: operations["getEvidence"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Update an evidence record
+         * @description Partial update. May change the descriptive fields, `source_detail`,
+         *     `collected_at`, `valid_until` and the observation period (re-validated
+         *     against `collected_at`); never `source`, `collection_method`, the
+         *     collector, the signature, `content_hash` or `hash_algorithm`.
+         */
+        patch: operations["updateEvidence"];
+        trace?: never;
+    };
+    "/evidence/{evidenceId}/download": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Download an evidence file, re-verified against its hash */
+        get: operations["downloadEvidence"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/compliance/evidences/{evidenceId}": {
         parameters: {
             query?: never;
@@ -2819,6 +2886,70 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        EvidenceCreateRequest: {
+            title: string;
+            description?: string;
+            /**
+             * @description Human sessions only. Omitted means manual_upload. automated_collector and api_pull are rejected (400).
+             * @enum {string}
+             */
+            collection_method?: "manual_upload" | "attestation";
+            /**
+             * Format: date-time
+             * @description Defaults to collected_at
+             */
+            observed_from?: string;
+            /**
+             * Format: date-time
+             * @description Defaults to collected_at; must not be after collected_at
+             */
+            observed_to?: string;
+            /**
+             * Format: byte
+             * @description Optional base64 detached signature, at most 8 KiB decoded. Stored, never verified.
+             */
+            signature?: string;
+            /** @description Required with a signature */
+            signature_algorithm?: string;
+            /** @description Server-set (user); a posted value is ignored */
+            readonly collector_kind?: string;
+            /** @description Server-set (the authenticated user id); a posted value is ignored */
+            readonly collector_ref?: string;
+        };
+        /**
+         * @description An evidence record. The fields below marked read-only are derived or
+         *     server-set and never accepted from a client.
+         */
+        EvidenceRecord: {
+            /** Format: uuid */
+            id?: string;
+            title?: string;
+            /** @enum {string} */
+            collection_method?: "manual_upload" | "automated_collector" | "api_pull" | "attestation";
+            /** Format: date-time */
+            observed_from?: string;
+            /** Format: date-time */
+            observed_to?: string;
+            signature_algorithm?: string;
+            /** @description SHA-256 hex of the stored bytes; empty on legacy rows */
+            readonly content_hash?: string;
+            readonly hash_algorithm?: string;
+            /** @enum {string} */
+            readonly integrity?: "hashed" | "unhashed" | "none";
+            /**
+             * @description Provenance (how collected and signed). Internal OpenRisk scale; not an eIDAS level of assurance.
+             * @enum {string}
+             */
+            readonly assurance?: "high" | "substantial" | "moderate" | "low" | "minimal";
+            /** @description Base confidence inherited from the canonical source-class default of the content */
+            readonly confidence?: number;
+            readonly signature_present?: boolean;
+            /** @description Always false until a verifier exists */
+            readonly signature_verified?: boolean;
+            /** @enum {string} */
+            readonly collector_kind?: "user" | "connector" | "job";
+            readonly collector_ref?: string;
+        };
         /** @description One thing the caller needs to act on. Assembled on read from an existing record; it has no table of its own and no lifecycle. */
         ActionItem: {
             /**
@@ -9379,6 +9510,11 @@ export interface operations {
             /** @description File content */
             200: {
                 headers: {
+                    /**
+                     * @description `verified` when the stored bytes were re-hashed and matched the
+                     *     SHA-256 taken at upload; `unverified` for a legacy file with no hash.
+                     */
+                    "X-Evidence-Integrity"?: "verified" | "unverified";
                     [name: string]: unknown;
                 };
                 content: {
@@ -9387,6 +9523,231 @@ export interface operations {
             };
             /** @description Evidence not found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /**
+             * @description The stored file no longer matches its recorded hash. No content is
+             *     served; body `code` is `evidence_integrity_mismatch`, and an
+             *     `integrity_alert` audit event is recorded for the tenant.
+             */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    listEvidence: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Evidence records of the caller's organization, each with the derived integrity fields */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EvidenceRecord"][];
+                };
+            };
+            /** @description No tenant or user in the session */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    createEvidence: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EvidenceCreateRequest"];
+                "multipart/form-data": components["schemas"]["EvidenceCreateRequest"] & {
+                    /** Format: binary */
+                    file?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EvidenceRecord"];
+                };
+            };
+            /**
+             * @description Validation: unknown or reserved collection method, `observed_from` after
+             *     `observed_to`, `observed_to` after `collected_at`, malformed signature.
+             */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No tenant or user in the session */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getEvidence: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                evidenceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The record, with the derived read-only integrity fields */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EvidenceRecord"];
+                };
+            };
+            /** @description No tenant or user in the session */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not found in the caller's organization (also for another tenant's id) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    updateEvidence: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                evidenceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    title?: string;
+                    type?: string;
+                    description?: string;
+                    external_url?: string;
+                    source_detail?: string;
+                    /** Format: date-time */
+                    collected_at?: string;
+                    /** Format: date-time */
+                    valid_until?: string;
+                    /** Format: date-time */
+                    observed_from?: string;
+                    /** Format: date-time */
+                    observed_to?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Updated */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EvidenceRecord"];
+                };
+            };
+            /** @description Validation (observation ordering against `collected_at`) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not found in the caller's organization */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    downloadEvidence: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                evidenceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description File content */
+            200: {
+                headers: {
+                    /**
+                     * @description `verified` when the stored bytes were re-hashed and matched;
+                     *     `unverified` for a legacy file with no hash.
+                     */
+                    "X-Evidence-Integrity"?: "verified" | "unverified";
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/octet-stream": string;
+                };
+            };
+            /** @description No tenant or user in the session */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not found in the caller's organization */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /**
+             * @description The stored file no longer matches its recorded hash. No content is
+             *     served; body `code` is `evidence_integrity_mismatch`. An `integrity_alert`
+             *     audit event is recorded best-effort for the tenant.
+             */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
