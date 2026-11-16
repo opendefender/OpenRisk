@@ -12,6 +12,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/internal/infrastructure/controlchain"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/driver/sqlite"
@@ -82,6 +83,8 @@ func setupComplianceRepo(t *testing.T) *GormComplianceRepository {
 	// GetControlByID counts current proof from these tables, so every compliance
 	// fixture needs them — control_evidences is gone, nothing reads it any more.
 	require.NoError(t, db.AutoMigrate(&domain.Evidence{}, &domain.EvidenceControlLink{}))
+	// The legacy repositories mirror their writes onto the control chain (#1413).
+	require.NoError(t, db.AutoMigrate(controlchain.Models()...))
 
 	return NewGormComplianceRepository(db)
 }
@@ -371,8 +374,11 @@ func TestCountEvidencesByFramework_ScopedByTenantAndFramework(t *testing.T) {
 		attach(t, evRepo, tenantA, cid, nil)
 	}
 	// A stray artifact carrying tenantB's tenant_id but linked to tenantA's
-	// control must never inflate tenantA's counts.
-	attach(t, evRepo, tenantB, ctrl1, nil)
+	// control must never inflate tenantA's counts. Since #1413 the link itself is
+	// refused (its control does not resolve in tenantB), so nothing is stored.
+	strayEv := &domain.Evidence{TenantID: tenantB, Title: "stray", CollectedAt: time.Now().Add(-48 * time.Hour), Review: domain.EvidenceReviewAccepted}
+	require.NoError(t, evRepo.Create(ctx, strayEv))
+	require.ErrorIs(t, evRepo.Link(ctx, &domain.EvidenceControlLink{TenantID: tenantB, EvidenceID: strayEv.ID, ControlID: ctrl1}), domain.ErrNotFound)
 	// tenantB's legitimate evidence on its own control.
 	attach(t, evRepo, tenantB, ctrl1B, nil)
 	// And proof that EXPIRED does not count, however many copies of it exist:

@@ -15,6 +15,7 @@ import (
 	"gorm.io/gorm/clause"
 
 	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/internal/infrastructure/controlchain"
 )
 
 // GormEvidenceRepository implements domain.EvidenceRepository.
@@ -145,8 +146,19 @@ func (r *GormEvidenceRepository) Delete(ctx context.Context, tenantID, id uuid.U
 		if res.RowsAffected == 0 {
 			return domain.NewNotFoundError("evidence", id)
 		}
-		return tx.Where("evidence_id = ? AND tenant_id = ?", id, tenantID).
-			Delete(&domain.EvidenceControlLink{}).Error
+		// The control chain mirror (#1413) needs the controls the links named,
+		// so they are read before the hard delete below.
+		var controlIDs []uuid.UUID
+		if err := tx.Model(&domain.EvidenceControlLink{}).
+			Where("evidence_id = ? AND tenant_id = ?", id, tenantID).
+			Pluck("control_id", &controlIDs).Error; err != nil {
+			return err
+		}
+		if err := tx.Where("evidence_id = ? AND tenant_id = ?", id, tenantID).
+			Delete(&domain.EvidenceControlLink{}).Error; err != nil {
+			return err
+		}
+		return controlchain.MirrorEvidenceDeleted(ctx, tx, tenantID, id, controlIDs)
 	})
 }
 
@@ -163,15 +175,39 @@ func (r *GormEvidenceRepository) Link(ctx context.Context, link *domain.Evidence
 	if link.ID == uuid.Nil {
 		link.ID = uuid.New()
 	}
-	return r.db.WithContext(ctx).
-		Clauses(clause.OnConflict{Columns: []clause.Column{{Name: "evidence_id"}, {Name: "control_id"}}, DoNothing: true}).
-		Create(link).Error
+	// One transaction with the control chain mirror (#1413): the evidenced_by edge
+	// commits with the link or not at all.
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		res := tx.Clauses(clause.OnConflict{Columns: []clause.Column{{Name: "evidence_id"}, {Name: "control_id"}}, DoNothing: true}).
+			Create(link)
+		if res.Error != nil {
+			return res.Error
+		}
+		linkID, note, at := link.ID, link.Note, link.CreatedAt
+		if res.RowsAffected == 0 {
+			// Already linked: the edge carries the stored row, as Reconcile would.
+			var stored domain.EvidenceControlLink
+			if err := tx.Where("tenant_id = ? AND evidence_id = ? AND control_id = ?", link.TenantID, link.EvidenceID, link.ControlID).
+				First(&stored).Error; err != nil {
+				return err
+			}
+			linkID, note, at = stored.ID, stored.Note, stored.CreatedAt
+		}
+		if at.IsZero() {
+			at = time.Now().UTC()
+		}
+		return controlchain.MirrorEvidenceLinked(ctx, tx, link.TenantID, linkID, link.EvidenceID, link.ControlID, note, at)
+	})
 }
 
 func (r *GormEvidenceRepository) Unlink(ctx context.Context, tenantID, evidenceID, controlID uuid.UUID) error {
-	return r.db.WithContext(ctx).
-		Where("tenant_id = ? AND evidence_id = ? AND control_id = ?", tenantID, evidenceID, controlID).
-		Delete(&domain.EvidenceControlLink{}).Error
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("tenant_id = ? AND evidence_id = ? AND control_id = ?", tenantID, evidenceID, controlID).
+			Delete(&domain.EvidenceControlLink{}).Error; err != nil {
+			return err
+		}
+		return controlchain.MirrorEvidenceUnlinked(ctx, tx, tenantID, evidenceID, controlID)
+	})
 }
 
 func (r *GormEvidenceRepository) ListLinks(ctx context.Context, tenantID uuid.UUID, evidenceIDs []uuid.UUID) ([]domain.EvidenceControlLink, error) {

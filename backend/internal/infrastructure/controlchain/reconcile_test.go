@@ -457,7 +457,7 @@ func TestControlRow_ChecksRefuseBadRows(t *testing.T) {
 	assert.Error(t, db.Create(&bad).Error)
 
 	var edge CanonicalEdgeRow
-	e := Edge(tenantA, canonical.TypeRisk, uuid.New(), canonical.VerbMitigatedBy, canonical.TypeControl, uuid.New(), canonical.EdgeAttributes{}, "s", t0)
+	e := Edge(tenantA, canonical.TypeRisk, uuid.New(), canonical.VerbMitigatedBy, canonical.TypeControl, uuid.New(), canonical.EdgeAttributes{}, "s", t0, canonical.MethodMigration)
 	edge, err := EdgeToRow(e)
 	require.NoError(t, err)
 	edge.Verb = "implemented_by" // a field, never a row (A10.4)

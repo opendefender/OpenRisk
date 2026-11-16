@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/rs/zerolog/log"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -41,8 +42,11 @@ var ErrNotReconciled = errors.New("controlchain.Reconcile: the chain does not re
 // would take every tenant down on every boot and protect no data, so it is
 // logged at error level, raises the ControlChainReconcileRefused alert through
 // the openrisk_control_chain_reconcile_refused gauge, and the boot goes on.
-// Reconcile runs again on the next boot. Revisit when #1413 makes the chain read
-// or written outside Reconcile.
+// Reconcile runs again on the next boot. Since #1413 the legacy repositories also
+// write the chain, one edge at a time, inside their own transaction (mirror.go),
+// with the same keys and OnConflict DoNothing: a mirror commit during Reconcile
+// cannot break its proof, because Reconcile reads one REPEATABLE READ snapshot
+// and its own inserts are DoNothing. Revisit when a reader uses the chain (#555).
 func ReconcileAtBoot(ctx context.Context, db *gorm.DB) error {
 	_, err := Reconcile(ctx, db)
 	switch {
@@ -198,7 +202,19 @@ func Reconcile(ctx context.Context, db *gorm.DB) (Result, error) {
 			if err := conn.Exec("RESET lock_timeout").Error; err != nil {
 				return fmt.Errorf("controlchain.Reconcile: reset lock_timeout: %w", err)
 			}
-			return run(conn, &sql.TxOptions{Isolation: sql.LevelRepeatableRead})
+			// A mirror write (#1413) committing between this snapshot and the
+			// insert of a row Reconcile planned makes PostgreSQL refuse the
+			// ON CONFLICT DO NOTHING with a serialization failure: the existing row
+			// is not visible to the snapshot. Reconcile is insert-only and
+			// convergent, so a fresh attempt sees that row and plans around it.
+			var err error
+			for attempt := 1; attempt <= serializationAttempts; attempt++ {
+				if err = run(conn, &sql.TxOptions{Isolation: sql.LevelRepeatableRead}); !isSerializationFailure(err) {
+					break
+				}
+				log.Warn().Int("attempt", attempt).Msg("controlchain: reconcile hit a concurrent mirror write, retrying on a fresh snapshot")
+			}
+			return err
 		})
 	}
 	if err != nil {
@@ -206,6 +222,19 @@ func Reconcile(ctx context.Context, db *gorm.DB) (Result, error) {
 	}
 	logResult(res)
 	return res, nil
+}
+
+// serializationAttempts bounds the retries of Reconcile on a serialization
+// failure. Each attempt sees every row an earlier mirror commit added, and the
+// rate of such commits is a person's clicking, so three is far more than needed.
+const serializationAttempts = 3
+
+// isSerializationFailure is SQLSTATE 40001, which PostgreSQL raises under
+// REPEATABLE READ when a concurrent transaction committed a row the statement
+// conflicts with and the snapshot cannot see.
+func isSerializationFailure(err error) bool {
+	var pgErr *pgconn.PgError
+	return errors.As(err, &pgErr) && pgErr.Code == "40001"
 }
 
 // lockWait is how long a booting replica waits for another one's Reconcile.
@@ -393,7 +422,7 @@ func reconcileTx(tx *gorm.DB) (Result, error) {
 		}
 		full := canonical.CoverageFull
 		isNew, err := plan(Edge(r.TenantID, canonical.TypeRequirement, r.ID, canonical.VerbAddressedBy,
-			canonical.TypeControl, control.ID, canonical.EdgeAttributes{Coverage: &full}, r.ID.String(), r.CreatedAt))
+			canonical.TypeControl, control.ID, canonical.EdgeAttributes{Coverage: &full}, r.ID.String(), r.CreatedAt, canonical.MethodMigration))
 		if err != nil {
 			return res, err
 		}
@@ -413,7 +442,7 @@ func reconcileTx(tx *gorm.DB) (Result, error) {
 			attrs.Note = &note
 		}
 		e := Edge(l.TenantID, canonical.TypeControl, canonical.ControlIDFor(l.ControlID), canonical.VerbEvidencedBy,
-			canonical.TypeEvidence, l.EvidenceID, attrs, l.ID.String(), l.CreatedAt)
+			canonical.TypeEvidence, l.EvidenceID, attrs, l.ID.String(), l.CreatedAt, canonical.MethodMigration)
 		// One row's content (a credential URL pasted in a note, say) refuses
 		// that row, never the run for every tenant.
 		if e.Validate() != nil {
@@ -448,7 +477,7 @@ func reconcileTx(tx *gorm.DB) (Result, error) {
 			attrs.Note = &note
 		}
 		e := Edge(m.TenantID, canonical.TypeRisk, m.RiskID, canonical.VerbMitigatedBy,
-			canonical.TypeControl, canonical.ControlIDFor(*m.ControlID), attrs, m.ID.String(), m.CreatedAt)
+			canonical.TypeControl, canonical.ControlIDFor(*m.ControlID), attrs, m.ID.String(), m.CreatedAt, canonical.MethodMigration)
 		if e.Validate() != nil { // per row, as for links
 			res.MappingsUnplaceable = append(res.MappingsUnplaceable, m.ID)
 			continue

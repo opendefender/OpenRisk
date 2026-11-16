@@ -104,11 +104,11 @@ func TestEdge_IsValidForEveryReconciledVerb(t *testing.T) {
 	note := "why"
 	for name, e := range map[string]canonical.Edge{
 		"addressed_by": Edge(tenantA, canonical.TypeRequirement, uuid.New(), canonical.VerbAddressedBy,
-			canonical.TypeControl, uuid.New(), canonical.EdgeAttributes{Coverage: &full}, "src", t0),
+			canonical.TypeControl, uuid.New(), canonical.EdgeAttributes{Coverage: &full}, "src", t0, canonical.MethodMigration),
 		"evidenced_by": Edge(tenantA, canonical.TypeControl, uuid.New(), canonical.VerbEvidencedBy,
-			canonical.TypeEvidence, uuid.New(), canonical.EdgeAttributes{Note: &note}, "src", t0),
+			canonical.TypeEvidence, uuid.New(), canonical.EdgeAttributes{Note: &note}, "src", t0, canonical.MethodMigration),
 		"mitigated_by": Edge(tenantA, canonical.TypeRisk, uuid.New(), canonical.VerbMitigatedBy,
-			canonical.TypeControl, uuid.New(), canonical.EdgeAttributes{Note: &note}, "src", t0),
+			canonical.TypeControl, uuid.New(), canonical.EdgeAttributes{Note: &note}, "src", t0, canonical.MethodMigration),
 	} {
 		t.Run(name, func(t *testing.T) {
 			require.NoError(t, e.Validate())
