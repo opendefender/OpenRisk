@@ -73,9 +73,10 @@ func TestCSVPolicy_RefusesBinaryAcceptsText(t *testing.T) {
 	if _, err := CSV.Check(exeBytes); !errors.Is(err, ErrUnsupported) {
 		t.Fatalf("exe: got %v", err)
 	}
-	late := append(bytes.Repeat([]byte("a"), 600), 0xff, 0xfe, 0x00, 0x01)
-	if _, err := CSV.Check(late); !errors.Is(err, ErrUnsupported) {
-		t.Fatalf("binary after 512 text bytes: got %v", err)
+	// Encoding past the sniff window is the importers' check (422 not_utf8,
+	// "save it as CSV UTF-8"), not a 400 here: a Latin-1 export must still reach it.
+	if _, err := CSV.Check([]byte("titre,impact\nd\xe9faillance,3\n")); err != nil {
+		t.Fatalf("latin-1 csv must reach the importer's encoding check: %v", err)
 	}
 	if _, err := CSV.Check(append([]byte("\xff\xfe"), []byte("a,b\n")...)); !errors.Is(err, ErrUnsupported) {
 		t.Fatalf("utf-16 bom: got %v", err)

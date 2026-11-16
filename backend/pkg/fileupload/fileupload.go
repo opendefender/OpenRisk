@@ -49,6 +49,10 @@ type Policy struct {
 	// Allowed maps a sniffed media type (no parameters) to the extension the
 	// file is stored under. The extension is server-chosen, never the client's.
 	Allowed map[string]string
+	// RequireUTF8 makes a text/plain upload fail unless the whole body is valid
+	// UTF-8. Off for CSV: the importers check encoding themselves and tell the
+	// user to re-save as CSV UTF-8 (422 not_utf8), which a 400 here would hide.
+	RequireUTF8 bool
 	// RefuseMarkup makes a text/plain upload fail when it contains active-content
 	// markers (see markupMarkers). Set for files that are stored and served back.
 	RefuseMarkup bool
@@ -63,6 +67,7 @@ var markupMarkers = []string{"<svg", ":svg", "<script", "<html", "<!doctype", "<
 // are absent on purpose: they are documents that carry script.
 var Evidence = Policy{
 	MaxBytes:     EvidenceMaxBytes,
+	RequireUTF8:  true,
 	RefuseMarkup: true,
 	Allowed: map[string]string{
 		"application/pdf": ".pdf",
@@ -74,7 +79,8 @@ var Evidence = Policy{
 	},
 }
 
-// CSV accepts UTF-8 text only; the importers parse it and store nothing.
+// CSV accepts text only; the importers parse it, check its encoding and store
+// nothing.
 var CSV = Policy{
 	MaxBytes: CSVMaxBytes,
 	Allowed:  map[string]string{"text/plain": ".csv"},
@@ -112,20 +118,21 @@ func (p Policy) Check(data []byte) (*File, error) {
 	if !ok {
 		return nil, ErrUnsupported
 	}
-	if ct == "text/plain" && !acceptableText(data, p.RefuseMarkup) {
+	if ct == "text/plain" && !acceptableText(data, p.RequireUTF8, p.RefuseMarkup) {
 		return nil, ErrUnsupported
 	}
 	return &File{ContentType: ct, Extension: ext, Data: data}, nil
 }
 
 // acceptableText applies to text/plain, which the sniffer grants to any bytes
-// without a binary marker in the first 512: the whole body must be valid UTF-8,
-// UTF-16 (BOM) is refused, and with refuseMarkup active-content markers are too.
-func acceptableText(data []byte, refuseMarkup bool) bool {
+// without a binary marker in the first 512: UTF-16 (BOM) is refused, with
+// requireUTF8 the whole body must be valid UTF-8, and with refuseMarkup
+// active-content markers are refused too.
+func acceptableText(data []byte, requireUTF8, refuseMarkup bool) bool {
 	if bytes.HasPrefix(data, []byte{0xFE, 0xFF}) || bytes.HasPrefix(data, []byte{0xFF, 0xFE}) {
 		return false
 	}
-	if !utf8.Valid(data) {
+	if requireUTF8 && !utf8.Valid(data) {
 		return false
 	}
 	if refuseMarkup {
