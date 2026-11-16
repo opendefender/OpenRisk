@@ -6,6 +6,7 @@
 package canonical
 
 import (
+	"regexp"
 	"time"
 
 	"github.com/google/uuid"
@@ -47,8 +48,11 @@ type EvidenceReview struct {
 // Evidence is a proof artifact, reusable across controls and tests (ADR 0008
 // D6). observed_at is required: when the proof was taken, today's collected_at
 // (D4). The effective status is derived from review, valid_until and the
-// clock, and is not stored. Content hash, observation period and chain of
-// custody are #554's, added by amendment there.
+// clock, and is not stored. Content hash, observation period, collection
+// method, collector identity and signature are #554's (ADR 0008 A11); chain of
+// custody stays #1450's. Every #554 field is optional here: a legacy record
+// carries none, and the confidence and assurance a method implies are derived,
+// never stored.
 type Evidence struct {
 	Envelope
 	Title       string         `json:"title"`
@@ -61,6 +65,105 @@ type Evidence struct {
 	CollectedBy *uuid.UUID     `json:"collected_by"`
 	Review      EvidenceReview `json:"review"`
 	Ownership
+
+	ContentHash        *string           `json:"content_hash"`
+	HashAlgorithm      *string           `json:"hash_algorithm"`
+	ObservedFrom       *time.Time        `json:"observed_from"`
+	ObservedTo         *time.Time        `json:"observed_to"`
+	CollectionMethod   *CollectionMethod `json:"collection_method"`
+	CollectorKind      *CollectorKind    `json:"collector_kind"`
+	CollectorRef       *string           `json:"collector_ref"`
+	Signature          *string           `json:"signature"`
+	SignatureAlgorithm *string           `json:"signature_algorithm"`
+}
+
+// CollectionMethod is how the proof reached the register (A11). It is its own
+// axis: the source class is unchanged by it.
+type CollectionMethod string
+
+// A11's four collection methods.
+const (
+	MethodManualUpload     CollectionMethod = "manual_upload"
+	MethodAutomatedCollect CollectionMethod = "automated_collector"
+	MethodAPIPull          CollectionMethod = "api_pull"
+	MethodAttestation      CollectionMethod = "attestation"
+)
+
+// CollectorKind is what sort of identity collected the proof (A11).
+type CollectorKind string
+
+// A11's three collector kinds.
+const (
+	CollectorUser      CollectorKind = "user"
+	CollectorConnector CollectorKind = "connector"
+	CollectorJob       CollectorKind = "job"
+)
+
+var (
+	sha256Hex    = regexp.MustCompile(`^[0-9a-f]{64}$`)
+	collectorRef = regexp.MustCompile(`^[A-Za-z0-9._:@/-]+$`)
+)
+
+// validateIntegrity applies A11 to the optional #554 fields.
+func (e Evidence) validateIntegrity() error {
+	if e.ContentHash != nil {
+		if !sha256Hex.MatchString(*e.ContentHash) {
+			return invalid("content_hash", "must be 64 lower-case hex characters (SHA-256)")
+		}
+		if e.HashAlgorithm == nil || *e.HashAlgorithm != "sha256" {
+			return invalid("hash_algorithm", "must be sha256 when content_hash is set")
+		}
+	}
+	if err := optionalTime("observed_from", e.ObservedFrom); err != nil {
+		return err
+	}
+	if err := optionalTime("observed_to", e.ObservedTo); err != nil {
+		return err
+	}
+	if (e.ObservedFrom == nil) != (e.ObservedTo == nil) {
+		return invalid("observed_from", "and observed_to are both present or both absent")
+	}
+	if e.ObservedFrom != nil {
+		if e.ObservedFrom.After(*e.ObservedTo) {
+			return invalid("observed_from", "must not be after observed_to")
+		}
+		if e.ObservedAt != nil && e.ObservedTo.After(*e.ObservedAt) {
+			return invalid("observed_to", "must not be after observed_at")
+		}
+	}
+	if e.CollectionMethod != nil {
+		switch *e.CollectionMethod {
+		case MethodManualUpload, MethodAttestation:
+		case MethodAutomatedCollect, MethodAPIPull:
+			if blankPtr(e.CollectorRef) {
+				return invalid("collector_ref", "is required for an automated collection method")
+			}
+		default:
+			return invalid("collection_method", "must be manual_upload, automated_collector, api_pull or attestation")
+		}
+	}
+	if e.CollectorKind != nil {
+		switch *e.CollectorKind {
+		case CollectorUser, CollectorConnector, CollectorJob:
+		default:
+			return invalid("collector_kind", "must be user, connector or job")
+		}
+	}
+	if !blankPtr(e.CollectorRef) {
+		if err := optionalText("collector_ref", e.CollectorRef, 128); err != nil {
+			return err
+		}
+		if !collectorRef.MatchString(*e.CollectorRef) {
+			return invalid("collector_ref", "must be an identifier of A-Z a-z 0-9 . _ : @ / - (never a credential)")
+		}
+	}
+	if err := optionalText("signature_algorithm", e.SignatureAlgorithm, 32); err != nil {
+		return err
+	}
+	if !blankPtr(e.Signature) && blankPtr(e.SignatureAlgorithm) {
+		return invalid("signature_algorithm", "is required when signature is present")
+	}
+	return nil
 }
 
 // ReviewContext is the review state the user_entered uplift reads for this
@@ -114,6 +217,9 @@ func (e Evidence) Validate() error {
 		return err
 	}
 	if err := optionalTime("review.reviewed_at", e.Review.ReviewedAt); err != nil {
+		return err
+	}
+	if err := e.validateIntegrity(); err != nil {
 		return err
 	}
 	return e.Ownership.validate()

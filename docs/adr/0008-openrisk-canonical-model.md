@@ -936,3 +936,35 @@ publishes the field and these readings with the schema.
   link onto a test result where one exists" places nothing when #553 migrates, because no
   `ControlTestResult` exists before #553. Every carried link becomes the transitional
   `Control --evidenced_by--> Evidence`.
+
+### A11 — Evidence record integrity (#554, D-115, 2026-11-16)
+
+Adds nine optional fields to D6's `Evidence`; D6's table, D7's source mapping and the Score Engine are untouched. Chain of custody stays #1450.
+
+| Field | Type | Rule |
+|---|---|---|
+| `content_hash` | string | SHA-256, 64 lower-case hex, computed server-side from the bytes saved; never taken from a client. Empty on legacy rows (unverified). |
+| `hash_algorithm` | string | `sha256` whenever `content_hash` is set |
+| `observed_from`, `observed_to` | timestamptz | `observed_from <= observed_to <= observed_at`; both default to `collected_at`. `observed_at` stays `collected_at` (D4). |
+| `collection_method` | enum | `manual_upload` · `automated_collector` · `api_pull` · `attestation` |
+| `collector_kind` | enum | `user` · `connector` · `job` |
+| `collector_ref` | string 1-128 | `^[A-Za-z0-9._:@/-]+$`; an identifier, never a credential; required for `automated_collector` and `api_pull` |
+| `signature` | base64, at most 8 KiB decoded | optional, stored, never verified |
+| `signature_algorithm` | string at most 32 | required when `signature` is present |
+
+- **Two axes.** `source` (D2) says which system the record came from and fixes its source class. `collection_method` says by what act it reached the register. They are independent: D7's mapping of `automation` to `openrisk_derived` is unchanged, while the legacy `source` value maps to a method for the backfill (migration backfill only): manual -> `manual_upload`, integration -> `api_pull`, scanner -> `automated_collector`, automation -> `automated_collector`. An omitted method on a human (HTTP) request is `manual_upload`, never derived from the source. Over HTTP only `manual_upload` and `attestation` are accepted and the collector is forced to the authenticated user; the automated methods are reserved for a server-side collector. `attestation` is never derived.
+- **Derived, not stored.** `integrity` (`hashed` · `unhashed` · `none`), `signature_present`, `signature_verified` (always false for now), `assurance` and `confidence` are computed on read from the stored fields.
+- **Table (base, unreviewed).** The review uplift of D3 (0.90 for a reviewed `user_entered` record) lives in the envelope `confidence` and is not in this table.
+
+| Method | Base (verified signature) | Signature present, unverified | No signature | Base confidence |
+|---|---|---|---|---|
+| `automated_collector` | high | substantial | moderate | 0.80 |
+| `api_pull` | high | substantial | moderate | 0.60 |
+| `attestation` | substantial | moderate | low | 0.50 |
+| `manual_upload` | moderate | low | minimal | 0.70 |
+
+  Order: high > substantial > moderate > low > minimal. The base is reached only with a verified signature, which does not exist yet; unverified-present is one level below, absent two levels below (floor minimal). `high` is unreachable today; over HTTP the maximum is `moderate`. The confidence of each method equals the confidence/1 default of its nearest class (`automated_scanner`, `connector_import`, `third_party_attestation`, `user_entered`) and so never exceeds that class's ceiling.
+- **What the axes mean.** `assurance` measures provenance (how it was collected and signed); `confidence` is the inherited canonical source-class default of the content. That is why `api_pull` has higher assurance and lower confidence than `manual_upload`.
+- **Not eIDAS.** The assurance scale is internal to OpenRisk. It is NOT an eIDAS (Regulation (EU) 910/2014) level of assurance, nor a qualified signature or seal level.
+- **Update** may change `source_detail` and the observation period, never `source`, `collection_method`, the collector, the signature or the hash.
+- **Migration.** `0088_evidence_record_integrity` is expand-only and mirrored by the boot preparation. Legacy `content_hash` is not backfilled.

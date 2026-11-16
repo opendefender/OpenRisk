@@ -32,6 +32,8 @@ import {
 import { useUIStrings } from '../../shared/uiStrings';
 import { useUIStore } from '../../store/uiStore';
 import { useAuthStore } from '../../hooks/useAuthStore';
+import { useI18n } from '../../hooks/useI18n';
+import { downloadErrorMessage } from '../../lib/apiError';
 import { useUndoableRemove } from '../../shared/useUndoableRemove';
 import { useControls, useComplianceReport, useEvidences } from './useCompliance';
 import { useComplianceOverview, frameworkColorFor } from './complianceOverview';
@@ -387,6 +389,7 @@ function EvidenceDrawer({ control, onClose }: { control: ComplianceControl; onCl
   useEscapeToClose(true, onClose);
   const lang = useUIStore((s) => s.lang);
   const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
+  const { t } = useI18n();
   const { evidences, isLoading, createEvidence, deleteEvidence, downloadEvidence } = useEvidences(
     control.id,
   );
@@ -523,7 +526,21 @@ function EvidenceDrawer({ control, onClose }: { control: ComplianceControl; onCl
                       </div>
                     </div>
                     <button
-                      onClick={() => downloadEvidence.mutate({ id: e.id, filename: e.filename })}
+                      onClick={() =>
+                        downloadEvidence.mutate(
+                          { id: e.id, filename: e.filename },
+                          {
+                            onError: async (err) =>
+                              toast.error(
+                                await downloadErrorMessage(
+                                  err,
+                                  t,
+                                  t('errors.failedToDownloadEvidence'),
+                                ),
+                              ),
+                          },
+                        )
+                      }
                       className="w-8 h-8 rounded-lg flex items-center justify-center text-ink-soft hover:bg-hover hover:text-ink transition-colors"
                       title={tr('Télécharger', 'Download')}
                     >

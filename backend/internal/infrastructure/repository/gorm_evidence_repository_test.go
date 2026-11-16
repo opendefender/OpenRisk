@@ -274,3 +274,46 @@ func TestEvidenceRepo_ListFiltersByControlAndFramework(t *testing.T) {
 }
 
 func evPtr(t time.Time) *time.Time { return &t }
+
+// #554: Update writes an allow-listed set of columns. The content hash, its
+// algorithm, the collection method, the collector and the signature are written
+// by Create only, so no metadata edit can rewrite the record's integrity; the
+// observation period is editable.
+func TestEvidenceRepo_UpdateNeverWritesTheIntegrityColumns(t *testing.T) {
+	repo, db := setupEvidenceRepo(t)
+	ctx := context.Background()
+	tenant := uuid.New()
+	collected := time.Now().UTC().Truncate(time.Second)
+	hash := domain.ContentHashOf([]byte("original"))
+	ev := &domain.Evidence{
+		ID: uuid.New(), TenantID: tenant, Title: "proof", Type: domain.EvidenceTypeDocument,
+		CollectedAt: collected, Review: domain.EvidenceReviewPending, Source: domain.EvidenceSourceManual,
+		ContentHash: hash, HashAlgorithm: domain.HashAlgorithmSHA256,
+		CollectionMethod: domain.CollectionManualUpload, CollectorKind: domain.CollectorUser, CollectorRef: "u-1",
+	}
+	require.NoError(t, repo.Create(ctx, ev))
+
+	from := collected.Add(-time.Hour)
+	to := collected.Add(-time.Minute)
+	ev.Title = "renamed"
+	ev.ContentHash = domain.ContentHashOf([]byte("forged"))
+	ev.HashAlgorithm = "md5"
+	ev.CollectionMethod = domain.CollectionAttestation
+	ev.CollectorRef = "someone-else"
+	ev.Signature = "c2ln"
+	ev.ObservedFrom, ev.ObservedTo = &from, &to
+	require.NoError(t, repo.Update(ctx, ev))
+
+	var row domain.Evidence
+	require.NoError(t, db.First(&row, "id = ? AND tenant_id = ?", ev.ID, tenant).Error)
+	assert.Equal(t, "renamed", row.Title)
+	assert.Equal(t, hash, row.ContentHash, "Update must not write content_hash")
+	assert.Equal(t, domain.HashAlgorithmSHA256, row.HashAlgorithm)
+	assert.Equal(t, domain.CollectionManualUpload, row.CollectionMethod)
+	assert.Equal(t, "u-1", row.CollectorRef)
+	assert.Empty(t, row.Signature)
+	require.NotNil(t, row.ObservedFrom)
+	require.NotNil(t, row.ObservedTo)
+	assert.True(t, row.ObservedFrom.Equal(from))
+	assert.True(t, row.ObservedTo.Equal(to))
+}

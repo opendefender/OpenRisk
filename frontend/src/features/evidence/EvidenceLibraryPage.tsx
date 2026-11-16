@@ -30,6 +30,8 @@ import { EmptyState } from '../../shared/EmptyState';
 import { useUIStore } from '../../store/uiStore';
 import { useAuthStore } from '../../hooks/useAuthStore';
 import { useToast } from '../../hooks/useToast';
+import { useI18n } from '../../hooks/useI18n';
+import { downloadErrorMessage } from '../../lib/apiError';
 import {
   useEvidenceLibrary,
   useCreateEvidence,
@@ -63,6 +65,7 @@ const TABS: { key: 'all' | EvidenceStatus; fr: string; en: string }[] = [
 export function EvidenceLibraryPage() {
   const lang = useUIStore((s) => s.lang);
   const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
+  const { t } = useI18n();
   const toast = useToast();
   const hasPermission = useAuthStore((s) => s.hasPermission);
   const canWrite = hasPermission('compliance:evidences:create');
@@ -107,8 +110,8 @@ export function EvidenceLibraryPage() {
       a.click();
       a.remove();
       setTimeout(() => URL.revokeObjectURL(url), 0);
-    } catch {
-      toast.error(tr('Téléchargement impossible', 'Could not download'));
+    } catch (err) {
+      toast.error(await downloadErrorMessage(err, t, t('errors.failedToDownloadEvidence')));
     }
   }
 

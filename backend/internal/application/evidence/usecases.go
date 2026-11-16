@@ -13,7 +13,9 @@
 package evidence
 
 import (
+	"bytes"
 	"context"
+	"crypto/subtle"
 	"errors"
 	"io"
 	"strings"
@@ -23,6 +25,7 @@ import (
 	"github.com/opendefender/openrisk/internal/domain"
 	"github.com/opendefender/openrisk/pkg/fileupload"
 	"github.com/opendefender/openrisk/pkg/storage"
+	"github.com/rs/zerolog/log"
 )
 
 // ControlLookup is the narrow slice of the compliance repository this package
@@ -44,6 +47,17 @@ type UserLookup interface {
 	EmailsByIDs(ctx context.Context, ids []uuid.UUID) (map[uuid.UUID]string, error)
 }
 
+// maxEvidenceServe bounds the bytes Download buffers to re-hash (64 MiB). The
+// upload limit is far lower; this caps a blob swapped for a huge file on disk.
+const maxEvidenceServe = 64 << 20
+
+// IntegrityAudit is the narrow audit port the evidence library needs: append one
+// event to the tenant's audit chain. domain.AuditEventRepository's chain
+// implementation satisfies it; the library cannot read the trail through it.
+type IntegrityAudit interface {
+	Append(ctx context.Context, e *domain.AuditEvent) error
+}
+
 // Service is the evidence library's use cases.
 //
 // One struct rather than a file per verb: these operations share the decoration
@@ -54,6 +68,7 @@ type Service struct {
 	controls ControlLookup
 	storage  storage.Storage
 	users    UserLookup
+	audit    IntegrityAudit
 	// now is injectable so expiry behaviour is testable without sleeping.
 	now func() time.Time
 }
@@ -66,6 +81,16 @@ func NewService(repo domain.EvidenceRepository, controls ControlLookup, store st
 func (s *Service) WithUserLookup(u UserLookup) *Service {
 	if u != nil {
 		s.users = u
+	}
+	return s
+}
+
+// WithIntegrityAudit wires the sink that records an integrity alert when a
+// download fails its hash check. Optional and nil-safe: without it the content
+// is still refused, only the audit entry is missing.
+func (s *Service) WithIntegrityAudit(a IntegrityAudit) *Service {
+	if a != nil {
+		s.audit = a
 	}
 	return s
 }
@@ -104,6 +129,29 @@ type CreateInput struct {
 	ControlIDs []uuid.UUID
 
 	CollectedBy uuid.UUID
+
+	// Record integrity (#554). There is deliberately no hash field: the content
+	// hash is computed here from the bytes, never taken from the caller.
+	//
+	// CollectionMethod empty derives manual_upload on the human path (a source
+	// label never implies an automated method). Only manual_upload and
+	// attestation are accepted there. CollectorKind/CollectorRef are IGNORED on
+	// the human path: they are forced to user / CollectedBy. ObservedFrom/
+	// ObservedTo empty default to the collection instant. Signature is base64,
+	// stored and never verified.
+	CollectionMethod   string
+	ObservedFrom       *time.Time
+	ObservedTo         *time.Time
+	CollectorKind      string
+	CollectorRef       string
+	Signature          string
+	SignatureAlgorithm string
+
+	// serverCollected marks a record collected by a server-side collector. It is
+	// unexported on purpose: a handler (another package) cannot set it from
+	// request data. No ingest entry point sets it yet; when one exists it is the
+	// only place allowed to. A human session (the HTTP path) leaves it false.
+	serverCollected bool
 }
 
 func (s *Service) Create(ctx context.Context, tenantID uuid.UUID, in CreateInput) (*domain.Evidence, error) {
@@ -167,10 +215,44 @@ func (s *Service) Create(ctx context.Context, tenantID uuid.UUID, in CreateInput
 		Review:       review,
 		Source:       source,
 		SourceDetail: in.SourceDetail,
+
+		ObservedFrom:       in.ObservedFrom,
+		ObservedTo:         in.ObservedTo,
+		CollectorKind:      domain.CollectorKind(strings.TrimSpace(in.CollectorKind)),
+		CollectorRef:       strings.TrimSpace(in.CollectorRef),
+		Signature:          strings.TrimSpace(in.Signature),
+		SignatureAlgorithm: strings.TrimSpace(in.SignatureAlgorithm),
 	}
 	if in.CollectedBy != uuid.Nil {
 		ev.CollectedBy = &in.CollectedBy
 		ev.Ownership.OwnerID = &in.CollectedBy
+	}
+	if m := strings.TrimSpace(in.CollectionMethod); m != "" {
+		method, err := domain.ParseCollectionMethod(m)
+		if err != nil {
+			return nil, err
+		}
+		ev.CollectionMethod = method
+	}
+	if !in.serverCollected {
+		// Human session: method, collector identity and signature are
+		// client-asserted, so they may not claim a machine collected the proof.
+		if ev.CollectionMethod.IsAutomated() {
+			return nil, domain.NewValidationError("automated_collector and api_pull are reserved for a server-side collector")
+		}
+		if ev.CollectionMethod == "" {
+			ev.CollectionMethod = domain.CollectionManualUpload
+		}
+		// Collector identity is the authenticated user, whatever the client sent.
+		ev.CollectorKind, ev.CollectorRef = "", ""
+		if ev.CollectedBy != nil {
+			ev.CollectorKind = domain.CollectorUser
+			ev.CollectorRef = ev.CollectedBy.String()
+		}
+	}
+	ev.ApplyRecordDefaults()
+	if err := ev.ValidateRecord(); err != nil {
+		return nil, err
 	}
 
 	if in.Content != nil {
@@ -181,6 +263,9 @@ func (s *Service) Create(ctx context.Context, tenantID uuid.UUID, in CreateInput
 		if err != nil {
 			return nil, fileValidationError(err)
 		}
+		// Hashed from the exact bytes handed to storage, before Save.
+		ev.ContentHash = domain.ContentHashOf(file.Data)
+		ev.HashAlgorithm = domain.HashAlgorithmSHA256
 		key, err := s.storage.Save(ctx, tenantID, "evidence"+file.Extension, file.Reader())
 		if err != nil {
 			return nil, domain.NewInternalError("failed to store evidence file: " + err.Error())
@@ -316,26 +401,99 @@ func (s *Service) ListByControl(ctx context.Context, tenantID, controlID uuid.UU
 	return items, nil
 }
 
-// Download streams the artifact's bytes. The only path to file content: it
+// Download returns the artifact's bytes. The only path to file content: it
 // re-verifies tenant ownership on every call rather than trusting a key.
-func (s *Service) Download(ctx context.Context, tenantID, id uuid.UUID) (*domain.Evidence, io.ReadCloser, error) {
-	ev, err := s.repo.GetByID(ctx, tenantID, id)
+//
+// The whole blob is read and re-hashed BEFORE the first byte is handed back. A
+// mismatch returns the typed integrity error with no content, and records an
+// integrity alert in the tenant's audit chain (the failure to record is logged
+// and does not weaken the refusal). verified is true only when the re-hash
+// matched; a legacy row with no hash is served with verified == false.
+func (s *Service) Download(ctx context.Context, tenantID, actorID, id uuid.UUID) (ev *domain.Evidence, content io.ReadCloser, verified bool, err error) {
+	if tenantID == uuid.Nil {
+		return nil, nil, false, domain.NewUnauthorizedError("tenant context is required")
+	}
+	ev, err = s.repo.GetByID(ctx, tenantID, id)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, false, err
 	}
 	if ev == nil {
-		return nil, nil, domain.NewNotFoundError("evidence", id)
+		return nil, nil, false, domain.NewNotFoundError("evidence", id)
 	}
 	if ev.FileRef == "" {
 		// A link or a written statement has no bytes to serve. Saying so is better
 		// than a 500 from a storage layer asked for an empty key.
-		return nil, nil, domain.NewValidationError("this evidence holds no file (it is a link or a statement)")
+		return nil, nil, false, domain.NewValidationError("this evidence holds no file (it is a link or a statement)")
 	}
-	content, err := s.storage.Open(ctx, ev.FileRef)
+	handle, err := s.storage.Open(ctx, ev.FileRef)
 	if err != nil {
-		return nil, nil, domain.NewInternalError("evidence file is missing from storage: " + err.Error())
+		return nil, nil, false, domain.NewInternalError("evidence file is missing from storage: " + err.Error())
 	}
-	return ev, content, nil
+	data, err := io.ReadAll(io.LimitReader(handle, maxEvidenceServe+1))
+	_ = handle.Close()
+	if err != nil {
+		return nil, nil, false, domain.NewInternalError("failed to read evidence file: " + err.Error())
+	}
+
+	if int64(len(data)) > maxEvidenceServe {
+		return nil, nil, false, domain.NewInternalError("evidence file exceeds the size the server will serve")
+	}
+	if ev.ContentHash == "" {
+		// Legacy row (or one whose hash was blanked): served, flagged unverified.
+		return ev, io.NopCloser(bytes.NewReader(data)), false, nil
+	}
+	observed := domain.ContentHashOf(data)
+	if subtle.ConstantTimeCompare([]byte(observed), []byte(ev.ContentHash)) != 1 {
+		s.recordIntegrityAlert(ctx, tenantID, actorID, ev, observed)
+		return nil, nil, false, domain.NewEvidenceIntegrityError(id)
+	}
+	return ev, io.NopCloser(bytes.NewReader(data)), true, nil
+}
+
+// recordIntegrityAlert appends the alert to the tenant's audit chain. Hashes are
+// not secrets; no content, path or credential is written.
+func (s *Service) recordIntegrityAlert(ctx context.Context, tenantID, actorID uuid.UUID, ev *domain.Evidence, observed string) {
+	if s.audit == nil {
+		log.Error().Str("tenant_id", tenantID.String()).Str("evidence_id", ev.ID.String()).
+			Msg("evidence integrity mismatch: no audit sink wired")
+		return
+	}
+	prefix := func(h string) string {
+		if len(h) > 12 {
+			return h[:12]
+		}
+		return h
+	}
+	event := &domain.AuditEvent{
+		ID:         uuid.New(),
+		TenantID:   tenantID,
+		Action:     domain.AuditActionIntegrityAlert,
+		EntityType: "evidence",
+		EntityID:   ev.ID.String(),
+		Summary:    "evidence.integrity_alert: stored file does not match its content hash",
+		After: domain.JSONMap{
+			"expected_hash_prefix": prefix(ev.ContentHash),
+			"observed_hash_prefix": prefix(observed),
+			"hash_algorithm":       ev.HashAlgorithm,
+		},
+		Source:    domain.AuditSourceExplicit,
+		CreatedAt: s.now().UTC(),
+	}
+	if actorID != uuid.Nil {
+		a := actorID
+		event.ActorID = &a
+		event.ActorType = domain.AuditActorUser
+	} else {
+		event.ActorType = domain.AuditActorUnattributed
+	}
+	// Detached from the request: a client that hangs up must not drop the alert.
+	actx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+	defer cancel()
+	if err := s.audit.Append(actx, event); err != nil {
+		// The refusal stands; only the record of it is missing, and that is loud.
+		log.Error().Err(err).Str("tenant_id", tenantID.String()).Str("evidence_id", ev.ID.String()).
+			Msg("evidence integrity alert could not be appended to the audit chain")
+	}
 }
 
 // =============================================================================
@@ -355,6 +513,9 @@ type UpdateInput struct {
 	// nil clears the expiry.
 	ValidUntil   **time.Time
 	SourceDetail *string
+	// Observation period (#554). Re-validated against the resulting collected_at.
+	ObservedFrom *time.Time
+	ObservedTo   *time.Time
 }
 
 func (s *Service) Update(ctx context.Context, tenantID, id uuid.UUID, in UpdateInput) (*domain.Evidence, error) {
@@ -397,6 +558,21 @@ func (s *Service) Update(ctx context.Context, tenantID, id uuid.UUID, in UpdateI
 	}
 	if ev.ValidUntil != nil && !ev.ValidUntil.After(ev.CollectedAt) {
 		return nil, domain.NewValidationError("valid_until must be after collected_at")
+	}
+	if in.ObservedFrom != nil {
+		ev.ObservedFrom = in.ObservedFrom
+	}
+	if in.ObservedTo != nil {
+		ev.ObservedTo = in.ObservedTo
+	}
+	// A legacy row read back before the backfill has no period: the point-in-time
+	// default applies, then the ordering is checked against the (possibly moved)
+	// collected_at.
+	if ev.ObservedFrom == nil && ev.ObservedTo == nil {
+		ev.ObservedFrom, ev.ObservedTo = domain.PointInTime(ev.CollectedAt)
+	}
+	if err := ev.ValidateObservation(); err != nil {
+		return nil, err
 	}
 
 	if err := s.repo.Update(ctx, ev); err != nil {
