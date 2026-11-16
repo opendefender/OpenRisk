@@ -23,16 +23,16 @@ recommends, and surfaces these in the daily brief. Run `/decide` to clear them.
 6. **Method default and trust.** `collection_method`, collector identity and signature are client-asserted over HTTP, so a human session may only use `manual_upload` or `attestation`. `automated_collector` and `api_pull` sent over HTTP answer `ErrValidation` ("reserved for a server-side collector"). Omitted, the method is `manual_upload` on the HTTP path (a `source` label never implies an automated method); `attestation` only when explicit. The domain keeps the rule that an automated method needs `collector_ref` (AC7) for a future server-side ingest; the service distinguishes the two paths with an unexported `CreateInput.serverCollected` flag the handler cannot set, and no ingest entry point exists yet. `CollectionMethodForSource` is kept unchanged for the migration and `prepare.go` backfill of legacy rows, where every `EvidenceSource` value maps.
 7. **Two axes.** The collection method is distinct from the canonical source class. ADR 0008 D7's source mapping is untouched (A11).
 8. **Base values only.** The table holds the BASE (unreviewed) confidence and assurance. The review uplift stays in the canonical envelope confidence and is outside AC6.
-9. **Table.** Assurance `high > substantial > moderate > low`. One pure function (`domain.methodProfiles`, `AssuranceFor(method, signaturePresent, signatureVerified)`), derived on read, no stored column. The base per method is reached ONLY with a verified signature, which does not exist yet; a signature present but unverified sits one level below base; no signature sits two levels below (floor `low`). `high` is therefore unreachable today, and over HTTP the maximum is `moderate` (a signed attestation).
+9. **Table.** Assurance `high > substantial > moderate > low > minimal`. One pure function (`domain.methodProfiles`, `AssuranceFor(method, signaturePresent, signatureVerified)`), derived on read, no stored column. The base per method is reached ONLY with a verified signature, which does not exist yet; a signature present but unverified sits one level below base; no signature sits two levels below (floor `minimal`). `high` is therefore unreachable today, and over HTTP the maximum is `moderate` (a signed attestation).
 
 | Method | Base (verified signature) | Signature present, unverified | No signature | Base confidence (canonical class default) |
 |---|---|---|---|---|
 | automated_collector | high | substantial | moderate | 0.80 (automated_scanner) |
 | api_pull | high | substantial | moderate | 0.60 (connector_import) |
 | attestation | substantial | moderate | low | 0.50 (third_party_attestation) |
-| manual_upload | moderate | low | low | 0.70 (user_entered) |
+| manual_upload | moderate | low | minimal | 0.70 (user_entered) |
 
-   Consequence: for `manual_upload` the floor makes signed-unverified and unsigned both `low`, so a signature does not move it; AC3 (unsigned lower than signed) holds for the other three methods.
+   AC3 (unsigned lower than signed) holds for all four methods: the fifth bottom level `minimal` (decided by the orchestrator under D-089) keeps `manual_upload` from colliding at the floor.
 
    `manual_upload` assurance is strictly lower than `automated_collector`. On confidence, `manual_upload` (0.70) is lower than `automated_collector` (0.80) and each value is within its class ceiling. `api_pull` (0.60) and `attestation` (0.50) sit below `manual_upload` because their class defaults do, which is the canonical rule and not changed here.
 10. **Collector.** `collector_kind` in `user | connector | job`; `collector_ref` 1-128 characters `^[A-Za-z0-9._:@/-]+$`, an identifier, never a credential. Over HTTP the collector is forced to kind `user`, ref the authenticated user id, whatever the client posted. A kind without a ref is rejected. Connector and job kinds exist for the future server-side path only.

@@ -136,11 +136,12 @@ const (
 	AssuranceSubstantial EvidenceAssurance = "substantial"
 	AssuranceModerate    EvidenceAssurance = "moderate"
 	AssuranceLow         EvidenceAssurance = "low"
+	AssuranceMinimal     EvidenceAssurance = "minimal"
 )
 
-var assuranceOrder = []EvidenceAssurance{AssuranceLow, AssuranceModerate, AssuranceSubstantial, AssuranceHigh}
+var assuranceOrder = []EvidenceAssurance{AssuranceMinimal, AssuranceLow, AssuranceModerate, AssuranceSubstantial, AssuranceHigh}
 
-// AssuranceRank is 0 (low) to 3 (high); unknown reads as low.
+// AssuranceRank is 0 (minimal) to 4 (high); unknown reads as minimal.
 func AssuranceRank(a EvidenceAssurance) int {
 	for i, v := range assuranceOrder {
 		if v == a {
@@ -181,7 +182,7 @@ func (m CollectionMethod) BaseAssurance() EvidenceAssurance {
 
 // AssuranceFor derives assurance. The method's base level is reached ONLY with
 // a verified signature. A signature that is present but unverified sits one
-// level below base; no signature sits two levels below (floor low). Nothing
+// level below base; no signature sits two levels below (floor minimal). Nothing
 // verifies a signature yet, so signatureVerified is always false in practice and
 // `high` is unreachable today.
 func AssuranceFor(m CollectionMethod, signaturePresent, signatureVerified bool) EvidenceAssurance {

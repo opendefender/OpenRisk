@@ -279,7 +279,7 @@ func TestCreate_ManualCollectorDefaultsToTheCollectingUser(t *testing.T) {
 }
 
 // AC3 end to end: the record shows the signature as absent, and assurance is
-// lower than for the same evidence with one (attestation: moderate vs low).
+// lower than for the same evidence with one (attestation: moderate vs low; manual_upload: low vs minimal).
 // Never verified, only stored.
 func TestCreate_SignatureAbsentLowersAssurance(t *testing.T) {
 	f := setup(t)
@@ -305,7 +305,7 @@ func TestCreate_SignatureAbsentLowersAssurance(t *testing.T) {
 func TestCreate_MaxAssuranceOverTheHumanPathIsModerate(t *testing.T) {
 	f := setup(t)
 	sig := base64.StdEncoding.EncodeToString([]byte("sig"))
-	best := domain.AssuranceLow
+	best := domain.AssuranceMinimal
 	for _, m := range []string{"manual_upload", "attestation"} {
 		for _, signature := range []string{"", sig} {
 			ev := uploaded(t, f, CreateInput{CollectionMethod: m, Signature: signature, SignatureAlgorithm: "ed25519"})

@@ -5793,7 +5793,7 @@ components:
         assurance:
           type: string
           readOnly: true
-          enum: [high, substantial, moderate, low]
+          enum: [high, substantial, moderate, low, minimal]
           description: Provenance (how collected and signed). Internal OpenRisk scale; not an eIDAS level of assurance.
         confidence: { type: number, readOnly: true, description: Base confidence inherited from the canonical source-class default of the content }
         signature_present: { type: boolean, readOnly: true }

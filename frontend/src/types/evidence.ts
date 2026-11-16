@@ -18,7 +18,7 @@ export type EvidenceCollectionMethod =
 export type EvidenceCollectorKind = 'user' | 'connector' | 'job';
 /** Derived by the server: 'hashed' (a hash was taken), 'unhashed' (legacy file), 'none' (no file). */
 export type EvidenceIntegrity = 'hashed' | 'unhashed' | 'none';
-export type EvidenceAssurance = 'high' | 'substantial' | 'moderate' | 'low';
+export type EvidenceAssurance = 'high' | 'substantial' | 'moderate' | 'low' | 'minimal';
 
 /**
  * The state an auditor reads. DERIVED by the server from the expiry date and the

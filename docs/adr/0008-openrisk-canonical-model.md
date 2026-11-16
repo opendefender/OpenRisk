@@ -961,9 +961,9 @@ Adds nine optional fields to D6's `Evidence`; D6's table, D7's source mapping an
 | `automated_collector` | high | substantial | moderate | 0.80 |
 | `api_pull` | high | substantial | moderate | 0.60 |
 | `attestation` | substantial | moderate | low | 0.50 |
-| `manual_upload` | moderate | low | low | 0.70 |
+| `manual_upload` | moderate | low | minimal | 0.70 |
 
-  Order: high > substantial > moderate > low. The base is reached only with a verified signature, which does not exist yet; unverified-present is one level below, absent two levels below (floor low). `high` is unreachable today; over HTTP the maximum is `moderate`. The confidence of each method equals the confidence/1 default of its nearest class (`automated_scanner`, `connector_import`, `third_party_attestation`, `user_entered`) and so never exceeds that class's ceiling.
+  Order: high > substantial > moderate > low > minimal. The base is reached only with a verified signature, which does not exist yet; unverified-present is one level below, absent two levels below (floor minimal). `high` is unreachable today; over HTTP the maximum is `moderate`. The confidence of each method equals the confidence/1 default of its nearest class (`automated_scanner`, `connector_import`, `third_party_attestation`, `user_entered`) and so never exceeds that class's ceiling.
 - **What the axes mean.** `assurance` measures provenance (how it was collected and signed); `confidence` is the inherited canonical source-class default of the content. That is why `api_pull` has higher assurance and lower confidence than `manual_upload`.
 - **Not eIDAS.** The assurance scale is internal to OpenRisk. It is NOT an eIDAS (Regulation (EU) 910/2014) level of assurance, nor a qualified signature or seal level.
 - **Update** may change `source` but never `collection_method`.

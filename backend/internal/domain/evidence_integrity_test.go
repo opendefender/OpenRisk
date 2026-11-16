@@ -101,30 +101,27 @@ func TestMethodConfidence_FollowsTheDocumentedTable(t *testing.T) {
 	}
 }
 
-// AC3: an unsigned record has lower assurance than the same record signed, and
-// the base level is reached only with a verified signature.
+// AC3: for EVERY method, unsigned < signed-unverified < verified.
 func TestAssurance_UnsignedIsLowerThanSigned(t *testing.T) {
 	type row struct{ verified, present, none domain.EvidenceAssurance }
 	want := map[domain.CollectionMethod]row{
 		domain.CollectionAutomatedCollect: {domain.AssuranceHigh, domain.AssuranceSubstantial, domain.AssuranceModerate},
 		domain.CollectionAPIPull:          {domain.AssuranceHigh, domain.AssuranceSubstantial, domain.AssuranceModerate},
 		domain.CollectionAttestation:      {domain.AssuranceSubstantial, domain.AssuranceModerate, domain.AssuranceLow},
-		domain.CollectionManualUpload:     {domain.AssuranceModerate, domain.AssuranceLow, domain.AssuranceLow},
+		domain.CollectionManualUpload:     {domain.AssuranceModerate, domain.AssuranceLow, domain.AssuranceMinimal},
 	}
-	for m, w := range want {
+	for _, m := range domain.CollectionMethods() {
+		w := want[m]
 		v, p, n := domain.AssuranceFor(m, true, true), domain.AssuranceFor(m, true, false), domain.AssuranceFor(m, false, false)
 		if v != w.verified || p != w.present || n != w.none {
 			t.Errorf("%s: verified %s present %s none %s, want %+v", m, v, p, n, w)
 		}
-		if domain.AssuranceRank(n) >= domain.AssuranceRank(p) && m != domain.CollectionManualUpload {
-			t.Errorf("%s: unsigned must rank below signed", m)
+		if !(domain.AssuranceRank(n) < domain.AssuranceRank(p) && domain.AssuranceRank(p) < domain.AssuranceRank(v)) {
+			t.Errorf("%s: unsigned must rank below signed, which ranks below verified", m)
 		}
 	}
-	if domain.AssuranceRank(domain.AssuranceFor(domain.CollectionAttestation, false, false)) >= domain.AssuranceRank(domain.AssuranceFor(domain.CollectionAttestation, true, false)) {
-		t.Error("attestation: unsigned must be lower than signed")
-	}
-	if domain.AssuranceFor("", false, false) != domain.AssuranceLow {
-		t.Fatal("assurance never drops below low")
+	if domain.AssuranceFor("", false, false) != domain.AssuranceMinimal {
+		t.Fatal("assurance never drops below minimal")
 	}
 }
 
