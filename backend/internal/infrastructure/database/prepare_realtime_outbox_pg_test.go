@@ -16,6 +16,7 @@ import (
 	"gorm.io/gorm/logger"
 
 	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/internal/testsupport/testdb"
 )
 
 // #344: a database from before the outbox, booted WITHOUT the SQL migration
@@ -30,7 +31,7 @@ func TestPrepareRealtimeOutbox_GatedOnAbsentColumn(t *testing.T) {
 		t.Skip("DATABASE_URL not set")
 	}
 	cfg := &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)}
-	admin, err := gorm.Open(postgres.Open(dsn), cfg)
+	admin, err := testdb.Open(t, postgres.Open(dsn), cfg)
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
@@ -44,7 +45,7 @@ func TestPrepareRealtimeOutbox_GatedOnAbsentColumn(t *testing.T) {
 	if strings.Contains(dsn, "?") {
 		sep = "&"
 	}
-	db, err := gorm.Open(postgres.Open(dsn+sep+"search_path="+schema), cfg)
+	db, err := testdb.Open(t, postgres.Open(dsn+sep+"search_path="+schema), cfg)
 	if err != nil {
 		t.Fatalf("open schema: %v", err)
 	}
@@ -134,7 +135,7 @@ func TestPrepareRealtimeOutbox_FreshDatabaseIsANoOp(t *testing.T) {
 		t.Skip("DATABASE_URL not set")
 	}
 	cfg := &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)}
-	admin, err := gorm.Open(postgres.Open(dsn), cfg)
+	admin, err := testdb.Open(t, postgres.Open(dsn), cfg)
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
@@ -147,7 +148,7 @@ func TestPrepareRealtimeOutbox_FreshDatabaseIsANoOp(t *testing.T) {
 	if strings.Contains(dsn, "?") {
 		sep = "&"
 	}
-	db, err := gorm.Open(postgres.Open(dsn+sep+"search_path="+schema), cfg)
+	db, err := testdb.Open(t, postgres.Open(dsn+sep+"search_path="+schema), cfg)
 	if err != nil {
 		t.Fatalf("open schema: %v", err)
 	}

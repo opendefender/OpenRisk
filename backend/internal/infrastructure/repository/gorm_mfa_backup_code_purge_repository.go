@@ -12,6 +12,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/internal/infrastructure/tenantguard"
 )
 
 // GormMFABackupCodePurgeRepository reads the ledger the universal-code purge
@@ -42,7 +43,7 @@ func (r *GormMFABackupCodePurgeRepository) ClaimPending(ctx context.Context, lim
 		TenantID uuid.UUID
 		UserID   uuid.UUID
 	}
-	err := r.db.WithContext(ctx).Raw(`
+	err := tenantguard.CrossTenant(r.db.WithContext(ctx), "backup-code purge notices are claimed across tenants; each row carries its tenant").Raw(`
 		UPDATE mfa_backup_code_purges
 		   SET notified_at = now()
 		 WHERE id IN (

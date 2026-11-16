@@ -24,6 +24,7 @@ import (
 	"github.com/opendefender/openrisk/internal/domain"
 	"github.com/opendefender/openrisk/internal/infrastructure/database"
 	"github.com/opendefender/openrisk/internal/infrastructure/repository"
+	"github.com/opendefender/openrisk/internal/testsupport/testdb"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/driver/postgres"
@@ -42,7 +43,7 @@ func startupSchemaDB(t *testing.T) *gorm.DB {
 	}
 	schema := "schema_706_" + strings.ReplaceAll(uuid.New().String(), "-", "")[:12]
 
-	admin, err := gorm.Open(postgres.Open(dsn), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
+	admin, err := testdb.Open(t, postgres.Open(dsn), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
 	require.NoError(t, err)
 	require.NoError(t, admin.Exec(fmt.Sprintf(`CREATE SCHEMA %s`, schema)).Error)
 	t.Cleanup(func() {
@@ -56,7 +57,7 @@ func startupSchemaDB(t *testing.T) *gorm.DB {
 	// database.go). DisableForeignKeyConstraintWhenMigrating is load-bearing:
 	// without it AutoMigrate cannot order risks and mitigations on an empty
 	// database and fails before reaching the model under test.
-	db, err := gorm.Open(postgres.New(postgres.Config{DSN: dsn}), &gorm.Config{
+	db, err := testdb.Open(t, postgres.New(postgres.Config{DSN: dsn}), &gorm.Config{
 		Logger:                                   logger.Default.LogMode(logger.Silent),
 		TranslateError:                           true,
 		DisableForeignKeyConstraintWhenMigrating: true,

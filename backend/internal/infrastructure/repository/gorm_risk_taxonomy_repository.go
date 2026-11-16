@@ -259,6 +259,9 @@ func (r *GormRiskControlMappingRepository) ListByRisks(ctx context.Context, tena
 }
 
 func (r *GormRiskControlMappingRepository) Delete(ctx context.Context, id, tenantID uuid.UUID) error {
+	if tenantID == uuid.Nil {
+		return domain.NewNotFoundError("risk control mapping", id)
+	}
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		// The mirror (#1413) needs the pair the mapping named: read it first.
 		var m domain.RiskControlMapping

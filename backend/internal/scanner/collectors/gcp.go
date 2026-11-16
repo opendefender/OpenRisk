@@ -34,7 +34,15 @@ func NewGCP() scanner.CloudCollector { return GCP{} }
 func (GCP) Collect(ctx context.Context, cfg scanner.ScanConfig, assets chan<- scanner.AssetDiscovery, findings chan<- scanner.FindingDiscovery, errs chan<- error) {
 	_ = findings // SCC findings are a documented follow-up.
 
+	// The key is checked again here, not only when the config is created: a
+	// config stored before GHSA-jxfm-p72g-w272 may carry an empty or foreign
+	// key. An empty one must never reach the SDK, which would fall back to the
+	// API pod's own identity (Application Default Credentials).
 	saJSON := cfg.Credentials["service_account_json"]
+	if err := scanner.CheckGCPServiceAccountKey(saJSON); err != nil {
+		errs <- fmt.Errorf("gcp: %w", err)
+		return
+	}
 	projectID := cfg.Credentials["project_id"]
 	if projectID == "" {
 		projectID = parseProjectID(saJSON)
@@ -44,16 +52,12 @@ func (GCP) Collect(ctx context.Context, cfg scanner.ScanConfig, assets chan<- sc
 		return
 	}
 
-	opts := []option.ClientOption{}
-	if saJSON != "" {
-		creds, err := gcpCredentials(saJSON)
-		if err != nil {
-			errs <- fmt.Errorf("gcp: credentials: %w", err)
-			return
-		}
-		opts = append(opts, option.WithAuthCredentials(creds))
+	creds, err := gcpCredentials(saJSON)
+	if err != nil {
+		errs <- fmt.Errorf("gcp: credentials: %w", err)
+		return
 	}
-	client, err := compute.NewInstancesRESTClient(ctx, opts...)
+	client, err := compute.NewInstancesRESTClient(ctx, option.WithAuthCredentials(creds))
 	if err != nil {
 		errs <- fmt.Errorf("gcp: compute client: %w", err)
 		return
@@ -78,9 +82,9 @@ func (GCP) Collect(ctx context.Context, cfg scanner.ScanConfig, assets chan<- sc
 
 // gcpCredentials builds service-account credentials whose token exchange goes
 // through the guarded egress client (#1315). The key file is tenant input and
-// its token_uri is where the SDK POSTs a signed assertion: left to the default
-// client, a token_uri of http://169.254.169.254/... or an internal host would
-// make the API pod call it.
+// its token_uri is where the SDK POSTs a signed assertion: Collect has already
+// held it to Google's endpoints, and the guarded client stays as the second
+// line should a resolver ever point one of them inward.
 func gcpCredentials(saJSON string) (*auth.Credentials, error) {
 	return credentials.NewCredentialsFromJSON(credentials.ServiceAccount, []byte(saJSON), &credentials.DetectOptions{
 		Scopes: compute.DefaultAuthScopes(),

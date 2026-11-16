@@ -16,6 +16,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/internal/testsupport/testdb"
 )
 
 // setupMFAPolicyRepo builds the schema with AutoMigrate rather than hand-written
@@ -25,7 +26,7 @@ import (
 // something else.
 func setupMFAPolicyRepo(t *testing.T) *GormMFAPolicyRepository {
 	t.Helper()
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	db, err := testdb.Open(t, sqlite.Open(":memory:"), &gorm.Config{})
 	require.NoError(t, err)
 	require.NoError(t, db.AutoMigrate(&domain.MFAPolicy{}))
 	return NewGormMFAPolicyRepository(db)

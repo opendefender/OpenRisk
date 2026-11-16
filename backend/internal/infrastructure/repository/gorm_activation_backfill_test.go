@@ -19,6 +19,7 @@ import (
 
 	"github.com/opendefender/openrisk/internal/domain"
 	"github.com/opendefender/openrisk/internal/testsupport/sqliteschema"
+	"github.com/opendefender/openrisk/internal/testsupport/testdb"
 )
 
 // Minimal tables reconciled against the models, for the reason
@@ -29,7 +30,7 @@ import (
 // migrates directly.
 func setupBackfillRepo(t *testing.T) (*GormActivationRepository, *gorm.DB) {
 	t.Helper()
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{
+	db, err := testdb.Open(t, sqlite.Open(":memory:"), &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Silent),
 	})
 	require.NoError(t, err)

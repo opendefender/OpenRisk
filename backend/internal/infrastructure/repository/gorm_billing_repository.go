@@ -47,10 +47,7 @@ func (r *GormBillingRepository) Upsert(ctx context.Context, sub *domain.Subscrip
 	}
 	sub.ID = existing.ID
 	sub.CreatedAt = existing.CreatedAt
-	return r.db.WithContext(ctx).
-		Model(&domain.Subscription{}).
-		Where("id = ? AND organization_id = ?", existing.ID, sub.OrganizationID).
-		Save(sub).Error
+	return updateInOrganization(r.db.WithContext(ctx), sub.OrganizationID, sub)
 }
 
 // SetOrganizationPlanAndRegion writes the effective plan (and region default,

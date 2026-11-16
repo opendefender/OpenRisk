@@ -11,6 +11,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/internal/testsupport/testdb"
 	"github.com/stretchr/testify/require"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
@@ -18,7 +19,7 @@ import (
 
 func setupNotificationRepo(t *testing.T) *NotificationRepository {
 	t.Helper()
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	db, err := testdb.Open(t, sqlite.Open(":memory:"), &gorm.Config{})
 	require.NoError(t, err)
 	require.NoError(t, db.Exec(`
 		CREATE TABLE notifications (

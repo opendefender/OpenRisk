@@ -14,6 +14,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/internal/infrastructure/tenantguard"
 )
 
 // The reminder sweep's half of GormVendorAssessmentRepository (#672, ADR 0004 D6).
@@ -34,7 +35,7 @@ func vendorReminderColumn(offset int) (string, error) {
 // date is after now and within horizon, with a reminder still unsent. No items.
 func (r *GormVendorAssessmentRepository) ListOpenAssessmentsDueWithin(ctx context.Context, now time.Time, horizon time.Duration) ([]domain.VendorAssessment, error) {
 	out := []domain.VendorAssessment{}
-	err := r.db.WithContext(ctx).
+	err := tenantguard.CrossTenant(r.db.WithContext(ctx), "reminder sweep across tenants; every row carries its own tenant_id").
 		// Cross-tenant BY NECESSITY: a scheduled sweep holds no session; every row carries its own tenant_id, which addresses all that is done with it.
 		Where("status IN ? AND due_at > ? AND due_at <= ?", openAssessmentStatuses, now, now.Add(horizon)).
 		Where("(reminder_d7_sent_at IS NULL OR reminder_d3_sent_at IS NULL OR reminder_d1_sent_at IS NULL)").

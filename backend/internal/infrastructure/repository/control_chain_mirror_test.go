@@ -24,6 +24,7 @@ import (
 	"github.com/opendefender/openrisk/internal/domain"
 	"github.com/opendefender/openrisk/internal/domain/canonical"
 	"github.com/opendefender/openrisk/internal/infrastructure/controlchain"
+	"github.com/opendefender/openrisk/internal/testsupport/testdb"
 	"github.com/opendefender/openrisk/pkg/monitoring"
 )
 
@@ -75,7 +76,7 @@ func newMirrorEnv(t *testing.T, db *gorm.DB) *mirrorEnv {
 
 func newMirrorEnvSQLite(t *testing.T) *mirrorEnv {
 	t.Helper()
-	db, err := gorm.Open(sqlite.Open("file::memory:"), &gorm.Config{
+	db, err := testdb.Open(t, sqlite.Open("file::memory:"), &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Silent), TranslateError: true, DisableForeignKeyConstraintWhenMigrating: true,
 	})
 	require.NoError(t, err)

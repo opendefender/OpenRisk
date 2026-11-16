@@ -17,6 +17,7 @@ import (
 	"gorm.io/gorm/logger"
 
 	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/internal/testsupport/testdb"
 )
 
 // The audit chain on the database it runs on in production (#486).
@@ -31,7 +32,7 @@ func TestAuditChain_Postgres(t *testing.T) {
 	if dsn == "" {
 		t.Skip("DATABASE_URL not set")
 	}
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
+	db, err := testdb.Open(t, postgres.Open(dsn), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}

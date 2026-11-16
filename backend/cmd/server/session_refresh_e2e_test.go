@@ -20,6 +20,7 @@ import (
 
 	coreauth "github.com/opendefender/openrisk/internal/auth"
 	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/internal/testsupport/testdb"
 	authpkg "github.com/opendefender/openrisk/pkg/auth"
 )
 
@@ -35,7 +36,7 @@ func newRefreshHarness(t *testing.T, repo sessionAccountReader) (*coreauth.Token
 	t.Helper()
 
 	dsn := "file:session_refresh_" + uuid.New().String() + "?mode=memory&cache=private"
-	db, err := gorm.Open(sqlite.Open(dsn), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
+	db, err := testdb.Open(t, sqlite.Open(dsn), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
 	require.NoError(t, err)
 
 	sqlDB, err := db.DB()

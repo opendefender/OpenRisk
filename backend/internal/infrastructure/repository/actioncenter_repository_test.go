@@ -16,6 +16,7 @@ import (
 
 	"github.com/opendefender/openrisk/internal/domain"
 	"github.com/opendefender/openrisk/internal/testsupport/sqliteschema"
+	"github.com/opendefender/openrisk/internal/testsupport/testdb"
 )
 
 // The Action Center reads six tables and returns them to a caller as "your
@@ -34,7 +35,7 @@ func acNow() time.Time { return time.Date(2026, 8, 30, 12, 0, 0, 0, time.UTC) }
 
 func newActionCenterTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{
+	db, err := testdb.Open(t, sqlite.Open(":memory:"), &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Silent),
 	})
 	if err != nil {

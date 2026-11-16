@@ -15,6 +15,7 @@ import (
 
 	riskapp "github.com/opendefender/openrisk/internal/application/risk"
 	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/internal/infrastructure/tenantguard"
 )
 
 // GormRiskAcceptanceRepository backs the acceptance expiry sweep (#811).
@@ -39,7 +40,7 @@ func (r *GormRiskAcceptanceRepository) ListAcceptancesDue(ctx context.Context, u
 		limit = 500
 	}
 	var out []domain.Risk
-	err := r.db.WithContext(ctx).
+	err := tenantguard.CrossTenant(r.db.WithContext(ctx), "acceptance-expiry sweep across tenants; each row carries its tenant").
 		Where("lifecycle_state = ?", domain.StateResidualAccepted).
 		Where("acceptance_expires_at IS NOT NULL AND acceptance_expires_at <= ?", until).
 		Order("acceptance_expires_at ASC").

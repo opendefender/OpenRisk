@@ -22,7 +22,7 @@ import (
 type ReportStore interface {
 	ClaimQueued(ctx context.Context) (*domain.Report, error)
 	Update(ctx context.Context, r *domain.Report) error
-	UpdateProgress(ctx context.Context, id uuid.UUID, progress int, step string) error
+	UpdateProgress(ctx context.Context, tenantID, id uuid.UUID, progress int, step string) error
 }
 
 // ProgressPublisher pushes progress to whoever is watching. Optional: without it
@@ -158,7 +158,7 @@ func (w *ReportWorker) render(ctx context.Context, rep *domain.Report) {
 	applyParams(&req, rep.Params)
 
 	progress := func(pct int, step string) {
-		_ = w.store.UpdateProgress(ctx, rep.ID, pct, step)
+		_ = w.store.UpdateProgress(ctx, rep.TenantID, rep.ID, pct, step)
 		if w.publish != nil {
 			w.publish(ctx, rep.TenantID, rep.ID, pct, step, string(domain.ReportRunRunning))
 		}

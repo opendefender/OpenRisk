@@ -23,6 +23,7 @@ import (
 	"github.com/opendefender/openrisk/internal/infrastructure/database"
 	"github.com/opendefender/openrisk/internal/infrastructure/repository"
 	"github.com/opendefender/openrisk/internal/middleware"
+	"github.com/opendefender/openrisk/internal/testsupport/testdb"
 	"github.com/opendefender/openrisk/pkg/crq"
 )
 
@@ -105,7 +106,7 @@ func setupAppWithDB(t *testing.T, financialGate ...fiber.Handler) *fiber.App {
 func newRiskTestApp(t *testing.T, presenters *applicationrisk.FinancialPresenterFactory, financialGate ...fiber.Handler) *fiber.App {
 	// In-memory SQLite for fast tests
 	dsn := "file:risk_handler_" + uuid.New().String() + "?mode=memory&cache=private"
-	db, err := gorm.Open(sqlite.Open(dsn), &gorm.Config{})
+	db, err := testdb.Open(t, sqlite.Open(dsn), &gorm.Config{})
 	if err != nil {
 		t.Fatalf("failed to open sqlite: %v", err)
 	}

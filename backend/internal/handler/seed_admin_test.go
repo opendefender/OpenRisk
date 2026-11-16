@@ -21,6 +21,7 @@ import (
 	"github.com/opendefender/openrisk/internal/auth"
 	"github.com/opendefender/openrisk/internal/domain"
 	"github.com/opendefender/openrisk/internal/testsupport/sqliteschema"
+	"github.com/opendefender/openrisk/internal/testsupport/testdb"
 )
 
 // Regression tests for #485: the first boot used to seed admin@opendefender.io
@@ -29,7 +30,7 @@ import (
 
 func newSeedDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{
+	db, err := testdb.Open(t, sqlite.Open(":memory:"), &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Silent),
 	})
 	require.NoError(t, err)

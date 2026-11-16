@@ -16,6 +16,7 @@ import (
 
 	"github.com/opendefender/openrisk/internal/domain"
 	"github.com/opendefender/openrisk/internal/infrastructure/controlchain"
+	"github.com/opendefender/openrisk/internal/infrastructure/tenantguard"
 )
 
 // GormEvidenceRepository implements domain.EvidenceRepository.
@@ -138,6 +139,9 @@ func (r *GormEvidenceRepository) List(ctx context.Context, tenantID uuid.UUID, f
 // be filtered out of every coverage query forever; the artifact is what carries
 // history, and it is still there.
 func (r *GormEvidenceRepository) Delete(ctx context.Context, tenantID, id uuid.UUID) error {
+	if tenantID == uuid.Nil {
+		return domain.NewNotFoundError("evidence", id)
+	}
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		res := tx.Where("id = ? AND tenant_id = ?", id, tenantID).Delete(&domain.Evidence{})
 		if res.Error != nil {
@@ -201,6 +205,9 @@ func (r *GormEvidenceRepository) Link(ctx context.Context, link *domain.Evidence
 }
 
 func (r *GormEvidenceRepository) Unlink(ctx context.Context, tenantID, evidenceID, controlID uuid.UUID) error {
+	if tenantID == uuid.Nil {
+		return domain.NewForbiddenError("tenant_id is required")
+	}
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := tx.Where("tenant_id = ? AND evidence_id = ? AND control_id = ?", tenantID, evidenceID, controlID).
 			Delete(&domain.EvidenceControlLink{}).Error; err != nil {
@@ -290,7 +297,7 @@ func (r *GormEvidenceRepository) ListExpiring(ctx context.Context, now time.Time
 		limit = 500
 	}
 	var out []domain.Evidence
-	err := r.db.WithContext(ctx).
+	err := tenantguard.CrossTenant(r.db.WithContext(ctx), "evidence expiry sweep across tenants; each row carries its tenant").
 		Where("valid_until IS NOT NULL AND valid_until <= ?", now.Add(window)).
 		Where("review = ?", domain.EvidenceReviewAccepted).
 		// "Not reminded since the artifact last changed" rather than "never
@@ -303,9 +310,9 @@ func (r *GormEvidenceRepository) ListExpiring(ctx context.Context, now time.Time
 	return out, err
 }
 
-func (r *GormEvidenceRepository) MarkReminded(ctx context.Context, id uuid.UUID, at time.Time) error {
+func (r *GormEvidenceRepository) MarkReminded(ctx context.Context, tenantID, id uuid.UUID, at time.Time) error {
 	return r.db.WithContext(ctx).
 		Model(&domain.Evidence{}).
-		Where("id = ?", id).
+		Where("id = ? AND tenant_id = ?", id, tenantID).
 		UpdateColumn("reminder_sent_at", at).Error
 }

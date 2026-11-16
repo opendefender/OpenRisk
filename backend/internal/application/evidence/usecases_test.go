@@ -182,7 +182,7 @@ func (r *fakeRepo) ControlsWithCoverage(ctx context.Context, tenantID, framework
 func (r *fakeRepo) ListExpiring(context.Context, time.Time, time.Duration, int) ([]domain.Evidence, error) {
 	return nil, nil
 }
-func (r *fakeRepo) MarkReminded(context.Context, uuid.UUID, time.Time) error { return nil }
+func (r *fakeRepo) MarkReminded(context.Context, uuid.UUID, uuid.UUID, time.Time) error { return nil }
 
 type fakeControls struct {
 	controls   map[uuid.UUID]domain.ComplianceControl

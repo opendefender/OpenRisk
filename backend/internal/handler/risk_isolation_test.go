@@ -25,6 +25,7 @@ import (
 	"github.com/opendefender/openrisk/internal/infrastructure/database"
 	"github.com/opendefender/openrisk/internal/infrastructure/repository"
 	"github.com/opendefender/openrisk/internal/middleware"
+	"github.com/opendefender/openrisk/internal/testsupport/testdb"
 	"github.com/opendefender/openrisk/pkg/crq"
 )
 
@@ -52,7 +53,7 @@ func newTenantRiskApp(t *testing.T) *tenantRiskApp {
 	t.Helper()
 
 	dsn := "file:risk_isolation_" + uuid.New().String() + "?mode=memory&cache=private"
-	db, err := gorm.Open(sqlite.Open(dsn), &gorm.Config{})
+	db, err := testdb.Open(t, sqlite.Open(dsn), &gorm.Config{})
 	require.NoError(t, err)
 
 	require.NoError(t, db.AutoMigrate(&UserT{}, &MitigationT{}, &AssetT{}, &RiskHistoryT{}))

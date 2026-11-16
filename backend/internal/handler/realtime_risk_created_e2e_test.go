@@ -30,6 +30,7 @@ import (
 	"github.com/opendefender/openrisk/internal/infrastructure/database"
 	"github.com/opendefender/openrisk/internal/infrastructure/repository"
 	"github.com/opendefender/openrisk/internal/middleware"
+	"github.com/opendefender/openrisk/internal/testsupport/testdb"
 	"github.com/opendefender/openrisk/pkg/crq"
 	rt "github.com/opendefender/openrisk/pkg/realtime"
 )
@@ -78,7 +79,7 @@ type riskCreatedEnv struct {
 func newRiskCreatedEnv(t *testing.T) *riskCreatedEnv {
 	t.Helper()
 
-	riskDB, err := gorm.Open(
+	riskDB, err := testdb.Open(t,
 		sqlite.Open("file:risk_created_"+uuid.NewString()+"?mode=memory&cache=private"),
 		&gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
 	require.NoError(t, err)

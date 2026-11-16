@@ -20,6 +20,7 @@ import (
 	"gorm.io/gorm/logger"
 
 	"github.com/opendefender/openrisk/internal/domain/canonical"
+	"github.com/opendefender/openrisk/internal/testsupport/testdb"
 )
 
 // pgLegacyDB is the legacyDB of reconcile_test.go on a throwaway PostgreSQL
@@ -31,7 +32,7 @@ func pgLegacyDB(t *testing.T) *gorm.DB {
 		t.Skip("DATABASE_URL not set")
 	}
 	cfg := &gorm.Config{Logger: logger.Default.LogMode(logger.Silent), TranslateError: true}
-	admin, err := gorm.Open(postgres.Open(dsn), cfg)
+	admin, err := testdb.Open(t, postgres.Open(dsn), cfg)
 	require.NoError(t, err)
 	schema := "mirrorcc1413_" + strings.ReplaceAll(uuid.NewString(), "-", "")[:10]
 	require.NoError(t, admin.Exec("CREATE SCHEMA "+schema).Error)
@@ -45,7 +46,7 @@ func pgLegacyDB(t *testing.T) *gorm.DB {
 	if strings.Contains(dsn, "?") {
 		sep = "&"
 	}
-	db, err := gorm.Open(postgres.Open(dsn+sep+"search_path="+schema), cfg)
+	db, err := testdb.Open(t, postgres.Open(dsn+sep+"search_path="+schema), cfg)
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		if s, err := db.DB(); err == nil {

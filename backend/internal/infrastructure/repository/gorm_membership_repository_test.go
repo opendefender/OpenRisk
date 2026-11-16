@@ -18,6 +18,7 @@ import (
 
 	"github.com/opendefender/openrisk/internal/domain"
 	"github.com/opendefender/openrisk/internal/testsupport/sqliteschema"
+	"github.com/opendefender/openrisk/internal/testsupport/testdb"
 )
 
 // Every test here has the same shape on purpose: do the thing in tenant A, then
@@ -25,7 +26,7 @@ import (
 
 func newMembershipTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
+	db, err := testdb.Open(t, sqlite.Open(":memory:"), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
 	if err != nil {
 		t.Fatalf("open sqlite: %v", err)
 	}

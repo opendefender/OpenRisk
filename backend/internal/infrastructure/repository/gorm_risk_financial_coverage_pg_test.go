@@ -19,6 +19,7 @@ import (
 	"gorm.io/gorm/logger"
 
 	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/internal/testsupport/testdb"
 )
 
 // #1033 — the financial screen counts quantified risks with the SQL FILTER of
@@ -31,7 +32,7 @@ func TestCountFinancialCoverage_MatchesHasLossFigures_Postgres(t *testing.T) {
 	if dsn == "" {
 		t.Skip("DATABASE_URL not set")
 	}
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
+	db, err := testdb.Open(t, postgres.Open(dsn), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
 	require.NoError(t, err)
 
 	v := func(f float64) *float64 { return &f }

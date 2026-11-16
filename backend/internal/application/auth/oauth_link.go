@@ -45,7 +45,7 @@ type OAuthLinkRepository interface {
 	// Create links a provider to a user.
 	Create(ctx context.Context, link *domain.OAuthProvider) error
 	// TouchLogin records a successful sign-in through a link.
-	TouchLogin(ctx context.Context, id uuid.UUID, at time.Time) error
+	TouchLogin(ctx context.Context, tenantID, id uuid.UUID, at time.Time) error
 }
 
 // OAuthUserRepository is the narrow slice of user storage linking needs.
@@ -172,7 +172,7 @@ func (uc *ResolveOAuthIdentityUseCase) Execute(ctx context.Context, identity OAu
 		if !user.IsActive {
 			return nil, ErrOAuthAccountDisabled
 		}
-		_ = uc.links.TouchLogin(ctx, link.ID, time.Now())
+		_ = uc.links.TouchLogin(ctx, link.TenantID, link.ID, time.Now())
 		return &ResolveOAuthIdentityOutput{User: user}, nil
 	}
 

@@ -16,6 +16,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/internal/infrastructure/tenantguard"
 )
 
 // GormRealtimeEventRepository is the durable, per-tenant ordered event log, and
@@ -273,8 +274,7 @@ func (r *GormRealtimeEventRepository) Bounds(ctx context.Context, tenantID uuid.
 // waiting for the relay is never purged, whatever its age: it is an
 // announcement not yet made, and legacy rows read as published (migration 0085).
 func (r *GormRealtimeEventRepository) PurgeBefore(ctx context.Context, cutoff time.Time) (int64, error) {
-	// tenant: instance-level retention sweep, cross-tenant by design (see the port).
-	res := r.db.WithContext(ctx).Session(&gorm.Session{SkipHooks: true}).
+	res := tenantguard.CrossTenant(r.db.WithContext(ctx), "realtime event retention purge across every tenant").Session(&gorm.Session{SkipHooks: true}).
 		Where("created_at < ? AND (published_at IS NOT NULL OR abandoned_at IS NOT NULL)", cutoff.UTC()).
 		Delete(&domain.RealtimeEvent{})
 	if res.Error != nil {
