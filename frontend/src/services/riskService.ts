@@ -136,7 +136,8 @@ export interface UpdateRiskInput {
  *
  * @deprecated since #599, removed on 31 March 2027. Use `bulkService` with the
  * `risks` register. A `delete` here needs risks:delete (#1423); use
- * `bulkService.apply('risks', 'delete', …)` instead.
+ * `useGovernedBulk({ register: 'risks' })` instead, which previews first and
+ * sends the preview's fingerprint (#1441).
  */
 export interface BulkRiskActionInput {
   type: 'change_status' | 'assign_to' | 'add_tags' | 'remove_tags' | 'delete';

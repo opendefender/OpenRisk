@@ -24,6 +24,7 @@ import (
 
 	"github.com/opendefender/openrisk/internal/application/entity"
 	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/internal/infrastructure/controlchain"
 	"github.com/opendefender/openrisk/internal/infrastructure/repository"
 	"github.com/opendefender/openrisk/internal/middleware"
 	"github.com/opendefender/openrisk/internal/service"
@@ -99,6 +100,8 @@ func setupDrawer(t *testing.T, permissions []string) *drawerFixture {
 		&domain.Incident{}, &domain.IncidentTimeline{}, &domain.IncidentAction{},
 		&domain.AuditEvent{},
 	))
+	// The legacy repositories mirror their writes onto the control chain (#1413).
+	require.NoError(t, db.AutoMigrate(controlchain.Models()...))
 
 	f := &drawerFixture{db: db, tenantA: uuid.New(), tenantB: uuid.New(), userA: uuid.New()}
 	now := time.Now().UTC()

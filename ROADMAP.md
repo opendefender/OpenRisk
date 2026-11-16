@@ -56,7 +56,8 @@ Le test à poser sur chaque issue, et désormais dans le gabarit d'issue (#563) 
 2. **Risk Data Plane** — schéma canonique, bus d'événements, normalisation, provenance, corrélation, graphe d'entités → `Release 1.2`
    - Modèle canonique v1 : ADR 0008 **accepté** (#541, D-087, 2026-11-03). Enveloppe, vocabulaire des relations et tranche GRC spécifiés ; aucun code avant acceptation (D-030).
    - Types Go du modèle canonique v1 (#1240) : `backend/internal/domain/canonical` — enveloppe, registre des sources et règle `confidence/1`, provenance, vocabulaire fermé des relations, les sept entités et `ControlTestResult` avec leur validation, tests de frontière (pureté, score). Aucune table, aucune route : la persistance est #553.
-   - Chaîne de contrôle, tranche S1 (#553, D-108, ADR 0008 A10) : migration `0086_control_chain` (six tables, `tenant_id` indexé en tête), types de lignes et découpe dans `backend/internal/infrastructure/controlchain`, `controlchain.Reconcile` appelé à chaque démarrage après AutoMigrate (insertion seule, idempotent, comptes réconciliés et journalisés, alerte si refus). Chaque ligne `compliance_controls` reçoit un contrôle interne `ControlIDFor(id)` ; liens de preuve et correspondances de risque reportés en arêtes. Aucun lecteur ne lit encore la chaîne, aucune route : écritures miroir #1413, API #1414 à #1417.
+   - Chaîne de contrôle, tranche S1 (#553, D-108, ADR 0008 A10) : migration `0086_control_chain` (six tables, `tenant_id` indexé en tête), types de lignes et découpe dans `backend/internal/infrastructure/controlchain`, `controlchain.Reconcile` appelé à chaque démarrage après AutoMigrate (insertion seule, idempotent, comptes réconciliés et journalisés, alerte si refus). Chaque ligne `compliance_controls` reçoit un contrôle interne `ControlIDFor(id)` ; liens de preuve et correspondances de risque reportés en arêtes. Aucun lecteur ne lit encore la chaîne, aucune route : API #1414 à #1417.
+   - Chaîne de contrôle, tranche S2 (#1413, D-112) : les écritures héritées sont reflétées sur la chaîne, dans la même transaction, par `controlchain/mirror.go` (création d'une exigence : contrôle + arête `addressed_by` ; lien de preuve : arête `evidenced_by` ; correspondance de risque : arête `mitigated_by` ; suppressions comprises). Un seul résolveur de cibles filtré par `tenant_id` ; une cible d'un autre tenant répond 404. Sens unique, aucun lecteur, aucune route (#1414), réponses héritées inchangées.
    - Exception de contrôle, API seule (#1428, #555 tranche 2) : migration `0087_control_exceptions` (`tenant_id` en tête d'index), entité `domain.ControlException` (statut dérivé à l'instant de l'appelant, jamais stocké, aucun job), use cases `backend/internal/application/controlexception` (créer, lister, révoquer), dépôt `backend/internal/infrastructure/controlexception` qui écrit la ligne et l'entrée `audit_events` dans la **même transaction** (`GormAuditChainRepository.AppendTx`). Routes `POST|GET /api/v1/controls/:controlId/exceptions` et `POST /api/v1/control-exceptions/:exceptionId/revoke`. **Aucune interface** (UI : #1429) ; le calcul de statut de contrôle qui consomme les exceptions reste #555.
 3. **Deux killer workflows** — Signal → Risque → Action → Preuve · Contrôle → Test → Preuve → Écart → Risque → Remédiation → `Release 1.3` et `Release 1.4`
 4. **IA gouvernée** — l'IA propose, l'humain approuve, le système enregistre → `Release 1.5`
@@ -469,24 +470,20 @@ financière + un plan de traitement suggéré ». Une branche par phase, commits
   Wave 1 a livré les trois manques qui restaient : les vues enregistrées côté serveur (W1-05a),
   les actions en masse transactionnelles et auditées sur les risques (W1-05b), et le mécanisme
   partagé d'aperçu + application gouvernée, appliqué aux vulnérabilités et aux actifs (W1-05c).
-  **Reste ouvert — l'épique n'est pas close.** Trois choses, dont une bloquante :
-  - **Le registre des risques n'utilise pas l'endpoint gouverné qu'il possède** (#598).
-    `POST /api/v1/risks/bulk` est transactionnel, audité et monté
-    (`cmd/server/main.go:1365`), mais `RiskRegisterPage.tsx:489-506` supprime toujours **une
-    requête par ligne** (`await Promise.all(ids.map((id) => deleteRisk(id)))`), et la mutation
-    `useRisks.ts:131` qui appelle l'endpoint n'a **aucun appelant**. Côté serveur la garantie
-    existe ; depuis le siège de l'utilisateur elle n'est pas atteignable. Tant que #598 n'est
-    pas livré, « actions en masse gouvernées sur le registre des risques » ne peut pas être
-    déclaré livré (RÈGLE ABSOLUE 12).
+  **Registre des risques : passé sur le chemin gouverné** (#598, #599, #1441). La suppression
+  en masse fait un aperçu (`POST /risks/bulk/preview`), montre l'impact dans
+  `<BulkPreviewDialog>`, puis envoie **une** requête `POST /risks/bulk/delete` qui porte
+  l'empreinte de l'aperçu ; une sélection modifiée entre-temps (409) ou un id périmé ou
+  étranger (404) est refusé en entier et les lignes reviennent
+  (`RiskRegisterPage.tsx`, `useGovernedBulk.ts`, tests
+  `shared/bulk/__tests__/governedBulk.test.tsx` « external-store optimistic plan (#1441) »,
+  `features/risks/__tests__/riskBulkDelete.test.tsx`).
+  Seule la suppression est proposée ; statut et tags en masse ne le sont pas encore.
+  **Reste ouvert — l'épique n'est pas close.** Deux choses :
   - **Quatre registres sur sept n'ont pas d'actions en masse** : mitigations et incidents (C2),
     jetons d'API (C3), et la piste d'audit de gouvernance **abandonnée avec motif** — elle est
     immuable et chaînée par tenant (`internal/domain/governance.go:96`), y écrire en masse
     casserait la chaîne. C2 et C3 sont désormais déposés en **#600**.
-  - **Le registre des risques n'a pas d'aperçu d'impact** (#599). `/risks/bulk` est une route
-    unique dont l'action vient du **corps** de la requête, alors que #582 a délibérément
-    abandonné cette forme (un porteur de `risks:update` pouvait poster une action `delete`) ;
-    vulnérabilités et actifs ont `capabilities`, `preview`, et une route par action derrière sa
-    propre permission. L'aperçu est ce que #582 appelle « la moitié qui manquait à #581 ».
   - **`docs/MARKETING_CLAIM_MATRIX.md` n'est pas à jour** pour les trois enfants : statut
     `VERIFIED` réservé à `product-verifier` via `/verify-claims`.
   Le reste de la dette de vérification de l'épique (Gap 3, `docs/JOURNAL.md:129`) a été
@@ -603,7 +600,7 @@ financière + un plan de traitement suggéré ». Une branche par phase, commits
   31 mars 2027, D-110).
   **Reste** : `assign_to` n'est pas sur les routes gouvernées, car l'assignation en masse ne
   valide pas l'appartenance de l'assigné au tenant (#1426). L'interface de l'aperçu
-  relève de #598.
+  est branchée par #1441.
 - [x] **W1-05c — Actions en masse gouvernées : vulnérabilités et actifs** (#582, enfant C de
   l'épique #235, séquencé après #581, gaté transitivement par **D-036**).
   **Périmètre réellement livré : C1**, pas les six registres annoncés par l'intitulé de l'issue.
