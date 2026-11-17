@@ -383,6 +383,12 @@ func (r *ControlRepository) ListControlsOfRequirement(ctx context.Context, tenan
 // exactly "unhashed" in domain.Evidence.DeriveIntegrity. A link or a statement has
 // no file and still counts. This probe gates a declared-status transition only and feeds no score;
 // the legacy coverage predicates are deliberately unchanged (they move with #555).
+//
+// A test-level edge counts only when its qualifier is a result of that test, in
+// the tenant, with outcome pass: evidence on a fail or inconclusive result does
+// not unlock implemented. A test-level edge with no qualifier cannot exist (D5
+// requires one, and the mirror and the reconciler write control-level edges only),
+// so it counts for nothing.
 func hasLiveEvidence(ctx context.Context, tx *gorm.DB, tenantID, controlID uuid.UUID, asOf time.Time) (bool, error) {
 	var n int64
 	err := tx.WithContext(ctx).Table("canonical_edges e").
@@ -392,8 +398,9 @@ func hasLiveEvidence(ctx context.Context, tx *gorm.DB, tenantID, controlID uuid.
 		Where("(ev.file_ref = '' OR ev.content_hash <> '')").
 		Where("((e.from_type = ? AND e.from_id = ?) OR (e.from_type = ? AND e.from_id IN ("+
 			"SELECT t.id FROM control_tests t JOIN control_implementations i ON i.id = t.implementation_id AND i.tenant_id = t.tenant_id AND i.deleted_at IS NULL "+
-			"WHERE t.tenant_id = ? AND t.deleted_at IS NULL AND i.control_id = ?)))",
-			string(canonical.TypeControl), controlID, string(canonical.TypeControlTest), tenantID, controlID).
+			"WHERE t.tenant_id = ? AND t.deleted_at IS NULL AND i.control_id = ?) "+
+			"AND EXISTS (SELECT 1 FROM control_test_results r WHERE r.tenant_id = e.tenant_id AND r.test_id = e.from_id AND r.id = e.qualifier AND r.outcome = ?)))",
+			string(canonical.TypeControl), controlID, string(canonical.TypeControlTest), tenantID, controlID, string(canonical.OutcomePass)).
 		Count(&n).Error
 	if err != nil {
 		return false, fmt.Errorf("controlchain: control evidence: %w", err)

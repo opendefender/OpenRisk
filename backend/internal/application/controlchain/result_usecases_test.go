@@ -419,20 +419,41 @@ func TestAttachControlTestResultEvidence_Unauthorized(t *testing.T) {
 	assert.True(t, created)
 }
 
-func TestListControlTestResultEvidence_NotFoundAndUnauthorized(t *testing.T) {
+func TestListControlTestResultEvidence_Success(t *testing.T) {
+	rf := newResultFixture()
+	r, err := rf.record(rf.caller, passAt(now))
+	require.NoError(t, err)
+	uc := NewListResultEvidenceUseCase(rf.results)
+	got, err := uc.Execute(context.Background(), rf.caller, rf.test.ID, r.ID)
+	require.NoError(t, err)
+	assert.Empty(t, got)
+	assert.NotNil(t, got)
+	_, _, err = NewAttachResultEvidenceUseCase(rf.results, clock).Execute(context.Background(), rf.caller, rf.test.ID, r.ID, rf.evA)
+	require.NoError(t, err)
+	got, err = uc.Execute(context.Background(), rf.caller, rf.test.ID, r.ID)
+	require.NoError(t, err)
+	require.Len(t, got, 1)
+	assert.Equal(t, rf.evA, got[0].EvidenceID)
+}
+
+func TestListControlTestResultEvidence_NotFound(t *testing.T) {
 	rf := newResultFixture()
 	r, err := rf.record(rf.caller, passAt(now))
 	require.NoError(t, err)
 	uc := NewListResultEvidenceUseCase(rf.results)
 	ctx := context.Background()
-	got, err := uc.Execute(ctx, rf.caller, rf.test.ID, r.ID)
-	require.NoError(t, err)
-	assert.Empty(t, got)
-	assert.NotNil(t, got)
 	_, err = uc.Execute(ctx, rf.other, rf.test.ID, r.ID)
 	require.ErrorIs(t, err, domain.ErrNotFound)
 	_, err = uc.Execute(ctx, rf.caller, rf.test.ID, uuid.New())
 	require.ErrorIs(t, err, domain.ErrNotFound)
+}
+
+func TestListControlTestResultEvidence_Unauthorized(t *testing.T) {
+	rf := newResultFixture()
+	r, err := rf.record(rf.caller, passAt(now))
+	require.NoError(t, err)
+	uc := NewListResultEvidenceUseCase(rf.results)
+	ctx := context.Background()
 	_, err = uc.Execute(ctx, noPerms(rf.caller), rf.test.ID, r.ID)
 	require.ErrorIs(t, err, domain.ErrForbidden)
 	_, err = uc.Execute(ctx, Caller{UserID: uuid.New()}, rf.test.ID, r.ID)

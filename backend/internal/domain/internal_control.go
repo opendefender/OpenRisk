@@ -40,7 +40,6 @@ const (
 
 	// Results of a test and evidence on a result (#1416, #553 slice S5).
 	IntCtlResultNotFound    = "internal_control.result_not_found"
-	IntCtlEvidenceNotFound  = "internal_control.evidence_not_found"
 	IntCtlInvalidResultID   = "internal_control.invalid_result_id"
 	IntCtlInvalidEvidenceID = "internal_control.invalid_evidence_id"
 	IntCtlInvalidObservedAt = "internal_control.invalid_observed_at"

@@ -39,27 +39,3 @@ func (u *ListResultsUseCase) Execute(ctx context.Context, c Caller, testID uuid.
 	}
 	return resultViewsOf(testID, rs), nil
 }
-
-// ListResultEvidenceUseCase lists the evidence attached to one result.
-type ListResultEvidenceUseCase struct{ repo ResultRepository }
-
-// NewListResultEvidenceUseCase builds the use case.
-func NewListResultEvidenceUseCase(repo ResultRepository) *ListResultEvidenceUseCase {
-	return &ListResultEvidenceUseCase{repo: repo}
-}
-
-// Execute returns the live evidence of a result of a live test of the tenant. A
-// foreign test, or a result of another test, is ErrNotFound.
-func (u *ListResultEvidenceUseCase) Execute(ctx context.Context, c Caller, testID, resultID uuid.UUID) ([]ResultEvidenceView, error) {
-	if err := c.authorize(PermissionRead); err != nil {
-		return nil, err
-	}
-	out, err := u.repo.ListResultEvidence(ctx, c.TenantID, testID, resultID)
-	if err != nil {
-		return nil, fmt.Errorf("application.ListControlTestResultEvidence: %w", err)
-	}
-	if out == nil {
-		out = []ResultEvidenceView{}
-	}
-	return out, nil
-}

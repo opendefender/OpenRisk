@@ -4037,7 +4037,8 @@ paths:
         checked here: the coverage probe decides what counts when it is asked. A
         file-backed evidence counts toward `evidence_required` (D-108 Q16) only
         when it carries an integrity hash; a link or a statement always can (D-118
-        point 8). Requires `compliance:evidences:create`.
+        point 8). Evidence on a result counts toward it only when that result's
+        outcome is `pass`. Requires `compliance:evidences:create`.
       operationId: attachControlTestResultEvidence
       security: [{ bearerAuth: [] }]
       parameters:
@@ -4217,7 +4218,9 @@ paths:
         unexpired evidence reachable by an `evidenced_by` edge from the control
         or from one of its live tests, else `evidence_required`. A file-backed
         evidence counts only when it carries an integrity hash (`content_hash`);
-        a link or a statement has no file and counts (D-118 point 8). Re-saving an
+        a link or a statement has no file and counts (D-118 point 8). An edge from a
+        test counts only behind a result of that test whose outcome is `pass`.
+        Re-saving an
         implemented control is never blocked. Requires
         `compliance:controls:update`.
       operationId: updateInternalControl

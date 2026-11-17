@@ -495,8 +495,35 @@ func (s mirrorSuite) TestControlLibrary_EvidenceProbe(t *testing.T) {
 	}
 	require.NoError(t, e.db.Create(&test).Error)
 	ev2 := e.evidence(t, tenant)
+	failResult := uuid.New()
+	addResult := func(id uuid.UUID, tn, testID uuid.UUID, outcome string) {
+		require.NoError(t, e.db.Create(&controlchain.ControlTestResultRow{
+			ID: id, TenantID: tn, TestID: testID, Outcome: outcome, ObservedAt: libNow, RecordedAt: libNow,
+			Source: "openrisk_user", SourceID: id.String(), Confidence: 0.7, ExecutedByKind: "user", ExecutedByID: uuid.NewString(),
+		}).Error)
+	}
+	// D-118 point 8: a test-level edge counts only behind a pass result of that test.
 	edge(canonical.TypeControlTest, test.ID, ev2, tenant, uuid.New())
-	assert.True(t, probe(ctl.ID, libNow), "a test-level edge")
+	assert.False(t, probe(ctl.ID, libNow), "a test-level edge whose qualifier is no result does not count")
+	require.NoError(t, e.db.Exec("DELETE FROM canonical_edges WHERE from_id = ? AND tenant_id = ?", test.ID, tenant).Error)
+	addResult(failResult, tenant, test.ID, "fail")
+	edge(canonical.TypeControlTest, test.ID, ev2, tenant, failResult)
+	assert.False(t, probe(ctl.ID, libNow), "evidence on a fail result does not count")
+	inconclusive := uuid.New()
+	addResult(inconclusive, tenant, test.ID, "inconclusive")
+	require.NoError(t, e.db.Exec("UPDATE canonical_edges SET qualifier = ? WHERE from_id = ? AND tenant_id = ?", inconclusive, test.ID, tenant).Error)
+	assert.False(t, probe(ctl.ID, libNow), "evidence on an inconclusive result does not count")
+	passResult := uuid.New()
+	addResult(passResult, tenant, test.ID, "pass")
+	require.NoError(t, e.db.Exec("UPDATE canonical_edges SET qualifier = ? WHERE from_id = ? AND tenant_id = ?", passResult, test.ID, tenant).Error)
+	assert.True(t, probe(ctl.ID, libNow), "a test-level edge behind a pass result")
+	// A pass result of another test does not back this test's edge.
+	require.NoError(t, e.db.Exec("UPDATE canonical_edges SET qualifier = ? WHERE from_id = ? AND tenant_id = ?", failResult, test.ID, tenant).Error)
+	otherTestID := uuid.New()
+	addResult(uuid.New(), tenant, otherTestID, "pass")
+	assert.False(t, probe(ctl.ID, libNow))
+	require.NoError(t, e.db.Exec("UPDATE canonical_edges SET qualifier = ? WHERE from_id = ? AND tenant_id = ?", passResult, test.ID, tenant).Error)
+	assert.True(t, probe(ctl.ID, libNow))
 
 	require.NoError(t, e.db.Exec("UPDATE control_tests SET deleted_at = ? WHERE id = ? AND tenant_id = ?", libNow, test.ID, tenant).Error)
 	assert.False(t, probe(ctl.ID, libNow), "the test is deleted")
