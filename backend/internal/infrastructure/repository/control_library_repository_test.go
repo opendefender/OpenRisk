@@ -8,6 +8,7 @@ package repository
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -503,6 +504,24 @@ func (s mirrorSuite) TestControlLibrary_EvidenceProbe(t *testing.T) {
 	// A test of another control does not count for this one.
 	otherCtl := e.newControl(t, tenant, "other")
 	assert.False(t, probe(otherCtl.ID, libNow))
+
+	// D-118 point 8: a file counts only with an integrity hash; a link or a
+	// statement (no file) still counts.
+	hashCtl := e.newControl(t, tenant, "integrity")
+	file := e.evidence(t, tenant)
+	edge(canonical.TypeControl, hashCtl.ID, file, tenant, uuid.Nil)
+	setEvidence(file, "file_ref = ?, content_hash = ''", "evidence/proof.pdf")
+	assert.False(t, probe(hashCtl.ID, libNow), "a file with no content hash is unhashed and does not count")
+	setEvidence(file, "content_hash = ?", strings.Repeat("a", 64))
+	assert.True(t, probe(hashCtl.ID, libNow), "the same file with its hash counts")
+	setEvidence(file, "file_ref = '', content_hash = ''")
+	assert.True(t, probe(hashCtl.ID, libNow), "a link or a statement has no file and counts without a hash")
+	// The test-level path is gated the same way.
+	setEvidence(ev2, "file_ref = ?, content_hash = ''", "evidence/other.pdf")
+	require.NoError(t, e.db.Exec("UPDATE control_tests SET deleted_at = NULL WHERE id = ? AND tenant_id = ?", test.ID, tenant).Error)
+	assert.False(t, probe(ctl.ID, libNow), "an unhashed file behind a test-level edge does not count")
+	setEvidence(ev2, "content_hash = ?", strings.Repeat("b", 64))
+	assert.True(t, probe(ctl.ID, libNow), "hashed, behind a test-level edge")
 }
 
 func strp(s string) *string { return &s }

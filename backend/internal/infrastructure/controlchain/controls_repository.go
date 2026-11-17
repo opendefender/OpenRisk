@@ -377,12 +377,19 @@ func (r *ControlRepository) ListControlsOfRequirement(ctx context.Context, tenan
 // is live (not deleted), accepted and not expired at asOf, through an
 // evidenced_by edge from the control itself or from one of its live tests (a test
 // of a live implementation of the control). Every table is read with the tenant.
+//
+// A file-backed evidence counts only when it carries an integrity hash (D-118
+// point 8): a file_ref with an empty content_hash is excluded, which is
+// exactly "unhashed" in domain.Evidence.DeriveIntegrity. A link or a statement has
+// no file and still counts. This probe gates a declared-status transition only and feeds no score;
+// the legacy coverage predicates are deliberately unchanged (they move with #555).
 func hasLiveEvidence(ctx context.Context, tx *gorm.DB, tenantID, controlID uuid.UUID, asOf time.Time) (bool, error) {
 	var n int64
 	err := tx.WithContext(ctx).Table("canonical_edges e").
 		Joins("JOIN evidences ev ON ev.id = e.to_id AND ev.tenant_id = e.tenant_id AND ev.deleted_at IS NULL").
 		Where("e.tenant_id = ? AND e.verb = ? AND e.to_type = ?", tenantID, string(canonical.VerbEvidencedBy), string(canonical.TypeEvidence)).
 		Where("ev.tenant_id = ? AND ev.review = ? AND (ev.valid_until IS NULL OR ev.valid_until > ?)", tenantID, domain.EvidenceReviewAccepted, asOf).
+		Where("(ev.file_ref = '' OR ev.content_hash <> '')").
 		Where("((e.from_type = ? AND e.from_id = ?) OR (e.from_type = ? AND e.from_id IN ("+
 			"SELECT t.id FROM control_tests t JOIN control_implementations i ON i.id = t.implementation_id AND i.tenant_id = t.tenant_id AND i.deleted_at IS NULL "+
 			"WHERE t.tenant_id = ? AND t.deleted_at IS NULL AND i.control_id = ?)))",

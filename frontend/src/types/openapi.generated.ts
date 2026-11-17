@@ -1385,7 +1385,7 @@ export interface paths {
         };
         /**
          * List the test definitions of an implementation (#1415)
-         * @description The live tests of a live implementation, by name. Results and evidence are not part of this slice (#1416). Requires `compliance:controls:read`.
+         * @description The live tests of a live implementation, by name. Results are read from `/compliance/tests/{testId}/results` (#1416). Requires `compliance:controls:read`.
          */
         get: operations["listControlTests"];
         put?: never;
@@ -1428,6 +1428,74 @@ export interface paths {
         patch: operations["updateControlTest"];
         trace?: never;
     };
+    "/compliance/tests/{testId}/results": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the results of a test (#1416)
+         * @description Newest first by `observed_at`, then `recorded_at`, then `id`, all descending: the order is when the test ran, not when it was typed in. The test is resolved in the caller's organization first. Requires `compliance:controls:read`.
+         */
+        get: operations["listControlTestResults"];
+        put?: never;
+        /**
+         * Record a result of a test (#1416)
+         * @description Appends one run. `outcome` and `observed_at` are required; `observed_at` is stored in UTC and may not be more than five minutes ahead of the server (`internal_control.invalid_observed_at`), with no lower bound. `executed_by` is optional: omitted, it is the caller; another user is accepted only as an active member of the caller's organization (`internal_control.owner_invalid`). `system` and `vendor_contact` executors cannot be set here. The id, the tenant, `source` (`openrisk_user`), `source_id`, `confidence` (0.70) and `recorded_at` are set by the server; a body that carries them is accepted and they are ignored. A result is append-only: no route updates or deletes it. The write and its audit entry are one transaction. Requires `compliance:controls:update`.
+         */
+        post: operations["recordControlTestResult"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/compliance/tests/{testId}/results/latest": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read the last result of a test (#1416)
+         * @description The result with the newest `observed_at` ("last tested"). A test that has never run answers 404 with the code `control_test.no_result`, distinct from the 404 `internal_control.test_not_found` of a test that is absent, foreign or deleted. Requires `compliance:controls:read`.
+         */
+        get: operations["getLatestControlTestResult"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/compliance/tests/{testId}/results/{resultId}/evidence": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List the evidence attached to a result (#1416)
+         * @description The live evidence attached to the result, oldest attachment first. An evidence deleted since is not listed. Requires `compliance:controls:read`.
+         */
+        get: operations["listControlTestResultEvidence"];
+        put?: never;
+        /**
+         * Attach an evidence to a result (#1416)
+         * @description Binds an evidence of the library to one result of the test: an `evidenced_by` edge from the test to the evidence, qualified by the result id, so the same artifact can back two results of one test. The test, the result (a result of this test) and the evidence (live) must all be in the caller's organization; a miss, another organization's evidence included, is 404. Attaching the same pair again answers 200 with the stored edge and writes nothing and no second audit entry. Review status and expiry are not checked here: the coverage probe decides what counts when it is asked. A file-backed evidence counts toward `evidence_required` (D-108 Q16) only when it carries an integrity hash; a link or a statement always can (D-118 point 8). Requires `compliance:evidences:create`.
+         */
+        post: operations["attachControlTestResultEvidence"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/compliance/internal-controls": {
         parameters: {
             query?: never;
@@ -1443,7 +1511,7 @@ export interface paths {
         put?: never;
         /**
          * Create a control in the internal library (#1414)
-         * @description The id is generated by the server and the envelope is set from the session (`source` openrisk_user, `confidence` 0.70, provenance `manual_entry` by the caller): a body that carries `id`, `tenant_id`, `source`, `confidence`, `provenance` or `applicability_review_pending` is accepted and those fields are ignored. `not_applicable` needs an `applicability_justification`. `declared_status: implemented` is refused with `evidence_required` (D-108 Q16): a control created now has no evidence, and no path attaches any to a user-created control before the evidence slice (#1416). Owners must be active members of the caller's organization. The write and its audit entry are one transaction. Requires `compliance:controls:create`.
+         * @description The id is generated by the server and the envelope is set from the session (`source` openrisk_user, `confidence` 0.70, provenance `manual_entry` by the caller): a body that carries `id`, `tenant_id`, `source`, `confidence`, `provenance` or `applicability_review_pending` is accepted and those fields are ignored. `not_applicable` needs an `applicability_justification`. `declared_status: implemented` is refused with `evidence_required` (D-108 Q16): a control created now has no evidence (evidence is attached later, to a result of one of its tests, see `/compliance/tests/{testId}/results/{resultId}/evidence`). Owners must be active members of the caller's organization. The write and its audit entry are one transaction. Requires `compliance:controls:create`.
          */
         post: operations["createInternalControl"];
         delete?: never;
@@ -1475,7 +1543,7 @@ export interface paths {
         head?: never;
         /**
          * Edit an internal control (#1414)
-         * @description Partial edit: an omitted field is left alone, a blank `description`, `objective` or `applicability_justification` clears it, a null owner, assignee or reviewer clears the slot. One row is edited, so every requirement the control addresses shows the change. `not_applicable` needs a justification, except on a control with `applicability_review_pending`, which the server clears in the same write when the edit supplies a non-empty justification or makes the control applicable (A10.1); no request sets the flag. Moving `declared_status` INTO `implemented` needs at least one live, accepted, unexpired evidence reachable by an `evidenced_by` edge from the control or from one of its live tests, else `evidence_required`; re-saving an implemented control is never blocked. Requires `compliance:controls:update`.
+         * @description Partial edit: an omitted field is left alone, a blank `description`, `objective` or `applicability_justification` clears it, a null owner, assignee or reviewer clears the slot. One row is edited, so every requirement the control addresses shows the change. `not_applicable` needs a justification, except on a control with `applicability_review_pending`, which the server clears in the same write when the edit supplies a non-empty justification or makes the control applicable (A10.1); no request sets the flag. Moving `declared_status` INTO `implemented` needs at least one live, accepted, unexpired evidence reachable by an `evidenced_by` edge from the control or from one of its live tests, else `evidence_required`. A file-backed evidence counts only when it carries an integrity hash (`content_hash`); a link or a statement has no file and counts (D-118 point 8). Re-saving an implemented control is never blocked. Requires `compliance:controls:update`.
          */
         patch: operations["updateInternalControl"];
         trace?: never;
@@ -3817,7 +3885,7 @@ export interface components {
                 id: string;
             }[];
         };
-        /** @description A test definition of an implementation, with its envelope. Results are not part of it (#1416). The tenant is deliberately not part of it. */
+        /** @description A test definition of an implementation, with its envelope. Its results are read from `/compliance/tests/{testId}/results` (#1416); they are not part of it. The tenant is deliberately not part of it. */
         ControlTest: {
             /** Format: uuid */
             id: string;
@@ -3850,6 +3918,89 @@ export interface components {
             created_at: string;
             /** Format: date-time */
             updated_at: string;
+        };
+        /** @description One run of a test, with its envelope. Append-only. The tenant is deliberately not part of it. */
+        ControlTestResult: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            test_id: string;
+            /** @enum {string} */
+            outcome: "pass" | "fail" | "inconclusive";
+            /**
+             * Format: date-time
+             * @description When the test ran (UTC).
+             */
+            observed_at: string;
+            /**
+             * Format: date-time
+             * @description When the server stored it.
+             */
+            recorded_at: string;
+            executed_by: {
+                /** @enum {string} */
+                kind: "user" | "system" | "vendor_contact";
+                id: string;
+            };
+            note: string | null;
+            /** @description `openrisk_user` for a result recorded through this API. */
+            source: string;
+            /** @description The result's own id for a manual result. */
+            source_id: string;
+            confidence: number;
+        };
+        /** @description The id, tenant, `source`, `confidence`, `recorded_at` and provenance are not fields of this body; a request that carries them changes nothing. */
+        RecordControlTestResultInput: {
+            /** @enum {string} */
+            outcome: "pass" | "fail" | "inconclusive";
+            /**
+             * Format: date-time
+             * @description When the test ran; at most five minutes after the server clock.
+             */
+            observed_at: string;
+            note?: string;
+            /**
+             * Format: uuid
+             * @description A user of the caller's organization; omitted, the caller.
+             */
+            executed_by?: string;
+        };
+        AttachControlTestResultEvidenceInput: {
+            /**
+             * Format: uuid
+             * @description A live evidence of the caller's organization.
+             */
+            evidence_id: string;
+        };
+        /** @description The edge that binds an evidence to a result, with its envelope. */
+        ControlTestResultEvidence: {
+            /**
+             * Format: uuid
+             * @description The edge's own id.
+             */
+            id: string;
+            /** Format: uuid */
+            test_id: string;
+            /** Format: uuid */
+            result_id: string;
+            /** Format: uuid */
+            evidence_id: string;
+            /** @description `openrisk_user`. */
+            source: string;
+            source_id: string;
+            confidence: number;
+            provenance: {
+                /** @example manual_entry */
+                method: string;
+                actor: {
+                    /** @enum {string} */
+                    kind: "user" | "system" | "vendor_contact";
+                    id: string;
+                };
+                confidence_rule: string;
+            };
+            /** Format: date-time */
+            created_at: string;
         };
         /** @description The id, tenant and envelope are not fields of this body; a request that carries them changes nothing. A manual test needs `procedure`, an automated one `collector`. */
         CreateControlTestInput: {
@@ -9805,6 +9956,300 @@ export interface operations {
                 content?: never;
             };
             /** @description Test not found in the caller's organization */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            429: components["responses"]["QuotaExceeded"];
+            503: components["responses"]["MFAStatusUnavailable"];
+        };
+    };
+    listControlTestResults: {
+        parameters: {
+            query?: {
+                /** @description Page size, default 100, at most 500. */
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path: {
+                /** @description Test id (`control_tests.id`). */
+                testId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The page of results */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ControlTestResult"][];
+                    };
+                };
+            };
+            /** @description Invalid test id, `limit` or `offset` */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No tenant or user in the session */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing `compliance:controls:read`; or, from the middleware, `MFA_ENROLLMENT_REQUIRED` */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Test not found in the caller's organization */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            429: components["responses"]["QuotaExceeded"];
+            503: components["responses"]["MFAStatusUnavailable"];
+        };
+    };
+    recordControlTestResult: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Test id (`control_tests.id`). */
+                testId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RecordControlTestResultInput"];
+            };
+        };
+        responses: {
+            /** @description Result recorded */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ControlTestResult"];
+                };
+            };
+            /** @description Validation error naming the field and the rule, or an `internal_control.*` code */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No tenant or user in the session */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing `compliance:controls:update`; or, from the middleware, `CSRF_FAILED` or `MFA_ENROLLMENT_REQUIRED` */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Test not found in the caller's organization */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            429: components["responses"]["QuotaExceeded"];
+            503: components["responses"]["MFAStatusUnavailable"];
+        };
+    };
+    getLatestControlTestResult: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Test id (`control_tests.id`). */
+                testId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The latest result */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ControlTestResult"];
+                };
+            };
+            /** @description Invalid test id */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No tenant or user in the session */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing `compliance:controls:read`; or, from the middleware, `MFA_ENROLLMENT_REQUIRED` */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Test not found in the caller's organization (`internal_control.test_not_found`), or the test never ran (`control_test.no_result`) */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            429: components["responses"]["QuotaExceeded"];
+            503: components["responses"]["MFAStatusUnavailable"];
+        };
+    };
+    listControlTestResultEvidence: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Test id (`control_tests.id`). */
+                testId: string;
+                /** @description Result id (`control_test_results.id`), a result of this test. */
+                resultId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The evidence of the result */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        data: components["schemas"]["ControlTestResultEvidence"][];
+                    };
+                };
+            };
+            /** @description Invalid test or result id */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No tenant or user in the session */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing `compliance:controls:read`; or, from the middleware, `MFA_ENROLLMENT_REQUIRED` */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Test, or result of this test, not found in the caller's organization */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            429: components["responses"]["QuotaExceeded"];
+            503: components["responses"]["MFAStatusUnavailable"];
+        };
+    };
+    attachControlTestResultEvidence: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Test id (`control_tests.id`). */
+                testId: string;
+                /** @description Result id (`control_test_results.id`), a result of this test. */
+                resultId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AttachControlTestResultEvidenceInput"];
+            };
+        };
+        responses: {
+            /** @description The pair was already attached; the stored edge */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ControlTestResultEvidence"];
+                };
+            };
+            /** @description Evidence attached */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ControlTestResultEvidence"];
+                };
+            };
+            /** @description Invalid test, result or evidence id, or body (`internal_control.invalid_*`) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No tenant or user in the session */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing `compliance:evidences:create`; or, from the middleware, `CSRF_FAILED` or `MFA_ENROLLMENT_REQUIRED` */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Test, result or evidence not found in the caller's organization */
             404: {
                 headers: {
                     [name: string]: unknown;

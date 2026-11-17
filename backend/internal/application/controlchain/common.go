@@ -33,6 +33,10 @@ const (
 	PermissionCreate = "compliance:controls:create"
 	PermissionUpdate = "compliance:controls:update"
 	PermissionDelete = "compliance:controls:delete"
+
+	// PermissionAttachEvidence is what attaching evidence to a test result needs
+	// (D-108 Q9): the evidence module's create permission, not the controls'.
+	PermissionAttachEvidence = "compliance:evidences:create"
 )
 
 // Origin describes the request for the audit entry.

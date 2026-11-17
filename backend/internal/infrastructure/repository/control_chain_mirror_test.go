@@ -635,6 +635,22 @@ func (s mirrorSuite) TestEdgeWrite_TargetInOtherTenant_404(t *testing.T) {
 		{"evidenced_by (control level): the control is another tenant's", func(e *mirrorEnv, a, b uuid.UUID) error {
 			return e.link(t, a, e.evidence(t, a), e.requirement(t, b, "A.5.1"), "")
 		}},
+		{"evidenced_by (test level): the evidence is another tenant's", func(e *mirrorEnv, a, b uuid.UUID) error {
+			c := e.resultEnv(t)
+			test := c.newTestOf(t, a)
+			r := userResult(libNow, canonical.OutcomePass)
+			c.record(t, a, test.ID, r)
+			_, _, err := c.attach(t, a, test.ID, r.ResultID, e.evidence(t, b))
+			return err
+		}},
+		{"evidenced_by (test level): the test (and its result) is another tenant's", func(e *mirrorEnv, a, b uuid.UUID) error {
+			c := e.resultEnv(t)
+			test := c.newBareTestOf(t, b)
+			r := userResult(libNow, canonical.OutcomePass)
+			c.record(t, b, test.ID, r)
+			_, _, err := c.attach(t, a, test.ID, r.ResultID, e.evidence(t, a))
+			return err
+		}},
 		{"applies_to: the asset is another tenant's (create of an implementation of tenant A's control)", func(e *mirrorEnv, a, b uuid.UUID) error {
 			c := e.chain(t)
 			ctl := c.newControl(t, a, "A's control")
@@ -826,6 +842,12 @@ func runMirrorSuite(t *testing.T, s mirrorSuite) {
 		"TestControlTest_Unauthorized":                                 s.TestControlTest_Unauthorized_NilTenantTouchesNothing,
 		"TestControlTest_CrossTenantIsInvisible":                       s.TestControlTest_CrossTenantIsInvisible,
 		"TestControlTest_AuditFailureRollsTheWriteBack":                s.TestControlTest_AuditFailureRollsTheWriteBack,
+		"TestControlTestResult_RecordAttachReadBack_Success":           s.TestControlTestResult_RecordAttachReadBack_Success,
+		"TestControlTestResult_Order":                                  s.TestControlTestResult_Order,
+		"TestControlTestResult_NotFound":                               s.TestControlTestResult_NotFound,
+		"TestControlTestResult_Unauthorized":                           s.TestControlTestResult_Unauthorized_NilTenantTouchesNothing,
+		"TestControlTestResult_CrossTenantIsInvisible":                 s.TestControlTestResult_CrossTenantIsInvisible,
+		"TestControlTestResult_AuditFailureRollsTheWriteBack":          s.TestControlTestResult_AuditFailureRollsTheWriteBack,
 	} {
 		t.Run(name, fn)
 	}
