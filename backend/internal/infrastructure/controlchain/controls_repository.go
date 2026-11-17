@@ -396,6 +396,7 @@ func hasLiveEvidence(ctx context.Context, tx *gorm.DB, tenantID, controlID uuid.
 		Where("e.tenant_id = ? AND e.verb = ? AND e.to_type = ?", tenantID, string(canonical.VerbEvidencedBy), string(canonical.TypeEvidence)).
 		Where("ev.tenant_id = ? AND ev.review = ? AND (ev.valid_until IS NULL OR ev.valid_until > ?)", tenantID, domain.EvidenceReviewAccepted, asOf).
 		Where("(ev.file_ref = '' OR ev.content_hash <> '')").
+		// tenant: the test subquery filters t.tenant_id and the results subquery r.tenant_id = e.tenant_id, which is the tenantID above.
 		Where("((e.from_type = ? AND e.from_id = ?) OR (e.from_type = ? AND e.from_id IN ("+
 			"SELECT t.id FROM control_tests t JOIN control_implementations i ON i.id = t.implementation_id AND i.tenant_id = t.tenant_id AND i.deleted_at IS NULL "+
 			"WHERE t.tenant_id = ? AND t.deleted_at IS NULL AND i.control_id = ?) "+
