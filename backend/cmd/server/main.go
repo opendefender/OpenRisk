@@ -1869,6 +1869,18 @@ func main() {
 		ctlchainapp.NewDeleteTestUseCase(controlTestRepo, internalControlClock))
 	protected.Get("/compliance/internal-controls/:controlId/implementations", complianceControlRead, implementationHandler.List)
 	protected.Post("/compliance/internal-controls/:controlId/implementations", complianceControlCreate, implementationHandler.Create)
+	// Results of a test and evidence on a result (#1416, #553 S5, D-118). Recording
+	// a result is a control update; attaching evidence takes the evidence module's
+	// create permission (D-108 Q9). A result is append-only: no PATCH, PUT or
+	// DELETE is registered under results. results/latest is registered before any
+	// results/:resultId route.
+	controlTestResultRepo := controlchain.NewResultRepository(database.DB, auditChainRepo)
+	controlTestResultHandler := handlers.NewControlTestResultHandler(
+		ctlchainapp.NewRecordResultUseCase(controlTestResultRepo, ownershipService, internalControlClock),
+		ctlchainapp.NewListResultsUseCase(controlTestResultRepo),
+		ctlchainapp.NewLatestResultUseCase(controlTestResultRepo),
+		ctlchainapp.NewAttachResultEvidenceUseCase(controlTestResultRepo, internalControlClock),
+		ctlchainapp.NewListResultEvidenceUseCase(controlTestResultRepo))
 	protected.Get("/compliance/implementations/:implementationId", complianceControlRead, implementationHandler.Get)
 	protected.Patch("/compliance/implementations/:implementationId", complianceControlUpdate, implementationHandler.Update)
 	protected.Delete("/compliance/implementations/:implementationId", complianceControlDelete, implementationHandler.Delete)
@@ -1877,6 +1889,11 @@ func main() {
 	protected.Get("/compliance/tests/:testId", complianceControlRead, controlTestHandler.Get)
 	protected.Patch("/compliance/tests/:testId", complianceControlUpdate, controlTestHandler.Update)
 	protected.Delete("/compliance/tests/:testId", complianceControlDelete, controlTestHandler.Delete)
+	protected.Get("/compliance/tests/:testId/results", complianceControlRead, controlTestResultHandler.List)
+	protected.Post("/compliance/tests/:testId/results", complianceControlUpdate, controlTestResultHandler.Record)
+	protected.Get("/compliance/tests/:testId/results/latest", complianceControlRead, controlTestResultHandler.Latest)
+	protected.Get("/compliance/tests/:testId/results/:resultId/evidence", complianceControlRead, controlTestResultHandler.ListEvidence)
+	protected.Post("/compliance/tests/:testId/results/:resultId/evidence", complianceEvidenceCreate, controlTestResultHandler.AttachEvidence)
 	// Per-control evidence, served by the LIBRARY (application/evidence), not by
 	// the old one-file-one-control use cases. The paths are unchanged so existing
 	// clients keep working; what changes is that an upload here lands in the

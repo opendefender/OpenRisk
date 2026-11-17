@@ -50,6 +50,10 @@ type intCtlStack struct {
 
 const intCtlAllPerms = "compliance:controls:read,compliance:controls:create,compliance:controls:update,compliance:controls:delete"
 
+// intCtlResultPerms adds the evidence module's create permission, which attaching
+// evidence to a result takes (D-108 Q9).
+const intCtlResultPerms = intCtlAllPerms + ",compliance:evidences:create"
+
 func newIntCtlStack(t *testing.T) *intCtlStack {
 	t.Helper()
 	db, err := testdb.Open(t, sqlite.Open("file:intctl"+uuid.NewString()+"?mode=memory&cache=shared"), &gorm.Config{
@@ -85,6 +89,12 @@ func newIntCtlStack(t *testing.T) *intCtlStack {
 	testHandler := handler.NewControlTestDefinitionHandler(
 		ctlchain.NewCreateTestUseCase(testRepo, clock), ctlchain.NewGetTestUseCase(testRepo), ctlchain.NewListTestsUseCase(testRepo),
 		ctlchain.NewUpdateTestUseCase(testRepo, clock), ctlchain.NewDeleteTestUseCase(testRepo, clock))
+
+	resultRepo := controlchain.NewResultRepository(db, chain)
+	resultHandler := handler.NewControlTestResultHandler(
+		ctlchain.NewRecordResultUseCase(resultRepo, owners, clock), ctlchain.NewListResultsUseCase(resultRepo),
+		ctlchain.NewLatestResultUseCase(resultRepo), ctlchain.NewAttachResultEvidenceUseCase(resultRepo, clock),
+		ctlchain.NewListResultEvidenceUseCase(resultRepo))
 
 	app := fiber.New()
 	api := app.Group("/api/v1")
@@ -124,6 +134,12 @@ func newIntCtlStack(t *testing.T) *intCtlStack {
 	api.Get("/compliance/tests/:testId", read, testHandler.Get)
 	api.Patch("/compliance/tests/:testId", update, testHandler.Update)
 	api.Delete("/compliance/tests/:testId", del, testHandler.Delete)
+	evidenceCreate := middleware.RequirePermission("compliance:evidences:create")
+	api.Get("/compliance/tests/:testId/results", read, resultHandler.List)
+	api.Post("/compliance/tests/:testId/results", update, resultHandler.Record)
+	api.Get("/compliance/tests/:testId/results/latest", read, resultHandler.Latest)
+	api.Get("/compliance/tests/:testId/results/:resultId/evidence", read, resultHandler.ListEvidence)
+	api.Post("/compliance/tests/:testId/results/:resultId/evidence", evidenceCreate, resultHandler.AttachEvidence)
 	s.app = app
 	return s
 }
@@ -184,6 +200,14 @@ func (s *intCtlStack) asset(t *testing.T, tenant uuid.UUID) string {
 	id := uuid.New()
 	require.NoError(t, s.db.Exec(`INSERT INTO assets (id, tenant_id, name) VALUES (?, ?, 'core banking')`, id, tenant).Error)
 	return id.String()
+}
+
+// evidence stores an evidence of the tenant and returns its id.
+func (s *intCtlStack) evidence(t *testing.T, tenant uuid.UUID) string {
+	t.Helper()
+	ev := &domain.Evidence{TenantID: tenant, Title: "proof", CollectedAt: intCtlNow, Review: domain.EvidenceReviewAccepted}
+	require.NoError(t, repository.NewGormEvidenceRepository(s.db).Create(context.Background(), ev))
+	return ev.ID.String()
 }
 
 func (s *intCtlStack) createControl(t *testing.T, who intCtlReq, name string) string {
@@ -480,6 +504,43 @@ func TestCanonicalWrite_EnvelopeNotClientWritable(t *testing.T) {
 	assert.JSONEq(t, testBefore.Provenance, testAfter.Provenance)
 	assert.Equal(t, testBefore.ImplementationID, testAfter.ImplementationID)
 	assert.Nil(t, testAfter.ObservedAt)
+
+	// #1416 AC5: the same holds for a result, and for the evidence edge on it.
+	ra := s.asA(intCtlResultPerms)
+	resultBody := `{"outcome":"pass","observed_at":"2026-11-16T10:00:00Z","note":"ran",` + envelope + `,"recorded_at":"2001-01-01T00:00:00Z","result_id":"` + forgedID + `"}`
+	status, body = s.do(t, ra, http.MethodPost, testBase+"/"+testID+"/results", resultBody)
+	require.Equal(t, http.StatusCreated, status, "%v", body)
+	resultID := body["id"].(string)
+	assert.NotEqual(t, forgedID, resultID, "the id is the server's")
+	assert.Equal(t, "openrisk_user", body["source"])
+	assert.Equal(t, resultID, body["source_id"])
+	assert.EqualValues(t, 0.7, body["confidence"])
+	assert.Equal(t, map[string]any{"kind": "user", "id": s.userA.String()}, body["executed_by"])
+	assert.Equal(t, "2026-11-16T12:00:00Z", body["recorded_at"], "recorded_at is the server's clock")
+	var resRow controlchain.ControlTestResultRow
+	require.NoError(t, s.db.Where("id = ?", resultID).Take(&resRow).Error)
+	assert.Equal(t, s.tenantA, resRow.TenantID, "the tenant is the session's")
+	assert.Equal(t, testID, resRow.TestID.String())
+	assert.Equal(t, "openrisk_user", resRow.Source)
+	assert.Equal(t, resultID, resRow.SourceID)
+	assert.Equal(t, 0.7, resRow.Confidence)
+	assert.Equal(t, s.userA.String(), resRow.ExecutedByID)
+	assert.EqualValues(t, 1, s.count(t, &controlchain.ControlTestResultRow{}), "no second row under the forged id or tenant")
+
+	evID := s.evidence(t, s.tenantA)
+	status, body = s.do(t, ra, http.MethodPost, testBase+"/"+testID+"/results/"+resultID+"/evidence",
+		`{"evidence_id":"`+evID+`",`+envelope+`,"qualifier":"`+forgedID+`","verb":"mitigated_by"}`)
+	require.Equal(t, http.StatusCreated, status, "%v", body)
+	assert.Equal(t, "openrisk_user", body["source"])
+	assert.EqualValues(t, 0.7, body["confidence"])
+	assert.Equal(t, map[string]any{"method": "manual_entry", "actor": map[string]any{"kind": "user", "id": s.userA.String()}, "confidence_rule": "confidence/1"}, body["provenance"])
+	var edge controlchain.CanonicalEdgeRow
+	require.NoError(t, s.db.Where("from_id = ? AND verb = ?", testID, "evidenced_by").Take(&edge).Error)
+	assert.Equal(t, s.tenantA, edge.TenantID)
+	assert.Equal(t, resultID, edge.Qualifier.String(), "the qualifier is the path's result, not the body's")
+	assert.Equal(t, "openrisk_user", edge.Source)
+	assert.Equal(t, 0.7, edge.Confidence)
+	assert.JSONEq(t, `{}`, edge.Attributes)
 
 	// The pending flag cannot be set by a request, on a not_applicable control either.
 	status, body = s.do(t, a, http.MethodPost, base, `{"name":"NA","applicability":"not_applicable","applicability_review_pending":true}`)

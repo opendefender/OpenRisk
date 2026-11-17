@@ -38,6 +38,16 @@ const (
 	IntCtlAppliesToRequired      = "internal_control.applies_to_required"
 	IntCtlAppliesToInvalid       = "internal_control.applies_to_invalid"
 
+	// Results of a test and evidence on a result (#1416, #553 slice S5).
+	IntCtlResultNotFound    = "internal_control.result_not_found"
+	IntCtlInvalidResultID   = "internal_control.invalid_result_id"
+	IntCtlInvalidEvidenceID = "internal_control.invalid_evidence_id"
+	IntCtlInvalidObservedAt = "internal_control.invalid_observed_at"
+	// IntCtlNoResult: the test exists and has never run. Distinct from the 404 of
+	// an unknown test (IntCtlTestNotFound), so a client tells "never run" from "no
+	// such test" (D-118 point 1).
+	IntCtlNoResult = "control_test.no_result"
+
 	// IntCtlEvidenceRequired is the code D-108 Q16 names: a control moves into
 	// declared_status = implemented only on live, accepted, unexpired evidence.
 	IntCtlEvidenceRequired = "evidence_required"

@@ -135,14 +135,17 @@ func (ControlTestRow) TableName() string { return TableControlTests }
 
 // ControlTestResultRow is canonical.ControlTestResult, persisted. It is
 // append-only, so it has no updated_at and no deleted_at, and it carries the
-// test's tenant_id (A10.5).
+// test's tenant_id (A10.5). observed_at and recorded_at carry no explicit column
+// type: gorm's default for time.Time is timestamptz on PostgreSQL, which is what
+// migration 0086 declares, and a plain datetime on SQLite, whose driver does not
+// parse a column declared timestamptz back into a time.Time.
 type ControlTestResultRow struct {
 	ID             uuid.UUID `gorm:"type:uuid;primaryKey"`
 	TenantID       uuid.UUID `gorm:"type:uuid;not null;index:idx_control_test_results_test,priority:1;uniqueIndex:ux_control_test_results_identity,priority:1"`
 	TestID         uuid.UUID `gorm:"type:uuid;not null;index:idx_control_test_results_test,priority:2;uniqueIndex:ux_control_test_results_identity,priority:2"`
 	Outcome        string    `gorm:"size:16;not null;check:chk_control_test_results_outcome,outcome IN ('pass', 'fail', 'inconclusive')"`
-	ObservedAt     time.Time `gorm:"type:timestamptz;not null"`
-	RecordedAt     time.Time `gorm:"type:timestamptz;not null;index:idx_control_test_results_test,priority:3"`
+	ObservedAt     time.Time `gorm:"not null"`
+	RecordedAt     time.Time `gorm:"not null;index:idx_control_test_results_test,priority:3"`
 	Source         string    `gorm:"size:64;not null;uniqueIndex:ux_control_test_results_identity,priority:3"`
 	SourceID       string    `gorm:"size:255;not null;uniqueIndex:ux_control_test_results_identity,priority:4"`
 	Confidence     float64   `gorm:"type:numeric(3,2);not null;check:chk_control_test_results_confidence,confidence >= 0 AND confidence <= 1"`
