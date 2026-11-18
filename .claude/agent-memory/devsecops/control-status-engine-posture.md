@@ -11,7 +11,8 @@ metadata:
 - Stale marks (mark.go) bind the tenant on every table, called inside the write tx, before deletes. Tenant always from caller/DB-loaded row.
 - GET /compliance/internal-controls/:controlId/status is computed live, never reads the cache; cross-tenant -> 404 same body.
 - The repo has NO Postgres RLS (no ENABLE ROW LEVEL SECURITY in migrations) — don't ask for RLS parity on new tables.
-- Postgres-only tests (cross-tenant loader, SKIP LOCKED claim) SKIP locally; confirm CI runs them.
+- Postgres-only tests SKIP without DATABASE_URL; migration tests need `-tags integration`. r2 (8adec45a) ran them against Postgres: all PASS.
+- r2 2026-11-18 PASS: MarkControls locks rows `FOR UPDATE` in control_id order (deadlock fix); MarkEvidence resolves ids via UNION then MarkControls; all tenant-bound.
 
 Open LOW for #1465 (score readers joining the cache): no per-tenant fairness in the claim; one tenant's backlog can starve others' cache freshness. Matters once the cache is user-facing.
 
