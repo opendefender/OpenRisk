@@ -18,6 +18,7 @@ import (
 
 	"github.com/opendefender/openrisk/internal/domain"
 	"github.com/opendefender/openrisk/internal/domain/canonical"
+	"github.com/opendefender/openrisk/internal/infrastructure/controlstatus"
 )
 
 // The control library repository (#1414). It reads and writes the controls table
@@ -222,6 +223,10 @@ func (r *ControlRepository) UpdateControl(ctx context.Context, tenantID, id uuid
 		if res.RowsAffected != 1 {
 			return controlNotFound()
 		}
+		// Applicability decides not_applicable (#555).
+		if err := controlstatus.MarkControls(ctx, tx, tenantID, id); err != nil {
+			return err
+		}
 		return r.audit.AppendTx(ctx, tx, ev)
 	})
 	if err != nil {
@@ -250,6 +255,10 @@ func (r *ControlRepository) DeleteControl(ctx context.Context, tenantID, id uuid
 		}
 		ev, err := apply(cur)
 		if err != nil {
+			return err
+		}
+		// Marked so the worker finds the control gone and deletes its row (#555).
+		if err := controlstatus.MarkControls(ctx, tx, tenantID, id); err != nil {
 			return err
 		}
 		res := tx.Model(&ControlRow{}).

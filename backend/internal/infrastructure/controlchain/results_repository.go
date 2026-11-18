@@ -17,6 +17,7 @@ import (
 	ctlapp "github.com/opendefender/openrisk/internal/application/controlchain"
 	"github.com/opendefender/openrisk/internal/domain"
 	"github.com/opendefender/openrisk/internal/domain/canonical"
+	"github.com/opendefender/openrisk/internal/infrastructure/controlstatus"
 )
 
 // The result repository (#1416, D-118). It reads and writes control_test_results,
@@ -95,6 +96,11 @@ func (r *ResultRepository) RecordResult(ctx context.Context, tenantID, testID uu
 			return err
 		}
 		if err := tx.Create(&row).Error; err != nil {
+			return err
+		}
+		// A new latest result can change the control's status (#555): mark it in
+		// this transaction, so the commit and the invalidation are one.
+		if err := controlstatus.MarkTest(ctx, tx, tenantID, testID); err != nil {
 			return err
 		}
 		return r.audit.AppendTx(ctx, tx, audit)
@@ -205,6 +211,11 @@ func (r *ResultRepository) AttachEvidence(ctx context.Context, tenantID, testID,
 		}
 		if res.RowsAffected == 1 {
 			created = true
+			// Evidence on the latest result can make a user-entered pass supported
+			// (#555): mark the control in this transaction.
+			if err := controlstatus.MarkTest(ctx, tx, tenantID, testID); err != nil {
+				return err
+			}
 			if out, err = viewPtr(edgeRowToResultEvidence(row)); err != nil {
 				return err
 			}

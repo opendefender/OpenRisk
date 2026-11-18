@@ -25,6 +25,7 @@ import (
 	"github.com/opendefender/openrisk/internal/domain"
 	"github.com/opendefender/openrisk/internal/domain/canonical"
 	"github.com/opendefender/openrisk/internal/infrastructure/controlchain"
+	"github.com/opendefender/openrisk/internal/infrastructure/controlstatus"
 	"github.com/opendefender/openrisk/internal/testsupport/testdb"
 	"github.com/opendefender/openrisk/pkg/monitoring"
 )
@@ -52,7 +53,7 @@ func mirrorLegacyDDL(id, ts string) []string {
 		`CREATE UNIQUE INDEX idx_mirror_compliance_controls_ref ON compliance_controls (tenant_id, framework_id, reference_code)
 			WHERE deleted_at IS NULL AND reference_code <> ''`,
 		`CREATE TABLE risks (id ` + id + ` PRIMARY KEY, tenant_id ` + id + ` NOT NULL, title TEXT, score DOUBLE PRECISION DEFAULT 0,
-			smart_score DOUBLE PRECISION DEFAULT 0, residual_risk DOUBLE PRECISION, created_at ` + ts + `, updated_at ` + ts + `, deleted_at ` + ts + `)`,
+			smart_score DOUBLE PRECISION DEFAULT 0, residual_risk DOUBLE PRECISION, status TEXT NOT NULL DEFAULT 'open', created_at ` + ts + `, updated_at ` + ts + `, deleted_at ` + ts + `)`,
 		`CREATE TABLE risk_histories (id ` + id + ` PRIMARY KEY, risk_id ` + id + ` NOT NULL, score DOUBLE PRECISION, created_at ` + ts + `)`,
 		`CREATE TABLE risk_control_mappings (id ` + id + ` PRIMARY KEY, tenant_id ` + id + ` NOT NULL, risk_id ` + id + ` NOT NULL,
 			framework_id ` + id + ` NOT NULL, control_id ` + id + `, note TEXT, created_by ` + id + `, source TEXT DEFAULT 'manual',
@@ -70,6 +71,7 @@ func newMirrorEnv(t *testing.T, db *gorm.DB) *mirrorEnv {
 	}
 	require.NoError(t, db.AutoMigrate(&domain.Evidence{}, &domain.EvidenceControlLink{}))
 	require.NoError(t, db.AutoMigrate(controlchain.Models()...))
+	require.NoError(t, db.AutoMigrate(controlstatus.Models()...))
 	return &mirrorEnv{
 		db: db, comp: NewGormComplianceRepository(db), ev: NewGormEvidenceRepository(db), maps: NewGormRiskControlMappingRepository(db),
 	}

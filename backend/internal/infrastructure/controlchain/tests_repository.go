@@ -19,6 +19,7 @@ import (
 	ctlapp "github.com/opendefender/openrisk/internal/application/controlchain"
 	"github.com/opendefender/openrisk/internal/domain"
 	"github.com/opendefender/openrisk/internal/domain/canonical"
+	"github.com/opendefender/openrisk/internal/infrastructure/controlstatus"
 )
 
 // The test-definition repository (#1415). It reads and writes control_tests.
@@ -125,6 +126,10 @@ func (r *TestRepository) CreateTest(ctx context.Context, tenantID uuid.UUID, t c
 		if err := tx.Create(&row).Error; err != nil {
 			return err
 		}
+		// A new test is a new in-scope signal of its control (#555).
+		if err := controlstatus.MarkImplementation(ctx, tx, tenantID, t.ImplementationID); err != nil {
+			return err
+		}
 		return r.audit.AppendTx(ctx, tx, audit)
 	})
 	return wrapApp(err, "controlchain.CreateTest")
@@ -211,6 +216,10 @@ func (r *TestRepository) UpdateTest(ctx context.Context, tenantID, id uuid.UUID,
 		if res.RowsAffected != 1 {
 			return testNotFound()
 		}
+		// The cadence decides the freshness window (#555).
+		if err := controlstatus.MarkTest(ctx, tx, tenantID, id); err != nil {
+			return err
+		}
 		return r.audit.AppendTx(ctx, tx, ev)
 	})
 	if err != nil {
@@ -236,6 +245,10 @@ func (r *TestRepository) DeleteTest(ctx context.Context, tenantID, id uuid.UUID,
 		}
 		ev, err := apply(cur)
 		if err != nil {
+			return err
+		}
+		// Marked before the delete, while the test still resolves to its control (#555).
+		if err := controlstatus.MarkTest(ctx, tx, tenantID, id); err != nil {
 			return err
 		}
 		res := tx.Model(&ControlTestRow{}).

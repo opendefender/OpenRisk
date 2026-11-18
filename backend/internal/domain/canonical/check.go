@@ -106,40 +106,10 @@ var localeTag = regexp.MustCompile(`^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$`)
 
 // isISO8601Duration accepts PnYnMnWnDTnHnMnS with integer components, at least
 // one component, each designator at most once and in order, and a non-zero
-// total. `P30D` and `P3M` are valid; `P`, `PT`, `P0D` and `30D` are not.
+// total. `P30D` and `P3M` are valid; `P`, `PT`, `P0D` and `30D` are not. The
+// grammar lives in parseISO8601Duration (duration.go), which the freshness
+// computation of #555 reads, so the validator and the parser cannot drift apart.
 func isISO8601Duration(s string) bool {
-	if !strings.HasPrefix(s, "P") {
-		return false
-	}
-	datePart, timePart, hasT := strings.Cut(s[1:], "T")
-	if hasT && timePart == "" {
-		return false
-	}
-	seen, nonZero := false, false
-	parse := func(part, units string) bool {
-		next := 0
-		for part != "" {
-			i := 0
-			for i < len(part) && part[i] >= '0' && part[i] <= '9' {
-				i++
-			}
-			if i == 0 || i == len(part) {
-				return false
-			}
-			pos := strings.IndexByte(units[next:], part[i])
-			if pos < 0 {
-				return false
-			}
-			next += pos + 1
-			n, err := strconv.Atoi(part[:i])
-			if err != nil {
-				return false
-			}
-			seen = true
-			nonZero = nonZero || n > 0
-			part = part[i+1:]
-		}
-		return true
-	}
-	return parse(datePart, "YMWD") && parse(timePart, "HMS") && seen && nonZero
+	_, ok := parseISO8601Duration(s)
+	return ok
 }

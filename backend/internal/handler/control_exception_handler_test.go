@@ -28,6 +28,7 @@ import (
 	"github.com/opendefender/openrisk/internal/handler"
 	"github.com/opendefender/openrisk/internal/infrastructure/controlchain"
 	"github.com/opendefender/openrisk/internal/infrastructure/controlexception"
+	"github.com/opendefender/openrisk/internal/infrastructure/controlstatus"
 	"github.com/opendefender/openrisk/internal/infrastructure/repository"
 	"github.com/opendefender/openrisk/internal/middleware"
 	"github.com/opendefender/openrisk/internal/testsupport/testdb"
@@ -67,6 +68,7 @@ func newCtlExcStack(t *testing.T) *ctlExcStack {
 	})
 	require.NoError(t, err)
 	require.NoError(t, db.AutoMigrate(&controlchain.ControlRow{}, &controlexception.ExceptionRow{}, &domain.AuditEvent{}))
+	require.NoError(t, db.AutoMigrate(controlstatus.Models()...))
 
 	s := &ctlExcStack{db: db, tenantA: uuid.New(), tenantB: uuid.New(), userA: uuid.New(), userB: uuid.New(), ownerA: uuid.New(), controlA: uuid.New()}
 	require.NoError(t, db.Create(&controlchain.ControlRow{

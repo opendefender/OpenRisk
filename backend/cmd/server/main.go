@@ -41,6 +41,7 @@ import (
 	"github.com/opendefender/openrisk/internal/application/complianceaudit"
 	ctlchainapp "github.com/opendefender/openrisk/internal/application/controlchain"
 	ctlexcapp "github.com/opendefender/openrisk/internal/application/controlexception"
+	ctlstatusapp "github.com/opendefender/openrisk/internal/application/controlstatus"
 	entapp "github.com/opendefender/openrisk/internal/application/entitlements"
 	"github.com/opendefender/openrisk/internal/application/entity"
 	"github.com/opendefender/openrisk/internal/application/evidence"
@@ -74,6 +75,7 @@ import (
 	autoinfra "github.com/opendefender/openrisk/internal/infrastructure/automation"
 	"github.com/opendefender/openrisk/internal/infrastructure/controlchain"
 	"github.com/opendefender/openrisk/internal/infrastructure/controlexception"
+	"github.com/opendefender/openrisk/internal/infrastructure/controlstatus"
 	"github.com/opendefender/openrisk/internal/infrastructure/ctimatch"
 	"github.com/opendefender/openrisk/internal/infrastructure/database"
 	"github.com/opendefender/openrisk/internal/infrastructure/demoseed"
@@ -1850,6 +1852,14 @@ func main() {
 	protected.Post("/compliance/internal-controls/:controlId/requirements/:requirementId", complianceControlUpdate, internalControlHandler.Link)
 	protected.Delete("/compliance/internal-controls/:controlId/requirements/:requirementId", complianceControlUpdate, internalControlHandler.Unlink)
 	protected.Get("/compliance/controls/:controlId/internal-controls", complianceControlRead, internalControlHandler.ListForRequirement)
+	// Computed status of a control (#555, ADR 0012, D-119): computed live at the request
+	// instant from the tests' latest results, the evidence on them and the exceptions;
+	// never read from the evaluation cache and never accepted as input, so there is no
+	// write route. The id is the CANONICAL control id.
+	controlStatusLoader := controlstatus.NewLoader(database.DB)
+	controlStatusHandler := handlers.NewControlStatusHandler(
+		ctlstatusapp.NewGetControlStatusUseCase(controlStatusLoader, internalControlClock))
+	protected.Get("/compliance/internal-controls/:controlId/status", complianceControlRead, controlStatusHandler.Get)
 	// Implementations and test definitions of a control (#1415, #553 S4). Same
 	// permissions as the library: read, create, update and delete of controls (D-108
 	// Q9). The write and its audit entry share one transaction, as above.
@@ -3154,6 +3164,16 @@ func main() {
 		}, zeroLogger)
 	go evidenceExpiryWorker.Start(context.Background())
 
+	// Control status engine (#555, ADR 0012): recompute the controls a write marked stale,
+	// those whose clock-driven change is due and those never computed, in batches of 200,
+	// every 60 s. It fills the evaluation cache only; the status endpoint computes live.
+	// The context is cancelled and the worker drained at shutdown, after app.Shutdown.
+	controlStatusWorker := workers.NewControlStatusWorker(
+		ctlstatusapp.NewRecomputeControlsUseCase(controlStatusLoader, controlstatus.NewStore(database.DB), internalControlClock, ctlstatusapp.DefaultBatch),
+		zeroLogger)
+	controlStatusCtx, stopControlStatus := context.WithCancel(context.Background())
+	go controlStatusWorker.Start(controlStatusCtx)
+
 	// Residual-risk acceptances (#811): D-30 and D-7 notices to the owner and
 	// the approver, then the system transition back to ASSESSED at the end
 	// date. Same hourly, stamp-before-send rule as the evidence sweep.
@@ -3778,6 +3798,18 @@ func main() {
 			log.Println("Realtime: outbox rows still in flight at shutdown were put back for the next relay")
 		}
 		cancelOutboxDrain()
+	}
+
+	// The control status worker finishes the pass in flight, up to a deadline. The rows
+	// it had claimed and not recomputed are leased and come back on the next boot or
+	// on another replica (#555).
+	stopControlStatus()
+	{
+		statusDrainCtx, cancelStatusDrain := context.WithTimeout(context.Background(), 10*time.Second)
+		if err := controlStatusWorker.Drain(statusDrainCtx); err != nil {
+			log.Println("Control status: a recompute pass was still running at shutdown; its rows come back after their lease")
+		}
+		cancelStatusDrain()
 	}
 
 	// The notice e-mail worker finishes its batch, up to a deadline. Past it,

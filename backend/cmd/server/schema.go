@@ -10,6 +10,7 @@ import (
 	"github.com/opendefender/openrisk/internal/domain"
 	"github.com/opendefender/openrisk/internal/infrastructure/controlchain"
 	"github.com/opendefender/openrisk/internal/infrastructure/controlexception"
+	"github.com/opendefender/openrisk/internal/infrastructure/controlstatus"
 	"github.com/opendefender/openrisk/pkg/cti"
 )
 
@@ -179,6 +180,10 @@ func schemaModels() []interface{} {
 		// Control exceptions (#1428, migration 0087): a time-boxed, owned waiver of one
 		// canonical control. Tenant-scoped; status is derived, never stored.
 		&controlexception.ExceptionRow{},
+		// Control status evaluations (#555, migration 0089): the engine's cache of
+		// each control's computed status. Engine output only: no route writes it and
+		// no user-facing read trusts it. Tenant-scoped.
+		&controlstatus.EvaluationRow{},
 		// Security Automation / SOAR (spec §10 « Automatisation »): tenant-scoped
 		// playbooks (trigger + conditions + action chain + SLA policy), their
 		// execution audit trail, and the live SLA countdowns the monitor escalates.

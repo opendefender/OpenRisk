@@ -1,0 +1,1 @@
+- [Recurring defect patterns](patterns.md) — what to grep for first in OpenRisk diffs

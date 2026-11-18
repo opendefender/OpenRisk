@@ -18,20 +18,22 @@ import (
 
 	"github.com/opendefender/openrisk/internal/infrastructure/controlchain"
 	"github.com/opendefender/openrisk/internal/infrastructure/controlexception"
+	"github.com/opendefender/openrisk/internal/infrastructure/controlstatus"
 	"github.com/opendefender/openrisk/internal/testsupport/testdb"
 )
 
 // TestTenantTables_AreTheControlChainTables keeps the list and the row types in
 // step: a seventh table of the chain, or a second exception table, cannot be added
 // without being listed. The chain is the six tables of migration 0086; the seventh
-// entry is control_exceptions (migration 0087), which is not a chain table.
+// entry is control_exceptions (migration 0087), which is not a chain table, and the
+// eighth is control_status_evaluations (migration 0089, #555), the engine's cache.
 func TestTenantTables_AreTheControlChainTables(t *testing.T) {
-	want := append(controlchain.Tables(), controlexception.TableControlExceptions)
+	want := append(controlchain.Tables(), controlexception.TableControlExceptions, controlstatus.TableControlStatusEvaluations)
 	got := append([]string(nil), TenantTables...)
 	sort.Strings(want)
 	sort.Strings(got)
 	assert.Equal(t, want, got)
-	assert.Len(t, got, 7)
+	assert.Len(t, got, 8)
 }
 
 // TestTenantTables_Postgres asserts, on a migrated PostgreSQL database, that

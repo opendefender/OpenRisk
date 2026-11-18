@@ -24,6 +24,7 @@ import (
 	applicationevidence "github.com/opendefender/openrisk/internal/application/evidence"
 	"github.com/opendefender/openrisk/internal/domain"
 	"github.com/opendefender/openrisk/internal/infrastructure/controlchain"
+	"github.com/opendefender/openrisk/internal/infrastructure/controlstatus"
 	"github.com/opendefender/openrisk/internal/infrastructure/repository"
 	"github.com/opendefender/openrisk/internal/middleware"
 	"github.com/opendefender/openrisk/internal/service"
@@ -70,6 +71,7 @@ func setupComplianceSchema(t *testing.T) *gorm.DB {
 	require.NoError(t, db.AutoMigrate(&domain.Evidence{}, &domain.EvidenceControlLink{}))
 	// The legacy repositories mirror their writes onto the control chain (#1413).
 	require.NoError(t, db.AutoMigrate(controlchain.Models()...))
+	require.NoError(t, db.AutoMigrate(controlstatus.Models()...))
 	require.NoError(t, db.Exec(`
 		CREATE TABLE control_mappings (
 			id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL,

@@ -87,6 +87,11 @@ func (c Caller) authorize(permission string) error {
 	return nil
 }
 
+// Authorize is authorize for the use cases of other packages that run as a
+// Caller (the control status engine, #555): no tenant or no user is Unauthorized,
+// a missing permission is Forbidden.
+func (c Caller) Authorize(permission string) error { return c.authorize(permission) }
+
 // Repository is the persistence the use cases need. Every method is scoped by the
 // tenant it is given; another tenant's id reads as absent (ErrNotFound).
 type Repository interface {

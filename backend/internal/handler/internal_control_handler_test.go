@@ -28,6 +28,7 @@ import (
 	"github.com/opendefender/openrisk/internal/domain/canonical"
 	"github.com/opendefender/openrisk/internal/handler"
 	"github.com/opendefender/openrisk/internal/infrastructure/controlchain"
+	"github.com/opendefender/openrisk/internal/infrastructure/controlstatus"
 	"github.com/opendefender/openrisk/internal/infrastructure/repository"
 	"github.com/opendefender/openrisk/internal/middleware"
 	"github.com/opendefender/openrisk/internal/testsupport/testdb"
@@ -67,6 +68,7 @@ func newIntCtlStack(t *testing.T) *intCtlStack {
 	require.NoError(t, db.Exec(`CREATE TABLE assets (id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, name TEXT NOT NULL DEFAULT '', deleted_at DATETIME)`).Error)
 	require.NoError(t, db.AutoMigrate(&domain.Evidence{}, &domain.AuditEvent{}))
 	require.NoError(t, db.AutoMigrate(controlchain.Models()...))
+	require.NoError(t, db.AutoMigrate(controlstatus.Models()...))
 
 	s := &intCtlStack{db: db, tenantA: uuid.New(), tenantB: uuid.New(), userA: uuid.New(), userB: uuid.New(), ownerA: uuid.New()}
 

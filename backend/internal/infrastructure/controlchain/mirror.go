@@ -18,6 +18,7 @@ import (
 
 	"github.com/opendefender/openrisk/internal/domain"
 	"github.com/opendefender/openrisk/internal/domain/canonical"
+	"github.com/opendefender/openrisk/internal/infrastructure/controlstatus"
 	"github.com/opendefender/openrisk/pkg/monitoring"
 )
 
@@ -260,8 +261,12 @@ func MirrorEvidenceLinked(ctx context.Context, tx *gorm.DB, tenant, linkID, evid
 	if err != nil || !ok {
 		return err
 	}
-	return putEdge(ctx, tx, Edge(tenant, canonical.TypeControl, canonical.ControlIDFor(requirementID),
-		canonical.VerbEvidencedBy, canonical.TypeEvidence, evidenceID, noteAttrs(note), linkID.String(), at, mirrorMethod), linkID)
+	if err := putEdge(ctx, tx, Edge(tenant, canonical.TypeControl, canonical.ControlIDFor(requirementID),
+		canonical.VerbEvidencedBy, canonical.TypeEvidence, evidenceID, noteAttrs(note), linkID.String(), at, mirrorMethod), linkID); err != nil {
+		return err
+	}
+	// Control-level evidence feeds freshness and the source list (#555).
+	return controlstatus.MarkControls(ctx, tx, tenant, canonical.ControlIDFor(requirementID))
 }
 
 // MirrorEvidenceUnlinked removes the evidenced_by edge of one (evidence,
@@ -269,6 +274,10 @@ func MirrorEvidenceLinked(ctx context.Context, tx *gorm.DB, tenant, linkID, evid
 // the edge for.
 func MirrorEvidenceUnlinked(ctx context.Context, tx *gorm.DB, tenant, evidenceID, requirementID uuid.UUID) error {
 	if err := needTenant(tenant); err != nil {
+		return err
+	}
+	// Marked before the edge goes (#555).
+	if err := controlstatus.MarkControls(ctx, tx, tenant, canonical.ControlIDFor(requirementID)); err != nil {
 		return err
 	}
 	return deleteEdges(ctx, tx, tenant, canonical.TypeControl, []uuid.UUID{canonical.ControlIDFor(requirementID)},

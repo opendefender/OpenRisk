@@ -16,6 +16,7 @@ import (
 
 	"github.com/opendefender/openrisk/internal/domain"
 	"github.com/opendefender/openrisk/internal/infrastructure/controlchain"
+	"github.com/opendefender/openrisk/internal/infrastructure/controlstatus"
 	"github.com/opendefender/openrisk/internal/infrastructure/tenantguard"
 )
 
@@ -50,21 +51,25 @@ func (r *GormEvidenceRepository) Update(ctx context.Context, e *domain.Evidence)
 	// The column list is an allow-list on purpose: content_hash, hash_algorithm,
 	// collection_method, collector_* and signature* are written by Create only,
 	// so no metadata edit can rewrite the record's integrity (#554).
-	res := r.db.WithContext(ctx).
-		Model(&domain.Evidence{}).
-		Where("id = ? AND tenant_id = ?", e.ID, e.TenantID).
-		Select("title", "type", "description", "file_ref", "filename", "external_url",
-			"collected_at", "valid_until", "review", "review_note", "reviewed_by",
-			"reviewed_at", "source", "source_detail", "owner_id", "assignee_id",
-			"reviewer_id", "observed_from", "observed_to", "updated_at").
-		Updates(e)
-	if res.Error != nil {
-		return res.Error
-	}
-	if res.RowsAffected == 0 {
-		return domain.NewNotFoundError("evidence", e.ID)
-	}
-	return nil
+	// One transaction with the stale mark (#555): the review verdict, the collection
+	// date, the expiry and the file decide whether this proof covers and is fresh.
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		res := tx.
+			Model(&domain.Evidence{}).
+			Where("id = ? AND tenant_id = ?", e.ID, e.TenantID).
+			Select("title", "type", "description", "file_ref", "filename", "external_url",
+				"collected_at", "valid_until", "review", "review_note", "reviewed_by",
+				"reviewed_at", "source", "source_detail", "owner_id", "assignee_id",
+				"reviewer_id", "observed_from", "observed_to", "updated_at").
+			Updates(e)
+		if res.Error != nil {
+			return res.Error
+		}
+		if res.RowsAffected == 0 {
+			return domain.NewNotFoundError("evidence", e.ID)
+		}
+		return controlstatus.MarkEvidence(ctx, tx, e.TenantID, e.ID)
+	})
 }
 
 func (r *GormEvidenceRepository) GetByID(ctx context.Context, tenantID, id uuid.UUID) (*domain.Evidence, error) {
@@ -146,6 +151,11 @@ func (r *GormEvidenceRepository) Delete(ctx context.Context, tenantID, id uuid.U
 		return domain.NewNotFoundError("evidence", id)
 	}
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		// Marked first, while the edges that say which controls this proof backs are
+		// still there (#555): the control-level ones go below, the test-level ones stay.
+		if err := controlstatus.MarkEvidence(ctx, tx, tenantID, id); err != nil {
+			return err
+		}
 		res := tx.Where("id = ? AND tenant_id = ?", id, tenantID).Delete(&domain.Evidence{})
 		if res.Error != nil {
 			return res.Error

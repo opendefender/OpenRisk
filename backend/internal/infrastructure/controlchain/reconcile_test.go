@@ -18,6 +18,7 @@ import (
 	"gorm.io/gorm/logger"
 
 	"github.com/opendefender/openrisk/internal/domain/canonical"
+	"github.com/opendefender/openrisk/internal/infrastructure/controlstatus"
 	"github.com/opendefender/openrisk/internal/testsupport/testdb"
 	"github.com/opendefender/openrisk/pkg/monitoring"
 )
@@ -46,6 +47,7 @@ func legacyDB(t *testing.T) *gorm.DB {
 		require.NoError(t, db.Exec(ddl).Error)
 	}
 	require.NoError(t, db.AutoMigrate(Models()...))
+	require.NoError(t, db.AutoMigrate(controlstatus.Models()...))
 	return db
 }
 

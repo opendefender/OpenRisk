@@ -25,4 +25,7 @@ var TenantTables = []string{
 	// Control exceptions (migration 0087, #1428). Not a chain table: a decision
 	// recorded about a canonical control, gated on the control of the same tenant.
 	"control_exceptions",
+	// Control status evaluations (migration 0089, #555). The engine's cache, one row
+	// per (tenant_id, control_id); engine output, never an input.
+	"control_status_evaluations",
 }
