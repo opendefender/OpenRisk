@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"os"
 	"sort"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -910,6 +911,53 @@ func TestControlStatus_P95OfOneComputation(t *testing.T) {
 		runs, queries, p50, p95, durations[runs-1], view.Freshness.Counted)
 	if os.Getenv("OPENRISK_PERF") == "1" {
 		assert.Less(t, p95, 150*time.Millisecond, "criterion 5: p95 under 150 ms")
+	}
+}
+
+// TestControlStatusMarks_OppositeOrderDoesNotDeadlock: two transactions mark the
+// same two controls, one as {A,B} and one as {B,A}, each holding its locks briefly
+// before committing. Without the ordered lock this is a 40P01 deadlock that fails an
+// evidence write; with it both commit. PostgreSQL only.
+func TestControlStatusMarks_OppositeOrderDoesNotDeadlock(t *testing.T) {
+	e := newMirrorEnvPG(t).status(t)
+	if e.db.Dialector.Name() != "postgres" {
+		t.Skip("PostgreSQL only")
+	}
+	ctx := context.Background()
+	tenant := uuid.New()
+	a, b := e.control(t, tenant), e.control(t, tenant)
+	e.seedRow(t, tenant, a)
+	e.seedRow(t, tenant, b)
+
+	for round := 0; round < 20; round++ {
+		for _, id := range []uuid.UUID{a, b} {
+			require.NoError(t, e.db.Model(&statusinfra.EvaluationRow{}).Where("tenant_id = ? AND control_id = ?", tenant, id).Update("stale", false).Error)
+		}
+		var start sync.WaitGroup
+		start.Add(2)
+		errs := make(chan error, 2)
+		run := func(ids ...uuid.UUID) {
+			errs <- e.db.Transaction(func(tx *gorm.DB) error {
+				start.Done()
+				start.Wait() // both begin together
+				if err := statusinfra.MarkControls(ctx, tx, tenant, ids...); err != nil {
+					return err
+				}
+				time.Sleep(20 * time.Millisecond) // hold the locks, as a writer does until its commit
+				return nil
+			})
+		}
+		go run(a, b)
+		go run(b, a)
+		for i := 0; i < 2; i++ {
+			select {
+			case err := <-errs:
+				require.NoError(t, err, "both transactions commit, no deadlock")
+			case <-time.After(20 * time.Second):
+				t.Fatal("a transaction is stuck")
+			}
+		}
+		assert.True(t, e.stale(t, tenant, a) && e.stale(t, tenant, b))
 	}
 }
 

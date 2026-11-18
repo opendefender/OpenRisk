@@ -27,7 +27,8 @@ import (
 // through (edges, the soft-deleted test): the mark resolves controls on rows that
 // are still there. A mark that matches no row is not an error.
 //
-// Write paths that mark (one test each in repository/control_status_marks_test.go):
+// Write paths that mark (one test each, TestControlStatusMarks_EveryWritePathMarksItsControlsOnly
+// in repository/control_status_engine_test.go):
 //
 //	RecordResult, AttachEvidence            -> MarkTest
 //	CreateTest, UpdateTest, DeleteTest      -> MarkImplementation / MarkTest
@@ -37,6 +38,12 @@ import (
 //	exception Create, Revoke                -> MarkControls
 //	evidence Update, Delete                 -> MarkEvidence
 //	evidence Link, Unlink (the mirror)      -> MarkControls
+//
+// Known unmarked writer: controlchain/reconcile.go. The boot reconciler inserts
+// control-level evidenced_by edges (~line 449) and backfills mitigated_by edges
+// without marking any row, so a control whose edge only the reconciler wrote keeps a
+// stale cache until another write or its next_change_at. Only the cache is affected:
+// the status endpoint computes live. Tracked in a follow-up issue.
 
 // The edge vocabulary of ADR 0008 D5, bound as values (never glued into the SQL).
 var (
@@ -53,13 +60,24 @@ func needTenant(tenantID uuid.UUID) error {
 	return nil
 }
 
-// MarkControls marks the rows of the given controls of the tenant.
+// MarkControls marks the rows of the given controls of the tenant. On PostgreSQL
+// the rows are locked first, in control_id order, so two transactions that mark
+// the same controls in opposite order wait for each other instead of deadlocking
+// (40P01 would fail the evidence write that carried the mark). Every statement
+// binds the tenant.
 func MarkControls(ctx context.Context, tx *gorm.DB, tenantID uuid.UUID, controlIDs ...uuid.UUID) error {
 	if err := needTenant(tenantID); err != nil {
 		return err
 	}
 	if len(controlIDs) == 0 {
 		return nil
+	}
+	if tx.Dialector.Name() == "postgres" {
+		var locked []uuid.UUID
+		if err := tx.WithContext(ctx).Raw(`SELECT control_id FROM control_status_evaluations
+			WHERE tenant_id = ? AND control_id IN ? ORDER BY control_id FOR UPDATE`, tenantID, controlIDs).Scan(&locked).Error; err != nil {
+			return fmt.Errorf("controlstatus.MarkControls: lock: %w", err)
+		}
 	}
 	if err := tx.WithContext(ctx).Table(TableControlStatusEvaluations).
 		Where("tenant_id = ? AND control_id IN ?", tenantID, controlIDs).
@@ -105,28 +123,26 @@ func MarkTest(ctx context.Context, tx *gorm.DB, tenantID, testID uuid.UUID) erro
 // MarkEvidence marks every control an evidence of the tenant reaches through an
 // evidenced_by edge: the control it is attached to, and the control of each test
 // it backs through that test's implementation. A deleting write calls it before it
-// removes the edges.
+// removes the edges. The controls are resolved first and marked through
+// MarkControls, so the rows are locked in a fixed order.
 func MarkEvidence(ctx context.Context, tx *gorm.DB, tenantID, evidenceID uuid.UUID) error {
 	if err := needTenant(tenantID); err != nil {
 		return err
 	}
-	err := tx.WithContext(ctx).Exec(`UPDATE control_status_evaluations SET stale = ?
-		WHERE tenant_id = ? AND (
-			control_id IN (
-				SELECT e.from_id FROM canonical_edges e
-				WHERE e.tenant_id = ? AND e.verb = ? AND e.to_type = ? AND e.to_id = ? AND e.from_type = ?)
-			OR control_id IN (
-				SELECT i.control_id FROM canonical_edges e
-				JOIN control_tests t ON t.id = e.from_id AND t.tenant_id = e.tenant_id
-				JOIN control_implementations i ON i.id = t.implementation_id AND i.tenant_id = t.tenant_id
-				WHERE e.tenant_id = ? AND e.verb = ? AND e.to_type = ? AND e.to_id = ? AND e.from_type = ?
-				  AND t.tenant_id = ? AND i.tenant_id = ?))`,
-		true, tenantID,
+	var ids []uuid.UUID
+	err := tx.WithContext(ctx).Raw(`SELECT e.from_id FROM canonical_edges e
+		WHERE e.tenant_id = ? AND e.verb = ? AND e.to_type = ? AND e.to_id = ? AND e.from_type = ?
+		UNION
+		SELECT i.control_id FROM canonical_edges e
+		JOIN control_tests t ON t.id = e.from_id AND t.tenant_id = e.tenant_id
+		JOIN control_implementations i ON i.id = t.implementation_id AND i.tenant_id = t.tenant_id
+		WHERE e.tenant_id = ? AND e.verb = ? AND e.to_type = ? AND e.to_id = ? AND e.from_type = ?
+		  AND t.tenant_id = ? AND i.tenant_id = ?`,
 		tenantID, evidencedBy, evidenceType, evidenceID, controlType,
 		tenantID, evidencedBy, evidenceType, evidenceID, testType,
-		tenantID, tenantID).Error
+		tenantID, tenantID).Scan(&ids).Error
 	if err != nil {
 		return fmt.Errorf("controlstatus.MarkEvidence: %w", err)
 	}
-	return nil
+	return MarkControls(ctx, tx, tenantID, ids...)
 }

@@ -114,6 +114,13 @@ tenant-isolation review. The defaults are constants in one file and the override
   `evaluated_at` so an older computation never overwrites a newer one. A write that lands after
   the claim marks the row again and it is picked up on the next tick. A row whose control is gone
   is deleted.
+  The claim also leases what it takes: `next_change_at` is set to the claim instant plus five
+  minutes, so a crash before the save is retried when the lease ends and a second replica does not
+  take the same rows. A live control with no row gets a placeholder row at claim time
+  (`evaluated_at` = the epoch means never computed, `stale` false), so a write that lands during the
+  computation finds a row to mark. Narrow race: a write committing while the placeholder insert is
+  still uncommitted finds no row to mark; only the cache is affected and the window is
+  milliseconds wide.
 
 ## Consequences
 
@@ -128,6 +135,12 @@ Harder:
   A path that forgets it leaves only the cache stale, never a user-facing read, and the cold-fill
   and `next_change_at` sweeps do not catch it: the implementation PR lists every write path and
   tests each mark.
+  One writer is known to be unmarked: `controlchain/reconcile.go`, the boot reconciler, inserts
+  control-level `evidenced_by` edges and backfills `mitigated_by` edges without marking. A control
+  whose edge only the reconciler wrote keeps a stale cache until another write or its
+  `next_change_at`; the live read is unaffected. A follow-up issue tracks it.
+- A mark locks the evaluation rows it touches in `control_id` order before it updates them, so two
+  writes marking the same controls in opposite order wait instead of deadlocking.
 - Legacy controls read `insufficient_evidence` until tests exist. That is the honest reading and the
   reason #1465 needs a transition rule.
 - Manual passes need evidence attached to the run.
