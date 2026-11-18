@@ -1548,6 +1548,26 @@ export interface paths {
         patch: operations["updateInternalControl"];
         trace?: never;
     };
+    "/compliance/internal-controls/{controlId}/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read the computed status of an internal control (#555)
+         * @description What the control really is at the instant of the request, computed from the latest result of each of its tests, the evidence attached to those results, the control's own transitional evidence and its exceptions (ADR 0012). It is computed live in one read-only snapshot, never read from a stored value, and never accepted as input: no other method is registered here. `pass` needs at least one in-scope test and every one a fresh pass; a result a person typed in (`user_entered`) also needs fresh, accepted, unexpired evidence attached to that same result. A failure of any age stays `fail`. An exception that is active at the instant turns `fail` or `insufficient_evidence` into `exception_active` and never hides a `pass`; an expired, revoked or not-yet-started exception is not credited. `underlying_status` is the status without the exception. Evidence is fresh within its cadence plus a tenth (P90D for a test with no cadence, P365D for the control's own evidence). Requires `compliance:controls:read`. A control of another organization, or a deleted one, answers 404.
+         */
+        get: operations["getInternalControlStatus"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/compliance/internal-controls/{controlId}/requirements": {
         parameters: {
             query?: never;
@@ -4034,6 +4054,58 @@ export interface components {
             name: string;
             /** Format: date-time */
             linked_at: string;
+        };
+        /** @description The computed status of a control at `evaluated_at`, the instant of the request (#555). Derived, never stored in the contract and never writable. */
+        ControlStatusEvaluation: {
+            /** Format: uuid */
+            control_id: string;
+            /** @enum {string} */
+            status: "pass" | "fail" | "insufficient_evidence" | "exception_active" | "not_applicable";
+            /**
+             * @description The status from the tests alone, before an exception is applied.
+             * @enum {string}
+             */
+            underlying_status: "pass" | "fail" | "insufficient_evidence";
+            /**
+             * @description What somebody set. A claim, not the computed status.
+             * @enum {string}
+             */
+            declared_status: "not_implemented" | "in_progress" | "implemented";
+            /** Format: date-time */
+            evaluated_at: string;
+            freshness: {
+                /** @description fresh / counted x 100, two decimals; 0 with nothing counted */
+                percent: number;
+                fresh: number;
+                counted: number;
+            };
+            /** @description Exceptions active at `evaluated_at`. */
+            open_exception_count: number;
+            /** @description Live, open risks the control mitigates. Display only. */
+            open_risk_count: number;
+            /** @description The signals that fed the computation, at most 500. */
+            sources: {
+                /** @enum {string} */
+                kind: "test_result" | "evidence";
+                /** Format: uuid */
+                id: string;
+                /** Format: uuid */
+                test_id?: string;
+                /** Format: uuid */
+                result_id?: string;
+                /** Format: date-time */
+                observed_at: string | null;
+                fresh: boolean;
+                /** @enum {string} */
+                via: "test" | "control";
+            }[];
+            /** @description true when more than 500 signals fed the computation */
+            truncated: boolean;
+            /**
+             * Format: date-time
+             * @description The earliest instant the clock alone can change this result.
+             */
+            next_change_at: string | null;
         };
         InternalControlLink: {
             /** Format: uuid */
@@ -10507,6 +10579,59 @@ export interface operations {
                 content?: never;
             };
             /** @description Missing `compliance:controls:update`; or, from the middleware, `CSRF_FAILED` or `MFA_ENROLLMENT_REQUIRED` */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Control not found in the caller's organization */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            429: components["responses"]["QuotaExceeded"];
+            503: components["responses"]["MFAStatusUnavailable"];
+        };
+    };
+    getInternalControlStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Canonical control id (`controls.id`). */
+                controlId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The computed status */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ControlStatusEvaluation"];
+                };
+            };
+            /** @description Invalid control id */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No tenant or user in the session */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Missing `compliance:controls:read`; or, from the middleware, `MFA_ENROLLMENT_REQUIRED` */
             403: {
                 headers: {
                     [name: string]: unknown;

@@ -8185,14 +8185,13 @@ components:
               id: { type: string, format: uuid }
               test_id: { type: string, format: uuid }
               result_id: { type: string, format: uuid }
-              observed_at: { type: string, format: date-time, nullable: true }
+              observed_at: { type: [string, 'null'], format: date-time }
               fresh: { type: boolean }
               via: { type: string, enum: [test, control] }
         truncated: { type: boolean, description: "true when more than 500 signals fed the computation" }
         next_change_at:
-          type: string
+          type: [string, 'null']
           format: date-time
-          nullable: true
           description: The earliest instant the clock alone can change this result.
 
     InternalControlLink:
