@@ -18,7 +18,7 @@ require (
 	github.com/go-ldap/ldap/v3 v3.4.14
 	github.com/go-pdf/fpdf v0.9.0
 	github.com/go-playground/validator/v10 v10.28.0
-	github.com/gofiber/fiber/v2 v2.52.12
+	github.com/gofiber/fiber/v2 v2.52.14
 	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/golang-migrate/migrate/v4 v4.19.1
 	github.com/google/go-github/v66 v66.0.0
