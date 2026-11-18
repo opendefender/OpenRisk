@@ -43,7 +43,7 @@ import (
 // control-level evidenced_by edges (~line 449) and backfills mitigated_by edges
 // without marking any row, so a control whose edge only the reconciler wrote keeps a
 // stale cache until another write or its next_change_at. Only the cache is affected:
-// the status endpoint computes live. Tracked in a follow-up issue.
+// the status endpoint computes live. Tracked in #1466.
 
 // The edge vocabulary of ADR 0008 D5, bound as values (never glued into the SQL).
 var (

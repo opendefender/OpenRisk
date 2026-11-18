@@ -138,7 +138,7 @@ Harder:
   One writer is known to be unmarked: `controlchain/reconcile.go`, the boot reconciler, inserts
   control-level `evidenced_by` edges and backfills `mitigated_by` edges without marking. A control
   whose edge only the reconciler wrote keeps a stale cache until another write or its
-  `next_change_at`; the live read is unaffected. A follow-up issue tracks it.
+  `next_change_at`; the live read is unaffected. #1466 tracks it.
 - A mark locks the evaluation rows it touches in `control_id` order before it updates them, so two
   writes marking the same controls in opposite order wait instead of deadlocking.
 - Legacy controls read `insufficient_evidence` until tests exist. That is the honest reading and the
