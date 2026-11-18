@@ -12,6 +12,8 @@ package compliance
 // règlement (fiables) ; les descriptions sont des résumés originaux, pas le texte
 // officiel. Vérifier contre le texte du Règlement (UE) 2016/679 avant un audit.
 // Descriptions en français : cadre européen, marché cible francophone.
+//
+// Review status: see Catalog.Review in the register call below. This header makes no review claim.
 
 func init() {
 	register(Catalog{
@@ -20,6 +22,7 @@ func init() {
 		Version:     "2016",
 		Description: "Règlement Général sur la Protection des Données — obligations du responsable de traitement et du sous-traitant : principes, bases légales, droits des personnes, sécurité, violations, DPIA, DPO et transferts.",
 		Available:   true,
+		Review:      Review{Status: ReviewUnreviewed},
 		Controls:    gdpr2016679Controls,
 	})
 }

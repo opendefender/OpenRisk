@@ -10,6 +10,8 @@ package compliance
 // are original summaries of each Control's intent, not CIS's own text (CIS
 // Controls are © the Center for Internet Security). A tenant can add ad-hoc
 // Safeguard-level controls to the imported framework.
+//
+// Review status: see Catalog.Review in the register call below. This header makes no review claim.
 
 func init() {
 	register(Catalog{
@@ -18,6 +20,7 @@ func init() {
 		Version:     "8",
 		Description: "The 18 CIS Critical Security Controls (v8) — prioritized, prescriptive cyber-defense best practices.",
 		Available:   true,
+		Review:      Review{Status: ReviewUnreviewed},
 		Controls:    cisV8Controls,
 	})
 }

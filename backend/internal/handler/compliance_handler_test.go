@@ -458,6 +458,7 @@ func TestListCatalogs_IncludesISO27001AndPlaceholders(t *testing.T) {
 	// only knows the openapi.yaml contract) read undefined and rendered every catalog as unavailable.
 	require.Contains(t, string(rawBody), `"available"`)
 	require.Contains(t, string(rawBody), `"control_count"`)
+	require.Contains(t, string(rawBody), `"review":{"status":"unreviewed"`)
 
 	var catalogs []applicationcompliance.CatalogSummary
 	require.NoError(t, json.Unmarshal(rawBody, &catalogs))
@@ -469,6 +470,7 @@ func TestListCatalogs_IncludesISO27001AndPlaceholders(t *testing.T) {
 	require.Contains(t, byKey, "iso27001-2022")
 	require.True(t, byKey["iso27001-2022"].Available)
 	require.Equal(t, 93, byKey["iso27001-2022"].ControlCount)
+	require.Equal(t, "unreviewed", byKey["iso27001-2022"].Review.Status)
 
 	// African regulatory frameworks are now real, available catalogs.
 	for _, key := range []string{"cobac", "bceao", "antic-cm"} {

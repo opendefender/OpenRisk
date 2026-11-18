@@ -11,9 +11,10 @@ package compliance
 // product to summarize each control's intent — they are not the standard's own control
 // text, which is copyrighted and licensed separately by ISO.
 //
-// This content has not yet had a dedicated compliance-expert review pass; treat reference
-// codes/titles as reliable (they're the standard's own public structure) but verify exact
-// wording against a licensed copy of ISO/IEC 27001:2022 before using this in a real audit.
+// Reference codes and titles come from the standard's own public structure; exact wording
+// should be verified against a licensed copy of ISO/IEC 27001:2022 before a real audit.
+//
+// Review status: see Catalog.Review in the register call below. This header makes no review claim.
 
 func init() {
 	register(Catalog{
@@ -22,6 +23,7 @@ func init() {
 		Version:     "2022",
 		Description: "Information security management system (ISMS) — Annex A reference controls.",
 		Available:   true,
+		Review:      Review{Status: ReviewUnreviewed},
 		Controls:    iso27001_2022Controls,
 	})
 }

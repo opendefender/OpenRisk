@@ -52,9 +52,10 @@ func (c catalogFile) render(job string) ([]byte, error) {
 		}
 		b.WriteString("// " + l + "\n")
 	}
+	b.WriteString("//\n// Review status: see Catalog.Review in the register call below.\n")
 	b.WriteString("\nfunc init() {\n\tregister(Catalog{\n")
 	fmt.Fprintf(&b, "\t\tKey: %q,\n\t\tName: %q,\n\t\tVersion: %q,\n\t\tDescription: %q,\n", c.Key, c.Name, c.Version, c.Description)
-	fmt.Fprintf(&b, "\t\tAvailable: true,\n\t\tControls: %s,\n\t})\n}\n\n", c.VarName)
+	fmt.Fprintf(&b, "\t\tAvailable: true,\n\t\tReview: Review{Status: ReviewUnreviewed},\n\t\tControls: %s,\n\t})\n}\n\n", c.VarName)
 	fmt.Fprintf(&b, "var %s = []CatalogControl{\n", c.VarName)
 	for _, r := range c.Rows {
 		fmt.Fprintf(&b, "\t{%q, %q,\n\t\t%q,\n\t\t%q},\n", r.Code, r.Name, r.Description, r.Source)

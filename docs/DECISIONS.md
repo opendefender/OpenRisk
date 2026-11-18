@@ -9,6 +9,26 @@ recommends, and surfaces these in the daily brief. Run `/decide` to clear them.
 
 ## Resolved
 
+### D-120 — Catalogues without a review sign-off: review them, or show "not reviewed" at import · decided 2026-11-18
+**Decided (agent: po-openrisk, 2026-11-18)** — for #1190, under D-089.
+**Question** — 17 catalogues are `Available: true`, and the contract in `backend/pkg/compliance/catalog.go` says
+that flag means a compliance-competent reviewer verified the content. No record of any review exists in the
+repository. Do we review all of them first, or ship an honest visible state?
+**Options** — (A) review every catalogue before anything else; (B) keep them importable, record a review status
+per catalogue, show "not reviewed" at import; (C) flip `Available` to false for every unreviewed catalogue.
+**Choice** — B.
+1. `Catalog` gets a `Review` block with `Status` (`unreviewed` | `structure_reviewed` | `reviewed`), and for any
+   status other than `unreviewed`: date, reviewer, source documents, URL, and written gaps. `Available` keeps one
+   meaning: importable. Its doc comment is rewritten so it no longer promises a review.
+2. All 17 catalogues start `unreviewed`. No sign-off is written without a committed review record (#1469),
+   because inventing a reviewer or date breaks Rule 12.
+3. A test fails when `Available: true` and `Status` is empty, or when a non-`unreviewed` status lacks a field.
+4. The picker shows the status and asks one confirmation for non-`reviewed` catalogues (#1468).
+**Reason** — A is not an agent's call to make: it needs a human legal reviewer and cannot be scheduled.
+C removes 13 catalogues from tenants who rely on them, breaks crosswalk coverage and contradicts claim C-005,
+for no gain in honesty that a visible state does not give. B is reversible and spends nothing.
+**Overturn** — change a status in the catalogue file; or set `Available: false` for one key.
+
 ### D-119 — Control status engine (#555): vocabulary, precedence, freshness windows, budget, cache, triggers, score readers · decided 2026-11-18
 **Decided (agent, 2026-11-18)** — tech-lead design gate of #555, D-089, on top of ADR 0008 D4/D6, D-108 Q4/Q6, D-113 and D-118. The rules are ADR 0012. Nothing irreversible and nothing that spends money. The one new table is additive and expand-only. The owner may overturn any point.
 

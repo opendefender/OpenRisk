@@ -22,6 +22,39 @@ type CatalogSummary struct {
 	Description  string `json:"description"`
 	Available    bool   `json:"available"`
 	ControlCount int    `json:"control_count"`
+	// Review is the sign-off state of the catalog's content (D-120). Available only means
+	// importable; Review.Status says whether anyone checked the content.
+	Review CatalogReview `json:"review"`
+}
+
+// CatalogReview mirrors pkg/compliance.Review on the wire. Sources and Gaps are always
+// arrays (never null) so a client can iterate without a nil check.
+type CatalogReview struct {
+	Status   string                `json:"status"`
+	Date     string                `json:"date"`
+	Reviewer string                `json:"reviewer"`
+	Sources  []CatalogReviewSource `json:"sources"`
+	Gaps     []string              `json:"gaps"`
+}
+
+// CatalogReviewSource is one document a catalog was reviewed against.
+type CatalogReviewSource struct {
+	Document string `json:"document"`
+	URL      string `json:"url"`
+}
+
+func toCatalogReview(r pkgcompliance.Review) CatalogReview {
+	out := CatalogReview{
+		Status:   string(r.Status),
+		Date:     r.Date,
+		Reviewer: r.Reviewer,
+		Sources:  make([]CatalogReviewSource, 0, len(r.Sources)),
+		Gaps:     append([]string{}, r.Gaps...),
+	}
+	for _, src := range r.Sources {
+		out.Sources = append(out.Sources, CatalogReviewSource{Document: src.Document, URL: src.URL})
+	}
+	return out
 }
 
 // ListCatalogsUseCase lists every registered regulatory catalog (available and
@@ -44,6 +77,7 @@ func (uc *ListCatalogsUseCase) Execute(_ context.Context) []CatalogSummary {
 			Description:  c.Description,
 			Available:    c.Available,
 			ControlCount: len(c.Controls),
+			Review:       toCatalogReview(c.Review),
 		})
 	}
 	return out

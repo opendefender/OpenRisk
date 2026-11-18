@@ -26,6 +26,8 @@ package compliance
 // Reproduced from the Official Journal of the European Union under Commission
 // Decision 2011/833/EU on the reuse of Commission documents; only the French
 // Official Journal text is authentic.
+//
+// Review status: see Catalog.Review in the register call below.
 
 func init() {
 	register(Catalog{
@@ -34,6 +36,7 @@ func init() {
 		Version:     "2022",
 		Description: "Directive NIS2 — 77 exigences citant le texte officiel : gouvernance (art. 20), les dix mesures de l'art. 21(2), les obligations d'information de l'art. 23, et les 53 exigences techniques de l'annexe du règlement d'exécution (UE) 2024/2690 (entités visées à son article 1er : DNS, TLD, informatique en nuage, centres de données, CDN, services gérés, services de sécurité gérés, places de marché, moteurs de recherche, réseaux sociaux, services de confiance).",
 		Available:   true,
+		Review:      Review{Status: ReviewUnreviewed},
 		Controls:    nis220222555Controls,
 	})
 }
