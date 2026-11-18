@@ -7,7 +7,7 @@
 
 package main
 
-// #555 — migration 0090 creates control_status_evaluations. These tests start
+// #555 — migration 0089 creates control_status_evaluations. These tests start
 // from the previous release's shape (AutoMigrate without the new table, SQL layer
 // at 88; 0089 is #1456's) and run the migration through golang-migrate, so the SQL
 // DDL is what is under test: its constraints, its tenant-leading key, its
@@ -31,21 +31,21 @@ import (
 	"github.com/opendefender/openrisk/internal/infrastructure/database"
 )
 
-const lastVersionBefore0090 = 88
+const lastVersionBefore0089 = 88
 
 var tenantA555 = uuid.MustParse("00000000-0000-4000-8555-00000000000a")
 
 type status555 struct{ *upgradeDB }
 
-// pre0090DB builds the previous release's schema in a throwaway PostgreSQL
+// pre0089DB builds the previous release's schema in a throwaway PostgreSQL
 // schema: every model but control_status_evaluations, SQL layer at 88.
-func pre0090DB(t *testing.T) *status555 {
+func pre0089DB(t *testing.T) *status555 {
 	t.Helper()
 	base := os.Getenv("DATABASE_URL")
 	if base == "" {
 		t.Skip("DATABASE_URL not set")
 	}
-	schema := "mig0090_" + strings.ReplaceAll(uuid.New().String(), "-", "")[:12]
+	schema := "mig0089_" + strings.ReplaceAll(uuid.New().String(), "-", "")[:12]
 	admin := openGorm(t, base)
 	require.NoError(t, admin.Exec(fmt.Sprintf(`CREATE SCHEMA %s`, schema)).Error)
 	t.Cleanup(func() { _ = admin.Exec(fmt.Sprintf(`DROP SCHEMA %s CASCADE`, schema)).Error })
@@ -66,8 +66,8 @@ func pre0090DB(t *testing.T) *status555 {
 	}
 	require.NoError(t, database.PrepareForAutoMigrate(c.db))
 	require.NoError(t, c.db.AutoMigrate(previous...))
-	require.NoError(t, newMigrator(t, c.dsn).Migrate(lastVersionBefore0090))
-	require.False(t, c.hasTable(t, controlstatus.TableControlStatusEvaluations), "control_status_evaluations belongs to 0090")
+	require.NoError(t, newMigrator(t, c.dsn).Migrate(lastVersionBefore0089))
+	require.False(t, c.hasTable(t, controlstatus.TableControlStatusEvaluations), "control_status_evaluations belongs to 0089")
 	return c
 }
 
@@ -114,8 +114,8 @@ func (c *status555) assertRefusals(t *testing.T) {
 	assert.Error(t, err, "tenant_id is NOT NULL")
 }
 
-func TestMigration0090_Success(t *testing.T) {
-	c := pre0090DB(t)
+func TestMigration0089_Success(t *testing.T) {
+	c := pre0089DB(t)
 	tablesBefore := c.tables(t)
 
 	require.NoError(t, newMigrator(t, c.dsn).Migrate(90))
@@ -123,7 +123,7 @@ func TestMigration0090_Success(t *testing.T) {
 	assert.Equal(t, uint(90), v)
 	assert.False(t, dirty)
 	require.True(t, c.hasTable(t, controlstatus.TableControlStatusEvaluations))
-	assert.Equal(t, tablesBefore+1, c.tables(t), "0090 adds exactly one table")
+	assert.Equal(t, tablesBefore+1, c.tables(t), "0089 adds exactly one table")
 
 	// tenant_id uuid NOT NULL, and the primary key leads with it.
 	assert.Equal(t, int64(1), c.count(t, `SELECT count(*) FROM information_schema.columns WHERE table_schema = current_schema()
@@ -141,8 +141,8 @@ func TestMigration0090_Success(t *testing.T) {
 	c.assertRefusals(t)
 }
 
-func TestMigration0090_Rollback(t *testing.T) {
-	c := pre0090DB(t)
+func TestMigration0089_Rollback(t *testing.T) {
+	c := pre0089DB(t)
 	require.NoError(t, newMigrator(t, c.dsn).Migrate(90))
 	withTable := c.tables(t)
 
@@ -160,16 +160,16 @@ func TestMigration0090_Rollback(t *testing.T) {
 	assert.True(t, c.hasTable(t, controlstatus.TableControlStatusEvaluations))
 }
 
-// TestMigration0090_AutoMigrateFirstThenSQL — a compose boot builds the table
+// TestMigration0089_AutoMigrateFirstThenSQL — a compose boot builds the table
 // with AutoMigrate, and the SQL layer that follows must be a no-op over it.
-func TestMigration0090_AutoMigrateFirstThenSQL(t *testing.T) {
-	c := pre0090DB(t)
+func TestMigration0089_AutoMigrateFirstThenSQL(t *testing.T) {
+	c := pre0089DB(t)
 	require.NoError(t, c.db.AutoMigrate(controlstatus.Models()...))
-	c.assertRefusals(t) // the AutoMigrate-built table refuses what 0090's refuses
+	c.assertRefusals(t) // the AutoMigrate-built table refuses what 0089's refuses
 
 	before := c.shape(t)
 	require.NoError(t, newMigrator(t, c.dsn).Migrate(90))
-	assert.Equal(t, before, c.shape(t), "0090 over an AutoMigrate-built table changes nothing")
+	assert.Equal(t, before, c.shape(t), "0089 over an AutoMigrate-built table changes nothing")
 	v, dirty := c.version(t)
 	assert.Equal(t, uint(90), v)
 	assert.False(t, dirty)

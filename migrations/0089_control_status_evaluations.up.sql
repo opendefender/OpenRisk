@@ -9,7 +9,7 @@
 -- it, and no user-facing read trusts it: GET /compliance/internal-controls/:id/status
 -- computes live. #1465 decides whether the score readers join it.
 --
--- Numbered 0090: 0089 is earmarked by #1456 (evidence integrity verdict column).
+-- Numbered 0089, the next free number. #1456 (evidence integrity verdict) takes the next one.
 --
 -- Idempotent: AutoMigrate builds the same table from controlstatus.EvaluationRow,
 -- with the same index names and the same CHECK constraints, and on a database

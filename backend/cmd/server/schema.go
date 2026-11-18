@@ -180,7 +180,7 @@ func schemaModels() []interface{} {
 		// Control exceptions (#1428, migration 0087): a time-boxed, owned waiver of one
 		// canonical control. Tenant-scoped; status is derived, never stored.
 		&controlexception.ExceptionRow{},
-		// Control status evaluations (#555, migration 0090): the engine's cache of
+		// Control status evaluations (#555, migration 0089): the engine's cache of
 		// each control's computed status. Engine output only: no route writes it and
 		// no user-facing read trusts it. Tenant-scoped.
 		&controlstatus.EvaluationRow{},

@@ -26,7 +26,7 @@ import (
 // step: a seventh table of the chain, or a second exception table, cannot be added
 // without being listed. The chain is the six tables of migration 0086; the seventh
 // entry is control_exceptions (migration 0087), which is not a chain table, and the
-// eighth is control_status_evaluations (migration 0090, #555), the engine's cache.
+// eighth is control_status_evaluations (migration 0089, #555), the engine's cache.
 func TestTenantTables_AreTheControlChainTables(t *testing.T) {
 	want := append(controlchain.Tables(), controlexception.TableControlExceptions, controlstatus.TableControlStatusEvaluations)
 	got := append([]string(nil), TenantTables...)

@@ -19,7 +19,7 @@ import (
 	"github.com/google/uuid"
 )
 
-// TableControlStatusEvaluations is the table of migration 0090.
+// TableControlStatusEvaluations is the table of migration 0089.
 const TableControlStatusEvaluations = "control_status_evaluations"
 
 // Models lists the row types for AutoMigrate.
@@ -28,7 +28,7 @@ func Models() []interface{} { return []interface{}{&EvaluationRow{}} }
 // EvaluationRow is the last evaluation of one control: engine output, never an
 // input. It is written only by Store.Save, Store.Claim and the marks; no route
 // reads or writes it and no DTO carries it. A user-facing read never trusts it
-// (ADR 0012 point 5). Every constraint migration 0090 declares is also declared
+// (ADR 0012 point 5). Every constraint migration 0089 declares is also declared
 // here, because a schema built by AutoMigrate alone must refuse the same rows.
 // Time columns carry no type tag: gorm builds timestamptz on PostgreSQL and a
 // datetime on sqlite.
