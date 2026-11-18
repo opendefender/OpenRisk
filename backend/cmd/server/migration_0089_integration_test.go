@@ -9,7 +9,7 @@ package main
 
 // #555 — migration 0089 creates control_status_evaluations. These tests start
 // from the previous release's shape (AutoMigrate without the new table, SQL layer
-// at 88; 0089 is #1456's) and run the migration through golang-migrate, so the SQL
+// at 88) and run the migration through golang-migrate, so the SQL
 // DDL is what is under test: its constraints, its tenant-leading key, its
 // agreement with the row type AutoMigrate builds, and its down.
 //
@@ -118,9 +118,9 @@ func TestMigration0089_Success(t *testing.T) {
 	c := pre0089DB(t)
 	tablesBefore := c.tables(t)
 
-	require.NoError(t, newMigrator(t, c.dsn).Migrate(90))
+	require.NoError(t, newMigrator(t, c.dsn).Migrate(89))
 	v, dirty := c.version(t)
-	assert.Equal(t, uint(90), v)
+	assert.Equal(t, uint(89), v)
 	assert.False(t, dirty)
 	require.True(t, c.hasTable(t, controlstatus.TableControlStatusEvaluations))
 	assert.Equal(t, tablesBefore+1, c.tables(t), "0089 adds exactly one table")
@@ -143,7 +143,7 @@ func TestMigration0089_Success(t *testing.T) {
 
 func TestMigration0089_Rollback(t *testing.T) {
 	c := pre0089DB(t)
-	require.NoError(t, newMigrator(t, c.dsn).Migrate(90))
+	require.NoError(t, newMigrator(t, c.dsn).Migrate(89))
 	withTable := c.tables(t)
 
 	require.NoError(t, newMigrator(t, c.dsn).Steps(-1))
@@ -156,7 +156,7 @@ func TestMigration0089_Rollback(t *testing.T) {
 	assert.True(t, c.hasTable(t, "control_exceptions"), "the exceptions are untouched")
 
 	// Reversible.
-	require.NoError(t, newMigrator(t, c.dsn).Migrate(90))
+	require.NoError(t, newMigrator(t, c.dsn).Migrate(89))
 	assert.True(t, c.hasTable(t, controlstatus.TableControlStatusEvaluations))
 }
 
@@ -168,9 +168,9 @@ func TestMigration0089_AutoMigrateFirstThenSQL(t *testing.T) {
 	c.assertRefusals(t) // the AutoMigrate-built table refuses what 0089's refuses
 
 	before := c.shape(t)
-	require.NoError(t, newMigrator(t, c.dsn).Migrate(90))
+	require.NoError(t, newMigrator(t, c.dsn).Migrate(89))
 	assert.Equal(t, before, c.shape(t), "0089 over an AutoMigrate-built table changes nothing")
 	v, dirty := c.version(t)
-	assert.Equal(t, uint(90), v)
+	assert.Equal(t, uint(89), v)
 	assert.False(t, dirty)
 }
