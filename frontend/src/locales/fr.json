@@ -2228,5 +2228,21 @@
       "unauthorized": "Vous devez être connecté pour gérer les exceptions de contrôle.",
       "unavailable": "Les exceptions de contrôle sont momentanément indisponibles. Réessayez."
     }
+  },
+  "controlStatus": {
+    "status": {
+      "pass": "Conforme",
+      "fail": "Non conforme",
+      "insufficient_evidence": "Preuves insuffisantes",
+      "exception_active": "Exception active",
+      "not_applicable": "Non applicable"
+    },
+    "errors": {
+      "unauthorized": "Vous devez être connecté pour consulter le statut d'un contrôle.",
+      "forbidden": "Vous n'avez pas la permission de consulter le statut des contrôles.",
+      "not_found": "Contrôle introuvable.",
+      "invalid_control_id": "L'identifiant du contrôle est invalide.",
+      "unavailable": "Le statut du contrôle est momentanément indisponible. Veuillez réessayer."
+    }
   }
 }

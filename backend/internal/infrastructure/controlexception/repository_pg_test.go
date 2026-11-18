@@ -24,6 +24,7 @@ import (
 
 	"github.com/opendefender/openrisk/internal/domain"
 	"github.com/opendefender/openrisk/internal/infrastructure/controlchain"
+	"github.com/opendefender/openrisk/internal/infrastructure/controlstatus"
 	"github.com/opendefender/openrisk/internal/infrastructure/repository"
 	"github.com/opendefender/openrisk/internal/testsupport/testdb"
 )
@@ -86,6 +87,7 @@ func openPG(t *testing.T) *pgFixture {
 		}
 	})
 	require.NoError(t, db.AutoMigrate(&controlchain.ControlRow{}, &ExceptionRow{}, &domain.AuditEvent{}))
+	require.NoError(t, db.AutoMigrate(controlstatus.Models()...))
 
 	f := &pgFixture{db: db, controlA: uuid.New(), now: time.Date(2026, 11, 13, 12, 0, 0, 0, time.UTC)}
 	f.chain = repository.NewGormAuditChainRepository(db)

@@ -20,6 +20,7 @@ import (
 	ctlapp "github.com/opendefender/openrisk/internal/application/controlchain"
 	"github.com/opendefender/openrisk/internal/domain"
 	"github.com/opendefender/openrisk/internal/domain/canonical"
+	"github.com/opendefender/openrisk/internal/infrastructure/controlstatus"
 )
 
 // The implementation repository (#1415). It reads and writes control_implementations
@@ -242,6 +243,10 @@ func (r *ImplementationRepository) CreateImplementation(ctx context.Context, ten
 		if err := insertAppliesTo(ctx, tx, tenantID, edges); err != nil {
 			return err
 		}
+		// A new implementation changes which tests are in scope (#555).
+		if err := controlstatus.MarkControls(ctx, tx, tenantID, impl.ControlID); err != nil {
+			return err
+		}
 		return r.audit.AppendTx(ctx, tx, audit)
 	})
 	return wrapApp(err, "controlchain.CreateImplementation")
@@ -353,6 +358,10 @@ func (r *ImplementationRepository) UpdateImplementation(ctx context.Context, ten
 		if res.RowsAffected != 1 {
 			return implementationNotFound()
 		}
+		// A retired implementation leaves the scope of its control (#555).
+		if err := controlstatus.MarkImplementation(ctx, tx, tenantID, id); err != nil {
+			return err
+		}
 		if len(remove) > 0 {
 			if err := tx.Where("tenant_id = ? AND from_type = ? AND from_id = ? AND verb = ? AND to_type = ? AND to_id IN ? AND qualifier = ?",
 				tenantID, string(canonical.TypeControlImplementation), id, string(canonical.VerbAppliesTo),
@@ -417,6 +426,10 @@ func (r *ImplementationRepository) DeleteImplementation(ctx context.Context, ten
 			return errors.New("controlchain.DeleteImplementation: an audit entry is required")
 		}
 		at := events[0].CreatedAt
+		// Marked before the delete, while the implementation still resolves to its control (#555).
+		if err := controlstatus.MarkImplementation(ctx, tx, tenantID, id); err != nil {
+			return err
+		}
 		res := tx.Model(&ControlImplementationRow{}).
 			Where("tenant_id = ? AND id = ? AND deleted_at IS NULL", tenantID, id).
 			Updates(map[string]any{"deleted_at": at, "updated_at": at})

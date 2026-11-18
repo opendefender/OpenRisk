@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/opendefender/openrisk/internal/domain"
 	"github.com/opendefender/openrisk/internal/infrastructure/controlchain"
+	"github.com/opendefender/openrisk/internal/infrastructure/controlstatus"
 	"github.com/opendefender/openrisk/internal/testsupport/testdb"
 	"github.com/stretchr/testify/require"
 	"gorm.io/driver/sqlite"
@@ -80,6 +81,7 @@ func newTaxonomyTestDB(t *testing.T) *gorm.DB {
 	`).Error)
 	// The mapping repository mirrors its writes onto the control chain (#1413).
 	require.NoError(t, db.AutoMigrate(controlchain.Models()...))
+	require.NoError(t, db.AutoMigrate(controlstatus.Models()...))
 	return db
 }
 

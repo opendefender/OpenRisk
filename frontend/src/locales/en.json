@@ -2228,5 +2228,21 @@
       "unauthorized": "You must be signed in to manage control exceptions.",
       "unavailable": "Control exceptions are temporarily unavailable. Please try again."
     }
+  },
+  "controlStatus": {
+    "status": {
+      "pass": "Pass",
+      "fail": "Fail",
+      "insufficient_evidence": "Insufficient evidence",
+      "exception_active": "Exception active",
+      "not_applicable": "Not applicable"
+    },
+    "errors": {
+      "unauthorized": "You must be signed in to read a control status.",
+      "forbidden": "You do not have permission to read control statuses.",
+      "not_found": "Control not found.",
+      "invalid_control_id": "The control identifier is invalid.",
+      "unavailable": "The control status is temporarily unavailable. Please try again."
+    }
   }
 }

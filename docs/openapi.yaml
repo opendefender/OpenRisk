@@ -4290,6 +4290,54 @@ paths:
         '503':
           $ref: '#/components/responses/MFAStatusUnavailable'
 
+  /compliance/internal-controls/{controlId}/status:
+    get:
+      tags: [Compliance]
+      summary: Read the computed status of an internal control (#555)
+      description: >-
+        What the control really is at the instant of the request, computed from the
+        latest result of each of its tests, the evidence attached to those results,
+        the control's own transitional evidence and its exceptions (ADR 0012). It is
+        computed live in one read-only snapshot, never read from a stored value, and
+        never accepted as input: no other method is registered here. `pass` needs at
+        least one in-scope test and every one a fresh pass; a result a person typed
+        in (`user_entered`) also needs fresh, accepted, unexpired evidence attached
+        to that same result. A failure of any age stays `fail`. An exception that is
+        active at the instant turns `fail` or `insufficient_evidence` into
+        `exception_active` and never hides a `pass`; an expired, revoked or
+        not-yet-started exception is not credited. `underlying_status` is the status
+        without the exception. Evidence is fresh within its cadence plus a tenth
+        (P90D for a test with no cadence, P365D for the control's own evidence).
+        Requires `compliance:controls:read`. A control of another organization, or a
+        deleted one, answers 404.
+      operationId: getInternalControlStatus
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: controlId
+          in: path
+          required: true
+          description: Canonical control id (`controls.id`).
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: The computed status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ControlStatusEvaluation'
+        '400':
+          description: Invalid control id
+        '401':
+          description: No tenant or user in the session
+        '403':
+          description: "Missing `compliance:controls:read`; or, from the middleware, `MFA_ENROLLMENT_REQUIRED`"
+        '404':
+          description: Control not found in the caller's organization
+        '429':
+          $ref: '#/components/responses/QuotaExceeded'
+        '503':
+          $ref: '#/components/responses/MFAStatusUnavailable'
+
   /compliance/internal-controls/{controlId}/requirements:
     get:
       tags: [Compliance]
@@ -8091,6 +8139,61 @@ components:
         reference_code: { type: string }
         name: { type: string }
         linked_at: { type: string, format: date-time }
+
+    ControlStatusEvaluation:
+      type: object
+      description: >-
+        The computed status of a control at `evaluated_at`, the instant of the
+        request (#555). Derived, never stored in the contract and never writable.
+      required: [control_id, status, underlying_status, declared_status, evaluated_at, freshness,
+                 open_exception_count, open_risk_count, sources, truncated, next_change_at]
+      properties:
+        control_id: { type: string, format: uuid }
+        status:
+          type: string
+          enum: [pass, fail, insufficient_evidence, exception_active, not_applicable]
+        underlying_status:
+          type: string
+          enum: [pass, fail, insufficient_evidence]
+          description: The status from the tests alone, before an exception is applied.
+        declared_status:
+          type: string
+          enum: [not_implemented, in_progress, implemented]
+          description: What somebody set. A claim, not the computed status.
+        evaluated_at: { type: string, format: date-time }
+        freshness:
+          type: object
+          required: [percent, fresh, counted]
+          properties:
+            percent: { type: number, description: "fresh / counted x 100, two decimals; 0 with nothing counted" }
+            fresh: { type: integer }
+            counted: { type: integer }
+        open_exception_count:
+          type: integer
+          description: Exceptions active at `evaluated_at`.
+        open_risk_count:
+          type: integer
+          description: Live, open risks the control mitigates. Display only.
+        sources:
+          type: array
+          description: The signals that fed the computation, at most 500.
+          items:
+            type: object
+            required: [kind, id, observed_at, fresh, via]
+            properties:
+              kind: { type: string, enum: [test_result, evidence] }
+              id: { type: string, format: uuid }
+              test_id: { type: string, format: uuid }
+              result_id: { type: string, format: uuid }
+              observed_at: { type: string, format: date-time, nullable: true }
+              fresh: { type: boolean }
+              via: { type: string, enum: [test, control] }
+        truncated: { type: boolean, description: "true when more than 500 signals fed the computation" }
+        next_change_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: The earliest instant the clock alone can change this result.
 
     InternalControlLink:
       type: object

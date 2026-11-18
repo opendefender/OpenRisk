@@ -16,6 +16,7 @@ import (
 
 	"github.com/opendefender/openrisk/internal/domain"
 	"github.com/opendefender/openrisk/internal/infrastructure/controlchain"
+	"github.com/opendefender/openrisk/internal/infrastructure/controlstatus"
 )
 
 // listLimit bounds one control's exception list. A control has a handful of
@@ -66,6 +67,10 @@ func (r *Repository) Create(ctx context.Context, ex *domain.ControlException, au
 	}
 	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := tx.Create(rowOf(ex)).Error; err != nil {
+			return err
+		}
+		// An exception starts or ends a waiver of the control's status (#555).
+		if err := controlstatus.MarkControls(ctx, tx, ex.TenantID, ex.ControlID); err != nil {
 			return err
 		}
 		return r.audit.AppendTx(ctx, tx, audit)
@@ -138,6 +143,9 @@ func (r *Repository) Revoke(ctx context.Context, tenantID, id uuid.UUID,
 		}
 		if res.RowsAffected != 1 {
 			return domain.ControlExceptionError(domain.ErrNotFound, domain.CtlExcNotFound)
+		}
+		if err := controlstatus.MarkControls(ctx, tx, tenantID, cur.ControlID); err != nil {
+			return err
 		}
 		if err := r.audit.AppendTx(ctx, tx, ev); err != nil {
 			return err

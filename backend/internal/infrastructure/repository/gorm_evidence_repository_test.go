@@ -13,6 +13,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/opendefender/openrisk/internal/domain"
 	"github.com/opendefender/openrisk/internal/infrastructure/controlchain"
+	"github.com/opendefender/openrisk/internal/infrastructure/controlstatus"
 	"github.com/opendefender/openrisk/internal/testsupport/testdb"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -35,6 +36,7 @@ func setupEvidenceRepo(t *testing.T) (*GormEvidenceRepository, *gorm.DB) {
 	))
 	// The repository mirrors its writes onto the control chain (#1413).
 	require.NoError(t, db.AutoMigrate(controlchain.Models()...))
+	require.NoError(t, db.AutoMigrate(controlstatus.Models()...))
 	return NewGormEvidenceRepository(db), db
 }
 
