@@ -124,6 +124,7 @@ var nonEntities = map[string]string{
 	"Ownership":         "the Ownership block embedded in entities",
 	"Framework":         "Requirement.framework; a grouping, not an entity (D6)",
 	"ControlTestResult": "a sub-record of ControlTest, not an entity (D1); reached through its test's tenant",
+	"Duration":          "a parsed ISO 8601 cadence (#555): a value the freshness computation applies to an instant",
 	"EvidenceReview":    "Evidence.review",
 	"RiskScore":         "Risk.score",
 	"Residual":          "Risk.residual",
