@@ -20,3 +20,4 @@
 - [Reviewer routing posture](reviewer-routing-posture.md) — #1005 2026-10-18 r1 BLOCK -> r2 PASS; runner must pass --labels (#1008)
 - [Bulk operations posture](bulk-operations-posture.md) — #1215 2026-10-30 PASS; open debts: Get not owner-scoped, assign nil-tenant mitigation, no validation
 - [Canonical model ADR posture](canonical-model-adr-posture.md) — ADR 0008 FAIL (HIGH edge tenant); #1240 impl PASS 2026-11-03, credential-filter bypasses MEDIUM
+- [Control status engine posture](control-status-engine-posture.md) — #555 2026-11-18 PASS: Claim sole cross-tenant read, marks tenant-bound; no RLS in repo; fairness LOW for #1465
