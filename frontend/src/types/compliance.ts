@@ -17,6 +17,23 @@ export type ComplianceControl = components['schemas']['ComplianceControl'];
 export type ControlEvidence = components['schemas']['ControlEvidence'];
 export type ComplianceProgress = components['schemas']['ComplianceProgress'];
 
+// What GET /compliance/frameworks/:id/progress really sends: the documented
+// snake_case fields (generated type) and/or the Go struct's PascalCase names.
+export type ComplianceProgressWire = Partial<ComplianceProgress> & {
+  Total?: number;
+  Applicable?: number;
+  ByStatus?: Record<string, number>;
+  PercentComplete?: number;
+};
+
+// The shape the UI and the query cache work with.
+export interface FrameworkProgress {
+  total: number;
+  applicable: number;
+  byStatus: Record<string, number>;
+  percentComplete: number;
+}
+
 export type FrameworkExportDocument = components['schemas']['FrameworkExportDocument'];
 export type FrameworkImportResult = components['schemas']['FrameworkImportResult'];
 export type FrameworkImportValidationError =

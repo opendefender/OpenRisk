@@ -24,6 +24,7 @@ import type {
   UpdateRemediationInput,
   RemediationFilter,
   CreateControlMappingInput,
+  FrameworkProgress,
 } from '../../types/compliance';
 
 const FRAMEWORKS_QUERY_KEY = ['compliance', 'frameworks'];
@@ -272,6 +273,22 @@ export function useRemediations(filter?: RemediationFilter) {
   );
 }
 
+// moveProgress recomputes a progress snapshot as if one control went from one
+// status to another: ByStatus delta, applicable (total minus not_applicable) and
+// the percentage (implemented / applicable), mirroring the server's formula.
+export function moveProgress(
+  progress: FrameworkProgress,
+  from: string,
+  to: string,
+): FrameworkProgress {
+  const byStatus = { ...progress.byStatus };
+  byStatus[from] = Math.max(0, (byStatus[from] ?? 0) - 1);
+  byStatus[to] = (byStatus[to] ?? 0) + 1;
+  const applicable = Math.max(0, progress.total - (byStatus.not_applicable ?? 0));
+  const percentComplete = applicable > 0 ? ((byStatus.implemented ?? 0) / applicable) * 100 : 0;
+  return { ...progress, byStatus, applicable, percentComplete };
+}
+
 export function useComplianceProgress(frameworkId: string | undefined) {
   return useQuery({
     queryKey: frameworkId ? progressQueryKey(frameworkId) : ['compliance', 'progress', 'disabled'],
@@ -318,18 +335,35 @@ export function useControls(frameworkId: string | undefined) {
     mutationFn: ({ id, payload }: { id: string; payload: UpdateControlInput }) =>
       complianceService.updateControl(id, payload),
     onMutate: async ({ id, payload }) => {
+      const progressKey = frameworkId ? progressQueryKey(frameworkId) : undefined;
       await queryClient.cancelQueries({ queryKey });
+      if (progressKey) await queryClient.cancelQueries({ queryKey: progressKey });
       const previous = queryClient.getQueryData<ComplianceControl[]>(queryKey);
+      const previousProgress = progressKey
+        ? queryClient.getQueryData<FrameworkProgress>(progressKey)
+        : undefined;
       if (previous) {
         queryClient.setQueryData(
           queryKey,
           previous.map((c) => (c.id === id ? { ...c, ...payload } : c)),
         );
       }
-      return { previous };
+      // The header gauge reads /progress: move one control between statuses in
+      // that cache too, so the percentage follows the click.
+      const before = previous?.find((c) => c.id === id)?.status ?? 'not_implemented';
+      if (progressKey && previousProgress && payload.status && payload.status !== before) {
+        queryClient.setQueryData(
+          progressKey,
+          moveProgress(previousProgress, before, payload.status),
+        );
+      }
+      return { previous, previousProgress };
     },
     onError: (_err, _vars, context) => {
       if (context?.previous) queryClient.setQueryData(queryKey, context.previous);
+      if (context?.previousProgress && frameworkId) {
+        queryClient.setQueryData(progressQueryKey(frameworkId), context.previousProgress);
+      }
     },
     onSettled: invalidate,
   });

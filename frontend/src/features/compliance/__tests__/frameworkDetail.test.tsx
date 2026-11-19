@@ -1,28 +1,48 @@
 // Copyright (c) 2026 OpenDefender Contributors
 // SPDX-License-Identifier: AGPL-3.0-only
 //
-// FrameworkDetail header gauge (#307). The percentage is derived live from the
-// loaded controls (not_applicable excluded from the denominator), never from
-// the overview snapshot. The HTTP client is mocked at the boundary.
+// FrameworkDetail header (#307). The gauge comes from GET .../progress
+// (criterion 9), never from the loaded controls or the overview snapshot; a
+// status change patches that cache optimistically. Also the JSON export button
+// and an axe pass. The HTTP client is mocked at the boundary.
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import axe from 'axe-core';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { AxiosResponse } from 'axios';
 
+import { toast } from 'sonner';
+import { useAuthStore } from '../../../hooks/useAuthStore';
 import { useUIStore } from '../../../store/uiStore';
 import type { ComplianceControl, ControlStatus } from '../../../types/compliance';
 import { FrameworkDetail } from '../FrameworkDetail';
 
 vi.mock('../../../lib/api', async () => {
   const actual = await vi.importActual<typeof import('../../../lib/api')>('../../../lib/api');
-  return { ...actual, api: { ...actual.api, get: vi.fn() } };
+  return { ...actual, api: { ...actual.api, get: vi.fn(), patch: vi.fn() } };
 });
 
 import { api } from '../../../lib/api';
 
 const get = vi.mocked(api.get);
+const patch = vi.mocked(api.patch);
+
+vi.mock('sonner', () => ({
+  toast: {
+    success: vi.fn(),
+    error: vi.fn(),
+    // Settle like sonner does so the localized messages can be asserted.
+    promise: vi.fn(
+      (p: Promise<unknown>, m: { success: string; error: string }) =>
+        void p.then(
+          () => toast.success(m.success),
+          () => toast.error(m.error),
+        ),
+    ),
+  },
+}));
 
 const FRAMEWORK_ID = 'fw-1';
 
@@ -41,15 +61,18 @@ function ok<T>(data: T): Promise<AxiosResponse<T>> {
   return Promise.resolve({ data } as AxiosResponse<T>);
 }
 
-// The overview snapshot deliberately reports a stale 100%: the header must
-// ignore it once the controls have loaded.
-function serve(controls: ComplianceControl[]) {
+// The overview snapshot and the controls deliberately disagree with /progress:
+// the header must show what /progress says. `progress` is the wire body (Go
+// field names, as the live server sends them) or an Error to simulate a failure.
+const ZERO = { Total: 3, ByStatus: { not_implemented: 3 }, Applicable: 3, PercentComplete: 0 };
+
+function serve(controls: ComplianceControl[], progress: unknown = ZERO) {
   get.mockImplementation((url: string) => {
     if (url === '/compliance/frameworks') {
       return ok([{ id: FRAMEWORK_ID, name: 'ISO 27001', version: '2022', description: 'Desc' }]);
     }
     if (url === `/compliance/frameworks/${FRAMEWORK_ID}/progress`) {
-      return ok({ Total: 99, Applicable: 99, PercentComplete: 100, ByStatus: { implemented: 99 } });
+      return progress instanceof Error ? Promise.reject(progress) : ok(progress);
     }
     if (url === `/compliance/frameworks/${FRAMEWORK_ID}/controls`) {
       return ok(controls);
@@ -60,7 +83,7 @@ function serve(controls: ComplianceControl[]) {
 
 function renderDetail() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
-  render(
+  return render(
     <QueryClientProvider client={client}>
       <MemoryRouter initialEntries={[`/compliance/frameworks/${FRAMEWORK_ID}`]}>
         <Routes>
@@ -73,29 +96,225 @@ function renderDetail() {
 
 beforeEach(() => {
   get.mockReset();
+  patch.mockReset();
+  vi.mocked(toast.success).mockReset();
+  vi.mocked(toast.error).mockReset();
+  useAuthStore.setState({ hasPermission: () => true });
   useUIStore.setState({ lang: 'en' });
 });
 
 describe('FrameworkDetail header progress', () => {
-  it('shows 0% when every loaded control is not_implemented', async () => {
-    serve([
-      control(1, 'not_implemented'),
-      control(2, 'not_implemented'),
-      control(3, 'not_implemented'),
-    ]);
-    renderDetail();
-
-    expect(await screen.findByText('Control 3')).toBeInTheDocument();
-    expect(screen.getByText('0%')).toBeInTheDocument();
-    expect(screen.getByText('0/3 controls')).toBeInTheDocument();
-  });
-
-  it('shows 50% for 1 implemented + 1 not_applicable + 1 not_implemented', async () => {
+  it('shows what /progress says (0%) even when the loaded controls would compute 50%', async () => {
     serve([control(1, 'implemented'), control(2, 'not_applicable'), control(3, 'not_implemented')]);
     renderDetail();
 
     expect(await screen.findByText('Control 3')).toBeInTheDocument();
-    expect(screen.getByText('50%')).toBeInTheDocument();
-    expect(screen.getByText('1/3 controls')).toBeInTheDocument();
+    expect(await screen.findByText('0%')).toBeInTheDocument();
+    expect(screen.queryByText('50%')).toBeNull();
+    expect(screen.getByText('0/3 controls')).toBeInTheDocument();
+  });
+
+  it('shows the /progress percentage when it is not zero', async () => {
+    serve([control(1, 'not_implemented')], {
+      Total: 4,
+      ByStatus: { implemented: 1, not_implemented: 3 },
+      Applicable: 4,
+      PercentComplete: 25,
+    });
+    renderDetail();
+
+    expect(await screen.findByText('25%')).toBeInTheDocument();
+    expect(screen.getByText('1/4 controls')).toBeInTheDocument();
+  });
+
+  it('also reads the documented snake_case body', async () => {
+    serve([control(1, 'not_implemented')], {
+      framework_id: FRAMEWORK_ID,
+      total: 2,
+      by_status: { implemented: 1, not_implemented: 1 },
+      applicable: 2,
+      percent_complete: 50,
+    });
+    renderDetail();
+
+    expect(await screen.findByText('50%')).toBeInTheDocument();
+    expect(screen.getByText('1/2 controls')).toBeInTheDocument();
+  });
+
+  it('shows a skeleton while /progress is pending, not a number', async () => {
+    serve([control(1, 'not_implemented')]);
+    const base = get.getMockImplementation() as (u: string) => Promise<AxiosResponse>;
+    // The header's own /progress request is the first one; the overview's
+    // (which lets the card render) is the second and resolves.
+    let progressCalls = 0;
+    get.mockImplementation((url: string) =>
+      url.endsWith('/progress') && progressCalls++ === 0 ? new Promise(() => undefined) : base(url),
+    );
+    renderDetail();
+
+    expect(await screen.findByTestId('framework-progress-skeleton')).toBeInTheDocument();
+    expect(screen.queryByText('0%')).toBeNull();
+  });
+
+  it('falls back to an honest dash with a hint when /progress fails', async () => {
+    serve([control(1, 'implemented')], new Error('boom'));
+    renderDetail();
+
+    const fallback = await screen.findByTestId('framework-progress-error');
+    expect(fallback).toHaveTextContent('Progress unavailable');
+    expect(screen.queryByText(/%$/)).toBeNull();
+    expect(screen.getByText('— (progress unavailable)')).toBeInTheDocument();
+  });
+
+  it('patches the progress cache optimistically on a status change, then settles on the server', async () => {
+    serve([control(1, 'not_implemented'), control(2, 'not_implemented')], {
+      Total: 2,
+      ByStatus: { not_implemented: 2 },
+      Applicable: 2,
+      PercentComplete: 0,
+    });
+    // Evidence is required to implement: use a control that has some.
+    const withEvidence = { ...control(1, 'not_implemented'), evidence_count: 1 };
+    serve([withEvidence, control(2, 'not_implemented')], {
+      Total: 2,
+      ByStatus: { not_implemented: 2 },
+      Applicable: 2,
+      PercentComplete: 0,
+    });
+    let release: (v: AxiosResponse) => void = () => undefined;
+    patch.mockReturnValue(new Promise<AxiosResponse>((r) => (release = r)));
+
+    renderDetail();
+    expect(await screen.findByText('Control 1')).toBeInTheDocument();
+    expect(await screen.findByText('0%')).toBeInTheDocument();
+
+    const selects = screen.getAllByRole('combobox');
+    fireEvent.change(selects[0], { target: { value: 'implemented' } });
+
+    // Optimistic: the request is still pending and the gauge already moved.
+    expect(await screen.findByText('50%')).toBeInTheDocument();
+    expect(screen.getByText('1/2 controls')).toBeInTheDocument();
+    expect(patch).toHaveBeenCalledWith('/compliance/controls/c-1', { status: 'implemented' });
+
+    release({ data: {} } as AxiosResponse);
+    // Settled: the progress key is refetched (now served the real figure).
+    await waitFor(() => {
+      const progressCalls = get.mock.calls.filter((c) => String(c[0]).endsWith('/progress'));
+      expect(progressCalls.length).toBeGreaterThan(1);
+    });
+  });
+
+  it('rolls the progress cache back when the status change fails', async () => {
+    const withEvidence = { ...control(1, 'not_implemented'), evidence_count: 1 };
+    serve([withEvidence, control(2, 'not_implemented')], {
+      Total: 2,
+      ByStatus: { not_implemented: 2 },
+      Applicable: 2,
+      PercentComplete: 0,
+    });
+    patch.mockRejectedValue(new Error('500'));
+
+    renderDetail();
+    expect(await screen.findByText('Control 1')).toBeInTheDocument();
+    expect(await screen.findByText('0%')).toBeInTheDocument();
+
+    fireEvent.change(screen.getAllByRole('combobox')[0], { target: { value: 'implemented' } });
+
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith('Update failed'));
+    // The refetch returns the same server figure; the gauge is back at 0%.
+    expect(await screen.findByText('0%')).toBeInTheDocument();
+    expect(screen.queryByText('50%')).toBeNull();
+  });
+});
+
+describe('FrameworkDetail JSON export button', () => {
+  function exportCalls() {
+    return get.mock.calls.filter((c) => String(c[0]).endsWith('/export'));
+  }
+
+  it('requests the export of this framework and triggers the download', async () => {
+    serve([control(1, 'not_implemented')]);
+    const base = get.getMockImplementation();
+    get.mockImplementation((url: string, config?: unknown) =>
+      url === `/compliance/frameworks/${FRAMEWORK_ID}/export`
+        ? Promise.resolve({
+            data: new Blob(['{}']),
+            headers: { 'content-disposition': 'attachment; filename="iso-27001.json"' },
+          } as unknown as AxiosResponse)
+        : (base as (u: string, c?: unknown) => Promise<AxiosResponse>)(url, config),
+    );
+    const createObjectURL = vi.fn(() => 'blob:x');
+    const revokeObjectURL = vi.fn();
+    Object.assign(URL, { createObjectURL, revokeObjectURL });
+    let downloaded = '';
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (
+      this: HTMLAnchorElement,
+    ) {
+      downloaded = this.download;
+    });
+
+    renderDetail();
+    fireEvent.click(await screen.findByRole('button', { name: 'Export (JSON)' }));
+
+    await waitFor(() => expect(click).toHaveBeenCalledTimes(1));
+    expect(exportCalls()).toHaveLength(1);
+    expect(get).toHaveBeenCalledWith(`/compliance/frameworks/${FRAMEWORK_ID}/export`, {
+      responseType: 'blob',
+    });
+    expect(createObjectURL).toHaveBeenCalledTimes(1);
+    expect(downloaded).toBe('iso-27001.json');
+    await waitFor(() => expect(toast.success).toHaveBeenCalledWith('Framework exported'));
+    click.mockRestore();
+  });
+
+  it('shows the localized error toast when the export fails', async () => {
+    serve([control(1, 'not_implemented')]);
+    const base = get.getMockImplementation();
+    get.mockImplementation((url: string, config?: unknown) =>
+      url.endsWith('/export')
+        ? Promise.reject(new Error('500'))
+        : (base as (u: string, c?: unknown) => Promise<AxiosResponse>)(url, config),
+    );
+
+    renderDetail();
+    fireEvent.click(await screen.findByRole('button', { name: 'Export (JSON)' }));
+
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith('Failed to export the framework'));
+    expect(toast.success).not.toHaveBeenCalled();
+  });
+
+  it('uses the French label and error message in French', async () => {
+    useUIStore.setState({ lang: 'fr' });
+    serve([control(1, 'not_implemented')]);
+    const base = get.getMockImplementation();
+    get.mockImplementation((url: string, config?: unknown) =>
+      url.endsWith('/export')
+        ? Promise.reject(new Error('500'))
+        : (base as (u: string, c?: unknown) => Promise<AxiosResponse>)(url, config),
+    );
+
+    renderDetail();
+    fireEvent.click(await screen.findByRole('button', { name: 'Exporter (JSON)' }));
+
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith("Échec de l'export du référentiel"),
+    );
+  });
+});
+
+describe('FrameworkDetail accessibility', () => {
+  it('has no serious or critical axe violations (header, Export (JSON), controls)', async () => {
+    serve([control(1, 'not_implemented'), control(2, 'implemented')]);
+    const { container } = renderDetail();
+    expect(await screen.findByText('Control 2')).toBeInTheDocument();
+    expect(await screen.findByText('0%')).toBeInTheDocument();
+
+    const results = await axe.run(container, {
+      rules: { 'color-contrast': { enabled: false }, region: { enabled: false } },
+    });
+    const serious = results.violations.filter(
+      (v) => v.impact === 'serious' || v.impact === 'critical',
+    );
+    expect(serious.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
   });
 });

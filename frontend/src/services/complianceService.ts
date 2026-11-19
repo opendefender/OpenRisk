@@ -8,7 +8,8 @@ import type {
   ComplianceFramework,
   ComplianceControl,
   ControlEvidence,
-  ComplianceProgress,
+  ComplianceProgressWire,
+  FrameworkProgress,
   CreateFrameworkInput,
   FrameworkExportDocument,
   FrameworkImportResult,
@@ -50,6 +51,16 @@ function filenameFromDisposition(disposition: unknown, fallback: string): string
   } catch {
     return match[1];
   }
+}
+
+export function normalizeProgress(raw: ComplianceProgressWire): FrameworkProgress {
+  const byStatus = raw.by_status ?? raw.ByStatus ?? {};
+  return {
+    total: raw.total ?? raw.Total ?? 0,
+    applicable: raw.applicable ?? raw.Applicable ?? 0,
+    byStatus,
+    percentComplete: raw.percent_complete ?? raw.PercentComplete ?? 0,
+  };
 }
 
 export const complianceService = {
@@ -111,11 +122,14 @@ export const complianceService = {
     return response.data;
   },
 
-  getProgress: async (frameworkId: string): Promise<ComplianceProgress> => {
-    const response = await api.get<ComplianceProgress>(
+  // The progress endpoint answers with the Go struct's field names (Total,
+  // ByStatus, ...) while docs/openapi.yaml documents snake_case. normalizeProgress
+  // accepts both so the UI never depends on which one the server speaks.
+  getProgress: async (frameworkId: string): Promise<FrameworkProgress> => {
+    const response = await api.get<ComplianceProgressWire>(
       `/compliance/frameworks/${frameworkId}/progress`,
     );
-    return response.data;
+    return normalizeProgress(response.data);
   },
 
   // downloadReport fetches the official compliance report (PDF) for a framework

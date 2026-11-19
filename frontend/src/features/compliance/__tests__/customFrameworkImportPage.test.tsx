@@ -8,6 +8,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, fireEvent, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import axe from 'axe-core';
 import { AxiosError, type AxiosResponse } from 'axios';
 
 import { useUIStore } from '../../../store/uiStore';
@@ -44,6 +45,19 @@ function jsonFile(body: unknown, name = 'framework.json'): File {
     Object.defineProperty(file, 'text', { value: () => Promise.resolve(text) });
   }
   return file;
+}
+
+function Harness() {
+  const client = new QueryClient({ defaultOptions: { mutations: { retry: false } } });
+  return (
+    <QueryClientProvider client={client}>
+      <MemoryRouter initialEntries={['/compliance/frameworks/import']}>
+        <Routes>
+          <Route path="/compliance/frameworks/import" element={<CustomFrameworkImportPage />} />
+        </Routes>
+      </MemoryRouter>
+    </QueryClientProvider>
+  );
 }
 
 function renderPage() {
@@ -193,5 +207,45 @@ describe('CustomFrameworkImportPage', () => {
     await waitFor(() =>
       expect(invalidate).toHaveBeenCalledWith({ queryKey: ['compliance', 'frameworks'] }),
     );
+  });
+});
+
+describe('CustomFrameworkImportPage accessibility', () => {
+  async function expectNoSeriousViolations(container: HTMLElement) {
+    const results = await axe.run(container, {
+      rules: { 'color-contrast': { enabled: false }, region: { enabled: false } },
+    });
+    const serious = results.violations.filter(
+      (v) => v.impact === 'serious' || v.impact === 'critical',
+    );
+    expect(serious.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
+  }
+
+  it('has no serious or critical axe violations in the empty state', async () => {
+    const { container } = render(<Harness />);
+    await screen.findByTestId('framework-import-empty');
+    await expectNoSeriousViolations(container);
+  });
+
+  it('has no serious or critical axe violations with a valid file previewed', async () => {
+    const { container } = render(<Harness />);
+    await choose(jsonFile(VALID));
+    await screen.findByRole('button', { name: /import the framework/i });
+    await expectNoSeriousViolations(container);
+  });
+
+  it('has no serious or critical axe violations with the client-side error table', async () => {
+    const { container } = render(<Harness />);
+    await choose(
+      jsonFile({
+        ...VALID,
+        controls: [
+          { reference_code: 'A.1', name: 'One' },
+          { reference_code: 'A.1', name: 'Dup' },
+        ],
+      }),
+    );
+    await screen.findByTestId('framework-import-error');
+    await expectNoSeriousViolations(container);
   });
 });

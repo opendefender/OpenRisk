@@ -203,16 +203,17 @@ export const CustomFrameworkImportPage = () => {
         <Upload className="mx-auto mb-3 text-fg-tertiary" size={32} aria-hidden />
         <p className="font-medium text-fg-primary">{t('compliance.customImport.dropHere')}</p>
         <p className="mt-1 text-xs text-fg-tertiary">{t('compliance.customImport.limits')}</p>
-        <input
-          ref={inputRef}
-          type="file"
-          accept=".json,application/json"
-          className="hidden"
-          tabIndex={-1}
-          onChange={(e) => void pick(e.target.files?.[0])}
-          data-testid="framework-import-file-input"
-        />
       </div>
+      <input
+        ref={inputRef}
+        type="file"
+        accept=".json,application/json"
+        aria-label={t('compliance.customImport.dropHere')}
+        className="hidden"
+        tabIndex={-1}
+        onChange={(e) => void pick(e.target.files?.[0])}
+        data-testid="framework-import-file-input"
+      />
       {fileError && (
         <p id="framework-import-file-error" role="alert" className="mt-2 text-sm text-danger-text">
           {fileError}

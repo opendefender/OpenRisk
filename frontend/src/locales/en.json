@@ -388,6 +388,11 @@
         "tooManyControls": "Too many controls (maximum {max})",
         "duplicateCode": "The reference code \"{code}\" appears more than once"
       }
+    },
+    "progressState": {
+      "unavailable": "Progress unavailable",
+      "unavailableShort": "— (progress unavailable)",
+      "controlStatus": "Status of control {code}"
     }
   },
   "assets": {
