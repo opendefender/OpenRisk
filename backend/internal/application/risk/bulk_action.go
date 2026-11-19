@@ -38,9 +38,13 @@ type BulkActionType string
 const (
 	BulkActionChangeStatus BulkActionType = "change_status"
 	BulkActionAssignTo     BulkActionType = "assign_to"
-	BulkActionAddTags      BulkActionType = "add_tags"
-	BulkActionRemoveTags   BulkActionType = "remove_tags"
-	BulkActionDeleteRisks  BulkActionType = "delete"
+	// BulkActionSetOwner writes the risk owner (owner_id), the slot the register's
+	// Owner column shows. assign_to writes the legacy assigned_to column and is
+	// unchanged.
+	BulkActionSetOwner    BulkActionType = "set_owner"
+	BulkActionAddTags     BulkActionType = "add_tags"
+	BulkActionRemoveTags  BulkActionType = "remove_tags"
+	BulkActionDeleteRisks BulkActionType = "delete"
 )
 
 // MaxBulkActionItems caps one request. The cap is what makes a synchronous
@@ -55,6 +59,7 @@ type BulkActionRequest struct {
 	// Action-specific parameters.
 	Status        *domain.RiskStatus `json:"status,omitempty"`        // change_status
 	AssignToID    *uuid.UUID         `json:"assign_to_id,omitempty"`  // assign_to
+	OwnerID       *uuid.UUID         `json:"owner_id,omitempty"`      // set_owner
 	Tags          []string           `json:"tags,omitempty"`          // add_tags / remove_tags
 	Justification string             `json:"justification,omitempty"` // recorded on the audit entry
 }
@@ -97,6 +102,16 @@ type BulkActionUseCase struct {
 	riskRepo domain.RiskRepository
 	journal  AuditJournal
 	notices  NoticeDeliverer
+	// ownership validates that a new owner is a member of the tenant, and tells
+	// them. Required by set_owner: without it that action is refused.
+	ownership OwnershipManager
+}
+
+// WithOwnership attaches the tenant-membership check and notifier used by
+// set_owner.
+func (uc *BulkActionUseCase) WithOwnership(m OwnershipManager) *BulkActionUseCase {
+	uc.ownership = m
+	return uc
 }
 
 // WithNotices tells each risk's owner when a bulk status change moves it
@@ -191,6 +206,9 @@ func (uc *BulkActionUseCase) Execute(
 				return nil
 			})
 
+	case BulkActionSetOwner:
+		return uc.setOwner(ctx, tenantID, ids, performedBy, input)
+
 	case BulkActionAddTags:
 		if len(input.Tags) == 0 {
 			return nil, domain.NewValidationError("tags are required for add_tags action")
@@ -223,6 +241,58 @@ func (uc *BulkActionUseCase) Execute(
 	default:
 		return nil, domain.NewValidationError(fmt.Sprintf("unknown action type: %s", input.Type))
 	}
+}
+
+// setOwner writes owner_id on every risk, exactly as a single-risk owner change
+// does (the same OwnershipPatch and the same membership check). The target is
+// validated BEFORE the transaction opens, so a user outside the tenant, or one
+// that does not exist, writes nothing; the notice goes out only after commit.
+func (uc *BulkActionUseCase) setOwner(
+	ctx context.Context,
+	tenantID uuid.UUID,
+	ids []uuid.UUID,
+	performedBy uuid.UUID,
+	input BulkActionRequest,
+) (*BulkActionResult, error) {
+	if input.OwnerID == nil || *input.OwnerID == uuid.Nil {
+		return nil, domain.NewValidationError("owner_id is required for set_owner action")
+	}
+	if uc.ownership == nil {
+		return nil, domain.NewInternalError("ownership validation is not configured")
+	}
+	owner := *input.OwnerID
+	patch := domain.OwnershipPatch{Owner: domain.NullableUUID{Present: true, Value: &owner}}
+
+	// Membership check against the tenant (ErrValidation when the user is not a
+	// member). The scratch block is discarded.
+	if _, err := uc.ownership.Apply(ctx, tenantID, &domain.Ownership{}, patch, performedBy); err != nil {
+		return nil, err
+	}
+
+	var order []uuid.UUID
+	changes := map[uuid.UUID][]domain.OwnershipChange{}
+	titles := map[uuid.UUID]string{}
+	result, err := uc.apply(ctx, tenantID, ids, performedBy, input,
+		fmt.Sprintf("bulk owner change to %s", owner),
+		func(r *domain.Risk) error {
+			before := r.Ownership
+			patch.Apply(&r.Ownership)
+			if _, seen := changes[r.ID]; !seen {
+				order = append(order, r.ID)
+			}
+			changes[r.ID] = domain.DiffOwnership(before, r.Ownership, performedBy)
+			titles[r.ID] = r.Title
+			return nil
+		})
+	if err != nil {
+		return nil, err
+	}
+	for _, id := range order {
+		uc.ownership.Notify(ctx, tenantID, changes[id], domain.OwnershipSubject{
+			ResourceType: "risk", ResourceID: id, Title: titles[id], Locale: "fr",
+		})
+	}
+	return result, nil
 }
 
 // apply runs one mutation over the batch inside the repository's transaction,

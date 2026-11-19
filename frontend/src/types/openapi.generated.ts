@@ -714,6 +714,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/score/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Live score of the values a form is editing
+         * @description Persists nothing. Returns the 0-100 model score (fields as the score explainer) and, beside it, the register's own score for the same values, computed by the frozen Score Engine: risk_score = probability x impact x asset_criticality (asset_criticality defaults to 1 when absent), and its band risk_criticality (>= 7 critical, >= 4 high, >= 2 medium, else low). It equals the score a risk created with these values is stored with.
+         */
+        post: operations["previewScore"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/risks/summary": {
         parameters: {
             query?: never;
@@ -3892,16 +3912,21 @@ export interface components {
         };
         BulkRiskActionInput: {
             /** @enum {string} */
-            type: "change_status" | "assign_to" | "add_tags" | "remove_tags" | "delete";
+            type: "change_status" | "assign_to" | "set_owner" | "add_tags" | "remove_tags" | "delete";
             /** @description Repeated ids are de-duplicated before the batch runs. */
             risk_ids: string[];
             /** @description Required for change_status. */
             status?: string;
             /**
              * Format: uuid
-             * @description Required for assign_to.
+             * @description Required for assign_to. Writes the legacy assigned_to column, not the risk owner; use set_owner for the owner.
              */
             assign_to_id?: string;
+            /**
+             * Format: uuid
+             * @description Required for set_owner. Writes the risk owner (owner_id), exactly as a single-risk owner change does. The user must be an active member of the caller's organization, otherwise 400 and nothing is written.
+             */
+            owner_id?: string;
             /** @description Required for add_tags and remove_tags. Removing an absent tag is a no-op. */
             tags?: string[];
             /** @description Recorded on each audit entry. */
@@ -6684,6 +6709,61 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    previewScore: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @enum {string} */
+                    scope?: "risk";
+                    probability?: number;
+                    impact?: number;
+                    asset_criticality?: number;
+                    mitigation_effectiveness?: number;
+                };
+            };
+        };
+        responses: {
+            /** @description The preview */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        risk_score: number;
+                        /** @enum {string} */
+                        risk_criticality: "low" | "medium" | "high" | "critical";
+                    } & {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description A term out of range, or a scope other than risk */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
             };
         };
     };

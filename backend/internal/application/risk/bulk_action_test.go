@@ -122,7 +122,7 @@ func (r *bulkRepo) BulkDelete(_ context.Context, ids []uuid.UUID, tenantID uuid.
 
 func changed(before, after map[string]interface{}) []string {
 	out := []string{}
-	for _, k := range []string{"status", "lifecycle_state", "assigned_to", "tags"} {
+	for _, k := range []string{"status", "lifecycle_state", "assigned_to", "owner_id", "tags"} {
 		if !equalish(before[k], after[k]) {
 			out = append(out, k)
 		}

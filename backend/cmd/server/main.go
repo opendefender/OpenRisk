@@ -1464,7 +1464,7 @@ func main() {
 		// implementation accepted a performedBy and discarded it, so a supervisor
 		// asking "who reassigned these and when" had no answer. auditChainRepo is
 		// the same hash-chained, append-only store the rest of the trail uses.
-		WithBulkAction(risk.NewBulkActionUseCase(riskRepo, auditChainRepo).WithNotices(requestNoticeDispatcher)).
+		WithBulkAction(risk.NewBulkActionUseCase(riskRepo, auditChainRepo).WithNotices(requestNoticeDispatcher).WithOwnership(ownershipService)).
 		// #755 — CSV import: every row validated first, then all of them written
 		// in one transaction through CreateRiskUseCase, or none. The plan cap is
 		// checked against the whole file, not just the first row.

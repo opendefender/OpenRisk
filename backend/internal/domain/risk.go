@@ -448,6 +448,10 @@ func (r *Risk) BulkSnapshot() map[string]interface{} {
 	if r.AssignedTo != nil {
 		assignedTo = r.AssignedTo.String()
 	}
+	var ownerID interface{}
+	if r.OwnerID != nil {
+		ownerID = r.OwnerID.String()
+	}
 	// Copy the slice: the snapshot must not alias the live risk, or mutating the
 	// tags would retroactively rewrite the "before" the caller already took.
 	tags := make([]string, len(r.Tags))
@@ -458,6 +462,7 @@ func (r *Risk) BulkSnapshot() map[string]interface{} {
 		// a trail that showed one without the other would not explain the change.
 		"lifecycle_state": string(r.State()),
 		"assigned_to":     assignedTo,
+		"owner_id":        ownerID,
 		"tags":            tags,
 	}
 }

@@ -22,6 +22,7 @@ import (
 	"gorm.io/gorm"
 
 	applicationrisk "github.com/opendefender/openrisk/internal/application/risk"
+	scoreapp "github.com/opendefender/openrisk/internal/application/score"
 	"github.com/opendefender/openrisk/internal/infrastructure/database"
 	"github.com/opendefender/openrisk/internal/infrastructure/repository"
 	"github.com/opendefender/openrisk/internal/middleware"
@@ -98,6 +99,7 @@ func newTenantRiskApp(t *testing.T) *tenantRiskApp {
 	api.Post("/risks", handler.CreateRisk)
 	api.Get("/risks", handler.GetRisks)
 	api.Get("/risks/summary", handler.GetRiskSummary) // before /risks/:id, as in main.go
+	api.Post("/score/preview", NewScoreHandler(scoreapp.New()).PreviewScore)
 	api.Get("/risks/:id", handler.GetRisk)
 	api.Patch("/risks/:id", handler.UpdateRisk)
 	api.Post("/risks/:id/transition", handler.TransitionPhase)

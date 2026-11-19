@@ -277,7 +277,6 @@ GET /score-engine/matrix
 GET /score-engine/metrics
 GET /score/history
 GET /score/model
-POST /score/preview
 GET /search
 GET /stats/mitigation-metrics
 GET /stats/risk-distribution

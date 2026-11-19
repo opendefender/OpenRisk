@@ -2032,6 +2032,75 @@ paths:
         '402':
           description: The plan's cap on risks is reached (limit_reached, D-078)
 
+  /score/preview:
+    post:
+      tags:
+        - Risks
+      summary: Live score of the values a form is editing
+      description: >-
+        Persists nothing. Returns the 0-100 model score (fields as the score
+        explainer) and, beside it, the register's own score for the same values,
+        computed by the frozen Score Engine: risk_score = probability x impact x
+        asset_criticality (asset_criticality defaults to 1 when absent), and its
+        band risk_criticality (>= 7 critical, >= 4 high, >= 2 medium, else low).
+        It equals the score a risk created with these values is stored with.
+      operationId: previewScore
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                scope:
+                  type: string
+                  enum: [risk]
+                probability:
+                  type: number
+                  minimum: 0
+                  maximum: 1
+                impact:
+                  type: number
+                  minimum: 0
+                  maximum: 10
+                asset_criticality:
+                  type: number
+                  minimum: 0.1
+                  maximum: 3
+                mitigation_effectiveness:
+                  type: number
+                  minimum: 0
+                  maximum: 1
+      responses:
+        '200':
+          description: The preview
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [risk_score, risk_criticality]
+                additionalProperties: true
+                properties:
+                  risk_score:
+                    type: number
+                  risk_criticality:
+                    type: string
+                    enum: [low, medium, high, critical]
+        '400':
+          description: A term out of range, or a scope other than risk
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   /risks/summary:
     get:
       tags:
@@ -7489,7 +7558,7 @@ components:
       properties:
         type:
           type: string
-          enum: [change_status, assign_to, add_tags, remove_tags, delete]
+          enum: [change_status, assign_to, set_owner, add_tags, remove_tags, delete]
         risk_ids:
           type: array
           minItems: 1
@@ -7504,7 +7573,16 @@ components:
         assign_to_id:
           type: string
           format: uuid
-          description: Required for assign_to.
+          description: >-
+            Required for assign_to. Writes the legacy assigned_to column, not the
+            risk owner; use set_owner for the owner.
+        owner_id:
+          type: string
+          format: uuid
+          description: >-
+            Required for set_owner. Writes the risk owner (owner_id), exactly as
+            a single-risk owner change does. The user must be an active member of
+            the caller's organization, otherwise 400 and nothing is written.
         tags:
           type: array
           description: Required for add_tags and remove_tags. Removing an absent tag is a no-op.

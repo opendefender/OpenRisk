@@ -14,12 +14,14 @@ package score
 
 import (
 	"context"
+	"encoding/json"
 	"time"
 
 	"github.com/google/uuid"
 
 	"github.com/opendefender/openrisk/internal/domain"
 	"github.com/opendefender/openrisk/internal/domain/scoring"
+	pkgscoring "github.com/opendefender/openrisk/pkg/scoring"
 )
 
 // ---------------------------------------------------------------------------
@@ -377,8 +379,41 @@ type PreviewInput struct {
 	MitigationEffectiveness *float64 `json:"mitigation_effectiveness"`
 }
 
+// PreviewResult is the 0-100 model score of the form values, plus the register's
+// own score for the same values (#913). Result's fields are unchanged and stay
+// at the top level.
+type PreviewResult struct {
+	scoring.Result
+	// RiskScore is Probability x Impact x AssetCriticality from the frozen Score
+	// Engine (pkg/scoring), the figure a risk created with these values is stored
+	// with. RiskCriticality is its band (>= 7 critical, >= 4 high, >= 2 medium).
+	RiskScore       float64 `json:"risk_score"`
+	RiskCriticality string  `json:"risk_criticality"`
+}
+
+// MarshalJSON writes Result exactly as before (it has its own marshaller, which
+// an embedded field would otherwise promote and swallow the new keys) and adds
+// the two register fields beside it.
+func (p PreviewResult) MarshalJSON() ([]byte, error) {
+	base, err := json.Marshal(p.Result)
+	if err != nil {
+		return nil, err
+	}
+	var out map[string]json.RawMessage
+	if err := json.Unmarshal(base, &out); err != nil {
+		return nil, err
+	}
+	if out["risk_score"], err = json.Marshal(p.RiskScore); err != nil {
+		return nil, err
+	}
+	if out["risk_criticality"], err = json.Marshal(p.RiskCriticality); err != nil {
+		return nil, err
+	}
+	return json.Marshal(out)
+}
+
 // Preview computes a score from raw form values, persisting nothing.
-func (uc *UseCase) Preview(in PreviewInput) (*scoring.Result, error) {
+func (uc *UseCase) Preview(in PreviewInput) (*PreviewResult, error) {
 	scope, ok := scoring.ParseScope(in.Scope)
 	if !ok {
 		scope = scoring.ScopeRisk // the only scope a form edits today
@@ -403,5 +438,21 @@ func (uc *UseCase) Preview(in PreviewInput) (*scoring.Result, error) {
 	}
 
 	result := scoring.ComputeRisk(risk, uc.now())
-	return &result, nil
+
+	// The register's score, through the engine and never a second copy of the
+	// formula. No asset criticality is the neutral term a risk with no linked
+	// asset is stored with, as at creation.
+	ac := domain.NoAssetCriticalityFactor
+	if in.AssetCriticality != nil {
+		ac = *in.AssetCriticality
+	}
+	breakdown, err := pkgscoring.NewEngine().Breakdown(risk.Probability, risk.Impact, ac, nil)
+	if err != nil {
+		return nil, domain.NewValidationError(err.Error())
+	}
+	return &PreviewResult{
+		Result:          result,
+		RiskScore:       breakdown.Score,
+		RiskCriticality: string(breakdown.Criticality),
+	}, nil
 }
