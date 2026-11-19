@@ -47,5 +47,15 @@
     "type": "security",
     "severity": "high",
     "status": "open"
+  },
+  "assets": [
+    { "name": "[E2E] Core banking ledger DB", "type": "Database", "criticality": "CRITICAL" },
+    { "name": "[E2E] Public web front", "type": "Server", "criticality": "HIGH" },
+    { "name": "[E2E] HR file share", "type": "Server", "criticality": "MEDIUM" },
+    { "name": "[E2E] Meeting-room display", "type": "Workstation", "criticality": "LOW" }
+  ],
+  "mitigation": {
+    "risk_title": "[E2E] Insufficient logging for regulatory audit",
+    "title": "[E2E] Centralise audit logs in the SIEM"
   }
 }
