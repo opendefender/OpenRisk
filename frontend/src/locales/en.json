@@ -2407,7 +2407,7 @@
       "retry": "Retry the counts"
     },
     "search": {
-      "placeholder": "Search by title or description…",
+      "placeholder": "Title or description",
       "label": "Search the register",
       "clear": "Clear the search"
     },

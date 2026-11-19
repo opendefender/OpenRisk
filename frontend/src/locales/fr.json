@@ -2407,7 +2407,7 @@
       "retry": "Réessayer les compteurs"
     },
     "search": {
-      "placeholder": "Rechercher par intitulé ou description…",
+      "placeholder": "Intitulé ou description",
       "label": "Rechercher dans le registre",
       "clear": "Effacer la recherche"
     },

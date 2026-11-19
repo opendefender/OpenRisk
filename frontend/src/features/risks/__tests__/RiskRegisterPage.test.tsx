@@ -439,10 +439,11 @@ describe('the table, in the one display format', () => {
     await waitFor(() => expect(listParams().at(-1)).toMatchObject({ sort_by: 'next_review_at' }));
   });
 
-  it('states our formula and bands in the footer, with the row count', async () => {
+  it('states our formula and bands in the footer; the count is the pager\u2019s, once', async () => {
     renderPage();
     await screen.findByText('Compromission de la messagerie');
-    expect(screen.getByTestId('risk-count')).toHaveTextContent('3 sur 3 risques');
+    // The table's pager carries the count; the footer does not repeat it.
+    expect(screen.queryByTestId('risk-count')).not.toBeInTheDocument();
     const formula = screen.getByTestId('risk-formula');
     expect(formula).toHaveTextContent('probabilité (0–1) × impact (0–10) × criticité de l’actif');
     expect(formula).toHaveTextContent('critique ≥ 7 · élevé ≥ 4 · moyen ≥ 2 · faible < 2');
@@ -456,7 +457,6 @@ describe('the table, in the one display format', () => {
     expect(row).toHaveTextContent('7.2');
     expect(row).toHaveTextContent('P 0.62 · I 8.0');
     expect(row).toHaveTextContent('Critical');
-    expect(screen.getByTestId('risk-count')).toHaveTextContent('3 of 3 risks');
     expect(screen.getByTestId('risk-subtitle')).toHaveTextContent(
       '2 active risks · 234.0 M FCFA of annualised exposure',
     );
@@ -543,6 +543,8 @@ describe('the matrix', () => {
   it('opens from the dashboard link (?view=matrix) and asks for the largest page', async () => {
     renderPage('/risks?view=matrix');
     const matrix = await screen.findByTestId('risk-matrix');
+    // No pager under the matrix, so the footer states the count.
+    expect(screen.getByTestId('risk-count')).toHaveTextContent('3 sur 3 risques');
     expect(listParams()[0]).toMatchObject({ page: 1, limit: 100 });
     // P 0.62 → level 4, I 8 → level 4: the cell and its marker, in the one format.
     const marker = within(matrix).getByTestId('risk-marker-r1');

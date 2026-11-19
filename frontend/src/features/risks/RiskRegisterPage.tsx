@@ -654,10 +654,13 @@ export function RiskRegisterPage() {
     <PageFrame wide>
       <PageHeader
         title={t('riskRegister.title')}
-        count={
-          summary.data?.views?.all !== undefined
-            ? formatNumber(locale, summary.data.views.all)
-            : null
+        // The V2 count is quiet muted mono text beside the title, not a pill.
+        badge={
+          summary.data?.views?.all !== undefined ? (
+            <span className="mono text-[13px] text-ink-muted" data-testid="risk-total">
+              {formatNumber(locale, summary.data.views.all)}
+            </span>
+          ) : null
         }
         subtitle={subtitle}
         actions={
@@ -757,17 +760,21 @@ export function RiskRegisterPage() {
             className="flex justify-between gap-4 flex-wrap text-[12px] text-ink-muted mt-2.5"
             data-testid="risk-footer"
           >
-            <span data-testid="risk-count">
-              {loadingFirst ? (
-                <span aria-hidden="true" className="or-skeleton inline-block h-3 w-32 rounded" />
-              ) : (
-                t('riskRegister.footer.count', {
-                  shown: formatNumber(locale, shown),
-                  count: total,
-                })
-              )}
-            </span>
-            <span data-testid="risk-formula">
+            {/* The table's pager already says "1–n of N"; only the matrix, which has
+                no pager, states the count here. */}
+            {layout === 'matrix' && (
+              <span data-testid="risk-count">
+                {loadingFirst ? (
+                  <span aria-hidden="true" className="or-skeleton inline-block h-3 w-32 rounded" />
+                ) : (
+                  t('riskRegister.footer.count', {
+                    shown: formatNumber(locale, shown),
+                    count: total,
+                  })
+                )}
+              </span>
+            )}
+            <span data-testid="risk-formula" className="ml-auto">
               {t('riskRegister.footer.formula')}
               {money.entitled
                 ? ` · ${t('riskRegister.footer.ale', { currency: money.currency })}`
