@@ -2470,7 +2470,13 @@
         "overview": "Overview",
         "miti": "Mitigations",
         "history": "History",
-        "more": "More"
+        "ownership": "Responsibilities and controls",
+        "lifecycle": "Lifecycle",
+        "score": "Score working",
+        "smart": "Smart score",
+        "financial": "Financial",
+        "cti": "Threat Intel (CTI)",
+        "ai": "AI treatment plan"
       },
       "probability": "Probability",
       "impact": "Impact",
@@ -2506,16 +2512,6 @@
         "done": "Done",
         "inProgress": "In progress",
         "planned": "To plan"
-      },
-      "more": {
-        "label": "More details",
-        "ownership": "Responsibilities and controls",
-        "lifecycle": "Lifecycle",
-        "score": "Score working",
-        "smart": "Smart score",
-        "financial": "Financial",
-        "cti": "Threat Intel (CTI)",
-        "ai": "AI treatment plan"
       },
       "loadFailedTitle": "Risk unavailable",
       "loadFailedBody": "This risk could not be loaded. It may have been deleted."

@@ -2470,7 +2470,13 @@
         "overview": "Aperçu",
         "miti": "Mitigations",
         "history": "Historique",
-        "more": "Plus"
+        "ownership": "Responsabilités et contrôles",
+        "lifecycle": "Cycle de vie",
+        "score": "Détail du score",
+        "smart": "Score intelligent",
+        "financial": "Financier",
+        "cti": "Threat Intel (CTI)",
+        "ai": "Plan de traitement IA"
       },
       "probability": "Probabilité",
       "impact": "Impact",
@@ -2506,16 +2512,6 @@
         "done": "Terminée",
         "inProgress": "En cours",
         "planned": "À planifier"
-      },
-      "more": {
-        "label": "Plus de détails",
-        "ownership": "Responsabilités et contrôles",
-        "lifecycle": "Cycle de vie",
-        "score": "Détail du score",
-        "smart": "Score intelligent",
-        "financial": "Financier",
-        "cti": "Threat Intel (CTI)",
-        "ai": "Plan de traitement IA"
       },
       "loadFailedTitle": "Risque indisponible",
       "loadFailedBody": "Ce risque n’a pas pu être chargé. Il a peut-être été supprimé."

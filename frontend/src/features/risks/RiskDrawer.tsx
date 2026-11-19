@@ -14,7 +14,7 @@
 // "Demander l'acceptation" and "Clore le risque" go through the lifecycle
 // transitions endpoint, so they are enabled only when the server offers them.
 
-import { useMemo, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { Link } from 'react-router';
 import { toast } from 'sonner';
@@ -33,6 +33,7 @@ import {
   severityIntent,
   useDismissableLayer,
   type ListboxOption,
+  type TabItem,
   type MatrixBucket,
 } from '../../shared/ds';
 import { bandTextColor } from '../../services/scoreService';
@@ -51,12 +52,7 @@ import {
   DrawerSmart,
   DrawerTimeline,
 } from './RiskDrawerSections';
-import {
-  MORE_SECTIONS,
-  type DrawerTab,
-  type DrawerTarget,
-  type MoreSection,
-} from './riskDrawerTarget';
+import { DRAWER_TABS, type DrawerTab } from './riskDrawerTarget';
 import { formatImpact, formatProbability, formatScore } from './riskFormat';
 import {
   LEVELS,
@@ -77,7 +73,8 @@ const NO_OWNER = 'none';
 
 interface RiskDrawerProps {
   r: UiRisk;
-  target: DrawerTarget;
+  /** The tab the drawer opens on (a deep link may name one). */
+  initialTab: DrawerTab;
   members: readonly Assignee[];
   money: RegisterMoney;
   onClose: () => void;
@@ -90,7 +87,7 @@ interface RiskDrawerProps {
 
 export function RiskDrawer({
   r,
-  target,
+  initialTab,
   members,
   money,
   onClose,
@@ -101,8 +98,7 @@ export function RiskDrawer({
 }: RiskDrawerProps) {
   const { t } = useI18n();
   const canUpdate = useAuthStore((s) => s.hasPermission('risks:update'));
-  const [tab, setTab] = useState<DrawerTab>(target.tab);
-  const [section, setSection] = useState<MoreSection>(target.section);
+  const [tab, setTab] = useState<DrawerTab>(initialTab);
   const panelRef = useRef<HTMLDivElement>(null);
   // Escape closes, focus moves in on open and back to the row on close, and Tab
   // stays inside, as for every shared overlay.
@@ -110,6 +106,18 @@ export function RiskDrawer({
 
   const mitiCount = r.raw.mitigations_count ?? r.raw.mitigations?.length ?? 0;
   const tabsId = `risk-drawer-${r.id}`;
+  const tabItems: TabItem<DrawerTab>[] = DRAWER_TABS.map((id) => ({
+    id,
+    label: t(`riskRegister.drawer.tab.${id}`),
+    count: id === 'miti' ? mitiCount : undefined,
+    testId: `risk-tab-${id}`,
+  }));
+  // Keep the active tab in view when it changes (click, deep link, arrows).
+  useEffect(() => {
+    document
+      .getElementById(`${tabsId}-tab-${tab}`)
+      ?.scrollIntoView?.({ inline: 'nearest', block: 'nearest' });
+  }, [tab, tabsId]);
 
   const copyLink = async () => {
     const url = `${window.location.origin}/risks?focus=${encodeURIComponent(r.id)}`;
@@ -217,23 +225,24 @@ export function RiskDrawer({
               {t(`riskRegister.status.${r.statusValue}`)}
             </Badge>
           </div>
-          <Tabs<DrawerTab>
-            id={tabsId}
-            label={t('riskRegister.drawer.sections')}
-            className="mt-4"
-            value={tab}
-            onChange={setTab}
-            items={[
-              { id: 'overview', label: t('riskRegister.drawer.tab.overview') },
-              {
-                id: 'miti',
-                label: t('riskRegister.drawer.tab.miti'),
-                count: mitiCount,
-              },
-              { id: 'history', label: t('riskRegister.drawer.tab.history') },
-              { id: 'more', label: t('riskRegister.drawer.tab.more') },
-            ]}
-          />
+          {/* Every tab stays a visible tab. The strip scrolls sideways inside its
+              own box: no scrollbar chrome, a fade on the right edge says there is
+              more, the active tab is scrolled into view, and the arrows, Home and
+              End of the Tabs pattern move through it (focus scrolls natively). */}
+          <div className="relative mt-4">
+            <Tabs<DrawerTab>
+              id={tabsId}
+              label={t('riskRegister.drawer.sections')}
+              className="gap-5 pr-8 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [mask-image:linear-gradient(to_right,#000_calc(100%-2rem),transparent)]"
+              value={tab}
+              onChange={setTab}
+              items={tabItems}
+            />
+            <span
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-surface-1 to-transparent"
+            />
+          </div>
         </div>
 
         <TabPanel tabsId={tabsId} id={tab} active className="flex-1 min-h-0 overflow-y-auto">
@@ -244,15 +253,15 @@ export function RiskDrawer({
             <Mitigations r={r} onCreateMiti={onCreateMiti} canUpdate={canUpdate} />
           )}
           {tab === 'history' && <DrawerTimeline r={r} />}
-          {tab === 'more' && (
-            <More
-              r={r}
-              section={section}
-              onSection={setSection}
-              onCreateMiti={onCreateMiti}
-              onOpenMitigations={() => setTab('miti')}
-            />
+          {tab === 'ownership' && <DrawerDetails r={r} onCreateMiti={onCreateMiti} />}
+          {tab === 'lifecycle' && (
+            <DrawerLifecycle r={r} onOpenMitigations={() => setTab('miti')} />
           )}
+          {tab === 'score' && <DrawerScore r={r} />}
+          {tab === 'smart' && <DrawerSmart r={r} />}
+          {tab === 'financial' && <DrawerFinancial r={r} />}
+          {tab === 'cti' && <DrawerCTI r={r} />}
+          {tab === 'ai' && <DrawerAI r={r} />}
         </TabPanel>
 
         <Footer r={r} onChanged={onChanged} onClose={onClose} />
@@ -697,93 +706,6 @@ function Mitigations({
           {t('riskRegister.drawer.miti.add')}
         </Button>
       )}
-    </div>
-  );
-}
-
-/* -------------------------------------------------------------------- plus */
-
-function More({
-  r,
-  section,
-  onSection,
-  onCreateMiti,
-  onOpenMitigations,
-}: {
-  r: UiRisk;
-  section: MoreSection;
-  onSection: (s: MoreSection) => void;
-  onCreateMiti: () => void;
-  onOpenMitigations: () => void;
-}) {
-  const { t } = useI18n();
-  const options = useMemo<ListboxOption<MoreSection>[]>(
-    () => MORE_SECTIONS.map((s) => ({ value: s, label: t(`riskRegister.drawer.more.${s}`) })),
-    [t],
-  );
-
-  let body: ReactNode;
-  switch (section) {
-    case 'lifecycle':
-      return (
-        <MoreFrame options={options} section={section} onSection={onSection}>
-          <DrawerLifecycle r={r} onOpenMitigations={onOpenMitigations} />
-        </MoreFrame>
-      );
-    case 'score':
-      body = <DrawerScore r={r} />;
-      break;
-    case 'smart':
-      body = <DrawerSmart r={r} />;
-      break;
-    case 'financial':
-      body = <DrawerFinancial r={r} />;
-      break;
-    case 'cti':
-      body = <DrawerCTI r={r} />;
-      break;
-    case 'ai':
-      body = <DrawerAI r={r} />;
-      break;
-    case 'ownership':
-    default:
-      body = <DrawerDetails r={r} onCreateMiti={onCreateMiti} />;
-      break;
-  }
-  return (
-    <MoreFrame options={options} section={section} onSection={onSection}>
-      {body}
-    </MoreFrame>
-  );
-}
-
-function MoreFrame({
-  options,
-  section,
-  onSection,
-  children,
-}: {
-  options: ListboxOption<MoreSection>[];
-  section: MoreSection;
-  onSection: (s: MoreSection) => void;
-  children: ReactNode;
-}) {
-  const { t } = useI18n();
-  return (
-    <div data-testid="risk-more">
-      <div className="px-5 pt-[18px]">
-        <label className="grid gap-1.5">
-          <span className={sectionLabel}>{t('riskRegister.drawer.more.label')}</span>
-          <Listbox<MoreSection>
-            size="sm"
-            value={section}
-            options={options}
-            onChange={onSection}
-            data-testid="risk-more-section"
-          />
-        </label>
-      </div>
-      {children}
     </div>
   );
 }

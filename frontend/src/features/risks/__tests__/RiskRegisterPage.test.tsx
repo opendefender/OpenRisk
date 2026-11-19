@@ -711,10 +711,37 @@ describe('the drawer', () => {
     expect(within(list).getByTestId('risk-add-miti')).toBeInTheDocument();
   });
 
-  it('keeps every old deep link: ?tab=cti lands behind "Plus", on the CTI section', async () => {
+  it('keeps every older tab visible, after the design tabs, and each deep link lands on its own', async () => {
     renderPage('/risks?focus=r1&tab=cti');
-    const more = await screen.findByTestId('risk-more');
-    expect(within(more).getByTestId('risk-more-section')).toHaveTextContent('Threat Intel (CTI)');
+    const drawer = await screen.findByTestId('risk-drawer');
+    const names = within(drawer)
+      .getAllByRole('tab')
+      .map((t) => t.getAttribute('data-tab-id'));
+    expect(names).toEqual([
+      'overview',
+      'miti',
+      'history',
+      'ownership',
+      'lifecycle',
+      'score',
+      'smart',
+      'financial',
+      'cti',
+      'ai',
+    ]);
+    expect(within(drawer).getByTestId('risk-tab-cti')).toHaveAttribute('aria-selected', 'true');
+    // No hidden menu: nothing called "Plus".
+    expect(within(drawer).queryByRole('tab', { name: 'Plus' })).not.toBeInTheDocument();
+  });
+
+  it('moves through the strip with the arrow keys', async () => {
+    const drawer = await openDrawer();
+    const overview = within(drawer).getByTestId('risk-tab-overview');
+    overview.focus();
+    fireEvent.keyDown(overview, { key: 'End' });
+    await waitFor(() =>
+      expect(within(drawer).getByTestId('risk-tab-ai')).toHaveAttribute('aria-selected', 'true'),
+    );
   });
 
   it('fetches a risk that is not on the loaded page, and says when it cannot', async () => {

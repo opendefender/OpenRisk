@@ -59,7 +59,7 @@ import { RiskMatrixPanel } from './RiskMatrixPanel';
 import { LayoutSwitch, RegisterFilters, SearchBox } from './RegisterToolbar';
 import { memberName } from './riskMembers';
 import { exportRisksCsv, type RiskCsvContext } from './riskExport';
-import { resolveDrawerTarget } from './riskDrawerTarget';
+import { resolveDrawerTab } from './riskDrawerTarget';
 import { mapRisk, type UiRisk } from './riskMap';
 import { riskRegisterService } from './riskRegisterService';
 import {
@@ -196,10 +196,7 @@ export function RiskRegisterPage() {
     [detail.data, locale],
   );
   const drawerRisk = inList ?? detailRisk;
-  const target = useMemo(
-    () => resolveDrawerTarget(drawerId ? null : focusTab),
-    [drawerId, focusTab],
-  );
+  const initialTab = resolveDrawerTab(drawerId ? null : focusTab);
   const closeDrawer = () => {
     setDrawerId(null);
     clearFocus();
@@ -742,9 +739,9 @@ export function RiskRegisterPage() {
         <RiskDrawer
           // Keyed on the target so a deep link that names a tab lands on it rather
           // than on whatever the previous open left behind.
-          key={`${drawerRisk.id}:${target.tab}:${target.section}`}
+          key={`${drawerRisk.id}:${initialTab}`}
           r={drawerRisk}
-          target={target}
+          initialTab={initialTab}
           members={members}
           money={money}
           onClose={closeDrawer}
