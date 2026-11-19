@@ -20,6 +20,7 @@ import (
 	"gorm.io/gorm/logger"
 
 	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/internal/testsupport/testdb"
 )
 
 // #913 — register views, summary counts and the score-trend batch, against real
@@ -31,7 +32,7 @@ func TestRiskRegister_Postgres(t *testing.T) {
 	if dsn == "" {
 		t.Skip("DATABASE_URL not set")
 	}
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
+	db, err := testdb.Open(t, postgres.Open(dsn), &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Silent),
 		// Only two tables matter here; on a bare database their foreign keys
 		// point at tables this test does not create.
