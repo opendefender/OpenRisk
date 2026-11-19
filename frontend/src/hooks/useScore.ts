@@ -17,7 +17,7 @@ import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-quer
 
 import {
   scoreService,
-  type Score,
+  type ScorePreview,
   type ScorePreviewInput,
   type ScoreScope,
 } from '../services/scoreService';
@@ -98,7 +98,7 @@ export function useScorePreview(input: ScorePreviewInput, enabled = true) {
     input.scope,
   ]);
 
-  return useQuery<Score>({
+  return useQuery<ScorePreview>({
     queryKey: ['score', 'preview', debounced],
     queryFn: ({ signal }) => scoreService.preview(debounced, signal),
     enabled,

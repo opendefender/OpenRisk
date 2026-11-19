@@ -16,8 +16,15 @@
 
 import type { TableState } from '../../shared/datatable';
 import type { Criticality } from '../../shared/riskColors';
+import type { components } from '../../types/openapi.generated';
 
-export const RISK_VIEWS = ['all', 'mine', 'hot', 'review_due', 'accepted'] as const;
+export const RISK_VIEWS = [
+  'all',
+  'mine',
+  'hot',
+  'review_due',
+  'accepted',
+] as const satisfies readonly components['schemas']['RiskView'][];
 export type RiskView = (typeof RISK_VIEWS)[number];
 
 /** The URL facet that carries the tab. */

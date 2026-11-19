@@ -1,31 +1,19 @@
 // Copyright (c) 2026 OpenDefender Contributors
 // SPDX-License-Identifier: AGPL-3.0-only
 //
-// Client of the register endpoints added by #913. The OpenAPI types are owned
-// by the backend side and regenerated from the spec; until that lands these
-// interfaces mirror the contract by hand (GET /risks/summary and the `trend`
-// field of GET /risks items).
+// Client of the register endpoints added by #913 (GET /risks/summary and the
+// `trend` field of GET /risks items). Types come from the generated OpenAPI file.
 
 import { api } from '../../lib/api';
 import type { Risk } from '../../hooks/useRiskStore';
-import type { Criticality } from '../../shared/riskColors';
+import type { components } from '../../types/openapi.generated';
 import type { RiskView } from './riskViews';
 
 /** Direction of the score against its baseline 30 days ago; null = no snapshot. */
-export type RiskTrend = 'up' | 'down' | 'flat';
+export type RiskTrend = components['schemas']['RiskTrend'];
 
-export interface RiskSummary {
-  /** Size of each view over the whole register (ignores `view` and `q`). */
-  views: Record<RiskView, number>;
-  /** Counts inside `view` + `q`; the other list filters are ignored. */
-  by_criticality: Record<Criticality, number>;
-  active: {
-    /** Risks that are not closed, whole tenant. */
-    count: number;
-    /** Summed annual loss expectancy in XAF; null without the financial entitlement. */
-    ale_xaf: number | null;
-  };
-}
+/** GET /risks/summary — views, band counts and the active exposure. */
+export type RiskSummary = components['schemas']['RiskSummary'];
 
 export interface RiskSummaryQuery {
   view: RiskView;

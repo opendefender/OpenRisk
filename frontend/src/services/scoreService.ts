@@ -112,6 +112,18 @@ export interface ScoreModel {
   input_bounds: Record<string, number[]>;
 }
 
+/**
+ * The answer of POST /score/preview: the 0-100 model score (fields as `Score`)
+ * and, beside it, the REGISTER's own score for the same values from the frozen
+ * Score Engine — probability x impact x asset criticality (1 when none is
+ * given) and its server-assigned band. It is the figure a risk created with
+ * these values is stored with.
+ */
+export interface ScorePreview extends Score {
+  risk_score: number;
+  risk_criticality: ScoreBand;
+}
+
 /** What a form sends while a slider is moving. Same model as the saved score. */
 export interface ScorePreviewInput {
   scope?: ScoreScope;
@@ -127,8 +139,8 @@ export const scoreService = {
     return data;
   },
 
-  async preview(input: ScorePreviewInput, signal?: AbortSignal): Promise<Score> {
-    const { data } = await api.post<Score>(
+  async preview(input: ScorePreviewInput, signal?: AbortSignal): Promise<ScorePreview> {
+    const { data } = await api.post<ScorePreview>(
       '/score/preview',
       { scope: 'risk', ...input },
       { signal },
