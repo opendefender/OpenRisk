@@ -177,6 +177,8 @@ const summaryParams = () =>
     .map((c) => (c[1] as { params: Record<string, unknown> }).params);
 
 beforeEach(() => {
+  // Column layout persists per browser: every test starts from the defaults.
+  window.localStorage.clear();
   useUIStore.setState({ lang: 'fr' });
   useRiskStore.setState({ risks: [], total: 0, isLoading: false, error: false });
   perms.update = true;
@@ -296,7 +298,7 @@ beforeEach(() => {
   toast.error.mockClear();
 });
 
-describe('header, tabs and band pills', () => {
+describe('header, quick views and filters (V2 layout)', () => {
   it('reads the active count and the annualised exposure from the summary', async () => {
     renderPage();
     const sub = await screen.findByTestId('risk-subtitle');
@@ -312,17 +314,18 @@ describe('header, tabs and band pills', () => {
     expect(sub).not.toHaveTextContent('FCFA');
   });
 
-  it('counts every view tab and every band pill from the summary', async () => {
+  it('counts every quick view from the summary, and the total beside the title', async () => {
     renderPage();
     await waitFor(() => expect(screen.getByTestId('risk-tab-hot')).toHaveTextContent('2'));
     expect(screen.getByTestId('risk-tab-all')).toHaveTextContent('3');
     expect(screen.getByTestId('risk-tab-mine')).toHaveTextContent('1');
+    expect(screen.getByTestId('risk-tab-review_due')).toHaveTextContent('2');
     expect(screen.getByTestId('risk-tab-accepted')).toHaveTextContent('0');
-    await waitFor(() => expect(screen.getByTestId('risk-band-critical')).toHaveTextContent('1'));
-    expect(screen.getByTestId('risk-band-medium')).toHaveTextContent('0');
+    const title = screen.getByRole('heading', { level: 1, name: 'Registre des risques' });
+    expect(title.parentElement).toHaveTextContent('3');
   });
 
-  it('maps a tab onto the API view param, for the list AND the summary', async () => {
+  it('maps a quick view onto the API view param, for the list AND the summary', async () => {
     renderPage();
     await screen.findByText('Compromission de la messagerie');
     expect(listParams()[0]).not.toHaveProperty('view');
@@ -330,13 +333,14 @@ describe('header, tabs and band pills', () => {
     await userEvent.click(screen.getByTestId('risk-tab-hot'));
     await waitFor(() => expect(listParams().at(-1)).toMatchObject({ view: 'hot', page: 1 }));
     await waitFor(() => expect(summaryParams().at(-1)).toMatchObject({ view: 'hot' }));
-    expect(screen.getByTestId('risk-tab-hot')).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByTestId('risk-tab-hot')).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByTestId('risk-tab-all')).toHaveAttribute('aria-pressed', 'false');
   });
 
-  it('reads the tab from the URL, and an unknown value is "all", not a crash', async () => {
+  it('reads the quick view from the URL, and an unknown value is "all", not a crash', async () => {
     renderPage('/risks?f.scope=review_due');
     await waitFor(() => expect(listParams()[0]).toMatchObject({ view: 'review_due' }));
-    expect(screen.getByTestId('risk-tab-review_due')).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByTestId('risk-tab-review_due')).toHaveAttribute('aria-pressed', 'true');
 
     get.mockClear();
     renderPage('/risks?f.scope=NOPE');
@@ -344,75 +348,94 @@ describe('header, tabs and band pills', () => {
     expect(listParams().every((p) => !('view' in p))).toBe(true);
   });
 
-  it('toggles a band pill into the criticality filter and resets it', async () => {
+  it('filters by band from the Filters panel and shows it as a removable chip', async () => {
     renderPage();
     await screen.findByText('Compromission de la messagerie');
-    const pill = screen.getByTestId('risk-band-critical');
-    await userEvent.click(pill);
+    // No band pills in the toolbar any more: the band is a facet.
+    expect(screen.queryByTestId('risk-band-critical')).not.toBeInTheDocument();
+    await userEvent.click(screen.getByTestId('filters-trigger'));
+    await userEvent.click(screen.getByTestId('facet-criticality-critical'));
     await waitFor(() => expect(listParams().at(-1)).toMatchObject({ criticality: 'critical' }));
-    expect(pill).toHaveAttribute('aria-pressed', 'true');
 
-    await userEvent.click(screen.getByTestId('risk-filter-reset'));
+    const chips = await screen.findByTestId('active-filter-chips');
+    const chip = within(chips).getByRole('button', { name: /Criticité: Critique/ });
+    await userEvent.click(chip);
     await waitFor(() => expect(listParams().at(-1)).not.toHaveProperty('criticality'));
-    expect(screen.queryByTestId('risk-filter-reset')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('active-filter-chips')).not.toBeInTheDocument();
   });
 
-  it('filters by status and owner with the shared listbox, never a native select', async () => {
+  it('filters by status and owner from the Filters panel, never a native select', async () => {
     renderPage();
     await screen.findByText('Compromission de la messagerie');
     expect(document.querySelector('select')).toBeNull();
+    expect(screen.queryByTestId('risk-filter-status')).not.toBeInTheDocument();
 
-    await userEvent.click(screen.getByTestId('risk-filter-status'));
-    await userEvent.click(screen.getByRole('option', { name: 'En cours' }));
+    await userEvent.click(screen.getByTestId('filters-trigger'));
+    await userEvent.click(screen.getByTestId('facet-status-in_progress'));
     await waitFor(() => expect(listParams().at(-1)).toMatchObject({ status: 'in_progress' }));
-
-    await userEvent.click(screen.getByTestId('risk-filter-owner'));
-    await userEvent.click(await screen.findByRole('option', { name: 'Koffi Mensah' }));
+    await userEvent.click(await screen.findByTestId('facet-owner_id-u2'));
     await waitFor(() => expect(listParams().at(-1)).toMatchObject({ owner_id: 'u2' }));
+    const chips = screen.getByTestId('active-filter-chips');
+    expect(chips).toHaveTextContent('Statut: En cours');
+    expect(chips).toHaveTextContent('Responsable: Koffi Mensah');
   });
 });
 
 describe('the table, in the one display format', () => {
-  it('shows score, P and I, band, status, owner, ALE, trend and review as designed', async () => {
+  it('shows the flat V2 row: title, id and assets under it, score, band, status, owner, review', async () => {
     renderPage();
     const row = (await screen.findByText('Compromission de la messagerie')).closest('tr')!;
-    // Score and its inputs: one decimal, P with two, never "/25".
-    expect(row).toHaveTextContent('7,2');
-    expect(row).toHaveTextContent('P 0,62 · I 8,0');
+    // The id and the first two assets sit under the title, in mono.
+    expect(row).toHaveTextContent('#r1');
+    expect(row).toHaveTextContent('Exchange, Active Directory +1');
+    // Score: one decimal, never "/25"; P and I in its tooltip (and the drawer).
+    const score = within(row).getByText('7,2');
+    expect(score).toHaveAttribute('title', 'P 0,62 · I 8,0');
     expect(row).not.toHaveTextContent('/25');
     expect(row).toHaveTextContent('Critique');
     expect(row).toHaveTextContent('Ouvert');
-    // Category, then the first two assets and "+n".
-    expect(row).toHaveTextContent('Cyber · Exchange, Active Directory +1');
     // The owner is the member's name, not an email.
     expect(row).toHaveTextContent('Aïcha Diallo');
-    // ALE in millions of the display currency.
-    expect(row).toHaveTextContent('117,2');
-    // Trend is a word for assistive tech, not only an arrow.
-    expect(within(row).getByText('En hausse')).toBeInTheDocument();
     // Overdue review is flagged in words as well as colour.
     expect(within(row).getByText('Revue en retard')).toBeInTheDocument();
+    // ALE and trend wait in the column chooser.
+    expect(row).not.toHaveTextContent('117,2');
+    expect(within(row).queryByText('En hausse')).not.toBeInTheDocument();
+  });
+
+  it('brings ALE and trend back from the column chooser', async () => {
+    renderPage();
+    await screen.findByText('Compromission de la messagerie');
+    await userEvent.click(screen.getByTestId('columns-trigger'));
+    await userEvent.click(screen.getByTestId('column-toggle-ale'));
+    await userEvent.click(screen.getByTestId('column-toggle-trend'));
+    const row = screen.getByText('Compromission de la messagerie').closest('tr')!;
+    await waitFor(() => expect(row).toHaveTextContent('117,2'));
+    expect(within(row).getByText('En hausse')).toBeInTheDocument();
   });
 
   it('says "Clos" for a closed risk, and "no trend" rather than a flat arrow when there is no history', async () => {
     renderPage();
-    const row = (await screen.findByText('Indisponibilité du SI')).closest('tr')!;
+    await screen.findByText('Indisponibilité du SI');
+    await userEvent.click(screen.getByTestId('columns-trigger'));
+    await userEvent.click(screen.getByTestId('column-toggle-trend'));
+    const row = screen.getByText('Indisponibilité du SI').closest('tr')!;
     expect(row).toHaveTextContent('Clos');
     expect(within(row).getByText('Pas de tendance (aucun historique)')).toBeInTheDocument();
   });
 
-  it('is sortable only where the server can sort: not by id, not by ALE', async () => {
+  it('is sortable only where the server can sort, and has no separate id column', async () => {
     renderPage();
     await screen.findByText('Compromission de la messagerie');
     const headers = screen.getAllByRole('columnheader');
-    const byName = (re: RegExp) => headers.find((h) => re.test(h.textContent ?? ''))!;
-    expect(within(byName(/^Score$/)).getByRole('button')).toBeInTheDocument();
-    expect(within(byName(/^Risque$/)).getByRole('button')).toBeInTheDocument();
-    expect(within(byName(/^Revue$/)).getByRole('button')).toBeInTheDocument();
-    expect(within(byName(/^ID$/)).queryByRole('button')).not.toBeInTheDocument();
-    expect(within(byName(/^ALE/)).queryByRole('button')).not.toBeInTheDocument();
+    const byName = (re: RegExp) => headers.find((h) => re.test(h.textContent ?? ''));
+    expect(within(byName(/^Score$/)!).getByRole('button')).toBeInTheDocument();
+    expect(within(byName(/^Risque$/)!).getByRole('button')).toBeInTheDocument();
+    expect(within(byName(/^Revue$/)!).getByRole('button')).toBeInTheDocument();
+    expect(byName(/^ID$/)).toBeUndefined();
+    expect(byName(/^ALE/)).toBeUndefined();
 
-    await userEvent.click(within(byName(/^Revue$/)).getByRole('button'));
+    await userEvent.click(within(byName(/^Revue$/)!).getByRole('button'));
     await waitFor(() => expect(listParams().at(-1)).toMatchObject({ sort_by: 'next_review_at' }));
   });
 
@@ -492,11 +515,9 @@ describe('the three states', () => {
     expect(screen.queryByRole('button', { name: 'Nouveau risque' })).not.toBeInTheDocument();
   });
 
-  it('says what matched nothing, in the design\u2019s words, with the way out inline', async () => {
-    renderPage('/risks?f.criticality=low');
-    await screen.findByText('Compromission de la messagerie');
+  it('says what matched nothing, in the design’s words, with the way out inline', async () => {
     rows = [];
-    await userEvent.click(screen.getByTestId('risk-band-high'));
+    renderPage('/risks?f.criticality=low');
     const none = await screen.findByTestId('risk-nomatch');
     expect(none).toHaveTextContent('Aucun risque ne correspond à ces filtres');
     expect(none).toHaveTextContent('Élargissez la recherche ou réinitialisez les filtres.');
@@ -542,7 +563,7 @@ describe('the matrix', () => {
     expect(within(matrix).getByTestId('risk-cell-4-4')).toHaveAttribute('aria-pressed', 'true');
   });
 
-  it('switches layout without losing the tab or the filters', async () => {
+  it('switches layout without losing the quick view or the filters', async () => {
     renderPage('/risks?f.scope=hot&f.criticality=critical');
     await screen.findByText('Compromission de la messagerie');
     await userEvent.click(screen.getByTestId('risk-layout-matrix'));
@@ -554,7 +575,9 @@ describe('the matrix', () => {
         limit: 100,
       }),
     );
-    expect(screen.getByTestId('risk-tab-hot')).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByTestId('risk-tab-hot')).toHaveAttribute('aria-pressed', 'true');
+    // The active filter stays visible, and removable, in the matrix too.
+    expect(screen.getByTestId('active-filter-chips')).toHaveTextContent('Criticité: Critique');
   });
 
   it('has its own error, empty and no-match states', async () => {
@@ -1036,19 +1059,23 @@ describe('round-1 review and live-pass fixes', () => {
     await screen.findByText('Compromission de la messagerie');
     const band = screen
       .getAllByRole('columnheader')
-      .find((h) => /^Niveau$/.test(h.textContent ?? ''))!;
+      .find((h) => /^Criticité$/.test(h.textContent ?? ''))!;
     expect(within(band).queryByRole('button')).not.toBeInTheDocument();
   });
 
-  it('prints the score in neutral ink and the status as designed (L3)', async () => {
+  it('prints the score in neutral ink, the band and the status without a pill (V2)', async () => {
     renderPage();
     const row = (await screen.findByText('Compromission de la messagerie')).closest('tr')!;
     const score = within(row).getByText('7,2');
     expect(score.className).toMatch(/text-ink/);
     expect(score.getAttribute('style') ?? '').not.toMatch(/color/);
-    expect(within(row).getByText('Ouvert').className).toMatch(/bg-surface-3/);
+    const open = within(row).getByText('Ouvert');
+    expect(open.className).toMatch(/font-medium/);
+    expect(open.className).not.toMatch(/bg-|rounded-full/);
+    const band = within(row).getByText('Critique');
+    expect(band.className).not.toMatch(/rounded-full/);
     const progress = screen.getByText('Fuite de données client').closest('tr')!;
-    expect(within(progress).getByText('En cours').className).toMatch(/bg-info-surface/);
+    expect(within(progress).getByText('En cours').className).toMatch(/text-ink-soft/);
   });
 
   it('writes a tab count as plain muted text, not a badge (L3)', async () => {
@@ -1123,17 +1150,33 @@ describe('round-1 review and live-pass fixes', () => {
     expect(screen.getByTestId('bulk-bar').className).toMatch(/flex-nowrap/);
   });
 
-  it('hides the scrollbar of the view tabs on a narrow screen (L9)', async () => {
+  it('shows the quick views as one segmented group of toggle buttons', async () => {
     renderPage();
-    const tabs = screen.getByRole('tablist', { name: 'Vues du registre' });
-    expect(tabs.className).toMatch(/scrollbar-width:none/);
+    const group = screen.getByRole('group', { name: 'Vues du registre' });
+    expect(within(group).getAllByRole('button')).toHaveLength(5);
+    expect(screen.queryByRole('tablist', { name: 'Vues du registre' })).not.toBeInTheDocument();
   });
 
-  it('lets the toolbar listboxes size to their content, so the toolbar is one row (L1)', async () => {
+  it('keeps one toolbar row: search, quick views, filters, columns, then export (V2)', async () => {
     renderPage();
     await screen.findByText('Compromission de la messagerie');
-    for (const id of ['risk-filter-status', 'risk-filter-owner']) {
-      expect(screen.getByTestId(id).parentElement!.className).toMatch(/shrink-0/);
+    const search = screen.getByTestId('table-search');
+    const views = screen.getByTestId('risk-views');
+    const filters = screen.getByTestId('filters-trigger');
+    const columns = screen.getByTestId('columns-trigger');
+    const exp = screen.getByTestId('risk-export');
+    const order = [search, views, filters, columns, exp];
+    for (let i = 1; i < order.length; i++) {
+      expect(
+        order[i - 1].compareDocumentPosition(order[i]) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
     }
+    expect(exp).toHaveTextContent('Exporter la vue');
+    // The layout switch sits with the header actions, not in the toolbar.
+    const newRisk = screen.getByTestId('risk-new');
+    expect(
+      screen.getByTestId('risk-layout-table').compareDocumentPosition(newRisk) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
   });
 });

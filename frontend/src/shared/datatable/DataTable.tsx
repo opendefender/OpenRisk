@@ -88,6 +88,8 @@ export interface DataTableProps<T> {
   onExportAllMatching?: () => Promise<void> | void;
   /** Extra toolbar controls, rendered before the filter button. */
   toolbarExtra?: ReactNode;
+  /** Rendered at the end of the toolbar, after the filter and column controls. */
+  toolbarEnd?: ReactNode;
   minWidth?: number;
   /**
    * Row height for the virtualiser, in px. Omit to follow the density token
@@ -231,6 +233,7 @@ export function DataTable<T>({
   exportFilename,
   onExportAllMatching,
   toolbarExtra,
+  toolbarEnd,
   minWidth = 820,
   estimateRowHeight,
   maxBodyHeight = 620,
@@ -633,6 +636,8 @@ export function DataTable<T>({
         onReset={prefs.reset}
         labels={L}
       />
+
+      {toolbarEnd}
 
       {exportFilename && (
         <button

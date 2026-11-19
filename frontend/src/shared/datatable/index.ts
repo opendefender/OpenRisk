@@ -7,6 +7,7 @@ export { DataTable, type DataTableProps } from './DataTable';
 export { useTableState, useSavedViews, useColumnPrefs, type TableStateApi } from './useTableState';
 export { buildCsv, downloadCsv, exportRowsToCsv } from './exportCsv';
 export { RowMenu } from './RowMenu';
+export { ActiveFilterChips } from './FilterPanel';
 export {
   EMPTY_TABLE_STATE,
   type BulkAction,

@@ -1,23 +1,24 @@
 // Copyright (c) 2026 OpenDefender Contributors
 // SPDX-License-Identifier: AGPL-3.0-only
 //
-// Risk register on the October 2026 redesign (#913).
+// Risk register (#913), laid out on the V2 mockup (owner, 2026-11-19).
 //
-// Header with the active count and the annualised exposure (GET /risks/summary),
-// view tabs with counts, a toolbar (search, band pills, status and owner
-// listboxes, Tableau / Matrice), the table or the matrix, a footer that states
-// our score formula and bands, a bulk bar on selection and the risk drawer.
+// Title with its count and the annualised exposure line under it; on the right
+// the Table / Matrice switch, Import and New risk. ONE toolbar row: search, the
+// quick views as a segmented control with counts (GET /risks/summary), the
+// Filters panel, the column chooser and "Export view". Band, status and owner are
+// facets of the Filters panel and show as removable chips when set. The table is
+// flat: no ID column (the id and the asset sit under the title), criticality as a
+// mark and coloured text, status as text. P and I are in the score's tooltip and
+// in the drawer; ALE, trend and last update are in the column chooser.
 //
 // The table is the shared <DataTable>: server-side sort and pagination, URL
-// state, keyboard rows, column chooser, saved filters. Where the design leaves
-// something out and the product keeps it, it stays reachable: phase, control
-// reference, tags and last update are columns of the chooser; lifecycle phase,
-// category and source and "unmapped" are in the Filters panel; the three
-// responsibilities, control mappings, lifecycle, score working, SmartScore,
-// financial, CTI and AI are tabs of the drawer, after the design's three.
+// state, keyboard rows, column chooser, saved filters. The drawer (every tab),
+// the new-risk modal, the bulk bar, the matrix and the three states are those of
+// the earlier layout.
 //
-// URL: `f.scope` is the tab, `f.criticality` / `f.status` / `f.owner_id` the
-// filters, `view=matrix` the layout (kept for the dashboard's matrix link).
+// URL: `f.scope` is the quick view, `f.criticality` / `f.status` / `f.owner_id`
+// the filters, `view=matrix` the layout (kept for the dashboard's matrix link).
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
@@ -38,9 +39,10 @@ import { useI18n } from '../../hooks/useI18n';
 import { useAuthStore } from '../../hooks/useAuthStore';
 import { useRiskStore } from '../../hooks/useRiskStore';
 import { formatNumber } from '../../i18n/format';
-import { Button, ErrorState, SkeletonRows, TabPanel, Tabs, type TabItem } from '../../shared/ds';
+import { Button, ErrorState, SkeletonRows } from '../../shared/ds';
 import { EmptyState, PageFrame, PageHeader } from '../../shared/ui';
 import {
+  ActiveFilterChips,
   DataTable,
   useTableState,
   type BulkAction,
@@ -56,15 +58,16 @@ import { CreateMitigationModal } from '../mitigations/CreateMitigationModal';
 import { millions } from '../financial/money';
 import { DrawerStatus, RiskDrawer } from './RiskDrawer';
 import { RiskMatrixPanel } from './RiskMatrixPanel';
-import { LayoutSwitch, RegisterFilters, SearchBox, TabLabel } from './RegisterToolbar';
+import { LayoutSwitch, QuickViews, SearchBox } from './RegisterToolbar';
 import { memberName } from './riskMembers';
 import { exportRisksCsv, type RiskCsvContext } from './riskExport';
 import { resolveDrawerTab } from './riskDrawerTarget';
 import { mapRisk, type UiRisk } from './riskMap';
 import { riskRegisterService } from './riskRegisterService';
 import {
+  BANDS,
   MATRIX_LIMIT,
-  RISK_VIEWS,
+  RISK_STATUSES,
   SCOPE_FACET,
   buildRiskParams,
   buildSummaryParams,
@@ -83,7 +86,7 @@ import {
   useRiskSummary,
 } from './useRiskRegisterData';
 import { useRiskCategories } from './useTaxonomy';
-import type { Criticality } from '../../shared/riskColors';
+import { critColor } from '../../shared/riskColors';
 
 // The legacy sections are tabs of the drawer; the CTI one is exported
 // for its own test.
@@ -120,7 +123,7 @@ export function RiskRegisterPage() {
   const canDelete = useAuthStore((s) => s.hasPermission('risks:delete'));
 
   const { data: categories } = useRiskCategories();
-  const { members, isLoading: membersLoading } = useRegisterMembers();
+  const { members } = useRegisterMembers();
   const money = useRegisterMoney();
   // Review dates are judged against the moment the page was opened.
   const [now] = useState(() => new Date());
@@ -282,33 +285,28 @@ export function RiskRegisterPage() {
       filters: filters.view === 'all' ? {} : { [SCOPE_FACET]: [filters.view] },
     });
 
-  const toolbarControls = (
-    <RegisterFilters
-      filters={filters}
-      summary={summary.data}
-      summaryLoading={summary.isLoading}
-      members={members}
-      membersLoading={membersLoading}
-      onToggleBand={(band: Criticality) => table.toggleFilter('criticality', band)}
-      onStatus={(s) => table.setFilter('status', s ? [s] : [])}
-      onOwner={(id) => table.setFilter('owner_id', id ? [id] : [])}
-      hasFilters={hasFilters}
-      onReset={resetFilters}
-    />
-  );
-
-  /* ------------------------------------------------------------------- tabs */
-  const tabItems: TabItem<RiskView>[] = RISK_VIEWS.map((v) => ({
-    id: v,
-    label: <TabLabel text={t(`riskRegister.view.${v}`)} count={summary.data?.views?.[v]} />,
-    testId: `risk-tab-${v}`,
-  }));
-
   /* ------------------------------------------------------------------ facets */
-  // Criticality and status are the toolbar's; these are what the design drops and
-  // the product keeps.
+  // Band, status and owner first: they are the filters people reach for. The
+  // rest is what the product keeps beyond the mockup.
   const facets: Facet<UiRisk>[] = useMemo(
     () => [
+      {
+        key: 'criticality',
+        label: t('riskRegister.col.band'),
+        options: BANDS.map((b) => ({ value: b, label: t(`risks.band.${b}`), color: critColor[b] })),
+      },
+      {
+        key: 'status',
+        label: t('riskRegister.col.status'),
+        options: RISK_STATUSES.map((st) => ({ value: st, label: t(`riskRegister.status.${st}`) })),
+      },
+      {
+        key: 'owner_id',
+        label: t('riskRegister.col.owner'),
+        // The list API filters on one owner.
+        single: true,
+        options: members.map((m) => ({ value: m.user_id, label: memberName(m) })),
+      },
       {
         key: 'phase',
         label: t('riskRegister.facet.phase'),
@@ -338,7 +336,7 @@ export function RiskRegisterPage() {
         options: [{ value: 'true', label: t('riskRegister.facet.unmappedOption') }],
       },
     ],
-    [t, categories],
+    [t, categories, members],
   );
 
   const columns = useRiskColumns({ members, money, now });
@@ -616,6 +614,38 @@ export function RiskRegisterPage() {
   );
 
   const shown = ui.length;
+
+  const quickViews = (
+    <>
+      <QuickViews
+        value={filters.view}
+        counts={summary.data?.views}
+        loading={summary.isLoading}
+        onChange={setScope}
+      />
+      {summary.isError && (
+        <button
+          type="button"
+          onClick={() => void summary.refetch()}
+          className="shrink-0 text-[12px] font-semibold text-accent-strong hover:underline"
+        >
+          {t('riskRegister.counts.retry')}
+        </button>
+      )}
+    </>
+  );
+  const exportButton = (
+    <Button
+      variant="secondary"
+      icon={Download}
+      disabled={shown === 0 || exporting}
+      loading={exporting}
+      onClick={() => void exportView()}
+      data-testid="risk-export"
+    >
+      {t('riskRegister.export.action')}
+    </Button>
+  );
   // No row to show and the first answer has not come: skeleton, not "empty".
   const loadingFirst = (isLoading || !hasLoaded) && ui.length === 0;
   const matrixTruncated = layout === 'matrix' && total > MATRIX_LIMIT;
@@ -624,24 +654,20 @@ export function RiskRegisterPage() {
     <PageFrame wide>
       <PageHeader
         title={t('riskRegister.title')}
+        count={
+          summary.data?.views?.all !== undefined
+            ? formatNumber(locale, summary.data.views.all)
+            : null
+        }
         subtitle={subtitle}
         actions={
           <>
+            <LayoutSwitch layout={layout} onChange={setLayout} />
             {canCreate && (
               <Button variant="secondary" icon={Upload} onClick={() => navigate('/risks/import')}>
                 {t('riskRegister.import')}
               </Button>
             )}
-            <Button
-              variant="secondary"
-              icon={Download}
-              disabled={shown === 0 || exporting}
-              loading={exporting}
-              onClick={() => void exportView()}
-              data-testid="risk-export"
-            >
-              {t('riskRegister.export.action')}
-            </Button>
             {canCreate && (
               <Button
                 variant="primary"
@@ -656,34 +682,21 @@ export function RiskRegisterPage() {
         }
       />
 
-      <div className="flex items-center gap-3 mb-3.5">
-        <Tabs<RiskView>
-          id="risk-views"
-          label={t('riskRegister.view.label')}
-          items={tabItems}
-          value={filters.view}
-          onChange={setScope}
-          className="flex-1 min-w-0 gap-5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-        />
-        {summary.isError && (
-          <button
-            type="button"
-            onClick={() => void summary.refetch()}
-            className="shrink-0 text-[12px] font-semibold text-accent-strong hover:underline"
-          >
-            {t('riskRegister.counts.retry')}
-          </button>
-        )}
-      </div>
-
-      <TabPanel tabsId="risk-views" id={filters.view} active>
+      <>
         {layout === 'matrix' ? (
           <>
-            <div className="flex items-center gap-2 flex-wrap mb-3.5">
+            <div className="flex items-center gap-2 flex-wrap mb-3">
               <SearchBox value={state.q} onChange={table.setQuery} />
-              {toolbarControls}
-              <LayoutSwitch layout={layout} onChange={setLayout} />
+              {quickViews}
+              <span className="ml-auto">{exportButton}</span>
             </div>
+            <ActiveFilterChips
+              facets={facets}
+              state={state}
+              onRemove={(facetKey, value) => table.toggleFilter(facetKey, value)}
+              onClear={resetFilters}
+              clearLabel={t('riskRegister.filter.reset')}
+            />
             {loadError ? (
               <ErrorState
                 title={t('riskRegister.error.title')}
@@ -733,12 +746,8 @@ export function RiskRegisterPage() {
             estimateRowHeight={52}
             searchClassName="max-w-[320px]"
             noResults={<NoMatch onReset={resetFilters} />}
-            toolbarExtra={
-              <>
-                {toolbarControls}
-                <LayoutSwitch layout={layout} onChange={setLayout} />
-              </>
-            }
+            toolbarExtra={quickViews}
+            toolbarEnd={exportButton}
             empty={emptyAll}
           />
         )}
@@ -766,7 +775,7 @@ export function RiskRegisterPage() {
             </span>
           </div>
         )}
-      </TabPanel>
+      </>
 
       {openId && drawerRisk && (
         <RiskDrawer

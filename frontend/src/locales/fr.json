@@ -2387,7 +2387,7 @@
       "error": "Le résumé du registre n’a pas pu être chargé."
     },
     "export": {
-      "action": "Exporter",
+      "action": "Exporter la vue",
       "done": {
         "one": "{count} risque exporté en CSV",
         "other": "{count} risques exportés en CSV"
@@ -2456,9 +2456,9 @@
       "id": "ID",
       "risk": "Risque",
       "score": "Score",
-      "band": "Niveau",
+      "band": "Criticité",
       "status": "Statut",
-      "owner": "Propriétaire",
+      "owner": "Responsable",
       "ale": "ALE",
       "aleUnsortable": "Non triable : l’ALE est calculé après la lecture de la page, le serveur ne peut pas trier dessus.",
       "trend": "Tend.",
@@ -2631,6 +2631,9 @@
       "loadFailedTitle": "Risque indisponible",
       "loadFailedBody": "Ce risque n’a pas pu être chargé. Il a peut-être été supprimé.",
       "financialInputUnit": "Saisie en {unit} (unité de stockage)."
+    },
+    "owner": {
+      "none": "Non assigné"
     }
   }
 }
