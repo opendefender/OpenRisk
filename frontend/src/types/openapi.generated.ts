@@ -5104,14 +5104,9 @@ export interface components {
             status?: string;
             /**
              * Format: uuid
-             * @description Required for assign_to. Writes the legacy assigned_to column, not the risk owner; use set_owner for the owner.
+             * @description Required for assign_to. Writes the legacy assigned_to column, not the risk owner; the owner is set through POST /risks/bulk/set-owner.
              */
             assign_to_id?: string;
-            /**
-             * Format: uuid
-             * @description Required for set_owner. Writes the risk owner (owner_id), exactly as a single-risk owner change does. The user must be an active member of the caller's organization, otherwise 400 and nothing is written.
-             */
-            owner_id?: string;
             /** @description Required for add_tags and remove_tags. Removing an absent tag is a no-op. */
             tags?: string[];
             /** @description Recorded on each audit entry. */

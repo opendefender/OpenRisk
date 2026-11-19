@@ -305,6 +305,18 @@ func TestRiskBulkRoutes_SetOwner_Unauthorized(t *testing.T) {
 	assert.Zero(t, f.store.applies)
 }
 
+// #913 — set_owner exists only on the governed route. The deprecated
+// body-driven route must keep refusing it: accepting it there would write an
+// owner with no preview, no fingerprint and no membership check.
+func TestRiskBulkRoutes_LegacyRefusesSetOwner(t *testing.T) {
+	f := newRiskBulkApp(t, "risks:*")
+	status, body := f.do(t, "POST", "/api/v1/risks/bulk",
+		`{"type":"set_owner","risk_ids":["`+f.id.String()+`"],"owner_id":"`+f.member.String()+`"}`)
+	assert.Equal(t, fiber.StatusBadRequest, status, "%v", body)
+	assert.Zero(t, f.legacy.applies, "nothing applied through the legacy route")
+	assert.Zero(t, f.store.applies, "nor through the governed store")
+}
+
 // Criterion 5 — the legacy route announces its end.
 func TestRiskBulkRoutes_LegacyRouteIsDeprecatedWithADate(t *testing.T) {
 	f := newRiskBulkApp(t, "risks:update")
