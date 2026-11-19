@@ -714,6 +714,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/risks/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Register header, view tabs and band pills
+         * @description Counts for the register screen (#913), scoped to the caller's tenant like the list. views counts every view and ignores view and q. by_criticality counts inside the selected view and q, so a band pill shows what picking it would add. active is the not-closed part of the whole register; its ale_xaf is the sum of the per-risk annual loss expectancy the list computes, and is null when the plan does not include financial quantification (null, never 0).
+         */
+        get: operations["getRiskSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/risks/{id}": {
         parameters: {
             query?: never;
@@ -4328,6 +4348,55 @@ export interface components {
             /** Format: date-time */
             updated_at: string;
         };
+        /** @enum {string} */
+        RiskView: "all" | "mine" | "hot" | "review_due" | "accepted";
+        /**
+         * @description Direction of the score over the last 30 days. The baseline is the latest history snapshot taken at or before now minus 30 days, else the oldest snapshot; a change of 0.5 or less either way is flat. Absent (null on a list item) when the risk has no snapshot.
+         * @enum {string}
+         */
+        RiskTrend: "up" | "down" | "flat";
+        RiskListItem: components["schemas"]["Risk"] & {
+            /** @description Score trend; null when the risk has no history snapshot. */
+            trend: components["schemas"]["RiskTrend"] | null;
+        };
+        RiskListResponse: {
+            items: components["schemas"]["RiskListItem"][];
+            /**
+             * Format: int64
+             * @description Size of the whole filtered set, not of the page.
+             */
+            total: number;
+        };
+        RiskSummary: {
+            views: {
+                /** Format: int64 */
+                all: number;
+                /** Format: int64 */
+                mine: number;
+                /** Format: int64 */
+                hot: number;
+                /** Format: int64 */
+                review_due: number;
+                /** Format: int64 */
+                accepted: number;
+            };
+            by_criticality: {
+                /** Format: int64 */
+                critical: number;
+                /** Format: int64 */
+                high: number;
+                /** Format: int64 */
+                medium: number;
+                /** Format: int64 */
+                low: number;
+            };
+            active: {
+                /** Format: int64 */
+                count: number;
+                /** @description Summed annual loss expectancy in XAF; null without the financial-quantification entitlement. */
+                ale_xaf: number | null;
+            };
+        };
         ErrorResponse: {
             /** @example Invalid input */
             error?: string;
@@ -6527,6 +6596,10 @@ export interface operations {
                 page?: number;
                 limit?: number;
                 sort_by?: string;
+                /** @description A named slice of the register (#913). The same definitions drive the counts of GET /risks/summary. all = no constraint; mine = the caller is owner, assignee or reviewer (identical to mine=true); hot = criticality high or critical and status not closed; review_due = next_review_at set and within 30 days, overdue included, status not closed; accepted = status accepted. An unknown value answers 400 validation_failed. */
+                view?: components["schemas"]["RiskView"];
+                /** @description Free-text search over title and description. */
+                q?: string;
                 /** @description Keep only risks whose residual-risk acceptance still stands and ends within this many days (0 = already due). #811. */
                 acceptance_expires_within?: number;
             };
@@ -6536,13 +6609,22 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description List of risks */
+            /** @description One page of risks and the size of the whole filtered set */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Risk"][];
+                    "application/json": components["schemas"]["RiskListResponse"];
+                };
+            };
+            /** @description Validation error, for example an unknown view */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
             /** @description Unauthorized */
@@ -6598,6 +6680,56 @@ export interface operations {
             };
             /** @description The plan's cap on risks is reached (limit_reached, D-078) */
             402: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getRiskSummary: {
+        parameters: {
+            query?: {
+                /** @description The view whose risks by_criticality counts (default all). */
+                view?: components["schemas"]["RiskView"];
+                /** @description Free-text search, as on the list. */
+                q?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The summary */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RiskSummary"];
+                };
+            };
+            /** @description Unknown view (validation_failed) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unauthorized, or the session carries no tenant */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The caller lacks risks:read */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -166,13 +166,16 @@ func (s *RiskTimelineService) ComputeRiskTrend(tenantID, riskID uuid.UUID) (map[
 		pctChange = (change / oldest) * 100
 	}
 
+	// The threshold and the classification live in the domain: the register's
+	// arrows (#913) apply the same rule.
 	trend := "stable"
 	direction := "none"
 
-	if change > 0.5 {
+	switch domain.ScoreTrend(oldest, newest) {
+	case domain.RiskTrendUp:
 		trend = "increasing"
 		direction = "up"
-	} else if change < -0.5 {
+	case domain.RiskTrendDown:
 		trend = "decreasing"
 		direction = "down"
 	}

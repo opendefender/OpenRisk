@@ -366,6 +366,12 @@ type Risk struct {
 	MitigationsCount int      `gorm:"-" json:"mitigations_count"`
 	Assets           []*Asset `gorm:"many2many:risk_assets;" json:"assets,omitempty"`
 
+	// ScoreTrend is computed, NOT persisted: set by the list use case from the
+	// history snapshots (nil = no snapshot). Not serialised here — the list
+	// response carries it as `trend`, other endpoints do not claim a trend they
+	// did not compute.
+	ScoreTrend *RiskTrend `gorm:"-" json:"-"`
+
 	// Computed Fields (NOT persisted, populated by handlers/use cases)
 	// These help with API responses but are never stored in DB
 	RiskWithDetails *RiskDetail `gorm:"-" json:"-"`

@@ -1412,7 +1412,8 @@ func main() {
 		WithOwnership(ownershipService)
 	listRisksUseCase := risk.NewListRisksUseCase(riskRepo).
 		WithMappings(riskControlMappingRepo).
-		WithOwnership(ownershipService)
+		WithOwnership(ownershipService).
+		WithTrends(riskRepo)
 	updateRiskUseCase := risk.NewUpdateRiskUseCase(riskRepo).
 		WithNotices(requestNoticeDispatcher).
 		WithOwnership(ownershipService).
@@ -1455,6 +1456,9 @@ func main() {
 		WithJournal(auditChainRepo)
 	riskHandler := handlers.NewRiskHandler(createRiskUseCase, getRiskUseCase, listRisksUseCase, updateRiskUseCase, deleteRiskUseCase, markReviewedUseCase, transitionStateUseCase, redisClientInstance, riskQuantifier).
 		WithFinancialPresenters(financialPresenters).
+		// #913 — register header, view tabs and band pills. ale_xaf is null unless
+		// the plan has financial quantification.
+		WithSummary(risk.NewGetRiskSummaryUseCase(riskRepo, riskQuantifier, riskFinancialEntitlement{levels: entitlementService})).
 		// #581 — bulk actions are transactional and audited. The journal is a
 		// REQUIRED constructor argument, not an optional extra: the previous
 		// implementation accepted a performedBy and discarded it, so a supervisor
@@ -1509,6 +1513,9 @@ func main() {
 	// /asset-dependencies.
 	protected.Get("/risks/unmapped",
 		middleware.RequirePermission("risks:read"), riskTaxonomyHandler.ListUnmappedRisks)
+	// Same trap for the register summary (#913): "summary" would parse as a uuid.
+	protected.Get("/risks/summary",
+		middleware.RequirePermission("risks:read"), riskHandler.GetRiskSummary)
 	protected.Get("/risks/:id",
 		middleware.RequirePermission("risks:read"),
 		cacheableHandlers.CacheRiskGetByIDGET(riskHandler.GetRisk))

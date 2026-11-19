@@ -1947,7 +1947,27 @@ paths:
           in: query
           schema:
             type: string
-            description: Field to sort by (e.g., score, title, impact)
+            description: >-
+              Field to sort by (e.g., score, title, impact, next_review_at).
+              next_review_at puts risks with no review date last, in both
+              directions.
+        - name: view
+          in: query
+          description: >-
+            A named slice of the register (#913). The same definitions drive the
+            counts of GET /risks/summary. all = no constraint; mine = the caller
+            is owner, assignee or reviewer (identical to mine=true); hot =
+            criticality high or critical and status not closed; review_due =
+            next_review_at set and within 30 days, overdue included, status not
+            closed; accepted = status accepted. An unknown value answers 400
+            validation_failed.
+          schema:
+            $ref: '#/components/schemas/RiskView'
+        - name: q
+          in: query
+          description: Free-text search over title and description.
+          schema:
+            type: string
         - name: acceptance_expires_within
           in: query
           description: >
@@ -1959,13 +1979,17 @@ paths:
             maximum: 3650
       responses:
         '200':
-          description: List of risks
+          description: One page of risks and the size of the whole filtered set
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/Risk'
+                $ref: '#/components/schemas/RiskListResponse'
+        '400':
+          description: Validation error, for example an unknown view
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '401':
           description: Unauthorized
           content:
@@ -2007,6 +2031,55 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
         '402':
           description: The plan's cap on risks is reached (limit_reached, D-078)
+
+  /risks/summary:
+    get:
+      tags:
+        - Risks
+      summary: Register header, view tabs and band pills
+      description: >-
+        Counts for the register screen (#913), scoped to the caller's tenant
+        like the list. views counts every view and ignores view and q.
+        by_criticality counts inside the selected view and q, so a band pill
+        shows what picking it would add. active is the not-closed part of the
+        whole register; its ale_xaf is the sum of the per-risk annual loss
+        expectancy the list computes, and is null when the plan does not include
+        financial quantification (null, never 0).
+      operationId: getRiskSummary
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: view
+          in: query
+          description: The view whose risks by_criticality counts (default all).
+          schema:
+            $ref: '#/components/schemas/RiskView'
+        - name: q
+          in: query
+          description: Free-text search, as on the list.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: The summary
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RiskSummary'
+        '400':
+          description: Unknown view (validation_failed)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized, or the session carries no tenant
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: The caller lacks risks:read
 
   /risks/{id}:
     get:
@@ -8096,6 +8169,80 @@ components:
         completed_at: { type: string, format: date-time }
         created_at: { type: string, format: date-time }
         updated_at: { type: string, format: date-time }
+
+    RiskView:
+      type: string
+      enum: [all, mine, hot, review_due, accepted]
+
+    RiskTrend:
+      type: string
+      enum: [up, down, flat]
+      description: >-
+        Direction of the score over the last 30 days. The baseline is the latest
+        history snapshot taken at or before now minus 30 days, else the oldest
+        snapshot; a change of 0.5 or less either way is flat. Absent (null on a
+        list item) when the risk has no snapshot.
+
+    RiskListItem:
+      allOf:
+        - $ref: '#/components/schemas/Risk'
+        - type: object
+          required: [trend]
+          properties:
+            trend:
+              description: Score trend; null when the risk has no history snapshot.
+              oneOf:
+                - $ref: '#/components/schemas/RiskTrend'
+                - type: 'null'
+
+    RiskListResponse:
+      type: object
+      required: [items, total]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/RiskListItem'
+        total:
+          type: integer
+          format: int64
+          description: Size of the whole filtered set, not of the page.
+
+    RiskSummary:
+      type: object
+      required: [views, by_criticality, active]
+      properties:
+        views:
+          type: object
+          required: [all, mine, hot, review_due, accepted]
+          properties:
+            all: {type: integer, format: int64}
+            mine: {type: integer, format: int64}
+            hot: {type: integer, format: int64}
+            review_due: {type: integer, format: int64}
+            accepted: {type: integer, format: int64}
+        by_criticality:
+          type: object
+          required: [critical, high, medium, low]
+          properties:
+            critical: {type: integer, format: int64}
+            high: {type: integer, format: int64}
+            medium: {type: integer, format: int64}
+            low: {type: integer, format: int64}
+        active:
+          type: object
+          required: [count, ale_xaf]
+          properties:
+            count:
+              type: integer
+              format: int64
+            ale_xaf:
+              description: >-
+                Summed annual loss expectancy in XAF; null without the
+                financial-quantification entitlement.
+              oneOf:
+                - type: number
+                - type: 'null'
 
     ErrorResponse:
       type: object

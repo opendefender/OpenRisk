@@ -131,8 +131,12 @@ type RiskQuery struct {
 	ReviewedBy     *uuid.UUID // Filter by reviewer (validateur)
 	// InvolvedUser backs the "Mes risques" filter: owner OR assignee OR reviewer.
 	InvolvedUser *uuid.UUID
-	Tags         []string    // Filter by tags (OR condition) — free text
-	CategoryIDs  []uuid.UUID // Filter by controlled category (OR condition)
+	// View narrows the list to a register view (#913). "" and "all" constrain
+	// nothing. The "mine" view reads InvolvedUser: set it from the authenticated
+	// user, or the repository returns nothing.
+	View        RiskView
+	Tags        []string    // Filter by tags (OR condition) — free text
+	CategoryIDs []uuid.UUID // Filter by controlled category (OR condition)
 	// FrameworkID filters on the RISK↔CONTROL mappings, not on the frozen
 	// free-text `frameworks` column.
 	FrameworkID *uuid.UUID
@@ -242,6 +246,8 @@ func (q *RiskQuery) Sanitize() {
 		"probability": true,
 		"assigned_to": true,
 		"source":      true,
+		// #913 — NULLs last in both directions, see the repository.
+		"next_review_at": true,
 	}
 	if !allowed[q.SortBy] {
 		q.SortBy = "created_at"

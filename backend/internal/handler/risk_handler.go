@@ -41,6 +41,14 @@ type RiskHandler struct {
 	importRisksUC     *risk.ImportRisksUseCase        // #755, attached via WithImport
 	// #811, attached via WithAcceptancePolicy
 	acceptancePolicyUC *risk.AcceptancePolicyUseCase
+	// #913, attached via WithSummary
+	summaryUC *risk.GetRiskSummaryUseCase
+}
+
+// WithSummary attaches the use case behind GET /risks/summary (#913).
+func (h *RiskHandler) WithSummary(uc *risk.GetRiskSummaryUseCase) *RiskHandler {
+	h.summaryUC = uc
+	return h
 }
 
 // WithAcceptancePolicy attaches the tenant's acceptance-length policy.
@@ -569,6 +577,20 @@ func (h *RiskHandler) GetRisks(c *fiber.Ctx) error {
 			query.InvolvedUser = &me
 		}
 	}
+	// #913 — register view. The definitions live in domain.RiskView; "mine" is
+	// the same authenticated-user filter as mine=true (and matches nothing,
+	// rather than everything, when there is no authenticated user).
+	view, err := domain.ParseRiskView(c.Query("view"))
+	if err != nil {
+		return badView(c, err)
+	}
+	query.View = view
+	if view == domain.RiskViewMine {
+		if mwCtx != nil && mwCtx.UserID != uuid.Nil {
+			me := mwCtx.UserID
+			query.InvolvedUser = &me
+		}
+	}
 	if minScoreStr := c.Query("min_score"); minScoreStr != "" {
 		if v, err := strconv.ParseFloat(minScoreStr, 64); err == nil {
 			query.MinScore = &v
@@ -649,10 +671,43 @@ func (h *RiskHandler) GetRisks(c *fiber.Ctx) error {
 		return serverError(c, "Could not fetch risks", err)
 	}
 
+	items := make([]riskListItem, len(result.Data))
 	for i := range result.Data {
 		h.quantify(&result.Data[i])
+		items[i] = riskListItem{Risk: result.Data[i], Trend: result.Data[i].ScoreTrend}
 	}
-	return c.JSON(fiber.Map{"items": result.Data, "total": result.Total})
+	return c.JSON(fiber.Map{"items": items, "total": result.Total})
+}
+
+// badView answers an unknown ?view= with the validation_failed shape the other
+// list parameters use.
+func badView(c *fiber.Ctx, err error) error {
+	return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "validation_failed", "message": domain.MessageFromError(err)})
+}
+
+// riskListItem is a register row: the risk plus its score trend (#913). The
+// trend is a list-only field — null means "no history snapshot", it is not a
+// claim of stability — so it rides on the list item, not on domain.Risk's JSON.
+type riskListItem struct {
+	domain.Risk
+	Trend *domain.RiskTrend `json:"trend"`
+}
+
+// GetRiskSummary GET /risks/summary — view counts, band counts and the active
+// exposure for the register header (#913). Same tenant scoping as the list.
+func (h *RiskHandler) GetRiskSummary(c *fiber.Ctx) error {
+	if h.summaryUC == nil {
+		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": "risk summary not configured"})
+	}
+	view, err := domain.ParseRiskView(c.Query("view"))
+	if err != nil {
+		return badView(c, err)
+	}
+	summary, err := h.summaryUC.Execute(c.UserContext(), tenantID(c), userID(c), view, c.Query("q"))
+	if err != nil {
+		return writeAppError(c, err)
+	}
+	return c.JSON(summary)
 }
 
 // GetRisk godoc

@@ -180,3 +180,46 @@ func TestRiskAfterSave_WritesNoActor(t *testing.T) {
 	require.NotNil(t, changedBy)
 	require.Equal(t, "", *changedBy)
 }
+
+// #913 — ComputeRiskTrend and the register's arrows share one rule
+// (domain.ScoreTrend, threshold 0.5). The timeline keeps its own vocabulary.
+func TestComputeRiskTrend_UsesTheDomainRule(t *testing.T) {
+	cases := []struct {
+		name          string
+		oldest, newer float64
+		trend, dir    string
+	}{
+		{"up", 2, 3, "increasing", "up"},
+		{"down", 3, 2, "decreasing", "down"},
+		{"flat inside the threshold", 3, 3.4, "stable", "none"},
+		{"exactly +0.5 is flat", 3, 3.5, "stable", "none"},
+		{"exactly -0.5 is flat", 3, 2.5, "stable", "none"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			db := setupTimelineDB(t)
+			svc := &RiskTimelineService{db: db}
+			tenant := uuid.New()
+			id := insertRisk(t, db, tenant)
+			// insertHistory stamps time.Now(); space the two rows so the order is explicit.
+			require.NoError(t, db.Exec(`INSERT INTO risk_histories (id, risk_id, score, status, change_type, created_at) VALUES (?,?,?,?,?,?)`,
+				uuid.NewString(), id.String(), tc.oldest, "open", "CREATE", time.Now().Add(-48*time.Hour)).Error)
+			insertHistory(t, db, id, "UPDATE", tc.newer)
+
+			got, err := svc.ComputeRiskTrend(tenant, id)
+			require.NoError(t, err)
+			require.Equal(t, tc.trend, got["trend"])
+			require.Equal(t, tc.dir, got["direction"])
+		})
+	}
+
+	t.Run("cross tenant is refused", func(t *testing.T) {
+		db := setupTimelineDB(t)
+		svc := &RiskTimelineService{db: db}
+		id := insertRisk(t, db, uuid.New())
+		_, err := svc.ComputeRiskTrend(uuid.New(), id)
+		require.ErrorIs(t, err, domain.ErrNotFound)
+		_, err = svc.ComputeRiskTrend(uuid.Nil, id)
+		require.ErrorIs(t, err, domain.ErrNotFound)
+	})
+}
