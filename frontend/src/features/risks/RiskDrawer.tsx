@@ -238,10 +238,6 @@ export function RiskDrawer({
               onChange={setTab}
               items={tabItems}
             />
-            <span
-              aria-hidden="true"
-              className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-surface-1 to-transparent"
-            />
           </div>
         </div>
 
