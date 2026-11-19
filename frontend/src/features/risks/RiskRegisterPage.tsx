@@ -89,8 +89,12 @@ import type { Criticality } from '../../shared/riskColors';
 // for its own test.
 export { DrawerCTI } from './RiskDrawerSections';
 
-/** Statuses a bulk or single edit may write; "closed" goes through the lifecycle. */
-const PICKABLE: readonly RiskStatusValue[] = ['open', 'in_progress', 'mitigated', 'accepted'];
+/**
+ * Statuses a bulk edit may write. Acceptance is refused in bulk by the server
+ * (a per-risk decision with its own approval), and "closed" goes through the
+ * lifecycle, so neither is offered here.
+ */
+const PICKABLE: readonly RiskStatusValue[] = ['open', 'in_progress', 'mitigated'];
 
 type Params = Record<string, string | number>;
 

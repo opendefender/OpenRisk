@@ -595,6 +595,13 @@ describe('bulk bar', () => {
     });
   });
 
+  it('does not offer acceptance or closing in bulk: the server refuses the first, the lifecycle owns the second', async () => {
+    const bar = await selectTwo();
+    await userEvent.click(within(bar).getByTestId('bulk-action-status'));
+    const names = (await screen.findAllByRole('option')).map((o) => o.textContent);
+    expect(names).toEqual(['Ouvert', 'En cours', 'Atténué']);
+  });
+
   it('sets the owner through the bulk endpoint (owner_id, the slot the column shows)', async () => {
     const bar = await selectTwo();
     await userEvent.click(within(bar).getByTestId('bulk-action-owner'));
