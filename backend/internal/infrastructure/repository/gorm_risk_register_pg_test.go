@@ -231,6 +231,91 @@ func TestRiskRegister_Postgres(t *testing.T) {
 			require.ErrorIs(t, err, domain.ErrUnauthorized)
 		})
 
+		t.Run("status_filter_covers_both_vocabularies", func(t *testing.T) {
+			legacyTenant := uuid.New()
+			draft := mk(legacyTenant, "legacy-draft", 1, domain.CriticalityLowNew, domain.StatusDraft, nil, nil)
+			active := mk(legacyTenant, "legacy-active", 1, domain.CriticalityLowNew, domain.StatusActive, nil, nil)
+			plainOpen := mk(legacyTenant, "plain-open", 1, domain.CriticalityLowNew, domain.RiskOpen, nil, nil)
+			progress := mk(legacyTenant, "plain-progress", 1, domain.CriticalityLowNew, domain.RiskInProgress, nil, nil)
+			mitUpper := mk(legacyTenant, "legacy-mitigated", 1, domain.CriticalityLowNew, domain.StatusMitigated, nil, nil)
+			mitLower := mk(legacyTenant, "plain-mitigated", 1, domain.CriticalityLowNew, domain.RiskMitigated, nil, nil)
+			accUpper := mk(legacyTenant, "legacy-accepted", 1, domain.CriticalityLowNew, domain.StatusAccepted, day(3), nil)
+			gone := mk(legacyTenant, "closed", 1, domain.CriticalityLowNew, domain.RiskClosed, day(3), nil)
+			done := mk(legacyTenant, "done", 1, domain.CriticalityLowNew, domain.RiskStatus("done"), day(3), nil)
+			noStatus := mk(legacyTenant, "no-status", 1, domain.CriticalityLowNew, domain.RiskOpen, nil, nil)
+			require.NoError(t, tx.Exec("UPDATE risks SET status = NULL WHERE id = ?", noStatus.ID).Error)
+			// Same statuses in another tenant must never be returned.
+			mk(other, "foreign-draft", 1, domain.CriticalityLowNew, domain.StatusDraft, nil, nil)
+
+			ids := func(status ...string) []uuid.UUID {
+				q := domain.NewRiskQuery()
+				q.Limit = 100
+				q.Status = status
+				res, err := repo.List(ctx, legacyTenant, q)
+				require.NoError(t, err)
+				out := make([]uuid.UUID, 0, len(res.Data))
+				for _, r := range res.Data {
+					out = append(out, r.ID)
+				}
+				return out
+			}
+			assert.ElementsMatch(t, []uuid.UUID{draft.ID, plainOpen.ID, noStatus.ID}, ids("open"), "DRAFT and NULL are open")
+			assert.ElementsMatch(t, []uuid.UUID{active.ID, progress.ID}, ids("in_progress"), "ACTIVE is in progress, as the register shows it")
+			assert.ElementsMatch(t, []uuid.UUID{mitUpper.ID, mitLower.ID}, ids("mitigated"))
+			assert.ElementsMatch(t, []uuid.UUID{accUpper.ID}, ids("accepted"))
+			assert.ElementsMatch(t, []uuid.UUID{gone.ID, done.ID}, ids("closed"))
+			assert.ElementsMatch(t, []uuid.UUID{draft.ID, plainOpen.ID, noStatus.ID, mitUpper.ID, mitLower.ID}, ids("open", "mitigated"), "comma list")
+			assert.Empty(t, ids("bogus"), "an unknown status is not widened into open")
+
+			// The summary counts the same rows the filter returns.
+			counts, err := repo.ViewCounts(ctx, legacyTenant, uuid.Nil)
+			require.NoError(t, err)
+			assert.Equal(t, int64(1), counts[domain.RiskViewAccepted], "ACCEPTED counts as accepted")
+			n, err := repo.CountActive(ctx, legacyTenant)
+			require.NoError(t, err)
+			assert.Equal(t, int64(8), n, "closed and done are not active; everything else is")
+			q := domain.NewRiskQuery()
+			q.Limit = 100
+			q.View = domain.RiskViewReviewDue
+			res, err := repo.List(ctx, legacyTenant, q)
+			require.NoError(t, err)
+			assert.Len(t, res.Data, 1, "review_due excludes closed and done: only the accepted row remains")
+			assert.Equal(t, counts[domain.RiskViewReviewDue], int64(len(res.Data)))
+		})
+
+		t.Run("criticality_filter_matches_the_band_pills", func(t *testing.T) {
+			tn := uuid.New()
+			upper := mk(tn, "HIGH-upper", 5, domain.CriticalityLevel("HIGH"), domain.StatusActive, nil, nil)
+			lower := mk(tn, "high-lower", 5, domain.CriticalityHighNew, domain.RiskOpen, nil, nil)
+			crit := mk(tn, "CRITICAL-upper", 8, domain.CriticalityLevel("CRITICAL"), domain.StatusDraft, nil, nil)
+			mk(tn, "low", 1, domain.CriticalityLowNew, domain.StatusMitigated, nil, nil)
+			mk(other, "foreign-HIGH", 5, domain.CriticalityLevel("HIGH"), domain.RiskOpen, nil, nil)
+
+			list := func(crits, statuses []string) []uuid.UUID {
+				q := domain.NewRiskQuery()
+				q.Limit = 100
+				q.Criticality, q.Status = crits, statuses
+				res, err := repo.List(ctx, tn, q)
+				require.NoError(t, err)
+				out := make([]uuid.UUID, 0, len(res.Data))
+				for _, r := range res.Data {
+					out = append(out, r.ID)
+				}
+				return out
+			}
+			assert.ElementsMatch(t, []uuid.UUID{upper.ID, lower.ID}, list([]string{"high"}, nil), "HIGH and high")
+			assert.ElementsMatch(t, []uuid.UUID{upper.ID, lower.ID}, list([]string{"HIGH"}, nil), "a upper-case filter value too")
+			assert.ElementsMatch(t, []uuid.UUID{upper.ID, lower.ID, crit.ID}, list([]string{"high", "critical"}, nil))
+			assert.ElementsMatch(t, []uuid.UUID{upper.ID}, list([]string{"high"}, []string{"in_progress"}), "ACTIVE is in progress")
+			assert.ElementsMatch(t, []uuid.UUID{crit.ID}, list([]string{"critical"}, []string{"open"}), "DRAFT is open")
+
+			// The pill and the list it opens agree.
+			bands, err := repo.CriticalityCounts(ctx, tn, uuid.Nil, domain.RiskViewAll, "")
+			require.NoError(t, err)
+			assert.Equal(t, int64(len(list([]string{"high"}, nil))), bands[domain.CriticalityHighNew])
+			assert.Equal(t, int64(len(list([]string{"critical"}, nil))), bands[domain.CriticalityCriticalNew])
+		})
+
 		return rollback
 	})
 	require.ErrorIs(t, err, rollback)

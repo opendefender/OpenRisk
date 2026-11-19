@@ -138,12 +138,20 @@ func (r *GormRiskRepository) List(ctx context.Context, tenantID uuid.UUID, query
 
 	// Status filter (supports multiple statuses)
 	if len(query.Status) > 0 {
-		db = db.Where("status IN ?", query.Status)
+		cond, args := statusSelectorCondition(domain.SelectStatuses(query.Status))
+		db = db.Where(cond, args...)
 	}
 
 	// Criticality filter
+	// Compared lower-cased on both sides: the column carries a legacy upper-case
+	// vocabulary, and the band pills count with LOWER(criticality). A case-
+	// sensitive filter dropped a HIGH row the pill had counted.
 	if len(query.Criticality) > 0 {
-		db = db.Where("criticality IN ?", query.Criticality)
+		levels := make([]string, len(query.Criticality))
+		for i, l := range query.Criticality {
+			levels[i] = strings.ToLower(strings.TrimSpace(l))
+		}
+		db = db.Where("LOWER(criticality) IN ?", levels)
 	}
 
 	// Lifecycle phase filter (ISO 31000)

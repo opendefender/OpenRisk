@@ -56,13 +56,33 @@ func applyRiskSearch(db *gorm.DB, search, language string) *gorm.DB {
 	)
 }
 
+// statusSelectorCondition renders a resolved status filter. The column is
+// compared lower-cased and NULL-safe (NULL reads as open). "Open" is the
+// complement of every other status, so a stored value nobody claims still
+// belongs to a register status.
+func statusSelectorCondition(sel domain.StatusSelector) (string, []any) {
+	const col = "LOWER(COALESCE(status, ''))"
+	var parts []string
+	var args []any
+	if len(sel.In) > 0 {
+		parts, args = append(parts, col+" IN ?"), append(args, sel.In)
+	}
+	if sel.IncludeOpen {
+		parts, args = append(parts, col+" NOT IN ?"), append(args, sel.NonOpen)
+	}
+	if len(parts) == 0 {
+		return "1 = 0", nil
+	}
+	return "(" + strings.Join(parts, " OR ") + ")", args
+}
+
 // viewCondition renders a view predicate as one SQL condition. ok is false for
 // the unconstrained view. "mine" with no authenticated user renders a condition
 // that matches nothing: failing closed beats showing the whole register under a
 // tab that says "mine".
 //
-// Status is compared case-insensitively and NULL-safely: the column carries a
-// legacy upper-case vocabulary next to the lower-case one.
+// Status goes through domain.SelectStatuses, the one mapping of the register's
+// values onto both stored vocabularies.
 func viewCondition(p domain.RiskViewPredicate, user *uuid.UUID) (cond string, args []any, ok bool) {
 	if p.IsZero() {
 		return "", nil, false
@@ -83,10 +103,12 @@ func viewCondition(p domain.RiskViewPredicate, user *uuid.UUID) (cond string, ar
 		parts, args = append(parts, "LOWER(criticality) IN ?"), append(args, levels)
 	}
 	if p.StatusIs != "" {
-		parts, args = append(parts, "LOWER(COALESCE(status, '')) = ?"), append(args, strings.ToLower(string(p.StatusIs)))
+		c, a := statusSelectorCondition(domain.SelectStatuses([]string{string(p.StatusIs)}))
+		parts, args = append(parts, c), append(args, a...)
 	}
 	if p.StatusNot != "" {
-		parts, args = append(parts, "LOWER(COALESCE(status, '')) <> ?"), append(args, strings.ToLower(string(p.StatusNot)))
+		c, a := statusSelectorCondition(domain.SelectStatuses([]string{string(p.StatusNot)}))
+		parts, args = append(parts, "NOT "+c), append(args, a...)
 	}
 	if p.NextReviewBy != nil {
 		parts, args = append(parts, "(next_review_at IS NOT NULL AND next_review_at <= ?)"), append(args, *p.NextReviewBy)
