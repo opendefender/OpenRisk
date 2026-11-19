@@ -16,7 +16,7 @@ export type BulkResult = components['schemas']['BulkResult'];
 export type BulkSampleChange = components['schemas']['BulkSampleChange'];
 
 /** The actions the API can express. A register supports a subset. */
-export type BulkActionKind = NonNullable<BulkPreview['action']>;
+export type BulkActionKind = NonNullable<BulkPreview['action']> | 'set_owner';
 
 /**
  * Which register to act on. The prefix is the API path segment, which is also
@@ -30,6 +30,7 @@ const ACTION_PATH: Record<BulkActionKind, string> = {
   delete: 'delete',
   add_tags: 'add-tags',
   remove_tags: 'remove-tags',
+  set_owner: 'set-owner',
 };
 
 export interface BulkApplyInput {
@@ -37,6 +38,8 @@ export interface BulkApplyInput {
   status?: string;
   /** add_tags / remove_tags — risk register only (#599). */
   tags?: string[];
+  /** set_owner — the member who becomes the risks' owner (risk register only). */
+  owner_id?: string;
   justification?: string;
   /**
    * What the preview returned. Sending it back is what lets the server refuse a
@@ -64,10 +67,11 @@ export const bulkService = {
     ids: string[],
     status?: string,
     signal?: AbortSignal,
+    ownerId?: string,
   ): Promise<BulkPreview> {
     const { data } = await api.post<BulkPreview>(
       `/${register}/bulk/preview`,
-      { action, ids, status },
+      { action, ids, status, owner_id: ownerId },
       { signal },
     );
     return data;

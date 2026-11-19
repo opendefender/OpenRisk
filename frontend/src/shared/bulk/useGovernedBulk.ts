@@ -31,6 +31,8 @@ export interface BulkChangeInput {
   action: BulkActionKind;
   /** Target value, for `change_status`. */
   status?: string;
+  /** Target member, for `set_owner` (risk register). */
+  ownerId?: string;
 }
 
 /**
@@ -168,7 +170,18 @@ export function useGovernedBulk({
     async (change: BulkChangeInput, ids: string[]) => {
       setPhase({ kind: 'previewing', change, count: ids.length });
       try {
-        const preview = await bulkService.preview(register, change.action, ids, change.status);
+        // owner_id travels only for set_owner: every other call keeps its exact shape.
+        const preview =
+          change.ownerId === undefined
+            ? await bulkService.preview(register, change.action, ids, change.status)
+            : await bulkService.preview(
+                register,
+                change.action,
+                ids,
+                change.status,
+                undefined,
+                change.ownerId,
+              );
         setPhase({ kind: 'ready', change, preview });
       } catch (error) {
         setPhase({ kind: 'preview-failed', change, detail: detailOf(error) });
@@ -208,6 +221,7 @@ export function useGovernedBulk({
       bulkService.apply(register, change.action, {
         ids: idsRef.current,
         status: change.status,
+        ...(change.ownerId === undefined ? {} : { owner_id: change.ownerId }),
         justification,
         fingerprint: preview.fingerprint,
       }),

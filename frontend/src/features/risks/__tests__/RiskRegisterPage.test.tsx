@@ -114,7 +114,9 @@ function route(url: string, config?: { params?: Record<string, number> }) {
   }
   if (url === '/risks/summary') return Promise.resolve({ data: summary });
   if (url === '/risks/bulk/capabilities')
-    return Promise.resolve({ data: { entity_type: 'risk', actions: ['delete', 'change_status'] } });
+    return Promise.resolve({
+      data: { entity_type: 'risk', actions: ['delete', 'change_status', 'set_owner'] },
+    });
   if (url === '/ownership/assignable') return Promise.resolve({ data: { users: members } });
   if (url === '/risk-categories') return Promise.resolve({ data: { items: [] } });
   if (url === '/risks/r1/control-mappings')
@@ -265,7 +267,26 @@ beforeEach(() => {
   get.mockReset();
   get.mockImplementation(route);
   post.mockReset();
-  post.mockResolvedValue({ data: { total: 2, applied: 2, risk_ids: [], audited: 2 } });
+  // The governed engine: every action is previewed (with a fingerprint), then applied.
+  post.mockImplementation((url: string, body: { ids?: string[]; action?: string }) => {
+    const ids = body.ids ?? [];
+    if (url === '/risks/bulk/preview')
+      return Promise.resolve({
+        data: {
+          action: body.action,
+          requested: ids.length,
+          found: ids.length,
+          missing: [],
+          affected: ids.length,
+          unchanged: 0,
+          sample: [],
+          fingerprint: 'fp-' + ids.join('+'),
+        },
+      });
+    return Promise.resolve({
+      data: { total: ids.length, applied: ids.length, ids, audited: ids.length },
+    });
+  });
   patch.mockReset();
   patch.mockImplementation((_url: string, body: Record<string, unknown>) =>
     Promise.resolve({ data: { ...rows[0], ...body } }),
@@ -557,20 +578,49 @@ describe('bulk bar', () => {
     return screen.getByTestId('bulk-bar');
   }
 
-  it('changes the status of the selection in ONE request, then offers Undo', async () => {
+  async function confirmDialog(name: string) {
+    const dialog = await screen.findByRole('alertdialog');
+    await within(dialog).findByTestId('bulk-preview-counts');
+    await userEvent.click(within(dialog).getByRole('button', { name }));
+    return dialog;
+  }
+
+  it('previews a status change, applies it on the governed route with the fingerprint, then offers Undo', async () => {
     const bar = await selectTwo();
     expect(within(bar).getByTestId('bulk-count')).toHaveTextContent('2');
 
     await userEvent.click(within(bar).getByTestId('bulk-action-status'));
     await userEvent.click(await screen.findByRole('option', { name: 'Atténué' }));
 
-    await waitFor(() =>
-      expect(post).toHaveBeenCalledWith('/risks/bulk', {
-        type: 'change_status',
-        risk_ids: ['r1', 'r2'],
+    // Nothing is written before the confirm.
+    const dialog = await screen.findByRole('alertdialog');
+    await within(dialog).findByTestId('bulk-preview-counts');
+    expect(post).toHaveBeenCalledWith(
+      '/risks/bulk/preview',
+      {
+        action: 'change_status',
+        ids: ['r1', 'r2'],
         status: 'mitigated',
-      }),
+        owner_id: undefined,
+      },
+      { signal: undefined },
     );
+    expect(post.mock.calls.map((c) => c[0])).toEqual(['/risks/bulk/preview']);
+
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Appliquer' }));
+    await waitFor(() =>
+      expect(post).toHaveBeenCalledWith(
+        '/risks/bulk/change-status',
+        expect.objectContaining({
+          ids: ['r1', 'r2'],
+          status: 'mitigated',
+          fingerprint: 'fp-r1+r2',
+        }),
+      ),
+    );
+    // The deprecated route is never used.
+    expect(post.mock.calls.some((c) => c[0] === '/risks/bulk')).toBe(false);
+
     await waitFor(() => expect(toast.success).toHaveBeenCalled());
     const [message, options] = toast.success.mock.calls.at(-1) as [
       string,
@@ -579,20 +629,19 @@ describe('bulk bar', () => {
     expect(message).toBe('2 risques mis à jour · Atténué');
     expect(options.action.label).toBe('Annuler');
 
-    // Undo puts each risk back on the status it held (one call per previous value).
+    // Undo puts each risk back on the status it held, each with its OWN fresh
+    // preview (the first fingerprint is stale once the rows have changed).
     post.mockClear();
     options.action.onClick();
-    await waitFor(() => expect(post).toHaveBeenCalledTimes(2));
-    expect(post).toHaveBeenCalledWith('/risks/bulk', {
-      type: 'change_status',
-      risk_ids: ['r1'],
-      status: 'open',
-    });
-    expect(post).toHaveBeenCalledWith('/risks/bulk', {
-      type: 'change_status',
-      risk_ids: ['r2'],
-      status: 'in_progress',
-    });
+    await waitFor(() => expect(post).toHaveBeenCalledTimes(4));
+    expect(post).toHaveBeenCalledWith(
+      '/risks/bulk/change-status',
+      expect.objectContaining({ ids: ['r1'], status: 'open', fingerprint: 'fp-r1' }),
+    );
+    expect(post).toHaveBeenCalledWith(
+      '/risks/bulk/change-status',
+      expect.objectContaining({ ids: ['r2'], status: 'in_progress', fingerprint: 'fp-r2' }),
+    );
   });
 
   it('does not offer acceptance or closing in bulk: the server refuses the first, the lifecycle owns the second', async () => {
@@ -602,25 +651,75 @@ describe('bulk bar', () => {
     expect(names).toEqual(['Ouvert', 'En cours', 'Atténué']);
   });
 
-  it('sets the owner through the bulk endpoint (owner_id, the slot the column shows)', async () => {
+  it('sets the owner on the governed set-owner route (owner_id, the slot the column shows)', async () => {
     const bar = await selectTwo();
     await userEvent.click(within(bar).getByTestId('bulk-action-owner'));
     await userEvent.click(await screen.findByRole('option', { name: 'Koffi Mensah' }));
-    await waitFor(() =>
-      expect(post).toHaveBeenCalledWith('/risks/bulk', {
-        type: 'set_owner',
-        risk_ids: ['r1', 'r2'],
+    const dialog = await screen.findByRole('alertdialog');
+    expect(await within(dialog).findByText(/Changer le responsable de 2/)).toBeInTheDocument();
+    await within(dialog).findByTestId('bulk-preview-counts');
+    expect(post).toHaveBeenCalledWith(
+      '/risks/bulk/preview',
+      {
+        action: 'set_owner',
+        ids: ['r1', 'r2'],
+        status: undefined,
         owner_id: 'u2',
-      }),
+      },
+      { signal: undefined },
     );
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Appliquer' }));
+    await waitFor(() =>
+      expect(post).toHaveBeenCalledWith(
+        '/risks/bulk/set-owner',
+        expect.objectContaining({ ids: ['r1', 'r2'], owner_id: 'u2', fingerprint: 'fp-r1+r2' }),
+      ),
+    );
+    expect(post.mock.calls.some((c) => c[0] === '/risks/bulk')).toBe(false);
   });
 
-  it('rolls the rows back and says so when the server refuses', async () => {
-    post.mockRejectedValue(new Error('refused'));
+  it('offers the owner action only when the server lists set_owner', async () => {
+    get.mockImplementation((url: string, config?: { params?: Record<string, number> }) =>
+      url === '/risks/bulk/capabilities'
+        ? Promise.resolve({ data: { entity_type: 'risk', actions: ['delete', 'change_status'] } })
+        : route(url, config),
+    );
+    const bar = await selectTwo();
+    await waitFor(() =>
+      expect(get.mock.calls.some((c) => c[0] === '/risks/bulk/capabilities')).toBe(true),
+    );
+    await new Promise((r) => setTimeout(r, 30));
+    expect(within(bar).queryByTestId('bulk-action-owner')).not.toBeInTheDocument();
+    expect(within(bar).getByTestId('bulk-action-status')).toBeInTheDocument();
+  });
+
+  it('brings the rows back and offers a new preview when the selection moved (409)', async () => {
+    post.mockImplementation((url: string, body: { ids?: string[]; action?: string }) => {
+      if (url === '/risks/bulk/preview')
+        return Promise.resolve({
+          data: {
+            action: body.action,
+            requested: 2,
+            found: 2,
+            missing: [],
+            affected: 2,
+            unchanged: 0,
+            sample: [],
+            fingerprint: 'fp',
+          },
+        });
+      return Promise.reject(
+        Object.assign(new Error('moved'), {
+          isAxiosError: true,
+          response: { status: 409, data: { error: 'moved' } },
+        }),
+      );
+    });
     const bar = await selectTwo();
     await userEvent.click(within(bar).getByTestId('bulk-action-status'));
     await userEvent.click(await screen.findByRole('option', { name: 'Atténué' }));
-    await waitFor(() => expect(toast.error).toHaveBeenCalled());
+    const dialog = await confirmDialog('Appliquer');
+    expect(await within(dialog).findByTestId('bulk-preview-refused')).toBeInTheDocument();
     const row = screen.getByText('Compromission de la messagerie').closest('tr')!;
     expect(row).toHaveTextContent('Ouvert');
     expect(toast.success).not.toHaveBeenCalled();

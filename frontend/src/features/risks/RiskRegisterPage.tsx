@@ -49,9 +49,8 @@ import {
 } from '../../shared/datatable';
 import { ImpactDialog } from '../../shared/ImpactDialog';
 import { useFocusParam } from '../../shared/useFocusParam';
-import { isMissingRows } from '../../services/bulkService';
+import { bulkService } from '../../services/bulkService';
 import { BulkPreviewDialog, useGovernedBulk } from '../../shared/bulk';
-import { riskService, type RiskStatus as ApiRiskStatus } from '../../services/riskService';
 import { EditRiskModal } from './components/EditRiskModal';
 import { CreateMitigationModal } from '../mitigations/CreateMitigationModal';
 import { millions } from '../financial/money';
@@ -71,6 +70,7 @@ import {
   buildSummaryParams,
   parseLayout,
   readFilters,
+  toStatusValue,
   type RegisterLayout,
   type RiskStatusValue,
   type RiskView,
@@ -394,112 +394,111 @@ export function RiskRegisterPage() {
   );
 
   /* ------------------------------------------------------------ bulk actions */
-  // Delete is governed (#582, #1441): preview, confirm, then ONE transactional
-  // POST /risks/bulk/delete carrying the preview's fingerprint. A selection that
-  // moved in between (409) or an id that no longer resolves (404) is refused
-  // whole and the dialog says so. The rows live in the Zustand store, so the
-  // optimistic removal is the store's and the hook decides when to undo it.
+  // Every bulk action is governed (#582, #599, #1441): preview, confirm, then ONE
+  // transactional POST /risks/bulk/<action> carrying the preview's fingerprint. A
+  // selection that moved in between (409) or an id that no longer resolves (404)
+  // is refused whole and the dialog says so. The rows live in the Zustand store,
+  // so the optimistic change is the store's and the hook decides when to undo it.
+  // What the selection held before a status or owner change, for the Undo toast.
+  const before = useRef<
+    | { kind: 'status'; rows: { id: string; status: RiskStatusValue }[] }
+    | { kind: 'owner'; rows: { id: string; ownerId: string | null }[] }
+    | null
+  >(null);
   const bulk = useGovernedBulk({
     register: 'risks',
     optimistic: {
-      applyExternal: (ids) => removeOptimistically(ids),
+      applyExternal: (ids, change) => {
+        if (change.action === 'delete') return removeOptimistically(ids);
+        if (change.action === 'set_owner') {
+          const member = members.find((m) => m.user_id === change.ownerId);
+          return patchRisks([...ids], { owner_id: change.ownerId, owner_email: member?.email });
+        }
+        return patchRisks([...ids], { status: change.status });
+      },
       refresh: reload,
     },
-    onApplied: (result) => {
-      toast.success(t('riskRegister.bulk.deleted', { count: result.applied ?? 0 }));
-      setSelectionEpoch((n) => n + 1);
+    onApplied: (result, change) => {
+      const n = result.applied ?? 0;
+      setSelectionEpoch((k) => k + 1);
+      if (change.action === 'delete') {
+        toast.success(t('riskRegister.bulk.deleted', { count: n }));
+        return;
+      }
+      const snapshot = before.current;
+      before.current = null;
+      if (change.action === 'set_owner') {
+        const member = members.find((m) => m.user_id === change.ownerId);
+        // Undo only when every row had a previous owner to go back to.
+        const undoable =
+          snapshot?.kind === 'owner' && snapshot.rows.every((r) => r.ownerId !== null);
+        toast.success(
+          t('riskRegister.bulk.ownerDone', { count: n, name: member ? memberName(member) : '' }),
+          undoable
+            ? {
+                duration: 8000,
+                action: {
+                  label: t('riskRegister.bulk.undo'),
+                  onClick: () => void undoOwner(snapshot.rows),
+                },
+              }
+            : undefined,
+        );
+        return;
+      }
+      const prior = snapshot?.kind === 'status' ? snapshot.rows : null;
+      toast.success(
+        t('riskRegister.bulk.statusDone', {
+          count: n,
+          status: t(`riskRegister.status.${toStatusValue(change.status)}`),
+        }),
+        prior
+          ? {
+              duration: 8000,
+              action: {
+                label: t('riskRegister.bulk.undo'),
+                onClick: () => void undoStatus(prior),
+              },
+            }
+          : undefined,
+      );
     },
   });
-
-  const afterBulk = () => {
-    setSelectionEpoch((n) => n + 1);
-    reload();
-  };
 
   const bulkActions: BulkAction<UiRisk>[] = useMemo(
     () => [
       {
         key: 'status',
         label: t('riskRegister.bulk.status'),
-        hidden: !canUpdate,
-        // The governed endpoint takes explicit ids and caps a batch at 100.
+        // Two gates: the permission the user holds, and what the server says
+        // this register can do. Neither is the enforcement — the route is.
+        hidden: !canUpdate || !bulk.supports('change_status'),
         selectionOnly: true,
         choices: PICKABLE.map((s) => ({ value: s, label: t(`riskRegister.status.${s}`) })),
-        run: async ({ ids, rows }, choice) => {
+        run: ({ ids, rows }, choice) => {
           const status = PICKABLE.find((s) => s === choice);
           if (!status) return;
-          // What each row held, to put it back on Undo.
-          const before = rows.map((r) => ({ id: r.id, status: r.statusValue }));
-          const rollback = patchRisks(ids, { status });
-          try {
-            await riskService.bulkAction({
-              type: 'change_status',
-              risk_ids: ids,
-              status: status as ApiRiskStatus,
-            });
-          } catch (err) {
-            rollback();
-            toast.error(
-              isMissingRows(err) ? t('riskRegister.bulk.stale') : t('riskRegister.bulk.failed'),
-            );
-            throw err;
-          }
-          toast.success(
-            t('riskRegister.bulk.statusDone', {
-              count: ids.length,
-              status: t(`riskRegister.status.${status}`),
-            }),
-            {
-              duration: 8000,
-              action: {
-                label: t('riskRegister.bulk.undo'),
-                onClick: () => void undoStatus(before),
-              },
-            },
-          );
-          afterBulk();
+          before.current = {
+            kind: 'status',
+            rows: rows.map((r) => ({ id: r.id, status: r.statusValue })),
+          };
+          return bulk.request({ action: 'change_status', status }, ids);
         },
       },
       {
         key: 'owner',
         label: t('riskRegister.bulk.owner'),
-        hidden: !canUpdate || members.length === 0,
+        hidden: !canUpdate || !bulk.supports('set_owner') || members.length === 0,
         selectionOnly: true,
         choices: members.map((m) => ({ value: m.user_id, label: memberName(m) })),
-        run: async ({ ids, rows }, choice) => {
+        run: ({ ids, rows }, choice) => {
           const member = members.find((m) => m.user_id === choice);
           if (!member) return;
-          const before = rows.map((r) => ({ id: r.id, ownerId: r.ownerId }));
-          const rollback = patchRisks(ids, { owner_id: member.user_id, owner_email: member.email });
-          try {
-            await riskService.bulkAction({
-              type: 'set_owner',
-              risk_ids: ids,
-              owner_id: member.user_id,
-            });
-          } catch (err) {
-            rollback();
-            toast.error(
-              isMissingRows(err) ? t('riskRegister.bulk.stale') : t('riskRegister.bulk.failed'),
-            );
-            throw err;
-          }
-          // Undo only when every row had a previous owner to go back to: the API
-          // cannot un-assign through this endpoint.
-          const canUndo = before.every((b) => b.ownerId);
-          toast.success(
-            t('riskRegister.bulk.ownerDone', { count: ids.length, name: memberName(member) }),
-            canUndo
-              ? {
-                  duration: 8000,
-                  action: {
-                    label: t('riskRegister.bulk.undo'),
-                    onClick: () => void undoOwner(before),
-                  },
-                }
-              : undefined,
-          );
-          afterBulk();
+          before.current = {
+            kind: 'owner',
+            rows: rows.map((r) => ({ id: r.id, ownerId: r.ownerId })),
+          };
+          return bulk.request({ action: 'set_owner', ownerId: member.user_id }, ids);
         },
       },
       {
@@ -521,22 +520,29 @@ export function RiskRegisterPage() {
         run: ({ ids }) => bulk.request({ action: 'delete' }, ids),
       },
     ],
-    // undoStatus / undoOwner / exportRows / afterBulk only use stable setters.
+    // undoStatus / undoOwner / exportRows only use stable setters.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [t, canUpdate, canDelete, members, patchRisks, csvCtx, reload, bulk],
   );
 
-  const undoStatus = async (before: { id: string; status: RiskStatusValue }[]) => {
-    const groups = new Map<RiskStatusValue, string[]>();
-    for (const b of before) groups.set(b.status, [...(groups.get(b.status) ?? []), b.id]);
+  // Undo re-issues the change with the previous values, each with its own FRESH
+  // preview: the fingerprint pins the rows' state, so it is stale after the
+  // first apply.
+  const reapply = async (action: 'change_status' | 'set_owner', ids: string[], value: string) => {
+    const status = action === 'change_status' ? value : undefined;
+    const owner = action === 'set_owner' ? value : undefined;
+    const preview = await bulkService.preview('risks', action, ids, status, undefined, owner);
+    await bulkService.apply('risks', action, {
+      ids,
+      status,
+      owner_id: owner,
+      fingerprint: preview.fingerprint,
+    });
+  };
+
+  const undoAll = async (action: 'change_status' | 'set_owner', groups: Map<string, string[]>) => {
     try {
-      for (const [status, ids] of groups) {
-        await riskService.bulkAction({
-          type: 'change_status',
-          risk_ids: ids,
-          status: status as ApiRiskStatus,
-        });
-      }
+      for (const [value, ids] of groups) await reapply(action, ids, value);
       toast.success(t('riskRegister.bulk.undone'));
     } catch {
       toast.error(t('riskRegister.bulk.undoFailed'));
@@ -544,20 +550,18 @@ export function RiskRegisterPage() {
     reload();
   };
 
-  const undoOwner = async (before: { id: string; ownerId: string | null }[]) => {
+  const undoStatus = (rows: { id: string; status: RiskStatusValue }[]) => {
     const groups = new Map<string, string[]>();
-    for (const b of before) {
-      if (b.ownerId) groups.set(b.ownerId, [...(groups.get(b.ownerId) ?? []), b.id]);
+    for (const r of rows) groups.set(r.status, [...(groups.get(r.status) ?? []), r.id]);
+    return undoAll('change_status', groups);
+  };
+
+  const undoOwner = (rows: { id: string; ownerId: string | null }[]) => {
+    const groups = new Map<string, string[]>();
+    for (const r of rows) {
+      if (r.ownerId) groups.set(r.ownerId, [...(groups.get(r.ownerId) ?? []), r.id]);
     }
-    try {
-      for (const [ownerId, ids] of groups) {
-        await riskService.bulkAction({ type: 'set_owner', risk_ids: ids, owner_id: ownerId });
-      }
-      toast.success(t('riskRegister.bulk.undone'));
-    } catch {
-      toast.error(t('riskRegister.bulk.undoFailed'));
-    }
-    reload();
+    return undoAll('set_owner', groups);
   };
 
   /* ------------------------------------------------------------------ header */

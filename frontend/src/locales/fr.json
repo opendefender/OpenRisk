@@ -621,7 +621,8 @@
   "bulk": {
     "title": {
       "delete": "Supprimer {n} {entity} ?",
-      "changeStatus": "Changer le statut de {n} {entity} ?"
+      "changeStatus": "Changer le statut de {n} {entity} ?",
+      "setOwner": "Changer le responsable de {n} {entity} ?"
     },
     "subtitle": "Rien n'a encore changé. Voici ce qui changerait.",
     "previewing": "Calcul de ce qui changerait…",

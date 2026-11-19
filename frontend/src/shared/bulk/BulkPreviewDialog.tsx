@@ -63,7 +63,9 @@ function Interaction({
   const title = (
     destructive
       ? t('bulk.title.delete', 'Delete {n} {entity}?')
-      : t('bulk.title.changeStatus', 'Change the status of {n} {entity}?')
+      : phase.change.action === 'set_owner'
+        ? t('bulk.title.setOwner', 'Change the owner of {n} {entity}?')
+        : t('bulk.title.changeStatus', 'Change the status of {n} {entity}?')
   )
     .replace('{n}', String(subjectCount))
     .replace('{entity}', entityLabel);
