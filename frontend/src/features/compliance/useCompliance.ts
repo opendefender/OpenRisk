@@ -103,11 +103,13 @@ export function useExportFramework() {
 // useImportFramework creates a custom framework from a JSON document (#307).
 // Not optimistic: the framework id and its controls only exist once the server
 // has written them, so there is nothing to show before the answer. On success
-// every list that shows frameworks is invalidated.
+// every list that shows frameworks is invalidated. A create is not idempotent
+// and its 400/409 answers are final, so it never inherits the global retry.
 export function useImportFramework() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (document: FrameworkExportDocument) => complianceService.importFramework(document),
+    retry: false,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: FRAMEWORKS_QUERY_KEY });
       queryClient.invalidateQueries({ queryKey: OVERVIEW_QUERY_KEY });
