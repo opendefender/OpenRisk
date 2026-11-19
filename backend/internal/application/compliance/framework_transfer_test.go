@@ -135,6 +135,13 @@ func TestImportFramework_Validation(t *testing.T) {
 		{"description too long", `{"schema_version":1,"framework":{"name":"F"},"controls":[{"reference_code":"A","name":"a","description":"` + long(10001) + `"}]}`, ptr(0), "description"},
 		{"bad schema version", `{"schema_version":2,"framework":{"name":"F"},"controls":[{"reference_code":"A","name":"a"}]}`, nil, "schema_version"},
 		{"missing schema version", `{"framework":{"name":"F"},"controls":[{"reference_code":"A","name":"a"}]}`, nil, "schema_version"},
+		{"NUL in framework name", `{"schema_version":1,"framework":{"name":"F\u0000"},"controls":[{"reference_code":"A","name":"a"}]}`, nil, "framework.name"},
+		{"NUL in framework version", `{"schema_version":1,"framework":{"name":"F","version":"1\u0000"},"controls":[{"reference_code":"A","name":"a"}]}`, nil, "framework.version"},
+		{"NUL in framework description", `{"schema_version":1,"framework":{"name":"F","description":"d\u0000"},"controls":[{"reference_code":"A","name":"a"}]}`, nil, "framework.description"},
+		{"NUL in reference code", `{"schema_version":1,"framework":{"name":"F"},"controls":[{"reference_code":"A","name":"a"},{"reference_code":"B\u0000","name":"b"}]}`, ptr(1), "reference_code"},
+		{"NUL in control name", `{"schema_version":1,"framework":{"name":"F"},"controls":[{"reference_code":"A","name":"a\u0000"}]}`, ptr(0), "name"},
+		{"NUL in control description", `{"schema_version":1,"framework":{"name":"F"},"controls":[{"reference_code":"A","name":"a","description":"\u0000"}]}`, ptr(0), "description"},
+		{"NUL in source reference", `{"schema_version":1,"framework":{"name":"F"},"controls":[{"reference_code":"A","name":"a","source_reference":"\u0000"}]}`, ptr(0), "source_reference"},
 		{"no controls", `{"schema_version":1,"framework":{"name":"F"},"controls":[]}`, nil, "controls"},
 		{"too many controls", `{"schema_version":1,"framework":{"name":"F"},"controls":[` + ctlJSON(2001) + `]}`, nil, "controls"},
 	}

@@ -103,6 +103,15 @@ func validateFrameworkDocument(doc *FrameworkDocument) []domain.FieldError {
 		}
 	}
 	tooLong := func(s string, max int) bool { return utf8.RuneCountInString(s) > max }
+	// Postgres rejects a NUL in text; catch it here as a 400, not a 500.
+	nul := func(idx *int, field, s string) {
+		if strings.ContainsRune(s, 0) {
+			add(idx, field, "contains a NUL character")
+		}
+	}
+	nul(nil, "framework.name", doc.Framework.Name)
+	nul(nil, "framework.version", doc.Framework.Version)
+	nul(nil, "framework.description", doc.Framework.Description)
 
 	if doc.SchemaVersion != FrameworkDocumentSchemaVersion {
 		add(nil, "schema_version", fmt.Sprintf("must be %d", FrameworkDocumentSchemaVersion))
@@ -130,6 +139,10 @@ func validateFrameworkDocument(doc *FrameworkDocument) []domain.FieldError {
 	for i, c := range doc.Controls {
 		i := i
 		idx := &i
+		nul(idx, "reference_code", c.ReferenceCode)
+		nul(idx, "name", c.Name)
+		nul(idx, "description", c.Description)
+		nul(idx, "source_reference", c.SourceReference)
 		code := strings.TrimSpace(c.ReferenceCode)
 		switch {
 		case code == "":

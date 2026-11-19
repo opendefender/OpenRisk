@@ -57,3 +57,27 @@ func TestAuditMutations_JournaledRequestIsNotJournaledTwice(t *testing.T) {
 	assert.Equal(t, 0, entries, "a journaled request gets no second entry")
 	assert.Equal(t, 0, observed)
 }
+
+// A bulk verb with no id names its parent collection as the entity, so the
+// framework import is journaled as a framework, like POST /compliance/frameworks.
+func TestAuditMutations_ImportRouteUsesParentEntityType(t *testing.T) {
+	for path, want := range map[string]string{
+		"/api/v1/compliance/frameworks":        "framework",
+		"/api/v1/compliance/frameworks/import": "framework",
+		"/api/v1/risks/import":                 "risk",
+	} {
+		sink := &recordingAppender{}
+		app := fiber.New()
+		app.Use(func(c *fiber.Ctx) error {
+			SetContext(c, &RequestContext{UserID: uuid.New(), OrganizationID: uuid.New()})
+			return c.Next()
+		})
+		app.Use(AuditMutations(sink))
+		app.Post(path, func(c *fiber.Ctx) error { return c.SendStatus(fiber.StatusCreated) })
+		resp, err := app.Test(httptest.NewRequest(fiber.MethodPost, path, nil))
+		require.NoError(t, err)
+		require.Equal(t, fiber.StatusCreated, resp.StatusCode)
+		require.Len(t, sink.got, 1, path)
+		assert.Equal(t, want, sink.got[0].EntityType, path)
+	}
+}

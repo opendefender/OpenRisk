@@ -61,6 +61,16 @@ func (r *GormComplianceRepository) CreateFrameworkWithControls(ctx context.Conte
 		return fmt.Errorf("tenant_id is required")
 	}
 	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		// No unique index backs the duplicate check below, so two concurrent
+		// imports of the same (tenant, name, version) could both pass the count.
+		// A transaction-scoped advisory lock serialises them; it is released at
+		// commit/rollback. SQLite (tests) has no such function and is single-writer.
+		if tx.Dialector.Name() == "postgres" {
+			key := framework.TenantID.String() + "|" + framework.Name + "|" + framework.Version
+			if err := tx.Exec("SELECT pg_advisory_xact_lock(hashtext(?))", key).Error; err != nil {
+				return err
+			}
+		}
 		var existing int64
 		if err := tx.Model(&domain.ComplianceFramework{}).
 			Where("tenant_id = ? AND name = ? AND version = ?", framework.TenantID, framework.Name, framework.Version).

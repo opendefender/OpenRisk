@@ -301,9 +301,18 @@ func resourceFromRoute(c *fiber.Ctx) (resType, resID, verb string) {
 	if resType == "" && len(collections) > 0 {
 		resType = collections[0]
 	}
+	// A trailing bulk verb with no id (POST /risks/import) acts on its parent
+	// collection: the entity is "risk", not "import".
+	if resID == "" && len(collections) > 1 && bulkVerbs[collections[len(collections)-1]] {
+		resType = collections[len(collections)-2]
+	}
 	resType = normaliseResource(collections, resType)
 	return resType, resID, verb
 }
+
+// bulkVerbs are static trailing segments that name an operation on the parent
+// collection rather than a resource of their own.
+var bulkVerbs = map[string]bool{"import": true}
 
 func splitPath(p string) []string {
 	raw := strings.Split(strings.Trim(p, "/"), "/")
