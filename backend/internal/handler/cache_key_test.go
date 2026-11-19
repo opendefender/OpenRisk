@@ -4,9 +4,14 @@
 package handler
 
 import (
+	"context"
+	"encoding/json"
+	"io"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
@@ -127,4 +132,112 @@ func TestCacheKeys_AreStableForTheSameRequest(t *testing.T) {
 		second, _ := keyFor(t, tc.build, tc.target, tenant, nil)
 		assert.Equal(t, first, second, "%s: identical requests must produce identical keys", tc.name)
 	}
+}
+
+// The "mine" list depends on the authenticated user, which no part of the URL
+// carries: two members of one tenant asking ?view=mine would share an entry and
+// each be served the other's risks. It must never be cached; every other list
+// keeps its key.
+func TestRiskListCacheKey_PersonalListsAreNeverCached(t *testing.T) {
+	tenant := uuid.New()
+
+	for _, params := range []map[string]string{
+		{"view": "mine"},
+		{"view": "MINE"},
+		{"view": "%20mine%20"},
+		{"mine": "true"},
+		{"view": "mine", "page": "2", "status": "open"},
+		{"mine": "true", "view": "hot"},
+	} {
+		_, ok := keyFor(t, riskListCacheKey, "/risks", tenant, params)
+		assert.False(t, ok, "%v must bypass the cache", params)
+	}
+
+	// Non-personal lists are cached, under the same key as before.
+	for _, params := range []map[string]string{
+		nil,
+		{"view": "all"},
+		{"view": "hot"},
+		{"view": "review_due", "page": "2"},
+		{"mine": "false"},
+		{"owner_id": uuid.NewString()},
+	} {
+		key, ok := keyFor(t, riskListCacheKey, "/risks", tenant, params)
+		assert.True(t, ok, "%v stays cacheable", params)
+		assert.Contains(t, key, "t:"+tenant.String())
+	}
+	key, _ := keyFor(t, riskListCacheKey, "/risks", tenant, map[string]string{"page": "2", "status": "open"})
+	assert.Equal(t, "risk:list:t:"+tenant.String()+":page:2:sev::status:open", key, "unchanged for ordinary lists")
+
+	// No tenant, no cache, as before.
+	_, ok := keyFor(t, riskListCacheKey, "/risks", uuid.Nil, map[string]string{"view": "all"})
+	assert.False(t, ok)
+}
+
+// listStore is the smallest ResponseStore: a map.
+type listStore struct {
+	mu   sync.Mutex
+	data map[string][]byte
+}
+
+func (m *listStore) Get(_ context.Context, key string, dest interface{}) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	raw, ok := m.data[key]
+	if !ok {
+		return cache.ErrCacheMiss
+	}
+	return json.Unmarshal(raw, dest)
+}
+
+func (m *listStore) SetWithTTL(_ context.Context, key string, value interface{}, _ time.Duration) error {
+	raw, err := json.Marshal(value)
+	if err != nil {
+		return err
+	}
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.data[key] = raw
+	return nil
+}
+
+func (m *listStore) DeletePattern(context.Context, string) error { return nil }
+
+// End to end through the real wrapper and the real key builder: user B must not
+// be served user A's "mine" list, while an ordinary list is still cached.
+func TestRiskList_MineIsNotServedAcrossUsers(t *testing.T) {
+	tenant := uuid.New()
+	d := cache.NewCacheDecorationWithStore(&listStore{data: map[string][]byte{}})
+	app := fiber.New()
+	app.Get("/risks", func(c *fiber.Ctx) error {
+		middleware.SetContext(c, &middleware.RequestContext{OrganizationID: tenant, UserID: uuid.MustParse(c.Get("X-User"))})
+		return c.Next()
+	}, d.WrapWithCache(func(c *fiber.Ctx) error {
+		return c.JSON(fiber.Map{"items": []string{"risks of " + c.Get("X-User")}})
+	}, riskListCacheKey, time.Minute))
+
+	userA, userB := uuid.NewString(), uuid.NewString()
+	get := func(user, path string) (string, string) {
+		req := httptest.NewRequest(fiber.MethodGet, path, nil)
+		req.Header.Set("X-User", user)
+		resp, err := app.Test(req)
+		require.NoError(t, err)
+		defer resp.Body.Close()
+		raw, _ := io.ReadAll(resp.Body)
+		return string(raw), resp.Header.Get("X-Cache")
+	}
+
+	for _, path := range []string{"/risks?view=mine", "/risks?mine=true", "/risks?view=%20Mine"} {
+		bodyA, _ := get(userA, path)
+		bodyB, cacheB := get(userB, path)
+		assert.Contains(t, bodyA, userA, path)
+		assert.Contains(t, bodyB, userB, "%s: B must get B's own list", path)
+		assert.NotContains(t, bodyB, userA, path)
+		assert.NotEqual(t, "HIT", cacheB, path)
+	}
+
+	_, first := get(userA, "/risks?view=hot")
+	_, second := get(userB, "/risks?view=hot")
+	assert.Equal(t, "MISS", first)
+	assert.Equal(t, "HIT", second, "an ordinary list is still cached")
 }

@@ -287,12 +287,67 @@ func (uc *BulkActionUseCase) setOwner(
 	if err != nil {
 		return nil, err
 	}
+	uc.announceOwner(ctx, tenantID, owner, performedBy, order, changes, titles)
+	return result, nil
+}
+
+// announceOwner tells the new owner once per batch, after commit. One risk
+// keeps the single-risk wording; several risks become ONE notice ("N risks have
+// been assigned to you"), so a 100-risk request is one email, not a hundred.
+// Nobody is told about their own action, nor about a risk whose owner did not
+// actually change.
+func (uc *BulkActionUseCase) announceOwner(
+	ctx context.Context,
+	tenantID, owner, actor uuid.UUID,
+	order []uuid.UUID,
+	changes map[uuid.UUID][]domain.OwnershipChange,
+	titles map[uuid.UUID]string,
+) {
+	if owner == actor {
+		return
+	}
+	var moved []uuid.UUID
 	for _, id := range order {
-		uc.ownership.Notify(ctx, tenantID, changes[id], domain.OwnershipSubject{
-			ResourceType: "risk", ResourceID: id, Title: titles[id], Locale: "fr",
+		if len(changes[id]) > 0 {
+			moved = append(moved, id)
+		}
+	}
+	switch {
+	case len(moved) == 0:
+		return
+	case len(moved) == 1:
+		uc.ownership.Notify(ctx, tenantID, changes[moved[0]], domain.OwnershipSubject{
+			ResourceType: "risk", ResourceID: moved[0], Title: titles[moved[0]], Locale: "fr",
+		})
+	default:
+		if uc.notices == nil {
+			return
+		}
+		n := len(moved)
+		_ = uc.notices.Deliver(ctx, domain.Notice{
+			TenantID:     tenantID,
+			UserID:       owner,
+			Type:         domain.NotificationTypeActionAssigned,
+			ResourceType: "risk",
+			Compose: func(locale string) domain.NoticeMessage {
+				return ownerBatchNoticeCopy(locale, n)
+			},
 		})
 	}
-	return result, nil
+}
+
+// ownerBatchNoticeCopy words the one notice a bulk owner change sends.
+func ownerBatchNoticeCopy(locale string, n int) domain.NoticeMessage {
+	if locale == "en" {
+		return domain.NoticeMessage{
+			Subject: fmt.Sprintf("%d risks have been assigned to you", n),
+			Lines:   []string{fmt.Sprintf("You have been made owner of %d risks. You answer for their outcome.", n)},
+		}
+	}
+	return domain.NoticeMessage{
+		Subject: fmt.Sprintf("%d risques vous ont été attribués", n),
+		Lines:   []string{fmt.Sprintf("Vous êtes désormais responsable de %d risques. Vous répondez de leur issue.", n)},
+	}
 }
 
 // apply runs one mutation over the batch inside the repository's transaction,

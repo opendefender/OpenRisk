@@ -41,6 +41,13 @@ func (m *membersOnly) Notify(_ context.Context, _ uuid.UUID, changes []domain.Ow
 	m.notified = append(m.notified, changes...)
 }
 
+type batchNotices struct{ got []domain.Notice }
+
+func (b *batchNotices) Deliver(_ context.Context, n domain.Notice) error {
+	b.got = append(b.got, n)
+	return nil
+}
+
 func ownerFixture() (tenant, other, newOwner, actor uuid.UUID, mgr *membersOnly) {
 	tenant, other, newOwner, actor = uuid.New(), uuid.New(), uuid.New(), uuid.New()
 	mgr = &membersOnly{members: map[uuid.UUID]map[uuid.UUID]bool{
@@ -57,7 +64,8 @@ func TestBulkSetOwner_Success(t *testing.T) {
 	a.AssignedTo = &legacy
 	repo := newBulkRepo(tenant, a, b)
 	uc, journal := newUC(repo)
-	uc.WithOwnership(mgr)
+	notices := &batchNotices{}
+	uc.WithOwnership(mgr).WithNotices(notices)
 
 	res, err := uc.Execute(context.Background(), tenant, BulkActionRequest{
 		Type: BulkActionSetOwner, RiskIDs: []uuid.UUID{a.ID, b.ID}, OwnerID: &newOwner,
@@ -76,7 +84,11 @@ func TestBulkSetOwner_Success(t *testing.T) {
 
 	require.Len(t, journal.events, 2)
 	assert.Contains(t, []string(journal.events[0].ChangedFields), "owner_id", "the trail shows the owner change")
-	assert.Len(t, mgr.notified, 2, "the new owner is told, once per risk, after commit")
+	assert.Empty(t, mgr.notified, "no per-risk notice for a batch")
+	require.Len(t, notices.got, 1, "one notice for the whole batch, not one per risk")
+	assert.Equal(t, newOwner, notices.got[0].UserID)
+	assert.Equal(t, "2 risques vous ont été attribués", notices.got[0].Compose("fr").Subject)
+	assert.Equal(t, "2 risks have been assigned to you", notices.got[0].Compose("en").Subject)
 }
 
 func TestBulkSetOwner_AssignToStillWritesTheLegacyColumn(t *testing.T) {
@@ -177,4 +189,75 @@ func TestBulkSetOwner_ValidatesParameters(t *testing.T) {
 		Type: BulkActionSetOwner, RiskIDs: []uuid.UUID{a.ID}, OwnerID: &newOwner,
 	}, actor)
 	require.Error(t, err, "without the membership check the action is refused, not applied unchecked")
+}
+
+func TestBulkSetOwner_NoticeRules(t *testing.T) {
+	ctx := context.Background()
+
+	t.Run("one risk keeps the single-risk notice", func(t *testing.T) {
+		tenant, _, newOwner, actor, mgr := ownerFixture()
+		a := seedRisk(tenant, "A")
+		uc, _ := newUC(newBulkRepo(tenant, a))
+		notices := &batchNotices{}
+		uc.WithOwnership(mgr).WithNotices(notices)
+		_, err := uc.Execute(ctx, tenant, BulkActionRequest{Type: BulkActionSetOwner, RiskIDs: []uuid.UUID{a.ID}, OwnerID: &newOwner}, actor)
+		require.NoError(t, err)
+		assert.Len(t, mgr.notified, 1)
+		assert.Empty(t, notices.got)
+	})
+
+	t.Run("a hundred risks, one notice", func(t *testing.T) {
+		tenant, _, newOwner, actor, mgr := ownerFixture()
+		var risks []*domain.Risk
+		var ids []uuid.UUID
+		for i := 0; i < 100; i++ {
+			r := seedRisk(tenant, "R")
+			risks, ids = append(risks, r), append(ids, r.ID)
+		}
+		uc, _ := newUC(newBulkRepo(tenant, risks...))
+		notices := &batchNotices{}
+		uc.WithOwnership(mgr).WithNotices(notices)
+		_, err := uc.Execute(ctx, tenant, BulkActionRequest{Type: BulkActionSetOwner, RiskIDs: ids, OwnerID: &newOwner}, actor)
+		require.NoError(t, err)
+		require.Len(t, notices.got, 1)
+		assert.Contains(t, notices.got[0].Compose("fr").Subject, "100 risques")
+		assert.Empty(t, mgr.notified)
+	})
+
+	t.Run("risks already owned by the target are not counted", func(t *testing.T) {
+		tenant, _, newOwner, actor, mgr := ownerFixture()
+		a, b, c := seedRisk(tenant, "A"), seedRisk(tenant, "B"), seedRisk(tenant, "C")
+		a.OwnerID = &newOwner
+		uc, _ := newUC(newBulkRepo(tenant, a, b, c))
+		notices := &batchNotices{}
+		uc.WithOwnership(mgr).WithNotices(notices)
+		_, err := uc.Execute(ctx, tenant, BulkActionRequest{Type: BulkActionSetOwner, RiskIDs: []uuid.UUID{a.ID, b.ID, c.ID}, OwnerID: &newOwner}, actor)
+		require.NoError(t, err)
+		require.Len(t, notices.got, 1)
+		assert.Contains(t, notices.got[0].Compose("en").Subject, "2 risks")
+	})
+
+	t.Run("nobody is told about their own action", func(t *testing.T) {
+		tenant, _, _, actor, mgr := ownerFixture()
+		a, b := seedRisk(tenant, "A"), seedRisk(tenant, "B")
+		uc, _ := newUC(newBulkRepo(tenant, a, b))
+		notices := &batchNotices{}
+		uc.WithOwnership(mgr).WithNotices(notices)
+		_, err := uc.Execute(ctx, tenant, BulkActionRequest{Type: BulkActionSetOwner, RiskIDs: []uuid.UUID{a.ID, b.ID}, OwnerID: &actor}, actor)
+		require.NoError(t, err)
+		assert.Empty(t, notices.got)
+		assert.Empty(t, mgr.notified)
+	})
+
+	t.Run("a rejected batch tells nobody", func(t *testing.T) {
+		tenant, _, newOwner, actor, mgr := ownerFixture()
+		a := seedRisk(tenant, "A")
+		uc, _ := newUC(newBulkRepo(tenant, a))
+		notices := &batchNotices{}
+		uc.WithOwnership(mgr).WithNotices(notices)
+		_, err := uc.Execute(ctx, tenant, BulkActionRequest{Type: BulkActionSetOwner, RiskIDs: []uuid.UUID{a.ID, uuid.New()}, OwnerID: &newOwner}, actor)
+		require.Error(t, err)
+		assert.Empty(t, notices.got)
+		assert.Empty(t, mgr.notified)
+	})
 }
