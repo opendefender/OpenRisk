@@ -45,7 +45,10 @@ func TestHostedPlanRoutes_CapsAndGatesAreMounted(t *testing.T) {
 	} {
 		require.Contains(t, src, line)
 	}
-	for _, c := range []string{"capFrameworks,", "capScanSources,", "capWorkflows,"} {
+	// Import (#307) creates a framework too, so the cap sits on both routes.
+	require.Equal(t, 2, strings.Count(src, "capFrameworks,"), "capFrameworks sits on creating a framework by hand and by JSON import")
+	require.Contains(t, src, `protected.Post("/compliance/frameworks/import", complianceFrameworkCreate, capFrameworks, complianceHandler.ImportFramework)`)
+	for _, c := range []string{"capScanSources,", "capWorkflows,"} {
 		require.Equal(t, 1, strings.Count(src, c), "%s is mounted once", c)
 	}
 	require.Equal(t, 2, strings.Count(src, "capUsers,"), "capUsers sits on the two ways to add a member")

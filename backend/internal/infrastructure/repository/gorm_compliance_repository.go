@@ -51,6 +51,50 @@ func (r *GormComplianceRepository) CreateFramework(ctx context.Context, framewor
 	return err
 }
 
+// CreateFrameworkWithControls writes the framework, every control and every
+// control-chain mirror in one transaction. The (tenant, name, version) duplicate
+// check runs inside it, tenant-scoped, because production has no unique index
+// on those columns. Every control is stamped with the framework's tenant and
+// framework id, and starts not_implemented, whatever the caller set.
+func (r *GormComplianceRepository) CreateFrameworkWithControls(ctx context.Context, framework *domain.ComplianceFramework, controls []*domain.ComplianceControl) error {
+	if framework.TenantID == uuid.Nil {
+		return fmt.Errorf("tenant_id is required")
+	}
+	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var existing int64
+		if err := tx.Model(&domain.ComplianceFramework{}).
+			Where("tenant_id = ? AND name = ? AND version = ?", framework.TenantID, framework.Name, framework.Version).
+			Count(&existing).Error; err != nil {
+			return err
+		}
+		if existing > 0 {
+			return domain.NewConflictError("framework", "name+version")
+		}
+		if err := tx.Create(framework).Error; err != nil {
+			return err
+		}
+		for _, control := range controls {
+			control.TenantID = framework.TenantID
+			control.FrameworkID = framework.ID
+			control.Status = domain.ControlStatusNotImplemented
+			if err := tx.Create(control).Error; err != nil {
+				return err
+			}
+			if err := controlchain.MirrorRequirementCreated(ctx, tx, controlchain.RequirementRow{
+				ID: control.ID, TenantID: control.TenantID, Name: control.Name, Description: control.Description,
+				Status: string(control.Status), CreatedAt: control.CreatedAt, UpdatedAt: control.UpdatedAt,
+			}); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if errors.Is(err, gorm.ErrDuplicatedKey) {
+		return domain.NewConflictError("framework", "name+version")
+	}
+	return err
+}
+
 // GetFrameworkByID retrieves a framework by ID scoped to a tenant.
 // Returns (nil, nil) if not found or it belongs to another tenant.
 func (r *GormComplianceRepository) GetFrameworkByID(ctx context.Context, id uuid.UUID, tenantID uuid.UUID) (*domain.ComplianceFramework, error) {
