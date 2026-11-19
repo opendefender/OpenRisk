@@ -16,8 +16,13 @@ import type { AxiosResponse } from 'axios';
 import { toast } from 'sonner';
 import { useAuthStore } from '../../../hooks/useAuthStore';
 import { useUIStore } from '../../../store/uiStore';
-import type { ComplianceControl, ControlStatus } from '../../../types/compliance';
+import type {
+  ComplianceControl,
+  ControlStatus,
+  FrameworkProgress,
+} from '../../../types/compliance';
 import { FrameworkDetail } from '../FrameworkDetail';
+import { moveProgress } from '../useCompliance';
 
 vi.mock('../../../lib/api', async () => {
   const actual = await vi.importActual<typeof import('../../../lib/api')>('../../../lib/api');
@@ -212,6 +217,13 @@ describe('FrameworkDetail header progress', () => {
       Applicable: 2,
       PercentComplete: 0,
     });
+    // After the two initial /progress reads (header + overview) any refetch
+    // never answers: the gauge can only return to 0% from the restored cache.
+    const base = get.getMockImplementation() as (u: string) => Promise<AxiosResponse>;
+    let progressCalls = 0;
+    get.mockImplementation((url: string) =>
+      url.endsWith('/progress') && progressCalls++ >= 2 ? new Promise(() => undefined) : base(url),
+    );
     patch.mockRejectedValue(new Error('500'));
 
     renderDetail();
@@ -221,9 +233,69 @@ describe('FrameworkDetail header progress', () => {
     fireEvent.change(screen.getAllByRole('combobox')[0], { target: { value: 'implemented' } });
 
     await waitFor(() => expect(toast.error).toHaveBeenCalledWith('Update failed'));
-    // The refetch returns the same server figure; the gauge is back at 0%.
-    expect(await screen.findByText('0%')).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText('0%')).toBeInTheDocument());
     expect(screen.queryByText('50%')).toBeNull();
+    expect(screen.getByText('0/2 controls')).toBeInTheDocument();
+    // The refetch was requested (invalidate on settle) and is still pending.
+    await waitFor(() => expect(progressCalls).toBeGreaterThan(2));
+  });
+});
+
+describe('moveProgress', () => {
+  const base: FrameworkProgress = {
+    total: 4,
+    applicable: 4,
+    byStatus: { not_implemented: 3, implemented: 1 },
+    percentComplete: 25,
+  };
+
+  it('moves one control between statuses and recomputes the percentage', () => {
+    const next = moveProgress(base, 'not_implemented', 'implemented');
+    expect(next.byStatus).toEqual({ not_implemented: 2, implemented: 2 });
+    expect(next.percentComplete).toBe(50);
+    expect(base.byStatus.not_implemented).toBe(3);
+  });
+
+  it('shrinks applicable when moving to not_applicable', () => {
+    const next = moveProgress(base, 'not_implemented', 'not_applicable');
+    expect(next.applicable).toBe(3);
+    expect(next.percentComplete).toBeCloseTo(100 / 3);
+  });
+
+  it('grows applicable when moving away from not_applicable', () => {
+    const start: FrameworkProgress = {
+      total: 2,
+      applicable: 1,
+      byStatus: { not_applicable: 1, implemented: 1 },
+      percentComplete: 100,
+    };
+    const next = moveProgress(start, 'not_applicable', 'not_implemented');
+    expect(next.applicable).toBe(2);
+    expect(next.percentComplete).toBe(50);
+  });
+
+  it('returns 0% without dividing by zero when nothing is applicable', () => {
+    const start: FrameworkProgress = {
+      total: 1,
+      applicable: 1,
+      byStatus: { implemented: 1 },
+      percentComplete: 100,
+    };
+    const next = moveProgress(start, 'implemented', 'not_applicable');
+    expect(next.applicable).toBe(0);
+    expect(next.percentComplete).toBe(0);
+    expect(Number.isFinite(next.percentComplete)).toBe(true);
+  });
+
+  it('clamps the source count at 0 when the cache is out of date', () => {
+    const next = moveProgress(base, 'in_progress', 'implemented');
+    expect(next.byStatus.in_progress).toBe(0);
+    expect(next.byStatus.implemented).toBe(2);
+  });
+
+  it('is a no-op when the status does not change', () => {
+    const next = moveProgress(base, 'implemented', 'implemented');
+    expect(next).toEqual(base);
   });
 });
 
