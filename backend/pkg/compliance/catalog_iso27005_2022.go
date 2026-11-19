@@ -12,6 +12,8 @@ package compliance
 // process is in place. Clause numbers are ISO's own published structure and are
 // reliable; the descriptions are original summaries of each activity's intent,
 // not ISO's own text. Verify against ISO/IEC 27005:2022 before an audit.
+//
+// Review status: see Catalog.Review in the register call below. This header makes no review claim.
 
 func init() {
 	register(Catalog{
@@ -20,6 +22,7 @@ func init() {
 		Version:     "2022",
 		Description: "Information security risk management — the activities of the ISO 27005 risk management process (context, assessment, treatment, operation, ISMS integration).",
 		Available:   true,
+		Review:      Review{Status: ReviewUnreviewed},
 		Controls:    iso270052022Controls,
 	})
 }

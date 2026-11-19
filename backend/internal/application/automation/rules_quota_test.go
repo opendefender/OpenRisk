@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	entapp "github.com/opendefender/openrisk/internal/application/entitlements"
@@ -116,7 +117,9 @@ func (freeOrg) PlanAndRegion(context.Context, uuid.UUID) (string, string, error)
 
 type ruleUsage int
 
-func (u ruleUsage) Count(context.Context, uuid.UUID, ent.LimitKey) (int, error) { return int(u), nil }
+func (u ruleUsage) Count(context.Context, uuid.UUID, ent.LimitKey, time.Time) (int, error) {
+	return int(u), nil
+}
 
 // TestRuleQuota_SelfHosted_Success (#783 criterion 8): through the real
 // entitlements service, a self-hosted install enables rules past every hosted

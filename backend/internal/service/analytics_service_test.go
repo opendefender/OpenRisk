@@ -14,13 +14,15 @@ import (
 	"github.com/stretchr/testify/require"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
+
+	"github.com/opendefender/openrisk/internal/testsupport/testdb"
 )
 
 // setupAnalyticsDB creates an in-memory SQLite DB with just the columns the
 // analytics/dashboard aggregation queries touch on the risks table.
 func setupAnalyticsDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	db, err := testdb.Open(t, sqlite.Open(":memory:"), &gorm.Config{})
 	require.NoError(t, err)
 	require.NoError(t, db.Exec(`
 		CREATE TABLE risks (
@@ -107,4 +109,42 @@ func TestDashboardDataService_SeverityDistribution_TenantIsolation(t *testing.T)
 	require.NoError(t, err)
 	require.Equal(t, int64(2), distB.Critical)
 	require.Equal(t, int64(0), distB.High)
+}
+
+// #808: a nil tenant reads nobody's data and issues no query at all, so the
+// tenant guard (testdb, Enforce) never sees a statement bound to uuid.Nil.
+func TestAnalyticsService_GetRiskTrends_NilTenantReadsNothing(t *testing.T) {
+	db := setupAnalyticsDB(t)
+	svc := NewAnalyticsService(db)
+	tenant := uuid.New()
+	insertAnalyticsRisk(t, db, tenant, "active", "high", 8)
+
+	none, err := svc.GetRiskTrends(context.Background(), uuid.Nil, 7)
+	require.NoError(t, err)
+	require.Empty(t, none)
+
+	own, err := svc.GetRiskTrends(context.Background(), tenant, 3)
+	require.NoError(t, err)
+	require.Len(t, own, 3)
+	require.Equal(t, int64(1), own[2].Count)
+}
+
+func TestAnalyticsService_GetFrameworkAnalytics_NilTenantReadsNothing(t *testing.T) {
+	svc := NewAnalyticsService(setupAnalyticsDB(t))
+	none, err := svc.GetFrameworkAnalytics(context.Background(), uuid.Nil)
+	require.NoError(t, err)
+	require.Empty(t, none)
+}
+
+func TestAnalyticsService_GetDashboardSnapshot_NilTenantReadsNothing(t *testing.T) {
+	db := setupAnalyticsDB(t)
+	svc := NewAnalyticsService(db)
+	insertAnalyticsRisk(t, db, uuid.New(), "active", "high", 8)
+
+	snap, err := svc.GetDashboardSnapshot(context.Background(), uuid.Nil)
+	require.NoError(t, err)
+	require.Equal(t, int64(0), snap.RiskMetrics.TotalRisks)
+	require.Equal(t, int64(0), snap.MitigationMetrics.TotalMitigations)
+	require.Empty(t, snap.FrameworkAnalytics)
+	require.Empty(t, snap.Trends)
 }

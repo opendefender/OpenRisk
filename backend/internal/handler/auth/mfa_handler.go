@@ -25,18 +25,23 @@ import (
 // MFAHandler exposes the /auth/mfa/* endpoints: setup + verify (enrollment, under
 // a full session) and challenge (during login, under an MFA_REQUIRED token).
 type MFAHandler struct {
-	setup     *appauth.SetupMFAUseCase
-	verify    *appauth.VerifyMFAUseCase
-	disable   *appauth.DisableMFAUseCase
-	challenge *appauth.ChallengeMFAUseCase
-	tokens    *coreauth.TokenManager
-	users     *repository.GormUserRepository
-	audit     *coreauth.AuditService
+	setup   *appauth.SetupMFAUseCase
+	verify  *appauth.VerifyMFAUseCase
+	disable *appauth.DisableMFAUseCase
+	// regenerate issues new backup codes (#1032). Optional; nil answers 404.
+	regenerate *appauth.RegenerateBackupCodesUseCase
+	challenge  *appauth.ChallengeMFAUseCase
+	tokens     *coreauth.TokenManager
+	users      *repository.GormUserRepository
+	audit      *coreauth.AuditService
 	// mfaStatus is the cache the request-time guard reads. Optional; when set,
 	// a completed enrolment drops the caller's entry immediately (OR26-03).
 	mfaStatus *appauth.MFAStatusResolver
 	// disableAttempts counts disable attempts per account (#754). Optional.
 	disableAttempts middleware.RateLimitBackend
+	// inSession is the lock on disable and regenerate after repeated wrong
+	// proofs (#1392). Optional; the use cases hold the same instance.
+	inSession *appauth.MFAInSessionLimits
 	// devices plants the trusted-device cookie when the challenge completes a
 	// sign-in (D-064). Optional.
 	devices *coreauth.DeviceCookieSigner
@@ -56,6 +61,44 @@ const (
 // instances.
 func (h *MFAHandler) WithDisableAttemptLimit(store middleware.RateLimitBackend) *MFAHandler {
 	h.disableAttempts = store
+	return h
+}
+
+// WithInSessionLimits checks the in-session lock (#1392) before the D-061
+// budget, so a locked account is told it is locked, for how long, rather than
+// "try again in a few minutes". Pass the instance the use cases hold.
+func (h *MFAHandler) WithInSessionLimits(l *appauth.MFAInSessionLimits) *MFAHandler {
+	h.inSession = l
+	return h
+}
+
+// inSessionLocked answers a request refused, or a failure turned into a lock,
+// by the in-session lock. The lock is audited once, when it is set; every
+// refusal under it is audited as such. Nothing about the proofs is echoed.
+func inSessionLocked(c *fiber.Ctx, locale string, locked *appauth.MFAInSessionLockedError, audit func(reason string)) error {
+	if locked.JustLocked {
+		audit("mfa_lock_set")
+	} else {
+		audit("mfa_locked")
+	}
+	seconds := int(locked.RetryAfter.Round(time.Second) / time.Second)
+	if seconds < 1 {
+		seconds = 1
+	}
+	c.Set(fiber.HeaderRetryAfter, strconv.Itoa(seconds))
+	return c.Status(fiber.StatusTooManyRequests).JSON(fiber.Map{
+		"code":        "mfa_locked",
+		"retry_after": seconds,
+		"error": pick(locale,
+			"Trop de codes ou de mots de passe erronés. La désactivation de la double authentification et la régénération des codes de secours sont verrouillées sur ce compte pendant 24 heures.",
+			"Too many wrong codes or passwords. Turning off two-factor authentication and regenerating backup codes are locked on this account for 24 hours."),
+	})
+}
+
+// WithBackupCodeRegeneration wires POST /auth/mfa/backup-codes/regenerate
+// (#1032). Its attempts count against the same per-account budget as disable.
+func (h *MFAHandler) WithBackupCodeRegeneration(uc *appauth.RegenerateBackupCodesUseCase) *MFAHandler {
+	h.regenerate = uc
 	return h
 }
 
@@ -222,6 +265,17 @@ func (h *MFAHandler) Disable(c *fiber.Ctx) error {
 		h.logDisable(c, userID, tenantID, false, &reason)
 		return c.Status(status).JSON(fiber.Map{"error": message, "code": reason})
 	}
+	auditDisable := func(reason string) { h.logDisable(c, userID, tenantID, false, &reason) }
+	var locked *appauth.MFAInSessionLockedError
+
+	// The lock first (#1392): it outranks the short budget below, and a
+	// refused attempt must not reach the hasher.
+	if err := h.inSession.Check(c.UserContext(), userID); errors.As(err, &locked) {
+		return inSessionLocked(c, locale, locked, auditDisable)
+	} else if err != nil {
+		log.Printf("auth: %s failed: %v", c.Path(), err)
+		return fail(fiber.StatusInternalServerError, "internal", genericFailure(locale))
+	}
 
 	// Checked before the password is: a refused attempt must not reach the hasher.
 	if h.disableAttempts != nil &&
@@ -243,6 +297,8 @@ func (h *MFAHandler) Disable(c *fiber.Ctx) error {
 
 	var appErr *domain.AppError
 	switch {
+	case errors.As(err, &locked):
+		return inSessionLocked(c, locale, locked, auditDisable)
 	case errors.Is(err, appauth.ErrMFADisablePasswordIncorrect):
 		// 401 without a token error code: the SPA reads that as "this request
 		// was refused", not "your session is over".
@@ -285,6 +341,115 @@ func (h *MFAHandler) logDisable(c *fiber.Ctx, userID, tenantID uuid.UUID, succes
 		return
 	}
 	_ = h.audit.LogFiber(c, &userID, &tenantID, coreauth.AuditActionMfaDisable, success, reason)
+}
+
+// RegenerateBackupCodes replaces the caller's backup codes and returns the new
+// ones, once (#1032).
+//
+// The body carries a current authenticator code, always, and the password for
+// an account that has one. Attempts share the per-account budget of the disable
+// path: both take the password, so splitting the budget would double the
+// guesses a session thief gets. Neither proof is logged or echoed.
+func (h *MFAHandler) RegenerateBackupCodes(c *fiber.Ctx) error {
+	userID := ctxUUID(c, "user_id")
+	tenantID := ctxUUID(c, "tenant_id")
+	if userID == uuid.Nil || tenantID == uuid.Nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "not authenticated"})
+	}
+	// New codes are second-factor material, the owner's to mint, not a script's.
+	// Refused before the budget is touched, so a leaked token cannot spend the
+	// owner's attempts either.
+	if c.Locals("is_pat") == true {
+		reason := "personal_access_token"
+		h.logRegenerate(c, userID, tenantID, false, &reason)
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"error": "personal access tokens cannot manage two-factor authentication",
+			"code":  reason,
+		})
+	}
+
+	var req struct {
+		Password string `json:"password,omitempty"`
+		Code     string `json:"code"`
+		Locale   string `json:"locale,omitempty"`
+	}
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid request body"})
+	}
+	locale := resolveLocale(c, req.Locale)
+
+	fail := func(status int, reason, message string) error {
+		h.logRegenerate(c, userID, tenantID, false, &reason)
+		return c.Status(status).JSON(fiber.Map{"error": message, "code": reason})
+	}
+	notEnrolled := func() error {
+		return fail(fiber.StatusNotFound, "not_enrolled",
+			pick(locale, "La double authentification n'est pas activée.", "Two-factor authentication is not enabled."))
+	}
+	if h.regenerate == nil {
+		return notEnrolled()
+	}
+	auditRegenerate := func(reason string) { h.logRegenerate(c, userID, tenantID, false, &reason) }
+	var locked *appauth.MFAInSessionLockedError
+
+	// The lock first (#1392): it outranks the short budget below, and a
+	// refused attempt must not reach the hasher.
+	if err := h.inSession.Check(c.UserContext(), userID); errors.As(err, &locked) {
+		return inSessionLocked(c, locale, locked, auditRegenerate)
+	} else if err != nil {
+		log.Printf("auth: %s failed: %v", c.Path(), err)
+		return fail(fiber.StatusInternalServerError, "internal", genericFailure(locale))
+	}
+
+	// Checked before the password is: a refused attempt must not reach the hasher.
+	if h.disableAttempts != nil &&
+		!h.disableAttempts.IsAllowed("mfa-disable:"+userID.String(), mfaDisableMaxAttempts, mfaDisableWindow) {
+		return fail(fiber.StatusTooManyRequests, "too_many_attempts",
+			pick(locale,
+				"Trop de tentatives. Réessayez dans quelques minutes.",
+				"Too many attempts. Try again in a few minutes."))
+	}
+
+	out, err := h.regenerate.Execute(c.UserContext(), appauth.RegenerateBackupCodesInput{
+		UserID:   userID,
+		TenantID: tenantID,
+		Password: req.Password,
+		Code:     req.Code,
+		Locale:   locale,
+	})
+
+	var appErr *domain.AppError
+	switch {
+	case errors.As(err, &locked):
+		return inSessionLocked(c, locale, locked, auditRegenerate)
+	case errors.Is(err, appauth.ErrBackupCodesPasswordIncorrect):
+		// 401 without a token error code: the SPA reads that as "this request
+		// was refused", not "your session is over".
+		return fail(fiber.StatusUnauthorized, "wrong_password",
+			pick(locale, "Mot de passe incorrect.", "Incorrect password."))
+	case errors.Is(err, appauth.ErrBackupCodesCodeIncorrect):
+		return fail(fiber.StatusUnauthorized, "wrong_code",
+			pick(locale, "Code incorrect.", "Incorrect code."))
+	case errors.As(err, &appErr) && errors.Is(appErr.Err, domain.ErrNotFound):
+		return notEnrolled()
+	case errors.As(err, &appErr):
+		return fail(appErr.Code, "rejected", domain.MessageFromError(err))
+	case err != nil:
+		log.Printf("auth: %s failed: %v", c.Path(), err)
+		return fail(fiber.StatusInternalServerError, "internal", genericFailure(locale))
+	}
+
+	h.logRegenerate(c, userID, tenantID, true, nil)
+	// The codes are shown once; no cache may keep a copy.
+	c.Set(fiber.HeaderCacheControl, "no-store")
+	return c.JSON(out)
+}
+
+func (h *MFAHandler) logRegenerate(c *fiber.Ctx, userID, tenantID uuid.UUID, success bool, reason *string) {
+	if h.audit == nil {
+		return
+	}
+	_ = h.audit.LogFiber(c, &userID, &tenantID, coreauth.AuditActionMfaBackupCodesRegenerate, success, reason)
 }
 
 // Challenge is the second leg of an MFA login. It is reached with an

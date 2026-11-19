@@ -15,6 +15,9 @@ import (
 	"gorm.io/gorm/clause"
 
 	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/internal/infrastructure/controlchain"
+	"github.com/opendefender/openrisk/internal/infrastructure/controlstatus"
+	"github.com/opendefender/openrisk/internal/infrastructure/tenantguard"
 )
 
 // GormEvidenceRepository implements domain.EvidenceRepository.
@@ -28,69 +31,6 @@ type GormEvidenceRepository struct {
 
 func NewGormEvidenceRepository(db *gorm.DB) *GormEvidenceRepository {
 	return &GormEvidenceRepository{db: db}
-}
-
-// BackfillFromControlEvidences moves the old per-control attachments into the
-// library, preserving ids so stored file keys and bookmarked URLs still resolve.
-//
-// This duplicates the data step of migration 0052 deliberately. Schemas in this
-// project are built by AutoMigrate at least as often as by golang-migrate — and
-// on a database where golang-migrate is blocked (this project's dev database has
-// been dirty at version 40 for months), AutoMigrate creates the two tables while
-// the migration's INSERT never runs. The result would be an empty library on a
-// tenant that had evidence, with no error anywhere: every control silently
-// unevidenced, and every control marked implemented suddenly unprovable.
-//
-// Idempotent by NOT EXISTS on both halves, so running it every boot is a no-op
-// once the rows have moved. Best-effort at the call site: a backfill failure must
-// not stop the server, because refusing to boot leaves the tenant with no product
-// at all rather than one missing an old attachment.
-func (r *GormEvidenceRepository) BackfillFromControlEvidences(ctx context.Context) (int64, error) {
-	// Nothing to do if the legacy table was never created (fresh install).
-	if !r.db.Migrator().HasTable("control_evidences") {
-		return 0, nil
-	}
-
-	// Only columns the ORIGINAL compliance schema (migration 0028) guarantees are
-	// read here. The ownership block was added to control_evidences by migration
-	// 0044, and on a database where migrations are blocked those columns do not
-	// exist — selecting them fails the whole backfill with "column does not
-	// exist", which is exactly what happened the first time this ran. owner_id is
-	// derived from uploaded_by, which is what 0044 backfilled it from anyway.
-	res := r.db.WithContext(ctx).Exec(`
-		INSERT INTO evidences (
-			id, tenant_id, title, type, description, file_ref, filename,
-			collected_at, collected_by, review, source, owner_id,
-			created_at, updated_at, deleted_at
-		)
-		SELECT ce.id, ce.tenant_id,
-		       COALESCE(NULLIF(ce.filename, ''), 'Preuve'),
-		       'document', ce.description, COALESCE(ce.url, ''), COALESCE(ce.filename, ''),
-		       -- The old model never recorded when proof was taken; created_at is
-		       -- the honest stand-in, and valid_until stays NULL rather than being
-		       -- invented. Guessing an expiry would put a date nobody asserted in
-		       -- front of an auditor.
-		       ce.created_at, ce.uploaded_by, 'accepted', 'manual', ce.uploaded_by,
-		       ce.created_at, ce.updated_at, ce.deleted_at
-		FROM control_evidences ce
-		WHERE NOT EXISTS (SELECT 1 FROM evidences e WHERE e.id = ce.id)`)
-	if res.Error != nil {
-		return 0, res.Error
-	}
-	moved := res.RowsAffected
-
-	res = r.db.WithContext(ctx).Exec(`
-		INSERT INTO evidence_control_links (id, tenant_id, evidence_id, control_id, linked_by, created_at)
-		SELECT gen_random_uuid(), ce.tenant_id, ce.id, ce.control_id, ce.uploaded_by, ce.created_at
-		FROM control_evidences ce
-		WHERE ce.deleted_at IS NULL
-		  AND NOT EXISTS (
-			SELECT 1 FROM evidence_control_links l
-			WHERE l.evidence_id = ce.id AND l.control_id = ce.control_id)`)
-	if res.Error != nil {
-		return moved, res.Error
-	}
-	return moved, nil
 }
 
 func (r *GormEvidenceRepository) Create(ctx context.Context, e *domain.Evidence) error {
@@ -108,21 +48,28 @@ func (r *GormEvidenceRepository) Update(ctx context.Context, e *domain.Evidence)
 		return domain.NewValidationError("tenant_id is required")
 	}
 	// Scoped by id AND tenant: an update is as much a cross-tenant risk as a read.
-	res := r.db.WithContext(ctx).
-		Model(&domain.Evidence{}).
-		Where("id = ? AND tenant_id = ?", e.ID, e.TenantID).
-		Select("title", "type", "description", "file_ref", "filename", "external_url",
-			"collected_at", "valid_until", "review", "review_note", "reviewed_by",
-			"reviewed_at", "source", "source_detail", "owner_id", "assignee_id",
-			"reviewer_id", "updated_at").
-		Updates(e)
-	if res.Error != nil {
-		return res.Error
-	}
-	if res.RowsAffected == 0 {
-		return domain.NewNotFoundError("evidence", e.ID)
-	}
-	return nil
+	// The column list is an allow-list on purpose: content_hash, hash_algorithm,
+	// collection_method, collector_* and signature* are written by Create only,
+	// so no metadata edit can rewrite the record's integrity (#554).
+	// One transaction with the stale mark (#555): the review verdict, the collection
+	// date, the expiry and the file decide whether this proof covers and is fresh.
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		res := tx.
+			Model(&domain.Evidence{}).
+			Where("id = ? AND tenant_id = ?", e.ID, e.TenantID).
+			Select("title", "type", "description", "file_ref", "filename", "external_url",
+				"collected_at", "valid_until", "review", "review_note", "reviewed_by",
+				"reviewed_at", "source", "source_detail", "owner_id", "assignee_id",
+				"reviewer_id", "observed_from", "observed_to", "updated_at").
+			Updates(e)
+		if res.Error != nil {
+			return res.Error
+		}
+		if res.RowsAffected == 0 {
+			return domain.NewNotFoundError("evidence", e.ID)
+		}
+		return controlstatus.MarkEvidence(ctx, tx, e.TenantID, e.ID)
+	})
 }
 
 func (r *GormEvidenceRepository) GetByID(ctx context.Context, tenantID, id uuid.UUID) (*domain.Evidence, error) {
@@ -200,7 +147,15 @@ func (r *GormEvidenceRepository) List(ctx context.Context, tenantID uuid.UUID, f
 // be filtered out of every coverage query forever; the artifact is what carries
 // history, and it is still there.
 func (r *GormEvidenceRepository) Delete(ctx context.Context, tenantID, id uuid.UUID) error {
+	if tenantID == uuid.Nil {
+		return domain.NewNotFoundError("evidence", id)
+	}
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		// Marked first, while the edges that say which controls this proof backs are
+		// still there (#555): the control-level ones go below, the test-level ones stay.
+		if err := controlstatus.MarkEvidence(ctx, tx, tenantID, id); err != nil {
+			return err
+		}
 		res := tx.Where("id = ? AND tenant_id = ?", id, tenantID).Delete(&domain.Evidence{})
 		if res.Error != nil {
 			return res.Error
@@ -208,8 +163,19 @@ func (r *GormEvidenceRepository) Delete(ctx context.Context, tenantID, id uuid.U
 		if res.RowsAffected == 0 {
 			return domain.NewNotFoundError("evidence", id)
 		}
-		return tx.Where("evidence_id = ? AND tenant_id = ?", id, tenantID).
-			Delete(&domain.EvidenceControlLink{}).Error
+		// The control chain mirror (#1413) needs the controls the links named,
+		// so they are read before the hard delete below.
+		var controlIDs []uuid.UUID
+		if err := tx.Model(&domain.EvidenceControlLink{}).
+			Where("evidence_id = ? AND tenant_id = ?", id, tenantID).
+			Pluck("control_id", &controlIDs).Error; err != nil {
+			return err
+		}
+		if err := tx.Where("evidence_id = ? AND tenant_id = ?", id, tenantID).
+			Delete(&domain.EvidenceControlLink{}).Error; err != nil {
+			return err
+		}
+		return controlchain.MirrorEvidenceDeleted(ctx, tx, tenantID, id, controlIDs)
 	})
 }
 
@@ -226,15 +192,42 @@ func (r *GormEvidenceRepository) Link(ctx context.Context, link *domain.Evidence
 	if link.ID == uuid.Nil {
 		link.ID = uuid.New()
 	}
-	return r.db.WithContext(ctx).
-		Clauses(clause.OnConflict{Columns: []clause.Column{{Name: "evidence_id"}, {Name: "control_id"}}, DoNothing: true}).
-		Create(link).Error
+	// One transaction with the control chain mirror (#1413): the evidenced_by edge
+	// commits with the link or not at all.
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		res := tx.Clauses(clause.OnConflict{Columns: []clause.Column{{Name: "evidence_id"}, {Name: "control_id"}}, DoNothing: true}).
+			Create(link)
+		if res.Error != nil {
+			return res.Error
+		}
+		linkID, note, at := link.ID, link.Note, link.CreatedAt
+		if res.RowsAffected == 0 {
+			// Already linked: the edge carries the stored row, as Reconcile would.
+			var stored domain.EvidenceControlLink
+			if err := tx.Where("tenant_id = ? AND evidence_id = ? AND control_id = ?", link.TenantID, link.EvidenceID, link.ControlID).
+				First(&stored).Error; err != nil {
+				return err
+			}
+			linkID, note, at = stored.ID, stored.Note, stored.CreatedAt
+		}
+		if at.IsZero() {
+			at = time.Now().UTC()
+		}
+		return controlchain.MirrorEvidenceLinked(ctx, tx, link.TenantID, linkID, link.EvidenceID, link.ControlID, note, at)
+	})
 }
 
 func (r *GormEvidenceRepository) Unlink(ctx context.Context, tenantID, evidenceID, controlID uuid.UUID) error {
-	return r.db.WithContext(ctx).
-		Where("tenant_id = ? AND evidence_id = ? AND control_id = ?", tenantID, evidenceID, controlID).
-		Delete(&domain.EvidenceControlLink{}).Error
+	if tenantID == uuid.Nil {
+		return domain.NewForbiddenError("tenant_id is required")
+	}
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("tenant_id = ? AND evidence_id = ? AND control_id = ?", tenantID, evidenceID, controlID).
+			Delete(&domain.EvidenceControlLink{}).Error; err != nil {
+			return err
+		}
+		return controlchain.MirrorEvidenceUnlinked(ctx, tx, tenantID, evidenceID, controlID)
+	})
 }
 
 func (r *GormEvidenceRepository) ListLinks(ctx context.Context, tenantID uuid.UUID, evidenceIDs []uuid.UUID) ([]domain.EvidenceControlLink, error) {
@@ -317,7 +310,7 @@ func (r *GormEvidenceRepository) ListExpiring(ctx context.Context, now time.Time
 		limit = 500
 	}
 	var out []domain.Evidence
-	err := r.db.WithContext(ctx).
+	err := tenantguard.CrossTenant(r.db.WithContext(ctx), "evidence expiry sweep across tenants; each row carries its tenant").
 		Where("valid_until IS NOT NULL AND valid_until <= ?", now.Add(window)).
 		Where("review = ?", domain.EvidenceReviewAccepted).
 		// "Not reminded since the artifact last changed" rather than "never
@@ -330,9 +323,9 @@ func (r *GormEvidenceRepository) ListExpiring(ctx context.Context, now time.Time
 	return out, err
 }
 
-func (r *GormEvidenceRepository) MarkReminded(ctx context.Context, id uuid.UUID, at time.Time) error {
+func (r *GormEvidenceRepository) MarkReminded(ctx context.Context, tenantID, id uuid.UUID, at time.Time) error {
 	return r.db.WithContext(ctx).
 		Model(&domain.Evidence{}).
-		Where("id = ?", id).
+		Where("id = ? AND tenant_id = ?", id, tenantID).
 		UpdateColumn("reminder_sent_at", at).Error
 }

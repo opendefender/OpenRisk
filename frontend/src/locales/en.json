@@ -221,7 +221,9 @@
     "failedToCreateControl": "Failed to create control",
     "failedToUpdateControl": "Failed to update control",
     "failedToUploadEvidence": "Failed to upload evidence",
+    "failedToDownloadEvidence": "Failed to download evidence",
     "failedToDeleteEvidence": "Failed to delete evidence",
+    "evidence_integrity_mismatch": "Integrity check failed: the stored file no longer matches its recorded fingerprint. The download was refused and an integrity alert was raised.",
     "failedToCreateAsset": "Failed to create asset",
     "failedToUpdateAsset": "Failed to update asset",
     "failedToDeleteAsset": "Failed to delete asset"
@@ -372,6 +374,77 @@
       "generating": "Generating…",
       "success": "Compliance report generated",
       "error": "Failed to generate report"
+    },
+    "export": {
+      "button": "Export (JSON)",
+      "generating": "Preparing the JSON export…",
+      "success": "Framework exported",
+      "error": "Failed to export the framework"
+    },
+    "customImport": {
+      "entry": "Import (JSON)",
+      "back": "Back to compliance",
+      "title": "Import a custom framework (JSON)",
+      "intro": "Load your own framework from a JSON file: it is created with all its controls in one step, every control starting as not implemented.",
+      "dropHere": "Drop a JSON file here or click to choose one",
+      "limits": ".json file, 2 MB maximum, 2000 controls maximum",
+      "emptyTitle": "No file chosen",
+      "emptyHint": "Choose a framework JSON file, for example one exported from OpenRisk with « Export (JSON) ».",
+      "choose": "Choose a file",
+      "onlyJson": "Only .json files are accepted",
+      "fileEmpty": "The file is empty",
+      "tooLarge": "The file is larger than 2 MB",
+      "invalidFile": "This file cannot be used",
+      "unreadable": "The file could not be read",
+      "removeFile": "Remove the file",
+      "previewTitle": "Preview",
+      "previewName": "Name",
+      "previewVersion": "Version",
+      "previewControls": "Controls",
+      "controlsCount": {
+        "one": "{count} control",
+        "other": "{count} controls"
+      },
+      "previewMore": {
+        "one": "and {count} more control",
+        "other": "and {count} more controls"
+      },
+      "submit": "Import the framework",
+      "importing": "Importing the framework…",
+      "created": {
+        "one": "Framework imported with {count} control",
+        "other": "Framework imported with {count} controls"
+      },
+      "fileRefused": "The file was refused, nothing was imported",
+      "rejectedRows": "The file has errors, nothing was imported",
+      "fixRows": "Fix these lines in the file, then choose it again.",
+      "row": "Control #",
+      "field": "Field",
+      "problem": "Problem",
+      "document": "File",
+      "truncated": "Only the first {max} problems are shown.",
+      "conflict": "A framework with the same name and version already exists.",
+      "limit": "Your plan's framework limit is reached.",
+      "seePlans": "See plans",
+      "forbidden": "You do not have permission to import a framework.",
+      "unauthorized": "Your session has expired. Sign in again.",
+      "serverFailed": "The import failed. Try again.",
+      "problems": {
+        "notJson": "The file is not valid JSON",
+        "notObject": "Expected an object here",
+        "schemaVersion": "schema_version must be 1",
+        "required": "This field is required",
+        "notText": "This field must be text",
+        "tooLong": "Too long (maximum {max} characters)",
+        "noControls": "The file must contain at least one control",
+        "tooManyControls": "Too many controls (maximum {max})",
+        "duplicateCode": "The reference code \"{code}\" appears more than once"
+      }
+    },
+    "progressState": {
+      "unavailable": "Progress unavailable",
+      "unavailableShort": "— (progress unavailable)",
+      "controlStatus": "Status of control {code}"
     }
   },
   "assets": {
@@ -2215,6 +2288,14 @@
       "deleteConfirm": "Delete"
     }
   },
+  "automation": {
+    "channels": {
+      "saveFailed": "Failed",
+      "saveRejected": "Channels not saved: {reason}",
+      "testFailed": "The test could not run",
+      "testRejected": "Test refused: {reason}"
+    }
+  },
   "paywall": {
     "cta": "Upgrade to {plan}",
     "moment": "{plan} plan",
@@ -2245,6 +2326,46 @@
         "title": "Vendor risk management (TPRM)",
         "description": "Vendor register, questionnaires sent by link, vendor score and automatic reminders."
       }
+    }
+  },
+  "controlException": {
+    "errors": {
+      "owner_required": "An owner is required.",
+      "owner_invalid": "The owner must be an active member of your organisation.",
+      "reason_required": "A reason is required.",
+      "reason_too_long": "The reason is too long (2000 characters maximum).",
+      "expires_at_required": "An expiry date is required.",
+      "expires_at_in_past": "The expiry date must be in the future.",
+      "starts_at_not_before_expires_at": "The start date must be before the expiry date.",
+      "expires_at_too_far": "The expiry date is too far away (366 days maximum). Renew the exception instead.",
+      "starts_at_in_past": "The start date cannot be in the past.",
+      "revoke_reason_too_long": "The revocation reason is too long (2000 characters maximum).",
+      "invalid_body": "The request body is invalid.",
+      "invalid_control_id": "The control identifier is invalid.",
+      "invalid_exception_id": "The exception identifier is invalid.",
+      "control_not_found": "Control not found.",
+      "not_found": "Exception not found.",
+      "already_revoked": "This exception has already been revoked.",
+      "already_expired": "This exception has already expired; there is nothing left to revoke.",
+      "forbidden": "You do not have permission to manage control exceptions.",
+      "unauthorized": "You must be signed in to manage control exceptions.",
+      "unavailable": "Control exceptions are temporarily unavailable. Please try again."
+    }
+  },
+  "controlStatus": {
+    "status": {
+      "pass": "Pass",
+      "fail": "Fail",
+      "insufficient_evidence": "Insufficient evidence",
+      "exception_active": "Exception active",
+      "not_applicable": "Not applicable"
+    },
+    "errors": {
+      "unauthorized": "You must be signed in to read a control status.",
+      "forbidden": "You do not have permission to read control statuses.",
+      "not_found": "Control not found.",
+      "invalid_control_id": "The control identifier is invalid.",
+      "unavailable": "The control status is temporarily unavailable. Please try again."
     }
   },
   "riskRegister": {
@@ -2429,19 +2550,7 @@
         "one": "{count} risk deleted",
         "other": "{count} risks deleted"
       },
-      "deleteTitle": {
-        "one": "Delete {count} risk?",
-        "other": "Delete {count} risks?"
-      },
-      "deleteSubject": {
-        "one": "{count} risk selected",
-        "other": "{count} risks selected"
-      },
-      "deleteFailed": {
-        "one": "No risk deleted ({count} selected).",
-        "other": "No risk deleted ({count} selected)."
-      },
-      "deleteStale": "No risk deleted: the selection has changed. Reload and try again."
+      "entity": "risks"
     },
     "matrix": {
       "caption": "Risk matrix — probability by impact",

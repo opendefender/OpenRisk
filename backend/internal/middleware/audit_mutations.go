@@ -16,6 +16,7 @@ import (
 
 	"github.com/opendefender/openrisk/internal/domain"
 	"github.com/opendefender/openrisk/internal/infrastructure/audittrail"
+	rt "github.com/opendefender/openrisk/pkg/realtime"
 )
 
 // ---------------------------------------------------------------------------
@@ -80,7 +81,11 @@ func AuditMutations(appender AuditAppender, observers ...MutationObserver) fiber
 		}
 
 		col := audittrail.NewCollector()
-		c.SetUserContext(audittrail.WithCollector(c.UserContext(), col))
+		// The enlist mark rides beside the collector: same lifetime, same
+		// mutation-only scope. A use case that writes its realtime events to the
+		// transactional outbox flips it, and the realtime bridge then stays
+		// silent for this request (ADR 0010).
+		c.SetUserContext(rt.WithEnlistMark(audittrail.WithCollector(c.UserContext(), col)))
 
 		err := c.Next()
 
@@ -88,6 +93,14 @@ func AuditMutations(appender AuditAppender, observers ...MutationObserver) fiber
 		if status < 200 || status >= 300 {
 			// A refused or failed action changed nothing; the auth audit log
 			// already records failed attempts.
+			return err
+		}
+
+		// A use case that wrote the entry in the same transaction as its write
+		// marked the collector: a second entry for the request would put one
+		// action in the trail twice. Its observers have nothing to observe either,
+		// there is no sealed entry of this middleware's making.
+		if col.Journaled() {
 			return err
 		}
 
@@ -116,7 +129,17 @@ func isMutation(method string) bool {
 	return false
 }
 
+// auditSkipSuffix matches the bulk preview of every register (#582, #599):
+// POST /api/v1/<register>/bulk/preview. It is a read that answers "what would
+// this do" and changes nothing, so journalling it as "create preview" would put
+// a creation in the trail that never happened. The apply routes beside it are
+// journalled as usual.
+const auditSkipSuffix = "/bulk/preview"
+
 func skipAudit(path string) bool {
+	if strings.HasSuffix(strings.TrimSuffix(path, "/"), auditSkipSuffix) {
+		return true
+	}
 	for _, p := range auditSkipPrefixes {
 		if strings.HasPrefix(path, p) {
 			return true
@@ -217,7 +240,12 @@ func actorKind(c *fiber.Ctx, actorID *uuid.UUID) (string, string) {
 
 // requestID returns the caller's correlation id, minting one when absent so
 // every entry can be tied back to a single request even without a gateway.
-func requestID(c *fiber.Ctx) string {
+func requestID(c *fiber.Ctx) string { return RequestID(c) }
+
+// RequestID is the caller's correlation id, minting one when absent. Exported so
+// a handler can hand the same id to a use case that stamps its realtime events
+// with it, which is what ties them to this request's audit entry.
+func RequestID(c *fiber.Ctx) string {
 	for _, h := range []string{"X-Request-ID", "X-Correlation-ID", "X-Request-Id"} {
 		if v := strings.TrimSpace(c.Get(h)); v != "" {
 			return v
@@ -273,9 +301,18 @@ func resourceFromRoute(c *fiber.Ctx) (resType, resID, verb string) {
 	if resType == "" && len(collections) > 0 {
 		resType = collections[0]
 	}
+	// A trailing bulk verb with no id (POST /risks/import) acts on its parent
+	// collection: the entity is "risk", not "import".
+	if resID == "" && len(collections) > 1 && bulkVerbs[collections[len(collections)-1]] {
+		resType = collections[len(collections)-2]
+	}
 	resType = normaliseResource(collections, resType)
 	return resType, resID, verb
 }
+
+// bulkVerbs are static trailing segments that name an operation on the parent
+// collection rather than a resource of their own.
+var bulkVerbs = map[string]bool{"import": true}
 
 func splitPath(p string) []string {
 	raw := strings.Split(strings.Trim(p, "/"), "/")

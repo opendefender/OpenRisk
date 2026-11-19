@@ -8,6 +8,7 @@ package scanner
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/rs/zerolog"
@@ -239,4 +240,6 @@ func (freeOrg) PlanAndRegion(context.Context, uuid.UUID) (string, string, error)
 
 type scanUsage int
 
-func (u scanUsage) Count(context.Context, uuid.UUID, ent.LimitKey) (int, error) { return int(u), nil }
+func (u scanUsage) Count(context.Context, uuid.UUID, ent.LimitKey, time.Time) (int, error) {
+	return int(u), nil
+}

@@ -5,9 +5,578 @@ recommends, and surfaces these in the daily brief. Run `/decide` to clear them.
 
 ## Open
 
-*No open decision on 2026-11-04.*
+*No open decision on 2026-11-11.*
 
 ## Resolved
+
+### D-120 — Catalogues without a review sign-off: review them, or show "not reviewed" at import · decided 2026-11-18
+**Decided (agent: po-openrisk, 2026-11-18)** — for #1190, under D-089.
+**Question** — 17 catalogues are `Available: true`, and the contract in `backend/pkg/compliance/catalog.go` says
+that flag means a compliance-competent reviewer verified the content. No record of any review exists in the
+repository. Do we review all of them first, or ship an honest visible state?
+**Options** — (A) review every catalogue before anything else; (B) keep them importable, record a review status
+per catalogue, show "not reviewed" at import; (C) flip `Available` to false for every unreviewed catalogue.
+**Choice** — B.
+1. `Catalog` gets a `Review` block with `Status` (`unreviewed` | `structure_reviewed` | `reviewed`), and for any
+   status other than `unreviewed`: date, reviewer, source documents, URL, and written gaps. `Available` keeps one
+   meaning: importable. Its doc comment is rewritten so it no longer promises a review.
+2. All 17 catalogues start `unreviewed`. No sign-off is written without a committed review record (#1469),
+   because inventing a reviewer or date breaks Rule 12.
+3. A test fails when `Available: true` and `Status` is empty, or when a non-`unreviewed` status lacks a field.
+4. The picker shows the status and asks one confirmation for non-`reviewed` catalogues (#1468).
+**Reason** — A is not an agent's call to make: it needs a human legal reviewer and cannot be scheduled.
+C removes 13 catalogues from tenants who rely on them, breaks crosswalk coverage and contradicts claim C-005,
+for no gain in honesty that a visible state does not give. B is reversible and spends nothing.
+**Overturn** — change a status in the catalogue file; or set `Available: false` for one key.
+
+### D-119 — Control status engine (#555): vocabulary, precedence, freshness windows, budget, cache, triggers, score readers · decided 2026-11-18
+**Decided (agent, 2026-11-18)** — tech-lead design gate of #555, D-089, on top of ADR 0008 D4/D6, D-108 Q4/Q6, D-113 and D-118. The rules are ADR 0012. Nothing irreversible and nothing that spends money. The one new table is additive and expand-only. The owner may overturn any point.
+
+1. **Vocabulary.** Options: #555's four values, or four plus `not_applicable`. **Chosen: five**, `pass` · `fail` · `insufficient_evidence` · `exception_active` · `not_applicable`. Reason: an out-of-scope control otherwise reads `insufficient_evidence` forever, and ADR 0003 already excludes `not_applicable` from both sums.
+2. **Precedence.** Not live in the tenant: ErrNotFound. `not_applicable` first. Underlying status: any in-scope test whose latest result is `fail` (any age) gives `fail`. Otherwise, if at least one test exists and every one is a supported fresh pass, `pass`. Otherwise `insufficient_evidence`. An exception `ActiveAt(now)` turns a non-pass into `exception_active`. It never turns into `pass`, and it never hides a `pass`. An expired, revoked or not-started exception is not credited. The underlying status is always returned. Options rejected: an active exception overriding a pass (hides the truth); a stale fail decaying to unknown (loses a known failure).
+3. **What a pass needs.** The latest result, by D-118's order, must be `pass` and fresh. A `user_entered` result, which is every HTTP result today, must also carry at least one fresh covering evidence on that same result. Covering means accepted, unexpired, and for a file, hashed (D-118 point 8). Options: any pass counts, or a pass needs evidence. **Chosen: needs evidence when a person typed it.** Reason: #555's auditor persona, "computed, not asserted". Control-level (transitional) evidence feeds freshness and sources and never makes a pass. Stated consequence: legacy split controls read `insufficient_evidence` until they have a test.
+4. **Freshness window.** Options: per control, per test, a tenant default, or a platform default. **Chosen:** the test's `cadence` for its latest result and for the evidence on that result, with `P90D` when the test has no cadence. Control-level evidence gets `P365D`. The grace is a tenth of the window. `observed_at` later than now + 5 min is not fresh. There is no tenant override in this slice: it needs a settings field, UI and its own tenant-isolation review, and the defaults are constants in one file. The percentage is fresh signals over counted signals. Rejected evidence is excluded from both, and there is 0 % with 0 counted.
+5. **Budget (criterion 5).** **Kept as written:** one control computed in at most 5 queries, and p95 under 150 ms. The number of queries is asserted in CI by a GORM callback counter, on SQLite and on Postgres when `DATABASE_URL` is set. The p95 comes from a Postgres test over the dev seed plus a heavy fixture control (5 implementations × 4 tests × 50 results, 40 evidences, 3 exceptions, 10 risk edges), 200 runs, p50/p95 printed. It asserts the number only with `OPENRISK_PERF=1`, so it cannot become a flaky CI gate, and the run is pasted on the issue. The recompute count is asserted in CI: one evidence write covering 2 of 100 controls recomputes exactly those 2.
+6. **Cache.** Options: no cache, a cache read by the endpoint, or a cache written by the engine and not read by users. **Chosen: the last.** The endpoint computes live in one read-only snapshot. `control_status_evaluations` has the primary key `(tenant_id, control_id)` and `tenant_id uuid NOT NULL`. It is registered in `security/isolation/tables.go`, has no route and no DTO, and is declared both in a new expand-only SQL migration (0089; #1456, still needs-refinement, takes the next free number) and in the GORM model, with the same checks, so a DB_HOST boot builds the same table. There is no backfill: the worker fills it cold.
+7. **Trigger.** Options: a synchronous recompute in the writer, a post-commit hook, the realtime outbox, or a stale mark in the writer's transaction. **Chosen: the stale mark.** Reason: one `UPDATE` per write, and it cannot be separated from its commit. A deleting write marks before it removes the edges it resolves through. The worker claims stale rows, due rows (`next_change_at <= now`) and cold controls through `tenantguard.CrossTenant` with a stated reason, the `ListExpiring` precedent. It clears `stale` on claim, recomputes through the tenant-scoped loader with the row's own `tenant_id`, and upserts guarded by `evaluated_at`. The claim leases the rows it takes (`next_change_at` = claim instant + 5 minutes, so a crash is retried and two replicas do not share a row) and creates a placeholder row for a control with no row (`evaluated_at` = epoch means never computed), so a write during the computation has a row to mark; a write committing while that insert is uncommitted finds none (cache only, milliseconds wide). A mark locks its rows in `control_id` order, and the boot reconciler is a known unmarked writer, tracked in a follow-up.
+8. **Score readers (D-108 Q6).** **Chosen: a separate issue, #1465** (`status:needs-refinement`). Reason: re-pointing moves `ResidualRisk` and SmartScore, which #555's Scope OUT freezes. Point 3 would also drop every legacy tenant's coverage on upgrade without a transition rule, and that rule is a formula decision needing its own ADR. D-108 Q4's reconciliation of `compliance_controls.status` with `declared_status` moves there too.
+9. **Route.** `GET /compliance/internal-controls/:controlId/status` with `compliance:controls:read`. The use case checks again, and a missing tenant is 401 through `Caller.authorize`. An exact isolation registry entry is added. There is no POST: a read is already a recompute. Criterion 6's "triggers a recompute" is proven by a tenant-B write leaving tenant A's row untouched.
+
+**Reversible** — the route is one line. The table has no reader outside the engine and can be dropped. The windows and the pass rule are constants and one function.
+
+### D-118 — Control test results API (#1416): routes, executed_by, observed_at, evidence on a result, evidence integrity in coverage · decided 2026-11-17
+**Decided (agent, 2026-11-17)**, for #1416 (#553 slice S5), D-089, on top of D-108, D-115, D-116 and D-117. Nothing irreversible, nothing that spends money, no migration (the tables are 0086's). The owner may overturn any of them.
+
+1. **Routes.** D-108 Q10 as written, plus one read for "last tested": `POST /compliance/tests/:testId/results` (201), `GET /compliance/tests/:testId/results` (newest first), `GET /compliance/tests/:testId/results/latest`, `POST /compliance/tests/:testId/results/:resultId/evidence` (201 when the edge is created; 200 with the stored edge, not the new one, when the pair already exists, and no second audit entry). A `GET .../results/:resultId` and `GET .../results/:resultId/evidence` are added only if AC1's read-back needs them. No PATCH, PUT or DELETE under results (D-108 "Also decided"). `results/latest` is registered before any `results/:resultId` route. Permissions are D-108 Q9's: read `compliance:controls:read`, record `compliance:controls:update`, attach `compliance:evidences:create`; the use cases check again. Every read and write resolves the parent chain (test, implementation, control) live in the tenant (D-117 point 2). **Latest with no result:** 404 with the stable code `control_test.no_result`, distinct from the 404 of an unknown test, so a client tells "never run" from "no such test". Options were 200 with a null body (an untyped top-level null in the generated client) or 204 (no body to read the code from).
+2. **Order.** The results list and "latest" order by `observed_at DESC, recorded_at DESC, id DESC`: "last tested" is when the test ran against the world, ADR 0008 D4's freshness rule, not when it was typed in. A canonical `ControlTest` projection, when one carries `results`, keeps D6's order (`recorded_at` ascending, newest last), which `ControlTest.Validate` checks. No `DISTINCT ON`; `ORDER BY ... LIMIT 1`, so the SQLite suite runs too.
+3. **`executed_by`.** The body is flat: `outcome`, `observed_at`, `note`, optional `executed_by` (a user id). Omitted, it is the caller. Another user is accepted only as a member of the caller's tenant (`OwnerValidator`), else ErrValidation. The kinds `system` and `vendor_contact` are not settable over HTTP. `provenance.actor` is always the session user, so a result recorded on behalf of someone else still says who typed it.
+4. **`observed_at`.** Required (ErrValidation when missing, D4). Normalised to UTC (A8). More than 5 minutes after the server clock is ErrValidation: a test cannot have run in the future, and the margin absorbs client clock skew. No lower bound: recording an old run is legitimate, and D4 judges freshness on `observed_at`, so it cannot make a control look tested today.
+5. **Note.** Optional, capped at 10000 runes in the use case (`checkLongText`, as D-117 point 7).
+6. **Attaching evidence.** The evidence must resolve `WHERE id = ? AND tenant_id = ? AND deleted_at IS NULL`, and the result must be a result of this test in this tenant (`control_test_results WHERE tenant_id = ? AND test_id = ? AND id = ?`); any miss, including another tenant's evidence or another test's result, is ErrNotFound (404). Review status and expiry are not checked at write: the coverage probe decides what counts, at the instant it is asked. The edge is `ControlTest --evidenced_by--> Evidence`, qualifier = the result id (D-108 Q15, A9), one row per (result, artifact).
+7. **Envelope and ids.** As D-117 point 6: id, tenant, source (`openrisk_user`), confidence (0.70) and provenance (`manual_entry` by the session user) are set by the server, and the DTOs have no field for them. A manual result's `source_id` is its own id (unique `(tenant_id, test_id, source, source_id)`); the edge's `source_id` is the edge's own id, the `appliesToEdge` pattern. The edge is idempotent on D5's key, not on `source_id`. Audit: each write appends its `audit_events` row on its transaction, `entity_type` `control_test_result` and `entity_id` the result id for both the record and the attach (the attach entry names the evidence and the edge, as `link_requirement` audits on its from-side owner), and the handler calls `markJournaled` (D-116 point 8).
+8. **Evidence integrity in coverage** (carried by the owner from the devsecops review of #1414). Question: `evidence_required` (D-108 Q16, D-116 point 6) counts live, accepted, unexpired evidence; tampered files (detected only at download, D-115) and legacy files never hashed (pre-#554, no backfill by D-115) both still count. Options: (a) persist an integrity verdict written by the download path on a hash mismatch and exclude it; (b) require `content_hash <> ''` for file-backed evidence in the probe; neither alone covers both cases. **Chosen: both, split by where each belongs.**
+   - **(b) lands in #1416, in the control-chain probe only.** `hasLiveEvidence` adds `AND (ev.file_ref = '' OR ev.content_hash <> '')`, which is exactly "not `unhashed`" in `Evidence.DeriveIntegrity`: a link or a statement still counts, a file counts only with a hash. This amends D-108 Q16 and D-116 point 6, which said the probe is the predicate `GetControlByID` uses: the probe is now stricter. Reason: this is the slice that gives user-created controls their first `evidenced_by` path, so from here a file with no integrity anchor would let a person claim `implemented` on proof nobody can verify, which is ADR 0008 D4's "an absent signal never reads as a good one". The probe gates a declared-status transition only; it feeds no score and no dashboard, so no number moves (criterion 11 of #553 holds) and an already implemented control is never blocked on re-save. The refusal keeps the code `evidence_required`. As implemented, the body's `error` stays that code (every `internal_control.*` answer carries its code there and the existing tests assert it), so the sentence "a file must carry an integrity hash" lives in `docs/openapi.yaml` (create, update and the attach route), not in the response text. The same probe also counts a test-level `evidenced_by` edge only when its qualifier is a result of that test, in the tenant, with outcome `pass`: evidence attached to a `fail` or `inconclusive` result does not unlock `implemented`, and a test-level edge with no qualifier counts for nothing (none can be written: D5 requires the qualifier and the mirror and reconciler write control-level edges only). Added after the devsecops review of #1416. The remedy for a legacy file is to upload it again, which hashes it; a backfill stays refused (D-115). The legacy predicates (`gorm_compliance_repository.go`, `coveringPredicate`, `gorm_posture_repository.go`) are not changed here: the posture one feeds the ADR 0003 residual, a score reader that moves only with #555 (D-108 Q4).
+   - **(a) is #1456** (`status:needs-refinement`): an additive verdict column (migration 0089 plus its `prepare.go` mirror), written by `Service.Download` on a mismatch with the tenant in the WHERE, excluded by the probe, by `Evidence.Covers` and by `coveringPredicate`, and exposed as `integrity: failed`. Reason it is not in #1416: it is a migration, a write on the evidence read path and a change to four shared coverage predicates, in the evidence module, none of it in #1416's results scope or its ~1,100-line estimate; and detection still waits for a download, so its sweep question (#380) needs refinement first. Until #1456 ships, a file whose hash mismatch was already detected still counts in the probe; that residual is stated, not hidden.
+
+**Reversible** — routes and permissions are one line each in `main.go`; point 8's probe clause is one line in `hasLiveEvidence` and can be dropped without touching a stored row.
+
+### D-117 — Control implementations and test definitions API (#1415): routes, delete cascade, applies_to targets, audit · decided 2026-11-16
+**Decided (agent, 2026-11-16)**, for #1415 (#553 slice S4), D-089, on top of D-108 and D-116. Nothing irreversible, nothing that spends money, no migration (the tables are 0086's). The owner may overturn any of them.
+
+1. **Routes.** D-108 Q10 as written: `GET|POST /compliance/internal-controls/:controlId/implementations`, `GET|PATCH|DELETE /compliance/implementations/:implementationId`, `GET|POST /compliance/implementations/:implementationId/tests`, `GET|PATCH|DELETE /compliance/tests/:testId`. Permissions are D-108 Q9's, no new key: `compliance:controls:{read,create,update,delete}` by verb, the use cases check again.
+2. **Delete cascade.** Options: hard delete, soft delete of the row only, or soft delete with a cascade. **Chosen, consistent with D-116 point 5:** deleting an implementation is a soft delete (`UPDATE deleted_at` with `tenant_id` in the WHERE) that also soft-deletes its live tests in the same transaction, one `audit_events` entry per row. Its `applies_to` edges are kept (A10.3: an edge is live when both ends are, and every reader joins on the live asset). Deleting a **control** is S3's use case and is not changed, so it does not cascade; instead every implementation and test read and write resolves its parent chain (test, implementation, control) live in the tenant, and a child of a deleted control reads as ErrNotFound. Reason: a test row must not outlive its implementation as a live record for #1416 and #1417 to join on, and S3's delete must not be edited in this slice.
+3. **Replacing targets.** `PATCH` with `applies_to` REPLACES the set; it must not be empty (an update never leaves an implementation without a target, D-108 Q12). Every stored `applies_to` edge the replacement does not want is hard-deleted (A10.3), **including an edge to a soft-deleted asset** that readers no longer see, so a restored asset cannot bring a dropped link back; the repository reads those edges straight from `canonical_edges` with the tenant, and the audit entry's before set lists them. Added ones are resolved in the tenant first; the one `audit_events` entry of the write carries the before and after target sets and `applies_to` in `changed_fields`, which is the journal A10.3 asks for. The row, the edge changes and the entry are one transaction and the implementation row is locked (`FOR UPDATE` on Postgres) so two edits serialise. Creating an implementation locks its control row and creating a test locks its implementation row the same way, so a concurrent delete cannot leave an undeleted orphan child. The cascaded test entries of an implementation delete carry the full test snapshot as their before image.
+4. **Targets are assets only in v1.** The body takes `applies_to: [{type?, id}]`; `type` may be omitted or `Asset`, anything else (System, Service: no model, #1217) is ErrValidation. At most 100 targets, duplicates collapse. The edge triple `applies_to` ControlImplementation to Asset is already in the D5 vocabulary. The shared resolver gains `Asset` (`assets`, soft-deletable, `tenant_id`) and `ControlImplementation`: `WHERE id = ? AND tenant_id = ? AND deleted_at IS NULL`, absent, deleted and foreign all ErrNotFound (404, never 403).
+5. **implemented_by and tested_by are fields** (A10.4): `control_id` and `implementation_id`, immutable after creation, never edge rows.
+6. **Envelope.** As D-116 point 10: id, tenant, source (`openrisk_user`), confidence (0.70) and provenance (`manual_entry` by the session user) are set by the server; the body DTOs have no field for them, so a body that carries them changes nothing. `observed_at` stays null (an implementation until it is confirmed, a test definition always, D4). The `applies_to` edges carry the same envelope.
+7. **Free text caps in the use cases**, not in `canonical`: description, checks, procedure, pass_criteria 10000 runes; collector 255 and cadence 32 because those columns are `varchar(255)` and `varchar(32)` and a longer value must be a 400 and not a database error.
+8. **Audit.** As D-116 point 8: each write appends its row on the write's transaction, `entity_type` `control_implementation` or `control_test`, and the handler calls `markJournaled`.
+9. **Results and evidence** are #1416, gaps #1417; neither is created or read here, and the test view has no `results`. An automated test can be defined (a collector name), no collector runs (#554).
+
+**Reversible** — routes and permissions are one line each in `main.go`; the cascade is one UPDATE in the repository and can be replaced by a read-through only without touching a stored row.
+
+### D-116 — Internal control library and requirement links API (#1414): routes, permissions, split controls, evidence, audit · decided 2026-11-16
+**Decided (agent, 2026-11-16)**, for #1414 (#553 slice S3), D-089. Ten points the design and its security review left open. Nothing irreversible, nothing that spends money, no migration. The owner may overturn any of them.
+
+1. **Route prefix.** Options: D-108 Q10's `/compliance/internal-controls`, or #1428's unprefixed `/controls/...`. **Chosen: `/compliance/internal-controls[/:controlId]`**, with `/compliance/internal-controls/:controlId/requirements[/:requirementId]` for links and `GET /compliance/controls/:controlId/internal-controls` on the requirement side (`:controlId` there is the legacy requirement id). #1428's `/controls/:id/exceptions` is left as is: renaming a shipped route is out of scope. Reason: Q10 was decided first and the compliance prefix is where a client already looks.
+2. **Link and unlink permission.** Options: `create`/`delete` of controls, or `update`. **Chosen: `compliance:controls:update`**, the control-mappings precedent (`main.go`): a link edits what a control addresses, it neither creates nor deletes a control.
+3. **Split controls.** Options: hide them, or treat them as controls. **Chosen: they are controls.** The library lists them and a requirement read shows them next to user-created ones; every item exposes its envelope (`source`, `confidence`, `provenance`, actor `system`/`control_split`) so a reader tells them apart. Reason: hiding them would make a requirement read return no control for every legacy row, and AC2 needs one answer.
+4. **Unlinking a split control's own edge.** Options: a durable tombstone, or refuse. **Chosen: refuse with ErrConflict (409, `internal_control.split_link_is_managed`)** for the pair (requirement, `ControlIDFor(requirement)`), because `Reconcile` re-inserts it at boot and the unlink would silently revert. The control is resolved in the caller's tenant first, so the 409 is answered only for a control the tenant owns; a foreign or absent control is 404. Every other link is freely unlinkable (hard delete of the edge, `tenant_id` in the WHERE). A tombstone is a new table and a reconciler change; it can replace the refusal later behind the same route.
+5. **Deleting a control.** **Chosen:** a split control is refused with ErrConflict (`internal_control.split_control_is_managed`), its lifecycle follows its legacy requirement (D-108 Q8). A user-created control is soft-deleted (`UPDATE deleted_at` with `tenant_id` in the WHERE, never `Delete(&ControlRow{})`, which is a hard delete). Its edges are kept and readers filter on the liveness of both ends (A10.3, D-112).
+6. **`evidence_required` (D-108 Q16).** **Chosen as written:** moving `declared_status` INTO `implemented`, creation with `implemented` included, needs at least one live, accepted, unexpired evidence reachable by an `evidenced_by` edge from the control, or from a live test of a live implementation of it (both tables exist, so both paths are read, with the tenant, in the write's transaction). Re-saving an implemented control is never blocked. The refusal is ErrValidation, code `evidence_required`. **Consequence, stated plainly:** in this slice nothing writes an `evidenced_by` edge from a user-created control, so such a control cannot be created as `implemented`, nor moved into it, until #1416. That is the rule applied honestly, not a defect. A split control with a carried evidence link can.
+7. **`applicability_review_pending`.** **Chosen:** never body-writable (the DTOs have no field for it). On an edit, when the stored control has the flag and the write supplies a non-empty `applicability_justification`, or makes the control `applicable`, the server clears it in the same write (A10.1). A pending control accepts an empty justification until then. The comment in `canonical/control.go` now says the split sets it and the server clears it; no request sets it.
+8. **Audit.** **Chosen: the #1428 pattern applies cleanly.** Each write appends its `audit_events` row on the write's transaction (`AppendTx`) and the handler calls `markJournaled`, so the audit-mutations middleware adds no second entry. A link that was already there changes nothing, writes no entry, and is recorded by the middleware as the HTTP request it was.
+9. **Free text.** `description`, `objective` and `applicability_justification` are capped at 10000 runes in the create and update use cases (ErrValidation, `<field> is too long`), not in `canonical.Control.Validate`, which would make the legacy split skip a requirement with a long description.
+10. **Ids and body.** **Chosen:** `uuid.New()` on the server for a user control (never `ControlIDFor`, which is the split's public id); the body is decoded into DTOs, so `id`, `tenant_id`, `source`, `confidence`, `provenance` and `applicability_review_pending` in a body are ignored (AC4). The actor of a user write is `{user, <session user>}` with method `manual_entry`, never the split's `{system, control_split}`; confidence is `canonical.DefaultConfidence` (0.70).
+
+**Reversible** — routes and permissions are one line each in `main.go`; the refusals in 4 and 5 can be lifted by a tombstone or a lifecycle rule without touching a stored row.
+
+### D-115 — Evidence record integrity (#554): hash, verify-on-read, collection method, assurance table · decided 2026-11-16
+**Decided (agent, 2026-11-16)** — under D-089, for #554, after D-114. Nothing irreversible; no money; the migration only adds columns. The owner may overturn any point.
+
+**Round 1 (reviewers: devsecops, compliance-officer, code-reviewer)** amended points 6, 9, 10 and 12 and added 16-18 below.
+
+**Choices**
+1. **Cross-tenant (AC8).** Get, download, update and delete of another tenant's evidence answer `ErrNotFound` (404, never 403). The tenant-wide list returns an empty set. The control-scoped list answers 404 through the control lookup.
+2. **Unverified (AC9).** An empty `content_hash` means unverified. Download sets `X-Evidence-Integrity: verified|unverified` (`verified` only after the re-hash matched). Get and List expose a derived read-only `integrity`: `hashed`, `unhashed` (a file with no hash), `none` (a link or statement, no file). **Residual risk, accepted:** a database edit that blanks the hash reads as unverified, not as a failure. Closing it needs immutable storage: #380 (WORM).
+3. **Audit event.** `EntityType "evidence"`, new `AuditActionIntegrityAlert = "integrity_alert"` (15 characters, fits `varchar(24)`), summary `evidence.integrity_alert: ...`. It carries tenant, actor, evidence id and the first 12 characters of the expected and observed hashes, never content.
+4. **Audit port.** A narrow `IntegrityAudit` port on the evidence `Service` through `WithIntegrityAudit` (`NewService` unchanged), backed in `main.go` by the audit chain `Append`. If `Append` fails it is logged (zerolog, no secret, no content) and the integrity error is still returned.
+5. **Actor.** `Download(ctx, tenantID, actorID, id)`; the handler passes the authenticated user.
+6. **Method default and trust.** `collection_method`, collector identity and signature are client-asserted over HTTP, so a human session may only use `manual_upload` or `attestation`. `automated_collector` and `api_pull` sent over HTTP answer `ErrValidation` ("reserved for a server-side collector"). Omitted, the method is `manual_upload` on the HTTP path (a `source` label never implies an automated method); `attestation` only when explicit. The domain keeps the rule that an automated method needs `collector_ref` (AC7) for a future server-side ingest; the service distinguishes the two paths with an unexported `CreateInput.serverCollected` flag the handler cannot set, and no ingest entry point exists yet. `CollectionMethodForSource` is kept unchanged for the migration and `prepare.go` backfill of legacy rows, where every `EvidenceSource` value maps.
+7. **Two axes.** The collection method is distinct from the canonical source class. ADR 0008 D7's source mapping is untouched (A11).
+8. **Base values only.** The table holds the BASE (unreviewed) confidence and assurance. The review uplift stays in the canonical envelope confidence and is outside AC6.
+9. **Table.** Assurance `high > substantial > moderate > low > minimal`. One pure function (`domain.methodProfiles`, `AssuranceFor(method, signaturePresent, signatureVerified)`), derived on read, no stored column. The base per method is reached ONLY with a verified signature, which does not exist yet; a signature present but unverified sits one level below base; no signature sits two levels below (floor `minimal`). `high` is therefore unreachable today, and over HTTP the maximum is `moderate` (a signed attestation).
+
+| Method | Base (verified signature) | Signature present, unverified | No signature | Base confidence (canonical class default) |
+|---|---|---|---|---|
+| automated_collector | high | substantial | moderate | 0.80 (automated_scanner) |
+| api_pull | high | substantial | moderate | 0.60 (connector_import) |
+| attestation | substantial | moderate | low | 0.50 (third_party_attestation) |
+| manual_upload | moderate | low | minimal | 0.70 (user_entered) |
+
+   AC3 (unsigned lower than signed) holds for all four methods: the fifth bottom level `minimal` (decided by the orchestrator under D-089) keeps `manual_upload` from colliding at the floor.
+
+   `manual_upload` assurance is strictly lower than `automated_collector`. On confidence, `manual_upload` (0.70) is lower than `automated_collector` (0.80) and each value is within its class ceiling. `api_pull` (0.60) and `attestation` (0.50) sit below `manual_upload` because their class defaults do, which is the canonical rule and not changed here.
+10. **Collector.** `collector_kind` in `user | connector | job`; `collector_ref` 1-128 characters `^[A-Za-z0-9._:@/-]+$`, an identifier, never a credential. Over HTTP the collector is forced to kind `user`, ref the authenticated user id, whatever the client posted. A kind without a ref is rejected. Connector and job kinds exist for the future server-side path only.
+11. **Observation.** `observed_from` and `observed_to` are optional and both default to `collected_at`, stored explicitly. `observed_from <= observed_to <= collected_at`, checked on Create and on Update (again when `collected_at` moves). Both are editable; `content_hash` and `hash_algorithm` are never in the repository Update column list. Legacy backfill: both = `collected_at`. Canonical `observed_at` stays `collected_at`.
+12. **Signature.** Optional, base64, at most 8 KiB decoded; `signature_algorithm` at most 32 characters and required with a signature. The JSON carries `signature_present` (bool) and `signature_verified` (always false for now), never the signature bytes. Stored, never verified.
+13. **Whole blob.** Download reads the whole blob (at most 3 MiB for an upload; a legacy blob may exceed it) and verifies the full hash BEFORE any byte is sent; the storage handle is closed.
+14. **Down migration** drops only the nine new columns. `prepare.go` mirrors the backfill (gated on the column being absent, idempotent, Postgres only, `tenantguard.CrossTenant`).
+15. **Error.** `NewEvidenceIntegrityError`: wraps `ErrConflict`, HTTP 409, stable code `evidence_integrity_mismatch`; FR and EN strings in `frontend/src/locales`. Hash: SHA-256 hex over the exact bytes saved, computed server-side before Save, `hash_algorithm` `sha256`; a client-sent hash is ignored.
+16. **Assurance is not eIDAS.** The assurance scale is internal to OpenRisk. It is NOT an eIDAS (Regulation (EU) 910/2014) level of assurance, nor a qualified signature or seal level, and must not be presented as one.
+17. **What each axis measures.** `assurance` measures provenance: how the proof was collected and whether it is signed. `confidence` is the inherited canonical source-class default of the content (the class the method is nearest to). They are independent, which is why `api_pull` can have higher assurance and lower confidence than `manual_upload`.
+18. **Update.** `Update` can change `source_detail` and the observation period but never `source`, `collection_method` (its own axis), the collector, the signature, `content_hash` or `hash_algorithm`. **Audit visibility:** `integrity_alert` is in `audit_events` and readable by a tenant admin or root through `GET /governance/audit-events?action=integrity_alert` (tenant-scoped). Download also buffers at most 64 MiB; above that it fails with an internal error and serves nothing. The alert is appended with a context detached from the request cancellation (5 s timeout).
+
+**Not done, by scope** — chain of custody (#1450), UI (#1451), WORM (#380), freshness against cadence (#379; so no `TestEvidence_Expired`), signature verification, backfill of legacy hashes (a hash of today's bytes would certify whatever is on disk now).
+**Reversible** — yes: columns are additive; the tables are constants in one file.
+
+### D-114 — Evidence Fabric: who owns the storage layer, #554 or #380 · decided 2026-11-16
+**Decided (po-openrisk, 2026-11-16)** — under D-089, for #554.
+**Question** — #554 (evidence record) and #380 (tamper-evident vault) both claim hashing, chain of custody and integrity verification. One must own the storage layer.
+**Options** — A: #380 owns storage, #554 waits for it. B: #554 owns hash-at-ingest, verify-on-read and custody on the existing `pkg/storage.Storage` port; #380 is narrowed to immutable (WORM) backends, versioning and retention. C: merge the two.
+**Choice** — B. ADR 0008 already assigns hash, observation period and custody to #554; #380 has no acceptance criteria that can be tested as written; the blockers of #554 (#541, #553, #813) are closed, so it can start now. A would hold the Evidence Fabric behind an unrefined issue; C makes an L-sized issue that cannot ship narrow.
+**Consequence** — #554 (record, hash, verify), #1450 (append-only custody, chained into the audit trail), #1451 (UI). #380 stays `needs-refinement` and is re-scoped to WORM backends, versioning, retention, after #554 merges. Freshness against a control's cadence stays with #379. Signature verification (key management) is a later crypto decision.
+**Reversible** — yes; no data or money involved.
+
+### D-113 — Control exceptions (#1428): how long one may run, and whether one can be backdated · decided 2026-11-16
+**Decided (agent, 2026-11-16)**, for #1428. The issue forbids an open-ended exception but gives no maximum, and says nothing of a start in the past.
+
+**Question** — what is the maximum length of a control exception, and can its start be backdated?
+
+**Options**
+- Length: no bound / 1 year / 3 years / a per-tenant setting.
+- Start: allow backdating / refuse it.
+
+**Choice** — `expires_at` at most 366 days after the caller's instant, fixed for every tenant (`domain.ControlExceptionMaxHorizon`, code `control_exception.expires_at_too_far`). `starts_at` not earlier than 5 minutes before the caller's instant (`domain.ControlExceptionStartSkew`, code `control_exception.starts_at_in_past`).
+
+**Reason** — with no bound, a date of 9999-12-31 is an exception that never ends, which is what the issue forbids. One year makes the exception a decision that is reviewed and renewed; three years leaves a waiver unreviewed through a full audit cycle. A per-tenant setting adds a configuration surface, and a tenant could raise it to "forever"; it can be added later without breaking this default. A backdated start would let an exception cover a period already past, and once #555 reads `ActiveAt` it would rewrite the control's history. The 5 minutes only absorb clock skew between client and server.
+
+**Reversible** — both are constants plus a test row each; a per-tenant horizon, if asked for, replaces the constant behind the same code.
+
+### D-112 — Mirroring the legacy requirement, evidence-link and risk-mapping writes onto the control chain (#1413) · decided 2026-11-13
+**Decided (agent, 2026-11-13)** — follow-up to D-108, slice S2 of #553. The orchestrator's design
+gate for #1413, seven questions. Nothing irreversible, nothing that spends money, no column dropped
+or renamed. The owner may overturn any point.
+
+Context: until S2 the chain is written only by `controlchain.Reconcile` at boot. S2 makes the
+legacy repositories also write it, one way, inside their own transaction, so a requirement, link or
+mapping created after the migration has its control and edge without waiting for the next boot.
+Code: `controlchain/mirror.go`, called from `GormComplianceRepository.CreateControl`,
+`GormEvidenceRepository.Link/Unlink/Delete` and `GormRiskControlMappingRepository.Create/Delete`.
+No reader reads the chain yet (#555), no route exists (#1414).
+
+1. **R1 — One resolver for every end of every mirrored edge.** Options: a check per write site, or
+   one function keyed by entity type. **Chosen: `controlchain.Resolve(ctx, tx, tenant, type, id)`**,
+   a registry from `canonical.EntityType` to table, running `WHERE id = ? AND tenant_id = ?` plus
+   `deleted_at IS NULL` where the table has the column. An absent, foreign or deleted target is
+   `domain.ErrNotFound`, so a foreign id is not confirmed to exist (404, never 403). Both ends of
+   every edge go through it, and there is no second gate path. This is the single resolver D-108 Q1
+   promised, and `TestEdgeWrite_TargetInOtherTenant_404` is one table-driven test over it.
+2. **R2 — The control id is global.** `controls.id` is the only primary key and the split id is a pure
+   function of the requirement id. Options: trust the id, or resolve the control back with the tenant
+   after the insert. **Chosen: insert with `ON CONFLICT DO NOTHING`, then resolve with the tenant.** A
+   control of that id owned by another tenant answers ErrNotFound and the transaction rolls back, so
+   neither the requirement nor an edge persists. Reason: `DO NOTHING` alone would have silently
+   attached an edge to another tenant's control.
+3. **R3 — A link or mapping whose requirement has no split control yet** (a legacy row the reconciler
+   could not split, or a write racing the first boot reconcile). Options: fail the legacy write,
+   skip silently, or create the split. **Chosen: create the split lazily from the tenant-filtered
+   requirement row** (same `SplitControl`, method `manual_entry`). If the requirement itself cannot be
+   split (the canonical Control refuses it: a blank name, say), the edge is skipped, the legacy write
+   succeeds, a warning carries ids only (never a note or a name) and
+   `openrisk_control_chain_mirror_skipped_total{reason}` is incremented. On requirement CREATE a
+   refusal rolls back (ErrValidation), because there the chain is the thing being written. Reason: a
+   legacy request must not start failing for a reason the user cannot see (AC5), and the reconciler
+   lists the same rows as unplaceable. A lazily created split has no `addressed_by` edge; the next
+   boot reconcile adds it.
+4. **R4 — An edge the chain refuses because of its note** (a credential URL pasted into it). Options:
+   fail, strip the note, or skip. **Chosen: skip, exactly as Reconcile does for the same input**
+   (reason `edge_invalid`). The legacy row keeps its note as before. Reason: the boot reconciler and
+   the mirror must converge on the same key set; stripping the note would invent content.
+   `TestLink_CredentialNoteKeepsTheLegacyWriteAndWritesNoEdge` runs Reconcile after the mirror and
+   finds the same refusal.
+5. **R5 — Provenance method.** **Chosen: `manual_entry` for every control and edge the mirror writes**;
+   the reconciler keeps `migration`. `controlchain.Edge` gained a `method` parameter. Reason: D3
+   says how a record reached OpenRisk, and a person typed these; `migration` would claim a copy.
+   Source, confidence 0.70 and actor `{system, control_split}` are unchanged.
+6. **R6 — A mitigated_by edge outlives the mapping whose id it carries as `source_id`** (two live
+   mappings of one risk and control are one edge; the first one's id is the source_id). **Chosen:
+   leave it.** The reconciler is insert-only too, and the edge key does not contain the source_id.
+   Deleting a mapping removes the edge only when no other live mapping of the same (risk, control)
+   pair remains (the count excludes the deleted row by id and by `deleted_at`). Recorded, not fixed.
+7. **R7 — A soft-deleted control** is not a live target: the resolver filters `deleted_at IS NULL` on
+   `controls`, `compliance_controls`, `risks` and `evidences`. A requirement's soft delete does not
+   delete its control (out of scope: no status or lifecycle sync before #555).
+
+**Consequences found while building it**
+- Hand-built fixtures that link evidence to, or map a risk to, an id that is not in its table now get
+  ErrNotFound. Two tests that forged a cross-tenant legacy link now assert that the link is refused.
+- A mirror transaction committing a row Reconcile planned to insert, after Reconcile took its
+  REPEATABLE READ snapshot, makes PostgreSQL refuse Reconcile's `ON CONFLICT DO NOTHING` with
+  SQLSTATE 40001, which would have stopped the boot. `Reconcile` now retries, up to three times, on a
+  fresh snapshot under the same advisory lock. `TestMirrorCommitDuringReconcile_DoesNotBreakIt`
+  reproduces it on PostgreSQL.
+- Known, not fixed: an unlink or delete committing between Reconcile's snapshot and its commit can
+  leave one edge for a link that is gone. It needs a person clicking in the same second as a boot,
+  and no reader uses the chain yet. A chain-versus-legacy check belongs to #555, when a reader is
+  re-pointed.
+- Known, not fixed: two mapping deletes of the same (risk, control) pair committing at the same time
+  under READ COMMITTED can each count the other mapping as live, and neither removes the edge. It
+  needs two people deleting the two mappings of one pair in the same second, and no reader uses the
+  chain yet. The fix (a per-pair `pg_advisory_xact_lock`, or `FOR UPDATE` on the pair's mappings)
+  belongs with the same #555 chain-versus-legacy check.
+- Conditions on later slices (devsecops, 2026-11-16): every chain reader in #555 re-resolves both ends
+  of an edge through `controlchain.Resolve` (a soft-deleted requirement or risk keeps its control and
+  edges); the control API in #1414 never accepts a client-chosen control id, since `controls.id` is
+  global and `ControlIDFor` is public, so a chosen id could pre-squat another tenant's split control.
+- Unlink with the nil tenant now returns ErrForbidden; it used to succeed on zero rows. Evidence
+  delete and mapping delete already answered ErrNotFound.
+
+### D-111 — Tenant guard design: what is scoped, how a query proves its tenant, how the allowlist is written · decided 2026-11-13
+**Decided (agent: backend-go, 2026-11-13, under D-089; implements D-055 option C)** — the GORM
+callback of #808 is `internal/infrastructure/tenantguard`. It fails any SELECT, UPDATE or DELETE
+on a tenant-scoped table whose explicit WHERE has no `tenant_id` or `organization_id`. It is
+installed on every test database through `internal/testsupport/testdb` (Enforce), in staging
+(`TENANT_GUARD=enforce`) and in the CI boot (`TENANT_GUARD=enforce`); production leaves it off
+until the owner decides otherwise. Each choice below is recorded with its alternative so the
+owner can overturn it.
+
+- **What is scoped.** A table whose parsed schema has `tenant_id` or `organization_id`, minus an
+  exemption map. `users` is exempt: identities are deployment-global, `users.tenant_id` is a dead
+  Phase-5 column nobody reads, membership is `organization_members`. Alternative: scope `users`
+  and rewrite 16 measured sites; rejected, it protects a column that carries no meaning.
+- **How a query proves its tenant.** Only the explicit WHERE counts. The primary-key condition
+  GORM adds for `First(&x)`, `Save` and `Delete(&x)` does not, because id-only is exactly the
+  defect class. Alternative: inspect the final SQL; rejected, it would read the implicit pk
+  condition as a pass.
+- **Preloads.** A preload inherits its parent's pass through the statement context; the parent
+  must have passed. Alternative: demand a tenant filter on every preload; rejected, it would
+  force a redundant filter on rows already gated by their parent.
+- **Raw SQL.** Checked lexically (first keyword, table names, a tenant predicate after WHERE).
+  Alternative: ignore raw SQL; rejected, the heaviest queries are raw. Limit: an OR inside one
+  string is not parsed.
+- **Nil tenant.** A tenant filter bound to `uuid.Nil` is a violation (`nil-tenant`), never
+  allowlisted. Code that must answer "empty" for a nil tenant does so before querying. Alternative:
+  accept `tenant_id = nil` as "reads nothing"; rejected, it is the fallback-to-nil defect class.
+- **Allowlist.** `tenantguard.CrossTenant(db, reason)` / `CrossTenantContext(ctx, reason)`. The
+  reason must be a string literal of at least 15 characters on one line, checked by
+  `allowlist_test.go` over the module. `grep -rn 'tenantguard.CrossTenant' backend` is the list.
+  Alternative: a central file of allowed call sites; rejected, it drifts away from the code.
+- **Tests.** `testdb.Open(t, ...)` replaces `gorm.Open` in every test; `testdb/coverage_test.go`
+  fails on any raw `gorm.Open`. Statements issued from a `*_test.go` file (fixtures, assertions)
+  are exempt; a query issued by production code that a test calls is checked. Alternative: a
+  process-wide hook; not possible, GORM callbacks are per `*gorm.DB`.
+- **Writes.** `tenantwrite.UpdateInTenant` / `UpdateInOrganization` replace `Save` on a scoped
+  model. `tx.Where("tenant_id = ?", t).Save(&x)` falls back to INSERT ... ON CONFLICT UPDATE ALL
+  in GORM v1.31 when its UPDATE matches 0 rows, which would overwrite another tenant's row with
+  the same id. The helper also refuses a zero primary key (which would match every row of the
+  tenant) and a model stamped with another tenant. `TestSave_OnlyTheClosedListMayCallGormSave`
+  fails on any `.Save(` on a GORM chain outside a closed list of six sites, each with a reason.
+- **Modes.** `TENANT_GUARD` = `off` (default, production), `report`, `enforce`; a typo is a fatal
+  boot error. Alternative: enforce in production now; deferred, coverage is about 44% and a
+  refused query in production is an outage, so staging finds the rest first.
+- **Split.** `/teams` and `/users` behind use cases (criterion 2) moved to #1419, so each PR fits
+  one review round.
+
+**Honest limits** — it only sees queries that run; it catches a missing filter, not a wrong one
+(#807 class). Raw SQL is checked lexically after comments are removed and string literals
+blanked: a predicate in a CTE or a comma join, a `MERGE`, or a join glue between two tenant
+columns passes; the SELECT part of an `INSERT ... SELECT` is checked like a read. In builder and
+raw SQL alike, a right-hand side the guard does not read is accepted (`tenant_id IN (SELECT tenant_id ...)`,
+`= (SELECT ...)`, `= COALESCE(tenant_id, ?)`, a column against another column); only a tenant
+column against itself is refused. A scoped table reached only by `Joins` from an unscoped base
+table is not checked. The `.Save(` ratchet is syntactic: it does not see a method value
+(`f := db.Save; f(x)`) nor a call inside a package-level function literal. `.Or()` precedence is approximated (no production query uses it). A
+preload, and a statement reusing the parent's context while it runs (an `AfterFind` hook
+included), inherits the parent's pass. INSERT ... VALUES and upserts are not checked. A table no
+model gives is read from the catalog. A `Table(...)` expression that is not a name (a subquery, a
+list) is refused whatever the schema; any other unreadable form is refused when no model gives
+the table. Postgres RLS is
+evaluated, not implemented: `docs/adr/0011-postgres-row-level-security.md`.
+
+### D-106 — #327 signup slices: remove unmodified starter risks, count the funnel on-instance, verify email without blocking · decided 2026-11-13
+**Decided (owner, 2026-11-13)**, three answers to the questions of #327:
+- A — « Supprimer les risques d'exemple en un clic mais seulement ceux qui n'ont pas été modifiés, avec une confirmation. »
+- B — « Mesurer le parcours de la landing page jusqu'à l'inscription : un simple compteur agrégé, sans outil externe, conforme à docs/TELEMETRY.md. »
+- C — « Vérifier l'email après l'inscription : oui, une vérification qui ne bloque pas l'accès, envoyée par le transport email déjà en place, sans nouveau fournisseur. »
+
+**What changes** — three children of #327, which stays a tracking parent: #1436 (A), #1437 (B), #1438 (C).
+
+**Interpretations by `po-openrisk` (overturnable)**
+1. "Unmodified" (A): no reliable edited flag exists. `risk_histories` cannot tell, `Risk.AfterSave` writes an `UPDATE` row on every save including creation. The signal is `updated_at = created_at`, plus no mitigation and no linked asset. A system write that bumps `updated_at` makes a row count as modified and keeps it: safe side. Criterion 9 of #1436 proves the signal on the real adoption path or stops.
+2. "Landing page" (B): no landing page exists in this repository (`ROADMAP.md`: not built). The funnel starts at the `/register` view; a landing step is a follow-up once one exists.
+3. "Conforme à TELEMETRY.md" (B): the doc governs what leaves the instance. A Prometheus counter that is never transmitted is read as not "sent" telemetry; it honours `OPENRISK_TELEMETRY=off`, stores nothing per visitor, and the doc gets a section. A strict opt-in reading would measure nothing, a visitor having no admin to consent.
+4. "Ne bloque pas" (C): no feature is gated on verification. Existing accounts are neither marked verified nor shown a banner; SSO accounts are out of scope.
+
+**Unchanged** — D-008 (8 minutes), D-010/D-011 (Aha), D-012 (starter rows are real rows), D-078, no paid or new provider (money stays owner-only).
+
+### D-110 — Risk bulk actions: legacy route sunset date, and assign_to left out of the governed routes · decided 2026-11-13
+**Decided (agent, 2026-11-13)** — #599.
+
+**Question** — #599 moves the risk register onto the governed bulk engine (one route per
+action, preview, fingerprint). Criterion 5 asks for the legacy body-driven
+`POST /risks/bulk` to be removed or deprecated with a date. Separately, `assign_to` is one
+of #581's five actions; should it move too?
+
+**Options**
+- Sunset: (a) remove the legacy route now; (b) deprecate with a date.
+- assign_to: (a) port it as is; (b) port it with a tenant-membership check; (c) leave it on
+  the deprecated route and track it in its own issue.
+
+**Choice** — Sunset (b): `Deprecation: true` and `Sunset: Wed, 31 Mar 2027` on every
+response, with a `Link` to the governed routes. A delete there still needs `risks:delete`
+(#1423). assign_to (c).
+
+**Reason** — Removing the route now would break any API client in the field without notice.
+The UI already uses the governed route, and four and a half months is enough for an API
+client to migrate. For assign_to, the single-row assignment validates that the assignee is
+an active member of the tenant through the ownership manager. The bulk path sets the legacy
+`assigned_to` column with no such check. Porting it as is would give a governed route a
+weaker guarantee than the row route. Porting it properly means building on the ownership
+manager, which is its own piece of work (#1426).
+### D-109 — Realtime outbox: where the sequence comes from inside a business transaction, and what happens to an event that never goes out · decided 2026-11-12
+**Decided (agent: tech-lead, 2026-11-12, under D-089)** — ADR 0010, #344. Tenant isolation and
+structural design, so an agent decides it and records it here. The owner can overturn it.
+
+**Confirmed (owner, 2026-11-13)** — option (2c) is kept. The cap of 20 attempts (about 1 h) stays,
+but only on one condition: "la limite de 20 tentatives suppose qu'un opérateur soit alerté en cas
+d'abandon. il faut alors qu'on alerte".
+- **Alerts:** `RealtimeOutboxEventAbandoned` is critical and fires on any abandon. Two earlier
+  signals come with it, `RealtimeOutboxBacklogStale` and `RealtimeOutboxMetricsAbsent`. All three
+  are in `deployment/monitoring/alerts.yml`, with the promtool test
+  `realtime_outbox_alerts.test.yml`. They ship in the same PR as the cap (#1422).
+- **Criterion 3 of #344:** amended to match. It now says "retried with backoff until it succeeds or
+  is abandoned after 20 attempts, and an abandon alerts an operator".
+- **Effect on claims:** the product claims "an announcement is delivered, or its abandonment is
+  alerted". It never claims "no announcement is lost".
+
+**Question** — #344 writes `realtime_events` inside the pilot use case's transaction, and a relay
+publishes it afterwards. Two choices have real alternatives. (1) How is the per-tenant `sequence`
+reserved inside a caller's transaction without a race on a tenant's first event, without holding a
+process mutex for the whole business transaction, and so that sqlite tests still pass? (2) Delivery
+is ordered per tenant and there is no dead-letter queue. What happens to a row that cannot be
+delivered?
+
+**Options**
+- (1a) A counter table `realtime_event_sequences`, one row per tenant, reserved by an upsert.
+  **Chosen.** (1b) `pg_advisory_xact_lock(hashtext(tenant))` then `MAX+1`. (1c) Keep
+  `SELECT … FOR UPDATE` on the head row.
+- (2a) Retry forever. (2b) Mark the row published. (2c) Stop after 20 attempts (backoff 1 s, doubling,
+  capped at 5 min, about one hour in total): the row gets `abandoned_at`, stays replayable, and its
+  tenant moves on. **Chosen.**
+
+**Why** — (1a) is the only option that works the same way on Postgres and sqlite. It closes the
+race on a tenant's first event through the primary key. It keeps sequences in commit order, and
+sequences no longer restart after a full purge. The relay can also lock a tenant through the same
+row, which gives strict per-tenant order without a second lock. (1b) works only on Postgres, couples
+tenants whose hashes collide, and still resets after a purge. (1c) locks nothing for a tenant's first
+event. (2a) lets one row stop a tenant's stream for good, which devsecops raised as MEDIUM on the
+notice outbox. (2b) writes a false record. With (2c), an abandoned event is still in the log, clients
+resync through gap detection, and `realtime_outbox_abandoned_total` counts each one.
+
+### D-108 — How the ADR 0008 control chain is persisted, migrated and split (#553) · decided 2026-11-12
+**Decided (agent, 2026-11-12)** — tech-lead design gate of #553. Sixteen design questions from the
+brief, answered below. Every answer is checked against ADR 0008 D5–D7. The persistence readings
+the ADR left open, and the one field it lacked, are recorded as amendment A10 of the ADR. No
+column is dropped or renamed. Nothing irreversible and nothing that spends money, so none of this is
+escalated. The owner may overturn any point.
+
+**The questions and the choices**
+
+1. **Table shape.** Options: one generic edge table, or one join table per verb. **Chosen: one
+   `canonical_edges` table** for the verbs that are stored as rows (`addressed_by`, `applies_to`,
+   `evidenced_by` from a test and from a control, `mitigated_by`, `raised_by`, `indicates`). Reasons:
+   the edge envelope (D5) is the same for every verb; the tenant check on the target
+   (`WHERE id = ? AND tenant_id = ?`) is then written once, in one resolver keyed by entity type,
+   and `TestEdgeWrite_TargetInOtherTenant_404` is one table-driven test over that resolver; the
+   unique key is literally D5's `(tenant_id, from, verb, to, qualifier)`. Per-verb tables would allow
+   foreign keys, but they would also copy the tenant gate seven times, and a copied gate is the
+   defect class this codebase has shipped most. `implemented_by` and `tested_by` are **not** rows:
+   they are the `control_id` and `implementation_id` columns, as D6 says ("mirrors the edge, so the
+   cardinality is a field"). `maps_to` stays in `control_crosswalks` (out of scope).
+2. **Where the backfill runs.** `PrepareForAutoMigrate` runs before the new tables exist, so it
+   cannot insert into them. Options: create the tables in Go before AutoMigrate (a third copy of
+   the DDL), or run after AutoMigrate. **Chosen: `controlchain.Reconcile`, called from `main.go`
+   between `AutoMigrate` and `RunMigrations`, on every boot, with or without `DATABASE_URL`.** It is
+   insert-only and convergent: it creates the split for each requirement that has none, and carries
+   each legacy link that has no edge. It never updates or deletes a row, so a late replay changes
+   nothing that exists (the #1001 lesson). It runs in one transaction under
+   `pg_advisory_xact_lock`, so two replicas booting together cannot both insert. It prints the counts
+   of criterion 7 and fails the boot when they do not reconcile (the 0084 `RAISE` rule). Criterion 8's
+   last sentence is met in substance (the backfill runs on DB_HOST boots), not by its letter.
+3. **`ControlIDFor` in SQL or Go.** Postgres has no SHA-1 without an extension. Options:
+   `CREATE EXTENSION "uuid-ossp"` and a SQL backfill, or Go. **Chosen: Go only**
+   (`canonical.ControlIDFor`, already pinned by `split_test.go`). One implementation, not two that
+   must agree, and no extension for operators of managed or hardened Postgres to grant.
+   `migrations/0086` holds the DDL only and says why.
+4. **Dual-write of status, or cutover.** `compliance_controls.status` is read by ADR 0003's
+   residual, SmartScore factor 4, the tenant score and gap analysis. **Chosen: no status sync in
+   either direction in #553.** The split copies `status` into `declared_status` once. From then on
+   `compliance_controls.status` stays the authority every score reads, and `Control.declared_status`
+   is the canonical claim, written only through the new routes. #555 moves the score readers to
+   the computed status and owns the reconciliation of the two. Syncing either way would either move
+   a residual on a new-route write (criterion 11) or overwrite a control that already answers
+   several requirements from one of them.
+5. **Home of the GORM models.** **Chosen: `backend/internal/infrastructure/controlchain`** (row
+   types, repositories, row↔canonical mappers, the reconciler, the legacy mirror). Use cases in
+   `backend/internal/application/controlchain`, one per file, interfaces declared there.
+   `internal/domain` gains no GORM file: the 30 existing ones are drift, not precedent.
+6. **Legacy write routes.** **Chosen: a one-way mirror, legacy → new, in the same transaction,
+   inside the legacy repositories.** Creating a requirement (by hand or by catalogue import)
+   creates its split control and `addressed_by` edge. Linking or unlinking evidence, and deleting
+   evidence, writes or removes the transitional `Control --evidenced_by--> Evidence` edge. Creating
+   or deleting a risk mapping writes or removes `Risk --mitigated_by--> Control` (removed only when
+   no other live mapping of the same pair remains). Use cases and handlers do not change. **Reader
+   re-pointing (Scope IN of #553) is deferred:** the score readers move in #555 with the computed
+   status, the display readers with the UI issue. Re-pointing them now changes either a score
+   (criterion 11) or a response shape the current UI reads, for no user-visible gain.
+7. **Unplaceable rows.** A legacy row is unplaceable when either end does not resolve in the row's
+   own tenant (missing, or present only in another tenant). It is listed by id, never carried. No
+   link is placed on a test result by the migration, because no result exists yet: every carried
+   link is the transitional control-level edge.
+8. **Soft-deleted rows.** A soft-deleted `compliance_controls` row gets its split control with the
+   same `deleted_at`, so criterion 7's "every row" holds and a deleted requirement never surfaces as
+   a live control. An evidence link whose evidence is soft-deleted is carried. Edges carry no
+   `deleted_at`: an edge is live when both its ends are. A soft-deleted risk mapping is not carried
+   and is counted. Live duplicate mappings of one (risk, control) pair become one edge, and the
+   collapsed row ids are listed. After the split, deleting a requirement through the legacy route
+   leaves its control alone: the control may answer other requirements.
+9. **Permissions.** **Chosen: reuse, no new key.** Controls, implementations, tests and recording a
+   result: `compliance:controls:{read,create,update,delete}` (recording a result is `update`).
+   Evidence on a result: `compliance:evidences:create`. Linking a gap to a risk: `risks:update`
+   (the precedent of `/risks/:id/control-mappings`). Reading from a risk: `risks:read`. No
+   catalogue or preset edit.
+10. **Route prefix.** `/compliance/controls/:controlId` is the Requirement and keeps its meaning.
+    **Chosen:** `/compliance/internal-controls[/:id]`, `/compliance/internal-controls/:id/implementations`,
+    `/compliance/implementations/:id[/tests]`, `/compliance/tests/:id[/results[/:resultId/evidence]]`,
+    `/compliance/tests/:id/control-gaps`, `/compliance/control-gaps/:id/risks`, the requirement side
+    `/compliance/controls/:controlId/internal-controls`, and `/risks/:id/control-gaps`. `gaps` alone
+    is avoided: `/compliance/gap-analysis` already means the computed list. Every route is mounted in
+    `main.go`, where the isolation gate reads, and gets an exact registry entry.
+11. **Source of the split control.** D7 names it for the Requirement only. **Chosen:**
+    `openrisk_user`, `source_id` = the control's own id, confidence 0.70, provenance method
+    `migration` (reconciler) or `manual_entry` (runtime mirror), actor `system` `control_split`
+    (`compliance_controls` records no author). The status it copies was a person's claim; nothing
+    about it was derived or observed. ADR A10.
+12. **An implementation needs `applies_to`.** Enforced in the create use case (at least one asset id,
+    else `ErrValidation`) and written with its edges in one repository transaction. Each asset is
+    resolved `WHERE id = ? AND tenant_id = ? AND deleted_at IS NULL`; a miss is 404. An update that
+    would leave the set empty is refused.
+13. **Gap identity.** **Chosen: D2's identity rule,** `(tenant_id, source = openrisk_derived,
+    source_id = test id)`, a plain unique index, no partial index. One gap per test for its life.
+    A failing result on a `remediated` gap reopens it; `accepted` and `false_positive` keep their
+    human verdict. Each failing result adds a `raised_by` edge qualified by its `result_id`, which
+    keeps the history. `pass` and `inconclusive` change no gap (closing on a pass is #555's status
+    work). Severity is `medium` at raise, with `provenance.rule` saying so, because neither the test
+    nor the control carries one. ADR A10.
+14. **`tenant_id` on results.** **Chosen: persisted** on `control_test_results` (ABSOLUTE RULE 2),
+    copied from the test row resolved under the caller's tenant, never from a body. The canonical
+    sub-record stays without it. ADR A10.
+15. **`evidenced_by` key.** The `canonical_edges` unique key with `qualifier uuid NOT NULL`, the nil
+    uuid standing for "no qualifier", exactly as `canonical.EdgeKey` does. One artifact backs two
+    results of one test as two rows. `evidence_control_links`' pair index is untouched.
+16. **`evidence_required`.** Moving `Control.declared_status` **into** `implemented` requires at least
+    one live, accepted, unexpired `evidences` row reachable from the control: by a transitional
+    control-level `evidenced_by`, or by a test-level `evidenced_by` on one of its live tests. The
+    predicate is the one `GetControlByID` uses today. Re-saving an implemented control is never
+    blocked.
+
+**Also decided**
+- A `not_applicable` row is split to `applicability = not_applicable`, `declared_status =
+  not_implemented`, an empty justification and a read-only `applicability_review_pending = true`.
+  Validation accepts the empty justification only while that flag is set, and no write can set it.
+  This adds one field to D6's `Control`: ADR A10.
+- Results and their evidence edges are append-only: no route updates or deletes either. A wrong
+  attachment is corrected by recording a new result.
+- Deleting a control with live implementations, or an implementation with live tests, answers
+  `ErrConflict`.
+- Criterion 9's "every new table is registered in `internal/security/isolation`": that package
+  is route-keyed and has no table list. #553 adds one (`tables.go`): the six tables, each with a
+  Postgres test that `tenant_id` is `uuid NOT NULL` and leads an index.
+- #553 is split into six issues of about 1,500 changed lines or less. #553 keeps the first
+  (schema, reconciler, criteria 7 and 8). The PO opens the other five.
+
+**Reason** — The single edge table and the Go-only id keep the two checks this design depends on
+(the tenant gate on the target, the deterministic id) in one place each. Leaving the score readers
+alone keeps criterion 11 true by construction instead of by test luck. The insert-only reconciler is
+the only backfill shape that is correct on a DB_HOST boot and on a late SQL replay.
+**Overturn cost** — Per-verb tables later: one data copy per verb, no API change. Reader
+re-pointing earlier: pulled into any slice after the mirror ships.
+
+**Amended (agent, 2026-11-12)** — Q2, the boot policy. Question: when Reconcile's counts do not
+reconcile, stop the boot or boot with an alert? Options: (a) stop, as decided above; (b) roll back,
+log at error level and boot; (c) as (b), with a real alert. **Choice: (c) for
+`controlchain.ErrNotReconciled`, (a) for database errors.** A log line nobody reads is silence, so
+the refusal sets the `openrisk_control_chain_reconcile_refused` gauge to 1, and the
+`ControlChainReconcileRefused` alert (`deployment/monitoring/alerts.yml`, severity critical; run
+once through `promtool check rules` and `promtool test rules` on #553, output in the issue) fires on it. The backend has no
+Sentry client and the repository ships no Loki, so Prometheus is the alert path that exists; an
+install without the monitoring stack gets the error log only. Reason: the transaction rolls back, so nothing is written either way; the legacy tables
+stay the source of truth and no reader uses the chain yet (Q6). Stopping takes every tenant down on
+every boot until a code fix and protects no data. The 0084 `RAISE` precedent guards a drop, which
+loses data; this guards an insert-only copy, which does not. A database error still stops the boot:
+the SQL layer that runs next would fail on it. Implemented by `controlchain.ReconcileAtBoot`, tested
+by `TestReconcileAtBoot_NotReconciledLetsTheBootGoOn`, `_SuccessClearsTheAlert` and
+`_DatabaseErrorStopsTheBoot`. Two review findings follow from it: Reconcile reads under REPEATABLE
+READ on PostgreSQL, so a write during a rolling deploy cannot raise a false alert; and a
+`compliance_controls` row with the nil tenant is listed (`RequirementsUnplaceable`) and not split,
+fail closed like the links. **Revisit**
+when #1413 writes or reads the chain outside Reconcile: a missing chain then misstates coverage, and
+a per-tenant flag is the likely shape. (#1413 writes it, one way, and nothing reads it: see D-112.
+The revisit stands for #555, when a reader is re-pointed.)
+
+### D-107 — Guessing codes from a stolen session: which lock, and whose sign-in it can block · decided 2026-11-11
+**Decided (owner, 2026-11-11)** — "un compteur séparé pour ces deux actions." Option B. Wrong codes and
+wrong passwords on `POST /auth/mfa/disable` and `POST /auth/mfa/backup-codes/regenerate` count toward
+one per-account counter of their own, never toward the sign-in lock of #689. When it trips, both
+endpoints lock for a fixed period, the request that sets the lock is audited, and the owner gets one
+new FR/EN mail pointing to "sign out other devices". Sign-in is never affected, and the D-061 budget
+(5 per 15 min) stays. The owner did not set numbers, so the proposal stands: 10 failures in 24 h,
+24 h lock. Implemented by #1392, whose criteria are written for this option.
+
+**Question** — #1392. Someone holding a stolen session on an account that signs in
+through an identity provider (no local password) can guess authenticator codes on
+`POST /auth/mfa/disable` and, once #1393 merges, `POST /auth/mfa/backup-codes/regenerate`.
+Both share the per-account budget D-061 fixed (`mfa-disable:<user>`, 5 attempts per
+15 minutes). The budget never locks and never tells the owner: about 480 guesses a day,
+≈0.14 % a day, ≈40 % over a year. The sign-in challenge has a lock and an owner mail
+(#689: 10 failures per account in 15 min, 15-min lock, `SendMFALocked`). Adding a lock
+here changes who gets through an auth lock and what D-061 decided for this path, so it
+is the owner's call (same reasoning as D-064).
+
+**Options**
+- **A — share the #689 sign-in counter** (the issue's first draft). A failure on disable or
+  regenerate counts toward the sign-in lock. Two problems. It does not trip: 5 attempts per
+  15 min never reach 10 failures in a 15-min window, so the thresholds would have to change
+  too. When it does trip, the person holding the stolen session locks the real owner out of
+  signing in, a denial of service on the owner, while their own session keeps working. And
+  the `SendMFALocked` mail says "someone entered your password", which is false on an
+  account that has no password.
+- **B — a separate counter for in-session MFA actions, with its own lock and its own mail
+  (recommended).** Every failed proof (`wrong_code` or `wrong_password`) on the two endpoints
+  counts toward a per-account counter: 10 failures in 24 h from the first one lock both
+  endpoints for 24 h, fixed, never extended by refused attempts. The request that sets the
+  lock audits it and sends the owner one new mail, FR and EN, that says what happened (wrong
+  codes typed from a signed-in session) and what to do ("sign out other devices", which
+  already revokes every session, then tell the administrator). Sign-in is never affected.
+  The owner loses, at worst, the ability to turn MFA off or regenerate codes for a day.
+  Guessing falls to 10 a day: ≈0.003 % a day, ≈1 % a year, and the owner is mailed every
+  day the attacker tries. The existing 5-per-15-minute budget stays as it is. Cost: about
+  one M issue, no dependency, no migration (the store #689 uses is reused under new keys).
+- **C — a silent daily cap.** Same 10-a-day ceiling, no lock, no mail. Same odds as B,
+  but the owner never learns. Smaller (S), and it leaves the gap the finding is about:
+  nobody is told.
+- **D — accept the risk.** It needs a stolen session on a passwordless account, and the
+  session itself expires. No code. The 40 %-a-year figure stands for a session kept alive.
+
+**Recommendation** — B. It closes the gap without handing a session thief a way to lock
+the owner out of signing in, and the mail is the part that actually ends the attack,
+because it sends the owner to "sign out other devices". The numbers (10, 24 h) are a
+proposal; the owner may set others without changing the shape.
+
+**Cost of delay** — Low. P3: it needs a stolen session first, and #1392 stays in
+`status:needs-refinement` until this is decided. Nothing else waits on it. #1393 can
+merge without it.
 
 ### D-105 — Releases through a /release command the owner runs; staging and master take PRs the owner merges · decided 2026-11-06
 **Decided (owner, 2026-11-06)** — "Je veux un bot ou agent qui s'occupera des releases." Given the choice, the owner picked a local `/release` command over the Actions bot of #1256, with the tag set by the tool "after my OK", "PR obligatoire, vous mergez" for `staging` and `master`, and "faire partir la PR de version d'une finale depuis staging, puis de la reporter sur develop".
@@ -1354,6 +1923,8 @@ self-hosted customer is known to run a version older than migration 0052.
 **Blocks** — #813.
 
 ### D-055 — structural tenant guard: a GORM callback now, Postgres RLS after the launch · decided 2026-09-28
+*Implemented by #808; see D-111 and ADR 0011.*
+
 **Decided (owner)** — **C, matching the recommendation.** The GORM callback (A) is built
 inside #808 before the launch. Postgres Row-Level Security (B) comes after the launch, behind
 its own ADR. Neither covers #807 (P0, `status:ready`): a query that is filtered but acts on

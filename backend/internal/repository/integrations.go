@@ -17,8 +17,3 @@ type IncidentProvider interface {
 type ThreatProvider interface {
 	FetchThreats() ([]domain.Threat, error)
 }
-
-// ComplianceProvider : Interface que OpenRMF devra respecter
-type ComplianceProvider interface {
-	FetchControls() ([]domain.Control, error)
-}

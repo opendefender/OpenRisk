@@ -18,6 +18,7 @@ import {
   Trash2,
   CalendarClock,
   Wrench,
+  FileJson,
 } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { toast } from 'sonner';
@@ -99,6 +100,11 @@ export function ComplianceScreen() {
         icon={Library}
         primary
         onClick={() => setModal('import')}
+      />
+      <Btn
+        label={t('compliance.customImport.entry')}
+        icon={FileJson}
+        onClick={() => navigate('/compliance/frameworks/import')}
       />
       <Btn label={tr('Nouveau', 'New')} icon={Plus} onClick={() => setModal('create')} />
     </>

@@ -7,6 +7,7 @@ package compliance
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/opendefender/openrisk/internal/domain"
@@ -22,7 +23,7 @@ func NewDeleteControlUseCase(repo domain.ComplianceRepository) *DeleteControlUse
 }
 
 func (uc *DeleteControlUseCase) Execute(ctx context.Context, tenantID, controlID uuid.UUID) error {
-	control, err := uc.repo.GetControlByID(ctx, controlID, tenantID)
+	control, err := uc.repo.GetControlByID(ctx, controlID, tenantID, time.Now())
 	if err != nil {
 		return err
 	}

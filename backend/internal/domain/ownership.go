@@ -39,8 +39,7 @@ func ParseOwnershipRole(s string) (OwnershipRole, error) {
 }
 
 // Ownership is the shared three-role assignment block embedded into every
-// actionable entity (Risk, Mitigation, Incident, RemediationPlan,
-// ControlEvidence).
+// actionable entity (Risk, Mitigation, Incident, RemediationPlan, Evidence).
 //
 // It is an ANONYMOUS embedded struct on purpose: GORM flattens it into real
 // columns (`owner_id`, `assignee_id`, `reviewer_id`) and encoding/json flattens

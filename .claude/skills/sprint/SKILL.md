@@ -29,7 +29,7 @@ Name each teammate after its issue so I can address it:
 - teammate `be-<issue>` using the `backend-go` agent type
 - teammate `fe-<issue>` using the `frontend-react` agent type
 - teammate `qa` using the `qa-automation` agent type
-- teammate `sec` using the `devsecops` agent type
+- reviewers are not teammates: they are called per issue in the Review step below
 
 Each spawn prompt must contain the full issue context — teammates inherit
 `CLAUDE.md` and skills but **not this conversation**. Paste what they need.
@@ -39,9 +39,31 @@ and include a cross-tenant test.
 
 ## During
 
-`qa` starts once the first implementer reports a green build. `sec` runs last
-and may send work back. Wait for every teammate to report before synthesizing —
-do not implement tasks yourself while they work.
+`qa` starts once the first implementer reports a green build. Wait for every
+teammate to report before synthesizing — do not implement tasks yourself while
+they work.
+
+## Review — per issue, by the script
+
+Each issue is reviewed as in `/work` step 5, on its own branch. When its
+implementer and `qa` are done, run in that issue's worktree:
+```
+s=$(git show origin/develop:.claude/hooks/route-reviewers.sh) && bash -c "$s" route-reviewers origin/develop
+```
+The script is the one on `develop`, never the branch's copy: a change must
+not choose its own reviewers, nor run unreviewed code with your credentials.
+Any non-zero exit from this command, or an empty output on a branch with
+changes, is a stop.
+and call every agent it prints (`code-reviewer` on any code, `devsecops` on
+sensitive paths, and the others it names), in parallel, each with the worktree
+path, the branch and its HEAD. Add `devsecops` by the floor of `/work`
+step 5 whatever the script prints. Exit 2 or 3, or empty output on a branch
+with changes, is a stop, never "no reviewer". A reviewer
+never reviews a diff its own teammate wrote. A BLOCK or FAIL goes back to the
+owning teammate with the findings verbatim; every reviewer already called
+then reads only `git diff <sha>..HEAD` from its last `Read:` line (or the
+HEAD it was given). No issue is reported as
+shipped without its `REVIEW: PASS` (and `SECURITY: PASS` when routed).
 
 Each teammate posts its checkpoint comment on its own issue before going idle.
 

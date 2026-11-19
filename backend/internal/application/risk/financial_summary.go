@@ -13,6 +13,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/rs/zerolog"
+
 	"github.com/opendefender/openrisk/internal/domain"
 	"github.com/opendefender/openrisk/pkg/crq"
 )
@@ -128,12 +130,19 @@ type FinancialSummaryUseCase struct {
 	presenters *FinancialPresenterFactory // optional; nil → XAF/static
 	coverage   FinancialCoverageCounter   // optional; nil → derived from the list
 	appetite   RiskAppetiteReader         // optional; nil → no appetite
+	log        zerolog.Logger             // zerolog.Nop() unless WithLogger
 	now        func() time.Time
 }
 
 // NewFinancialSummaryUseCase builds the use case.
 func NewFinancialSummaryUseCase(lister FinancialRiskLister, quantifier *crq.Quantifier) *FinancialSummaryUseCase {
-	return &FinancialSummaryUseCase{lister: lister, quantifier: quantifier, now: time.Now}
+	return &FinancialSummaryUseCase{lister: lister, quantifier: quantifier, log: zerolog.Nop(), now: time.Now}
+}
+
+// WithLogger attaches the logger that reports a failing coverage aggregate (#712).
+func (uc *FinancialSummaryUseCase) WithLogger(l zerolog.Logger) *FinancialSummaryUseCase {
+	uc.log = l
+	return uc
 }
 
 // WithPresenters attaches the currency/FX presenter factory.
@@ -237,7 +246,7 @@ func (uc *FinancialSummaryUseCase) Execute(ctx context.Context, tenantID uuid.UU
 		totalReduction += a.RiskReduction.XAF
 		totalRemediation += a.RemediationCost.XAF
 
-		if a.SLEBasis == crq.BasisExplicit || a.SLEBasis == crq.BasisComposed {
+		if r.HasLossFigures() {
 			derivedQuantified++
 		}
 
@@ -260,11 +269,16 @@ func (uc *FinancialSummaryUseCase) Execute(ctx context.Context, tenantID uuid.UU
 	}
 
 	// Quantified count: prefer the SQL aggregate (server fact); fall back to the
-	// per-risk derivation only if no counter is wired.
+	// per-risk derivation if no counter is wired or the aggregate fails. A
+	// failure is logged, never dropped: it once hid a wrong column name (#712).
 	sum.TotalRisks, sum.QuantifiedRisks = len(risks), derivedQuantified
 	if uc.coverage != nil {
-		if total, quantified, cErr := uc.coverage.CountFinancialCoverage(ctx, tenantID); cErr == nil {
+		total, quantified, cErr := uc.coverage.CountFinancialCoverage(ctx, tenantID)
+		if cErr == nil {
 			sum.TotalRisks, sum.QuantifiedRisks = total, quantified
+		} else {
+			uc.log.Warn().Err(cErr).Str("tenant_id", tenantID.String()).
+				Msg("financial summary: coverage aggregate failed, using the per-risk count")
 		}
 	}
 
@@ -342,6 +356,11 @@ func (uc *FinancialSummaryUseCase) clock() func() time.Time {
 	}
 	return time.Now
 }
+
+// FinancialInputsFor maps a risk's stored drivers onto the CRQ input struct.
+// Exported so the generated reports (#1033) feed the engine exactly the inputs
+// this summary does, and print the same total_ale as the screens.
+func FinancialInputsFor(r *domain.Risk) crq.FinancialInputs { return financialInputs(r) }
 
 // financialInputs maps a risk's stored drivers onto the CRQ input struct. Kept
 // here (not in the handler helper) so the use case has no handler dependency.

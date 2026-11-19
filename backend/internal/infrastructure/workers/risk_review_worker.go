@@ -18,7 +18,7 @@ import (
 // RiskReviewStore is the cross-tenant slice of risk data the review worker needs.
 type RiskReviewStore interface {
 	ListDueForReview(ctx context.Context, now time.Time) ([]domain.Risk, error)
-	BumpNextReview(ctx context.Context, id uuid.UUID, next time.Time) error
+	BumpNextReview(ctx context.Context, tenantID, id uuid.UUID, next time.Time) error
 }
 
 // NotifyReviewFunc raises the "review due" reminder for a risk's owner (in-app +
@@ -68,7 +68,7 @@ func (w *RiskReviewWorker) runDue(ctx context.Context) {
 		// Push the next review out first so a due risk is nudged once per cadence,
 		// regardless of whether an owner exists to notify.
 		next := now.Add(time.Duration(r.ReviewIntervalDays) * 24 * time.Hour)
-		if err := w.store.BumpNextReview(ctx, r.ID, next); err != nil {
+		if err := w.store.BumpNextReview(ctx, r.TenantID, r.ID, next); err != nil {
 			w.logger.Warn().Err(err).Str("risk_id", r.ID.String()).Msg("risk review: could not bump next review")
 			continue
 		}

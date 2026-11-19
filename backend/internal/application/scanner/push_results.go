@@ -7,6 +7,7 @@ package scanner
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"time"
 
@@ -112,10 +113,9 @@ func (uc *PushResultsUseCase) Execute(ctx context.Context, in PushResultsInput) 
 	}
 
 	// Agent bookkeeping: heartbeat + last job. Best-effort.
-	in.Agent.Status = domain.AgentOnline
-	in.Agent.LastHeartbeat = completedAt
-	in.Agent.LastScanJobID = &job.ID
-	_ = uc.agentRepo.Update(ctx, in.Agent)
+	// One guarded write that touches no credential column: an agent revoked
+	// while the scan ran matches no row and stays revoked (#1390).
+	_ = uc.agentRepo.RecordJobCompletion(ctx, in.Agent.ID, tenantID, in.Agent.TokenHash, job.ID, completedAt)
 
 	// Free the per-config lock the trigger held so the config can scan again.
 	_ = uc.lock.ReleaseConfig(ctx, tenantID, job.ConfigID)
@@ -137,9 +137,13 @@ func (uc *HeartbeatAgentUseCase) Execute(ctx context.Context, agent *domain.Scan
 	if agent == nil || agent.TenantID == uuid.Nil {
 		return domain.NewUnauthorizedError("unauthenticated agent")
 	}
-	agent.Status = status
-	agent.LastHeartbeat = time.Now()
-	if err := uc.repo.Update(ctx, agent); err != nil {
+	// One conditional write that touches no credential column: an agent
+	// revoked or re-registered after the caller read it matches no row (#1390).
+	err := uc.repo.UpdateLiveness(ctx, agent.ID, agent.TenantID, agent.TokenHash, status, time.Now())
+	if errors.Is(err, domain.ErrNotFound) {
+		return domain.NewUnauthorizedError("agent revoked or replaced")
+	}
+	if err != nil {
 		return domain.NewInternalError(err.Error())
 	}
 	return nil

@@ -86,13 +86,25 @@ func (m *Mailer) SendMFADisabled(ctx context.Context, to, fullName, locale strin
 // SendMFABackupCodesPurged tells someone that their backup codes were deleted
 // by the universal-code purge (#1001): they came from the generator fixed in
 // #240, were the same for everyone and could be derived from the public source.
-// Their authenticator app still works; new codes come from setting two-factor
-// up again.
+// Their authenticator app still works; new codes come from the "Regenerate
+// backup codes" button in Settings › Security (#1032).
 func (m *Mailer) SendMFABackupCodesPurged(ctx context.Context, to, fullName, locale string) error {
 	if m == nil || m.sender == nil {
 		return nil
 	}
 	c := mfaBackupCodesPurgedCopy(locale, displayName(fullName, locale))
+	return m.sender.SendEmail(ctx, to, c.subject, m.render(c))
+}
+
+// SendMFABackupCodesRegenerated tells the owner that new backup codes were
+// issued and the old ones no longer work (#1032). It takes the password and a
+// current authenticator code, but a fresh set of codes is a second factor in
+// someone's hands, so the mailbox hears about it.
+func (m *Mailer) SendMFABackupCodesRegenerated(ctx context.Context, to, fullName, locale string) error {
+	if m == nil || m.sender == nil {
+		return nil
+	}
+	c := mfaBackupCodesRegeneratedCopy(locale, displayName(fullName, locale))
 	return m.sender.SendEmail(ctx, to, c.subject, m.render(c))
 }
 
@@ -104,6 +116,19 @@ func (m *Mailer) SendMFALocked(ctx context.Context, to, fullName, locale string)
 		return nil
 	}
 	c := mfaLockedCopy(locale, displayName(fullName, locale))
+	return m.sender.SendEmail(ctx, to, c.subject, m.render(c))
+}
+
+// SendMFAInSessionLocked tells the owner that turning off two-factor and
+// regenerating backup codes were locked after repeated wrong codes or passwords
+// typed from a signed-in session (#1392). Unlike SendMFALocked it does not say
+// the password was used: on an account that signs in through its identity
+// provider there is none. The remedy it gives is the one that ends the session.
+func (m *Mailer) SendMFAInSessionLocked(ctx context.Context, to, fullName, locale string) error {
+	if m == nil || m.sender == nil {
+		return nil
+	}
+	c := mfaInSessionLockedCopy(locale, displayName(fullName, locale))
 	return m.sender.SendEmail(ctx, to, c.subject, m.render(c))
 }
 
@@ -253,7 +278,7 @@ func mfaBackupCodesPurgedCopy(locale, name string) copyBlock {
 			paragraphs: []string{
 				fmt.Sprintf("Hello %s,", name),
 				"The two-factor backup codes on your OpenRisk account came from an old version that gave every account the same codes. Anyone who read the public source could work them out, so this update deleted them. If you ever saw a sign-in you did not make, tell your administrator.",
-				"Your authenticator app still works as before. To get new backup codes, unique to you, go to Settings › Security, turn two-factor authentication off, then set it up again: the new codes are shown at the end.",
+				"Your authenticator app still works as before. To get new backup codes, unique to you, go to Settings › Security and choose \"Regenerate backup codes\". You will be asked for a code from your authenticator app, and your password if your account has one; the new codes are shown once.",
 			},
 			footnote: "Until you do, keep your authenticator app at hand: without it or new codes, only an administrator can let you back in.",
 		}
@@ -264,9 +289,32 @@ func mfaBackupCodesPurgedCopy(locale, name string) copyBlock {
 		paragraphs: []string{
 			fmt.Sprintf("Bonjour %s,", name),
 			"Les codes de secours de double authentification de votre compte OpenRisk venaient d'une ancienne version qui donnait les mêmes codes à tous les comptes. N'importe qui pouvait les retrouver en lisant le code source public : cette mise à jour les a donc supprimés. Si vous avez déjà constaté une connexion qui n'était pas de vous, prévenez votre administrateur.",
-			"Votre application d'authentification fonctionne toujours. Pour obtenir de nouveaux codes de secours, propres à vous, allez dans Réglages › Sécurité, désactivez la double authentification, puis configurez-la à nouveau : les nouveaux codes s'affichent à la fin.",
+			"Votre application d'authentification fonctionne toujours. Pour obtenir de nouveaux codes de secours, propres à vous, allez dans Paramètres › Sécurité et choisissez « Régénérer les codes de secours ». Un code de votre application d'authentification vous sera demandé, ainsi que votre mot de passe si votre compte en a un ; les nouveaux codes s'affichent une seule fois.",
 		},
 		footnote: "D'ici là, gardez votre application d'authentification à portée de main : sans elle ni nouveaux codes, seul un administrateur peut vous rendre l'accès.",
+	}
+}
+
+func mfaBackupCodesRegeneratedCopy(locale, name string) copyBlock {
+	if locale == "en" {
+		return copyBlock{
+			subject: "New backup codes were generated for your OpenRisk account",
+			heading: "Your backup codes were replaced",
+			paragraphs: []string{
+				fmt.Sprintf("Hello %s,", name),
+				"New two-factor backup codes were just generated for this OpenRisk account, after the account holder confirmed a code from the authenticator app (and the password, for accounts that have one). Your previous backup codes no longer work. Your authenticator app is unchanged.",
+			},
+			footnote: "If this wasn't you, someone holds both your authenticator and your sign-in: reset your password (or alert your identity provider's administrator), regenerate your backup codes, and contact your OpenRisk administrator.",
+		}
+	}
+	return copyBlock{
+		subject: "De nouveaux codes de secours ont été générés pour votre compte OpenRisk",
+		heading: "Vos codes de secours ont été remplacés",
+		paragraphs: []string{
+			fmt.Sprintf("Bonjour %s,", name),
+			"De nouveaux codes de secours de double authentification viennent d'être générés pour ce compte OpenRisk, après confirmation d'un code de l'application d'authentification (et du mot de passe, pour les comptes qui en ont un). Vos anciens codes de secours ne fonctionnent plus. Votre application d'authentification n'a pas changé.",
+		},
+		footnote: "Si vous n'êtes pas à l'origine de ce changement, quelqu'un détient votre application d'authentification et vos identifiants : réinitialisez votre mot de passe (ou alertez l'administrateur de votre fournisseur d'identité), régénérez vos codes de secours et contactez votre administrateur OpenRisk.",
 	}
 }
 
@@ -293,6 +341,32 @@ func mfaLockedCopy(locale, name string) copyBlock {
 			"Pour arriver à l'étape du code, il faut votre mot de passe. Si ces tentatives ne viennent pas de vous, quelqu'un d'autre le connaît.",
 		},
 		footnote: "Si ce n'était pas vous, réinitialisez votre mot de passe dès maintenant et prévenez votre administrateur OpenRisk. Si c'était vous, patientez quelques minutes et reconnectez-vous.",
+	}
+}
+
+func mfaInSessionLockedCopy(locale, name string) copyBlock {
+	hours := 24 // mirrors application/auth.MFAInSessionLockDuration
+	if locale == "en" {
+		return copyBlock{
+			subject: "Too many wrong codes: two-factor changes on your OpenRisk account are locked",
+			heading: "Two-factor changes are locked",
+			paragraphs: []string{
+				fmt.Sprintf("Hello %s,", name),
+				fmt.Sprintf("Someone signed in to your OpenRisk account typed a wrong two-factor code or password too many times while trying to turn off two-factor authentication or to generate new backup codes. To stop them guessing, OpenRisk refuses both actions on this account for %d hours. Nothing was changed: your authenticator app and your backup codes still work, and you can still sign in.", hours),
+				"These attempts came from a session that is already signed in. If they were not yours, someone else has access to that session.",
+			},
+			footnote: "If this wasn't you, open Settings › Security, choose \"Sign out all other devices\", then tell your OpenRisk administrator. If it was you, wait until the lock ends and try again.",
+		}
+	}
+	return copyBlock{
+		subject: "Trop de codes erronés : les changements de double authentification de votre compte OpenRisk sont verrouillés",
+		heading: "Les changements de double authentification sont verrouillés",
+		paragraphs: []string{
+			fmt.Sprintf("Bonjour %s,", name),
+			fmt.Sprintf("Quelqu'un de connecté à votre compte OpenRisk a saisi un code de double authentification ou un mot de passe erroné trop de fois en essayant de désactiver la double authentification ou de générer de nouveaux codes de secours. Pour l'empêcher de deviner, OpenRisk refuse ces deux actions sur ce compte pendant %d heures. Rien n'a été modifié : votre application d'authentification et vos codes de secours fonctionnent toujours, et vous pouvez toujours vous connecter.", hours),
+			"Ces tentatives viennent d'une session déjà connectée. Si elles ne viennent pas de vous, quelqu'un d'autre a accès à cette session.",
+		},
+		footnote: "Si ce n'était pas vous, ouvrez Paramètres › Sécurité, choisissez « Déconnecter tous les autres appareils », puis prévenez votre administrateur OpenRisk. Si c'était vous, attendez la fin du verrouillage et réessayez.",
 	}
 }
 

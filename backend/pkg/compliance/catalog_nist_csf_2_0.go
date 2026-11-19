@@ -15,6 +15,8 @@ package compliance
 // Modeled at the Category level (not the 106 Subcategories) so the framework is
 // complete and accurate at a granularity a tenant can meaningfully assess; a
 // tenant can add ad-hoc Subcategory controls to any imported framework.
+//
+// Review status: see Catalog.Review in the register call below. This header makes no review claim.
 
 func init() {
 	register(Catalog{
@@ -23,6 +25,7 @@ func init() {
 		Version:     "2.0",
 		Description: "The NIST CSF 2.0 Core — 22 Categories across GOVERN, IDENTIFY, PROTECT, DETECT, RESPOND and RECOVER.",
 		Available:   true,
+		Review:      Review{Status: ReviewUnreviewed},
 		Controls:    nistCSF20Controls,
 	})
 }

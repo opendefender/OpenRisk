@@ -15,9 +15,10 @@ package compliance
 // Les descriptions ci-dessous sont des reformulations synthétiques rédigées pour ce
 // produit ; elles résument l'obligation portée par chaque article et ne reproduisent pas
 // le texte réglementaire mot pour mot. La SourceReference cite l'article précis dont le
-// contrôle découle. Ce catalogue mérite encore une passe de revue par un juriste bancaire
-// UEMOA avant usage dans un audit réel — les codes d'article sont fiables (relevés dans le
-// texte fourni), la formulation reste à valider.
+// contrôle découle. Les codes d'article ont été relevés dans le texte fourni ; la
+// formulation des descriptions n'est pas confirmée.
+//
+// Review status: see Catalog.Review in the register call below. This header makes no review claim.
 
 func init() {
 	register(Catalog{
@@ -26,6 +27,7 @@ func init() {
 		Version:     "2002",
 		Description: "Obligations des banques et établissements assujettis au titre du Règlement n°15/2002/CM/UEMOA et de ses instructions (chèque, carte, virement électronique, monnaie électronique, incidents de paiement).",
 		Available:   true,
+		Review:      Review{Status: ReviewUnreviewed},
 		Controls:    bceaoControls,
 	})
 }

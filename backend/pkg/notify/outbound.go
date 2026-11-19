@@ -41,7 +41,7 @@ type WebhookPayload struct {
 	Source    string            `json:"source"`
 }
 
-// PostWebhook delivers a message to an arbitrary HTTPS endpoint.
+// PostWebhook delivers a message to an arbitrary public HTTPS endpoint.
 //
 // When a secret is configured the body is signed with HMAC-SHA256 and sent as
 // X-OpenRisk-Signature (hex, prefixed "sha256="), so the receiver can tell a
@@ -80,7 +80,7 @@ func PostWebhook(ctx context.Context, url, secret string, msg ChatMessage, doer 
 		mac.Write(body)
 		req.Header.Set("X-OpenRisk-Signature", "sha256="+hex.EncodeToString(mac.Sum(nil)))
 	}
-	resp, err := httpDo(doer).Do(req)
+	resp, err := send(doer, req)
 	if err != nil {
 		return fmt.Errorf("post webhook: %w", err)
 	}
@@ -145,7 +145,7 @@ func SendSMS(ctx context.Context, cfg SMSConfig, recipients []string, text strin
 			req.Header.Set("Authorization", "Bearer "+cfg.APIKey)
 			req.Header.Set("X-API-Key", cfg.APIKey)
 		}
-		resp, dErr := httpDo(doer).Do(req)
+		resp, dErr := send(doer, req)
 		if dErr != nil {
 			return sent, fmt.Errorf("send SMS to %s: %w", maskPhone(to), dErr)
 		}

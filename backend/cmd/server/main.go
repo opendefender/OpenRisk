@@ -39,6 +39,9 @@ import (
 	bulkapp "github.com/opendefender/openrisk/internal/application/bulk"
 	"github.com/opendefender/openrisk/internal/application/compliance"
 	"github.com/opendefender/openrisk/internal/application/complianceaudit"
+	ctlchainapp "github.com/opendefender/openrisk/internal/application/controlchain"
+	ctlexcapp "github.com/opendefender/openrisk/internal/application/controlexception"
+	ctlstatusapp "github.com/opendefender/openrisk/internal/application/controlstatus"
 	entapp "github.com/opendefender/openrisk/internal/application/entitlements"
 	"github.com/opendefender/openrisk/internal/application/entity"
 	"github.com/opendefender/openrisk/internal/application/evidence"
@@ -70,6 +73,9 @@ import (
 	"github.com/opendefender/openrisk/internal/infrastructure/authmail"
 	"github.com/opendefender/openrisk/internal/infrastructure/authmfa"
 	autoinfra "github.com/opendefender/openrisk/internal/infrastructure/automation"
+	"github.com/opendefender/openrisk/internal/infrastructure/controlchain"
+	"github.com/opendefender/openrisk/internal/infrastructure/controlexception"
+	"github.com/opendefender/openrisk/internal/infrastructure/controlstatus"
 	"github.com/opendefender/openrisk/internal/infrastructure/ctimatch"
 	"github.com/opendefender/openrisk/internal/infrastructure/database"
 	"github.com/opendefender/openrisk/internal/infrastructure/demoseed"
@@ -84,6 +90,7 @@ import (
 	redisclient "github.com/opendefender/openrisk/internal/infrastructure/redis"
 	"github.com/opendefender/openrisk/internal/infrastructure/repository"
 	"github.com/opendefender/openrisk/internal/infrastructure/scanmitigation"
+	"github.com/opendefender/openrisk/internal/infrastructure/tenantguard"
 	"github.com/opendefender/openrisk/internal/infrastructure/vulnlookup"
 	"github.com/opendefender/openrisk/internal/infrastructure/vulnrisk"
 	"github.com/opendefender/openrisk/internal/infrastructure/workers"
@@ -238,6 +245,16 @@ func main() {
 		log.Fatalf("Database Migration Failed: %v", err)
 	}
 
+	// ADR 0008 control chain (#553, D-108): the split Control of every compliance
+	// control and the edges of its evidence links and risk mappings. It needs the
+	// tables AutoMigrate has just built, and it must run on a DB_HOST-only boot,
+	// which never runs the SQL layer below. Insert-only and idempotent. A database
+	// error stops the boot; counts that do not reconcile roll back, are logged at
+	// error level and let the boot go on (D-108, amended 2026-11-12).
+	if err := controlchain.ReconcileAtBoot(context.Background(), database.DB); err != nil {
+		log.Fatalf("Control chain reconciliation failed: %v", err)
+	}
+
 	// Run the additive SQL migration layer (if DATABASE_URL is set), on top of the
 	// schema AutoMigrate has just built. Fail loudly: a real migration error must
 	// abort the boot rather than let the app serve on a half-applied schema.
@@ -258,6 +275,29 @@ func main() {
 		log.Printf("audit trail: failed to install GORM plugin: %v", err)
 	} else {
 		log.Println("Governance: immutable hash-chained audit-trail plugin installed")
+	}
+
+	// Tenant guard (#808, D-055, D-111): fails a SELECT/UPDATE/DELETE on a
+	// tenant-scoped table whose WHERE carries no tenant. TENANT_GUARD is off,
+	// report or enforce; unset means off (production), staging and the CI boot
+	// set enforce. A typo is fatal: it must not silently mean "off". Installed
+	// before the seeds, so they run under it too.
+	//
+	// Not before PrepareForAutoMigrate and AutoMigrate: on a database that already
+	// holds data, AutoMigrate reads rows of tenant-scoped tables (a select on
+	// roles, with no tenant) as part of reconciling the schema, and the guard
+	// refuses it, which aborts the boot. Those statements are schema maintenance,
+	// not tenant queries; the preparation functions mark themselves CrossTenant so
+	// they stay safe to run under the guard in tests.
+	guardMode, err := tenantguard.ParseMode(os.Getenv("TENANT_GUARD"))
+	if err != nil {
+		log.Fatalf("TENANT_GUARD: %v", err)
+	}
+	if guardMode != tenantguard.Off {
+		if err := database.DB.Use(tenantguard.New(guardMode, tenantguard.WithModels(schemaModels()...))); err != nil {
+			log.Fatalf("tenant guard: %v", err)
+		}
+		log.Printf("Security: tenant guard installed (%s)", guardMode)
 	}
 
 	// Création du compte Admin par défaut si la DB est vide
@@ -418,6 +458,17 @@ func main() {
 	}
 	go workers.NewRealtimeRetentionWorker(realtimeEventLog, realtimeRetention, zeroLogger).Start(context.Background())
 	log.Printf("Realtime: event hub started (durable log + per-tenant fanout + domain relay, replay window %s)", realtimeRetention)
+
+	// Transactional outbox (#344, ADR 0010): use cases that enlist write their
+	// events inside their own transaction; this relay publishes them after
+	// commit, at least once, per tenant in sequence order. Woken at once by an
+	// enlisting commit, polled every 2s otherwise.
+	realtimeOutboxRelay := apprealtime.NewOutboxRelay(realtimeEventLog, apprealtime.NewHubSink(realtimeHub, redisClientInstance))
+	realtimeOutboxWorker := workers.NewRealtimeOutboxWorker(realtimeOutboxRelay, zeroLogger)
+	realtimeEventLog.OnEnlistCommitted(realtimeOutboxWorker.Wake)
+	monitoring.MustRegisterRealtimeOutboxCollector(realtimeEventLog.PendingStats)
+	realtimeOutboxCtx, stopRealtimeOutbox := context.WithCancel(context.Background())
+	go realtimeOutboxWorker.Start(realtimeOutboxCtx)
 
 	// =========================================================================
 	// 4. HEXAGONAL ARCHITECTURE WIRING (Integrations)
@@ -797,9 +848,19 @@ func main() {
 	// #754 — removing the factor re-proves the password (or, with no local
 	// password, a current authenticator code), is refused for the roles login
 	// requires MFA for, and mails the owner.
+	// #1392 (D-107) — ten wrong proofs in 24 h across disable and regenerate
+	// lock both for a fixed 24 h and mail the owner. Its own Redis keys: the
+	// sign-in challenge lock (#689) is never touched by it.
+	mfaInSessionLimits := auth.NewMFAInSessionLimits(authmfa.NewAttemptStore(redisClientInstance), userRepo, securityMailer)
 	disableMFAUseCase := auth.NewDisableMFAUseCase(mfaRepo, userRepo, passwordHasher).
 		WithTOTPKey(mfaKey[:]).
+		WithInSessionLimits(mfaInSessionLimits).
 		RequireMFAForRoles(mfaRequiredRoles, mfaRequiredBusinessRoles).
+		WithMailer(securityMailer)
+	// #1032 — new backup codes take a current authenticator code, plus the
+	// password when the account has one, and mail the owner.
+	regenerateBackupCodesUseCase := auth.NewRegenerateBackupCodesUseCase(mfaRepo, userRepo, passwordHasher, mfaKey[:]).
+		WithInSessionLimits(mfaInSessionLimits).
 		WithMailer(securityMailer)
 	// #689 — five codes per challenge token, ten failures per account in
 	// fifteen minutes before a fixed fifteen-minute lock, counted in Redis so
@@ -841,6 +902,8 @@ func main() {
 		WithMFAStatus(mfaStatusResolver).
 		// #754 — per-account budget on disabling MFA, shared across instances.
 		WithDisableAttemptLimit(middleware.NewRedisRateLimitStore(redisClientInstance)).
+		WithBackupCodeRegeneration(regenerateBackupCodesUseCase).
+		WithInSessionLimits(mfaInSessionLimits).
 		WithTrustedDevices(deviceCookies)
 	mfaPolicyHandler := authhandler.NewMFAPolicyHandler(
 		auth.NewGetMFAPolicyUseCase(mfaPolicyRepo, mfaRequiredRoles, mfaRequiredBusinessRoles),
@@ -1285,6 +1348,8 @@ func main() {
 	// MFA_REQUIRED or MFA_ENROLLMENT token (#944) — and the account password.
 	// Throttled like /auth/password/change: the body carries a password guess.
 	protected.Post("/auth/mfa/disable", authLimits.Reauth, mfaHandler.Disable)
+	// #1032 — same per-IP and per-account budgets as disable.
+	protected.Post("/auth/mfa/backup-codes/regenerate", authLimits.Reauth, mfaHandler.RegenerateBackupCodes)
 
 	// --- MFA policy (OR26-03) — "force MFA after N days" -----------------------
 	// Reading is open to any authenticated member: everyone subject to a deadline
@@ -1488,7 +1553,8 @@ func main() {
 	financialSummaryUseCase := risk.NewFinancialSummaryUseCase(riskRepo, riskQuantifier).
 		WithPresenters(financialPresenters).
 		WithCoverageCounter(riskRepo).
-		WithAppetiteReader(orgRepo)
+		WithAppetiteReader(orgRepo).
+		WithLogger(zeroLogger)
 	financialAnalyticsHandler := handlers.NewFinancialAnalyticsHandler(financialSummaryUseCase).
 		WithCurrencyWriter(orgRepo).
 		WithAppetiteUseCase(risk.NewSetRiskAppetiteUseCase(orgRepo))
@@ -1552,6 +1618,27 @@ func main() {
 	// into main.go (see gorm_risk_repository.go:638). So the use case was
 	// unreachable, and #581's fixes would have landed in dead code.
 	protected.Post("/risks/bulk", riskUpdate, riskHandler.BulkAction)
+
+	// Governed bulk operations on the risk register (#599), the same engine and
+	// shape as vulnerabilities and assets (#582): a preview that writes nothing,
+	// a fingerprint that refuses a selection which moved, and ONE route per
+	// action behind the permission that matches it. The action comes from the
+	// route, so a risks:update holder cannot reach the delete. The legacy route
+	// above needs risks:delete for a delete (#1423) and is deprecated (Sunset:
+	// 31 March 2027).
+	//
+	// Registered here, before the parameterised /risks/:id routes below, so
+	// "bulk" is never parsed as a risk id.
+	riskBulk := handlers.NewBulkHandler(
+		bulkapp.New(repository.NewRiskBulkStore(database.DB), auditChainRepo).
+			WithAfterApply(risk.BulkStateNotices(riskRepo, requestNoticeDispatcher)))
+	riskRead := middleware.RequirePermission("risks:read")
+	protected.Get("/risks/bulk/capabilities", riskRead, riskBulk.Capabilities)
+	protected.Post("/risks/bulk/preview", riskRead, riskBulk.Preview)
+	protected.Post("/risks/bulk/change-status", riskUpdate, riskBulk.Apply(domain.BulkActionChangeStatus))
+	protected.Post("/risks/bulk/add-tags", riskUpdate, riskBulk.Apply(domain.BulkActionAddTags))
+	protected.Post("/risks/bulk/remove-tags", riskUpdate, riskBulk.Apply(domain.BulkActionRemoveTags))
+	protected.Post("/risks/bulk/delete", riskDelete, riskBulk.Apply(domain.BulkActionDelete))
 
 	protected.Post("/risks", riskCreate, capRisks, riskHandler.CreateRisk)
 	// #755 — CSV import. capRisks refuses a tenant already at its limit; the use
@@ -1659,16 +1746,9 @@ func main() {
 	// to the tenant without being handed the ability to mutate the register.
 	// userRepo resolves "collected by" to an email; optional and nil-safe.
 	evidenceRepo := repository.NewGormEvidenceRepository(database.DB)
-	// Move any pre-library attachments into the library. Idempotent, and
-	// best-effort: an old attachment that fails to move is worth a log line, not
-	// a server that refuses to start.
-	if moved, err := evidenceRepo.BackfillFromControlEvidences(context.Background()); err != nil {
-		log.Printf("Evidence: backfill from control_evidences failed (pre-library attachments may be missing): %v", err)
-	} else if moved > 0 {
-		log.Printf("Evidence: migrated %d pre-library attachment(s) into the evidence library", moved)
-	}
 	evidenceService := evidence.NewService(evidenceRepo, complianceRepo, fileStorage).
-		WithUserLookup(userRepo)
+		WithUserLookup(userRepo).
+		WithIntegrityAudit(auditChainRepo)
 	evidenceHandler := handlers.NewEvidenceHandler(evidenceService)
 
 	// Curated crosswalks are materialised at import time and the head start they
@@ -1688,7 +1768,8 @@ func main() {
 		getProgressUC, listCatalogsUC, importCatalogUC, generateReportUC,
 		getGapAnalysisUC,
 		createMappingUC, listMappingsUC, deleteMappingUC,
-	).WithInheritedCoverage(inheritedCoverageUC)
+	).WithInheritedCoverage(inheritedCoverageUC).
+		WithFrameworkTransfer(compliance.NewExportFrameworkUseCase(complianceRepo), compliance.NewImportFrameworkUseCase(complianceRepo))
 
 	// NOTE: these routes sit under `protected`, whose base middleware (middleware.Protected,
 	// RS256) stores the *new* multi-tenant claims in c.Locals("user")/("permissions"). The
@@ -1716,6 +1797,11 @@ func main() {
 	protected.Post("/compliance/frameworks/:frameworkId/import-catalog", complianceFrameworkCreate, complianceHandler.ImportCatalog)
 
 	protected.Get("/compliance/frameworks", complianceFrameworkRead, complianceHandler.ListFrameworks)
+	// JSON exchange of a custom framework (#307). The static /import is registered
+	// before any /:frameworkId route. Import creates a framework, so it carries the
+	// same permission and plan cap as creating one by hand.
+	protected.Post("/compliance/frameworks/import", complianceFrameworkCreate, capFrameworks, complianceHandler.ImportFramework)
+	protected.Get("/compliance/frameworks/:frameworkId/export", complianceFrameworkRead, complianceHandler.ExportFramework)
 	protected.Post("/compliance/frameworks", complianceFrameworkCreate, capFrameworks, complianceHandler.CreateFramework)
 	protected.Get("/compliance/frameworks/:frameworkId", complianceFrameworkRead, complianceHandler.GetFramework)
 	protected.Delete("/compliance/frameworks/:frameworkId", complianceFrameworkDelete, complianceHandler.DeleteFramework)
@@ -1738,6 +1824,99 @@ func main() {
 	protected.Get("/compliance/controls/:controlId", complianceControlRead, complianceHandler.GetControl)
 	protected.Patch("/compliance/controls/:controlId", complianceControlUpdate, complianceHandler.UpdateControl)
 	protected.Delete("/compliance/controls/:controlId", complianceControlDelete, complianceHandler.DeleteControl)
+	// Control exceptions (#1428, #555 slice 2): a time-boxed, owned, justified waiver
+	// of one control. The id is the CANONICAL control id (controls.id), hence a
+	// namespace of its own and not /compliance/controls/:controlId, which takes the
+	// legacy id. The write and its audit entry are one transaction, so the use case
+	// marks the request journaled and the audit middleware appends no second entry.
+	controlExceptionRepo := controlexception.NewRepository(database.DB, auditChainRepo)
+	controlExceptionClock := func() time.Time { return time.Now().UTC() }
+	controlExceptionHandler := handlers.NewControlExceptionHandler(
+		ctlexcapp.NewCreateUseCase(controlExceptionRepo, ownershipService, controlExceptionClock),
+		ctlexcapp.NewListUseCase(controlExceptionRepo, controlExceptionClock),
+		ctlexcapp.NewRevokeUseCase(controlExceptionRepo, controlExceptionClock))
+	protected.Post("/controls/:controlId/exceptions", complianceControlUpdate, controlExceptionHandler.Create)
+	protected.Get("/controls/:controlId/exceptions", complianceControlRead, controlExceptionHandler.List)
+	protected.Post("/control-exceptions/:exceptionId/revoke", complianceControlUpdate, controlExceptionHandler.Revoke)
+	// Internal control library and requirement links (#1414, #553 S3, D-116). The
+	// control id is the CANONICAL one (controls.id); on the requirement-side read
+	// :controlId is the legacy compliance_controls id, as in the routes around it.
+	// Link and unlink take the update permission (control-mappings' precedent). The
+	// writes append their audit entry in their own transaction and mark the request
+	// journaled, as the exceptions do.
+	internalControlRepo := controlchain.NewControlRepository(database.DB, auditChainRepo)
+	internalControlClock := func() time.Time { return time.Now().UTC() }
+	internalControlHandler := handlers.NewInternalControlHandler(
+		ctlchainapp.NewCreateUseCase(internalControlRepo, ownershipService, internalControlClock),
+		ctlchainapp.NewGetUseCase(internalControlRepo),
+		ctlchainapp.NewListUseCase(internalControlRepo),
+		ctlchainapp.NewUpdateUseCase(internalControlRepo, ownershipService, internalControlClock),
+		ctlchainapp.NewDeleteUseCase(internalControlRepo, internalControlClock),
+		ctlchainapp.NewLinkUseCase(internalControlRepo, internalControlClock),
+		ctlchainapp.NewUnlinkUseCase(internalControlRepo, internalControlClock),
+		ctlchainapp.NewListRequirementsUseCase(internalControlRepo),
+		ctlchainapp.NewListForRequirementUseCase(internalControlRepo))
+	protected.Get("/compliance/internal-controls", complianceControlRead, internalControlHandler.List)
+	protected.Post("/compliance/internal-controls", complianceControlCreate, internalControlHandler.Create)
+	protected.Get("/compliance/internal-controls/:controlId", complianceControlRead, internalControlHandler.Get)
+	protected.Patch("/compliance/internal-controls/:controlId", complianceControlUpdate, internalControlHandler.Update)
+	protected.Delete("/compliance/internal-controls/:controlId", complianceControlDelete, internalControlHandler.Delete)
+	protected.Get("/compliance/internal-controls/:controlId/requirements", complianceControlRead, internalControlHandler.ListRequirements)
+	protected.Post("/compliance/internal-controls/:controlId/requirements/:requirementId", complianceControlUpdate, internalControlHandler.Link)
+	protected.Delete("/compliance/internal-controls/:controlId/requirements/:requirementId", complianceControlUpdate, internalControlHandler.Unlink)
+	protected.Get("/compliance/controls/:controlId/internal-controls", complianceControlRead, internalControlHandler.ListForRequirement)
+	// Computed status of a control (#555, ADR 0012, D-119): computed live at the request
+	// instant from the tests' latest results, the evidence on them and the exceptions;
+	// never read from the evaluation cache and never accepted as input, so there is no
+	// write route. The id is the CANONICAL control id.
+	controlStatusLoader := controlstatus.NewLoader(database.DB)
+	controlStatusHandler := handlers.NewControlStatusHandler(
+		ctlstatusapp.NewGetControlStatusUseCase(controlStatusLoader, internalControlClock))
+	protected.Get("/compliance/internal-controls/:controlId/status", complianceControlRead, controlStatusHandler.Get)
+	// Implementations and test definitions of a control (#1415, #553 S4). Same
+	// permissions as the library: read, create, update and delete of controls (D-108
+	// Q9). The write and its audit entry share one transaction, as above.
+	implementationRepo := controlchain.NewImplementationRepository(database.DB, auditChainRepo)
+	controlTestRepo := controlchain.NewTestRepository(database.DB, auditChainRepo)
+	implementationHandler := handlers.NewControlImplementationHandler(
+		ctlchainapp.NewCreateImplementationUseCase(implementationRepo, ownershipService, internalControlClock),
+		ctlchainapp.NewGetImplementationUseCase(implementationRepo),
+		ctlchainapp.NewListImplementationsUseCase(implementationRepo),
+		ctlchainapp.NewUpdateImplementationUseCase(implementationRepo, ownershipService, internalControlClock),
+		ctlchainapp.NewDeleteImplementationUseCase(implementationRepo, internalControlClock))
+	controlTestHandler := handlers.NewControlTestDefinitionHandler(
+		ctlchainapp.NewCreateTestUseCase(controlTestRepo, internalControlClock),
+		ctlchainapp.NewGetTestUseCase(controlTestRepo),
+		ctlchainapp.NewListTestsUseCase(controlTestRepo),
+		ctlchainapp.NewUpdateTestUseCase(controlTestRepo, internalControlClock),
+		ctlchainapp.NewDeleteTestUseCase(controlTestRepo, internalControlClock))
+	protected.Get("/compliance/internal-controls/:controlId/implementations", complianceControlRead, implementationHandler.List)
+	protected.Post("/compliance/internal-controls/:controlId/implementations", complianceControlCreate, implementationHandler.Create)
+	// Results of a test and evidence on a result (#1416, #553 S5, D-118). Recording
+	// a result is a control update; attaching evidence takes the evidence module's
+	// create permission (D-108 Q9). A result is append-only: no PATCH, PUT or
+	// DELETE is registered under results. results/latest is registered before any
+	// results/:resultId route.
+	controlTestResultRepo := controlchain.NewResultRepository(database.DB, auditChainRepo)
+	controlTestResultHandler := handlers.NewControlTestResultHandler(
+		ctlchainapp.NewRecordResultUseCase(controlTestResultRepo, ownershipService, internalControlClock),
+		ctlchainapp.NewListResultsUseCase(controlTestResultRepo),
+		ctlchainapp.NewLatestResultUseCase(controlTestResultRepo),
+		ctlchainapp.NewAttachResultEvidenceUseCase(controlTestResultRepo, internalControlClock),
+		ctlchainapp.NewListResultEvidenceUseCase(controlTestResultRepo))
+	protected.Get("/compliance/implementations/:implementationId", complianceControlRead, implementationHandler.Get)
+	protected.Patch("/compliance/implementations/:implementationId", complianceControlUpdate, implementationHandler.Update)
+	protected.Delete("/compliance/implementations/:implementationId", complianceControlDelete, implementationHandler.Delete)
+	protected.Get("/compliance/implementations/:implementationId/tests", complianceControlRead, controlTestHandler.List)
+	protected.Post("/compliance/implementations/:implementationId/tests", complianceControlCreate, controlTestHandler.Create)
+	protected.Get("/compliance/tests/:testId", complianceControlRead, controlTestHandler.Get)
+	protected.Patch("/compliance/tests/:testId", complianceControlUpdate, controlTestHandler.Update)
+	protected.Delete("/compliance/tests/:testId", complianceControlDelete, controlTestHandler.Delete)
+	protected.Get("/compliance/tests/:testId/results", complianceControlRead, controlTestResultHandler.List)
+	protected.Post("/compliance/tests/:testId/results", complianceControlUpdate, controlTestResultHandler.Record)
+	protected.Get("/compliance/tests/:testId/results/latest", complianceControlRead, controlTestResultHandler.Latest)
+	protected.Get("/compliance/tests/:testId/results/:resultId/evidence", complianceControlRead, controlTestResultHandler.ListEvidence)
+	protected.Post("/compliance/tests/:testId/results/:resultId/evidence", complianceEvidenceCreate, controlTestResultHandler.AttachEvidence)
 	// Per-control evidence, served by the LIBRARY (application/evidence), not by
 	// the old one-file-one-control use cases. The paths are unchanged so existing
 	// clients keep working; what changes is that an upload here lands in the
@@ -1953,7 +2132,7 @@ func main() {
 	// #861 — CSV import of the inventory: every row or none, one transaction,
 	// and the plan cap checked against the whole file.
 	assetImportHandler := handlers.NewAssetImportHandler(
-		assetapp.NewImportAssetsUseCase(repository.RunAssetTx(database.DB), repository.ListAssetNames(database.DB)).
+		assetapp.NewImportAssetsUseCase(repository.RunAssetTx(database.DB, realtimeEventLog), repository.ListAssetNames(database.DB)).
 			WithActivation(activationRecorder).
 			WithCapacity(func(ctx context.Context, tenant uuid.UUID) (int, error) {
 				_, limit, used, _, err := entitlementService.Capacity(ctx, tenant, ent.LimitAssets)
@@ -2435,6 +2614,9 @@ func main() {
 		Incidents:  reportIncidentAdapter{svc: incidentService},
 		Audits:     reportAuditAdapter{repo: complianceAuditRepo},
 		Org:        orgRepo,
+		// Same engine as /analytics/financial, so a report prints the exposure
+		// the screens show (#1033).
+		Quantifier: riskQuantifier,
 	}
 	reportService := appreport.NewService(reportRepo, reportSources).WithUserLookup(userRepo)
 	reportHandler := handlers.NewReportHandler(reportService, redisClientInstance)
@@ -2995,6 +3177,16 @@ func main() {
 		}, zeroLogger)
 	go evidenceExpiryWorker.Start(context.Background())
 
+	// Control status engine (#555, ADR 0012): recompute the controls a write marked stale,
+	// those whose clock-driven change is due and those never computed, in batches of 200,
+	// every 60 s. It fills the evaluation cache only; the status endpoint computes live.
+	// The context is cancelled and the worker drained at shutdown, after app.Shutdown.
+	controlStatusWorker := workers.NewControlStatusWorker(
+		ctlstatusapp.NewRecomputeControlsUseCase(controlStatusLoader, controlstatus.NewStore(database.DB), internalControlClock, ctlstatusapp.DefaultBatch),
+		zeroLogger)
+	controlStatusCtx, stopControlStatus := context.WithCancel(context.Background())
+	go controlStatusWorker.Start(controlStatusCtx)
+
 	// Residual-risk acceptances (#811): D-30 and D-7 notices to the owner and
 	// the approver, then the system transition back to ASSESSED at the end
 	// date. Same hourly, stamp-before-send rule as the evidence sweep.
@@ -3072,6 +3264,7 @@ func main() {
 		storeInventoryUC.WithGate(redisClientInstance)
 	}
 	scannerHandler.WithInventory(storeInventoryUC)
+	scannerHandler.WithHeartbeatLimiter(authLimiterStore)
 
 	// User-facing routes (RS256 user token). Admin/root pass via the "*" wildcard.
 	scannerRead := middleware.RequirePermission("scanner:read")
@@ -3605,6 +3798,31 @@ func main() {
 	// Timeout de 5 secondes pour finir les requêtes en cours
 	if err := app.Shutdown(); err != nil {
 		log.Fatal("Forced shutdown:", err)
+	}
+
+	// The realtime outbox relay finishes its pass, up to a deadline. Past it, the
+	// rows it had not delivered go back and another replica, or the next boot,
+	// delivers them with the same ids. After app.Shutdown so no new enlist can
+	// arrive (#344).
+	stopRealtimeOutbox()
+	{
+		outboxDrainCtx, cancelOutboxDrain := context.WithTimeout(context.Background(), 10*time.Second)
+		if err := realtimeOutboxWorker.Drain(outboxDrainCtx); err != nil {
+			log.Println("Realtime: outbox rows still in flight at shutdown were put back for the next relay")
+		}
+		cancelOutboxDrain()
+	}
+
+	// The control status worker finishes the pass in flight, up to a deadline. The rows
+	// it had claimed and not recomputed are leased and come back on the next boot or
+	// on another replica (#555).
+	stopControlStatus()
+	{
+		statusDrainCtx, cancelStatusDrain := context.WithTimeout(context.Background(), 10*time.Second)
+		if err := controlStatusWorker.Drain(statusDrainCtx); err != nil {
+			log.Println("Control status: a recompute pass was still running at shutdown; its rows come back after their lease")
+		}
+		cancelStatusDrain()
 	}
 
 	// The notice e-mail worker finishes its batch, up to a deadline. Past it,

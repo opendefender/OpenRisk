@@ -22,17 +22,21 @@ export type BulkActionKind = NonNullable<BulkPreview['action']>;
  * Which register to act on. The prefix is the API path segment, which is also
  * the permission namespace — keeping them one value stops the two drifting.
  */
-export type BulkRegister = 'vulnerabilities' | 'assets';
+export type BulkRegister = 'vulnerabilities' | 'assets' | 'risks';
 
 /** The route segment each action is mounted on. */
 const ACTION_PATH: Record<BulkActionKind, string> = {
   change_status: 'change-status',
   delete: 'delete',
+  add_tags: 'add-tags',
+  remove_tags: 'remove-tags',
 };
 
 export interface BulkApplyInput {
   ids: string[];
   status?: string;
+  /** add_tags / remove_tags — risk register only (#599). */
+  tags?: string[];
   justification?: string;
   /**
    * What the preview returned. Sending it back is what lets the server refuse a

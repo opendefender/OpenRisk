@@ -1,0 +1,1 @@
+- [Control chain gotchas](control_chain_gotchas.md) — edge type casing, stale-mark rule for chain writers, test env traps, migration numbering: never leave a gap

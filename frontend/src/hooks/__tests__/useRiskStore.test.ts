@@ -93,14 +93,15 @@ describe('useRiskStore', () => {
 // ---------------------------------------------------------------------------
 // Governed bulk delete (#598).
 //
-// The register used to fan out one DELETE per row. These pin the two properties
-// that fan-out could not have: exactly one request reaches the transactional
-// endpoint, and a refusal leaves the store exactly as it was — which is the only
-// correct restore under all-or-nothing (D-036), because a refusal means nothing
-// was written.
+// The register used to fan out one DELETE per row (#598), then applied one
+// governed request without a preview. The request now belongs to
+// useGovernedBulk, which previews first and sends the fingerprint (#1441); the
+// store keeps only the optimistic half. These pin that it makes no request of
+// its own, and that its undo is exact — the only correct restore under
+// all-or-nothing (D-036), because a refusal means nothing was written.
 // ---------------------------------------------------------------------------
 
-describe('useRiskStore.bulkDelete — governed, one request', () => {
+describe('useRiskStore.removeOptimistically — optimistic half of the governed delete', () => {
   const seed = (): Risk[] =>
     [
       { id: 'r1', title: 'A' },
@@ -113,57 +114,41 @@ describe('useRiskStore.bulkDelete — governed, one request', () => {
     vi.restoreAllMocks();
   });
 
-  it('sends ONE request to the bulk endpoint, never one DELETE per row', async () => {
-    const post = vi.spyOn(api, 'post').mockResolvedValueOnce({
-      data: { total: 2, applied: 2, risk_ids: ['r1', 'r2'], audited: 2 },
-    });
+  it('removes the rows and clears the selection without sending any request', () => {
+    const post = vi.spyOn(api, 'post');
     const del = vi.spyOn(api, 'delete');
 
-    await useRiskStore.getState().bulkDelete(['r1', 'r2']);
-
-    expect(post).toHaveBeenCalledTimes(1);
-    expect(post).toHaveBeenCalledWith('/risks/bulk', {
-      type: 'delete',
-      risk_ids: ['r1', 'r2'],
-    });
-    expect(del).not.toHaveBeenCalled();
-  });
-
-  it('removes the rows optimistically and clears the selection on success', async () => {
-    vi.spyOn(api, 'post').mockResolvedValueOnce({
-      data: { total: 2, applied: 2, risk_ids: ['r1', 'r2'], audited: 2 },
-    });
-
-    await useRiskStore.getState().bulkDelete(['r1', 'r2']);
+    useRiskStore.getState().removeOptimistically(new Set(['r1', 'r2']));
 
     const s = useRiskStore.getState();
     expect(s.risks.map((r) => r.id)).toEqual(['r3']);
     expect(s.total).toBe(1);
     expect(s.selectedIds).toEqual([]);
+    // Applying is useGovernedBulk's job, after a preview — never the store's.
+    expect(post).not.toHaveBeenCalled();
+    expect(del).not.toHaveBeenCalled();
   });
 
-  it('restores rows, total AND selection byte-for-byte when the server refuses', async () => {
+  it('only counts rows actually on the page against the total', () => {
+    useRiskStore.getState().removeOptimistically(new Set(['r1', 'gone']));
+    expect(useRiskStore.getState().total).toBe(2);
+  });
+
+  it('undo restores rows, total AND selection byte-for-byte', () => {
     const before = useRiskStore.getState();
     const rowsBefore = before.risks;
     const totalBefore = before.total;
     const selectionBefore = before.selectedIds;
 
-    vi.spyOn(api, 'post').mockRejectedValueOnce({ response: { status: 404 } });
-
-    await expect(useRiskStore.getState().bulkDelete(['r1', 'r2'])).rejects.toBeDefined();
+    const undo = useRiskStore.getState().removeOptimistically(new Set(['r1', 'r2']));
+    undo();
 
     const after = useRiskStore.getState();
-    expect(after.risks).toEqual(rowsBefore);
+    expect(after.risks).toBe(rowsBefore);
     expect(after.total).toBe(totalBefore);
     // The selection survives a refusal: nothing was deleted, so the user's
     // selection is still meaningful and they can retry without re-picking.
-    expect(after.selectedIds).toEqual(selectionBefore);
-    expect(after.isLoading).toBe(false);
-  });
-
-  it('rethrows so the bulk bar can show its own error state', async () => {
-    vi.spyOn(api, 'post').mockRejectedValueOnce(new Error('boom'));
-    await expect(useRiskStore.getState().bulkDelete(['r1'])).rejects.toThrow('boom');
+    expect(after.selectedIds).toBe(selectionBefore);
   });
 
   describe('patchRisks — the optimistic half of a bulk change (#913)', () => {

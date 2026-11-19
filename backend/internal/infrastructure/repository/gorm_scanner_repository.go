@@ -14,6 +14,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/internal/infrastructure/tenantguard"
 )
 
 // ---------------------------------------------------------------------------
@@ -84,7 +85,7 @@ func (r *GormScanConfigRepository) Update(ctx context.Context, cfg *domain.ScanC
 // tenant-scoped by design — the scheduler worker runs globally.
 func (r *GormScanConfigRepository) ListDueScheduled(ctx context.Context, now time.Time) ([]domain.ScanConfig, error) {
 	var cfgs []domain.ScanConfig
-	err := r.db.WithContext(ctx).
+	err := tenantguard.CrossTenant(r.db.WithContext(ctx), "scan scheduler sweeps every tenant; the tenant is re-derived from each config").
 		Where("enabled = ? AND schedule_minutes > 0 AND (next_run_at IS NULL OR next_run_at <= ?)", true, now).
 		Find(&cfgs).Error
 	return cfgs, err
@@ -156,7 +157,7 @@ func (r *GormScannerAgentRepository) GetByTokenHash(ctx context.Context, tokenHa
 		return nil, nil
 	}
 	var agent domain.ScannerAgent
-	err := r.db.WithContext(ctx).
+	err := tenantguard.CrossTenant(r.db.WithContext(ctx), "agent authentication: the token hash resolves the tenant").
 		Where("token_hash = ? AND status <> ?", tokenHash, domain.AgentRevoked).
 		First(&agent).Error
 	if err != nil {
@@ -192,6 +193,89 @@ func (r *GormScannerAgentRepository) Update(ctx context.Context, agent *domain.S
 	}
 	if result.RowsAffected == 0 {
 		return fmt.Errorf("agent not found")
+	}
+	return nil
+}
+
+// UpdateLiveness is the only write the heartbeat paths make. The WHERE clause
+// carries the revocation check, so a revocation committed after the caller read
+// its copy of the agent leaves no row to match (#1390).
+func (r *GormScannerAgentRepository) UpdateLiveness(ctx context.Context, id, tenantID uuid.UUID, tokenHash string, status domain.AgentStatus, at time.Time) error {
+	if tenantID == uuid.Nil {
+		return fmt.Errorf("tenant_id is required")
+	}
+	return r.guardedLivenessWrite(ctx, id, tenantID, tokenHash,
+		map[string]interface{}{"status": status, "last_heartbeat": at})
+}
+
+// RecordJobCompletion is the push path's bookkeeping, under the same guard as
+// UpdateLiveness so a push landing after a revocation restores nothing (#1390).
+func (r *GormScannerAgentRepository) RecordJobCompletion(ctx context.Context, id, tenantID uuid.UUID, tokenHash string, jobID uuid.UUID, at time.Time) error {
+	if tenantID == uuid.Nil {
+		return fmt.Errorf("tenant_id is required")
+	}
+	return r.guardedLivenessWrite(ctx, id, tenantID, tokenHash, map[string]interface{}{
+		"status": domain.AgentOnline, "last_heartbeat": at, "last_scan_job_id": jobID,
+	})
+}
+
+// guardedLivenessWrite runs one UPDATE that matches only a live agent still
+// holding tokenHash, so the revocation check and the write cannot be split.
+// Callers pass non-credential columns only.
+func (r *GormScannerAgentRepository) guardedLivenessWrite(ctx context.Context, id, tenantID uuid.UUID, tokenHash string, cols map[string]interface{}) error {
+	result := r.db.WithContext(ctx).
+		Model(&domain.ScannerAgent{}).
+		Where("id = ? AND tenant_id = ? AND token_hash = ? AND token_hash <> '' AND status <> ?",
+			id, tenantID, tokenHash, domain.AgentRevoked).
+		UpdateColumns(cols)
+	if result.Error != nil {
+		return fmt.Errorf("failed to update agent liveness: %w", result.Error)
+	}
+	if result.RowsAffected == 0 {
+		return domain.ErrNotFound
+	}
+	return nil
+}
+
+// Revoke is the only write that clears credentials. It carries no status
+// condition on purpose: revoking twice succeeds, and it wins any race (#1402).
+func (r *GormScannerAgentRepository) Revoke(ctx context.Context, id, tenantID uuid.UUID) error {
+	if tenantID == uuid.Nil {
+		return fmt.Errorf("tenant_id is required")
+	}
+	result := r.db.WithContext(ctx).
+		Model(&domain.ScannerAgent{}).
+		Where("id = ? AND tenant_id = ?", id, tenantID).
+		UpdateColumns(map[string]interface{}{
+			"status": domain.AgentRevoked, "token_hash": "", "push_secret_enc": "",
+		})
+	if result.Error != nil {
+		return fmt.Errorf("failed to revoke agent: %w", result.Error)
+	}
+	if result.RowsAffected == 0 {
+		return domain.ErrNotFound
+	}
+	return nil
+}
+
+// Reenroll rotates the credentials of an agent that is still not revoked. The
+// status condition lives in the WHERE clause so the check and the write cannot
+// be split by a revocation committing in between (#1402).
+func (r *GormScannerAgentRepository) Reenroll(ctx context.Context, agent *domain.ScannerAgent) error {
+	if agent == nil || agent.TenantID == uuid.Nil {
+		return fmt.Errorf("tenant_id is required")
+	}
+	result := r.db.WithContext(ctx).
+		Model(&domain.ScannerAgent{}).
+		Where("id = ? AND tenant_id = ? AND status <> ?", agent.ID, agent.TenantID, domain.AgentRevoked).
+		Select("name", "version", "ip", "hostname", "os", "status", "last_heartbeat",
+			"token_hash", "push_secret_enc", "token_rotated_at").
+		Updates(agent)
+	if result.Error != nil {
+		return fmt.Errorf("failed to re-enrol agent: %w", result.Error)
+	}
+	if result.RowsAffected == 0 {
+		return domain.ErrConflict
 	}
 	return nil
 }

@@ -16,6 +16,7 @@ import (
 
 	"github.com/opendefender/openrisk/internal/application/evidence"
 	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/pkg/fileupload"
 )
 
 // EvidenceHandler serves the evidence library.
@@ -85,6 +86,22 @@ func (h *EvidenceHandler) Create(c *fiber.Ctx) error {
 		in.SourceDetail = c.FormValue("source_detail")
 		in.ExternalURL = c.FormValue("external_url")
 		in.Review = c.FormValue("review")
+		// No content_hash / hash_algorithm is read: the server computes both.
+		in.CollectionMethod = c.FormValue("collection_method")
+		in.CollectorKind = c.FormValue("collector_kind")
+		in.CollectorRef = c.FormValue("collector_ref")
+		in.Signature = c.FormValue("signature")
+		in.SignatureAlgorithm = c.FormValue("signature_algorithm")
+		observedFrom, err := parseDate(c.FormValue("observed_from"))
+		if err != nil {
+			return c.Status(400).JSON(fiber.Map{"error": err.Error()})
+		}
+		in.ObservedFrom = observedFrom
+		observedTo, err := parseDate(c.FormValue("observed_to"))
+		if err != nil {
+			return c.Status(400).JSON(fiber.Map{"error": err.Error()})
+		}
+		in.ObservedTo = observedTo
 
 		collectedAt, err := parseDate(c.FormValue("collected_at"))
 		if err != nil {
@@ -125,6 +142,15 @@ func (h *EvidenceHandler) Create(c *fiber.Ctx) error {
 			CollectedAt  string   `json:"collected_at"`
 			ValidUntil   string   `json:"valid_until"`
 			ControlIDs   []string `json:"control_ids"`
+
+			// No hash field here on purpose: a client-sent content_hash is ignored.
+			CollectionMethod   string `json:"collection_method"`
+			CollectorKind      string `json:"collector_kind"`
+			CollectorRef       string `json:"collector_ref"`
+			Signature          string `json:"signature"`
+			SignatureAlgorithm string `json:"signature_algorithm"`
+			ObservedFrom       string `json:"observed_from"`
+			ObservedTo         string `json:"observed_to"`
 		}
 		if err := c.BodyParser(&body); err != nil {
 			return c.Status(400).JSON(fiber.Map{"error": "invalid request body"})
@@ -132,6 +158,18 @@ func (h *EvidenceHandler) Create(c *fiber.Ctx) error {
 		in.Title, in.Type, in.Description = body.Title, body.Type, body.Description
 		in.Source, in.SourceDetail, in.ExternalURL = body.Source, body.SourceDetail, body.ExternalURL
 		in.Review = body.Review
+		in.CollectionMethod, in.CollectorKind, in.CollectorRef = body.CollectionMethod, body.CollectorKind, body.CollectorRef
+		in.Signature, in.SignatureAlgorithm = body.Signature, body.SignatureAlgorithm
+		observedFrom, err := parseDate(body.ObservedFrom)
+		if err != nil {
+			return c.Status(400).JSON(fiber.Map{"error": err.Error()})
+		}
+		in.ObservedFrom = observedFrom
+		observedTo, err := parseDate(body.ObservedTo)
+		if err != nil {
+			return c.Status(400).JSON(fiber.Map{"error": err.Error()})
+		}
+		in.ObservedTo = observedTo
 
 		collectedAt, err := parseDate(body.CollectedAt)
 		if err != nil {
@@ -285,6 +323,8 @@ func (h *EvidenceHandler) Update(c *fiber.Ctx) error {
 		SourceDetail *string `json:"source_detail"`
 		CollectedAt  *string `json:"collected_at"`
 		ValidUntil   *string `json:"valid_until"`
+		ObservedFrom *string `json:"observed_from"`
+		ObservedTo   *string `json:"observed_to"`
 	}
 	if err := c.BodyParser(&body); err != nil {
 		return c.Status(400).JSON(fiber.Map{"error": "invalid request body"})
@@ -300,6 +340,20 @@ func (h *EvidenceHandler) Update(c *fiber.Ctx) error {
 			return c.Status(400).JSON(fiber.Map{"error": err.Error()})
 		}
 		in.CollectedAt = t
+	}
+	if body.ObservedFrom != nil {
+		t, err := parseDate(*body.ObservedFrom)
+		if err != nil {
+			return c.Status(400).JSON(fiber.Map{"error": err.Error()})
+		}
+		in.ObservedFrom = t
+	}
+	if body.ObservedTo != nil {
+		t, err := parseDate(*body.ObservedTo)
+		if err != nil {
+			return c.Status(400).JSON(fiber.Map{"error": err.Error()})
+		}
+		in.ObservedTo = t
 	}
 	if body.ValidUntil != nil {
 		// An explicit empty string clears the expiry (the artifact does not go
@@ -395,7 +449,7 @@ func (h *EvidenceHandler) Download(c *fiber.Ctx) error {
 	if err != nil {
 		return c.Status(400).JSON(fiber.Map{"error": "invalid evidence id"})
 	}
-	ev, content, err := h.svc.Download(c.UserContext(), tenantID(c), id)
+	ev, content, verified, err := h.svc.Download(c.UserContext(), tenantID(c), userID(c), id)
 	if err != nil {
 		return writeAppError(c, err)
 	}
@@ -405,8 +459,21 @@ func (h *EvidenceHandler) Download(c *fiber.Ctx) error {
 	if name == "" {
 		name = ev.Title
 	}
-	c.Set(fiber.HeaderContentDisposition, fmt.Sprintf(`attachment; filename="%s"`, name))
+	// The name is the uploader's: build the header through the RFC 6266 helper so
+	// a quote or CR/LF in it cannot split the header. octet-stream plus an
+	// explicit nosniff and a sandbox CSP mean no browser renders the bytes (#1316).
+	c.Set(fiber.HeaderContentDisposition, fileupload.AttachmentHeader(name))
 	c.Set(fiber.HeaderContentType, "application/octet-stream")
+	c.Set("X-Content-Type-Options", "nosniff")
+	c.Set(fiber.HeaderCacheControl, "no-store")
+	c.Set("Content-Security-Policy", "default-src 'none'; sandbox")
+	// verified only after the stored bytes were re-hashed and matched; a legacy
+	// row with no hash is served as unverified.
+	if verified {
+		c.Set("X-Evidence-Integrity", "verified")
+	} else {
+		c.Set("X-Evidence-Integrity", "unverified")
+	}
 	return c.SendStream(content)
 }
 

@@ -307,6 +307,23 @@ type ScannerAgentRepository interface {
 	GetByTokenHash(ctx context.Context, tokenHash string) (*ScannerAgent, error)
 	List(ctx context.Context, tenantID uuid.UUID) ([]ScannerAgent, error)
 	Update(ctx context.Context, agent *ScannerAgent) error
+	// UpdateLiveness records status and last_heartbeat in ONE statement that
+	// writes no credential column and only matches a live agent still holding
+	// tokenHash. Zero rows matched (unknown, other tenant, revoked, re-registered)
+	// returns ErrNotFound. A liveness write can therefore never undo a revocation.
+	UpdateLiveness(ctx context.Context, id, tenantID uuid.UUID, tokenHash string, status AgentStatus, at time.Time) error
+	// RecordJobCompletion marks the agent online and stores its last scan job in
+	// ONE statement with the same guard as UpdateLiveness (live agent, same
+	// tenant, same token hash) and no credential column. Zero rows: ErrNotFound.
+	RecordJobCompletion(ctx context.Context, id, tenantID uuid.UUID, tokenHash string, jobID uuid.UUID, at time.Time) error
+	// Revoke kills the agent's credentials in ONE unconditional statement
+	// (status revoked, token_hash and push_secret_enc empty), so it is
+	// idempotent and cannot lose to a concurrent write. Zero rows: ErrNotFound.
+	Revoke(ctx context.Context, id, tenantID uuid.UUID) error
+	// Reenroll rotates an existing agent's credentials in ONE statement guarded
+	// by status<>'revoked', so a revocation that committed first is never
+	// undone. Zero rows (revoked, unknown, other tenant): ErrConflict.
+	Reenroll(ctx context.Context, agent *ScannerAgent) error
 	Delete(ctx context.Context, id, tenantID uuid.UUID) error
 }
 

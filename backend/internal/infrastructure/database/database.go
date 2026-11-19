@@ -56,6 +56,10 @@ func gormLoggerTo(w io.Writer) logger.Interface {
 			LogLevel:                  level,
 			IgnoreRecordNotFoundError: true,
 			Colorful:                  false,
+			// Statement logs carry placeholders, never bind values: a refused or
+			// failed statement must not write token hashes, e-mails or ids to the
+			// log (#808, ABSOLUTE RULE 6).
+			ParameterizedQueries: true,
 		},
 	)
 }

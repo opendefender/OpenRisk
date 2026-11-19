@@ -9,9 +9,12 @@
 -- unique index on (tenant_id, sequence) is the backstop that makes two racing
 -- publishers fail loudly rather than silently fork the tenant's order.
 --
--- This is NOT a transactional outbox: the row is appended after the business
--- transaction commits, not inside it. The window is documented in
--- docs/W0-07_REALTIME_EVENT_HUB.md rather than papered over.
+-- As created here the table is NOT a transactional outbox: the row is appended
+-- after the business transaction commits, not inside it. Since #344 (migration
+-- 0085, ADR 0010) use cases that enlist can write the row inside their own
+-- transaction; every other event keeps the post-commit path. See
+-- docs/W0-07_REALTIME_EVENT_HUB.md (Outbox / Publishing Strategy, Known
+-- Limitation 1).
 
 BEGIN;
 

@@ -30,6 +30,14 @@ func Protected(rsaKeys *authpkg.RSAKeys, blacklistChecker func(jti string) (bool
 // ANY of the caller's per-organization roles is in the allowed list.
 func RequireRole(roleNames ...string) fiber.Handler {
 	return func(c *fiber.Ctx) error {
+		// A scoped personal access token acts with its scopes, never with its
+		// owner's role (GHSA-92r7-7fhw-45gg).
+		if patWithoutRoles(c) {
+			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+				"error": "Token scopes do not grant this action",
+			})
+		}
+
 		orgRoles, ok := c.Locals("org_roles").(map[uuid.UUID]string)
 		if !ok || len(orgRoles) == 0 {
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{

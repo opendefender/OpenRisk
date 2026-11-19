@@ -20,6 +20,7 @@ import (
 
 	appreport "github.com/opendefender/openrisk/internal/application/report"
 	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/pkg/fileupload"
 )
 
 // ReportProgressChannel is the Redis channel the worker publishes progress on.
@@ -29,6 +30,10 @@ const ReportProgressChannel = "report.progress"
 type ReportHandler struct {
 	svc   *appreport.Service
 	redis *redisinfra.Client
+
+	// keepalive overrides the progress stream's keepalive interval; zero keeps
+	// sseKeepaliveInterval. Only a test sets it (#962).
+	keepalive time.Duration
 }
 
 func NewReportHandler(svc *appreport.Service, rdb *redisinfra.Client) *ReportHandler {
@@ -221,7 +226,7 @@ func (h *ReportHandler) Download(c *fiber.Ctx) error {
 	if err != nil {
 		return writeAppError(c, err)
 	}
-	c.Set(fiber.HeaderContentDisposition, fmt.Sprintf(`attachment; filename="%s"`, rep.Filename))
+	c.Set(fiber.HeaderContentDisposition, fileupload.AttachmentHeader(rep.Filename))
 	c.Set(fiber.HeaderContentType, rep.ContentType)
 	// The hash travels with the download so a client can check the file it
 	// received against what the platform recorded, without a second request.
@@ -360,11 +365,14 @@ func (h *ReportHandler) Progress(c *fiber.Ctx) error {
 	terminal := rep.RunState.Terminal()
 	// Read off the request before the writer starts; it runs after this returns.
 	jti := streamJTI(c)
+	extendDeadline := sseWriteDeadline(c)
+	keepaliveEvery := sseKeepaliveOr(h.keepalive)
 
 	c.Context().SetBodyStreamWriter(func(w *bufio.Writer) {
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 
+		extendDeadline()
 		fmt.Fprintf(w, "data: %s\n\n", initial)
 		if err := w.Flush(); err != nil {
 			return
@@ -380,7 +388,7 @@ func (h *ReportHandler) Progress(c *fiber.Ctx) error {
 		defer pubsub.Close()
 		msgs := pubsub.Channel()
 
-		keepalive := time.NewTicker(20 * time.Second)
+		keepalive := time.NewTicker(keepaliveEvery)
 		defer keepalive.Stop()
 		// A hard ceiling: a render that never finishes must not hold a connection
 		// open for the life of the process.
@@ -409,6 +417,7 @@ func (h *ReportHandler) Progress(c *fiber.Ctx) error {
 				if evt.TenantID != tenant.String() || evt.ReportID != id.String() {
 					continue
 				}
+				extendDeadline()
 				fmt.Fprintf(w, "data: %s\n\n", msg.Payload)
 				if err := w.Flush(); err != nil {
 					return
@@ -420,10 +429,12 @@ func (h *ReportHandler) Progress(c *fiber.Ctx) error {
 				// Re-authorize on the tick, bounding revocation to one interval
 				// rather than the render's whole lifetime (#345).
 				if sseSessionRevoked(jti) {
+					extendDeadline()
 					fmt.Fprint(w, "event: stream.revoked\ndata: {\"reason\":\"session_revoked\"}\n\n")
 					_ = w.Flush()
 					return
 				}
+				extendDeadline()
 				fmt.Fprint(w, ": keepalive\n\n")
 				if err := w.Flush(); err != nil {
 					return

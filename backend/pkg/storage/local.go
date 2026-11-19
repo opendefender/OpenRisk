@@ -54,9 +54,26 @@ func sanitizeFilename(name string) string {
 	return name
 }
 
+// safeExtension keeps only a short, lowercase alphanumeric extension of name.
+// The client's filename never reaches the stored key: the caller passes a name
+// whose extension it chose from the sniffed type, and anything else is dropped.
+func safeExtension(name string) string {
+	ext := strings.ToLower(filepath.Ext(sanitizeFilename(name)))
+	if len(ext) < 2 || len(ext) > 9 {
+		return ""
+	}
+	for _, r := range ext[1:] {
+		if (r < 'a' || r > 'z') && (r < '0' || r > '9') {
+			return ""
+		}
+	}
+	return ext
+}
+
+// Save stores content under the server-generated key "<tenant>/<uuid><ext>".
+// Only the extension of filename is used; the name itself is not stored.
 func (s *LocalStorage) Save(_ context.Context, tenantID uuid.UUID, filename string, content io.Reader) (string, error) {
-	safeName := sanitizeFilename(filename)
-	key := filepath.Join(tenantID.String(), fmt.Sprintf("%s-%s", uuid.New().String(), safeName))
+	key := filepath.Join(tenantID.String(), uuid.New().String()+safeExtension(filename))
 
 	fullPath := filepath.Join(s.BasePath, key)
 	if err := os.MkdirAll(filepath.Dir(fullPath), 0o750); err != nil {

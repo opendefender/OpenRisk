@@ -12,6 +12,8 @@ package compliance
 // own public structure and the ITGC domains are the widely-recognized categories;
 // descriptions are original summaries, not legal text. Verify against the Act and
 // your auditor's control matrix before an audit.
+//
+// Review status: see Catalog.Review in the register call below. This header makes no review claim.
 
 func init() {
 	register(Catalog{
@@ -20,6 +22,7 @@ func init() {
 		Version:     "2002",
 		Description: "Sarbanes-Oxley Act — internal control over financial reporting: the key statutory sections and the IT General Controls (access, change management, operations, program development) auditors assess.",
 		Available:   true,
+		Review:      Review{Status: ReviewUnreviewed},
 		Controls:    sox2002Controls,
 	})
 }

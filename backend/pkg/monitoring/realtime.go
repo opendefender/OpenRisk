@@ -6,6 +6,10 @@
 package monitoring
 
 import (
+	"context"
+	"log"
+	"time"
+
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 )
@@ -161,4 +165,89 @@ var (
 		Help:      "How long a realtime stream connection stayed open.",
 		Buckets:   []float64{1, 5, 15, 30, 60, 300, 900, 1800, 3600, 7200},
 	})
+
+	// RealtimeOutboxPublishFailuresTotal counts deliveries the relay attempted
+	// and the sink refused (ADR 0010). In production that is the Redis fanout.
+	// The row stays pending and is retried with backoff.
+	RealtimeOutboxPublishFailuresTotal = promauto.NewCounter(prometheus.CounterOpts{
+		Namespace: "openrisk",
+		Subsystem: "realtime",
+		Name:      "outbox_publish_failures_total",
+		Help:      "Outbox deliveries the sink refused; the row stays pending and is retried.",
+	})
+
+	// RealtimeOutboxAbandonedTotal counts rows the relay gave up on: they hit
+	// the attempt cap, or never returned an outcome after it. Alert on any rise.
+	RealtimeOutboxAbandonedTotal = promauto.NewCounter(prometheus.CounterOpts{
+		Namespace: "openrisk",
+		Subsystem: "realtime",
+		Name:      "outbox_abandoned_total",
+		Help:      "Outbox rows abandoned after the attempt cap (or a row with no tenant).",
+	})
+
+	// RealtimeOutboxPublishedTotal counts rows the relay delivered and marked.
+	RealtimeOutboxPublishedTotal = promauto.NewCounter(prometheus.CounterOpts{
+		Namespace: "openrisk",
+		Subsystem: "realtime",
+		Name:      "outbox_published_total",
+		Help:      "Outbox rows delivered by the relay and marked published.",
+	})
 )
+
+var (
+	outboxPendingDesc = prometheus.NewDesc(
+		"openrisk_realtime_outbox_pending",
+		"Realtime outbox rows not yet published. Instance-wide: aggregate across replicas with max(), never sum().",
+		nil, nil)
+	outboxOldestDesc = prometheus.NewDesc(
+		"openrisk_realtime_outbox_oldest_pending_seconds",
+		"Age in seconds of the oldest unpublished realtime outbox row, 0 when none. Aggregate with max().",
+		nil, nil)
+)
+
+// OutboxStats reads the instance-wide outbox backlog: how many rows wait and
+// when the oldest was written (nil when none).
+type OutboxStats func(ctx context.Context) (pending int64, oldest *time.Time, err error)
+
+type realtimeOutboxCollector struct {
+	stats OutboxStats
+	now   func() time.Time
+}
+
+// NewRealtimeOutboxCollector builds the scrape-time collector for the backlog
+// gauges. They are computed when /metrics is scraped, not refreshed by the
+// relay: a gauge the relay refreshes freezes at its last value when the relay
+// is dead, hiding exactly the outage it exists to show. On a read error it
+// emits no sample for either gauge, so an alert on absent() fires.
+func NewRealtimeOutboxCollector(stats OutboxStats) prometheus.Collector {
+	return &realtimeOutboxCollector{stats: stats, now: time.Now}
+}
+
+func (c *realtimeOutboxCollector) Describe(ch chan<- *prometheus.Desc) {
+	ch <- outboxPendingDesc
+	ch <- outboxOldestDesc
+}
+
+func (c *realtimeOutboxCollector) Collect(ch chan<- prometheus.Metric) {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	pending, oldest, err := c.stats(ctx)
+	if err != nil {
+		log.Printf("realtime: outbox backlog gauges unavailable: %v", err)
+		return
+	}
+	lag := 0.0
+	if oldest != nil && pending > 0 {
+		if d := c.now().Sub(*oldest).Seconds(); d > 0 {
+			lag = d
+		}
+	}
+	ch <- prometheus.MustNewConstMetric(outboxPendingDesc, prometheus.GaugeValue, float64(pending))
+	ch <- prometheus.MustNewConstMetric(outboxOldestDesc, prometheus.GaugeValue, lag)
+}
+
+// MustRegisterRealtimeOutboxCollector registers the backlog collector on the
+// default registry, which GET /metrics serves.
+func MustRegisterRealtimeOutboxCollector(stats OutboxStats) {
+	prometheus.MustRegister(NewRealtimeOutboxCollector(stats))
+}

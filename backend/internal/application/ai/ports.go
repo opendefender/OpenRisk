@@ -16,6 +16,7 @@ package ai
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -46,7 +47,7 @@ type ComplianceReader interface {
 	ListFrameworks(ctx context.Context, tenantID uuid.UUID) ([]domain.ComplianceFramework, error)
 	ListControlsByFramework(ctx context.Context, tenantID uuid.UUID, frameworkID uuid.UUID) ([]domain.ComplianceControl, error)
 	GetFrameworkByID(ctx context.Context, id uuid.UUID, tenantID uuid.UUID) (*domain.ComplianceFramework, error)
-	GetControlByID(ctx context.Context, id uuid.UUID, tenantID uuid.UUID) (*domain.ComplianceControl, error)
+	GetControlByID(ctx context.Context, id uuid.UUID, tenantID uuid.UUID, asOf time.Time) (*domain.ComplianceControl, error)
 	// GetEvidenceByID reads the evidence LIBRARY (domain.Evidence), which is what
 	// the register holds since migration 0052. An artifact can answer several
 	// controls, so the analyser resolves context through its links rather than

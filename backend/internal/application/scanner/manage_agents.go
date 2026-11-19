@@ -7,6 +7,7 @@ package scanner
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/google/uuid"
@@ -64,17 +65,12 @@ func (uc *RevokeAgentUseCase) Execute(ctx context.Context, tenantID, agentID uui
 	if tenantID == uuid.Nil {
 		return domain.NewUnauthorizedError("missing tenant")
 	}
-	agent, err := uc.repo.GetByID(ctx, agentID, tenantID)
-	if err != nil {
-		return domain.NewInternalError(err.Error())
-	}
-	if agent == nil {
-		return domain.NewNotFoundError("agent", agentID)
-	}
-	agent.Status = domain.AgentRevoked
-	agent.TokenHash = ""     // kill the current token
-	agent.PushSecretEnc = "" // kill the push secret
-	if err := uc.repo.Update(ctx, agent); err != nil {
+	// One unconditional statement: kills the token hash and the push secret and
+	// cannot lose to a registration racing it (#1402).
+	if err := uc.repo.Revoke(ctx, agentID, tenantID); err != nil {
+		if errors.Is(err, domain.ErrNotFound) {
+			return domain.NewNotFoundError("agent", agentID)
+		}
 		return domain.NewInternalError(err.Error())
 	}
 	// Tell the agent (if connected) to shut its stream down.

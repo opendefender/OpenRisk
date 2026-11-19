@@ -221,7 +221,9 @@
     "failedToCreateControl": "Échec de la création du contrôle",
     "failedToUpdateControl": "Échec de la mise à jour du contrôle",
     "failedToUploadEvidence": "Échec du dépôt de la preuve",
+    "failedToDownloadEvidence": "Échec du téléchargement de la preuve",
     "failedToDeleteEvidence": "Échec de la suppression de la preuve",
+    "evidence_integrity_mismatch": "Vérification d'intégrité échouée : le fichier stocké ne correspond plus à son empreinte enregistrée. Le téléchargement a été refusé et une alerte d'intégrité a été émise.",
     "failedToCreateAsset": "Échec de la création de l'actif",
     "failedToUpdateAsset": "Échec de la mise à jour de l'actif",
     "failedToDeleteAsset": "Échec de la suppression de l'actif"
@@ -372,6 +374,77 @@
       "generating": "Génération…",
       "success": "Rapport de conformité généré",
       "error": "Échec de la génération du rapport"
+    },
+    "export": {
+      "button": "Exporter (JSON)",
+      "generating": "Préparation de l'export JSON…",
+      "success": "Référentiel exporté",
+      "error": "Échec de l'export du référentiel"
+    },
+    "customImport": {
+      "entry": "Importer (JSON)",
+      "back": "Retour à la conformité",
+      "title": "Importer un référentiel personnalisé (JSON)",
+      "intro": "Chargez votre propre référentiel depuis un fichier JSON : il est créé avec tous ses contrôles en une seule étape, chaque contrôle démarrant « non implémenté ».",
+      "dropHere": "Déposez un fichier JSON ici ou cliquez pour en choisir un",
+      "limits": "Fichier .json, 2 Mo maximum, 2000 contrôles maximum",
+      "emptyTitle": "Aucun fichier choisi",
+      "emptyHint": "Choisissez un fichier JSON de référentiel, par exemple exporté depuis OpenRisk avec « Exporter (JSON) ».",
+      "choose": "Choisir un fichier",
+      "onlyJson": "Seuls les fichiers .json sont acceptés",
+      "fileEmpty": "Le fichier est vide",
+      "tooLarge": "Le fichier dépasse 2 Mo",
+      "invalidFile": "Ce fichier ne peut pas être utilisé",
+      "unreadable": "Le fichier n'a pas pu être lu",
+      "removeFile": "Retirer le fichier",
+      "previewTitle": "Aperçu",
+      "previewName": "Nom",
+      "previewVersion": "Version",
+      "previewControls": "Contrôles",
+      "controlsCount": {
+        "one": "{count} contrôle",
+        "other": "{count} contrôles"
+      },
+      "previewMore": {
+        "one": "et {count} contrôle de plus",
+        "other": "et {count} contrôles de plus"
+      },
+      "submit": "Importer le référentiel",
+      "importing": "Import du référentiel en cours…",
+      "created": {
+        "one": "Référentiel importé avec {count} contrôle",
+        "other": "Référentiel importé avec {count} contrôles"
+      },
+      "fileRefused": "Le fichier a été refusé, rien n'a été importé",
+      "rejectedRows": "Le fichier contient des erreurs, rien n'a été importé",
+      "fixRows": "Corrigez ces lignes dans le fichier, puis choisissez-le à nouveau.",
+      "row": "Contrôle n°",
+      "field": "Champ",
+      "problem": "Problème",
+      "document": "Fichier",
+      "truncated": "Seuls les {max} premiers problèmes sont affichés.",
+      "conflict": "Un référentiel de même nom et de même version existe déjà.",
+      "limit": "La limite de référentiels de votre offre est atteinte.",
+      "seePlans": "Voir les offres",
+      "forbidden": "Vous n'avez pas la permission d'importer un référentiel.",
+      "unauthorized": "Votre session a expiré. Reconnectez-vous.",
+      "serverFailed": "L'import a échoué. Réessayez.",
+      "problems": {
+        "notJson": "Le fichier n'est pas du JSON valide",
+        "notObject": "Un objet est attendu ici",
+        "schemaVersion": "schema_version doit valoir 1",
+        "required": "Ce champ est obligatoire",
+        "notText": "Ce champ doit être du texte",
+        "tooLong": "Trop long ({max} caractères maximum)",
+        "noControls": "Le fichier doit contenir au moins un contrôle",
+        "tooManyControls": "Trop de contrôles (maximum {max})",
+        "duplicateCode": "Le code de référence « {code} » apparaît plusieurs fois"
+      }
+    },
+    "progressState": {
+      "unavailable": "Progression indisponible",
+      "unavailableShort": "— (progression indisponible)",
+      "controlStatus": "Statut du contrôle {code}"
     }
   },
   "assets": {
@@ -2215,6 +2288,14 @@
       "deleteConfirm": "Supprimer"
     }
   },
+  "automation": {
+    "channels": {
+      "saveFailed": "Échec",
+      "saveRejected": "Canaux non enregistrés : {reason}",
+      "testFailed": "Le test n’a pas pu s’exécuter",
+      "testRejected": "Test refusé : {reason}"
+    }
+  },
   "paywall": {
     "cta": "Passer au plan {plan}",
     "moment": "Plan {plan}",
@@ -2245,6 +2326,46 @@
         "title": "Gestion des risques fournisseurs (TPRM)",
         "description": "Registre fournisseurs, questionnaires envoyés par lien, score fournisseur et relances automatiques."
       }
+    }
+  },
+  "controlException": {
+    "errors": {
+      "owner_required": "Un responsable est obligatoire.",
+      "owner_invalid": "Le responsable doit être un membre actif de votre organisation.",
+      "reason_required": "Un motif est obligatoire.",
+      "reason_too_long": "Le motif est trop long (2000 caractères maximum).",
+      "expires_at_required": "Une date d'expiration est obligatoire.",
+      "expires_at_in_past": "La date d'expiration doit être dans le futur.",
+      "starts_at_not_before_expires_at": "La date de début doit précéder la date d'expiration.",
+      "expires_at_too_far": "La date d'expiration est trop lointaine (366 jours maximum). Renouvelez l'exception à la place.",
+      "starts_at_in_past": "La date de début ne peut pas être dans le passé.",
+      "revoke_reason_too_long": "Le motif de révocation est trop long (2000 caractères maximum).",
+      "invalid_body": "Le corps de la requête est invalide.",
+      "invalid_control_id": "L'identifiant du contrôle est invalide.",
+      "invalid_exception_id": "L'identifiant de l'exception est invalide.",
+      "control_not_found": "Contrôle introuvable.",
+      "not_found": "Exception introuvable.",
+      "already_revoked": "Cette exception a déjà été révoquée.",
+      "already_expired": "Cette exception a déjà expiré ; il n'y a plus rien à révoquer.",
+      "forbidden": "Vous n'avez pas le droit de gérer les exceptions de contrôle.",
+      "unauthorized": "Vous devez être connecté pour gérer les exceptions de contrôle.",
+      "unavailable": "Les exceptions de contrôle sont momentanément indisponibles. Réessayez."
+    }
+  },
+  "controlStatus": {
+    "status": {
+      "pass": "Conforme",
+      "fail": "Non conforme",
+      "insufficient_evidence": "Preuves insuffisantes",
+      "exception_active": "Exception active",
+      "not_applicable": "Non applicable"
+    },
+    "errors": {
+      "unauthorized": "Vous devez être connecté pour consulter le statut d'un contrôle.",
+      "forbidden": "Vous n'avez pas la permission de consulter le statut des contrôles.",
+      "not_found": "Contrôle introuvable.",
+      "invalid_control_id": "L'identifiant du contrôle est invalide.",
+      "unavailable": "Le statut du contrôle est momentanément indisponible. Veuillez réessayer."
     }
   },
   "riskRegister": {
@@ -2429,19 +2550,7 @@
         "one": "{count} risque supprimé",
         "other": "{count} risques supprimés"
       },
-      "deleteTitle": {
-        "one": "Supprimer {count} risque ?",
-        "other": "Supprimer {count} risques ?"
-      },
-      "deleteSubject": {
-        "one": "{count} risque sélectionné",
-        "other": "{count} risques sélectionnés"
-      },
-      "deleteFailed": {
-        "one": "Aucun risque supprimé ({count} sélectionné).",
-        "other": "Aucun risque supprimé ({count} sélectionnés)."
-      },
-      "deleteStale": "Aucun risque supprimé : la sélection a changé. Rechargez et réessayez."
+      "entity": "risques"
     },
     "matrix": {
       "caption": "Matrice des risques — probabilité par impact",

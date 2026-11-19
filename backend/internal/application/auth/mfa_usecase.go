@@ -276,6 +276,9 @@ type DisableMFAUseCase struct {
 	// totpKey decrypts the stored secret to check Code. Without it an account
 	// with no local password cannot prove anything and is refused.
 	totpKey []byte
+	// limits is the in-session lock shared with backup-code regeneration
+	// (#1392). Optional; main.go always wires it.
+	limits *MFAInSessionLimits
 }
 
 // NewDisableMFAUseCase creates a new disable MFA use case
@@ -301,6 +304,13 @@ func (uc *DisableMFAUseCase) WithTOTPKey(key []byte) *DisableMFAUseCase {
 	return uc
 }
 
+// WithInSessionLimits counts wrong proofs toward the lock shared with backup-code
+// regeneration (#1392). Pass the same instance to both use cases.
+func (uc *DisableMFAUseCase) WithInSessionLimits(l *MFAInSessionLimits) *DisableMFAUseCase {
+	uc.limits = l
+	return uc
+}
+
 // WithMailer wires the deactivation notice. Optional.
 func (uc *DisableMFAUseCase) WithMailer(m MFADisabledMailer) *DisableMFAUseCase {
 	uc.mailer = m
@@ -319,6 +329,11 @@ func (uc *DisableMFAUseCase) Execute(ctx context.Context, input DisableMFAInput)
 	if input.UserID == uuid.Nil || input.TenantID == uuid.Nil {
 		return nil, domain.NewUnauthorizedError("authentication required")
 	}
+	// Before any proof is looked at: under the lock even the right one is
+	// refused (#1392).
+	if err := uc.limits.Check(ctx, input.UserID); err != nil {
+		return nil, err
+	}
 
 	user, err := uc.users.GetByID(ctx, input.UserID)
 	if err != nil {
@@ -334,7 +349,7 @@ func (uc *DisableMFAUseCase) Execute(ctx context.Context, input DisableMFAInput)
 		return nil, ErrNoLocalPassword
 	}
 	if hasPassword && (input.Password == "" || !uc.passwordHasher.Verify(user.Password, input.Password)) {
-		return nil, ErrMFADisablePasswordIncorrect
+		return nil, uc.wrongProof(ctx, input.UserID, ErrMFADisablePasswordIncorrect)
 	}
 
 	secret, err := uc.mfaRepo.GetMFASecret(ctx, input.UserID, input.TenantID)
@@ -350,14 +365,14 @@ func (uc *DisableMFAUseCase) Execute(ctx context.Context, input DisableMFAInput)
 			return nil, fmt.Errorf("auth.DisableMFA: decrypt secret: %w", err)
 		}
 		if input.Code == "" {
-			return nil, ErrMFADisableCodeIncorrect
+			return nil, uc.wrongProof(ctx, input.UserID, ErrMFADisableCodeIncorrect)
 		}
 		accepted, err := acceptTOTP(ctx, uc.mfaRepo, input.UserID, input.TenantID, plain, input.Code)
 		if err != nil {
 			return nil, err
 		}
 		if !accepted {
-			return nil, ErrMFADisableCodeIncorrect
+			return nil, uc.wrongProof(ctx, input.UserID, ErrMFADisableCodeIncorrect)
 		}
 	}
 
@@ -379,6 +394,7 @@ func (uc *DisableMFAUseCase) Execute(ctx context.Context, input DisableMFAInput)
 	if err := uc.mfaRepo.DisableMFA(ctx, input.UserID, input.TenantID); err != nil {
 		return nil, fmt.Errorf("auth.DisableMFA: %w", err)
 	}
+	uc.limits.RecordSuccess(ctx, input.UserID)
 
 	if uc.mailer != nil {
 		_ = uc.mailer.SendMFADisabled(ctx, user.Email, user.FullName, normaliseLocale(input.Locale))
@@ -391,6 +407,15 @@ func (uc *DisableMFAUseCase) Execute(ctx context.Context, input DisableMFAInput)
 	return &DisableMFAOutput{
 		Message: "MFA disabled successfully",
 	}, nil
+}
+
+// wrongProof counts a wrong password or code toward the in-session lock. The
+// failure that sets the lock is answered with the lock.
+func (uc *DisableMFAUseCase) wrongProof(ctx context.Context, userID uuid.UUID, proofErr error) error {
+	if err := uc.limits.RecordFailure(ctx, userID); err != nil {
+		return err
+	}
+	return proofErr
 }
 
 func mfaDisabledInAppCopy(locale string) (string, string) {

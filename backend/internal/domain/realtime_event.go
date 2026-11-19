@@ -7,6 +7,8 @@ package domain
 
 import (
 	"context"
+	"errors"
+	"net/http"
 	"time"
 
 	"github.com/google/uuid"
@@ -24,21 +26,31 @@ import (
 // Persisting the event first turns a reconnect into a cheap replay from a
 // cursor, and gives the ordering guarantee somewhere to live.
 //
-// WHAT THIS IS NOT. It is not a transactional outbox: the row is appended after
-// the business transaction commits, not inside it, so a crash in the window
-// between the two loses the event. That window is documented rather than
-// papered over, and it is survivable because the realtime stream is never the
-// source of truth — a client that misses an event and later resyncs reads the
-// same state the API would have given it anyway. Making it a true outbox means
-// threading a transaction handle through every use case in the codebase; the
-// design note in docs/W0-07_REALTIME_EVENT_HUB.md records that trade and what
-// it would take to close it.
+// TWO WRITE PATHS (ADR 0010).
 //
-// ORDERING. Sequence is a per-tenant monotonic counter assigned inside the
-// append transaction, exactly as the audit chain assigns its own — same
-// technique, same per-tenant mutex plus SELECT … FOR UPDATE plus unique index
-// backstop. Two events of one tenant therefore have a total order, and a client
-// holding sequence N can tell whether it missed anything.
+//   - Inline, the default: Append runs after the business transaction commits,
+//     stores the row already marked published, and the publisher delivers it.
+//     A crash between the commit and the append loses that event. It is
+//     survivable because the realtime stream is never the source of truth: a
+//     client that misses an event and resyncs reads the same state the API
+//     would have given it anyway.
+//   - Outbox, for use cases that enlist: RealtimeEventOutbox.Enlist writes the
+//     row inside the use case's own transaction, unpublished. It commits or
+//     rolls back with the business change, and a relay publishes it after
+//     commit, at least once, with the same id on every redelivery.
+//
+// Which events are enlisted is listed in docs/W0-07_REALTIME_EVENT_HUB.md
+// (Outbox / Publishing Strategy, Known Limitation 1). Everything else is on the
+// inline path until a use case is enlisted one by one.
+//
+// ORDERING. Sequence is a per-tenant monotonic counter allocated from a
+// one-row-per-tenant table (realtime_event_sequences) inside the writing
+// transaction. The counter row lock is held until that transaction ends, so
+// two transactions of one tenant cannot interleave their sequences, and the
+// relay, which takes the same row, never sees a gap that is still in flight.
+// Two events of one tenant therefore have a total order, and a client holding
+// sequence N can tell whether it missed anything. The unique (tenant_id,
+// sequence) index stays as the backstop.
 // ---------------------------------------------------------------------------
 
 // RealtimeEvent is one published domain event, durably stored so it can be
@@ -54,11 +66,11 @@ type RealtimeEvent struct {
 	// TenantID is the isolation boundary. Part of the unique (tenant_id,
 	// sequence) index, which is what makes two writers unable to claim the same
 	// position.
-	TenantID uuid.UUID `gorm:"type:uuid;index:idx_rt_tenant_seq,unique,priority:1;index;not null" json:"tenant_id"`
+	TenantID uuid.UUID `gorm:"type:uuid;index:idx_rt_tenant_seq,unique,priority:1;index;index:idx_rt_outbox_pending,priority:1,where:published_at IS NULL AND abandoned_at IS NULL;not null" json:"tenant_id"`
 
 	// Sequence is the per-tenant monotonic position, assigned by the repository
 	// inside the append transaction. Never by callers.
-	Sequence int64 `gorm:"index:idx_rt_tenant_seq,unique,priority:2;not null" json:"sequence"`
+	Sequence int64 `gorm:"index:idx_rt_tenant_seq,unique,priority:2;index:idx_rt_outbox_pending,priority:2;not null" json:"sequence"`
 
 	Type            string `gorm:"type:varchar(64);not null;index" json:"type"`
 	Version         int    `gorm:"not null;default:1" json:"version"`
@@ -80,7 +92,34 @@ type RealtimeEvent struct {
 	// exactly the publication latency an operator wants to see.
 	OccurredAt time.Time `gorm:"not null;index" json:"occurred_at"`
 	CreatedAt  time.Time `gorm:"index" json:"created_at"`
+
+	// Outbox bookkeeping (ADR 0010, migration 0085). Relay state, never part of
+	// the envelope: none of it is serialised. The time columns carry no explicit
+	// type tag: GORM maps time.Time to timestamptz on Postgres, and an explicit
+	// "timestamptz" would stop sqlite (tests) from parsing the value back.
+	//
+	// PublishedAt is set when the event has been delivered. Rows written by the
+	// inline path are born published; enlisted rows are born NULL and the relay
+	// sets it. AbandonedAt marks a row the relay gave up on after the attempt
+	// cap. Attempts counts claims; LockedUntil is the relay's lease or backoff.
+	PublishedAt *time.Time `json:"-"`
+	AbandonedAt *time.Time `json:"-"`
+	Attempts    int        `gorm:"not null;default:0" json:"-"`
+	LockedUntil *time.Time `json:"-"`
+	LastError   string     `gorm:"type:text;not null;default:''" json:"-"`
 }
+
+// RealtimeEventSequence is one tenant's sequence allocator (ADR 0010). Never
+// read by callers: the repository allocates from it inside the writing
+// transaction, and the relay locks it to claim a tenant's pending rows.
+type RealtimeEventSequence struct {
+	TenantID     uuid.UUID `gorm:"type:uuid;primaryKey"`
+	LastSequence int64     `gorm:"not null"`
+	UpdatedAt    time.Time `gorm:"not null"`
+}
+
+// TableName pins the table name.
+func (RealtimeEventSequence) TableName() string { return "realtime_event_sequences" }
 
 // TableName pins the table name so a future model rename cannot silently orphan
 // the data.
@@ -160,6 +199,51 @@ func NewRealtimeEvent(env realtime.Envelope) (*RealtimeEvent, error) {
 	return row, nil
 }
 
+// PrepareRealtimeEvent turns a caller's envelope into a storable row: it mints
+// the id (once, here), fills the catalog version and aggregate type, defaults
+// OccurredAt to now (UTC), clears Sequence, sanitises the payload, validates,
+// and converts. Both the inline publisher and enlisting use cases call it, so
+// the two paths cannot diverge. Errors are validation errors.
+//
+// The id and the payload version are minted here, never taken from a caller:
+// the id is the deduplication key every consumer keys on, and letting a caller
+// choose it would let one caller make two different events collide. The
+// version comes from the catalog so a caller cannot claim a version the
+// catalog does not publish.
+func PrepareRealtimeEvent(env realtime.Envelope, now time.Time) (*RealtimeEvent, error) {
+	env.ID = uuid.NewString()
+	env.EnvelopeVersion = realtime.EnvelopeVersion
+	if desc, ok := realtime.Lookup(env.Type); ok {
+		env.Version = desc.Version
+		if env.Aggregate.Type == "" {
+			env.Aggregate.Type = desc.Aggregate
+		}
+	}
+	if env.OccurredAt.IsZero() {
+		env.OccurredAt = now
+	}
+	env.OccurredAt = env.OccurredAt.UTC()
+	// Sequence is the log's to assign; a caller-supplied one is discarded.
+	env.Sequence = 0
+	env.Payload = realtime.SanitizePayload(env.Payload)
+
+	if err := env.Validate(); err != nil {
+		// Keeps the cause: errors.Is matches ErrValidation and the envelope's own
+		// sentinel (ErrUnknownType, ...), as NewOutboundDeniedError does.
+		return nil, &AppError{Err: errors.Join(ErrValidation, err), Message: err.Error(), Code: http.StatusBadRequest}
+	}
+	return NewRealtimeEvent(env)
+}
+
+// RealtimeEventOutbox is the transaction-scoped write side. Rows enlisted here
+// commit or roll back with the caller's business transaction; the relay
+// publishes them after commit. All events of one call belong to one tenant.
+// Enlist must be the LAST write of the transaction: it holds the tenant's
+// sequence allocator until commit.
+type RealtimeEventOutbox interface {
+	Enlist(ctx context.Context, events ...*RealtimeEvent) error
+}
+
 // RealtimeEventRepository is the durable log's port.
 //
 // Every method takes a tenant id and every implementation must filter on it —
@@ -183,7 +267,8 @@ type RealtimeEventRepository interface {
 	Bounds(ctx context.Context, tenantID uuid.UUID) (oldest, newest int64, err error)
 
 	// PurgeBefore deletes events older than cutoff across all tenants and
-	// returns how many rows went. Cross-tenant by design: retention is an
+	// returns how many rows went. A row still waiting for the relay (neither
+	// published nor abandoned) is never purged, whatever its age. Cross-tenant by design: retention is an
 	// instance-level property, and a per-tenant purge would leave the table
 	// growing for every tenant nobody thought to sweep.
 	PurgeBefore(ctx context.Context, cutoff time.Time) (int64, error)

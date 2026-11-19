@@ -18,6 +18,13 @@ import (
 // production. It carries no detail on purpose.
 const genericServerErrorMessage = "An internal error occurred. Please contact support with the reference below if the problem persists."
 
+// frameworkImportPath and frameworkImportTooLargeMessage must stay in step with
+// handler.ComplianceHandler.ImportFramework and compliance.MaxFrameworkImportBytes.
+const (
+	frameworkImportPath            = "/api/v1/compliance/frameworks/import"
+	frameworkImportTooLargeMessage = "file exceeds the 2 MiB limit"
+)
+
 // IsProductionEnv reports whether the process is running in production, which is
 // what decides if internal error detail may reach clients.
 //
@@ -53,6 +60,13 @@ func IsProductionEnv() bool {
 func ErrorHandler(production bool) fiber.ErrorHandler {
 	return func(c *fiber.Ctx, err error) error {
 		if fiberErr, ok := err.(*fiber.Error); ok {
+			// fasthttp rejects a body over the global BodyLimit before any route
+			// runs, so the import handler's own 2 MiB check never sees it. Give
+			// that route the same 400 body the handler returns (criterion 3 of
+			// #307: over-limit is a validation error, not a 413).
+			if fiberErr.Code == fiber.StatusRequestEntityTooLarge && c.Path() == frameworkImportPath {
+				return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": frameworkImportTooLargeMessage})
+			}
 			return c.Status(fiberErr.Code).JSON(fiber.Map{
 				"error": true,
 				"msg":   fiberErr.Message,

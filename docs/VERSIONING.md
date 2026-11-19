@@ -20,8 +20,9 @@ Everything else is **derived** from it, never hand-edited independently:
 | Go binary → `GET /api/v1/health` | `make build` injects `-ldflags "-X main.Version=$(cat VERSION) -X main.Commit=$(git rev-parse --short HEAD)"` | run the binary, curl `/api/v1/health` |
 | Helm chart (`version` + `appVersion`) | `make sync-version` writes `VERSION` into `helm/openrisk/Chart.yaml` | `make check-version` |
 | Frontend (`package.json` `version`) | `make sync-version` writes `VERSION` into `frontend/package.json` | `make check-version` |
+| Frontend lockfile (root `version` + `packages[""].version`) | `make sync-version` writes `VERSION` into both root entries of `frontend/package-lock.json`, never a dependency entry | `make check-version` |
 
-`make check-version` fails (exit 1) if any of the three drift from `VERSION`. It is
+`make check-version` fails (exit 1) if any of them drift from `VERSION`. It is
 run by the release workflow's guard job, so a release can never ship artifacts whose
 reported version disagrees with the tag.
 

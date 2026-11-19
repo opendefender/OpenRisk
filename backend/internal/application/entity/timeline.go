@@ -125,7 +125,7 @@ func auditTypes(t Type) []string {
 	case TypeIncident:
 		return []string{"incident"}
 	case TypeEvidence:
-		return []string{"evidence", "control_evidence"}
+		return []string{"evidence"}
 	default:
 		return nil
 	}
@@ -146,7 +146,7 @@ func typeForAuditEntity(entityType string) (Type, bool) {
 		return TypeControl, true
 	case "incident":
 		return TypeIncident, true
-	case "evidence", "control_evidence":
+	case "evidence":
 		return TypeEvidence, true
 	default:
 		return "", false

@@ -93,12 +93,7 @@ GET /entities/:type/:id
 GET /entities/:type/:id/audit
 GET /entities/:type/:id/relations
 GET /entitlements
-GET /evidence
-POST /evidence
 DELETE /evidence/:evidenceId
-GET /evidence/:evidenceId
-PATCH /evidence/:evidenceId
-GET /evidence/:evidenceId/download
 POST /evidence/:evidenceId/links
 DELETE /evidence/:evidenceId/links/:controlId
 POST /evidence/:evidenceId/review

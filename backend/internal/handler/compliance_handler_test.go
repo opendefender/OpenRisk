@@ -23,9 +23,12 @@ import (
 	applicationcompliance "github.com/opendefender/openrisk/internal/application/compliance"
 	applicationevidence "github.com/opendefender/openrisk/internal/application/evidence"
 	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/internal/infrastructure/controlchain"
+	"github.com/opendefender/openrisk/internal/infrastructure/controlstatus"
 	"github.com/opendefender/openrisk/internal/infrastructure/repository"
 	"github.com/opendefender/openrisk/internal/middleware"
 	"github.com/opendefender/openrisk/internal/service"
+	"github.com/opendefender/openrisk/internal/testsupport/testdb"
 	"github.com/opendefender/openrisk/pkg/storage"
 )
 
@@ -34,7 +37,7 @@ import (
 // backend/migrations/0028_create_compliance_schema.up.sql.
 func setupComplianceSchema(t *testing.T) *gorm.DB {
 	t.Helper()
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{TranslateError: true})
+	db, err := testdb.Open(t, sqlite.Open(":memory:"), &gorm.Config{TranslateError: true})
 	require.NoError(t, err)
 
 	require.NoError(t, db.Exec(`
@@ -66,6 +69,9 @@ func setupComplianceSchema(t *testing.T) *gorm.DB {
 	// DDL: the two tests in this repository that were red for months were both
 	// hand-written DDL that had drifted from the struct it mirrored.
 	require.NoError(t, db.AutoMigrate(&domain.Evidence{}, &domain.EvidenceControlLink{}))
+	// The legacy repositories mirror their writes onto the control chain (#1413).
+	require.NoError(t, db.AutoMigrate(controlchain.Models()...))
+	require.NoError(t, db.AutoMigrate(controlstatus.Models()...))
 	require.NoError(t, db.Exec(`
 		CREATE TABLE control_mappings (
 			id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL,
@@ -452,6 +458,7 @@ func TestListCatalogs_IncludesISO27001AndPlaceholders(t *testing.T) {
 	// only knows the openapi.yaml contract) read undefined and rendered every catalog as unavailable.
 	require.Contains(t, string(rawBody), `"available"`)
 	require.Contains(t, string(rawBody), `"control_count"`)
+	require.Contains(t, string(rawBody), `"review":{"status":"unreviewed"`)
 
 	var catalogs []applicationcompliance.CatalogSummary
 	require.NoError(t, json.Unmarshal(rawBody, &catalogs))
@@ -463,6 +470,7 @@ func TestListCatalogs_IncludesISO27001AndPlaceholders(t *testing.T) {
 	require.Contains(t, byKey, "iso27001-2022")
 	require.True(t, byKey["iso27001-2022"].Available)
 	require.Equal(t, 93, byKey["iso27001-2022"].ControlCount)
+	require.Equal(t, "unreviewed", byKey["iso27001-2022"].Review.Status)
 
 	// African regulatory frameworks are now real, available catalogs.
 	for _, key := range []string{"cobac", "bceao", "antic-cm"} {

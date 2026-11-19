@@ -165,6 +165,8 @@ var routesWithoutPermissionGuard = []string{
 	"PUT /users/me/avatar",
 	"POST /activation/celebrated",
 	"POST /auth/mfa/disable",
+	// #1032 — the caller's own backup codes; the authenticator code is the proof.
+	"POST /auth/mfa/backup-codes/regenerate",
 	// #720 — changes the session's own password; the current password is the proof.
 	"POST /auth/password/change",
 	"POST /auth/pat",

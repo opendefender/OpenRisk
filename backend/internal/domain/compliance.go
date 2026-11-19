@@ -81,10 +81,9 @@ type ComplianceControl struct {
 	// cases so the UI can show an evidence badge, and read by the "no implemented
 	// without proof" rule.
 	//
-	// There is deliberately no Evidences relation here any more. Evidence is
-	// reusable across controls (see domain.Evidence), so it cannot hang off one
-	// control by foreign key; a preload of the old control_evidences table would
-	// now return nothing for anything uploaded since migration 0052.
+	// There is deliberately no Evidences relation here. Evidence is reusable
+	// across controls (see domain.Evidence), so it cannot hang off one control
+	// by foreign key; the links live in evidence_control_links.
 	EvidenceCount int `gorm:"-" json:"evidence_count"`
 
 	CreatedAt time.Time      `json:"created_at"`
@@ -96,34 +95,3 @@ type ComplianceControl struct {
 func (ComplianceControl) TableName() string {
 	return "compliance_controls"
 }
-
-// ControlEvidence is a tenant-scoped evidence artifact linked to a control.
-type ControlEvidence struct {
-	ID          uuid.UUID  `gorm:"type:uuid;default:gen_random_uuid();primaryKey" json:"id"`
-	TenantID    uuid.UUID  `gorm:"type:uuid;not null;index" json:"tenant_id"`
-	ControlID   uuid.UUID  `gorm:"type:uuid;not null;index" json:"control_id"`
-	Filename    string     `gorm:"size:255;not null;default:''" json:"filename"`
-	URL         string     `gorm:"type:text;not null;default:''" json:"url"`
-	Description string     `gorm:"type:text" json:"description"`
-	UploadedBy  *uuid.UUID `gorm:"type:uuid" json:"uploaded_by"`
-
-	// Ownership — who answers for this evidence, who must refresh it, who
-	// validates it. Same embedded block as Risk/Mitigation/Incident/
-	// RemediationPlan; owner_id is backfilled from uploaded_by (migration 0044).
-	Ownership `gorm:"embedded"`
-
-	// Relations
-	Control ComplianceControl `gorm:"foreignKey:ControlID" json:"control,omitempty"`
-
-	CreatedAt time.Time      `json:"created_at"`
-	UpdatedAt time.Time      `json:"updated_at"`
-	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
-}
-
-// TableName overrides the default GORM table name.
-func (ControlEvidence) TableName() string {
-	return "control_evidences"
-}
-
-// OwnershipBlock implements OwnedEntity.
-func (e *ControlEvidence) OwnershipBlock() *Ownership { return &e.Ownership }

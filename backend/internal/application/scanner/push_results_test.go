@@ -8,6 +8,7 @@ package scanner
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/rs/zerolog"
@@ -97,4 +98,33 @@ func TestPushResults_ClaimLostToAnotherAgent(t *testing.T) {
 	_, err := uc.Execute(context.Background(), PushResultsInput{Agent: &domain.ScannerAgent{ID: uuid.New(), TenantID: tenant}, JobID: job.ID})
 	require.Error(t, err)
 	assert.ErrorIs(t, err, domain.ErrConflict)
+}
+
+// The push bookkeeping must not write the agent struct back (#1390): a scan can
+// outlive a revocation, and Update would restore the token hash and secret.
+func TestPushResults_BookkeepingWritesNoCredentials(t *testing.T) {
+	tenant := uuid.New()
+	agent := &domain.ScannerAgent{ID: uuid.New(), TenantID: tenant, TokenHash: "h", PushSecretEnc: "s"}
+	job := agentJob(tenant)
+	jobRepo := &mockJobRepo{getByIDFunc: func(_ context.Context, _, _ uuid.UUID) (*domain.ScanJob, error) { return job, nil }}
+	var gotHash string
+	var gotJob uuid.UUID
+	agentRepo := &mockAgentRepo{
+		updateFunc: func(context.Context, *domain.ScannerAgent) error {
+			t.Fatal("a push must not call Update")
+			return nil
+		},
+		completionFunc: func(_ context.Context, id, ten uuid.UUID, h string, j uuid.UUID, _ time.Time) error {
+			assert.Equal(t, agent.ID, id)
+			assert.Equal(t, tenant, ten)
+			gotHash, gotJob = h, j
+			return domain.ErrNotFound // revoked while the scan ran
+		},
+	}
+	got, err := newPushUC(newFakeKV(), agentRepo, jobRepo).Execute(context.Background(),
+		PushResultsInput{Agent: agent, JobID: job.ID})
+	require.NoError(t, err, "bookkeeping is best-effort; the job is already recorded")
+	assert.Equal(t, domain.ScanCompleted, got.Status)
+	assert.Equal(t, "h", gotHash)
+	assert.Equal(t, job.ID, gotJob)
 }

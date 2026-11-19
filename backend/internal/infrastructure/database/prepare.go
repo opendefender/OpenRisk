@@ -9,6 +9,8 @@ import (
 	"fmt"
 
 	"gorm.io/gorm"
+
+	"github.com/opendefender/openrisk/internal/infrastructure/tenantguard"
 )
 
 // PrepareForAutoMigrate performs the data repairs that AutoMigrate cannot do
@@ -57,7 +59,106 @@ func PrepareForAutoMigrate(db *gorm.DB) error {
 	if err := prepareScanJobType(db); err != nil {
 		return fmt.Errorf("scan_jobs: %w", err)
 	}
+	if err := prepareRealtimeOutbox(db); err != nil {
+		return fmt.Errorf("realtime_events: %w", err)
+	}
+	if err := prepareEvidenceRecordIntegrity(db); err != nil {
+		return fmt.Errorf("evidences: %w", err)
+	}
 	return nil
+}
+
+// prepareEvidenceRecordIntegrity adds the record-integrity columns of evidences
+// (#554) and backfills collection_method from source and the observation period
+// from collected_at, so a legacy row never reads as an empty method.
+//
+// It has to happen here, not only in migrations/0088: the compose files boot
+// with DB_HOST and no DATABASE_URL, which skips the SQL layer, and AutoMigrate
+// alone would leave every existing row with an empty method. content_hash is
+// deliberately not backfilled (a legacy blob was never hashed; those rows are
+// served flagged unverified).
+//
+// Runs once: only while collection_method does not exist yet; a late replay of
+// the SQL migration is a no-op because it touches only rows still empty. A
+// no-op outside Postgres and on a fresh database.
+func prepareEvidenceRecordIntegrity(db *gorm.DB) error {
+	// Boot schema preparation maintains every tenant's rows before any session exists.
+	db = tenantguard.CrossTenant(db, "boot schema preparation maintains every tenant before any session exists")
+	if db.Dialector.Name() != "postgres" {
+		return nil
+	}
+	if !db.Migrator().HasTable("evidences") || db.Migrator().HasColumn("evidences", "collection_method") {
+		return nil
+	}
+	return db.Transaction(func(tx *gorm.DB) error {
+		for _, col := range []string{
+			"content_hash varchar(64) NOT NULL DEFAULT ''",
+			"hash_algorithm varchar(16) NOT NULL DEFAULT ''",
+			"observed_from timestamptz",
+			"observed_to timestamptz",
+			"collection_method varchar(24) NOT NULL DEFAULT ''",
+			"collector_kind varchar(16) NOT NULL DEFAULT ''",
+			"collector_ref varchar(128) NOT NULL DEFAULT ''",
+			"signature text NOT NULL DEFAULT ''",
+			"signature_algorithm varchar(32) NOT NULL DEFAULT ''",
+		} {
+			if err := tx.Exec(`ALTER TABLE evidences ADD COLUMN IF NOT EXISTS ` + col).Error; err != nil {
+				return err
+			}
+		}
+		if err := tx.Exec(evidenceMethodBackfill).Error; err != nil {
+			return err
+		}
+		return tx.Exec(evidenceObservationBackfill).Error
+	})
+}
+
+// evidenceMethodBackfill and evidenceObservationBackfill mirror
+// migrations/0088_evidence_record_integrity (and domain.CollectionMethodForSource).
+const evidenceMethodBackfill = `UPDATE evidences
+   SET collection_method = CASE source
+         WHEN 'integration' THEN 'api_pull'
+         WHEN 'scanner'     THEN 'automated_collector'
+         WHEN 'automation'  THEN 'automated_collector'
+         ELSE 'manual_upload'
+       END
+ WHERE collection_method = ''`
+
+const evidenceObservationBackfill = `UPDATE evidences
+   SET observed_from = collected_at,
+       observed_to   = collected_at
+ WHERE observed_from IS NULL
+   AND observed_to IS NULL`
+
+// prepareRealtimeOutbox adds realtime_events.published_at (#344, ADR 0010) with
+// a fast default, so every row that exists now reads as published at this
+// moment, and then drops the default so new rows are born NULL (pending).
+//
+// It has to happen here, not only in migrations/0085: the compose files boot
+// with DB_HOST and no DATABASE_URL, which skips the SQL layer. AutoMigrate
+// would then add the column with every row NULL and the relay would republish
+// the whole retention window to every connected client (#757 pattern). The
+// other four outbox columns, the partial index and the counter table are
+// additive and AutoMigrate creates them.
+//
+// Runs only while the column is absent, so a second call changes nothing. Two
+// replicas booting together may both see it absent: ADD COLUMN IF NOT EXISTS
+// makes the loser wait on the winner's table lock and then skip, and its DROP
+// DEFAULT finds no default to drop, which is harmless. Only the winner
+// backfills. A no-op outside Postgres and on a fresh database.
+func prepareRealtimeOutbox(db *gorm.DB) error {
+	if db.Dialector.Name() != "postgres" {
+		return nil
+	}
+	if !db.Migrator().HasTable("realtime_events") || db.Migrator().HasColumn("realtime_events", "published_at") {
+		return nil
+	}
+	return db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Exec(`ALTER TABLE realtime_events ADD COLUMN IF NOT EXISTS published_at TIMESTAMPTZ DEFAULT now()`).Error; err != nil {
+			return err
+		}
+		return tx.Exec(`ALTER TABLE realtime_events ALTER COLUMN published_at DROP DEFAULT`).Error
+	})
 }
 
 // retireStarterPlan moves every organisation still on the legacy 'starter'
@@ -67,6 +168,8 @@ func PrepareForAutoMigrate(db *gorm.DB) error {
 // deployments that skip the SQL layer; AutoMigrate changes the column default.
 // Idempotent, and a no-op on a fresh database.
 func retireStarterPlan(db *gorm.DB) error {
+	// Boot schema preparation maintains every tenant's rows before any session exists.
+	db = tenantguard.CrossTenant(db, "boot schema preparation maintains every tenant before any session exists")
 	if !db.Migrator().HasTable("organizations") {
 		return nil
 	}
@@ -80,6 +183,8 @@ func retireStarterPlan(db *gorm.DB) error {
 // than left to a model tag. Idempotent; a no-op outside Postgres and on a
 // fresh database.
 func prepareScanJobType(db *gorm.DB) error {
+	// Boot schema preparation maintains every tenant's rows before any session exists.
+	db = tenantguard.CrossTenant(db, "boot schema preparation maintains every tenant before any session exists")
 	if db.Dialector.Name() != "postgres" {
 		return nil
 	}
@@ -102,6 +207,8 @@ func prepareScanJobType(db *gorm.DB) error {
 // backfilled plan cannot fall through to an earlier nudge worded as overdue.
 // A no-op outside Postgres and on a fresh database.
 func prepareMitigationOverdueReminder(db *gorm.DB) error {
+	// Boot schema preparation maintains every tenant's rows before any session exists.
+	db = tenantguard.CrossTenant(db, "boot schema preparation maintains every tenant before any session exists")
 	if db.Dialector.Name() != "postgres" {
 		return nil
 	}
@@ -143,6 +250,8 @@ const overdueReminderBackfill = `UPDATE mitigations
 // Mirrors migrations/0067_personal_access_tokens_tenant.up.sql. Idempotent; a
 // no-op outside Postgres and on a fresh database.
 func backfillPersonalAccessTokenTenant(db *gorm.DB) error {
+	// Boot schema preparation maintains every tenant's rows before any session exists.
+	db = tenantguard.CrossTenant(db, "boot schema preparation maintains every tenant before any session exists")
 	if db.Dialector.Name() != "postgres" {
 		return nil
 	}
@@ -180,6 +289,8 @@ func backfillPersonalAccessTokenTenant(db *gorm.DB) error {
 // the composite key cannot be violated by rows that were unique on user_id.
 // Idempotent; a no-op outside Postgres and on a fresh database.
 func prepareOnboardingProgressPerOrg(db *gorm.DB) error {
+	// Boot schema preparation maintains every tenant's rows before any session exists.
+	db = tenantguard.CrossTenant(db, "boot schema preparation maintains every tenant before any session exists")
 	if db.Dialector.Name() != "postgres" {
 		return nil
 	}
@@ -215,6 +326,8 @@ func prepareOnboardingProgressPerOrg(db *gorm.DB) error {
 // the boot, and refusing to start is a worse outcome than converging the data.
 // Idempotent; a no-op on a fresh database and outside Postgres.
 func prepareMembershipIntegrity(db *gorm.DB) error {
+	// Boot schema preparation maintains every tenant's rows before any session exists.
+	db = tenantguard.CrossTenant(db, "boot schema preparation maintains every tenant before any session exists")
 	if db.Dialector.Name() != "postgres" {
 		return nil
 	}
@@ -261,6 +374,8 @@ func prepareMembershipIntegrity(db *gorm.DB) error {
 // does not exist yet — there, AutoMigrate builds the table and migration 0062
 // creates the index right after.
 func prepareVendorAssessmentTokens(db *gorm.DB) error {
+	// Boot schema preparation maintains every tenant's rows before any session exists.
+	db = tenantguard.CrossTenant(db, "boot schema preparation maintains every tenant before any session exists")
 	if db.Dialector.Name() != "postgres" {
 		return nil
 	}
@@ -282,6 +397,8 @@ func prepareVendorAssessmentTokens(db *gorm.DB) error {
 // migrations/0057_refresh_token_family_rotation.up.sql. Idempotent; a no-op on a
 // fresh database where the table does not exist yet.
 func backfillRefreshTokenFamilies(db *gorm.DB) error {
+	// Boot schema preparation maintains every tenant's rows before any session exists.
+	db = tenantguard.CrossTenant(db, "boot schema preparation maintains every tenant before any session exists")
 	if db.Dialector.Name() != "postgres" {
 		return nil
 	}
@@ -310,6 +427,8 @@ func backfillRefreshTokenFamilies(db *gorm.DB) error {
 // hashes would be the one lie an audit trail cannot tell. This mirrors
 // migrations/0048_audit_trail_hash_chain.up.sql exactly.
 func backfillAuditSequences(db *gorm.DB) error {
+	// Boot schema preparation maintains every tenant's rows before any session exists.
+	db = tenantguard.CrossTenant(db, "boot schema preparation maintains every tenant before any session exists")
 	// Nothing to do when the table or the column is not there yet — a fresh
 	// database creates both correctly during AutoMigrate.
 	if !db.Migrator().HasTable("audit_events") || !db.Migrator().HasColumn("audit_events", "sequence") {

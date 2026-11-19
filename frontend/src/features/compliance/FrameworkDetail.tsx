@@ -27,13 +27,22 @@ import {
   Card,
   RingGauge,
   SkeletonRows,
+  Skeleton,
   EmptyState,
 } from '../../shared/ui';
 import { useUIStrings } from '../../shared/uiStrings';
 import { useUIStore } from '../../store/uiStore';
 import { useAuthStore } from '../../hooks/useAuthStore';
+import { useI18n } from '../../hooks/useI18n';
+import { downloadErrorMessage } from '../../lib/apiError';
 import { useUndoableRemove } from '../../shared/useUndoableRemove';
-import { useControls, useComplianceReport, useEvidences } from './useCompliance';
+import {
+  useControls,
+  useComplianceReport,
+  useEvidences,
+  useExportFramework,
+  useComplianceProgress,
+} from './useCompliance';
 import { useComplianceOverview, frameworkColorFor } from './complianceOverview';
 import { CreateControlDialog } from './ComplianceModals';
 import { ControlMappingsSection } from './ControlMappingsSection';
@@ -65,7 +74,9 @@ export function FrameworkDetail() {
   const fwIndex = fws.findIndex((f) => f.id === frameworkId);
   const fw = fwIndex >= 0 ? fws[fwIndex] : undefined;
   const { controls, isLoading, updateControl, deleteControl } = useControls(frameworkId);
+  const { t } = useI18n();
   const report = useComplianceReport();
+  const exportJson = useExportFramework();
   const [filter, setFilter] = useState<'all' | ControlStatus>('all');
   const [evidenceControl, setEvidenceControl] = useState<ComplianceControl | null>(null);
   const [showCreate, setShowCreate] = useState(false);
@@ -82,19 +93,15 @@ export function FrameworkDetail() {
     return c;
   }, [controls]);
 
-  // Live progress derived from the loaded controls (not the overview snapshot) so
-  // the header gauge tracks status changes optimistically, in real time. Falls
-  // back to the overview figures until the control list has loaded.
-  const loaded = controls.length > 0 || !isLoading;
-  const total = loaded ? controls.length : (fw?.total ?? 0);
-  const implementedCount = counts.implemented ?? 0;
-  const applicable = total - (counts.not_applicable ?? 0);
-  const pct = loaded
-    ? applicable > 0
-      ? Math.round((implementedCount / applicable) * 100)
-      : 0
-    : (fw?.pct ?? 0);
-  const passed = loaded ? implementedCount : (fw?.passed ?? 0);
+  // The header gauge is the server's own figure (GET .../progress, criterion 9
+  // of #307). A status change patches that cache optimistically (useControls),
+  // so it still moves in real time. No client-side recomputation from controls.
+  const progress = useComplianceProgress(frameworkId);
+  const progressData = progress.data;
+  const progressLoading = progress.isPending && !progress.isError;
+  const total = progressData?.total ?? 0;
+  const passed = progressData?.byStatus.implemented ?? 0;
+  const pct = Math.round(progressData?.percentComplete ?? 0);
 
   const filtered = filter === 'all' ? controls : controls.filter((c) => c.status === filter);
   const col = fw ? frameworkColorFor(fw.name, fwIndex) : 'var(--accent)';
@@ -153,6 +160,15 @@ export function FrameworkDetail() {
     });
   };
 
+  const downloadJson = () => {
+    if (!frameworkId) return;
+    toast.promise(exportJson.mutateAsync(frameworkId), {
+      loading: t('compliance.export.generating'),
+      success: t('compliance.export.success'),
+      error: t('compliance.export.error'),
+    });
+  };
+
   const meta = (s?: string) => STATUS_META[s ?? 'not_implemented'] ?? STATUS_META.not_implemented;
 
   return (
@@ -166,7 +182,13 @@ export function FrameworkDetail() {
 
       <PageHeader
         title={fw?.name ?? tr('Référentiel', 'Framework')}
-        count={`${passed}/${total} ${tr('contrôles', 'controls')}`}
+        count={
+          progressData
+            ? `${passed}/${total} ${tr('contrôles', 'controls')}`
+            : progressLoading
+              ? undefined
+              : t('compliance.progressState.unavailableShort')
+        }
         actions={
           <>
             {canCreate && (
@@ -176,6 +198,7 @@ export function FrameworkDetail() {
                 onClick={() => setShowCreate(true)}
               />
             )}
+            <Btn label={t('compliance.export.button')} icon={FileText} onClick={downloadJson} />
             <Btn label={L.exportPdf} icon={Download} primary onClick={downloadReport} />
           </>
         }
@@ -184,9 +207,29 @@ export function FrameworkDetail() {
       {fw && (
         <Card style={{ padding: '18px 22px', marginBottom: 16 }}>
           <div className="flex items-center gap-5 flex-wrap">
-            <RingGauge value={pct} size={84} color={col} thickness={8}>
-              <span className="mono text-[18px] font-bold text-ink">{pct}%</span>
-            </RingGauge>
+            {progressLoading ? (
+              <div data-testid="framework-progress-skeleton">
+                <Skeleton className="rounded-full" style={{ width: 84, height: 84 }} />
+              </div>
+            ) : progressData ? (
+              <RingGauge value={pct} size={84} color={col} thickness={8}>
+                <span className="mono text-[18px] font-bold text-ink">{pct}%</span>
+              </RingGauge>
+            ) : (
+              <div
+                role="status"
+                data-testid="framework-progress-error"
+                className="flex flex-col items-center justify-center text-center"
+                style={{ width: 84, minHeight: 84 }}
+              >
+                <span className="mono text-[18px] font-bold text-ink-soft" aria-hidden="true">
+                  —
+                </span>
+                <span className="text-[11px] text-ink-soft">
+                  {t('compliance.progressState.unavailable')}
+                </span>
+              </div>
+            )}
             <div className="flex-1 min-w-[200px]">
               <div className="text-[13px] text-ink-soft mb-2">
                 {fw.description || `${fw.name} · ${fw.version ?? ''}`}
@@ -283,6 +326,9 @@ export function FrameworkDetail() {
                         />
                         <select
                           value={c.status}
+                          aria-label={t('compliance.progressState.controlStatus', {
+                            code: c.reference_code || c.name,
+                          })}
                           disabled={!canUpdate}
                           onChange={(e) => setStatus(c, e.target.value as ControlStatus)}
                           className="appearance-none text-[12px] font-semibold rounded-full pl-6 pr-6 py-1.5 outline-none disabled:opacity-70 disabled:cursor-not-allowed"
@@ -387,6 +433,7 @@ function EvidenceDrawer({ control, onClose }: { control: ComplianceControl; onCl
   useEscapeToClose(true, onClose);
   const lang = useUIStore((s) => s.lang);
   const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
+  const { t } = useI18n();
   const { evidences, isLoading, createEvidence, deleteEvidence, downloadEvidence } = useEvidences(
     control.id,
   );
@@ -523,7 +570,21 @@ function EvidenceDrawer({ control, onClose }: { control: ComplianceControl; onCl
                       </div>
                     </div>
                     <button
-                      onClick={() => downloadEvidence.mutate({ id: e.id, filename: e.filename })}
+                      onClick={() =>
+                        downloadEvidence.mutate(
+                          { id: e.id, filename: e.filename },
+                          {
+                            onError: async (err) =>
+                              toast.error(
+                                await downloadErrorMessage(
+                                  err,
+                                  t,
+                                  t('errors.failedToDownloadEvidence'),
+                                ),
+                              ),
+                          },
+                        )
+                      }
                       className="w-8 h-8 rounded-lg flex items-center justify-center text-ink-soft hover:bg-hover hover:text-ink transition-colors"
                       title={tr('Télécharger', 'Download')}
                     >

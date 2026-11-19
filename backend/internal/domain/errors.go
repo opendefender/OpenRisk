@@ -31,6 +31,21 @@ type AppError struct {
 	Detail string
 	// Code is the HTTP status code
 	Code int
+	// Reason is an optional stable machine-readable code the client can switch
+	// on (and map to a translated message). Empty for the common errors.
+	Reason string
+	// Fields lists the per-row problems of a validation error that covers a
+	// whole document (a bulk import). Empty for every other error.
+	Fields []FieldError
+}
+
+// FieldError is one problem found in one place of a submitted document.
+// Index is the 0-based position in the document's list, nil for a problem on
+// the document itself rather than on a row.
+type FieldError struct {
+	Index   *int   `json:"index"`
+	Field   string `json:"field"`
+	Message string `json:"message"`
 }
 
 func (e *AppError) Error() string {
@@ -78,10 +93,72 @@ func NewConflictError(resource, field string) *AppError {
 	}
 }
 
+// ReasonEvidenceIntegrity is the stable code of a stored artifact whose bytes no
+// longer match the hash taken at ingest.
+const ReasonEvidenceIntegrity = "evidence_integrity_mismatch"
+
+// NewEvidenceIntegrityError reports that the stored bytes of an artifact do not
+// match its content hash. It is an ErrConflict answered with 409: the record
+// and the blob disagree, and the content is refused. The message is fixed and
+// carries no hash, path or content.
+func NewEvidenceIntegrityError(id any) *AppError {
+	return &AppError{
+		Err:     ErrConflict,
+		Message: "evidence integrity check failed: the stored file does not match its recorded hash",
+		Detail:  fmt.Sprintf("id=%v", id),
+		Code:    http.StatusConflict,
+		Reason:  ReasonEvidenceIntegrity,
+	}
+}
+
 func NewValidationError(message string) *AppError {
 	return &AppError{
 		Err:     ErrValidation,
 		Message: message,
+		Code:    http.StatusBadRequest,
+	}
+}
+
+// NewValidationErrorWithFields is a validation error (400) that carries the
+// per-row problems of a bulk document, so the client can point at each one.
+func NewValidationErrorWithFields(message string, fields []FieldError) *AppError {
+	e := NewValidationError(message)
+	e.Fields = fields
+	return e
+}
+
+// FieldErrorsFromError returns the per-row problems an error carries, or nil.
+func FieldErrorsFromError(err error) []FieldError {
+	var appErr *AppError
+	if errors.As(err, &appErr) {
+		return appErr.Fields
+	}
+	return nil
+}
+
+// NewPayloadTooLargeError is a validation error (ErrValidation) answered with
+// 413: the request is well formed but its content is over the accepted size.
+func NewPayloadTooLargeError(message string) *AppError {
+	return &AppError{
+		Err:     ErrValidation,
+		Message: message,
+		Code:    http.StatusRequestEntityTooLarge,
+	}
+}
+
+// NewOutboundDeniedError reports a URL the server refuses to call: loopback,
+// link-local (cloud metadata), a private range or a non-https scheme (#1315).
+// It is a validation error (400) that keeps its cause, so errors.Is matches
+// both ErrValidation and the guard's own sentinel (netguard.ErrDenied) without
+// the domain importing the guard.
+//
+// The message is fixed on purpose: the cause names the URL (a write-only
+// webhook URL whose path is its secret) and the internal address it resolved
+// to, neither of which goes back to the caller.
+func NewOutboundDeniedError(field string, cause error) *AppError {
+	return &AppError{
+		Err:     errors.Join(ErrValidation, cause),
+		Message: field + ": target address is not allowed (must be a public https host)",
 		Code:    http.StatusBadRequest,
 	}
 }
@@ -160,6 +237,16 @@ func HTTPStatusFromError(err error) int {
 		return appErr.Code
 	}
 	return http.StatusInternalServerError
+}
+
+// ReasonFromError returns the stable machine-readable code of an AppError, or
+// "" when the error carries none.
+func ReasonFromError(err error) string {
+	var appErr *AppError
+	if errors.As(err, &appErr) {
+		return appErr.Reason
+	}
+	return ""
 }
 
 // MessageFromError extracts the user-facing message from an error.

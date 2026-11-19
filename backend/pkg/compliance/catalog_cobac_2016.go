@@ -15,8 +15,10 @@ package compliance
 // interne, conformité, gestion des risques), l'organisation comptable, les systèmes de
 // mesure et de surveillance des risques et le reporting — il s'adosse donc naturellement à
 // un produit GRC. Les descriptions sont des reformulations synthétiques rédigées pour ce
-// produit ; la SourceReference cite l'article précis. À valider par un professionnel avant
-// usage en audit réel : les codes d'article sont fiables (relevés dans le texte fourni).
+// produit ; la SourceReference cite l'article précis. Les codes d'article ont été relevés dans
+// le texte fourni.
+//
+// Review status: see Catalog.Review in the register call below. This header makes no review claim.
 
 func init() {
 	register(Catalog{
@@ -25,6 +27,7 @@ func init() {
 		Version:     "R-2016/04",
 		Description: "Exigences minimales de contrôle interne, de gestion des risques, de conformité et de reporting pour les établissements de crédit et holdings financières de la CEMAC (Règlement COBAC R-2016/04).",
 		Available:   true,
+		Review:      Review{Status: ReviewUnreviewed},
 		Controls:    cobacControls,
 	})
 }

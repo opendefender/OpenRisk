@@ -18,3 +18,4 @@
 - [Agent tool-grant traps](defect-pattern-agent-tool-grants.md) — #1004: Bash(pattern) in tools undocumented; memory adds Write/Edit; reviewer cwd; public memory
 - [Routing/gate script traps](defect-pattern-routing-scripts.md) — #1005: pipefail+grep -q SIGPIPE on big diffs, cwd-relative pathspecs, no-merge-base = empty
 - [ADR 0008 canonical model review](adr-0008-canonical-model.md) — 2026-11-03 approve-with-changes; edge envelope, derived-min, Control id, 0004 provenance
+- [ADR 0012 — control status engine](adr-0012-control-status-engine.md) — #555 gate D-119: 5 statuses, live read, engine-only cache, readers split to #1465

@@ -50,7 +50,7 @@ func (r *GormOrganizationRoleRepository) GetByOrganizationID(ctx context.Context
 
 // Update updates an organization role
 func (r *GormOrganizationRoleRepository) Update(ctx context.Context, role *domain.OrganizationRole) error {
-	return r.db.WithContext(ctx).Save(role).Error
+	return updateInOrganization(r.db.WithContext(ctx), role.OrganizationID, role)
 }
 
 // Delete deletes an organization role

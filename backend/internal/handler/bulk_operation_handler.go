@@ -113,12 +113,19 @@ func (h *BulkOperationHandler) GetBulkOperation(c *fiber.Ctx) error {
 		})
 	}
 
+	userClaims := middleware.GetUserClaims(c)
+	if userClaims == nil || userClaims.Sub == uuid.Nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
+			"error": "Unauthorized",
+		})
+	}
+
 	rc := middleware.GetContext(c)
 	if rc == nil || rc.OrganizationID == uuid.Nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "No tenant context"})
 	}
 
-	op, err := h.service.GetBulkOperation(opID, rc.OrganizationID)
+	op, err := h.service.GetBulkOperation(opID, userClaims.Sub, rc.OrganizationID)
 	if err != nil {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
 			"error": "Operation not found",

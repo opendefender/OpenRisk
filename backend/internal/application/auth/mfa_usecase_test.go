@@ -25,6 +25,8 @@ type MockMFARepository struct {
 	// enrolmentErr makes StartMFAEnrolment fail; enrolments counts its calls.
 	enrolmentErr error
 	enrolments   int
+	// replaceErr makes ReplaceBackupCodes fail before anything is written.
+	replaceErr error
 }
 
 func NewMockMFARepository() *MockMFARepository {
@@ -127,6 +129,24 @@ func (m *MockMFARepository) MarkBackupCodeAsUsed(ctx context.Context, codeID, us
 	return false, nil
 }
 
+// ReplaceBackupCodes honours the GORM contract: all or nothing, and only for a
+// verified secret of that user and tenant.
+func (m *MockMFARepository) ReplaceBackupCodes(ctx context.Context, userID, tenantID uuid.UUID, codes []*domain.MFABackupCode) (bool, error) {
+	if m.replaceErr != nil {
+		return false, m.replaceErr
+	}
+	key := userID.String() + ":" + tenantID.String()
+	secret := m.secrets[key]
+	if secret == nil || !secret.IsVerified {
+		return false, nil
+	}
+	for _, c := range codes {
+		c.UserID, c.TenantID = userID, tenantID
+	}
+	m.codes[key] = codes
+	return true, nil
+}
+
 func (m *MockMFARepository) DeleteBackupCodes(ctx context.Context, userID, tenantID uuid.UUID) error {
 	key := userID.String() + ":" + tenantID.String()
 	delete(m.codes, key)
@@ -142,17 +162,6 @@ func (m *MockMFARepository) CreateOAuthProvider(ctx context.Context, provider *d
 func (m *MockMFARepository) GetOAuthProvider(ctx context.Context, userID, tenantID uuid.UUID, providerName string) (*domain.OAuthProvider, error) {
 	key := userID.String() + ":" + providerName
 	return m.oauthProviders[key], nil
-}
-
-func (m *MockMFARepository) GetOAuthProviderByEmail(ctx context.Context, email, provider string) (*domain.OAuthProvider, error) {
-	key := email + ":" + provider
-	return m.oauthProviders[key], nil
-}
-
-func (m *MockMFARepository) UpdateOAuthProvider(ctx context.Context, provider *domain.OAuthProvider) error {
-	key := provider.UserID.String() + ":" + provider.Provider
-	m.oauthProviders[key] = provider
-	return nil
 }
 
 func (m *MockMFARepository) ListOAuthProviders(ctx context.Context, userID, tenantID uuid.UUID) ([]*domain.OAuthProvider, error) {

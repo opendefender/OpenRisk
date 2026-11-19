@@ -19,6 +19,7 @@ import (
 
 	"github.com/opendefender/openrisk/internal/domain"
 	"github.com/opendefender/openrisk/internal/testsupport/sqliteschema"
+	"github.com/opendefender/openrisk/internal/testsupport/testdb"
 )
 
 // #754 — DisableMFA removes the secret and the backup codes in one transaction.
@@ -26,7 +27,7 @@ import (
 func setupMFARepo(t *testing.T) (*GormMFARepository, *gorm.DB) {
 	t.Helper()
 	dsn := "file:mfa_" + uuid.New().String() + "?mode=memory&cache=private"
-	db, err := gorm.Open(sqlite.Open(dsn), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
+	db, err := testdb.Open(t, sqlite.Open(dsn), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
 	require.NoError(t, err)
 	for _, m := range []struct {
 		table string

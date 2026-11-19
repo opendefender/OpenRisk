@@ -9,6 +9,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -66,7 +67,7 @@ func (m *mockCompliance) GetFrameworkByID(_ context.Context, id, _ uuid.UUID) (*
 	}
 	return nil, nil
 }
-func (m *mockCompliance) GetControlByID(_ context.Context, id, _ uuid.UUID) (*domain.ComplianceControl, error) {
+func (m *mockCompliance) GetControlByID(_ context.Context, id, _ uuid.UUID, _ time.Time) (*domain.ComplianceControl, error) {
 	for i := range m.controls {
 		if m.controls[i].ID == id {
 			return &m.controls[i], nil

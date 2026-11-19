@@ -254,8 +254,10 @@ things change on purpose:
   same for every user, so anyone could derive them. They are deleted. Codes
   made after the fix are kept. Each person whose codes were deleted gets one
   e-mail, in their language, once the backend is up: their authenticator app
-  still works, and new codes come from Settings › Security (turn two-factor
-  off, then set it up again). Nobody is mailed twice, even across restarts or
+  still works, and new codes come from the "Regenerate backup codes" button
+  in Settings › Security, which asks for a code from the authenticator app
+  and the password (#1032). This works for administrators too, who may not
+  turn two-factor off. Nobody is mailed twice, even across restarts or
   replicas.
 - Assets created before asset categories existed get the category their type
   names (`Server` becomes `server`, `SaaS` becomes `application`). A type with

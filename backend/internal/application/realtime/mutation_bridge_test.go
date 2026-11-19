@@ -373,3 +373,55 @@ func TestMutationBridge_UnreadableResponsesYieldNoEvent(t *testing.T) {
 		})
 	}
 }
+
+// A request whose use case enlisted its events in the transactional outbox
+// publishes nothing through the bridge: the relay announces them (ADR 0010).
+func TestMutationBridge_SkipsEnlistedRequest(t *testing.T) {
+	pub := &capturePublisher{}
+	bridge := NewMutationBridge(pub)
+	tenant := uuid.New()
+	ev := auditEvent(tenant, "asset", uuid.NewString(), domain.AuditActionCreate)
+
+	app := fiber.New()
+	app.Post("/api/v1/assets", func(c *fiber.Ctx) error {
+		c.SetUserContext(rt.WithEnlistMark(c.UserContext()))
+		rt.MarkEnlisted(c.UserContext())
+		bridge.ObserveMutation(c, ev)
+		return c.SendStatus(fiber.StatusOK)
+	})
+	resp, err := app.Test(httptest.NewRequest(fiber.MethodPost, "/api/v1/assets", nil))
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = resp.Body.Close()
+	if len(pub.sent) != 0 {
+		t.Fatalf("an enlisted request must publish nothing through the bridge, got %d", len(pub.sent))
+	}
+}
+
+// The same mutation, not enlisted (mark installed but never flipped, or no mark
+// at all), is published as before.
+func TestMutationBridge_PublishesWhenNotEnlisted(t *testing.T) {
+	for _, withMark := range []bool{false, true} {
+		pub := &capturePublisher{}
+		bridge := NewMutationBridge(pub)
+		ev := auditEvent(uuid.New(), "asset", uuid.NewString(), domain.AuditActionCreate)
+
+		app := fiber.New()
+		app.Post("/api/v1/assets", func(c *fiber.Ctx) error {
+			if withMark {
+				c.SetUserContext(rt.WithEnlistMark(c.UserContext()))
+			}
+			bridge.ObserveMutation(c, ev)
+			return c.SendStatus(fiber.StatusOK)
+		})
+		resp, err := app.Test(httptest.NewRequest(fiber.MethodPost, "/api/v1/assets", nil))
+		if err != nil {
+			t.Fatal(err)
+		}
+		_ = resp.Body.Close()
+		if len(pub.sent) != 1 || pub.sent[0].Type != rt.AssetCreated {
+			t.Fatalf("withMark=%v: want one asset.created, got %+v", withMark, pub.sent)
+		}
+	}
+}

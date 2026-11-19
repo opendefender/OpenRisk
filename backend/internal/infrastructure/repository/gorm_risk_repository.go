@@ -96,6 +96,11 @@ func (r *GormRiskRepository) Create(ctx context.Context, risk *domain.Risk) erro
 // GetByID retrieves a risk by ID scoped to a tenant.
 // Returns (nil, nil) if not found (use case handles 404).
 func (r *GormRiskRepository) GetByID(ctx context.Context, id uuid.UUID, tenantID uuid.UUID) (*domain.Risk, error) {
+	// A nil tenant reads nobody's data. Answered here, before any query, so the
+	// tenant guard never sees a statement bound to uuid.Nil (#808).
+	if tenantID == uuid.Nil {
+		return nil, nil
+	}
 	var risk domain.Risk
 	err := r.db.WithContext(ctx).
 		Where("id = ? AND tenant_id = ?", id, tenantID).
@@ -122,6 +127,11 @@ func (r *GormRiskRepository) GetByID(ctx context.Context, id uuid.UUID, tenantID
 // List retrieves risks with filtering, pagination, and sorting scoped to a tenant.
 func (r *GormRiskRepository) List(ctx context.Context, tenantID uuid.UUID, query domain.RiskQuery) (*domain.PaginatedResult[domain.Risk], error) {
 	query.Sanitize()
+	// A nil tenant reads nobody's data. Answered here, before any query, so the
+	// tenant guard never sees a statement bound to uuid.Nil (#808).
+	if tenantID == uuid.Nil {
+		return &domain.PaginatedResult[domain.Risk]{Data: []domain.Risk{}, Page: query.Page, Limit: query.Limit}, nil
+	}
 
 	db := r.db.WithContext(ctx).
 		Model(&domain.Risk{}).
@@ -303,7 +313,7 @@ func (r *GormRiskRepository) List(ctx context.Context, tenantID uuid.UUID, query
 
 // Update updates an existing risk.
 func (r *GormRiskRepository) Update(ctx context.Context, risk *domain.Risk) error {
-	return r.db.WithContext(ctx).Save(risk).Error
+	return updateInTenant(r.db.WithContext(ctx), risk.TenantID, risk)
 }
 
 // Delete soft-deletes a risk by ID scoped to a tenant.
@@ -412,6 +422,12 @@ func (r *GormRiskRepository) SearchByText(ctx context.Context, tenantID uuid.UUI
 // single SQL aggregate so the "N/M risks quantified" counter is a server fact,
 // not a client-side filter that can drift (spec §6). Concrete method (off the
 // RiskRepository port) so mocks stay valid.
+//
+// The SLE column is `slexaf`: GORM's name for the SLEXAF field, which carries no
+// column tag. It read `sle_xaf` until #1033, so the query failed and the
+// financial summary silently fell back to its in-memory count. The FILTER is
+// the SQL twin of domain.Risk.HasLossFigures (an amount counts when above
+// zero, as in the dashboard aggregate); a Postgres test keeps them equal.
 func (r *GormRiskRepository) CountFinancialCoverage(ctx context.Context, tenantID uuid.UUID) (total, quantified int, err error) {
 	type row struct {
 		Total      int64
@@ -422,11 +438,11 @@ func (r *GormRiskRepository) CountFinancialCoverage(ctx context.Context, tenantI
 		Model(&domain.Risk{}).
 		Select(`COUNT(*) AS total,
 			COUNT(*) FILTER (WHERE
-				sle_xaf IS NOT NULL
-				OR fines_xaf IS NOT NULL
-				OR data_loss_cost_xaf IS NOT NULL
-				OR other_direct_cost_xaf IS NOT NULL
-				OR (downtime_hours IS NOT NULL AND hourly_downtime_cost_xaf IS NOT NULL)
+				COALESCE(slexaf, 0) > 0
+				OR COALESCE(fines_xaf, 0) > 0
+				OR COALESCE(data_loss_cost_xaf, 0) > 0
+				OR COALESCE(other_direct_cost_xaf, 0) > 0
+				OR (COALESCE(downtime_hours, 0) > 0 AND COALESCE(hourly_downtime_cost_xaf, 0) > 0)
 			) AS quantified`).
 		Where("tenant_id = ?", tenantID).
 		Scan(&res).Error
@@ -475,6 +491,9 @@ func (r *GormRiskRepository) MonthlyRiskTrend(ctx context.Context, tenantID uuid
 	if months <= 0 {
 		months = 6
 	}
+	// The wall clock is correct here (#419): the only caller, the executive
+	// dashboard, owns no clock seam, so "this month" means the same month to
+	// both of them.
 	now := time.Now().UTC()
 	since := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.UTC).AddDate(0, -(months - 1), 0)
 
@@ -647,7 +666,7 @@ func (r *GormRiskRepository) GetRisksByAssetID(ctx context.Context, assetID uuid
 	if err := r.db.WithContext(ctx).
 		Table("risks").
 		Select("id, tenant_id, probability, impact, score as current_score").
-		Where("id IN ?", riskIDs).
+		Where("tenant_id = ? AND id IN ?", tenantID, riskIDs).
 		Scan(&riskRows).Error; err != nil {
 		return nil, fmt.Errorf("failed to load risks for scoring: %w", err)
 	}
@@ -847,7 +866,7 @@ func (r *GormRiskRepository) BulkApply(
 			}
 			after := risk.BulkSnapshot()
 
-			if err := tx.Save(&risk).Error; err != nil {
+			if err := updateInTenant(tx, tenantID, &risk); err != nil {
 				return fmt.Errorf("failed to update risk %s: %w", id, err)
 			}
 

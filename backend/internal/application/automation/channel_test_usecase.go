@@ -7,13 +7,16 @@ package automation
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"net/url"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
 
 	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/pkg/netguard"
 	"github.com/opendefender/openrisk/pkg/notify"
 )
 
@@ -26,7 +29,9 @@ import (
 // lands in Slack, or you get back the exact error the webhook returned.
 //
 // Every test performs a REAL send. A test that quietly returned success without
-// leaving the process would be worse than no test at all.
+// leaving the process would be worse than no test at all. A URL the outbound
+// guard refuses (#1315) is not a delivery result but a configuration error, and
+// is returned as a validation error naming the field.
 // ---------------------------------------------------------------------------
 
 // ChannelTestResult is the outcome of testing one channel.
@@ -74,8 +79,12 @@ func NewChannelTester(repo domain.AutomationChannelRepository) *ChannelTester {
 	return &ChannelTester{repo: repo}
 }
 
-func (t *ChannelTester) WithInApp(s InAppSender) *ChannelTester        { t.inApp = s; return t }
-func (t *ChannelTester) WithEmail(s EmailSender) *ChannelTester        { t.email = s; return t }
+func (t *ChannelTester) WithInApp(s InAppSender) *ChannelTester { t.inApp = s; return t }
+func (t *ChannelTester) WithEmail(s EmailSender) *ChannelTester { t.email = s; return t }
+
+// WithHTTPDoer replaces the guarded production client. Test seam only: wiring
+// must leave it unset so sends go through netguard's dialer (#1315). The URL
+// check still applies to whatever doer is set.
 func (t *ChannelTester) WithHTTPDoer(d notify.HTTPDoer) *ChannelTester { t.http = d; return t }
 func (t *ChannelTester) WithUserEmail(f func(ctx context.Context, userID uuid.UUID) string) *ChannelTester {
 	t.userEmail = f
@@ -84,6 +93,11 @@ func (t *ChannelTester) WithUserEmail(f func(ctx context.Context, userID uuid.UU
 
 // Test delivers one test message on one channel.
 func (t *ChannelTester) Test(ctx context.Context, tenantID, userID uuid.UUID, channel string) (*ChannelTestResult, error) {
+	// Fail closed: without a tenant there is no config to read and no one to
+	// notify, and uuid.Nil must never reach a repository.
+	if tenantID == uuid.Nil {
+		return nil, domain.NewUnauthorizedError("missing tenant")
+	}
 	channel = strings.ToLower(strings.TrimSpace(channel))
 	if !domain.IsAutomationChannel(channel) {
 		return nil, domain.NewValidationError("unknown channel: " + channel)
@@ -154,7 +168,10 @@ func (t *ChannelTester) Test(ctx context.Context, tenantID, userID uuid.UUID, ch
 			break
 		}
 		if err := notify.PostSlack(ctx, cfg.SlackWebhookURL, msg, t.http); err != nil {
-			res.Error = err.Error()
+			if netguard.IsDenied(err) {
+				return nil, domain.NewOutboundDeniedError("slack_webhook_url", err)
+			}
+			res.Error = deliveryError(err)
 			res.Detail = "Slack rejected the message"
 			break
 		}
@@ -168,7 +185,10 @@ func (t *ChannelTester) Test(ctx context.Context, tenantID, userID uuid.UUID, ch
 			break
 		}
 		if err := notify.PostTeams(ctx, cfg.TeamsWebhookURL, msg, t.http); err != nil {
-			res.Error = err.Error()
+			if netguard.IsDenied(err) {
+				return nil, domain.NewOutboundDeniedError("teams_webhook_url", err)
+			}
+			res.Error = deliveryError(err)
 			res.Detail = "Teams rejected the message"
 			break
 		}
@@ -182,7 +202,10 @@ func (t *ChannelTester) Test(ctx context.Context, tenantID, userID uuid.UUID, ch
 			break
 		}
 		if err := notify.PostWebhook(ctx, cfg.WebhookURL, cfg.WebhookSecret, msg, t.http); err != nil {
-			res.Error = err.Error()
+			if netguard.IsDenied(err) {
+				return nil, domain.NewOutboundDeniedError("webhook_url", err)
+			}
+			res.Error = deliveryError(err)
 			res.Detail = "the endpoint did not accept the request"
 			break
 		}
@@ -209,7 +232,10 @@ func (t *ChannelTester) Test(ctx context.Context, tenantID, userID uuid.UUID, ch
 			SenderField: cfg.SMSSenderField,
 		}, recipients, msg.Title+" — "+msg.Text, t.http)
 		if err != nil {
-			res.Error = err.Error()
+			if netguard.IsDenied(err) {
+				return nil, domain.NewOutboundDeniedError("sms_gateway_url", err)
+			}
+			res.Error = deliveryError(err)
 			res.Detail = fmt.Sprintf("the gateway accepted %d of %d recipients before failing", sent, len(recipients))
 			break
 		}
@@ -219,6 +245,25 @@ func (t *ChannelTester) Test(ctx context.Context, tenantID, userID uuid.UUID, ch
 
 	res.DurationMS = time.Since(start).Milliseconds()
 	return res, nil
+}
+
+// deliveryError describes a failed webhook or gateway send without echoing its
+// URL: a stored URL is write-only, and for Slack and Teams the path is the
+// secret. net/http quotes the full URL in a *url.Error, so only the operation
+// and a reason class are kept. The status-code errors from notify carry no URL.
+func deliveryError(err error) string {
+	var uerr *url.Error
+	if !errors.As(err, &uerr) {
+		return err.Error()
+	}
+	switch {
+	case uerr.Timeout():
+		return uerr.Op + " request: timed out"
+	case errors.Is(err, context.Canceled):
+		return uerr.Op + " request: cancelled"
+	default:
+		return uerr.Op + " request: connection failed"
+	}
 }
 
 func testMessage() notify.ChatMessage {

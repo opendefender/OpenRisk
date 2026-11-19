@@ -69,7 +69,7 @@ func (uc *CreateRemediationUseCase) Execute(ctx context.Context, tenantID, creat
 	// framework from it. GetControlByID returns (nil, nil) for another tenant's
 	// control — so a forged control_id can never attach across tenants.
 	if in.ControlID != nil {
-		ctrl, err := uc.complianceRepo.GetControlByID(ctx, *in.ControlID, tenantID)
+		ctrl, err := uc.complianceRepo.GetControlByID(ctx, *in.ControlID, tenantID, time.Now())
 		if err != nil {
 			return nil, err
 		}
@@ -112,7 +112,7 @@ func (uc *ListRemediationsUseCase) Execute(ctx context.Context, tenantID uuid.UU
 		cid := *plans[i].ControlID
 		ctrl, ok := cache[cid]
 		if !ok {
-			ctrl, err = uc.complianceRepo.GetControlByID(ctx, cid, tenantID)
+			ctrl, err = uc.complianceRepo.GetControlByID(ctx, cid, tenantID, time.Now())
 			if err != nil {
 				return nil, err
 			}

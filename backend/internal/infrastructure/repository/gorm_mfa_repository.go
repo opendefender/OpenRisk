@@ -53,7 +53,7 @@ func (r *GormMFARepository) GetMFASecret(ctx context.Context, userID, tenantID u
 // code, and writing it back would lower the mark and re-open the replay #849
 // closes. ConsumeTOTPStep is its only writer.
 func (r *GormMFARepository) UpdateMFASecret(ctx context.Context, secret *domain.MFASecret) error {
-	return r.db.WithContext(ctx).Omit("last_totp_step").Save(secret).Error
+	return updateInTenant(r.db.WithContext(ctx), secret.TenantID, secret, "last_totp_step")
 }
 
 // ConsumeTOTPStep records that a code for step was accepted, and reports false
@@ -223,6 +223,58 @@ func (r *GormMFARepository) DeleteBackupCodes(ctx context.Context, userID, tenan
 		Delete(&domain.MFABackupCode{}).Error
 }
 
+// ReplaceBackupCodes deletes every backup code of one user and stores codes in
+// their place, in one transaction, and only while that user has a verified
+// secret in that tenant (#1032).
+//
+// The verified secret is read FOR UPDATE first. A concurrent DisableMFA, which
+// deletes that row, waits for this transaction, and this one waits for it: the
+// account never ends up with fresh codes and no secret, which would be a
+// second factor nobody can see or revoke. With no verified secret the call
+// reports false and writes nothing, so the old codes stay.
+//
+// The codes arrive already hashed: hashing is slow and must not happen while
+// the row is locked.
+func (r *GormMFARepository) ReplaceBackupCodes(ctx context.Context, userID, tenantID uuid.UUID, codes []*domain.MFABackupCode) (bool, error) {
+	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var secret domain.MFASecret
+		res := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+			Where("user_id = ? AND tenant_id = ? AND is_verified = ?", userID, tenantID, true).
+			Limit(1).Find(&secret)
+		if res.Error != nil {
+			return res.Error
+		}
+		if res.RowsAffected == 0 {
+			return errNoVerifiedSecret
+		}
+		if err := tx.Where("user_id = ? AND tenant_id = ?", userID, tenantID).
+			Delete(&domain.MFABackupCode{}).Error; err != nil {
+			return err
+		}
+		for _, c := range codes {
+			c.UserID, c.TenantID = userID, tenantID
+			if c.ID == uuid.Nil {
+				c.ID = uuid.New()
+			}
+		}
+		if len(codes) > 0 {
+			return tx.CreateInBatches(codes, 100).Error
+		}
+		return nil
+	})
+	if errors.Is(err, errNoVerifiedSecret) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+// errNoVerifiedSecret rolls ReplaceBackupCodes back when the user has no
+// verified secret. It never leaves the repository.
+var errNoVerifiedSecret = errors.New("mfa backup codes: no verified secret")
+
 // GormOAuthProviderRepository implements OAuthProviderRepository using GORM
 type GormOAuthProviderRepository struct {
 	db *gorm.DB
@@ -252,27 +304,6 @@ func (r *GormOAuthProviderRepository) GetOAuthProvider(ctx context.Context, user
 		return nil, err
 	}
 	return &provider, nil
-}
-
-// GetOAuthProviderByEmail retrieves OAuth provider by email and provider name (NO tenant filter - for OAuth flow)
-func (r *GormOAuthProviderRepository) GetOAuthProviderByEmail(ctx context.Context, email, provider string) (*domain.OAuthProvider, error) {
-	var oauthProvider domain.OAuthProvider
-	err := r.db.WithContext(ctx).
-		Where("email = ? AND provider = ?", email, provider).
-		First(&oauthProvider).Error
-
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, nil
-		}
-		return nil, err
-	}
-	return &oauthProvider, nil
-}
-
-// UpdateOAuthProvider updates an existing OAuth provider
-func (r *GormOAuthProviderRepository) UpdateOAuthProvider(ctx context.Context, provider *domain.OAuthProvider) error {
-	return r.db.WithContext(ctx).Save(provider).Error
 }
 
 // ListOAuthProviders lists all OAuth providers for user (Tenant-scoped)

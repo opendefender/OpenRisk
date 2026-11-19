@@ -83,7 +83,8 @@ IFS=',' read -r -a LABEL_LIST <<< "$LABELS"
 for l in "${LABEL_LIST[@]}"; do
   case "${l// /}" in
     area:design) add art-director ;;
-    type:security) add devsecops ;;
+    # Floor (#1404): backend and infra work reaches devsecops whatever its paths.
+    type:security|area:backend|area:infra) add devsecops ;;
   esac
 done
 
@@ -94,7 +95,9 @@ COMPLIANCE='^backend/(pkg/compliance/|pkg/report/compliance_pdf|internal/applica
 # Everything CI, a release, an install or an agent session executes or loads:
 # code, build and install scripts, dependency manifests, the shipped endpoint
 # agent, the gate exceptions, and the agents' own instructions and memory.
-INFRA='^(backend|agent|security|scripts|deploy|helm|deployment|migrations|database|\.github|\.claude/(hooks|agents|agent-memory|skills|commands))/|^frontend/(scripts/|nginx\.conf$|index\.html$|vite\.config\.[cm]?[jt]s$)|^\.claude/settings[^/]*\.json$|^(CLAUDE\.md|Makefile|\.mcp\.json|\.gitattributes|\.gitmodules|\.npmrc)$|(^|/)(package(-lock)?\.json|[^/]*\.sh|Dockerfile[^/]*|[^/]*\.[Dd]ockerfile|Containerfile[^/]*|docker-compose[^/]*\.ya?ml|compose[^/]*\.ya?ml)$'
+# Also the DAST rules (.zap/), dev fixtures (dev/), SonarQube settings, and any
+# .env* file at any depth: its keys configure a running stack (#1404).
+INFRA='^(backend|agent|security|scripts|deploy|helm|deployment|migrations|database|dev|\.zap|\.github|\.claude/(hooks|agents|agent-memory|skills|commands))/|^frontend/(scripts/|nginx\.conf$|index\.html$|vite\.config\.[cm]?[jt]s$)|^\.claude/settings[^/]*\.json$|^(CLAUDE\.md|Makefile|\.mcp\.json|\.gitattributes|\.gitmodules|\.npmrc|sonar-project\.properties)$|(^|/)(package(-lock)?\.json|[^/]*\.sh|\.env[^/]*|Dockerfile[^/]*|[^/]*\.[Dd]ockerfile|Containerfile[^/]*|docker-compose[^/]*\.ya?ml|compose[^/]*\.ya?ml)$'
 DOCS='^docs/|(^|/)(README|ROADMAP|CHANGELOG)([.][^/]*)?$|release[-_ ]?notes|(^|/)RELEASE[^/]*\.md$'
 LOCALES='^frontend/src/locales/[^/]*\.json$'
 UI_SRC='^frontend/src/'

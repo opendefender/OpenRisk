@@ -7,7 +7,6 @@ package handler
 
 import (
 	"errors"
-	"fmt"
 	"github.com/opendefender/openrisk/pkg/monitoring"
 	"strings"
 
@@ -18,6 +17,7 @@ import (
 	"github.com/opendefender/openrisk/internal/domain"
 	"github.com/opendefender/openrisk/internal/middleware"
 	ent "github.com/opendefender/openrisk/pkg/entitlements"
+	"github.com/opendefender/openrisk/pkg/fileupload"
 	"github.com/opendefender/openrisk/pkg/report"
 	"github.com/opendefender/openrisk/pkg/validation"
 )
@@ -51,6 +51,9 @@ type ComplianceHandler struct {
 	// Optional: absent on deployments that do not wire crosswalks, and the
 	// endpoint says so rather than pretending the tenant inherits nothing.
 	inheritedCoverageUC *compliance.GetInheritedCoverageUseCase
+	// Optional JSON exchange of a custom framework (#307).
+	exportFrameworkUC *compliance.ExportFrameworkUseCase
+	importFrameworkUC *compliance.ImportFrameworkUseCase
 }
 
 func NewComplianceHandler(
@@ -107,7 +110,14 @@ func writeAppError(c *fiber.Ctx, err error) error {
 			"upgrade_url": "/settings?tab=billing",
 		})
 	}
-	return c.Status(domain.HTTPStatusFromError(err)).JSON(fiber.Map{"error": domain.MessageFromError(err)})
+	body := fiber.Map{"error": domain.MessageFromError(err)}
+	if fields := domain.FieldErrorsFromError(err); len(fields) > 0 {
+		body["errors"] = fields
+	}
+	if reason := domain.ReasonFromError(err); reason != "" {
+		body["code"] = reason
+	}
+	return c.Status(domain.HTTPStatusFromError(err)).JSON(body)
 }
 
 func tenantID(c *fiber.Ctx) uuid.UUID {
@@ -352,38 +362,97 @@ func (h *ComplianceHandler) GenerateReport(c *fiber.Ctx) error {
 	monitoring.RecordReportGenerated("compliance")
 	filename := reportFilename(data.FrameworkName, data.FrameworkVersion)
 	c.Set("Content-Type", "application/pdf")
-	c.Set("Content-Disposition", fmt.Sprintf("attachment; filename=%q", filename))
+	c.Set("Content-Disposition", fileupload.AttachmentHeader(filename))
 	return c.Send(pdf)
 }
 
 // reportFilename builds a safe, descriptive PDF filename from the framework
 // identity, e.g. "compliance-report-iso-iec-27001-2022.pdf".
 func reportFilename(name, version string) string {
-	slug := func(s string) string {
-		var b strings.Builder
-		prevDash := false
-		for _, r := range strings.ToLower(s) {
-			switch {
-			case r >= 'a' && r <= 'z', r >= '0' && r <= '9':
-				b.WriteRune(r)
-				prevDash = false
-			default:
-				if !prevDash && b.Len() > 0 {
-					b.WriteByte('-')
-					prevDash = true
-				}
-			}
-		}
-		return strings.Trim(b.String(), "-")
-	}
 	base := "compliance-report"
-	if s := slug(name); s != "" {
+	if s := fileSlug(name); s != "" {
 		base += "-" + s
 	}
-	if s := slug(version); s != "" {
+	if s := fileSlug(version); s != "" {
 		base += "-" + s
 	}
 	return base + ".pdf"
+}
+
+// fileSlug lower-cases s to [a-z0-9] runs joined by single dashes.
+func fileSlug(s string) string {
+	var b strings.Builder
+	prevDash := false
+	for _, r := range strings.ToLower(s) {
+		switch {
+		case r >= 'a' && r <= 'z', r >= '0' && r <= '9':
+			b.WriteRune(r)
+			prevDash = false
+		default:
+			if !prevDash && b.Len() > 0 {
+				b.WriteByte('-')
+				prevDash = true
+			}
+		}
+	}
+	return strings.Trim(b.String(), "-")
+}
+
+// WithFrameworkTransfer attaches the JSON export and import use cases (#307).
+func (h *ComplianceHandler) WithFrameworkTransfer(export *compliance.ExportFrameworkUseCase, imp *compliance.ImportFrameworkUseCase) *ComplianceHandler {
+	h.exportFrameworkUC = export
+	h.importFrameworkUC = imp
+	return h
+}
+
+// ExportFramework GET /compliance/frameworks/:frameworkId/export — the
+// framework and its controls as a downloadable JSON document. A framework of
+// another tenant answers 404, the same as an unknown id.
+func (h *ComplianceHandler) ExportFramework(c *fiber.Ctx) error {
+	if h.exportFrameworkUC == nil {
+		return c.Status(fiber.StatusNotImplemented).JSON(fiber.Map{"error": "framework export is not configured"})
+	}
+	frameworkID, err := uuid.Parse(c.Params("frameworkId"))
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "invalid framework id"})
+	}
+	doc, err := h.exportFrameworkUC.Execute(c.UserContext(), tenantID(c), frameworkID)
+	if err != nil {
+		return writeAppError(c, err)
+	}
+	name := fileSlug(doc.Framework.Name)
+	if name == "" {
+		name = "framework"
+	}
+	if v := fileSlug(doc.Framework.Version); v != "" {
+		name += "-" + v
+	}
+	c.Set("Content-Disposition", fileupload.AttachmentHeader(name+".json"))
+	return c.JSON(doc)
+}
+
+// importFrameworkResponse is the created framework plus how many controls came with it.
+type importFrameworkResponse struct {
+	*domain.ComplianceFramework
+	ControlsCreated int `json:"controls_created"`
+}
+
+// ImportFramework POST /compliance/frameworks/import — the body is the JSON
+// document itself. Validation, the tenant and the transaction are the use
+// case's; the handler only bounds the body and delegates.
+func (h *ComplianceHandler) ImportFramework(c *fiber.Ctx) error {
+	if h.importFrameworkUC == nil {
+		return c.Status(fiber.StatusNotImplemented).JSON(fiber.Map{"error": "framework import is not configured"})
+	}
+	body := c.Body()
+	if len(body) > compliance.MaxFrameworkImportBytes {
+		return writeAppError(c, domain.NewValidationError("file exceeds the 2 MiB limit"))
+	}
+	res, err := h.importFrameworkUC.Execute(c.UserContext(), tenantID(c), body)
+	if err != nil {
+		return writeAppError(c, err)
+	}
+	return c.Status(201).JSON(importFrameworkResponse{ComplianceFramework: res.Framework, ControlsCreated: res.ControlsCreated})
 }
 
 // ListCatalogs godoc

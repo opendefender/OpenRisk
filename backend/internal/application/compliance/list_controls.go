@@ -7,6 +7,7 @@ package compliance
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/opendefender/openrisk/internal/domain"
@@ -30,7 +31,7 @@ func (uc *ListControlsUseCase) Execute(ctx context.Context, tenantID, frameworkI
 	// Attach each control's evidence count in a single grouped query (no N+1),
 	// so the UI can badge substantiated controls and gate the "implemented"
 	// status transition on the presence of at least one proof.
-	counts, err := uc.repo.CountEvidencesByFramework(ctx, tenantID, frameworkID)
+	counts, err := uc.repo.CountEvidencesByFramework(ctx, tenantID, frameworkID, time.Now())
 	if err != nil {
 		return nil, err
 	}

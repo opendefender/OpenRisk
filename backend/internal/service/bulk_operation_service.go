@@ -20,6 +20,7 @@ import (
 	"github.com/opendefender/openrisk/internal/domain"
 	"github.com/opendefender/openrisk/internal/infrastructure/database"
 	"github.com/opendefender/openrisk/internal/infrastructure/repository"
+	"github.com/opendefender/openrisk/internal/infrastructure/tenantwrite"
 )
 
 // BulkOperationService handles async bulk operations
@@ -101,11 +102,13 @@ func (s *BulkOperationService) CreateBulkOperation(userID, tenantID uuid.UUID, r
 	return op, nil
 }
 
-// GetBulkOperation retrieves a bulk operation by ID, scoped to the tenant so a
-// user cannot read another tenant's operation by guessing its UUID.
-func (s *BulkOperationService) GetBulkOperation(opID, tenantID uuid.UUID) (*domain.BulkOperation, error) {
+// GetBulkOperation retrieves a bulk operation by ID for the user who created
+// it, in their tenant, the same scope ListBulkOperations applies. Another
+// tenant's job and a colleague's job read as missing (#1219): the row carries
+// the filter and the update data of its author's work.
+func (s *BulkOperationService) GetBulkOperation(opID, userID, tenantID uuid.UUID) (*domain.BulkOperation, error) {
 	op := &domain.BulkOperation{}
-	if err := s.db.Where("id = ? AND tenant_id = ?", opID, tenantID).First(op).Error; err != nil {
+	if err := s.db.Where("id = ? AND created_by = ? AND tenant_id = ?", opID, userID, tenantID).First(op).Error; err != nil {
 		return nil, err
 	}
 	return op, nil
@@ -131,7 +134,7 @@ func (s *BulkOperationService) processBulkOperation(op *domain.BulkOperation) {
 	// Mark as processing
 	now := time.Now()
 	s.mu.Lock()
-	s.db.Model(op).Updates(map[string]interface{}{
+	s.db.Model(op).Where("tenant_id = ?", op.TenantID).Updates(map[string]interface{}{
 		"status":     domain.BulkOperationStatusProcessing,
 		"started_at": now,
 	})
@@ -157,7 +160,7 @@ func (s *BulkOperationService) processBulkOperation(op *domain.BulkOperation) {
 	}
 
 	s.mu.Lock()
-	s.db.Model(op).Updates(map[string]interface{}{
+	s.db.Model(op).Where("tenant_id = ?", op.TenantID).Updates(map[string]interface{}{
 		"status":       status,
 		"completed_at": completed,
 		"error_message": func() string {
@@ -185,7 +188,7 @@ func (s *BulkOperationService) processBulkUpdate(op *domain.BulkOperation) error
 			s.logBulkOperationError(op.ID, risk.ID, "risk", err.Error())
 			s.mu.Lock()
 			op.ErrorCount++
-			s.db.Model(op).Update("error_count", op.ErrorCount)
+			s.db.Model(op).Where("tenant_id = ?", op.TenantID).Update("error_count", op.ErrorCount)
 			s.mu.Unlock()
 			continue
 		}
@@ -193,7 +196,7 @@ func (s *BulkOperationService) processBulkUpdate(op *domain.BulkOperation) error
 		s.logBulkOperationSuccess(op.ID, risk.ID, "risk")
 		s.mu.Lock()
 		op.ProcessedCount++
-		s.db.Model(op).Update("processed_count", op.ProcessedCount)
+		s.db.Model(op).Where("tenant_id = ?", op.TenantID).Update("processed_count", op.ProcessedCount)
 		s.mu.Unlock()
 	}
 
@@ -212,7 +215,7 @@ func (s *BulkOperationService) processBulkDelete(op *domain.BulkOperation) error
 			s.logBulkOperationError(op.ID, risk.ID, "risk", err.Error())
 			s.mu.Lock()
 			op.ErrorCount++
-			s.db.Model(op).Update("error_count", op.ErrorCount)
+			s.db.Model(op).Where("tenant_id = ?", op.TenantID).Update("error_count", op.ErrorCount)
 			s.mu.Unlock()
 			continue
 		}
@@ -220,7 +223,7 @@ func (s *BulkOperationService) processBulkDelete(op *domain.BulkOperation) error
 		s.logBulkOperationSuccess(op.ID, risk.ID, "risk")
 		s.mu.Lock()
 		op.ProcessedCount++
-		s.db.Model(op).Update("processed_count", op.ProcessedCount)
+		s.db.Model(op).Where("tenant_id = ?", op.TenantID).Update("processed_count", op.ProcessedCount)
 		s.mu.Unlock()
 	}
 
@@ -273,7 +276,7 @@ func (s *BulkOperationService) processBulkAssign(op *domain.BulkOperation) error
 			s.logBulkOperationSkipped(op.ID, risk.ID, "risk", "a plan with this title already exists on the risk")
 			s.mu.Lock()
 			op.ProcessedCount++
-			s.db.Model(op).Update("processed_count", op.ProcessedCount)
+			s.db.Model(op).Where("tenant_id = ?", op.TenantID).Update("processed_count", op.ProcessedCount)
 			s.mu.Unlock()
 			continue
 		}
@@ -292,7 +295,7 @@ func (s *BulkOperationService) processBulkAssign(op *domain.BulkOperation) error
 			s.logBulkOperationError(op.ID, risk.ID, "risk", err.Error())
 			s.mu.Lock()
 			op.ErrorCount++
-			s.db.Model(op).Update("error_count", op.ErrorCount)
+			s.db.Model(op).Where("tenant_id = ?", op.TenantID).Update("error_count", op.ErrorCount)
 			s.mu.Unlock()
 			continue
 		}
@@ -300,7 +303,7 @@ func (s *BulkOperationService) processBulkAssign(op *domain.BulkOperation) error
 		s.logBulkOperationSuccess(op.ID, risk.ID, "risk")
 		s.mu.Lock()
 		op.ProcessedCount++
-		s.db.Model(op).Update("processed_count", op.ProcessedCount)
+		s.db.Model(op).Where("tenant_id = ?", op.TenantID).Update("processed_count", op.ProcessedCount)
 		s.mu.Unlock()
 	}
 
@@ -405,7 +408,7 @@ func (s *BulkOperationService) updateRiskFromData(risk *domain.Risk, data map[st
 		risk.Owner = owner
 	}
 
-	return s.db.Save(risk).Error
+	return tenantwrite.UpdateInTenant(s.db, risk.TenantID, risk)
 }
 
 // logBulkOperationSuccess logs a successful resource processing

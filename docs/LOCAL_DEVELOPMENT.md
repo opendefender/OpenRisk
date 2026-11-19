@@ -161,6 +161,14 @@ docker-compose restart backend
 docker-compose restart frontend
 ```
 
+### Development Dataset
+
+```bash
+# Fill the running stack with a complete organisation, personas for every
+# role and a second tenant (docs/DEV_DATASET.md)
+make seed-dev
+```
+
 ### Database Management
 
 ```bash

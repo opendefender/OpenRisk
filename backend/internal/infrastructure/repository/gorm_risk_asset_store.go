@@ -14,6 +14,7 @@ import (
 	"gorm.io/gorm/clause"
 
 	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/internal/infrastructure/tenantguard"
 )
 
 // GormRiskAssetStore implements risk.RiskAssetStore: it resolves a tenant's
@@ -66,12 +67,16 @@ func (s *GormRiskAssetStore) SaveWithAssets(ctx context.Context, risk *domain.Ri
 		if create {
 			err = write.Create(risk).Error
 		} else {
-			err = write.Save(risk).Error
+			err = updateInTenant(write, risk.TenantID, risk)
 		}
 		if err != nil {
 			return err
 		}
-		if err := tx.Model(risk).Association("Assets").Replace(assets); err != nil {
+		// GORM re-issues an id-only UPDATE on the owner row while replacing a
+		// many2many. The risk was written above under its tenant and every asset
+		// was checked against that tenant, so the statement is allowlisted.
+		link := tenantguard.CrossTenant(tx, "association replace re-writes the risk this transaction just updated under its tenant")
+		if err := link.Model(risk).Association("Assets").Replace(assets); err != nil {
 			return fmt.Errorf("failed to link assets: %w", err)
 		}
 		return nil

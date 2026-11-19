@@ -15,6 +15,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/internal/infrastructure/tenantguard"
 )
 
 // GormMembershipRepository is the tenant-scoped store behind organization
@@ -361,7 +362,7 @@ func (r *GormMembershipRepository) FindInvitationByToken(ctx context.Context, to
 		return nil, nil
 	}
 	var inv domain.Invitation
-	err := r.db.WithContext(ctx).Where("token_hash = ?", hash).First(&inv).Error
+	err := tenantguard.CrossTenant(r.db.WithContext(ctx), "invitation token resolves its organisation; no session yet").Where("token_hash = ?", hash).First(&inv).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, nil
 	}
@@ -380,7 +381,7 @@ func (r *GormMembershipRepository) FindInvitationByToken(ctx context.Context, to
 func (r *GormMembershipRepository) AcceptInvitation(ctx context.Context, inv *domain.Invitation, member *domain.OrganizationMember) error {
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		res := tx.Model(&domain.Invitation{}).
-			Where("id = ? AND status = ?", inv.ID, domain.InvitationPending).
+			Where("id = ? AND organization_id = ? AND status = ?", inv.ID, inv.OrganizationID, domain.InvitationPending).
 			Updates(map[string]interface{}{
 				"status":         domain.InvitationAccepted,
 				"accepted_at":    inv.AcceptedAt,

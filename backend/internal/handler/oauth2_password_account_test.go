@@ -31,7 +31,7 @@ func (r unlinkedRepo) Create(context.Context, *domain.OAuthProvider) error {
 	*r.created++
 	return nil
 }
-func (unlinkedRepo) TouchLogin(context.Context, uuid.UUID, time.Time) error { return nil }
+func (unlinkedRepo) TouchLogin(context.Context, uuid.UUID, uuid.UUID, time.Time) error { return nil }
 
 func TestOAuthCallback_PasswordAccountIsRefusedAndNotLinked(t *testing.T) {
 	user := &domain.User{

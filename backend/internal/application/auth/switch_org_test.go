@@ -18,6 +18,7 @@ import (
 
 	coreauth "github.com/opendefender/openrisk/internal/auth"
 	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/internal/testsupport/testdb"
 	authpkg "github.com/opendefender/openrisk/pkg/auth"
 )
 
@@ -40,7 +41,7 @@ func (m *memberStub) GetByID(_ context.Context, uid uuid.UUID) (*domain.User, er
 
 func newSwitchTokenManager(t *testing.T) *coreauth.TokenManager {
 	t.Helper()
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	db, err := testdb.Open(t, sqlite.Open(":memory:"), &gorm.Config{})
 	require.NoError(t, err)
 	require.NoError(t, db.Exec(`
 		CREATE TABLE refresh_tokens (

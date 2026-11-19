@@ -28,9 +28,11 @@ import (
 	coreauth "github.com/opendefender/openrisk/internal/auth"
 	"github.com/opendefender/openrisk/internal/domain"
 	authhandler "github.com/opendefender/openrisk/internal/handler/auth"
+	"github.com/opendefender/openrisk/internal/infrastructure/authmfa"
 	"github.com/opendefender/openrisk/internal/infrastructure/repository"
 	"github.com/opendefender/openrisk/internal/middleware"
 	"github.com/opendefender/openrisk/internal/testsupport/sqliteschema"
+	"github.com/opendefender/openrisk/internal/testsupport/testdb"
 	authpkg "github.com/opendefender/openrisk/pkg/auth"
 )
 
@@ -54,6 +56,8 @@ type deferredFixture struct {
 	keys       *authpkg.RSAKeys
 	policyRepo *repository.GormMFAPolicyRepository
 	resolver   *appauth.MFAStatusResolver
+	// inSession holds the #1392 lock counters, shared by disable and regenerate.
+	inSession *authmfa.MemoryAttemptStore
 	// trail captures what the tamper-evident audit middleware would chain.
 	trail *capturedTrail
 
@@ -78,7 +82,7 @@ var deferredTOTPKey = []byte("0123456789abcdef0123456789abcdef")
 func newDeferredFixture(t *testing.T) *deferredFixture {
 	t.Helper()
 
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
+	db, err := testdb.Open(t, sqlite.Open(":memory:"), &gorm.Config{Logger: logger.Default.LogMode(logger.Silent)})
 	require.NoError(t, err)
 
 	// users / organization_members / organizations carry Postgres-only column
@@ -191,13 +195,26 @@ func newDeferredFixture(t *testing.T) *deferredFixture {
 	protected.Post("/auth/pat", ok)
 	protected.Post("/auth/mfa/setup", ok)
 	// #754 — the real disable path: use case, handler, repository.
+	// #1392 — one in-session lock shared by disable, regenerate and the handler.
+	f.inSession = authmfa.NewMemoryAttemptStore()
+	inSessionLimits := appauth.NewMFAInSessionLimits(f.inSession, userRepo, nil)
 	disableUC := appauth.NewDisableMFAUseCase(mfaRepo, userRepo, deferredHasher{}).
 		WithTOTPKey(deferredTOTPKey).
-		RequireMFAForRoles(orgRoles, businessRoles)
-	mfaHandler := authhandler.NewMFAHandler(nil, nil, disableUC, nil, tokens, userRepo, nil).
+		RequireMFAForRoles(orgRoles, businessRoles).
+		WithInSessionLimits(inSessionLimits)
+	// #1032 — the real regenerate path, audited into auth_audit_logs.
+	require.NoError(t, db.Exec(`CREATE TABLE auth_audit_logs (id TEXT PRIMARY KEY)`).Error)
+	require.NoError(t, sqliteschema.Reconcile(db, "auth_audit_logs", &domain.AuthAuditLog{}))
+	regenerateUC := appauth.NewRegenerateBackupCodesUseCase(mfaRepo, userRepo, deferredHasher{}, deferredTOTPKey).
+		WithInSessionLimits(inSessionLimits)
+	mfaHandler := authhandler.NewMFAHandler(nil, nil, disableUC, nil, tokens, userRepo,
+		coreauth.NewAuditService(repository.NewGormAuthAuditLogRepository(db))).
 		WithMFAStatus(f.resolver).
-		WithDisableAttemptLimit(middleware.NewRateLimitStore())
+		WithDisableAttemptLimit(middleware.NewRateLimitStore()).
+		WithBackupCodeRegeneration(regenerateUC).
+		WithInSessionLimits(inSessionLimits)
 	protected.Post("/auth/mfa/disable", mfaHandler.Disable)
+	protected.Post("/auth/mfa/backup-codes/regenerate", mfaHandler.RegenerateBackupCodes)
 
 	f.app = app
 	return f

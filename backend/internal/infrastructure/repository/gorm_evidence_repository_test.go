@@ -12,6 +12,9 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/internal/infrastructure/controlchain"
+	"github.com/opendefender/openrisk/internal/infrastructure/controlstatus"
+	"github.com/opendefender/openrisk/internal/testsupport/testdb"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gorm.io/driver/sqlite"
@@ -24,13 +27,16 @@ import (
 // class of failure.
 func setupEvidenceRepo(t *testing.T) (*GormEvidenceRepository, *gorm.DB) {
 	t.Helper()
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{DisableForeignKeyConstraintWhenMigrating: true})
+	db, err := testdb.Open(t, sqlite.Open(":memory:"), &gorm.Config{DisableForeignKeyConstraintWhenMigrating: true})
 	require.NoError(t, err)
 	require.NoError(t, db.AutoMigrate(
 		&domain.Evidence{},
 		&domain.EvidenceControlLink{},
 		&evJoinedControl{},
 	))
+	// The repository mirrors its writes onto the control chain (#1413).
+	require.NoError(t, db.AutoMigrate(controlchain.Models()...))
+	require.NoError(t, db.AutoMigrate(controlstatus.Models()...))
 	return NewGormEvidenceRepository(db), db
 }
 
@@ -38,12 +44,19 @@ func setupEvidenceRepo(t *testing.T) (*GormEvidenceRepository, *gorm.DB) {
 // build under sqlite: its Framework relation drags in a table carrying a Postgres
 // gen_random_uuid() default. Only the four columns the evidence queries actually
 // join on are declared, so the stand-in cannot drift in ways these tests would
-// miss — a query touching a fifth column fails loudly here rather than silently
-// passing against a fuller fake.
+// miss — a query touching a column it lacks fails loudly here rather than
+// silently passing against a fuller fake. The control chain mirror (#1413) reads
+// the six more it splits a requirement from: name, description, status and the
+// two timestamps.
 type evJoinedControl struct {
 	ID          uuid.UUID `gorm:"type:uuid;primaryKey"`
 	TenantID    uuid.UUID `gorm:"type:uuid;not null"`
 	FrameworkID uuid.UUID `gorm:"type:uuid;not null"`
+	Name        string
+	Description string
+	Status      string
+	CreatedAt   time.Time
+	UpdatedAt   time.Time
 	DeletedAt   gorm.DeletedAt
 }
 
@@ -51,8 +64,7 @@ func (evJoinedControl) TableName() string { return "compliance_controls" }
 
 func seedEvControl(t *testing.T, db *gorm.DB, tenant, framework uuid.UUID, code string) uuid.UUID {
 	t.Helper()
-	_ = code
-	c := evJoinedControl{ID: uuid.New(), TenantID: tenant, FrameworkID: framework}
+	c := evJoinedControl{ID: uuid.New(), TenantID: tenant, FrameworkID: framework, Name: "control " + code, Status: "not_implemented"}
 	require.NoError(t, db.Create(&c).Error)
 	return c.ID
 }
@@ -185,11 +197,12 @@ func TestEvidenceRepo_CoverageIgnoresOtherTenants(t *testing.T) {
 
 	control := seedEvControl(t, db, tenantA, fw, "A.5.1")
 
-	// Tenant B forges a link to tenant A's control. Even so, A's coverage must not
-	// move: the count joins on tenant_id at every hop.
+	// Tenant B forges a link to tenant A's control. Since #1413 the link is refused
+	// (the control does not resolve in tenant B); and even a link row that did
+	// exist could not move A's coverage: the count joins on tenant_id at every hop.
 	evB := &domain.Evidence{TenantID: tenantB, Title: "not yours", CollectedAt: now, Review: domain.EvidenceReviewAccepted}
 	require.NoError(t, repo.Create(ctx, evB))
-	require.NoError(t, repo.Link(ctx, &domain.EvidenceControlLink{TenantID: tenantB, EvidenceID: evB.ID, ControlID: control}))
+	require.ErrorIs(t, repo.Link(ctx, &domain.EvidenceControlLink{TenantID: tenantB, EvidenceID: evB.ID, ControlID: control}), domain.ErrNotFound)
 
 	counts, err := repo.CountCoveringByFramework(ctx, tenantA, fw, now)
 	require.NoError(t, err)
@@ -216,7 +229,12 @@ func TestEvidenceRepo_ListExpiringAndReminderStamp(t *testing.T) {
 
 	// Stamped at send time, as the worker does — the row already exists, so the
 	// stamp necessarily lands after the write that created it.
-	require.NoError(t, repo.MarkReminded(ctx, due.ID, time.Now()))
+	// #808: a stamp carrying another tenant's id touches nothing.
+	require.NoError(t, repo.MarkReminded(ctx, uuid.New(), due.ID, time.Now()))
+	got, err = repo.ListExpiring(ctx, now, domain.EvidenceExpiryWindow, 100)
+	require.NoError(t, err)
+	require.Len(t, got, 1, "a foreign tenant must not be able to stamp the reminder")
+	require.NoError(t, repo.MarkReminded(ctx, tenant, due.ID, time.Now()))
 	got, err = repo.ListExpiring(ctx, now, domain.EvidenceExpiryWindow, 100)
 	require.NoError(t, err)
 	assert.Empty(t, got, "a stamped reminder must not fire again on the next tick")
@@ -258,3 +276,46 @@ func TestEvidenceRepo_ListFiltersByControlAndFramework(t *testing.T) {
 }
 
 func evPtr(t time.Time) *time.Time { return &t }
+
+// #554: Update writes an allow-listed set of columns. The content hash, its
+// algorithm, the collection method, the collector and the signature are written
+// by Create only, so no metadata edit can rewrite the record's integrity; the
+// observation period is editable.
+func TestEvidenceRepo_UpdateNeverWritesTheIntegrityColumns(t *testing.T) {
+	repo, db := setupEvidenceRepo(t)
+	ctx := context.Background()
+	tenant := uuid.New()
+	collected := time.Now().UTC().Truncate(time.Second)
+	hash := domain.ContentHashOf([]byte("original"))
+	ev := &domain.Evidence{
+		ID: uuid.New(), TenantID: tenant, Title: "proof", Type: domain.EvidenceTypeDocument,
+		CollectedAt: collected, Review: domain.EvidenceReviewPending, Source: domain.EvidenceSourceManual,
+		ContentHash: hash, HashAlgorithm: domain.HashAlgorithmSHA256,
+		CollectionMethod: domain.CollectionManualUpload, CollectorKind: domain.CollectorUser, CollectorRef: "u-1",
+	}
+	require.NoError(t, repo.Create(ctx, ev))
+
+	from := collected.Add(-time.Hour)
+	to := collected.Add(-time.Minute)
+	ev.Title = "renamed"
+	ev.ContentHash = domain.ContentHashOf([]byte("forged"))
+	ev.HashAlgorithm = "md5"
+	ev.CollectionMethod = domain.CollectionAttestation
+	ev.CollectorRef = "someone-else"
+	ev.Signature = "c2ln"
+	ev.ObservedFrom, ev.ObservedTo = &from, &to
+	require.NoError(t, repo.Update(ctx, ev))
+
+	var row domain.Evidence
+	require.NoError(t, db.First(&row, "id = ? AND tenant_id = ?", ev.ID, tenant).Error)
+	assert.Equal(t, "renamed", row.Title)
+	assert.Equal(t, hash, row.ContentHash, "Update must not write content_hash")
+	assert.Equal(t, domain.HashAlgorithmSHA256, row.HashAlgorithm)
+	assert.Equal(t, domain.CollectionManualUpload, row.CollectionMethod)
+	assert.Equal(t, "u-1", row.CollectorRef)
+	assert.Empty(t, row.Signature)
+	require.NotNil(t, row.ObservedFrom)
+	require.NotNil(t, row.ObservedTo)
+	assert.True(t, row.ObservedFrom.Equal(from))
+	assert.True(t, row.ObservedTo.Equal(to))
+}

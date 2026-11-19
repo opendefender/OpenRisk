@@ -14,13 +14,15 @@ import (
 	"github.com/stretchr/testify/require"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
+
+	"github.com/opendefender/openrisk/internal/testsupport/testdb"
 )
 
 // setupRiskScoringRepo creates an in-memory SQLite DB with just enough schema
 // (risks, assets, risk_assets) to exercise GetRisksByAssetID.
 func setupRiskScoringRepo(t *testing.T) (*GormRiskRepository, *gorm.DB) {
 	t.Helper()
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	db, err := testdb.Open(t, sqlite.Open(":memory:"), &gorm.Config{})
 	require.NoError(t, err)
 
 	require.NoError(t, db.Exec(`

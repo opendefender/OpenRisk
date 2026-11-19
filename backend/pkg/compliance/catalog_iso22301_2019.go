@@ -18,6 +18,8 @@ package compliance
 // Clauses 1 to 3 (scope, normative references, terms) carry no requirements and
 // are deliberately absent — listing them would put rows in a register that can
 // never be evidenced or closed.
+//
+// Review status: see Catalog.Review in the register call below. This header makes no review claim.
 
 func init() {
 	register(Catalog{
@@ -26,6 +28,7 @@ func init() {
 		Version:     "2019",
 		Description: "Systèmes de management de la continuité d'activité — Exigences. Contexte, leadership, planification, support, fonctionnement (BIA, stratégie, plans, exercices), évaluation des performances et amélioration.",
 		Available:   true,
+		Review:      Review{Status: ReviewUnreviewed},
 		Controls:    iso223012019Controls,
 	})
 }

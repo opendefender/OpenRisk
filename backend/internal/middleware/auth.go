@@ -169,6 +169,13 @@ func RequirePermission(requiredPerms ...string) fiber.Handler {
 // Maintained for backward compatibility.
 func RoleGuard(allowedRoles ...string) fiber.Handler {
 	return func(c *fiber.Ctx) error {
+		if patWithoutRoles(c) {
+			return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+				"code":    "FORBIDDEN",
+				"message": "Token scopes do not grant this action",
+			})
+		}
+
 		orgRoles, ok := c.Locals("org_roles").(map[uuid.UUID]string)
 		if !ok || len(orgRoles) == 0 {
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{

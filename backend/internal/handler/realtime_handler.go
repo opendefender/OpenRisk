@@ -252,6 +252,7 @@ func (h *RealtimeHandler) Stream(c *fiber.Ctx) error {
 	// The replay read needs a context that outlives the request handler, because
 	// the body writer runs after Stream returns.
 	streamCtx := context.WithoutCancel(c.UserContext())
+	extendDeadline := sseWriteDeadline(c)
 
 	c.Context().SetBodyStreamWriter(func(w *bufio.Writer) {
 		openedAt := time.Now()
@@ -262,7 +263,7 @@ func (h *RealtimeHandler) Stream(c *fiber.Ctx) error {
 				connID, tenant, sub.Dropped(), time.Since(openedAt).Round(time.Second))
 		}()
 
-		st := &streamWriter{w: w}
+		st := &streamWriter{w: w, extendDeadline: extendDeadline}
 
 		// hello names the tenant and the connection so a client can tell that
 		// the identity behind its stream changed — which is what a cursor from
@@ -491,16 +492,20 @@ func parseCursor(c *fiber.Ctx) int64 {
 }
 
 // streamWriter serialises frames onto the SSE connection and remembers the
-// first write failure, so every call site can simply stop.
+// first write failure, so every call site can simply stop. extendDeadline runs
+// before every frame, so the connection's write deadline rolls with the stream
+// instead of expiring once, mid-stream (#962).
 type streamWriter struct {
-	w      *bufio.Writer
-	failed bool
+	w              *bufio.Writer
+	extendDeadline func()
+	failed         bool
 }
 
 func (s *streamWriter) comment(text string) bool {
 	if s.failed {
 		return false
 	}
+	s.extendDeadline()
 	if _, err := fmt.Fprintf(s.w, ": %s\n\n", text); err != nil {
 		s.failed = true
 		return false
@@ -524,6 +529,7 @@ func (s *streamWriter) event(env rt.Envelope) bool {
 		log.Printf("realtime: dropping unserialisable event %s: %v", env.ID, err)
 		return true
 	}
+	s.extendDeadline()
 	if _, err := fmt.Fprintf(s.w, "id: %d\nevent: %s\ndata: %s\n\n", env.Sequence, env.Type, raw); err != nil {
 		s.failed = true
 		return false
@@ -542,6 +548,7 @@ func (s *streamWriter) control(name string, body fiber.Map) bool {
 	if err != nil {
 		return true
 	}
+	s.extendDeadline()
 	if _, err := fmt.Fprintf(s.w, "event: %s\ndata: %s\n\n", name, raw); err != nil {
 		s.failed = true
 		return false

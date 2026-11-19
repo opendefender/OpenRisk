@@ -6,7 +6,6 @@
 import { create } from 'zustand';
 import { registerTenantStore } from '../lib/sessionScope';
 import { api } from '../lib/api';
-import { riskService } from '../services/riskService';
 import type { Asset } from './useAssetStore';
 import type { RiskControlMapping } from '../services/taxonomyService';
 import type { RiskState } from '../features/risks/useLifecycle';
@@ -159,11 +158,12 @@ interface RiskStore {
 
   // bulk operations
   /**
-   * Delete a selection in one governed request. Rejects — leaving the store
-   * untouched — when the server refuses the batch; there is no partial outcome
-   * to report, by design (D-036).
+   * Drop rows from the page before the server has answered, and hand back the
+   * undo. The request itself is not made here: a bulk delete goes through
+   * useGovernedBulk (#1441), which previews first and sends the preview's
+   * fingerprint, and which calls the undo when the server refuses the batch.
    */
-  bulkDelete: (ids: string[]) => Promise<void>;
+  removeOptimistically: (ids: ReadonlySet<string>) => () => void;
   /**
    * Optimistic local patch of a set of rows (ABSOLUTE RULE 10), for a bulk
    * change the server is about to confirm. Returns the function that puts the
@@ -350,33 +350,24 @@ export const useRiskStore = create<RiskStore>((set, get) => ({
 
   // bulk operations
   //
-  // ONE request, not one per row (#598). `POST /risks/bulk` is transactional and
-  // audited (#581): the batch either applies to every id or to none, and each
-  // deleted risk gets an audit entry naming the actor. The previous
-  // implementation fanned out `DELETE /risks/:id` through `Promise.all` under a
-  // comment claiming "backend may not provide bulk delete endpoint" — it does,
-  // and the fan-out produced N unattributable mutations that a rejection partway
-  // through left half-applied.
-  bulkDelete: async (ids) => {
-    set({ isLoading: true });
+  // Optimistic half of the governed bulk delete (#598, #1441). The request is
+  // `POST /risks/bulk/delete` behind risks:delete (#599), made by
+  // useGovernedBulk only after a preview, with that preview's fingerprint: a
+  // selection that moved in between is refused (409), not applied to rows the
+  // user never saw. The batch is transactional and audited (#581), so a refusal
+  // means nothing was written, and the undo puts back rows, total AND selection
+  // byte-for-byte — the user retries without re-picking rows.
+  removeOptimistically: (ids) => {
     const prev = get().risks;
     const prevTotal = get().total;
     const prevSelection = get().selectedIds;
-    // Optimistic (ABSOLUTE RULE 10); restored byte-for-byte below if the server
-    // refuses, because under all-or-nothing a refusal means nothing was written.
-    set((state) => ({
-      risks: state.risks.filter((r) => !ids.includes(r.id)),
-      total: Math.max(0, state.total - ids.length),
+    const removed = prev.filter((r) => ids.has(r.id)).length;
+    set({
+      risks: prev.filter((r) => !ids.has(r.id)),
+      total: Math.max(0, prevTotal - removed),
       selectedIds: [],
-    }));
-    try {
-      await riskService.bulkAction({ type: 'delete', risk_ids: ids });
-    } catch (err) {
-      set({ risks: prev, total: prevTotal, selectedIds: prevSelection });
-      throw err;
-    } finally {
-      set({ isLoading: false });
-    }
+    });
+    return () => set({ risks: prev, total: prevTotal, selectedIds: prevSelection });
   },
 
   // import/export

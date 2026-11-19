@@ -46,7 +46,7 @@ export interface BulkChangeInput {
  * one shape — `['assets']` also holds each asset's history — so handing the page
  * a confidently-typed value would be a lie it could not check. Narrow it.
  */
-export interface OptimisticPlan {
+export interface QueryCachePlan {
   /** Prefix of the queries to patch. Keep it narrow enough to be patchable. */
   queryKey: readonly unknown[];
   apply: (cached: unknown, ids: ReadonlySet<string>, change: BulkChangeInput) => unknown;
@@ -56,6 +56,25 @@ export interface OptimisticPlan {
    * under a sibling key the patch cannot express.
    */
   invalidateKey?: readonly unknown[];
+}
+
+/**
+ * The same guarantee for a register whose rows do not live in the query cache
+ * (#1441): the risk register keeps its page in a Zustand store. The page
+ * applies the change to its own store and hands back how to undo it; the hook
+ * decides when — on a refusal or a failure — exactly as it does for the cache.
+ */
+export interface ExternalStorePlan {
+  /** Apply the pending change to the page's store. Returns the rollback. */
+  applyExternal: (ids: ReadonlySet<string>, change: BulkChangeInput) => () => void;
+  /** Re-read the truth once the server has answered, success or not. */
+  refresh: () => void;
+}
+
+export type OptimisticPlan = QueryCachePlan | ExternalStorePlan;
+
+function isExternal(plan: OptimisticPlan): plan is ExternalStorePlan {
+  return 'applyExternal' in plan;
 }
 
 /**
@@ -171,6 +190,12 @@ export function useGovernedBulk({
   );
 
   const apply = useMutation({
+    // Never replayed (#1441). The global mutation policy retries three times
+    // with backoff, so a 409 or 404 — the server refusing a set the user did
+    // not see — kept the dialog spinning ~7 s over four identical refusals
+    // before saying so. A refusal cannot change on a retry; previewing again is
+    // the user's call, and the dialog offers it.
+    retry: false,
     mutationFn: ({
       change,
       preview,
@@ -188,15 +213,18 @@ export function useGovernedBulk({
       }),
 
     onMutate: async ({ change }) => {
+      const ids = new Set(idsRef.current);
+      if (isExternal(optimistic)) {
+        return { snapshot: [], rollback: optimistic.applyExternal(ids, change) };
+      }
       // Stop an in-flight refetch from landing on top of the optimistic state
       // and being mistaken for the server's answer.
       await queryClient.cancelQueries({ queryKey: optimistic.queryKey });
       const snapshot = queryClient.getQueriesData({ queryKey: optimistic.queryKey });
-      const ids = new Set(idsRef.current);
       queryClient.setQueriesData({ queryKey: optimistic.queryKey }, (cached: unknown) =>
         cached === undefined ? cached : optimistic.apply(cached, ids, change),
       );
-      return { snapshot };
+      return { snapshot, rollback: undefined };
     },
 
     onError: (error, { change, preview }, context) => {
@@ -205,6 +233,7 @@ export function useGovernedBulk({
       for (const [key, data] of context?.snapshot ?? []) {
         queryClient.setQueryData(key as QueryKey, data);
       }
+      context?.rollback?.();
       if (isStalePreview(error)) {
         setPhase({ kind: 'refused', change, preview, refusal: 'moved' });
         return;
@@ -226,6 +255,10 @@ export function useGovernedBulk({
     // optimistic rows are replaced by real ones, a failure so the restored
     // snapshot is re-verified rather than trusted.
     onSettled: () => {
+      if (isExternal(optimistic)) {
+        optimistic.refresh();
+        return;
+      }
       void queryClient.invalidateQueries({
         queryKey: optimistic.invalidateKey ?? optimistic.queryKey,
       });

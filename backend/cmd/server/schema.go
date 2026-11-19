@@ -8,6 +8,9 @@ package main
 import (
 	coreauth "github.com/opendefender/openrisk/internal/auth"
 	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/internal/infrastructure/controlchain"
+	"github.com/opendefender/openrisk/internal/infrastructure/controlexception"
+	"github.com/opendefender/openrisk/internal/infrastructure/controlstatus"
 	"github.com/opendefender/openrisk/pkg/cti"
 )
 
@@ -159,12 +162,28 @@ func schemaModels() []interface{} {
 		// plans ("Plans de remédiation" — close a gap, assign, track). Tenant-scoped.
 		&domain.ComplianceAudit{},
 		&domain.RemediationPlan{},
-		// Evidence library (migration 0052): one proof artifact answering N
-		// controls, with a collection date and an expiry. Replaces the read path
-		// of control_evidences, which stays in place, backfilled from, for a
-		// release.
+		// Evidence library: one proof artifact answering N controls, with a
+		// collection date and an expiry. The only evidence register; the legacy
+		// control_evidences table is dropped by migration 0084 (#813).
 		&domain.Evidence{},
 		&domain.EvidenceControlLink{},
+		// ADR 0008 control chain (#553, migration 0086): the six tables behind
+		// Requirement -> Control -> Implementation -> Test -> Result -> Evidence.
+		// controlchain.Reconcile fills them from the legacy tables right after
+		// this list is migrated, on every boot.
+		&controlchain.ControlRow{},
+		&controlchain.ControlImplementationRow{},
+		&controlchain.ControlTestRow{},
+		&controlchain.ControlTestResultRow{},
+		&controlchain.ControlGapFindingRow{},
+		&controlchain.CanonicalEdgeRow{},
+		// Control exceptions (#1428, migration 0087): a time-boxed, owned waiver of one
+		// canonical control. Tenant-scoped; status is derived, never stored.
+		&controlexception.ExceptionRow{},
+		// Control status evaluations (#555, migration 0089): the engine's cache of
+		// each control's computed status. Engine output only: no route writes it and
+		// no user-facing read trusts it. Tenant-scoped.
+		&controlstatus.EvaluationRow{},
 		// Security Automation / SOAR (spec §10 « Automatisation »): tenant-scoped
 		// playbooks (trigger + conditions + action chain + SLA policy), their
 		// execution audit trail, and the live SLA countdowns the monitor escalates.
@@ -201,6 +220,9 @@ func schemaModels() []interface{} {
 		// reconnects replay what it missed instead of refetching everything, and
 		// it is where the ordering guarantee lives (unique tenant_id+sequence).
 		&domain.RealtimeEvent{},
+		// Per-tenant sequence allocator and relay lock of the realtime outbox
+		// (#344, migration 0085, ADR 0010).
+		&domain.RealtimeEventSequence{},
 		// Saved table views (#580): the named filter/sort/column combinations a
 		// user keeps for a register and may share with their tenant. Purely
 		// additive — a new table, no column dropped or renamed — which is why it

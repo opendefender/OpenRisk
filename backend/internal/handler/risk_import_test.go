@@ -27,6 +27,7 @@ import (
 	"github.com/opendefender/openrisk/internal/infrastructure/repository"
 	"github.com/opendefender/openrisk/internal/middleware"
 	"github.com/opendefender/openrisk/internal/testsupport/sqliteschema"
+	"github.com/opendefender/openrisk/internal/testsupport/testdb"
 	"github.com/opendefender/openrisk/pkg/crq"
 )
 
@@ -43,7 +44,7 @@ func newImportApp(t *testing.T) *importApp {
 	t.Helper()
 
 	dsn := "file:risk_import_" + uuid.New().String() + "?mode=memory&cache=private"
-	db, err := gorm.Open(sqlite.Open(dsn), &gorm.Config{})
+	db, err := testdb.Open(t, sqlite.Open(dsn), &gorm.Config{})
 	require.NoError(t, err)
 	require.NoError(t, db.AutoMigrate(&UserT{}, &MitigationT{}, &RiskHistoryT{}))
 	createRisksTable(t, db)
@@ -81,6 +82,8 @@ func newImportApp(t *testing.T) *importApp {
 		WithAssets(repository.ListImportAssetRefs(db)))
 
 	app.Post("/api/v1/risks/import", middleware.RequirePermission("risks:create"), handler.ImportRisks)
+	// Read-back route for the output-encoding proof (#1316).
+	app.Get("/api/v1/risks/:id", handler.GetRisk)
 	h.app = app
 	return h
 }

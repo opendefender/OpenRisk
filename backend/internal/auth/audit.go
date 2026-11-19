@@ -40,6 +40,12 @@ const (
 	// wrong passwords or codes here are a session thief guessing.
 	AuditActionMfaDisable AuditAction = "mfa_disable"
 
+	// AuditActionMfaBackupCodesRegenerate records a request for new backup
+	// codes (#1032). Failures carry a reason ("wrong_password", "wrong_code",
+	// "not_enrolled", "too_many_attempts"): new codes are a second factor, and
+	// repeated wrong proofs here are someone trying to mint one.
+	AuditActionMfaBackupCodesRegenerate AuditAction = "mfa_backup_codes_regenerate"
+
 	// Password reset. Both halves are recorded, and failures carry a reason
 	// ("rate_limited", "invalid_token", "weak_password"), because a burst of
 	// invalid-token attempts is what a reset-link brute force looks like.

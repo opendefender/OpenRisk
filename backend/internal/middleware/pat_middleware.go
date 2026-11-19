@@ -21,7 +21,8 @@ import (
 //     "<prefix>_<secret>"; never dots) and valid,
 //     it populates the SAME request context a JWT login would (user_id, tenant_id,
 //     org_roles, permissions, RequestContext) — but with permissions narrowed to
-//     the PAT's scopes — then continues.
+//     the PAT's scopes, and org_roles left empty unless the token carries "*" —
+//     then continues.
 //   - For anything that is not a valid PAT (a JWT, a malformed value, or no header),
 //     it is a NO-OP: it calls Next() and lets AuthMiddlewareRS256 authenticate (or
 //     reject) the request. It never 401s a JWT.
@@ -80,11 +81,19 @@ func PATMiddleware(patService *auth.PersonalAccessTokenService, resolve auth.Org
 		scopes := patService.GetScopes(pat)
 		effective := effectivePATPermissions(sc.Permissions, scopes)
 
+		// Organization roles follow the same rule as permissions (GHSA-92r7-7fhw-45gg):
+		// only a "*" token carries its owner's roles. A scoped token gets none, so a
+		// read-only token minted by an administrator cannot pass RequireRole("admin").
+		orgRoles := map[uuid.UUID]string{}
+		if delegatesOwnerRoles(scopes) {
+			orgRoles = sc.OrgRoles
+		}
+
 		c.Locals("user_id", pat.UserID)
 		c.Locals("userID", pat.UserID)
 		c.Locals("tenant_id", sc.TenantID)
 		c.Locals("tenantID", sc.TenantID)
-		c.Locals("org_roles", sc.OrgRoles)
+		c.Locals("org_roles", orgRoles)
 		c.Locals("permissions", effective)
 		c.Locals("feature_flags", sc.FeatureFlags)
 		c.Locals("token_id", pat.ID)
@@ -113,6 +122,31 @@ func effectivePATPermissions(owner, scopes []string) []string {
 		}
 	}
 	return effective
+}
+
+// delegatesOwnerRoles reports whether a token's scopes delegate its owner's
+// organization roles. Only "*" does: it is the one scope that means "everything
+// the owner holds". Any other scope, "resource:*" included, names permissions and
+// grants no role.
+func delegatesOwnerRoles(scopes []string) bool {
+	for _, scope := range scopes {
+		if scope == "*" {
+			return true
+		}
+	}
+	return false
+}
+
+// patWithoutRoles reports whether the request is authenticated by a token whose
+// scopes do not delegate its owner's roles. The role guards refuse such a request
+// whatever "org_roles" holds, so a role check never depends on the PAT middleware
+// alone having cleared them.
+func patWithoutRoles(c *fiber.Ctx) bool {
+	if c.Locals("is_pat") != true {
+		return false
+	}
+	scopes, _ := c.Locals("token_scopes").([]string)
+	return !delegatesOwnerRoles(scopes)
 }
 
 // permsGrant reports whether a permission list grants `required`, honoring the

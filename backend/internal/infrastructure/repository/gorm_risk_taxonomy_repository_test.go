@@ -9,6 +9,9 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/internal/infrastructure/controlchain"
+	"github.com/opendefender/openrisk/internal/infrastructure/controlstatus"
+	"github.com/opendefender/openrisk/internal/testsupport/testdb"
 	"github.com/stretchr/testify/require"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
@@ -21,7 +24,7 @@ import (
 // the recurring failure mode in this repo.
 func newTaxonomyTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{
+	db, err := testdb.Open(t, sqlite.Open(":memory:"), &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Silent),
 	})
 	require.NoError(t, err)
@@ -72,11 +75,23 @@ func newTaxonomyTestDB(t *testing.T) *gorm.DB {
 	require.NoError(t, db.Exec(`
 		CREATE TABLE compliance_controls (
 			id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, framework_id TEXT NOT NULL,
-			reference_code TEXT, name TEXT,
+			reference_code TEXT, name TEXT, description TEXT, status TEXT NOT NULL DEFAULT 'not_implemented',
 			created_at DATETIME, updated_at DATETIME, deleted_at DATETIME
 		);
 	`).Error)
+	// The mapping repository mirrors its writes onto the control chain (#1413).
+	require.NoError(t, db.AutoMigrate(controlchain.Models()...))
+	require.NoError(t, db.AutoMigrate(controlstatus.Models()...))
 	return db
+}
+
+// seedRisk inserts the risk a mapping points at: since #1413 a mapping to a
+// control resolves its risk in the tenant, like every mirrored edge.
+func seedRisk(t *testing.T, db *gorm.DB, tenant uuid.UUID) uuid.UUID {
+	t.Helper()
+	id := uuid.New()
+	require.NoError(t, db.Exec(`INSERT INTO risks (id, tenant_id, title) VALUES (?, ?, ?)`, id, tenant, "r").Error)
+	return id
 }
 
 func seedCategory(t *testing.T, repo *GormRiskCategoryRepository, tenant uuid.UUID, name string) *domain.RiskCategory {
@@ -228,7 +243,7 @@ func TestRiskControlMappingRepo_EnrichesAndScopesToTenant(t *testing.T) {
 
 	fw := seedFramework(t, db, tenantA, "ISO 27001")
 	ctrl := seedControl(t, db, tenantA, fw, "A.5.1", "Politiques de sécurité")
-	riskID := uuid.New()
+	riskID := seedRisk(t, db, tenantA)
 
 	require.NoError(t, repo.Create(ctx, &domain.RiskControlMapping{
 		TenantID: tenantA, RiskID: riskID, FrameworkID: fw, ControlID: &ctrl,
@@ -276,7 +291,7 @@ func TestRiskControlMappingRepo_ExistsGuardsBothGrains(t *testing.T) {
 
 	fw := seedFramework(t, db, tenant, "PCI DSS")
 	ctrl := seedControl(t, db, tenant, fw, "1.1", "Pare-feu")
-	riskID := uuid.New()
+	riskID := seedRisk(t, db, tenant)
 
 	require.NoError(t, repo.Create(ctx, &domain.RiskControlMapping{
 		TenantID: tenant, RiskID: riskID, FrameworkID: fw, ControlID: &ctrl,

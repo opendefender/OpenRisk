@@ -168,7 +168,11 @@ func (r *GormPostureRepository) ControlCounts(ctx context.Context, tenantID uuid
 // compliance repository uses — accepted review, not expired. Getting this wrong
 // is silent: every implemented control would earn 0.70 instead of 1.00 and the
 // reveal would under-report the tenant's own posture.
-func (r *GormPostureRepository) ControlCreditsByRisk(ctx context.Context, tenantID uuid.UUID, riskIDs []uuid.UUID) (map[uuid.UUID][]scoring.ControlCredit, error) {
+//
+// "Not expired" means at asOf, the caller's instant: the posture summary stamps
+// its GeneratedAt with its own clock, and the credits it reports must be judged
+// at that same instant, not at whatever the wall clock says (#419).
+func (r *GormPostureRepository) ControlCreditsByRisk(ctx context.Context, tenantID uuid.UUID, riskIDs []uuid.UUID, asOf time.Time) (map[uuid.UUID][]scoring.ControlCredit, error) {
 	out := map[uuid.UUID][]scoring.ControlCredit{}
 	if tenantID == uuid.Nil {
 		return out, domain.NewForbiddenError("a tenant is required to read control mappings")
@@ -197,7 +201,7 @@ func (r *GormPostureRepository) ControlCreditsByRisk(ctx context.Context, tenant
 		            AND e.review = ?
 		            AND (e.valid_until IS NULL OR e.valid_until > ?)
 		        ) AS evidence_count`,
-			domain.EvidenceReviewAccepted, time.Now()).
+			domain.EvidenceReviewAccepted, asOf).
 		Joins("JOIN compliance_controls c ON c.id = m.control_id AND c.tenant_id = m.tenant_id AND c.deleted_at IS NULL").
 		Where("m.tenant_id = ? AND m.risk_id IN ? AND m.deleted_at IS NULL", tenantID, riskIDs).
 		Scan(&rows).Error; err != nil {

@@ -50,6 +50,7 @@ import {
 import { ImpactDialog } from '../../shared/ImpactDialog';
 import { useFocusParam } from '../../shared/useFocusParam';
 import { isMissingRows } from '../../services/bulkService';
+import { BulkPreviewDialog, useGovernedBulk } from '../../shared/bulk';
 import { riskService, type RiskStatus as ApiRiskStatus } from '../../services/riskService';
 import { EditRiskModal } from './components/EditRiskModal';
 import { CreateMitigationModal } from '../mitigations/CreateMitigationModal';
@@ -105,7 +106,7 @@ export function RiskRegisterPage() {
   const loadError = useRiskStore((s) => s.error);
   const fetchRisks = useRiskStore((s) => s.fetchRisks);
   const deleteRisk = useRiskStore((s) => s.deleteRisk);
-  const bulkDelete = useRiskStore((s) => s.bulkDelete);
+  const removeOptimistically = useRiskStore((s) => s.removeOptimistically);
   const patchRisks = useRiskStore((s) => s.patchRisks);
 
   // A read-only member is not offered creation: the server would refuse it
@@ -124,7 +125,6 @@ export function RiskRegisterPage() {
   const [editRaw, setEditRaw] = useState<UiRisk['raw'] | null>(null);
   const [mitiRiskId, setMitiRiskId] = useState<string | null>(null);
   const [toDelete, setToDelete] = useState<UiRisk | null>(null);
-  const [bulkToDelete, setBulkToDelete] = useState<string[] | null>(null);
   const [deleting, setDeleting] = useState(false);
   // Bumped after a bulk action so the table forgets a selection that no longer
   // means anything (the rows moved, changed or are gone).
@@ -266,28 +266,6 @@ export function RiskRegisterPage() {
     }
   };
 
-  const confirmBulkDelete = async () => {
-    const ids = bulkToDelete;
-    if (!ids) return;
-    setDeleting(true);
-    try {
-      // ONE request: transactional and audited (#598) — every named risk goes or none does.
-      await bulkDelete(ids);
-      toast.success(t('riskRegister.bulk.deleted', { count: ids.length }));
-      setBulkToDelete(null);
-      setSelectionEpoch((n) => n + 1);
-      reload();
-    } catch (err) {
-      toast.error(
-        isMissingRows(err)
-          ? t('riskRegister.bulk.deleteStale')
-          : t('riskRegister.bulk.deleteFailed', { count: ids.length }),
-      );
-    } finally {
-      setDeleting(false);
-    }
-  };
-
   /* ------------------------------------------------------------ filter state */
   const setScope = (view: RiskView) => table.setFilter(SCOPE_FACET, view === 'all' ? [] : [view]);
   const hasFilters =
@@ -412,6 +390,23 @@ export function RiskRegisterPage() {
   );
 
   /* ------------------------------------------------------------ bulk actions */
+  // Delete is governed (#582, #1441): preview, confirm, then ONE transactional
+  // POST /risks/bulk/delete carrying the preview's fingerprint. A selection that
+  // moved in between (409) or an id that no longer resolves (404) is refused
+  // whole and the dialog says so. The rows live in the Zustand store, so the
+  // optimistic removal is the store's and the hook decides when to undo it.
+  const bulk = useGovernedBulk({
+    register: 'risks',
+    optimistic: {
+      applyExternal: (ids) => removeOptimistically(ids),
+      refresh: reload,
+    },
+    onApplied: (result) => {
+      toast.success(t('riskRegister.bulk.deleted', { count: result.applied ?? 0 }));
+      setSelectionEpoch((n) => n + 1);
+    },
+  });
+
   const afterBulk = () => {
     setSelectionEpoch((n) => n + 1);
     reload();
@@ -515,15 +510,16 @@ export function RiskRegisterPage() {
         label: t('riskRegister.bulk.delete'),
         icon: Trash2,
         danger: true,
-        hidden: !canDelete,
+        // Two gates: the permission the user holds, and what the server says
+        // this register can do. Neither is the enforcement — the route is.
+        hidden: !canDelete || !bulk.supports('delete'),
         selectionOnly: true,
-        // Confirmed with an impact readout before anything is deleted.
-        run: ({ ids }) => setBulkToDelete(ids),
+        run: ({ ids }) => bulk.request({ action: 'delete' }, ids),
       },
     ],
     // undoStatus / undoOwner / exportRows / afterBulk only use stable setters.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [t, canUpdate, canDelete, members, patchRisks, csvCtx, reload],
+    [t, canUpdate, canDelete, members, patchRisks, csvCtx, reload, bulk],
   );
 
   const undoStatus = async (before: { id: string; status: RiskStatusValue }[]) => {
@@ -561,8 +557,8 @@ export function RiskRegisterPage() {
   };
 
   /* ------------------------------------------------------------------ header */
-  const activeCount = summary.data?.active.count;
-  const ale = summary.data?.active.ale_xaf;
+  const activeCount = summary.data?.active?.count;
+  const ale = summary.data?.active?.ale_xaf;
   const subtitle = summary.isError ? (
     <span data-testid="risk-subtitle">
       {t('riskRegister.subtitle.error')}{' '}
@@ -848,34 +844,7 @@ export function RiskRegisterPage() {
         onClose={() => setToDelete(null)}
       />
 
-      <ImpactDialog
-        open={!!bulkToDelete}
-        title={t('riskRegister.bulk.deleteTitle', { count: bulkToDelete?.length ?? 0 })}
-        subject={t('riskRegister.bulk.deleteSubject', { count: bulkToDelete?.length ?? 0 })}
-        description={t('riskRegister.delete.body')}
-        impacts={[
-          { label: t('riskRegister.delete.impactMiti'), detail: t('riskRegister.delete.lost') },
-          { label: t('riskRegister.delete.impactHistory'), detail: t('riskRegister.delete.lost') },
-        ]}
-        alternatives={[
-          {
-            label: t('riskRegister.delete.exportFirst'),
-            description: t('riskRegister.delete.exportFirstHint'),
-            onClick: () => {
-              const ids = new Set(bulkToDelete ?? []);
-              exportRows(
-                ui.filter((r) => ids.has(r.id)),
-                'risques-selection',
-              );
-            },
-          },
-        ]}
-        confirmLabel={t('riskRegister.delete.confirm')}
-        cancelLabel={t('riskRegister.cancel')}
-        loading={deleting}
-        onConfirm={confirmBulkDelete}
-        onClose={() => setBulkToDelete(null)}
-      />
+      <BulkPreviewDialog bulk={bulk} entityLabel={t('riskRegister.bulk.entity')} />
     </PageFrame>
   );
 }

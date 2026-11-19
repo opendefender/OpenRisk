@@ -113,6 +113,8 @@ function route(url: string, config?: { params?: Record<string, number> }) {
     });
   }
   if (url === '/risks/summary') return Promise.resolve({ data: summary });
+  if (url === '/risks/bulk/capabilities')
+    return Promise.resolve({ data: { entity_type: 'risk', actions: ['delete', 'change_status'] } });
   if (url === '/ownership/assignable') return Promise.resolve({ data: { users: members } });
   if (url === '/risk-categories') return Promise.resolve({ data: { items: [] } });
   if (url === '/risks/r1/control-mappings')
@@ -617,20 +619,40 @@ describe('bulk bar', () => {
     expect(toast.success).not.toHaveBeenCalled();
   });
 
-  it('asks before deleting, with what is lost, and deletes the selection in one request', async () => {
+  it('previews a delete first, then sends ONE governed delete with the fingerprint (#1441)', async () => {
+    post.mockImplementation((url: string, body: { ids: string[] }) => {
+      if (url === '/risks/bulk/preview')
+        return Promise.resolve({
+          data: {
+            action: 'delete',
+            total: body.ids.length,
+            affected: body.ids.length,
+            unchanged: 0,
+            missing: [],
+            sample: [],
+            fingerprint: 'fp-1',
+          },
+        });
+      return Promise.resolve({
+        data: { total: body.ids.length, applied: body.ids.length, ids: body.ids, audited: 2 },
+      });
+    });
     const bar = await selectTwo();
-    await userEvent.click(within(bar).getByTestId('bulk-action-delete'));
-    const dialog = await screen.findByRole('dialog');
-    expect(within(dialog).getByText('Supprimer 2 risques ?')).toBeInTheDocument();
-    expect(post).not.toHaveBeenCalled();
+    await userEvent.click(await within(bar).findByTestId('bulk-action-delete'));
+    const dialog = await screen.findByRole('alertdialog');
+    await within(dialog).findByTestId('bulk-preview-counts');
+    // Nothing is deleted before the confirm.
+    expect(post.mock.calls.map((c) => c[0])).toEqual(['/risks/bulk/preview']);
 
-    await userEvent.click(within(dialog).getByRole('button', { name: 'Supprimer définitivement' }));
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Supprimer' }));
     await waitFor(() =>
-      expect(post).toHaveBeenCalledWith('/risks/bulk', {
-        type: 'delete',
-        risk_ids: ['r1', 'r2'],
-      }),
+      expect(post).toHaveBeenCalledWith(
+        '/risks/bulk/delete',
+        expect.objectContaining({ ids: ['r1', 'r2'], fingerprint: 'fp-1' }),
+      ),
     );
+    // The ungoverned route is never used for a delete.
+    expect(post.mock.calls.some((c) => c[0] === '/risks/bulk')).toBe(false);
   });
 
   it('offers no status, owner or delete action to a member who may not write', async () => {

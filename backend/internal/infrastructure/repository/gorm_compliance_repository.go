@@ -16,6 +16,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/internal/infrastructure/controlchain"
 )
 
 // GormComplianceRepository implements domain.ComplianceRepository using GORM.
@@ -44,6 +45,60 @@ func (r *GormComplianceRepository) CreateFramework(ctx context.Context, framewor
 		return fmt.Errorf("tenant_id is required")
 	}
 	err := r.db.WithContext(ctx).Create(framework).Error
+	if errors.Is(err, gorm.ErrDuplicatedKey) {
+		return domain.NewConflictError("framework", "name+version")
+	}
+	return err
+}
+
+// CreateFrameworkWithControls writes the framework, every control and every
+// control-chain mirror in one transaction. The (tenant, name, version) duplicate
+// check runs inside it, tenant-scoped, because production has no unique index
+// on those columns. Every control is stamped with the framework's tenant and
+// framework id, and starts not_implemented, whatever the caller set.
+func (r *GormComplianceRepository) CreateFrameworkWithControls(ctx context.Context, framework *domain.ComplianceFramework, controls []*domain.ComplianceControl) error {
+	if framework.TenantID == uuid.Nil {
+		return fmt.Errorf("tenant_id is required")
+	}
+	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		// No unique index backs the duplicate check below, so two concurrent
+		// imports of the same (tenant, name, version) could both pass the count.
+		// A transaction-scoped advisory lock serialises them; it is released at
+		// commit/rollback. SQLite (tests) has no such function and is single-writer.
+		if tx.Dialector.Name() == "postgres" {
+			key := framework.TenantID.String() + "|" + framework.Name + "|" + framework.Version
+			if err := tx.Exec("SELECT pg_advisory_xact_lock(hashtext(?))", key).Error; err != nil {
+				return err
+			}
+		}
+		var existing int64
+		if err := tx.Model(&domain.ComplianceFramework{}).
+			Where("tenant_id = ? AND name = ? AND version = ?", framework.TenantID, framework.Name, framework.Version).
+			Count(&existing).Error; err != nil {
+			return err
+		}
+		if existing > 0 {
+			return domain.NewConflictError("framework", "name+version")
+		}
+		if err := tx.Create(framework).Error; err != nil {
+			return err
+		}
+		for _, control := range controls {
+			control.TenantID = framework.TenantID
+			control.FrameworkID = framework.ID
+			control.Status = domain.ControlStatusNotImplemented
+			if err := tx.Create(control).Error; err != nil {
+				return err
+			}
+			if err := controlchain.MirrorRequirementCreated(ctx, tx, controlchain.RequirementRow{
+				ID: control.ID, TenantID: control.TenantID, Name: control.Name, Description: control.Description,
+				Status: string(control.Status), CreatedAt: control.CreatedAt, UpdatedAt: control.UpdatedAt,
+			}); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 	if errors.Is(err, gorm.ErrDuplicatedKey) {
 		return domain.NewConflictError("framework", "name+version")
 	}
@@ -89,7 +144,18 @@ func (r *GormComplianceRepository) CreateControl(ctx context.Context, control *d
 	if control.TenantID == uuid.Nil {
 		return fmt.Errorf("tenant_id is required")
 	}
-	err := r.db.WithContext(ctx).Create(control).Error
+	// One transaction with the control chain mirror (#1413, AC1): the split
+	// control and its addressed_by edge commit with the requirement or not at all.
+	// Manual creation and the catalogue import both come through here.
+	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(control).Error; err != nil {
+			return err
+		}
+		return controlchain.MirrorRequirementCreated(ctx, tx, controlchain.RequirementRow{
+			ID: control.ID, TenantID: control.TenantID, Name: control.Name, Description: control.Description,
+			Status: string(control.Status), CreatedAt: control.CreatedAt, UpdatedAt: control.UpdatedAt,
+		})
+	})
 	if errors.Is(err, gorm.ErrDuplicatedKey) {
 		return domain.NewConflictError("control", "reference_code")
 	}
@@ -98,7 +164,7 @@ func (r *GormComplianceRepository) CreateControl(ctx context.Context, control *d
 
 // GetControlByID retrieves a control by ID scoped to a tenant.
 // Returns (nil, nil) if not found or belongs to another tenant.
-func (r *GormComplianceRepository) GetControlByID(ctx context.Context, id uuid.UUID, tenantID uuid.UUID) (*domain.ComplianceControl, error) {
+func (r *GormComplianceRepository) GetControlByID(ctx context.Context, id uuid.UUID, tenantID uuid.UUID, asOf time.Time) (*domain.ComplianceControl, error) {
 	var control domain.ComplianceControl
 	err := r.db.WithContext(ctx).
 		Where("id = ? AND tenant_id = ?", id, tenantID).
@@ -119,12 +185,17 @@ func (r *GormComplianceRepository) GetControlByID(ctx context.Context, id uuid.U
 	// The count is what the "cannot mark implemented without proof" rule reads, so
 	// a failure here must not silently report zero and block a legitimate edit:
 	// the error propagates.
+	//
+	// Validity is judged at asOf, the caller's instant, not at time.Now(): the
+	// evidence service judges the same valid_until with its injected clock, and
+	// the two must not disagree about whether one artifact has expired (#419).
+	// The predicate is strict: proof whose valid_until IS asOf has lapsed.
 	var n int64
 	if err := r.db.WithContext(ctx).
 		Table("evidence_control_links l").
 		Joins("JOIN evidences e ON e.id = l.evidence_id AND e.tenant_id = l.tenant_id AND e.deleted_at IS NULL").
 		Where("l.tenant_id = ? AND l.control_id = ?", tenantID, id).
-		Where("e.review = ? AND (e.valid_until IS NULL OR e.valid_until > ?)", domain.EvidenceReviewAccepted, time.Now()).
+		Where("e.review = ? AND (e.valid_until IS NULL OR e.valid_until > ?)", domain.EvidenceReviewAccepted, asOf).
 		Count(&n).Error; err != nil {
 		return nil, fmt.Errorf("failed to count control evidence: %w", err)
 	}
@@ -274,10 +345,11 @@ func (r *GormComplianceRepository) DeleteControlsByFramework(ctx context.Context
 // worklist. The alternative — counting a file nobody could defend to an auditor
 // — is the failure mode this module exists to remove.
 //
-// "Currently" is evaluated against time.Now() inside the repository because the
-// port carries no clock. Callers that need a specific instant use
-// domain.EvidenceRepository.CountCoveringByFramework, which takes one.
-func (r *GormComplianceRepository) CountEvidencesByFramework(ctx context.Context, tenantID uuid.UUID, frameworkID uuid.UUID) (map[uuid.UUID]int, error) {
+// "Currently" means at asOf, the caller's instant. It used to be time.Now()
+// read here, so any caller with an injected clock would have disagreed with
+// this count about whether the same artifact had expired (#419). Same strict
+// predicate as domain.Evidence.Covers.
+func (r *GormComplianceRepository) CountEvidencesByFramework(ctx context.Context, tenantID uuid.UUID, frameworkID uuid.UUID, asOf time.Time) (map[uuid.UUID]int, error) {
 	type row struct {
 		ControlID uuid.UUID
 		Count     int
@@ -289,7 +361,7 @@ func (r *GormComplianceRepository) CountEvidencesByFramework(ctx context.Context
 		Joins("JOIN evidences e ON e.id = l.evidence_id AND e.tenant_id = l.tenant_id AND e.deleted_at IS NULL").
 		Joins("JOIN compliance_controls c ON c.id = l.control_id AND c.tenant_id = l.tenant_id AND c.deleted_at IS NULL").
 		Where("l.tenant_id = ? AND c.framework_id = ?", tenantID, frameworkID).
-		Where("e.review = ? AND (e.valid_until IS NULL OR e.valid_until > ?)", domain.EvidenceReviewAccepted, time.Now()).
+		Where("e.review = ? AND (e.valid_until IS NULL OR e.valid_until > ?)", domain.EvidenceReviewAccepted, asOf).
 		Group("l.control_id").
 		Scan(&rows).Error
 	if err != nil {

@@ -152,6 +152,13 @@ export const ROUTES: RouteNode[] = [
   /* ---------------- Compliance ---------------- */
   { path: '/compliance', labelKey: 'n_compliance', perm: 'compliance:frameworks:read' },
   {
+    // Static, listed before the dynamic sibling so "import" is never an id.
+    path: '/compliance/frameworks/import',
+    label: { fr: 'Importer un référentiel (JSON)', en: 'Import a framework (JSON)' },
+    parent: '/compliance',
+    perm: 'compliance:frameworks:create',
+  },
+  {
     path: '/compliance/frameworks/:frameworkId',
     label: { fr: 'Référentiel', en: 'Framework' },
     parent: '/compliance',

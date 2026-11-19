@@ -71,7 +71,6 @@ var journalClasses = map[string]journalClass{
 	"vulnerability":        {domain: DomainVulnerability, drawer: TypeVulnerability},
 	"mitigation":           {domain: DomainMitigation, perm: "mitigations:read", link: listLink("/mitigations")},
 	"evidence":             {domain: DomainEvidence, drawer: TypeEvidence},
-	"control_evidence":     {domain: DomainEvidence, drawer: TypeEvidence},
 	"compliance_control":   {domain: DomainCompliance, drawer: TypeControl},
 	"control":              {domain: DomainCompliance, drawer: TypeControl},
 	"compliance_framework": {

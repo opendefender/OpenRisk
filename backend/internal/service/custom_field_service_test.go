@@ -14,6 +14,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/internal/testsupport/testdb"
 )
 
 // setupCustomFieldDB builds the custom_fields/templates tables by hand — GORM's
@@ -21,7 +22,7 @@ import (
 // sqlite rejects (the service always sets the ID explicitly anyway).
 func setupCustomFieldDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{TranslateError: true})
+	db, err := testdb.Open(t, sqlite.Open(":memory:"), &gorm.Config{TranslateError: true})
 	require.NoError(t, err)
 	require.NoError(t, db.Exec(`
 		CREATE TABLE custom_fields (
@@ -131,4 +132,26 @@ func TestCustomField_DuplicateWithinTenant(t *testing.T) {
 	require.NoError(t, err)
 	_, err = svc.CreateCustomField(tenant, user, newField("Owner"))
 	require.Error(t, err, "a tenant cannot define the same field name twice for a scope")
+}
+
+// #808: UpdateCustomField writes through the tenant, and another tenant's id
+// updates nothing.
+func TestCustomField_Update_TenantScopedWrite(t *testing.T) {
+	db := setupCustomFieldDB(t)
+	svc := &CustomFieldService{db: db}
+	tenantA, tenantB, user := uuid.New(), uuid.New(), uuid.New()
+
+	field, err := svc.CreateCustomField(tenantA, user, newField("Owner"))
+	require.NoError(t, err)
+
+	visible := false
+	updated, err := svc.UpdateCustomField(tenantA, field.ID, &domain.UpdateCustomFieldRequest{DisplayName: "Owner (renamed)", Visible: &visible})
+	require.NoError(t, err)
+	require.Equal(t, "Owner (renamed)", updated.DisplayName)
+
+	_, err = svc.UpdateCustomField(tenantB, field.ID, &domain.UpdateCustomFieldRequest{DisplayName: "stolen"})
+	require.Error(t, err, "another tenant must not update this field")
+	got, err := svc.GetCustomField(tenantA, field.ID)
+	require.NoError(t, err)
+	require.Equal(t, "Owner (renamed)", got.DisplayName)
 }

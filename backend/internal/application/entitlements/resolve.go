@@ -58,11 +58,12 @@ func (s *Service) Resolve(ctx context.Context, tenant uuid.UUID) (*Snapshot, err
 	}
 
 	limits := make(map[string]LimitDTO, len(ent.AllLimits))
+	asOf := s.now()
 	for _, k := range ent.AllLimits {
 		lim := ent.LimitOf(plan, k)
 		used := 0
 		if lim != ent.Unlimited && s.usage != nil {
-			if u, cErr := s.usage.Count(ctx, tenant, k); cErr == nil {
+			if u, cErr := s.usage.Count(ctx, tenant, k, asOf); cErr == nil {
 				used = u
 			}
 		}

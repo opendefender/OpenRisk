@@ -8,6 +8,7 @@ package risk
 import (
 	"context"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/opendefender/openrisk/internal/domain"
@@ -145,7 +146,7 @@ func defaultString(v, fallback string) string {
 // organisation's framework.
 type ControlResolver interface {
 	GetFrameworkByID(ctx context.Context, id, tenantID uuid.UUID) (*domain.ComplianceFramework, error)
-	GetControlByID(ctx context.Context, id, tenantID uuid.UUID) (*domain.ComplianceControl, error)
+	GetControlByID(ctx context.Context, id, tenantID uuid.UUID, asOf time.Time) (*domain.ComplianceControl, error)
 }
 
 // ControlMappingUseCase manages a risk's references to compliance controls.
@@ -198,7 +199,7 @@ func (uc *ControlMappingUseCase) Create(ctx context.Context, tenantID uuid.UUID,
 		// A control narrows — and DEFINES — the framework: taking framework_id
 		// from the body when a control is named would let the two disagree.
 		if in.ControlID != nil {
-			ctrl, err := uc.controls.GetControlByID(ctx, *in.ControlID, tenantID)
+			ctrl, err := uc.controls.GetControlByID(ctx, *in.ControlID, tenantID, time.Now())
 			if err != nil {
 				return nil, err
 			}

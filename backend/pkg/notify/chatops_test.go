@@ -29,14 +29,14 @@ func sampleMessage() ChatMessage {
 
 func TestPostTeams_RealPostAndCardShape(t *testing.T) {
 	var got map[string]interface{}
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		body, _ := io.ReadAll(r.Body)
 		_ = json.Unmarshal(body, &got)
 		w.WriteHeader(http.StatusOK)
 	}))
 	defer srv.Close()
 
-	if err := PostTeams(context.Background(), srv.URL, sampleMessage(), srv.Client()); err != nil {
+	if err := PostTeams(context.Background(), testHookURL, sampleMessage(), routedClient(srv)); err != nil {
 		t.Fatalf("PostTeams: %v", err)
 	}
 	if got["@type"] != "MessageCard" {
@@ -56,14 +56,14 @@ func TestPostTeams_RealPostAndCardShape(t *testing.T) {
 
 func TestPostSlack_RealPostAndAttachment(t *testing.T) {
 	var got map[string]interface{}
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		body, _ := io.ReadAll(r.Body)
 		_ = json.Unmarshal(body, &got)
 		w.WriteHeader(http.StatusOK)
 	}))
 	defer srv.Close()
 
-	if err := PostSlack(context.Background(), srv.URL, sampleMessage(), srv.Client()); err != nil {
+	if err := PostSlack(context.Background(), testHookURL, sampleMessage(), routedClient(srv)); err != nil {
 		t.Fatalf("PostSlack: %v", err)
 	}
 	atts, ok := got["attachments"].([]interface{})
@@ -83,11 +83,11 @@ func TestPostTeams_EmptyURL(t *testing.T) {
 }
 
 func TestPostSlack_Non2xxIsError(t *testing.T) {
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	srv := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
 	}))
 	defer srv.Close()
-	if err := PostSlack(context.Background(), srv.URL, sampleMessage(), srv.Client()); err == nil {
+	if err := PostSlack(context.Background(), testHookURL, sampleMessage(), routedClient(srv)); err == nil {
 		t.Fatal("expected error on non-2xx response")
 	}
 }

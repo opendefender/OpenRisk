@@ -10,6 +10,8 @@ package compliance
 // structure and are reliable; descriptions here are original summaries, not the
 // standard's own text (PCI DSS is © PCI SSC). A tenant can add the detailed
 // sub-requirements (e.g. 1.2.1) as ad-hoc controls on the imported framework.
+//
+// Review status: see Catalog.Review in the register call below. This header makes no review claim.
 
 func init() {
 	register(Catalog{
@@ -18,6 +20,7 @@ func init() {
 		Version:     "4.0",
 		Description: "Payment Card Industry Data Security Standard v4.0 — the 12 core requirements protecting cardholder data.",
 		Available:   true,
+		Review:      Review{Status: ReviewUnreviewed},
 		Controls:    pciDSS40Controls,
 	})
 }

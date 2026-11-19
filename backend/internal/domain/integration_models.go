@@ -31,11 +31,3 @@ type Threat struct {
 	TLP        string // Traffic Light Protocol
 	ReportedAt time.Time
 }
-
-// Control représente un contrôle de sécurité/conformité (Contrat avec OpenRMF)
-type Control struct {
-	ID        uuid.UUID
-	Name      string
-	Framework string // Ex: NIST, ISO 27001
-	Status    string // Implemented, Planned, N/A
-}

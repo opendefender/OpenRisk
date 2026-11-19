@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/pkg/netguard"
 )
 
 // WebhookProvider implements webhook notifications
@@ -66,6 +67,10 @@ func (wp *WebhookProvider) SendWithSignature(
 	if url == "" {
 		return fmt.Errorf("webhook URL not provided")
 	}
+	// The URL is tenant configuration: public https hosts only (#1315).
+	if err := netguard.ValidateURL(url); err != nil {
+		return err
+	}
 
 	jsonPayload, err := json.Marshal(payload)
 	if err != nil {
@@ -90,13 +95,17 @@ func (wp *WebhookProvider) SendWithSignature(
 	req.Header.Set("X-OpenRisk-Event-Timestamp", time.Now().UTC().Format(time.RFC3339))
 	req.Header.Set("User-Agent", "OpenRisk-NotificationSystem/1.0")
 
-	// Send with retry logic
-	client := &http.Client{}
+	// Send with retry logic, through the guarded client: its dialer re-checks
+	// the resolved address on every attempt and every redirect.
+	client := webhookClient
 	for attempt := 0; attempt < wp.retries; attempt++ {
 		resp, err := client.Do(req)
 		if err == nil && resp.StatusCode >= 200 && resp.StatusCode < 300 {
 			resp.Body.Close()
 			return nil
+		}
+		if netguard.IsDenied(err) {
+			return err // a refused address stays refused: no retry
 		}
 
 		if resp != nil {
@@ -125,13 +134,12 @@ func (wp *WebhookProvider) Validate(config map[string]interface{}) error {
 		return fmt.Errorf("webhook URL not provided")
 	}
 
-	// Validate URL format
-	if len(url) < 10 || (url[:7] != "http://" && url[:8] != "https://") {
-		return fmt.Errorf("invalid webhook URL format")
-	}
-
-	return nil
+	// https only, and never a loopback, link-local or private host (#1315).
+	return netguard.ValidateURL(url)
 }
+
+// webhookClient may only reach addresses the outbound guard allows.
+var webhookClient = netguard.Client(netguard.Options{Timeout: 10 * time.Second})
 
 // createSignature creates HMAC-SHA256 signature
 func (wp *WebhookProvider) createSignature(payload []byte, secret string) string {

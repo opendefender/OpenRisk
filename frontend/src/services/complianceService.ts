@@ -8,8 +8,11 @@ import type {
   ComplianceFramework,
   ComplianceControl,
   ControlEvidence,
-  ComplianceProgress,
+  ComplianceProgressWire,
+  FrameworkProgress,
   CreateFrameworkInput,
+  FrameworkExportDocument,
+  FrameworkImportResult,
   CreateControlInput,
   UpdateControlInput,
   ComplianceCatalogSummary,
@@ -26,6 +29,39 @@ import type {
   ControlMapping,
   CreateControlMappingInput,
 } from '../types/compliance';
+
+// saveBlob hands a blob to the browser as a download.
+function saveBlob(data: Blob, filename: string): void {
+  const url = URL.createObjectURL(data);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+// filenameFromDisposition reads the server's Content-Disposition filename,
+// falling back to `fallback` when it is absent or unreadable.
+function filenameFromDisposition(disposition: unknown, fallback: string): string {
+  if (typeof disposition !== 'string') return fallback;
+  const match = disposition.match(/filename\*?=(?:UTF-8'')?"?([^";]+)"?/i);
+  if (!match?.[1]) return fallback;
+  try {
+    return decodeURIComponent(match[1]);
+  } catch {
+    return match[1];
+  }
+}
+
+export function normalizeProgress(raw: ComplianceProgressWire): FrameworkProgress {
+  const byStatus = raw.by_status ?? raw.ByStatus ?? {};
+  return {
+    total: raw.total ?? raw.Total ?? 0,
+    applicable: raw.applicable ?? raw.Applicable ?? 0,
+    byStatus,
+    percentComplete: raw.percent_complete ?? raw.PercentComplete ?? 0,
+  };
+}
 
 export const complianceService = {
   listCatalogs: async (): Promise<ComplianceCatalogSummary[]> => {
@@ -63,11 +99,37 @@ export const complianceService = {
     await api.delete(`/compliance/frameworks/${frameworkId}`);
   },
 
-  getProgress: async (frameworkId: string): Promise<ComplianceProgress> => {
-    const response = await api.get<ComplianceProgress>(
-      `/compliance/frameworks/${frameworkId}/progress`,
+  // exportFramework downloads a framework as the JSON exchange document (#307)
+  // and triggers a browser download named by the server (<slug>-<version>.json).
+  exportFramework: async (frameworkId: string): Promise<void> => {
+    const response = await api.get(`/compliance/frameworks/${frameworkId}/export`, {
+      responseType: 'blob',
+    });
+    const filename = filenameFromDisposition(
+      response.headers?.['content-disposition'],
+      'framework.json',
+    );
+    saveBlob(response.data as Blob, filename);
+  },
+
+  // importFramework creates a custom framework and all its controls from the
+  // JSON exchange document, in one request (all or nothing, server-side).
+  importFramework: async (document: FrameworkExportDocument): Promise<FrameworkImportResult> => {
+    const response = await api.post<FrameworkImportResult>(
+      '/compliance/frameworks/import',
+      document,
     );
     return response.data;
+  },
+
+  // The progress endpoint answers with the Go struct's field names (Total,
+  // ByStatus, ...) while docs/openapi.yaml documents snake_case. normalizeProgress
+  // accepts both so the UI never depends on which one the server speaks.
+  getProgress: async (frameworkId: string): Promise<FrameworkProgress> => {
+    const response = await api.get<ComplianceProgressWire>(
+      `/compliance/frameworks/${frameworkId}/progress`,
+    );
+    return normalizeProgress(response.data);
   },
 
   // downloadReport fetches the official compliance report (PDF) for a framework

@@ -6,6 +6,7 @@
 package risk
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"testing"
@@ -13,6 +14,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/opendefender/openrisk/internal/domain"
 	"github.com/opendefender/openrisk/pkg/crq"
+	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -174,4 +176,41 @@ func TestFinancialSummary_CoverageCounterWins(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 12, sum.TotalRisks)
 	assert.Equal(t, 5, sum.QuantifiedRisks)
+}
+
+type failingCoverage struct{ err error }
+
+func (m failingCoverage) CountFinancialCoverage(context.Context, uuid.UUID) (int, int, error) {
+	return 0, 0, m.err
+}
+
+// #712 — a failing coverage aggregate is logged, and the summary falls back to
+// the per-risk count instead of silently keeping a figure nobody computed.
+func TestFinancialSummary_CoverageError_LoggedAndFallsBack(t *testing.T) {
+	risks := []domain.Risk{
+		{ID: uuid.New(), Title: "SLE only", Criticality: domain.RiskCriticalityHigh, SLEXAF: fp(20_000_000)},
+		{ID: uuid.New(), Title: "No figures", Criticality: domain.RiskCriticalityLow},
+	}
+	var buf bytes.Buffer
+	tenant := uuid.New()
+	uc := NewFinancialSummaryUseCase(&mockFinancialLister{risks: risks}, crq.NewQuantifier(600, crq.DefaultReference())).
+		WithCoverageCounter(failingCoverage{err: errors.New(`column "sle_xaf" does not exist`)}).
+		WithLogger(zerolog.New(&buf))
+
+	sum, err := uc.Execute(context.Background(), tenant)
+	require.NoError(t, err)
+	assert.Equal(t, 2, sum.TotalRisks)
+	assert.Equal(t, 1, sum.QuantifiedRisks, "an SLE-only risk counts as quantified")
+	assert.Contains(t, buf.String(), `"level":"warn"`)
+	assert.Contains(t, buf.String(), `column \"sle_xaf\" does not exist`)
+	assert.Contains(t, buf.String(), tenant.String())
+}
+
+// Without WithLogger the use case must not panic on a coverage error.
+func TestFinancialSummary_CoverageError_NoLoggerIsSafe(t *testing.T) {
+	uc := NewFinancialSummaryUseCase(&mockFinancialLister{}, crq.NewQuantifier(600, crq.DefaultReference())).
+		WithCoverageCounter(failingCoverage{err: errors.New("boom")})
+	sum, err := uc.Execute(context.Background(), uuid.New())
+	require.NoError(t, err)
+	assert.Equal(t, 0, sum.TotalRisks)
 }

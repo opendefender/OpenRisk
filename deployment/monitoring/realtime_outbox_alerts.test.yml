@@ -1,0 +1,41 @@
+# #344 — promtool unit test for the realtime outbox alerts in alerts.yml.
+# Run: promtool test rules deployment/monitoring/realtime_outbox_alerts.test.yml
+rule_files: [alerts.yml]
+evaluation_interval: 1m
+tests:
+  - interval: 1m
+    input_series:
+      # one abandon at minute 5, then a process restart (counter back to 0) at minute 20
+      - series: 'openrisk_realtime_outbox_abandoned_total{instance="api-1"}'
+        values: '0 0 0 0 0 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0'
+      - series: 'openrisk_realtime_outbox_pending{instance="api-1"}'
+        values: '0x44'
+      - series: 'openrisk_realtime_outbox_oldest_pending_seconds{instance="api-1"}'
+        values: '0x44'
+    alert_rule_test:
+      - {eval_time: 3m,  alertname: RealtimeOutboxEventAbandoned, exp_alerts: []}
+      - eval_time: 7m
+        alertname: RealtimeOutboxEventAbandoned
+        exp_alerts: [{exp_labels: {severity: critical, team: platform}, exp_annotations: {summary: "Realtime announcements were abandoned by the outbox relay", description: "1 realtime event(s) were given up after the attempt cap in the last 15 min. Connected users will only see those changes after a gap resync or a reload. Find them with: SELECT id, tenant_id, sequence, attempts, last_error FROM realtime_events WHERE abandoned_at IS NOT NULL ORDER BY abandoned_at DESC; and the log line 'realtime outbox: abandoned row'. Rows are purged with retention (24 h by default)."}}]
+      - {eval_time: 40m, alertname: RealtimeOutboxEventAbandoned, exp_alerts: []}
+      - {eval_time: 40m, alertname: RealtimeOutboxMetricsAbsent, exp_alerts: []}
+      - {eval_time: 40m, alertname: RealtimeOutboxBacklogStale, exp_alerts: []}
+  - interval: 1m
+    input_series:
+      - series: 'openrisk_realtime_outbox_oldest_pending_seconds{instance="api-1"}'
+        values: '0 60 120 180 240 300 360 420 480 540 600 660 720'
+      - series: 'openrisk_realtime_outbox_pending{instance="api-1"}'
+        values: '3x12'
+    alert_rule_test:
+      - {eval_time: 6m, alertname: RealtimeOutboxBacklogStale, exp_alerts: []}
+      - eval_time: 12m
+        alertname: RealtimeOutboxBacklogStale
+        exp_alerts: [{exp_labels: {severity: warning, team: platform}, exp_annotations: {summary: "Realtime outbox has events waiting more than 5 min", description: "The oldest unpublished realtime event is 12m 0s old and 3 wait. Deliveries are failing (check Redis and openrisk_realtime_outbox_publish_failures_total). After about 1 h of failures they are abandoned."}}]
+  - interval: 1m
+    input_series:
+      - series: 'up{job="openrisk"}'
+        values: '1x15'
+    alert_rule_test:
+      - eval_time: 11m
+        alertname: RealtimeOutboxMetricsAbsent
+        exp_alerts: [{exp_labels: {severity: warning, team: platform}, exp_annotations: {summary: "Realtime outbox backlog metrics are missing", description: "openrisk_realtime_outbox_pending has not been scraped for 10 min: the backlog read is failing or the API is down. Abandoned or stuck announcements would go unnoticed."}}]

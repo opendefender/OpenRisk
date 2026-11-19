@@ -28,6 +28,7 @@ import (
 	"github.com/opendefender/openrisk/internal/domain"
 	"github.com/opendefender/openrisk/internal/infrastructure/repository"
 	"github.com/opendefender/openrisk/internal/middleware"
+	"github.com/opendefender/openrisk/internal/testsupport/testdb"
 	authpkg "github.com/opendefender/openrisk/pkg/auth"
 	rt "github.com/opendefender/openrisk/pkg/realtime"
 )
@@ -59,10 +60,32 @@ type streamTestEnv struct {
 // what the handler trusts.
 func newStreamTestEnv(t *testing.T, opts apprealtime.HubOptions) *streamTestEnv {
 	t.Helper()
+	return newStreamTestEnvWith(t, opts, streamServerOptions{})
+}
 
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+// streamServerOptions shapes the test server for the write-deadline tests
+// (#962). The zero value is the server every other test in this file runs on.
+type streamServerOptions struct {
+	// WriteTimeout is fiber.Config.WriteTimeout; production runs with 10s.
+	WriteTimeout time.Duration
+	// KeepaliveInterval overrides the 150ms test keepalive.
+	KeepaliveInterval time.Duration
+	// SendBuffer, when set, caps each accepted socket's kernel send buffer so a
+	// client that stops reading blocks the server's writes quickly.
+	SendBuffer int
+	// Mount, when set, registers extra routes on the same app, after the
+	// stand-in auth middleware and before the listener starts. The risk-created
+	// regression (#348) uses it to put the real POST /risks behind the same
+	// server the stream is read from.
+	Mount func(app *fiber.App, pub *apprealtime.Publisher)
+}
+
+func newStreamTestEnvWith(t *testing.T, opts apprealtime.HubOptions, srv streamServerOptions) *streamTestEnv {
+	t.Helper()
+
+	db, err := testdb.Open(t, sqlite.Open(":memory:"), &gorm.Config{})
 	require.NoError(t, err)
-	require.NoError(t, db.AutoMigrate(&domain.RealtimeEvent{}))
+	require.NoError(t, db.AutoMigrate(&domain.RealtimeEvent{}, &domain.RealtimeEventSequence{}))
 
 	eventLog := repository.NewGormRealtimeEventRepository(db)
 	hub := apprealtime.NewHub(opts)
@@ -71,12 +94,16 @@ func newStreamTestEnv(t *testing.T, opts apprealtime.HubOptions) *streamTestEnv 
 	// failing write IS how the server learns the socket is gone, and a suite
 	// that opened streams on the production interval would spend its runtime
 	// waiting for teardown rather than testing anything.
+	keepalive := 150 * time.Millisecond
+	if srv.KeepaliveInterval > 0 {
+		keepalive = srv.KeepaliveInterval
+	}
 	h := NewRealtimeHandlerWithOptions(hub, eventLog, RealtimeStreamOptions{
-		KeepaliveInterval: 150 * time.Millisecond,
+		KeepaliveInterval: keepalive,
 		MaxLifetime:       30 * time.Second,
 	})
 
-	app := fiber.New(fiber.Config{DisableStartupMessage: true})
+	app := fiber.New(fiber.Config{DisableStartupMessage: true, WriteTimeout: srv.WriteTimeout})
 	app.Use(func(c *fiber.Ctx) error {
 		tenantHeader := c.Get("X-Test-Tenant")
 		if tenantHeader == "" {
@@ -106,9 +133,15 @@ func newStreamTestEnv(t *testing.T, opts apprealtime.HubOptions) *streamTestEnv 
 	})
 	app.Get("/api/v1/realtime/events", h.Stream)
 	app.Get("/api/v1/realtime/catalog", h.Catalog)
+	if srv.Mount != nil {
+		srv.Mount(app, pub)
+	}
 
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(t, err)
+	if srv.SendBuffer > 0 {
+		ln = smallSendBufferListener{Listener: ln, size: srv.SendBuffer}
+	}
 	go func() { _ = app.Listener(ln) }()
 	// Shutdown does not wait for stream writers, which keep ticking until a
 	// keepalive write fails. Wait for the hub to empty, so no stream from this

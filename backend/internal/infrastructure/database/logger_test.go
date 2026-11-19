@@ -13,7 +13,10 @@ import (
 	"testing"
 	"time"
 
+	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
+
+	"github.com/opendefender/openrisk/internal/testsupport/testdb"
 )
 
 // trace drives the logger the way GORM does and returns what it wrote.
@@ -71,5 +74,24 @@ func TestGormLogger_ProductionStillLogsRealErrors(t *testing.T) {
 	out := trace(t, "production", errors.New("connection refused"))
 	if !strings.Contains(out, "connection refused") {
 		t.Errorf("a real database error must be logged in production, got:\n%q", out)
+	}
+}
+
+// #808, ABSOLUTE RULE 6: a statement that fails or is refused must not write its
+// bind values (token hashes, e-mails, ids) to the log.
+func TestGormLogger_NeverWritesBindValues(t *testing.T) {
+	t.Setenv("APP_ENV", "")
+	var buf bytes.Buffer
+	db, err := testdb.Open(t, sqlite.Open(":memory:"), &gorm.Config{Logger: gormLoggerTo(&buf)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = db.Exec("SELECT * FROM missing_table WHERE token_hash = ?", "s3cret-bind-value").Error
+	out := buf.String()
+	if !strings.Contains(out, "missing_table") {
+		t.Fatalf("the statement must still be logged, got %q", out)
+	}
+	if strings.Contains(out, "s3cret-bind-value") {
+		t.Fatalf("bind value written to the log: %q", out)
 	}
 }

@@ -486,6 +486,20 @@ expect_out "route: label area:design adds art-director" "art-director product-ve
 route_repo r23; put docs/x.md 'x'
 expect_out "route: label type:security adds devsecops" "devsecops product-verifier" "$(route 'type:security,area:docs')"
 
+for l in area:backend area:infra; do # #1404: a label floor, even on a docs-only diff
+  route_repo "r23b-${l/:/_}"; put docs/x.md 'x'
+  expect_out "route: label $l adds devsecops" "devsecops product-verifier" "$(route "type:feature,$l")"
+done
+
+for p in .zap/rules.tsv .env.example .env.staging.example frontend/.env.production dev/fixtures/x.sql \
+         sonar-project.properties; do # #1404
+  route_repo "r23c-${p//\//_}"; put "$p" 'x'
+  expect_out "route: $p goes to devsecops" "code-reviewer devsecops" "$(route)"
+done
+
+route_repo r23d; put frontend/src/lib/environment.ts 'export const n = 1'; put docs/dev/setup.md 'x'
+expect_out "route: env and dev inside other names are not infra" "code-reviewer product-verifier" "$(route)"
+
 route_repo r24; git -C "$R" remote add origin https://github.com/opendefender/opendefender-website.git
 put content/i18n/en.ts 'export default { hero: { tagline: "Risk, on one screen" } }'
 expect_out "route: the website goes to website-dev and product-verifier" "code-reviewer i18n-steward product-verifier website-dev" "$(route)"

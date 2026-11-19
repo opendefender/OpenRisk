@@ -27,7 +27,7 @@ func (f fakeSubs) GetByTenant(context.Context, uuid.UUID) (*domain.Subscription,
 
 type fakeUsage map[ent.LimitKey]int
 
-func (f fakeUsage) Count(_ context.Context, _ uuid.UUID, k ent.LimitKey) (int, error) {
+func (f fakeUsage) Count(_ context.Context, _ uuid.UUID, k ent.LimitKey, _ time.Time) (int, error) {
 	return f[k], nil
 }
 
@@ -216,5 +216,37 @@ func TestCapacity_FrameworkCapPerPlan(t *testing.T) {
 	ent500 := NewService(fakeOrg{plan: "enterprise"}).WithUsage(fakeUsage{ent.LimitFrameworks: 500})
 	if ok, limit, _, _, _ := ent500.Capacity(context.Background(), uuid.New(), ent.LimitFrameworks); !ok || limit != ent.Unlimited {
 		t.Errorf("enterprise is uncapped; got ok=%v limit=%d", ok, limit)
+	}
+}
+
+// recordingUsage records the instant every count was asked about.
+type recordingUsage struct{ seen *[]time.Time }
+
+func (r recordingUsage) Count(_ context.Context, _ uuid.UUID, _ ent.LimitKey, asOf time.Time) (int, error) {
+	*r.seen = append(*r.seen, asOf)
+	return 0, nil
+}
+
+// Usage is counted at the service's own clock, the one that judges plan and
+// trial, never at the repository's wall clock (#419).
+func TestUsage_IsCountedAtTheServiceClock(t *testing.T) {
+	var seen []time.Time
+	frozen := time.Date(2026, 3, 1, 9, 0, 0, 0, time.UTC)
+	s := NewService(fakeOrg{plan: "free", region: "eu"}).WithUsage(recordingUsage{seen: &seen})
+	s.now = func() time.Time { return frozen }
+
+	if _, _, _, _, err := s.Capacity(context.Background(), uuid.New(), ent.LimitRisks); err != nil {
+		t.Fatalf("Capacity: %v", err)
+	}
+	if _, err := s.Resolve(context.Background(), uuid.New()); err != nil {
+		t.Fatalf("Resolve: %v", err)
+	}
+	if len(seen) < 2 {
+		t.Fatalf("want counts from Capacity and Resolve, got %d", len(seen))
+	}
+	for i, at := range seen {
+		if !at.Equal(frozen) {
+			t.Fatalf("count %d judged at %v, want the injected clock %v", i, at, frozen)
+		}
 	}
 }

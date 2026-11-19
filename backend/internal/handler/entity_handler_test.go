@@ -24,10 +24,13 @@ import (
 
 	"github.com/opendefender/openrisk/internal/application/entity"
 	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/internal/infrastructure/controlchain"
+	"github.com/opendefender/openrisk/internal/infrastructure/controlstatus"
 	"github.com/opendefender/openrisk/internal/infrastructure/repository"
 	"github.com/opendefender/openrisk/internal/middleware"
 	"github.com/opendefender/openrisk/internal/service"
 	"github.com/opendefender/openrisk/internal/testsupport/sqliteschema"
+	"github.com/opendefender/openrisk/internal/testsupport/testdb"
 )
 
 // The universal drawer through the real HTTP stack.
@@ -62,7 +65,7 @@ type drawerFixture struct {
 // drifting away from production's.
 func setupDrawer(t *testing.T, permissions []string) *drawerFixture {
 	t.Helper()
-	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{TranslateError: true})
+	db, err := testdb.Open(t, sqlite.Open(":memory:"), &gorm.Config{TranslateError: true})
 	require.NoError(t, err)
 
 	// Several models carry Postgres-only DDL — a gen_random_uuid() default, a
@@ -98,6 +101,9 @@ func setupDrawer(t *testing.T, permissions []string) *drawerFixture {
 		&domain.Incident{}, &domain.IncidentTimeline{}, &domain.IncidentAction{},
 		&domain.AuditEvent{},
 	))
+	// The legacy repositories mirror their writes onto the control chain (#1413).
+	require.NoError(t, db.AutoMigrate(controlchain.Models()...))
+	require.NoError(t, db.AutoMigrate(controlstatus.Models()...))
 
 	f := &drawerFixture{db: db, tenantA: uuid.New(), tenantB: uuid.New(), userA: uuid.New()}
 	now := time.Now().UTC()

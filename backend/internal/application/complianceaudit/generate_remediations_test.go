@@ -8,6 +8,7 @@ package complianceaudit
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/opendefender/openrisk/internal/domain"
@@ -61,6 +62,9 @@ type mockComplianceRepo struct {
 func (m *mockComplianceRepo) CreateFramework(context.Context, *domain.ComplianceFramework) error {
 	return nil
 }
+func (m *mockComplianceRepo) CreateFrameworkWithControls(context.Context, *domain.ComplianceFramework, []*domain.ComplianceControl) error {
+	return nil
+}
 func (m *mockComplianceRepo) GetFrameworkByID(context.Context, uuid.UUID, uuid.UUID) (*domain.ComplianceFramework, error) {
 	return nil, nil
 }
@@ -75,7 +79,7 @@ func (m *mockComplianceRepo) DeleteFramework(context.Context, uuid.UUID, uuid.UU
 func (m *mockComplianceRepo) CreateControl(context.Context, *domain.ComplianceControl) error {
 	return nil
 }
-func (m *mockComplianceRepo) GetControlByID(context.Context, uuid.UUID, uuid.UUID) (*domain.ComplianceControl, error) {
+func (m *mockComplianceRepo) GetControlByID(context.Context, uuid.UUID, uuid.UUID, time.Time) (*domain.ComplianceControl, error) {
 	return nil, nil
 }
 func (m *mockComplianceRepo) ListControlsByFramework(context.Context, uuid.UUID, uuid.UUID) ([]domain.ComplianceControl, error) {
@@ -88,16 +92,7 @@ func (m *mockComplianceRepo) DeleteControl(context.Context, uuid.UUID, uuid.UUID
 func (m *mockComplianceRepo) DeleteControlsByFramework(context.Context, uuid.UUID, uuid.UUID) (int64, error) {
 	return 0, nil
 }
-func (m *mockComplianceRepo) CreateEvidence(context.Context, *domain.ControlEvidence) error {
-	return nil
-}
-func (m *mockComplianceRepo) GetEvidenceByID(context.Context, uuid.UUID, uuid.UUID) (*domain.ControlEvidence, error) {
-	return nil, nil
-}
-func (m *mockComplianceRepo) ListEvidencesByControl(context.Context, uuid.UUID, uuid.UUID) ([]domain.ControlEvidence, error) {
-	return nil, nil
-}
-func (m *mockComplianceRepo) CountEvidencesByFramework(context.Context, uuid.UUID, uuid.UUID) (map[uuid.UUID]int, error) {
+func (m *mockComplianceRepo) CountEvidencesByFramework(context.Context, uuid.UUID, uuid.UUID, time.Time) (map[uuid.UUID]int, error) {
 	return map[uuid.UUID]int{}, nil
 }
 func (m *mockComplianceRepo) DeleteEvidence(context.Context, uuid.UUID, uuid.UUID) error { return nil }

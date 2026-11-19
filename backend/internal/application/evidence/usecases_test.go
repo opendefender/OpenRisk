@@ -8,6 +8,7 @@ package evidence
 import (
 	"bytes"
 	"context"
+	"errors"
 	"io"
 	"strings"
 	"testing"
@@ -15,6 +16,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/pkg/fileupload"
 )
 
 // ---------------------------------------------------------------------------
@@ -182,14 +184,17 @@ func (r *fakeRepo) ControlsWithCoverage(ctx context.Context, tenantID, framework
 func (r *fakeRepo) ListExpiring(context.Context, time.Time, time.Duration, int) ([]domain.Evidence, error) {
 	return nil, nil
 }
-func (r *fakeRepo) MarkReminded(context.Context, uuid.UUID, time.Time) error { return nil }
+func (r *fakeRepo) MarkReminded(context.Context, uuid.UUID, uuid.UUID, time.Time) error { return nil }
 
 type fakeControls struct {
 	controls   map[uuid.UUID]domain.ComplianceControl
 	frameworks map[uuid.UUID]domain.ComplianceFramework
+	// seenAsOf records the instant every control lookup was judged at (#419).
+	seenAsOf []time.Time
 }
 
-func (f *fakeControls) GetControlByID(_ context.Context, id, tenantID uuid.UUID) (*domain.ComplianceControl, error) {
+func (f *fakeControls) GetControlByID(_ context.Context, id, tenantID uuid.UUID, asOf time.Time) (*domain.ComplianceControl, error) {
+	f.seenAsOf = append(f.seenAsOf, asOf)
 	c, ok := f.controls[id]
 	if !ok || c.TenantID != tenantID {
 		return nil, nil
@@ -228,18 +233,27 @@ func (f *fakeControls) ListFrameworks(_ context.Context, tenantID uuid.UUID) ([]
 type fakeStorage struct {
 	saved   map[string][]byte
 	deleted []string
+	// names records the filename argument of every Save: the use case must pass
+	// a server-generated name, never the client's (#1316).
+	names []string
+	// openOverride, when set, is returned by Open instead of the saved bytes.
+	openOverride io.ReadCloser
 }
 
 func newFakeStorage() *fakeStorage { return &fakeStorage{saved: map[string][]byte{}} }
 
 func (s *fakeStorage) Save(_ context.Context, tenantID uuid.UUID, filename string, content io.Reader) (string, error) {
 	b, _ := io.ReadAll(content)
+	s.names = append(s.names, filename)
 	key := tenantID.String() + "/" + filename
 	s.saved[key] = b
 	return key, nil
 }
 
 func (s *fakeStorage) Open(_ context.Context, key string) (io.ReadCloser, error) {
+	if s.openOverride != nil {
+		return s.openOverride, nil
+	}
 	b, ok := s.saved[key]
 	if !ok {
 		return nil, io.EOF
@@ -496,9 +510,132 @@ func TestDownload_RefusesEvidenceThatHoldsNoFile(t *testing.T) {
 	// and saying so beats a 500 out of the storage layer.
 	ev, _ := f.svc.Create(ctx, f.tenant, CreateInput{Title: "in Confluence", ExternalURL: "https://wiki/x"})
 
-	if _, _, err := f.svc.Download(ctx, f.tenant, ev.ID); err == nil {
+	if _, _, _, err := f.svc.Download(ctx, f.tenant, uuid.Nil, ev.ID); err == nil {
 		t.Fatal("expected a validation error for evidence with no file")
 	}
 }
 
 func evAt(t time.Time) *time.Time { return &t }
+
+// The control lookups judge evidence validity at the service's own clock, not
+// at the repository's wall clock (#419): the service and the count it reads
+// must agree about whether the same artifact has expired.
+func TestService_LooksUpControlsAtItsOwnClock(t *testing.T) {
+	f := setup(t)
+	ctx := context.Background()
+
+	if _, err := f.svc.Create(ctx, f.tenant, CreateInput{
+		Title: "ISO certificate 2026", Type: "attestation", Filename: "iso.pdf",
+		Content: strings.NewReader("PDF"), ControlIDs: []uuid.UUID{f.c1, f.c2},
+	}); err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	if _, err := f.svc.ListByControl(ctx, f.tenant, f.c1); err != nil {
+		t.Fatalf("ListByControl: %v", err)
+	}
+
+	if len(f.controls.seenAsOf) == 0 {
+		t.Fatal("no control lookup was made")
+	}
+	for i, at := range f.controls.seenAsOf {
+		if !at.Equal(f.now) {
+			t.Fatalf("lookup %d judged at %v, want the injected clock %v", i, at, f.now)
+		}
+	}
+}
+
+// ---------------------------------------------------------------------------
+// Upload validation (#1316)
+// ---------------------------------------------------------------------------
+
+var pdfSample = []byte("%PDF-1.7\n1 0 obj\n<<>>\nendobj\n")
+
+func TestCreate_StoresUnderAServerGeneratedName(t *testing.T) {
+	f := setup(t)
+	ev, err := f.svc.Create(context.Background(), f.tenant, CreateInput{
+		Title: "policy", Filename: "../../Payroll Q3 <b>.exe", Content: bytes.NewReader(pdfSample),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(f.store.names) != 1 || f.store.names[0] != "evidence.pdf" {
+		t.Fatalf("storage must get a name derived from the sniffed type, got %v", f.store.names)
+	}
+	if strings.Contains(ev.FileRef, "Payroll") || strings.Contains(ev.FileRef, "exe") {
+		t.Fatalf("stored key leaks the client filename: %q", ev.FileRef)
+	}
+	if ev.Filename != "../../Payroll Q3 <b>.exe" {
+		t.Fatalf("the client name is kept for display only, got %q", ev.Filename)
+	}
+}
+
+func TestCreate_RejectsWrongTypeBySniffing(t *testing.T) {
+	for name, body := range map[string]string{
+		"html disguised as pdf": "<html><script>alert(1)</script></html>",
+		"svg disguised as pdf":  `<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>`,
+		"xml svg":               `<?xml version="1.0"?><svg><script>alert(1)</script></svg>`,
+		"executable":            "MZ\x90\x00\x03\x00\x00\x00\x04\x00\x00\x00\xff\xff\x00\x00",
+	} {
+		f := setup(t)
+		_, err := f.svc.Create(context.Background(), f.tenant, CreateInput{
+			Title: "x", Filename: "report.pdf", Content: strings.NewReader(body),
+		})
+		if !errors.Is(err, domain.ErrValidation) || domain.HTTPStatusFromError(err) != 400 {
+			t.Errorf("%s: want 400 ErrValidation, got %v", name, err)
+		}
+		if len(f.store.saved) != 0 || len(f.repo.items) != 0 {
+			t.Errorf("%s: a refused upload must leave nothing behind", name)
+		}
+	}
+}
+
+func TestCreate_RejectsOversize(t *testing.T) {
+	f := setup(t)
+	big := append(append([]byte{}, pdfSample...), make([]byte, fileupload.EvidenceMaxBytes)...)
+	_, err := f.svc.Create(context.Background(), f.tenant, CreateInput{
+		Title: "big", Filename: "big.pdf", Content: bytes.NewReader(big),
+	})
+	if !errors.Is(err, domain.ErrValidation) || domain.HTTPStatusFromError(err) != 413 {
+		t.Fatalf("want 413 ErrValidation, got %v", err)
+	}
+	if len(f.store.saved) != 0 {
+		t.Fatal("an oversize upload must not be stored")
+	}
+}
+
+func TestCreate_RejectsEmptyFile(t *testing.T) {
+	f := setup(t)
+	_, err := f.svc.Create(context.Background(), f.tenant, CreateInput{
+		Title: "empty", Filename: "a.pdf", Content: bytes.NewReader(nil),
+	})
+	if !errors.Is(err, domain.ErrValidation) {
+		t.Fatalf("want ErrValidation, got %v", err)
+	}
+}
+
+func TestCreate_Unauthorized_WithoutTenant(t *testing.T) {
+	f := setup(t)
+	_, err := f.svc.Create(context.Background(), uuid.Nil, CreateInput{
+		Title: "x", Filename: "a.pdf", Content: bytes.NewReader(pdfSample),
+	})
+	if !errors.Is(err, domain.ErrValidation) || len(f.store.saved) != 0 {
+		t.Fatalf("a nil tenant must be refused before storage, got %v", err)
+	}
+}
+
+func TestDownload_NotFound_ForAnotherTenant(t *testing.T) {
+	f := setup(t)
+	ctx := context.Background()
+	ev, err := f.svc.Create(ctx, f.tenant, CreateInput{Title: "doc", Filename: "a.pdf", Content: bytes.NewReader(pdfSample)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, rc, _, err := f.svc.Download(ctx, f.tenant, uuid.Nil, ev.ID); err != nil {
+		t.Fatal(err)
+	} else {
+		_ = rc.Close()
+	}
+	if _, _, _, err := f.svc.Download(ctx, f.other, uuid.Nil, ev.ID); !errors.Is(err, domain.ErrNotFound) {
+		t.Fatalf("tenant B must get ErrNotFound for tenant A's file, got %v", err)
+	}
+}

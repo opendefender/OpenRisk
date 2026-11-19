@@ -7,6 +7,7 @@ package domain
 
 import (
 	"context"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -177,8 +178,9 @@ type PostureReader interface {
 	// ControlCreditsByRisk returns, per risk id, the credits ADR 0003 consumes.
 	// HasEvidence must be filled from the evidence library, or every implemented
 	// control silently earns 0.70 instead of 1.00 and the reveal under-reports
-	// the tenant's own posture.
-	ControlCreditsByRisk(ctx context.Context, tenantID uuid.UUID, riskIDs []uuid.UUID) (map[uuid.UUID][]scoring.ControlCredit, error)
+	// the tenant's own posture. Evidence validity is judged at asOf, the
+	// caller's clock, never the repository's (#419).
+	ControlCreditsByRisk(ctx context.Context, tenantID uuid.UUID, riskIDs []uuid.UUID, asOf time.Time) (map[uuid.UUID][]scoring.ControlCredit, error)
 }
 
 // ---------------------------------------------------------------------------

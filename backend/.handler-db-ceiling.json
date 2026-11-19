@@ -1,0 +1,16 @@
+{
+  "total": 65,
+  "files": {
+    "internal/handler/team_handler.go": 18,
+    "internal/handler/mitigation_subaction_handler.go": 12,
+    "internal/handler/mitigation_handler.go": 9,
+    "internal/handler/stats_handler.go": 8,
+    "internal/handler/user_handler.go": 6,
+    "internal/handler/sso_session.go": 5,
+    "internal/handler/risk_handler.go": 2,
+    "internal/handler/seed_admin.go": 2,
+    "internal/handler/dashboard_handler.go": 1,
+    "internal/handler/export_handler.go": 1,
+    "internal/handler/seed_rbac.go": 1
+  }
+}

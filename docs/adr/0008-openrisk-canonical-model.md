@@ -777,3 +777,194 @@ two stored directions of one relation drift, as ADR 0001 D6b recorded for two vo
 
 **G — Map `control_evidences` as a second evidence source.** Rejected by D-056: it is retired, and
 the evidence library is the only register the product reads.
+
+## Amendments
+
+### 2026-11-09 — readings fixed by the Go types (#1240)
+
+Tech-lead review of `backend/internal/domain/canonical`. Each item records how the code reads
+text this ADR left open. None changes a field, a type or an enumeration value of D2–D6. #542
+publishes these readings with the schema.
+
+- **A1 — Ceilings (D3).** Where "Rises to" is `—`, the ceiling is the default:
+  `automated_scanner` 0.80, `threat_intelligence` 0.40, `regulatory_catalogue` 0.90. `derived` has
+  no default; its validator ceiling is 0.90, the highest non-derived ceiling, which a minimum of
+  inputs can never exceed. The minimum-of-inputs rule itself is applied when the record is written
+  (`DerivedConfidence`), because a pure validator cannot see the inputs. The `user_entered` uplift
+  to 0.90 reads `review`, `reviewed_by` and `collected_by`, which only `Evidence` carries (D6). Every
+  other `user_entered` record, a manual `ControlTestResult` included, is capped at 0.70.
+- **A2 — "A value outside a class's default or ceiling needs a reason" (D3).** Values the rule
+  itself produces are not "outside": a default, the uplift, `false_positive`'s 0.00, a derived
+  minimum, a connector-stated value up to 0.80. Validation enforces the ceilings and nothing else.
+  Any other off-default value is set only by a use case (D2: confidence is never supplied), and
+  that use case writes its reason into `provenance.rule`. #553 carries this on the write path.
+- **A3 — `result_id` (D5).** On `ControlTest --evidenced_by--> Evidence` and
+  `Finding --raised_by--> ControlTest`, `result_id` is the edge's `qualifier`, required, and is not
+  repeated in `attributes`. The table's Attributes column names what the verb carries; the edge
+  envelope says where.
+- **A4 — Read-only scores (D6).** `Risk.score`, `Risk.smart_score` and `Finding.priority` cannot
+  be written through a canonical record: a decoded record never carries them. The read projection
+  attaches them through one function each (`WithEngineScores`, `WithVulnPriority`). `score`
+  stays non-null **in the published read contract**. A `Risk` on the write path has none, so
+  shape validation does not require it. The read projection in #553 is tested to always
+  attach it.
+- **A5 — Spellings.** `{type, id}` names entities exactly as this ADR writes them, in PascalCase
+  (`Requirement`, `ControlImplementation`, `ControlTest`, `Asset`). The `ControlSplitNamespace`
+  of D7 is `7e575e86-2003-497c-a5f6-c326c0820619`. The UUIDv5 name is the
+  `compliance_controls.id` in its lowercase hyphenated text form, so Postgres
+  `uuid_generate_v5(ns, id::text)` yields the same id.
+- **A6 — Tightenings that follow from the text.**
+  - A `Requirement` of class `regulatory_catalogue` requires `framework.key` and `reference_code`,
+    because the empty values are reserved to tenant-authored requirements. A catalogue row missing
+    either is projected as `openrisk_user` and listed, like a missing citation (D7).
+  - A `ControlTestResult`'s source class is `user_entered`, `automated_scanner` or
+    `connector_import` (D6).
+  - Results are unique by `result_id` and ordered by non-decreasing `recorded_at` ("append-only,
+    newest last").
+  - `first_observed_at <= observed_at` (D4).
+  - `false_positive` requires `confidence = 0.00` (D3, D6).
+  - `vendor_questionnaire` requires `method = questionnaire` and an actor of kind
+    `vendor_contact` (D8).
+  - `provenance.via` refuses `://` ("never a URL").
+  - `confidence_rule` is exactly `confidence/1`.
+  - `actor.id` is a uuid for `user`, `vendor_contact:<uuid>` for `vendor_contact`, and free for
+    `system`.
+  - `Evidence.external_url` is an absolute `http`/`https` URL.
+  - `cadence` is a non-zero ISO 8601 duration; null means "on demand".
+- **A7 — Representations.**
+  - `in_place_since` is a `YYYY-MM-DD` date.
+  - `custom_fields` and the `affects` attribute `match_candidates` are opaque JSON that must be
+    well formed.
+  - `cvss.version` and `exploitability.exploit_maturity` are null when the source leaves them
+    empty. The maturity, when present, is one of the four values.
+  - `priority.score` is 0–100, `pkg/vulnprio`'s scale.
+  - `provenance.external_refs[].scheme` is open; the known schemes are `cve`,
+    `starter_catalogue` and `ai_proposal`.
+  - Nullable `provenance` keys are omitted rather than written as null.
+- **A8 — Left to persistence, not shape validation.**
+  - The two-decimal precision of `confidence` is enforced by storage. Rounding a value that
+    passed its ceiling to two places cannot raise it above that ceiling, since every ceiling has
+    two places.
+  - UTC normalisation of timestamps.
+  - `updated_at >= created_at`.
+  - "`acceptance` present only in or after `RESIDUAL_ACCEPTED`" belongs to the risk lifecycle use
+    case (#811). The state machine is not linear (`reopened`), so a shape check cannot state
+    "after".
+- **A9 — Round-two tightenings (#1240, 2026-11-09).**
+  - `maps_to` from a requirement to itself is refused. An unordered pair needs two ends.
+  - A `ControlTest --evidenced_by--> Evidence` qualifier must be the `result_id` of one of that
+    test's own `results` (D5: "the `ControlTestResult` it supports").
+  - Key matching in `provenance` and edge `attributes`:
+    - keys are matched exactly, case included;
+    - a key given twice is refused;
+    - "keys not listed are refused" applies at every nesting level.
+  - Caps on edge attributes:
+    - `match_method` and `asset_criticality_at_observation` are capped at 255 characters and
+      checked for credentials like provenance strings. Today's columns are 128 and 16.
+    - `note` and `rationale` are **text, uncapped**, like the prose fields of D6. Only tokens in
+      them that contain `://` are checked as URLs for credentials, so ordinary prose (an e-mail
+      address after a colon) is never refused.
+  - `match_candidates` is at most 16 KiB. The ranking is sorted by confidence, so when the
+    persisted ranking is larger, the #553 projection keeps its head within the cap. The full
+    ranking stays in `vulnerabilities.match_candidates`.
+  - `Evidence.external_url` is at most 2048 characters. The evidence write path adopts the same
+    cap in #553, so no new row exceeds it.
+  - A `vendor_contact:<assessment_id>` actor is not compared with the record's own id here.
+    ADR 0004 D4 names the assessment, and `Assessment` is not typed in this package (D8). The
+    check belongs to the `Assessment` projection.
+  - **Which parameter names D3's credential refusal covers.** The deny-list names parameters
+    that carry a **reusable** credential: signatures, OAuth tokens and codes, API keys,
+    passwords, session ids and SAML responses. Escapes are decoded leniently: a malformed escape
+    is kept as it is, and the valid escapes around it are still decoded and inspected.
+    `ticket` is **not** on the list. A CAS service ticket is single-use and expires within
+    seconds of issue, so a pasted one cannot be replayed. Meanwhile `?ticket=OPS-12` is an
+    ordinary helpdesk link that GRC notes and evidence URLs cite constantly. Refusing that link
+    would make legitimate records unprojectable, for no protection. (#1240, 2026-11-09)
+
+### 2026-11-12 — persistence readings and one field (#553)
+
+Tech-lead design gate of #553 (D-108). A10.1 adds a field to D6's `Control`. That is the only
+change of shape. Every other item records how persistence reads text this ADR left open. #542
+publishes the field and these readings with the schema.
+
+- **A10.1 — `Control.applicability_review_pending` (new field, D6, D7).** It is a boolean, not
+  null, and read-only. D7 splits a `not_applicable` row into a control with an empty
+  justification, "flagged for the tenant to fill". D6 refuses that state. This field is the flag:
+  - it is true only on a control the D7 split created from a `not_applicable` row;
+  - while it is true, validation accepts the empty justification;
+  - it becomes false on the first write that supplies a justification;
+  - no write can set it to true, and a decoded record never carries it (A4's pattern).
+
+  Such a control gets `declared_status = not_implemented`. D7 gives `not_applicable` rows no
+  declared status, and D6 requires one.
+- **A10.2 — The split control's envelope (D7).**
+  - `source = openrisk_user`, and `source_id` is the control's own id.
+  - `confidence` is 0.70.
+  - `provenance.method` is `migration` when the boot reconciler writes it, and `manual_entry`
+    when it is mirrored from a requirement just created.
+  - `provenance.actor` is `{system, control_split}`.
+
+  The status it copies was a person's claim, so the class is `user_entered`, not `derived`. The
+  `addressed_by` edge of the split has the same envelope and `coverage = full`.
+- **A10.3 — Edge storage (D5).** Stored edges are rows of one table, keyed
+  `(tenant_id, from_type, from_id, verb, to_type, to_id, qualifier)`. The `qualifier` is stored
+  as the nil uuid when absent, so the key is total, as `EdgeKey` already treats it.
+  `to.tenant_id` is not stored: it equals `tenant_id` by construction and is filled when the
+  target resolves. An edge has no `deleted_at`. It is live when both ends are live, and it is
+  removed by a hard delete that is journaled in the audit trail.
+- **A10.4 — Fields, not rows.** `implemented_by` and `tested_by` are persisted only as
+  `ControlImplementation.control_id` and `ControlTest.implementation_id`, and are never stored
+  as edge rows. The read projection emits them. This is D6's "mirrors the edge" read literally.
+  D5's "the inverse is a reading" also forbids storing them twice.
+- **A10.5 — `ControlTestResult` rows carry `tenant_id` (D1, D2).** The rows sit in their own
+  table, and each row carries the test's `tenant_id`. This is ABSOLUTE RULE 2 in persistence. The
+  sub-record in the contract stays without it, as D2 keeps `deleted_at` out of the contract.
+- **A10.6 — Where `control_gap` findings live (D6, D7).** They are stored in their own table,
+  not in `vulnerabilities`. D7 maps that table to findings of kind `vulnerability` only. Writing
+  gaps there would put them in the scanner's dedup, SLA and risk-proposal paths. A `Finding` id
+  resolves in either table, and uuids do not collide.
+- **A10.7 — Gap identity (D2, D3).** A `control_gap` has `source = openrisk_derived` and
+  `source_id` = the id of the test that raised it. That is D2's identity rule, so a test has one
+  gap for its whole life:
+  - a later failing result updates the gap, and reopens it if it was `remediated`;
+  - an `accepted` or `false_positive` verdict is kept;
+  - each failing result adds its own `raised_by` edge, qualified by its `result_id`;
+  - the gap's confidence is the confidence of the latest failing result (D3's derived row);
+  - its `severity` is `medium` when raised, with `provenance.rule` saying so, because D6 gives
+    neither the test nor the control a severity.
+- **A10.8 — The migration places no link on a result (D7, EvidenceControlLink).** "Moves each
+  link onto a test result where one exists" places nothing when #553 migrates, because no
+  `ControlTestResult` exists before #553. Every carried link becomes the transitional
+  `Control --evidenced_by--> Evidence`.
+
+### A11 — Evidence record integrity (#554, D-115, 2026-11-16)
+
+Adds nine optional fields to D6's `Evidence`; D6's table, D7's source mapping and the Score Engine are untouched. Chain of custody stays #1450.
+
+| Field | Type | Rule |
+|---|---|---|
+| `content_hash` | string | SHA-256, 64 lower-case hex, computed server-side from the bytes saved; never taken from a client. Empty on legacy rows (unverified). |
+| `hash_algorithm` | string | `sha256` whenever `content_hash` is set |
+| `observed_from`, `observed_to` | timestamptz | `observed_from <= observed_to <= observed_at`; both default to `collected_at`. `observed_at` stays `collected_at` (D4). |
+| `collection_method` | enum | `manual_upload` · `automated_collector` · `api_pull` · `attestation` |
+| `collector_kind` | enum | `user` · `connector` · `job` |
+| `collector_ref` | string 1-128 | `^[A-Za-z0-9._:@/-]+$`; an identifier, never a credential; required for `automated_collector` and `api_pull` |
+| `signature` | base64, at most 8 KiB decoded | optional, stored, never verified |
+| `signature_algorithm` | string at most 32 | required when `signature` is present |
+
+- **Two axes.** `source` (D2) says which system the record came from and fixes its source class. `collection_method` says by what act it reached the register. They are independent: D7's mapping of `automation` to `openrisk_derived` is unchanged, while the legacy `source` value maps to a method for the backfill (migration backfill only): manual -> `manual_upload`, integration -> `api_pull`, scanner -> `automated_collector`, automation -> `automated_collector`. An omitted method on a human (HTTP) request is `manual_upload`, never derived from the source. Over HTTP only `manual_upload` and `attestation` are accepted and the collector is forced to the authenticated user; the automated methods are reserved for a server-side collector. `attestation` is never derived.
+- **Derived, not stored.** `integrity` (`hashed` · `unhashed` · `none`), `signature_present`, `signature_verified` (always false for now), `assurance` and `confidence` are computed on read from the stored fields.
+- **Table (base, unreviewed).** The review uplift of D3 (0.90 for a reviewed `user_entered` record) lives in the envelope `confidence` and is not in this table.
+
+| Method | Base (verified signature) | Signature present, unverified | No signature | Base confidence |
+|---|---|---|---|---|
+| `automated_collector` | high | substantial | moderate | 0.80 |
+| `api_pull` | high | substantial | moderate | 0.60 |
+| `attestation` | substantial | moderate | low | 0.50 |
+| `manual_upload` | moderate | low | minimal | 0.70 |
+
+  Order: high > substantial > moderate > low > minimal. The base is reached only with a verified signature, which does not exist yet; unverified-present is one level below, absent two levels below (floor minimal). `high` is unreachable today; over HTTP the maximum is `moderate`. The confidence of each method equals the confidence/1 default of its nearest class (`automated_scanner`, `connector_import`, `third_party_attestation`, `user_entered`) and so never exceeds that class's ceiling.
+- **What the axes mean.** `assurance` measures provenance (how it was collected and signed); `confidence` is the inherited canonical source-class default of the content. That is why `api_pull` has higher assurance and lower confidence than `manual_upload`.
+- **Not eIDAS.** The assurance scale is internal to OpenRisk. It is NOT an eIDAS (Regulation (EU) 910/2014) level of assurance, nor a qualified signature or seal level.
+- **Update** may change `source_detail` and the observation period, never `source`, `collection_method`, the collector, the signature or the hash.
+- **Migration.** `0088_evidence_record_integrity` is expand-only and mirrored by the boot preparation. Legacy `content_hash` is not backfilled.
