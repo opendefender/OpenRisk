@@ -11,6 +11,8 @@ package compliance
 // and Privacy categories. The criteria numbers (CC1.1, A1.1, …) are the AICPA's
 // public structure and are reliable; descriptions here are original summaries of
 // each criterion's intent, not the AICPA's own text (the TSC are © AICPA).
+//
+// Review status: see Catalog.Review in the register call below. This header makes no review claim.
 
 func init() {
 	register(Catalog{
@@ -19,6 +21,7 @@ func init() {
 		Version:     "2017 (rev. 2022)",
 		Description: "AICPA Trust Services Criteria — Common Criteria (CC1–CC9) plus Availability, Confidentiality, Processing Integrity and Privacy.",
 		Available:   true,
+		Review:      Review{Status: ReviewUnreviewed},
 		Controls:    soc2TSCControls,
 	})
 }

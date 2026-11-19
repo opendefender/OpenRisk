@@ -29,6 +29,10 @@ func TestListCatalogsUseCase_Success(t *testing.T) {
 	require.NotNil(t, iso, "iso27001-2022 should be in the catalog list")
 	assert.True(t, iso.Available)
 	assert.Equal(t, 93, iso.ControlCount)
+	// No review record exists in the repository (D-120, #1469): every catalog is unreviewed.
+	assert.Equal(t, "unreviewed", iso.Review.Status)
+	assert.NotNil(t, iso.Review.Sources)
+	assert.NotNil(t, iso.Review.Gaps)
 
 	byKey := map[string]CatalogSummary{}
 	for _, c := range catalogs {
@@ -56,4 +60,18 @@ func TestListCatalogsUseCase_Success(t *testing.T) {
 	assert.True(t, found, "expected iso22301-2019 in the list")
 	assert.True(t, bcm.Available)
 	assert.Greater(t, bcm.ControlCount, 0)
+}
+
+func TestListCatalogsUseCase_AllAvailableCatalogsUnreviewed(t *testing.T) {
+	catalogs := NewListCatalogsUseCase().Execute(context.Background())
+
+	available := 0
+	for _, c := range catalogs {
+		if !c.Available {
+			continue
+		}
+		available++
+		assert.Equal(t, "unreviewed", c.Review.Status, "catalog %q", c.Key)
+	}
+	assert.Equal(t, 17, available)
 }

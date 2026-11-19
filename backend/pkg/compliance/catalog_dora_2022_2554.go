@@ -32,6 +32,8 @@ package compliance
 // Reproduced from the Official Journal of the European Union under Commission
 // Decision 2011/833/EU on the reuse of Commission documents; only the French
 // Official Journal text is authentic.
+//
+// Review status: see Catalog.Review in the register call below.
 
 func init() {
 	register(Catalog{
@@ -40,6 +42,7 @@ func init() {
 		Version:     "2022",
 		Description: "Digital Operational Resilience Act — 105 exigences, paragraphe par paragraphe, citant le texte officiel : gestion du risque TIC (art. 5-16), incidents (art. 17-23), tests (art. 24-27), prestataires tiers TIC (art. 28-30) et partage d'informations (art. 45).",
 		Available:   true,
+		Review:      Review{Status: ReviewUnreviewed},
 		Controls:    dora20222554Controls,
 	})
 }

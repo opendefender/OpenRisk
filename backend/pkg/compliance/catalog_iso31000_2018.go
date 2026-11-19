@@ -12,6 +12,8 @@ package compliance
 // and component names are ISO's own published structure and are reliable; the
 // descriptions are original summaries, not ISO's own text. Verify against
 // ISO 31000:2018 before an audit.
+//
+// Review status: see Catalog.Review in the register call below. This header makes no review claim.
 
 func init() {
 	register(Catalog{
@@ -20,6 +22,7 @@ func init() {
 		Version:     "2018",
 		Description: "Risk management — Guidelines. The 8 principles, the risk management framework (leadership, integration, design, implementation, evaluation, improvement) and the risk management process.",
 		Available:   true,
+		Review:      Review{Status: ReviewUnreviewed},
 		Controls:    iso310002018Controls,
 	})
 }

@@ -25,6 +25,8 @@ package compliance
 // Tenants who imported the earlier 20-row, family-level catalogue keep those
 // rows: an import is additive by reference code, and family codes ("AC")
 // are not control codes ("AC-1").
+//
+// Review status: see Catalog.Review in the register call below.
 
 func init() {
 	register(Catalog{
@@ -33,6 +35,7 @@ func init() {
 		Version:     "Rev. 5",
 		Description: "Security and Privacy Controls for Information Systems and Organizations — the 287 controls and control enhancements of the MODERATE baseline (SP 800-53B, release 5.2.0), across 18 families (AC, AT, AU, CA, CM, CP, IA, IR, MA, MP, PE, PL, PS, RA, SA, SC, SI, SR). Generated from NIST's official OSCAL catalogue.",
 		Available:   true,
+		Review:      Review{Status: ReviewUnreviewed},
 		Controls:    nist80053r5Controls,
 	})
 }

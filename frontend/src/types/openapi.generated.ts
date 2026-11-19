@@ -4202,9 +4202,22 @@ export interface components {
             /** @example 2022 */
             version?: string;
             description?: string;
-            /** @description False for placeholder catalogs with no reviewed control content yet. */
+            /** @description True when the catalog can be imported. It does not say the content was reviewed; see review.status. */
             available: boolean;
             control_count: number;
+            review: components["schemas"]["ComplianceCatalogReview"];
+        };
+        /** @description Sign-off state of a catalog's content against the regulatory text (D-120). Date, reviewer, sources and gaps are empty while status is unreviewed. */
+        ComplianceCatalogReview: {
+            /** @enum {string} */
+            status: "unreviewed" | "structure_reviewed" | "reviewed";
+            date: string;
+            reviewer: string;
+            sources: {
+                document: string;
+                url: string;
+            }[];
+            gaps: string[];
         };
         ImportCatalogInput: {
             /** @example iso27001-2022 */
