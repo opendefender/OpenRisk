@@ -44,6 +44,7 @@ import { EmptyState, PageFrame, PageHeader } from '../../shared/ui';
 import {
   ActiveFilterChips,
   DataTable,
+  TableFilters,
   useTableState,
   type BulkAction,
   type Facet,
@@ -691,6 +692,8 @@ export function RiskRegisterPage() {
             <div className="flex items-center gap-2 flex-wrap mb-3">
               <SearchBox value={state.q} onChange={table.setQuery} />
               {quickViews}
+              {/* The same Filters panel, URL state and saved filters as the table. */}
+              <TableFilters id="risks" facets={facets} api={table} resultCount={total} />
               <span className="ml-auto">{exportButton}</span>
             </div>
             <ActiveFilterChips

@@ -582,6 +582,26 @@ describe('the matrix', () => {
     expect(screen.getByTestId('active-filter-chips')).toHaveTextContent('Criticité: Critique');
   });
 
+  it('keeps the Filters button in the matrix, with the same facets and chips', async () => {
+    renderPage('/risks?view=matrix');
+    await screen.findByTestId('risk-matrix');
+    await userEvent.click(screen.getByTestId('filters-trigger'));
+    await userEvent.click(screen.getByTestId('facet-status-in_progress'));
+    await waitFor(() =>
+      expect(listParams().at(-1)).toMatchObject({ status: 'in_progress', limit: 100 }),
+    );
+    expect(screen.getByTestId('active-filter-chips')).toHaveTextContent('Statut: En cours');
+    // Search, quick views, Filters, then export: the table's order.
+    const order = ['risk-search', 'risk-views', 'filters-trigger', 'risk-export'].map((id) =>
+      screen.getByTestId(id),
+    );
+    for (let i = 1; i < order.length; i++) {
+      expect(
+        order[i - 1].compareDocumentPosition(order[i]) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+    }
+  });
+
   it('has its own error, empty and no-match states', async () => {
     get.mockImplementation((url: string) =>
       url === '/risks' ? Promise.reject(new Error('boom')) : route(url),

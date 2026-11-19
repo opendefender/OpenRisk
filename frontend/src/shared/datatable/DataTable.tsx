@@ -211,6 +211,44 @@ function useLabels() {
 
 /* ---------------------------------------------------------------- component */
 
+/**
+ * The table's "Filtres" button and panel, saved filters included, usable on its
+ * own: a screen that swaps the table for another view of the same rows (the
+ * risk register's matrix) keeps the same filters, URL state and saved views by
+ * rendering this with the same `id`.
+ */
+export function TableFilters<T>({
+  id,
+  facets,
+  api,
+  resultCount,
+}: {
+  /** The table id: namespaces the saved filters, as in <DataTable>. */
+  id: string;
+  facets: Facet<T>[];
+  api: TableStateApi;
+  resultCount: number;
+}) {
+  const L = useLabels();
+  const savedViews = useSavedViews(id);
+  return (
+    <FilterPanel
+      facets={facets}
+      api={api}
+      resultCount={resultCount}
+      views={savedViews.views}
+      viewsStatus={savedViews.status}
+      viewsMutationError={savedViews.mutationError}
+      canEditOthersViews={savedViews.canEditOthers}
+      onSaveView={savedViews.save}
+      onDeleteView={savedViews.remove}
+      onSetViewVisibility={savedViews.setVisibility}
+      onRetryViews={savedViews.retry}
+      labels={L}
+    />
+  );
+}
+
 export function DataTable<T>({
   id,
   rows,
@@ -269,7 +307,6 @@ export function DataTable<T>({
   /* ------------------------------------------------------------- saved views */
   // Server-side since #580. Fetched independently of the rows on purpose: a
   // saved-views outage must never keep the register off the screen.
-  const savedViews = useSavedViews(id);
 
   /* ---------------------------------------------------------- client shaping */
   // In server mode the API already did all of this; `rows` is the page.
@@ -611,20 +648,7 @@ export function DataTable<T>({
       {toolbarExtra}
 
       {facets.length > 0 && (
-        <FilterPanel
-          facets={facets}
-          api={api}
-          resultCount={resultCount}
-          views={savedViews.views}
-          viewsStatus={savedViews.status}
-          viewsMutationError={savedViews.mutationError}
-          canEditOthersViews={savedViews.canEditOthers}
-          onSaveView={savedViews.save}
-          onDeleteView={savedViews.remove}
-          onSetViewVisibility={savedViews.setVisibility}
-          onRetryViews={savedViews.retry}
-          labels={L}
-        />
+        <TableFilters id={id} facets={facets} api={api} resultCount={resultCount} />
       )}
 
       <ColumnsMenu

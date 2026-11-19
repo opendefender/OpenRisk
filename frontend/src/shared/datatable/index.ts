@@ -3,7 +3,7 @@
 //
 // The one table of the app. See DataTable.tsx for the contract.
 
-export { DataTable, type DataTableProps } from './DataTable';
+export { DataTable, TableFilters, type DataTableProps } from './DataTable';
 export { useTableState, useSavedViews, useColumnPrefs, type TableStateApi } from './useTableState';
 export { buildCsv, downloadCsv, exportRowsToCsv } from './exportCsv';
 export { RowMenu } from './RowMenu';
