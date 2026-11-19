@@ -65,6 +65,7 @@ func TestAuditMutations_ImportRouteUsesParentEntityType(t *testing.T) {
 		"/api/v1/compliance/frameworks":        "framework",
 		"/api/v1/compliance/frameworks/import": "framework",
 		"/api/v1/risks/import":                 "risk",
+		"/api/v1/assets/import":                "asset",
 	} {
 		sink := &recordingAppender{}
 		app := fiber.New()
