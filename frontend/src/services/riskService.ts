@@ -92,7 +92,12 @@ export interface RiskQueryParams {
 
 export interface CreateRiskInput {
   title: string;
-  description: string;
+  /** Optional on the API (`omitempty`); the register's new-risk modal leaves it free. */
+  description?: string;
+  /** The tenant's controlled category. */
+  category_id?: string;
+  /** Responsable, as picked in the ownership pickers. */
+  owner_id?: string;
   probability: number;
   impact: number;
   asset_criticality?: number;

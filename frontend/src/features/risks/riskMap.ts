@@ -12,6 +12,8 @@ import { mappingHref, mappingLabel } from '../../services/taxonomyService';
 import type { Criticality } from '../../shared/riskColors';
 import type { RiskStatus } from '../../shared/ui';
 import type { LocaleCode } from '../../i18n/locales';
+import { toTrend, type RiskTrend } from './riskRegisterService';
+import { toStatusValue, type RiskStatusValue } from './riskViews';
 
 export interface UiRisk {
   id: string;
@@ -33,11 +35,22 @@ export interface UiRisk {
   fw: string;
   fwHref: string;
   status: RiskStatus;
+  /** The 5-value status the register shows (closed is its own value). */
+  statusValue: RiskStatusValue;
   phase: RiskPhase;
   owner: string;
+  ownerId: string | null;
   ownerName: string;
   mod: string;
   desc: string;
+  /** Linked assets, whole list (the table shows two, the drawer all). */
+  assetRefs: { id: string; name: string }[];
+  /** Annual loss expectancy in XAF, null when the API did not send one. */
+  ale: number | null;
+  trend: RiskTrend | null;
+  nextReviewAt: string | null;
+  /** Residual score (after treatments), same scale as `score`; null when absent. */
+  residual: number | null;
 }
 
 const CRITS = new Set<Criticality>(['critical', 'high', 'medium', 'low']);
@@ -121,10 +134,17 @@ export function mapRisk(r: Risk, lang: LocaleCode): UiRisk {
     fw: primary ? mappingLabel(primary) : '—',
     fwHref: primary ? mappingHref(primary) : '',
     status: toRiskStatus(r.status),
+    statusValue: toStatusValue(r.status),
     phase: r.lifecycle_phase ?? 'identified',
     owner: initialsOf(ownerName),
+    ownerId: r.owner_id ?? null,
     ownerName: ownerName || '—',
     mod: relTime(rr.updated_at ?? r.created_at, lang),
     desc: r.description || '—',
+    assetRefs: (r.assets ?? []).map((a) => ({ id: String(a.id), name: a.name ?? '—' })),
+    ale: typeof r.ale_xaf === 'number' ? r.ale_xaf : null,
+    trend: toTrend(r.trend),
+    nextReviewAt: r.next_review_at ?? null,
+    residual: typeof r.residual_risk === 'number' ? r.residual_risk : null,
   };
 }

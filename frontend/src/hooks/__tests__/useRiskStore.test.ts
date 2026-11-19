@@ -165,4 +165,38 @@ describe('useRiskStore.bulkDelete — governed, one request', () => {
     vi.spyOn(api, 'post').mockRejectedValueOnce(new Error('boom'));
     await expect(useRiskStore.getState().bulkDelete(['r1'])).rejects.toThrow('boom');
   });
+
+  describe('patchRisks — the optimistic half of a bulk change (#913)', () => {
+    beforeEach(() => {
+      useRiskStore.setState({
+        risks: [
+          { id: 'r1', title: 'A', status: 'open' },
+          { id: 'r2', title: 'B', status: 'open' },
+          { id: 'r3', title: 'C', status: 'open' },
+        ] as unknown as Risk[],
+      });
+    });
+
+    it('patches only the named rows', () => {
+      useRiskStore.getState().patchRisks(['r1', 'r3'], { status: 'accepted' });
+      expect(useRiskStore.getState().risks.map((r) => r.status)).toEqual([
+        'accepted',
+        'open',
+        'accepted',
+      ]);
+    });
+
+    it('returns the function that puts the previous rows back', () => {
+      const rollback = useRiskStore.getState().patchRisks(['r1', 'r2'], { status: 'closed' });
+      rollback();
+      expect(useRiskStore.getState().risks.map((r) => r.status)).toEqual(['open', 'open', 'open']);
+    });
+
+    it('ignores ids that are not on the page', () => {
+      const rollback = useRiskStore.getState().patchRisks(['nope'], { status: 'closed' });
+      expect(useRiskStore.getState().risks.map((r) => r.status)).toEqual(['open', 'open', 'open']);
+      rollback();
+      expect(useRiskStore.getState().risks).toHaveLength(3);
+    });
+  });
 });
