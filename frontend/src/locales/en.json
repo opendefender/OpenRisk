@@ -122,7 +122,57 @@
     "noAssets": "No asset.",
     "updated": "Risk updated",
     "updateFailed": "Update failed",
-    "fieldDescription": "Description"
+    "fieldDescription": "Description",
+    "band": {
+      "critical": "Critical",
+      "high": "High",
+      "medium": "Medium",
+      "low": "Low"
+    },
+    "level": {
+      "probability": {
+        "1": "Rare",
+        "2": "Unlikely",
+        "3": "Possible",
+        "4": "Likely",
+        "5": "Almost certain"
+      },
+      "impact": {
+        "1": "Negligible",
+        "2": "Minor",
+        "3": "Moderate",
+        "4": "Major",
+        "5": "Critical"
+      }
+    },
+    "new": {
+      "title": "New risk",
+      "subtitle": "It will be added to the register with the status “Open”.",
+      "titleLabel": "Title",
+      "titlePlaceholder": "E.g. Compromise of the executive mailbox",
+      "ownerLabel": "Owner",
+      "ownerNone": "Unassigned",
+      "descriptionLabel": "Description",
+      "optional": "optional",
+      "descriptionPlaceholder": "Scenario, causes, expected consequences",
+      "liveScore": "Inherent score (probability × impact × criticality)",
+      "liveScoreHint": "Estimate of the register score. The criticality of linked assets is applied when the risk is saved.",
+      "submit": "Create risk",
+      "addAsset": "Add an asset…",
+      "noMoreAssets": "Every asset is already linked.",
+      "removeAsset": "Remove {name}",
+      "assetsHint": "The criticality of linked assets feeds the score.",
+      "more": "More options",
+      "mappingsFailed": {
+        "one": "Risk created, but {count} mapping could not be saved: {names}. Map it from “Unmapped risks”.",
+        "other": "Risk created, but {count} mappings could not be saved: {names}. Map them from “Unmapped risks”."
+      },
+      "errors": {
+        "titleShort": "The title must be at least 4 characters long.",
+        "titleLong": "The title cannot exceed 100 characters.",
+        "descriptionLong": "The description cannot exceed 5,000 characters."
+      }
+    }
   },
   "statuses": {
     "open": "Open",
@@ -2193,6 +2243,282 @@
         "title": "Vendor risk management (TPRM)",
         "description": "Vendor register, questionnaires sent by link, vendor score and automatic reminders."
       }
+    }
+  },
+  "riskRegister": {
+    "title": "Risk register",
+    "newRisk": "New risk",
+    "import": "Import",
+    "retry": "Retry",
+    "cancel": "Cancel",
+    "subtitle": {
+      "withAle": {
+        "one": "{count, number} active risk · {ale} M {currency} of annualised exposure",
+        "other": "{count, number} active risks · {ale} M {currency} of annualised exposure"
+      },
+      "noAle": {
+        "one": "{count, number} active risk",
+        "other": "{count, number} active risks"
+      },
+      "error": "The register summary could not be loaded."
+    },
+    "export": {
+      "action": "Export",
+      "done": {
+        "one": "{count} risk exported as CSV",
+        "other": "{count} risks exported as CSV"
+      },
+      "empty": "No risk to export."
+    },
+    "view": {
+      "label": "Register views",
+      "all": "All",
+      "mine": "My risks",
+      "hot": "Critical and high",
+      "review_due": "Review < 30 d",
+      "accepted": "Accepted"
+    },
+    "counts": {
+      "retry": "Retry the counts"
+    },
+    "search": {
+      "placeholder": "Search by title or description…",
+      "label": "Search the register",
+      "clear": "Clear the search"
+    },
+    "filter": {
+      "bands": "Level",
+      "status": "Status",
+      "owner": "Owner",
+      "allStatuses": "All statuses",
+      "allOwners": "All owners",
+      "reset": "Reset"
+    },
+    "layout": {
+      "label": "Display",
+      "table": "Table",
+      "matrix": "Matrix"
+    },
+    "status": {
+      "open": "Open",
+      "in_progress": "In progress",
+      "mitigated": "Mitigated",
+      "accepted": "Accepted",
+      "closed": "Closed"
+    },
+    "phase": {
+      "identified": "Identified",
+      "analyzed": "Assessed",
+      "evaluated": "Treatment planned",
+      "treated": "In treatment",
+      "monitored": "Mitigated / accepted",
+      "closed": "Closed"
+    },
+    "source": {
+      "manual": "Manual",
+      "cti_auto": "CTI (auto)",
+      "scan_auto": "Scanner (auto)",
+      "import": "Import"
+    },
+    "facet": {
+      "phase": "Lifecycle step",
+      "category": "Category",
+      "source": "Source",
+      "unmapped": "Controls",
+      "unmappedOption": "Not mapped to a control"
+    },
+    "col": {
+      "id": "ID",
+      "risk": "Risk",
+      "score": "Score",
+      "band": "Level",
+      "status": "Status",
+      "owner": "Owner",
+      "ale": "ALE (M {currency})",
+      "aleUnsortable": "Not sortable: the ALE is computed after the page is read, so the server cannot sort on it.",
+      "trend": "Trend",
+      "review": "Review",
+      "phase": "Phase",
+      "framework": "Control",
+      "tags": "Tags",
+      "updated": "Updated",
+      "category": "Category"
+    },
+    "trend": {
+      "up": "Rising",
+      "down": "Falling",
+      "flat": "Stable",
+      "none": "No trend (no history yet)"
+    },
+    "review": {
+      "closed": "Closed",
+      "none": "No review planned",
+      "overdue": "Review overdue",
+      "soon": "Review due within 14 days"
+    },
+    "ale": {
+      "locked": "Financial exposure is not included in your plan."
+    },
+    "footer": {
+      "count": {
+        "one": "{shown} of {count, number} risk",
+        "other": "{shown} of {count, number} risks"
+      },
+      "formula": "Score = probability (0–1) × impact (0–10) × asset criticality (0.1–3) · critical ≥ 7 · high ≥ 4 · medium ≥ 2 · low < 2",
+      "ale": "ALE in M {currency} / year"
+    },
+    "empty": {
+      "title": "No risks yet",
+      "body": "Create your first risk to start mapping your exposure.",
+      "readOnly": "No risk has been recorded yet. Your role can view the register; an administrator can grant you the right to create risks."
+    },
+    "noMatch": {
+      "title": "No risk matches these filters",
+      "body": "Widen the search or"
+    },
+    "error": {
+      "title": "Could not load",
+      "body": "The register could not be read. Check your connection and try again."
+    },
+    "row": {
+      "view": "View",
+      "edit": "Edit",
+      "mitigate": "Create a mitigation",
+      "export": "Export as CSV",
+      "delete": "Delete"
+    },
+    "delete": {
+      "title": "Delete this risk?",
+      "body": "This cannot be undone. Here is what will be removed:",
+      "impactMiti": "Linked mitigation plans",
+      "impactHistory": "Risk history and scores",
+      "lost": "lost",
+      "exportFirst": "Export the risk (CSV) first",
+      "exportFirstHint": "Keep an offline record before deleting.",
+      "confirm": "Delete permanently",
+      "done": "Risk deleted",
+      "failed": "Delete failed"
+    },
+    "miti": {
+      "linked": "Mitigation plan linked to the risk"
+    },
+    "bulk": {
+      "status": "Change status…",
+      "owner": "Assign to…",
+      "export": "Export",
+      "delete": "Delete",
+      "statusDone": {
+        "one": "{count} risk updated · {status}",
+        "other": "{count} risks updated · {status}"
+      },
+      "ownerDone": {
+        "one": "{count} risk assigned to {name}",
+        "other": "{count} risks assigned to {name}"
+      },
+      "undo": "Undo",
+      "undone": "Change undone",
+      "undoFailed": "Undo failed: reload the page to check the state of the risks.",
+      "failed": "No risk was changed: the request failed.",
+      "stale": "No risk was changed: the selection has changed. Reload and try again.",
+      "deleted": {
+        "one": "{count} risk deleted",
+        "other": "{count} risks deleted"
+      },
+      "deleteTitle": {
+        "one": "Delete {count} risk?",
+        "other": "Delete {count} risks?"
+      },
+      "deleteSubject": {
+        "one": "{count} risk selected",
+        "other": "{count} risks selected"
+      },
+      "deleteFailed": {
+        "one": "No risk deleted ({count} selected).",
+        "other": "No risk deleted ({count} selected)."
+      },
+      "deleteStale": "No risk deleted: the selection has changed. Reload and try again."
+    },
+    "matrix": {
+      "caption": "Risk matrix — probability by impact",
+      "probability": "Probability",
+      "impact": "Impact",
+      "ranking": "Ranking by score",
+      "hint": "Click a cell to isolate it",
+      "cellTitle": "Probability {p} × impact {i}",
+      "cellSub": {
+        "one": "{pName} · {iName} · {count} risk",
+        "other": "{pName} · {iName} · {count} risks"
+      },
+      "cellEmpty": "No risk in this cell.",
+      "cellAria": {
+        "one": "Probability {p}, {pName}; impact {i}, {iName}; {count} risk",
+        "other": "Probability {p}, {pName}; impact {i}, {iName}; {count} risks"
+      },
+      "markerAria": "{title} — score {score}, level {band}",
+      "truncated": "Matrix limited to the first {limit} risks of {total}. Narrow the filters to see the others."
+    },
+    "drawer": {
+      "sections": "Risk sections",
+      "close": "Close",
+      "closeHint": "Close (Esc)",
+      "copyLink": "Copy link",
+      "linkCopied": "Link copied",
+      "linkCopyFailed": "Could not copy the link.",
+      "edit": "Edit",
+      "export": "Export as CSV",
+      "tab": {
+        "overview": "Overview",
+        "miti": "Mitigations",
+        "history": "History",
+        "more": "More"
+      },
+      "probability": "Probability",
+      "impact": "Impact",
+      "levelSet": "{field}: level {level}",
+      "inherentScore": "Inherent score",
+      "inherentAle": "Inherent ALE",
+      "residualScore": "Residual score",
+      "status": "Status",
+      "owner": "Owner",
+      "unassigned": "Unassigned",
+      "statusSet": "Status: {status}",
+      "ownerSet": "Owner updated",
+      "saveFailed": "Saving failed. The previous value has been restored.",
+      "scenario": "Scenario",
+      "noScenario": "No scenario recorded.",
+      "assets": "Affected assets",
+      "noAssets": "No linked asset",
+      "controls": "Linked controls",
+      "noControls": "No linked control",
+      "controlsError": "The controls could not be loaded.",
+      "nextReview": "Next review",
+      "accept": "Request acceptance",
+      "acceptRequested": "Acceptance requested",
+      "closeRisk": "Close the risk",
+      "closed": "Risk closed",
+      "transitionRefused": "The transition was refused.",
+      "transitionsError": "The lifecycle actions could not be loaded.",
+      "transitionNone": "This action is not available at the risk’s current step.",
+      "transitionBlocked": "This action is blocked at the risk’s current step.",
+      "miti": {
+        "empty": "No mitigation planned for this risk.",
+        "add": "Plan a mitigation",
+        "done": "Done",
+        "inProgress": "In progress",
+        "planned": "To plan"
+      },
+      "more": {
+        "label": "More details",
+        "ownership": "Responsibilities and controls",
+        "lifecycle": "Lifecycle",
+        "score": "Score working",
+        "smart": "Smart score",
+        "financial": "Financial",
+        "cti": "Threat Intel (CTI)",
+        "ai": "AI treatment plan"
+      },
+      "loadFailedTitle": "Risk unavailable",
+      "loadFailedBody": "This risk could not be loaded. It may have been deleted."
     }
   }
 }

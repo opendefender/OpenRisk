@@ -536,12 +536,19 @@ const DashboardLayout = () => {
           <CreateRiskModal
             isOpen={newRiskOpen}
             onClose={() => setNewRiskOpen(false)}
-            onCreated={() => {
+            onCreated={(risk) => {
               // Imported here, not at the top: the shell itself never reads the
               // risk store, and a static import put it in the entry chunk (#966).
-              void import('./hooks/useRiskStore').then(({ useRiskStore }) =>
-                useRiskStore.getState().fetchRisks(),
-              );
+              // On the register, the page re-reads its own filtered list (a bare
+              // fetchRisks() here would replace it with the unfiltered default).
+              if (!location.pathname.startsWith('/risks')) {
+                void import('./hooks/useRiskStore').then(({ useRiskStore }) =>
+                  useRiskStore.getState().fetchRisks(),
+                );
+              }
+              window.dispatchEvent(new CustomEvent('openrisk:risk-created'));
+              // The new risk opens in the register's drawer (#913).
+              navigate(`/risks?focus=${encodeURIComponent(risk.id)}`);
             }}
           />
         </Suspense>
