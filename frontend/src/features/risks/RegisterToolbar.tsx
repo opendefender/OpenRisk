@@ -99,25 +99,29 @@ export function RegisterFilters({
           );
         })}
       </div>
-      <Listbox
-        size="sm"
-        value={filters.status || ALL}
-        options={statusOptions}
-        onChange={(v) => onStatus(v === ALL ? '' : (v as RiskStatusValue))}
-        aria-label={t('riskRegister.filter.status')}
-        data-testid="risk-filter-status"
-        className="min-w-[10.5rem]"
-      />
-      <Listbox
-        size="sm"
-        value={filters.ownerId || ALL}
-        options={ownerOptions}
-        onChange={(v) => onOwner(v === ALL ? '' : v)}
-        loading={membersLoading}
-        aria-label={t('riskRegister.filter.owner')}
-        data-testid="risk-filter-owner"
-        className="min-w-[11.5rem]"
-      />
+      <div className="shrink-0">
+        <Listbox
+          size="sm"
+          value={filters.status || ALL}
+          options={statusOptions}
+          onChange={(v) => onStatus(v === ALL ? '' : (v as RiskStatusValue))}
+          aria-label={t('riskRegister.filter.status')}
+          data-testid="risk-filter-status"
+          className="min-w-[10.5rem]"
+        />
+      </div>
+      <div className="shrink-0">
+        <Listbox
+          size="sm"
+          value={filters.ownerId || ALL}
+          options={ownerOptions}
+          onChange={(v) => onOwner(v === ALL ? '' : v)}
+          loading={membersLoading}
+          aria-label={t('riskRegister.filter.owner')}
+          data-testid="risk-filter-owner"
+          className="min-w-[11.5rem]"
+        />
+      </div>
       {hasFilters && (
         <button
           type="button"
@@ -127,6 +131,18 @@ export function RegisterFilters({
         >
           {t('riskRegister.filter.reset')}
         </button>
+      )}
+    </>
+  );
+}
+
+/** A tab label with its count as plain muted mono text, as designed (not a badge). */
+export function TabLabel({ text, count }: { text: string; count?: number }) {
+  return (
+    <>
+      {text}
+      {typeof count === 'number' && (
+        <span className="mono text-[11px] font-medium text-ink-muted">{count}</span>
       )}
     </>
   );

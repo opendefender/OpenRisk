@@ -16,6 +16,7 @@
 
 import type { TableState } from '../../shared/datatable';
 import type { Criticality } from '../../shared/riskColors';
+import type { BadgeIntent } from '../../shared/ds';
 import type { components } from '../../types/openapi.generated';
 
 export const RISK_VIEWS = [
@@ -160,3 +161,16 @@ export function reviewState(
   if (days <= 14) return { kind: 'soon', days };
   return { kind: 'later', days };
 }
+
+/**
+ * The register's status colours, as designed: Ouvert and Clos neutral, En cours
+ * blue, Atténué green, Accepté amber. (The ds `riskStatusIntent` colours Ouvert
+ * as danger, which the register does not want next to its band pills.)
+ */
+export const registerStatusIntent: Record<RiskStatusValue, BadgeIntent> = {
+  open: 'neutral',
+  in_progress: 'info',
+  mitigated: 'success',
+  accepted: 'warning',
+  closed: 'neutral',
+};

@@ -45,7 +45,9 @@ export function riskCsvColumns({ locale, money, label }: RiskCsvContext): Column
     csvColumn('residual', label('riskRegister.drawer.residualScore'), (r) =>
       formatScore(locale, r.residual),
     ),
-    csvColumn('band', label('riskRegister.col.band'), (r) => label(`risks.band.${r.crit}`)),
+    csvColumn('band', label('riskRegister.col.band'), (r) =>
+      r.bandKnown ? label(`risks.band.${r.crit}`) : '',
+    ),
     csvColumn('status', label('riskRegister.col.status'), (r) =>
       label(`riskRegister.status.${r.statusValue}`),
     ),
@@ -55,7 +57,7 @@ export function riskCsvColumns({ locale, money, label }: RiskCsvContext): Column
   ];
   if (money.entitled) {
     cols.push(
-      csvColumn('ale', label('riskRegister.col.ale', { currency: money.currency }), (r) =>
+      csvColumn('ale', label('riskRegister.col.aleUnit', { currency: money.currency }), (r) =>
         r.ale ? millions(money.toDisplay(r.ale), locale) : '',
       ),
     );

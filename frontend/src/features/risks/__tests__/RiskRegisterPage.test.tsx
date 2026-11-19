@@ -53,7 +53,12 @@ vi.mock('../useRiskRegisterData', async () => {
     await vi.importActual<typeof import('../useRiskRegisterData')>('../useRiskRegisterData');
   return {
     ...actual,
-    useRegisterMoney: () => ({ entitled: true, currency: 'FCFA', toDisplay: (xaf: number) => xaf }),
+    useRegisterMoney: () => ({
+      entitled: true,
+      currency: 'FCFA',
+      code: 'XAF',
+      toDisplay: (xaf: number) => xaf,
+    }),
   };
 });
 
@@ -99,8 +104,13 @@ const members = [
   { user_id: 'u2', email: 'koffi@acme.test', full_name: 'Koffi Mensah', initials: 'KM' },
 ];
 
-function route(url: string) {
-  if (url === '/risks') return Promise.resolve({ data: { items: rows, total: rows.length } });
+function route(url: string, config?: { params?: Record<string, number> }) {
+  if (url === '/risks') {
+    const { page = 1, limit = 50 } = config?.params ?? {};
+    return Promise.resolve({
+      data: { items: rows.slice((page - 1) * limit, page * limit), total: rows.length },
+    });
+  }
   if (url === '/risks/summary') return Promise.resolve({ data: summary });
   if (url === '/ownership/assignable') return Promise.resolve({ data: { users: members } });
   if (url === '/risk-categories') return Promise.resolve({ data: { items: [] } });
@@ -444,13 +454,17 @@ describe('the three states', () => {
     expect(screen.queryByRole('button', { name: 'Nouveau risque' })).not.toBeInTheDocument();
   });
 
-  it('says what matched nothing when the filters are too narrow, and how to widen them', async () => {
+  it('says what matched nothing, in the design\u2019s words, with the way out inline', async () => {
     renderPage('/risks?f.criticality=low');
     await screen.findByText('Compromission de la messagerie');
     rows = [];
     await userEvent.click(screen.getByTestId('risk-band-high'));
-    expect(await screen.findByText('Aucun résultat')).toBeInTheDocument();
-    expect(screen.getByTestId('table-clear-filters')).toBeInTheDocument();
+    const none = await screen.findByTestId('risk-nomatch');
+    expect(none).toHaveTextContent('Aucun risque ne correspond à ces filtres');
+    expect(none).toHaveTextContent('Élargissez la recherche ou réinitialisez les filtres.');
+    rows = [risk({ id: 'r1', title: 'Compromission de la messagerie' })];
+    await userEvent.click(within(none).getByRole('button', { name: 'réinitialisez les filtres' }));
+    await waitFor(() => expect(listParams().at(-1)).not.toHaveProperty('criticality'));
   });
 
   it('degrades the counts and the subtitle, with a retry, when the summary fails', async () => {
@@ -780,5 +794,158 @@ describe('the drawer', () => {
     expect(created[0]).toContain('Compromission de la messagerie');
     click.mockRestore();
     URL.createObjectURL = orig;
+  });
+});
+
+describe('round-1 review and live-pass fixes', () => {
+  it('exports the WHOLE view, page by page, and says how many rows it wrote (W1)', async () => {
+    rows = Array.from({ length: 450 }, (_, i) =>
+      risk({ id: `x${i}`, title: `Risque ${i}`, score: 3, criticality: 'medium' }),
+    );
+    summary = { ...summary, views: { ...summary.views, all: 450 } };
+    const written: string[] = [];
+    const orig = URL.createObjectURL;
+    URL.createObjectURL = ((blob: Blob) => {
+      const reader = new FileReader();
+      reader.onload = () => written.push(String(reader.result));
+      reader.readAsText(blob);
+      return 'blob:x';
+    }) as typeof URL.createObjectURL;
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+
+    renderPage();
+    // 50 rows are loaded (the table virtualises them, jsdom draws none).
+    await waitFor(() => expect(screen.getByTestId('risk-export')).toBeEnabled());
+    get.mockClear();
+    await userEvent.click(screen.getByTestId('risk-export'));
+
+    await waitFor(() => expect(written.length).toBe(1));
+    const calls = listParams();
+    expect(calls.map((p) => p.page)).toEqual([1, 2, 3]);
+    expect(calls.every((p) => p.limit === 200)).toBe(true);
+    // Header + 450 rows, not the 50 that were on screen.
+    expect(written[0].split('\n').length).toBe(451);
+    expect(toast.success).toHaveBeenCalledWith('450 risques exportés en CSV');
+    click.mockRestore();
+    URL.createObjectURL = orig;
+  });
+
+  it('keeps the same query when exporting, and tells the user when it fails (W1)', async () => {
+    renderPage('/risks?f.scope=hot&f.criticality=critical');
+    await screen.findByText('Compromission de la messagerie');
+    get.mockClear();
+    get.mockImplementation((url: string) =>
+      url === '/risks' ? Promise.reject(new Error('boom')) : route(url),
+    );
+    await userEvent.click(screen.getByTestId('risk-export'));
+    await waitFor(() => expect(toast.error).toHaveBeenCalled());
+    expect(listParams()[0]).toMatchObject({ view: 'hot', criticality: 'critical', limit: 200 });
+    expect(toast.success).not.toHaveBeenCalled();
+  });
+
+  it('does not sort on the band column, whose names do not sort by severity (W4)', async () => {
+    renderPage();
+    await screen.findByText('Compromission de la messagerie');
+    const band = screen
+      .getAllByRole('columnheader')
+      .find((h) => /^Niveau$/.test(h.textContent ?? ''))!;
+    expect(within(band).queryByRole('button')).not.toBeInTheDocument();
+  });
+
+  it('prints the score in neutral ink and the status as designed (L3)', async () => {
+    renderPage();
+    const row = (await screen.findByText('Compromission de la messagerie')).closest('tr')!;
+    const score = within(row).getByText('7,2');
+    expect(score.className).toMatch(/text-ink/);
+    expect(score.getAttribute('style') ?? '').not.toMatch(/color/);
+    expect(within(row).getByText('Ouvert').className).toMatch(/bg-surface-3/);
+    const progress = screen.getByText('Fuite de données client').closest('tr')!;
+    expect(within(progress).getByText('En cours').className).toMatch(/bg-info-surface/);
+  });
+
+  it('writes a tab count as plain muted text, not a badge (L3)', async () => {
+    renderPage();
+    const tab = screen.getByTestId('risk-tab-hot');
+    await waitFor(() => expect(within(tab).getByText('2')).toBeInTheDocument());
+    const count = within(tab).getByText('2');
+    expect(count.className).toMatch(/mono/);
+    expect(count.className).not.toMatch(/rounded-full/);
+  });
+
+  it('says "unknown" rather than "low" when the server sent no band (S3)', async () => {
+    rows = [risk({ id: 'r1', title: 'Sans niveau', criticality: undefined })];
+    renderPage();
+    const row = (await screen.findByText('Sans niveau')).closest('tr')!;
+    expect(within(row).queryByText('Faible')).not.toBeInTheDocument();
+    await userEvent.click(row);
+    const drawer = await screen.findByTestId('risk-drawer');
+    expect(within(drawer).getByText('Niveau inconnu')).toBeInTheDocument();
+    expect(within(drawer).queryByText('Faible')).not.toBeInTheDocument();
+  });
+
+  it('keeps the residual score in neutral ink, and the ALE unit beside its figure (W2, L4)', async () => {
+    renderPage();
+    await userEvent.click(await screen.findByText('Compromission de la messagerie'));
+    const figures = await screen.findByTestId('risk-figures');
+    const residual = within(figures).getByText('3,1');
+    expect(residual.getAttribute('style') ?? '').not.toMatch(/color/);
+    expect(figures).toHaveTextContent('117,2 M FCFA');
+    // Never truncated.
+    expect(figures.innerHTML).not.toMatch(/truncate/);
+  });
+
+  it('shows both reasons when the two footer actions are blocked differently (S4)', async () => {
+    transitions = {
+      ...(transitions as object),
+      options: [
+        {
+          to: 'residual_accepted',
+          label: 'a',
+          allowed: false,
+          reason: 'Plan requis.',
+          is_forward: true,
+        },
+        {
+          to: 'closed',
+          label: 'c',
+          allowed: false,
+          reason: 'Sous-actions ouvertes.',
+          is_forward: true,
+        },
+      ],
+    };
+    renderPage();
+    await userEvent.click(await screen.findByText('Compromission de la messagerie'));
+    const hint = await screen.findByTestId('risk-transition-hint');
+    expect(hint).toHaveTextContent('Plan requis.');
+    expect(hint).toHaveTextContent('Sous-actions ouvertes.');
+  });
+
+  it('draws matrix markers in the band fill with the inverse text token (L5)', async () => {
+    renderPage('/risks?view=matrix');
+    const marker = await screen.findByTestId('risk-marker-r1');
+    expect(marker.className).toMatch(/text-fg-inverse/);
+    expect(marker.className).not.toMatch(/text-fg-on-solid/);
+  });
+
+  it('keeps the bulk bar on one line (L7)', async () => {
+    renderPage();
+    await screen.findByText('Compromission de la messagerie');
+    await userEvent.click(screen.getByTestId('row-select-r1'));
+    expect(screen.getByTestId('bulk-bar').className).toMatch(/flex-nowrap/);
+  });
+
+  it('hides the scrollbar of the view tabs on a narrow screen (L9)', async () => {
+    renderPage();
+    const tabs = screen.getByRole('tablist', { name: 'Vues du registre' });
+    expect(tabs.className).toMatch(/scrollbar-width:none/);
+  });
+
+  it('lets the toolbar listboxes size to their content, so the toolbar is one row (L1)', async () => {
+    renderPage();
+    await screen.findByText('Compromission de la messagerie');
+    for (const id of ['risk-filter-status', 'risk-filter-owner']) {
+      expect(screen.getByTestId(id).parentElement!.className).toMatch(/shrink-0/);
+    }
   });
 });

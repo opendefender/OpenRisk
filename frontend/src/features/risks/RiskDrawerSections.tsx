@@ -47,6 +47,8 @@ import { mappingHref, mappingLabel } from '../../services/taxonomyService';
 import { ctiService } from '../cti/ctiService';
 import { useFeature } from '../billing/useEntitlements';
 import type { LocaleCode } from '../../i18n/locales';
+import { currencyLabel } from '../financial/money';
+import { useRegisterMoney } from './useRiskRegisterData';
 
 // DrawerTimeline — the "Timeline" tab: who changed this risk, and when, from
 // the merged entity timeline (GET /entities/risk/:id/timeline), rendered with the
@@ -741,8 +743,12 @@ export function DrawerFinancial({ r }: { r: UiRisk }) {
 
   // Money goes through `Intl` in the reader's locale: XAF prints "FCFA" with no
   // minor unit and USD prints "$" with cents suppressed, in both languages.
+  // Figures are shown in the tenant's display currency (converted from the
+  // canonical XAF); the INPUTS below stay XAF, the unit they are stored in.
+  const money = useRegisterMoney();
+  const unit = currencyLabel('XAF');
   const fmtXAF = (v?: number) =>
-    v == null ? '—' : fmt.currency(Math.round(v), { currency: 'XAF' });
+    v == null ? '—' : fmt.currency(Math.round(money.toDisplay(v)), { currency: money.code });
   const fmtUSD = (v?: number) =>
     v == null ? '—' : fmt.currency(v, { currency: 'USD', fractionDigits: 0 });
   const fmtPct = (ratio: number) => `${ratio >= 0 ? '+' : ''}${Math.round(ratio * 100)}%`;
@@ -817,7 +823,9 @@ export function DrawerFinancial({ r }: { r: UiRisk }) {
             background: 'color-mix(in srgb,var(--accent) 6%,transparent)',
           }}
         >
-          <div className="text-[10.5px] uppercase tracking-[.06em] text-ink-muted">ALE (FCFA)</div>
+          <div className="text-[10.5px] uppercase tracking-[.06em] text-ink-muted">
+            ALE ({money.currency})
+          </div>
           <div className="mono text-[20px] font-bold text-ink mt-1">
             {fmtXAF(fin?.ale.xaf ?? raw.ale_xaf)}
           </div>
@@ -873,19 +881,19 @@ export function DrawerFinancial({ r }: { r: UiRisk }) {
             {tr('Pertes', 'Losses')}
           </div>
           <div className="grid grid-cols-2 gap-3 mb-3">
-            {field(tr('SLE explicite (FCFA)', 'Explicit SLE (FCFA)'), sle, setSle)}
+            {field(tr(`SLE explicite (${unit})`, `Explicit SLE (${unit})`), sle, setSle)}
             {field(tr('ARO — Fréquence / an', 'ARO — Frequency / yr'), aro, setAro, '0.1')}
             {field(tr('Heures d’interruption', 'Downtime hours'), dh, setDh, '0.5')}
-            {field(tr('Coût horaire (FCFA)', 'Hourly cost (FCFA)'), hc, setHc)}
-            {field(tr('Perte de données (FCFA)', 'Data loss (FCFA)'), dl, setDl)}
-            {field(tr('Amendes (FCFA)', 'Fines (FCFA)'), fn, setFn)}
-            {field(tr('Autre coût direct (FCFA)', 'Other direct cost (FCFA)'), oc, setOc)}
+            {field(tr(`Coût horaire (${unit})`, `Hourly cost (${unit})`), hc, setHc)}
+            {field(tr(`Perte de données (${unit})`, `Data loss (${unit})`), dl, setDl)}
+            {field(tr(`Amendes (${unit})`, `Fines (${unit})`), fn, setFn)}
+            {field(tr(`Autre coût direct (${unit})`, `Other direct cost (${unit})`), oc, setOc)}
           </div>
           <div className="text-[11px] font-semibold uppercase tracking-[.05em] text-ink-muted mb-2">
             {tr('Remédiation (ROSI)', 'Remediation (ROSI)')}
           </div>
           <div className="grid grid-cols-2 gap-3 mb-3 items-end">
-            {field(tr('Coût de remédiation (FCFA)', 'Remediation cost (FCFA)'), rc, setRc)}
+            {field(tr(`Coût de remédiation (${unit})`, `Remediation cost (${unit})`), rc, setRc)}
             <label className="block">
               <span className="flex items-center justify-between text-[11px] font-semibold uppercase tracking-[.04em] text-ink-muted">
                 {tr('Efficacité', 'Effectiveness')}

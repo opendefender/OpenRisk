@@ -548,7 +548,13 @@ const DashboardLayout = () => {
               }
               window.dispatchEvent(new CustomEvent('openrisk:risk-created'));
               // The new risk opens in the register's drawer (#913).
-              navigate(`/risks?focus=${encodeURIComponent(risk.id)}`);
+              // Already on the register: keep its filters, tab and layout.
+              const next = new URLSearchParams(
+                location.pathname.startsWith('/risks') ? location.search : '',
+              );
+              next.set('focus', risk.id);
+              next.delete('tab');
+              navigate({ pathname: '/risks', search: next.toString() });
             }}
           />
         </Suspense>

@@ -41,6 +41,8 @@ export interface RegisterMoney {
   entitled: boolean;
   /** Label of the currency amounts are shown in ("FCFA", "EUR"…). */
   currency: string;
+  /** ISO code of that currency, for `Intl`. */
+  code: string;
   /** XAF (canonical) → display currency. */
   toDisplay: (xaf: number) => number;
 }
@@ -59,6 +61,7 @@ export function useRegisterMoney(): RegisterMoney {
   return {
     entitled: !feature.loading && feature.enabled,
     currency: currencyLabel(data?.currency),
+    code: data?.currency || 'XAF',
     toDisplay: (xaf) => toDisplay(xaf, rate),
   };
 }

@@ -127,7 +127,8 @@
       "critical": "Critical",
       "high": "High",
       "medium": "Medium",
-      "low": "Low"
+      "low": "Low",
+      "unknown": "Unknown level"
     },
     "level": {
       "probability": {
@@ -171,7 +172,8 @@
         "titleShort": "The title must be at least 4 characters long.",
         "titleLong": "The title cannot exceed 100 characters.",
         "descriptionLong": "The description cannot exceed 5,000 characters."
-      }
+      },
+      "assetsLabel": "Affected assets"
     }
   },
   "statuses": {
@@ -2268,7 +2270,8 @@
         "one": "{count} risk exported as CSV",
         "other": "{count} risks exported as CSV"
       },
-      "empty": "No risk to export."
+      "empty": "No risk to export.",
+      "failed": "Export failed: the register could not be read in full. Please retry."
     },
     "view": {
       "label": "Register views",
@@ -2334,7 +2337,7 @@
       "band": "Level",
       "status": "Status",
       "owner": "Owner",
-      "ale": "ALE (M {currency})",
+      "ale": "ALE",
       "aleUnsortable": "Not sortable: the ALE is computed after the page is read, so the server cannot sort on it.",
       "trend": "Trend",
       "review": "Review",
@@ -2342,7 +2345,8 @@
       "framework": "Control",
       "tags": "Tags",
       "updated": "Updated",
-      "category": "Category"
+      "category": "Category",
+      "aleUnit": "ALE (M {currency})"
     },
     "trend": {
       "up": "Rising",
@@ -2374,7 +2378,8 @@
     },
     "noMatch": {
       "title": "No risk matches these filters",
-      "body": "Widen the search or"
+      "body": "Widen the search or",
+      "reset": "reset the filters"
     },
     "error": {
       "title": "Could not load",

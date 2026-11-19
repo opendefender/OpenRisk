@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 //
 // The risk drawer on the October 2026 redesign (#913): 560 px, a header with
-// id · category, copy-link and close, the title, band and status pills, then
-// Aperçu / Mitigations / Historique, and "Plus" for everything the mockup does
-// not draw but the product has (responsibilities and control mappings,
-// lifecycle, score working, SmartScore, financial, CTI, AI).
+// id · category, copy-link and close, the title, band and status pills, then a
+// strip of tabs: the design's Aperçu / Mitigations / Historique first, and after
+// them every tab the product already had (responsibilities and control mappings,
+// lifecycle, score working, SmartScore, financial, CTI, AI). Nothing is hidden
+// behind a menu; the strip scrolls sideways inside its own box.
 //
 // Aperçu edits in place and saves as you go: P and I through the 5-level
 // pickers (level k writes the midpoint of its bucket), status and owner through
@@ -29,7 +30,6 @@ import {
   Listbox,
   TabPanel,
   Tabs,
-  riskStatusIntent,
   severityIntent,
   useDismissableLayer,
   type ListboxOption,
@@ -41,6 +41,7 @@ import { ownershipPatch, type Assignee } from '../../services/ownershipService';
 import { mappingHref, mappingLabel } from '../../services/taxonomyService';
 import { millions } from '../financial/money';
 import { memberName } from './riskMembers';
+import { TabLabel } from './RegisterToolbar';
 import { LevelPicker } from './LevelPicker';
 import {
   DrawerAI,
@@ -62,7 +63,12 @@ import {
   probabilityLevel,
 } from './riskLevels';
 import type { UiRisk } from './riskMap';
-import { reviewState, RISK_STATUSES, type RiskStatusValue } from './riskViews';
+import {
+  registerStatusIntent,
+  reviewState,
+  RISK_STATUSES,
+  type RiskStatusValue,
+} from './riskViews';
 import type { RegisterMoney } from './useRiskRegisterData';
 import { useRiskTransitions, useTransitionRisk, type RiskState } from './useLifecycle';
 import { useRiskMappings } from './useTaxonomy';
@@ -108,8 +114,12 @@ export function RiskDrawer({
   const tabsId = `risk-drawer-${r.id}`;
   const tabItems: TabItem<DrawerTab>[] = DRAWER_TABS.map((id) => ({
     id,
-    label: t(`riskRegister.drawer.tab.${id}`),
-    count: id === 'miti' ? mitiCount : undefined,
+    label:
+      id === 'miti' ? (
+        <TabLabel text={t(`riskRegister.drawer.tab.${id}`)} count={mitiCount} />
+      ) : (
+        t(`riskRegister.drawer.tab.${id}`)
+      ),
     testId: `risk-tab-${id}`,
   }));
   // Keep the active tab in view when it changes (click, deep link, arrows).
@@ -218,10 +228,10 @@ export function RiskDrawer({
             {r.name}
           </h2>
           <div className="flex gap-1.5 flex-wrap">
-            <Badge intent={severityIntent[r.crit] ?? 'neutral'} dot>
-              {t(`risks.band.${r.crit}`)}
+            <Badge intent={r.bandKnown ? (severityIntent[r.crit] ?? 'neutral') : 'neutral'} dot>
+              {r.bandKnown ? t(`risks.band.${r.crit}`) : t('risks.band.unknown')}
             </Badge>
-            <Badge intent={riskStatusIntent[r.statusValue] ?? 'neutral'}>
+            <Badge intent={registerStatusIntent[r.statusValue] ?? 'neutral'}>
               {t(`riskRegister.status.${r.statusValue}`)}
             </Badge>
           </div>
@@ -357,7 +367,9 @@ function Footer({
           className="basis-full m-0 text-[11.5px] text-ink-muted"
           data-testid="risk-transition-hint"
         >
-          {[acceptReason, closeReason].filter(Boolean)[0]}
+          {acceptReason && closeReason && acceptReason !== closeReason
+            ? `${t('riskRegister.drawer.accept')} : ${acceptReason} · ${t('riskRegister.drawer.closeRisk')} : ${closeReason}`
+            : (acceptReason ?? closeReason)}
         </p>
       )}
     </div>
@@ -431,10 +443,16 @@ function Overview({
         ? 'text-warning-text'
         : 'text-ink';
 
+  // The figure big, its unit small beside it: a long unit never truncates the number.
   const ale =
-    money.entitled && r.ale
-      ? `${millions(money.toDisplay(r.ale), locale)} M ${money.currency}`
-      : '—';
+    money.entitled && r.ale ? (
+      <>
+        {millions(money.toDisplay(r.ale), locale)}
+        <span className="text-[11px] font-medium text-ink-muted"> M {money.currency}</span>
+      </>
+    ) : (
+      '—'
+    );
 
   const figure = (label: string, value: ReactNode, tone?: string, hint?: string) => (
     <div className="px-3.5 py-3 min-w-0" title={hint}>
@@ -442,7 +460,7 @@ function Overview({
         {label}
       </div>
       <div
-        className="mono mt-1 text-[22px] font-semibold leading-tight truncate"
+        className="mono mt-1 flex flex-wrap items-baseline gap-x-1 text-[22px] font-semibold leading-tight"
         style={tone ? { color: tone } : undefined}
       >
         {value}
@@ -498,7 +516,7 @@ function Overview({
         {figure(
           t('riskRegister.drawer.inherentScore'),
           formatScore(locale, r.score),
-          bandTextColor(r.crit),
+          r.bandKnown ? bandTextColor(r.crit) : undefined,
         )}
         {figure(
           t('riskRegister.drawer.inherentAle'),
@@ -506,11 +524,7 @@ function Overview({
           undefined,
           money.entitled ? undefined : t('riskRegister.ale.locked'),
         )}
-        {figure(
-          t('riskRegister.drawer.residualScore'),
-          formatScore(locale, r.residual),
-          r.residual === null ? undefined : 'var(--success-text)',
-        )}
+        {figure(t('riskRegister.drawer.residualScore'), formatScore(locale, r.residual))}
       </div>
 
       <div className="grid grid-cols-2 gap-3 mb-[18px]">

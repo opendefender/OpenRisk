@@ -18,6 +18,7 @@ const assetList = vi.hoisted(() => ({
   current: [] as { id: string; name: string }[],
 }));
 const preview = vi.hoisted(() => ({ current: undefined as unknown }));
+const suggestions = vi.hoisted(() => ({ current: undefined as unknown }));
 
 vi.mock('../../../hooks/useAssetStore', () => ({
   useAssetStore: () => ({
@@ -57,7 +58,7 @@ vi.mock('../useRiskRegisterData', () => ({
 }));
 
 vi.mock('../../onboarding/useActivation', () => ({
-  useOnboardingSuggestions: () => ({ data: undefined }),
+  useOnboardingSuggestions: () => ({ data: suggestions.current }),
   useInvalidateActivation: () => vi.fn(),
 }));
 
@@ -94,6 +95,7 @@ describe('CreateRiskModal', () => {
     fetchAssetsMock.mockClear();
     assetList.current = [];
     preview.current = undefined;
+    suggestions.current = undefined;
     useUIStore.setState({ lang: 'fr' });
   });
 
@@ -114,10 +116,22 @@ describe('CreateRiskModal', () => {
     expect(document.querySelector('path[stroke-dasharray="1"]')).not.toBeInTheDocument();
   });
 
-  it('refuses a title that is too short, in words, and sends nothing (Zod)', async () => {
+  const submitForm = () =>
+    fireEvent.submit(document.getElementById('create-risk-form') as HTMLElement);
+
+  it('keeps "Créer le risque" disabled until the title has 4 characters', () => {
+    renderModal();
+    expect(submit()).toBeDisabled();
+    fireEvent.change(titleInput(), { target: { value: 'abc' } });
+    expect(submit()).toBeDisabled();
+    fireEvent.change(titleInput(), { target: { value: 'abcd' } });
+    expect(submit()).toBeEnabled();
+  });
+
+  it('still refuses a short title in words when the form is submitted (Zod), and sends nothing', async () => {
     renderModal();
     fireEvent.change(titleInput(), { target: { value: 'abc' } });
-    fireEvent.click(submit());
+    submitForm();
     expect(
       await screen.findByText('L’intitulé doit comporter au moins 4 caractères.'),
     ).toBeInTheDocument();
@@ -126,7 +140,7 @@ describe('CreateRiskModal', () => {
 
   it('refuses an empty form, and the description is optional', async () => {
     renderModal();
-    fireEvent.click(submit());
+    submitForm();
     expect(await screen.findByText(/au moins 4 caractères/)).toBeInTheDocument();
     expect(createRiskMock).not.toHaveBeenCalled();
     expect(screen.getByText(/facultatif/)).toBeInTheDocument();
@@ -135,6 +149,48 @@ describe('CreateRiskModal', () => {
     fireEvent.click(submit());
     await waitFor(() => expect(createRiskMock).toHaveBeenCalled());
     expect(createRiskMock.mock.calls[0][0]).toMatchObject({ description: undefined });
+  });
+
+  // Review C1: the explainer opens the 0-100 model score. No second scale here.
+  it('shows no second scale anywhere: no "/100", no score explainer', () => {
+    preview.current = {
+      risk_score: 3.5,
+      risk_criticality: 'medium',
+      inherent: 42.4,
+      inherent_band: 'high',
+      value: 42.4,
+      band: 'high',
+    };
+    renderModal();
+    const dialog = screen.getByRole('dialog');
+    expect(dialog.textContent).not.toMatch(/\/\s*100/);
+    expect(within(dialog).queryByRole('button', { name: /explain|expliqu/i })).toBeNull();
+  });
+
+  it('puts the sector suggestions below the form, collapsed, and says "Actifs concernés"', async () => {
+    suggestions.current = {
+      risks: [
+        {
+          key: 'k1',
+          title: 'Ransomware sur le SI',
+          description: 'Chiffrement des serveurs.',
+          probability: 0.5,
+          impact: 8,
+        },
+      ],
+    };
+    renderModal();
+    const box = screen.getByTestId('risk-suggestions');
+    // After the title field, not before it: the form starts with the title.
+    expect(
+      titleInput().compareDocumentPosition(box) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(screen.queryByTestId('risk-suggestion-k1')).not.toBeInTheDocument();
+    await userEvent.click(within(box).getByRole('button', { name: /Partir d’un risque courant/ }));
+    await userEvent.click(screen.getByTestId('risk-suggestion-k1'));
+    expect(titleInput().value).toBe('Ransomware sur le SI');
+    expect(screen.getByText('Actifs concernés')).toBeInTheDocument();
+    expect(screen.queryByText('Assets impactés')).not.toBeInTheDocument();
   });
 
   it('starts on level 3 of each and writes the midpoint of the level that is picked', async () => {

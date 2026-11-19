@@ -103,6 +103,9 @@ export interface Risk {
   asset_criticality?: number;
 }
 
+/** The body of a risk write: any subset of the risk's own fields. */
+export type RiskPayload = Partial<Risk> & Record<string, unknown>;
+
 interface RiskFetchParams {
   q?: string;
   status?: string;
@@ -170,11 +173,11 @@ interface RiskStore {
 
   // import / export helpers
   importRisks: (file: File) => Promise<void>;
-  exportRisks: (params?: Record<string, any>) => Promise<Blob>;
+  exportRisks: (params?: Record<string, string | number | boolean | undefined>) => Promise<Blob>;
 
   fetchRisks: (params?: RiskFetchParams & { page?: number; limit?: number }) => Promise<void>;
-  createRisk: (payload: any) => Promise<void>;
-  updateRisk: (id: string, payload: any) => Promise<void>;
+  createRisk: (payload: RiskPayload) => Promise<void>;
+  updateRisk: (id: string, payload: RiskPayload) => Promise<void>;
   transitionPhase: (id: string, phase: RiskPhase, note?: string) => Promise<Risk>;
   deleteRisk: (id: string) => Promise<void>;
 }

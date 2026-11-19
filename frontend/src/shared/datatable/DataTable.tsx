@@ -102,6 +102,10 @@ export interface DataTableProps<T> {
   virtualThreshold?: number;
   /** Accessible name of the grid. */
   ariaLabel: string;
+  /** Extra classes on the search box's container (e.g. a max width). */
+  searchClassName?: string;
+  /** Replaces the generic "no results" panel when filters match nothing. */
+  noResults?: ReactNode;
   pageSizeOptions?: number[];
   /**
    * Rows that open in place (#909): a leading chevron toggles a detail row
@@ -232,6 +236,8 @@ export function DataTable<T>({
   maxBodyHeight = 620,
   virtualThreshold = 30,
   ariaLabel,
+  searchClassName = '',
+  noResults,
   pageSizeOptions = [25, 50, 100],
   expansion,
 }: DataTableProps<T>) {
@@ -549,7 +555,7 @@ export function DataTable<T>({
 
   const toolbar = (
     <div className="flex flex-wrap items-center gap-2 mb-3">
-      <div className="relative flex-1 min-w-[200px]">
+      <div className={`relative flex-1 min-w-[200px] ${searchClassName}`}>
         <Search
           size={15}
           className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted pointer-events-none"
@@ -776,30 +782,30 @@ export function DataTable<T>({
       </div>
     );
   } else if (pageRows.length === 0) {
-    body = hasQueryOrFilters ? (
-      <EmptyState
-        variant="no-results"
-        title={L.noResultsTitle}
-        description={L.noResultsDesc}
-        primaryAction={
-          <button
-            type="button"
-            onClick={() => api.clearFilters()}
-            data-testid="table-clear-filters"
-            className="h-9 px-3.5 rounded-[10px] text-[13px] font-semibold"
-            style={{
-              border: '1px solid var(--border-strong)',
-              background: 'var(--bg-elevated)',
-              color: 'var(--fg-primary)',
-            }}
-          >
-            {L.clearFilters}
-          </button>
-        }
-      />
-    ) : (
-      (empty ?? <EmptyState variant="first-use" title={L.noResultsTitle} />)
-    );
+    body = hasQueryOrFilters
+      ? (noResults ?? (
+          <EmptyState
+            variant="no-results"
+            title={L.noResultsTitle}
+            description={L.noResultsDesc}
+            primaryAction={
+              <button
+                type="button"
+                onClick={() => api.clearFilters()}
+                data-testid="table-clear-filters"
+                className="h-9 px-3.5 rounded-[10px] text-[13px] font-semibold"
+                style={{
+                  border: '1px solid var(--border-strong)',
+                  background: 'var(--bg-elevated)',
+                  color: 'var(--fg-primary)',
+                }}
+              >
+                {L.clearFilters}
+              </button>
+            }
+          />
+        ))
+      : (empty ?? <EmptyState variant="first-use" title={L.noResultsTitle} />);
   } else {
     body = (
       <div

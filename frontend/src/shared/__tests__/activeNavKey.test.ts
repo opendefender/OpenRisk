@@ -4,7 +4,7 @@
 // Which sidebar item a location lights up.
 
 import { describe, expect, it } from 'vitest';
-import { ALL_NAV_ITEMS, activeNavKey } from '../navModel';
+import { ALL_NAV_ITEMS, activeNavKey, navGroupFor, navItemFor } from '../navModel';
 
 const key = (path: string, search = '') => activeNavKey(ALL_NAV_ITEMS, path, search);
 
@@ -22,5 +22,14 @@ describe('activeNavKey', () => {
   it('lights Threat Intel on its page and on the CVE feed', () => {
     expect(key('/threat-intel')).toBe('cti');
     expect(key('/threat-map')).toBe('cti');
+  });
+
+  // #913: the register's ?view=matrix is a display mode, not another item.
+  it('keeps the register lit in matrix mode, and the breadcrumb on its group', () => {
+    expect(key('/risks', '?view=matrix')).toBe(key('/risks', ''));
+    expect(key('/risks', '?view=matrix')).toBe('risks');
+    expect(navItemFor('/risks', 'matrix')).toBe(navItemFor('/risks', null));
+    expect(navGroupFor('/risks', 'matrix')).toBe(navGroupFor('/risks', null));
+    expect(navGroupFor('/risks', 'matrix')).toBeDefined();
   });
 });

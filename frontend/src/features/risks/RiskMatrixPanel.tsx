@@ -135,11 +135,18 @@ export function RiskMatrixPanel({
                             aria-label={t('riskRegister.matrix.markerAria', {
                               title: r.name,
                               score: formatScore(locale, r.score),
-                              band: t(`risks.band.${r.crit}`),
+                              band: r.bandKnown
+                                ? t(`risks.band.${r.crit}`)
+                                : t('risks.band.unknown'),
                             })}
                             data-testid={`risk-marker-${r.id}`}
-                            className="mono h-[22px] px-1.5 rounded-full text-[10.5px] font-semibold text-fg-on-solid motion-safe:hover:scale-105 transition-transform"
-                            style={{ background: chart.severity[r.crit] }}
+                            className={`mono h-[22px] px-1.5 rounded-full text-[10.5px] font-semibold motion-safe:hover:scale-105 transition-transform ${
+                              r.bandKnown ? 'text-fg-inverse' : 'bg-surface-3 text-ink'
+                            }`}
+                            // The band's own fill with the inverse text token: dark on
+                            // the bright risk colours in dark mode, light on the deep
+                            // ones in light mode, as the mockup's chips read.
+                            style={r.bandKnown ? { background: chart.severity[r.crit] } : undefined}
                           >
                             {formatScore(locale, r.score)}
                           </button>
@@ -199,9 +206,11 @@ export function RiskMatrixPanel({
                   <span
                     aria-hidden="true"
                     className="size-2 rounded-full shrink-0"
-                    style={{ background: critColor[r.crit] }}
+                    style={{ background: r.bandKnown ? critColor[r.crit] : 'var(--fg-muted)' }}
                   />
-                  <span className="sr-only">{t(`risks.band.${r.crit}`)}</span>
+                  <span className="sr-only">
+                    {r.bandKnown ? t(`risks.band.${r.crit}`) : t('risks.band.unknown')}
+                  </span>
                   <span className="mono text-[11.5px] text-ink-muted shrink-0">
                     {r.id.slice(0, 8)}
                   </span>

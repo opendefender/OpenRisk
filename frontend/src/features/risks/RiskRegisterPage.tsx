@@ -14,7 +14,7 @@
 // reference, tags and last update are columns of the chooser; lifecycle phase,
 // category and source and "unmapped" are in the Filters panel; the three
 // responsibilities, control mappings, lifecycle, score working, SmartScore,
-// financial, CTI and AI sit behind the drawer's "Plus" tab.
+// financial, CTI and AI are tabs of the drawer, after the design's three.
 //
 // URL: `f.scope` is the tab, `f.criticality` / `f.status` / `f.owner_id` the
 // filters, `view=matrix` the layout (kept for the dashboard's matrix link).
@@ -56,7 +56,7 @@ import { CreateMitigationModal } from '../mitigations/CreateMitigationModal';
 import { millions } from '../financial/money';
 import { DrawerStatus, RiskDrawer } from './RiskDrawer';
 import { RiskMatrixPanel } from './RiskMatrixPanel';
-import { LayoutSwitch, RegisterFilters, SearchBox } from './RegisterToolbar';
+import { LayoutSwitch, RegisterFilters, SearchBox, TabLabel } from './RegisterToolbar';
 import { memberName } from './riskMembers';
 import { exportRisksCsv, type RiskCsvContext } from './riskExport';
 import { resolveDrawerTab } from './riskDrawerTarget';
@@ -84,7 +84,7 @@ import {
 import { useRiskCategories } from './useTaxonomy';
 import type { Criticality } from '../../shared/riskColors';
 
-// The legacy tabs are reached from the drawer's "Plus"; the CTI one is exported
+// The legacy sections are tabs of the drawer; the CTI one is exported
 // for its own test.
 export { DrawerCTI } from './RiskDrawerSections';
 
@@ -211,6 +211,25 @@ export function RiskRegisterPage() {
     () => ({ locale, money, label: (key, p) => t(key, p) }),
     [locale, money, t],
   );
+  // The header's "Exporter" writes the WHOLE current view, not the loaded page:
+  // the list API is read 200 rows at a time until its total, with the button
+  // busy meanwhile, and the toast states the number actually written.
+  const [exporting, setExporting] = useState(false);
+  const exportView = async () => {
+    if (exporting) return;
+    setExporting(true);
+    try {
+      const all = await riskRegisterService.listAll(params);
+      exportRows(
+        all.map((r) => mapRisk(r, locale)),
+        'risques',
+      );
+    } catch {
+      toast.error(t('riskRegister.export.failed'));
+    } finally {
+      setExporting(false);
+    }
+  };
   const exportRows = (rows: readonly UiRisk[], filename: string) => {
     if (rows.length === 0) {
       toast.info(t('riskRegister.export.empty'));
@@ -292,8 +311,7 @@ export function RiskRegisterPage() {
   /* ------------------------------------------------------------------- tabs */
   const tabItems: TabItem<RiskView>[] = RISK_VIEWS.map((v) => ({
     id: v,
-    label: t(`riskRegister.view.${v}`),
-    count: summary.data?.views?.[v],
+    label: <TabLabel text={t(`riskRegister.view.${v}`)} count={summary.data?.views?.[v]} />,
     testId: `risk-tab-${v}`,
   }));
 
@@ -606,8 +624,9 @@ export function RiskRegisterPage() {
             <Button
               variant="secondary"
               icon={Download}
-              disabled={shown === 0}
-              onClick={() => exportRows(ui, 'risques')}
+              disabled={shown === 0 || exporting}
+              loading={exporting}
+              onClick={() => void exportView()}
               data-testid="risk-export"
             >
               {t('riskRegister.export.action')}
@@ -633,7 +652,7 @@ export function RiskRegisterPage() {
           items={tabItems}
           value={filters.view}
           onChange={setScope}
-          className="flex-1 min-w-0"
+          className="flex-1 min-w-0 gap-5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         />
         {summary.isError && (
           <button
@@ -699,7 +718,10 @@ export function RiskRegisterPage() {
             // The header's "Exporter" and the bulk bar's own export replace the
             // table's, so there is one way to export, in one format.
             exportFilename=""
-            minWidth={1040}
+            minWidth={960}
+            estimateRowHeight={52}
+            searchClassName="max-w-[320px]"
+            noResults={<NoMatch onReset={resetFilters} />}
             toolbarExtra={
               <>
                 {toolbarControls}
@@ -851,14 +873,11 @@ export function RiskRegisterPage() {
   );
 }
 
-/** Filters matched nothing: the design's own sentence, with the way out. */
+/** Filters matched nothing: the design's own sentence, with the way out inline. */
 function NoMatch({ onReset }: { onReset: () => void }) {
   const { t } = useI18n();
   return (
-    <div
-      className="px-6 py-12 text-center bg-surface-1 border border-border-subtle rounded-[14px]"
-      data-testid="risk-nomatch"
-    >
+    <div className="px-6 py-12 text-center" data-testid="risk-nomatch">
       <div className="text-[14px] font-semibold text-ink">{t('riskRegister.noMatch.title')}</div>
       <div className="text-[13px] text-ink-muted mt-1">
         {t('riskRegister.noMatch.body')}{' '}
@@ -867,8 +886,9 @@ function NoMatch({ onReset }: { onReset: () => void }) {
           onClick={onReset}
           className="font-semibold text-accent-strong underline"
         >
-          {t('riskRegister.filter.reset')}
+          {t('riskRegister.noMatch.reset')}
         </button>
+        .
       </div>
     </div>
   );

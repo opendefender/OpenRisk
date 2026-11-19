@@ -306,6 +306,11 @@ export const NAV_GROUPS: NavGroup[] = [
 /** Flat list of all nav items, for the command palette. */
 export const ALL_NAV_ITEMS: NavItem[] = NAV_GROUPS.flatMap((g) => g.items);
 
+/** The `?view=` value if some nav item owns it, else null. */
+function ownedView(items: readonly NavItem[], view: string | null): string | null {
+  return view && items.some((i) => i.view === view) ? view : null;
+}
+
 /**
  * The item the sidebar highlights for a location: the longest path that
  * matches, so /assets/universe lights Universe, not Inventory. Items sharing a
@@ -314,7 +319,9 @@ export const ALL_NAV_ITEMS: NavItem[] = NAV_GROUPS.flatMap((g) => g.items);
  * light up together.
  */
 export function activeNavKey(items: readonly NavItem[], pathname: string, search: string): string {
-  const viewParam = new URLSearchParams(search).get('view');
+  // A `?view=` that no nav item owns (the register's `?view=matrix`) is a display
+  // mode of the page, not a different item: it must not unseat the active one.
+  const viewParam = ownedView(items, new URLSearchParams(search).get('view'));
   let best = '';
   let bestLen = -1;
   for (const it of items) {
@@ -383,7 +390,8 @@ export function landingForBusinessRole(businessRole?: string): string {
  * /assets/topology resolves to Topology and not Inventory. Items sharing a
  * pathname are told apart by `?view=` exactly as the sidebar does.
  */
-export function navItemFor(pathname: string, view: string | null): NavItem | undefined {
+export function navItemFor(pathname: string, rawView: string | null): NavItem | undefined {
+  const view = ownedView(ALL_NAV_ITEMS, rawView);
   let best: NavItem | undefined;
   let bestLen = -1;
   for (const it of ALL_NAV_ITEMS) {

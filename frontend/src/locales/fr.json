@@ -127,7 +127,8 @@
       "critical": "Critique",
       "high": "Élevé",
       "medium": "Moyen",
-      "low": "Faible"
+      "low": "Faible",
+      "unknown": "Niveau inconnu"
     },
     "level": {
       "probability": {
@@ -171,7 +172,8 @@
         "titleShort": "L’intitulé doit comporter au moins 4 caractères.",
         "titleLong": "L’intitulé ne peut pas dépasser 100 caractères.",
         "descriptionLong": "La description ne peut pas dépasser 5 000 caractères."
-      }
+      },
+      "assetsLabel": "Actifs concernés"
     }
   },
   "statuses": {
@@ -2268,7 +2270,8 @@
         "one": "{count} risque exporté en CSV",
         "other": "{count} risques exportés en CSV"
       },
-      "empty": "Aucun risque à exporter."
+      "empty": "Aucun risque à exporter.",
+      "failed": "L’export a échoué : le registre n’a pas pu être lu en entier. Réessayez."
     },
     "view": {
       "label": "Vues du registre",
@@ -2334,7 +2337,7 @@
       "band": "Niveau",
       "status": "Statut",
       "owner": "Propriétaire",
-      "ale": "ALE (M {currency})",
+      "ale": "ALE",
       "aleUnsortable": "Non triable : l’ALE est calculé après la lecture de la page, le serveur ne peut pas trier dessus.",
       "trend": "Tend.",
       "review": "Revue",
@@ -2342,7 +2345,8 @@
       "framework": "Contrôle",
       "tags": "Étiquettes",
       "updated": "Mis à jour",
-      "category": "Catégorie"
+      "category": "Catégorie",
+      "aleUnit": "ALE (M {currency})"
     },
     "trend": {
       "up": "En hausse",
@@ -2374,7 +2378,8 @@
     },
     "noMatch": {
       "title": "Aucun risque ne correspond à ces filtres",
-      "body": "Élargissez la recherche ou"
+      "body": "Élargissez la recherche ou",
+      "reset": "réinitialisez les filtres"
     },
     "error": {
       "title": "Chargement impossible",

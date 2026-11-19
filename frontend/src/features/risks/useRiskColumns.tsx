@@ -16,17 +16,16 @@ import { useNavigate } from 'react-router';
 import { AlertTriangle, Clock } from 'lucide-react';
 import { useI18n } from '../../hooks/useI18n';
 import { formatDate } from '../../i18n/format';
-import { Badge, riskStatusIntent, severityIntent } from '../../shared/ds';
+import { Badge, severityIntent } from '../../shared/ds';
 import type { Column } from '../../shared/datatable';
 import { FwBadge } from '../../shared/ui';
-import { bandTextColor } from '../../services/scoreService';
 import type { Assignee } from '../../services/ownershipService';
 import { millions } from '../financial/money';
 import { memberName } from './riskMembers';
 import { PhasePill } from './RiskDrawerSections';
 import { formatPI, formatScore } from './riskFormat';
 import { initialsOf, type UiRisk } from './riskMap';
-import { reviewState } from './riskViews';
+import { registerStatusIntent, reviewState } from './riskViews';
 import type { RegisterMoney } from './useRiskRegisterData';
 import { useUIStore } from '../../store/uiStore';
 import { TrendCell } from './TrendCell';
@@ -55,7 +54,7 @@ export function useRiskColumns({
       {
         key: 'id',
         header: t('riskRegister.col.id'),
-        width: 96,
+        width: 84,
         render: (r) => (
           <span className="mono text-[12px] text-ink-muted whitespace-nowrap">
             {r.id.slice(0, 8)}
@@ -77,8 +76,10 @@ export function useRiskColumns({
             .filter(Boolean)
             .join(' · ');
           return (
-            <div className="min-w-0 max-w-[360px]">
-              <div className="text-[13px] font-medium text-ink truncate">{r.name}</div>
+            <div className="min-w-0 max-w-[230px]">
+              <div className="text-[13px] font-medium text-ink truncate" title={r.name}>
+                {r.name}
+              </div>
               {sub && <div className="text-[11.5px] text-ink-muted truncate">{sub}</div>}
             </div>
           );
@@ -89,17 +90,15 @@ export function useRiskColumns({
         header: t('riskRegister.col.score'),
         sortKey: 'score',
         align: 'right',
-        width: 150,
+        width: 104,
+        // The number is neutral ink: the band's colour lives in the pill beside
+        // it, so a score is never coloured by a threshold applied here.
         render: (r) => (
-          <span className="whitespace-nowrap">
-            {/* Coloured by the SERVER's band, never by a threshold on the number. */}
-            <span
-              className="mono text-[14px] font-semibold"
-              style={{ color: bandTextColor(r.crit) }}
-            >
+          <span className="inline-flex flex-col items-end leading-tight whitespace-nowrap">
+            <span className="mono text-[14px] font-semibold text-ink">
               {formatScore(locale, r.score)}
             </span>
-            <span className="mono text-[11px] text-ink-muted ml-1.5">
+            <span className="mono text-[11px] text-ink-muted">
               {formatPI(locale, r.prob, r.impact)}
             </span>
           </span>
@@ -108,21 +107,24 @@ export function useRiskColumns({
       {
         key: 'band',
         header: t('riskRegister.col.band'),
-        sortKey: 'criticality',
-        width: 110,
-        render: (r) => (
-          <Badge intent={severityIntent[r.crit] ?? 'neutral'} dot>
-            {t(`risks.band.${r.crit}`)}
-          </Badge>
-        ),
+        // No sort: the band's names do not sort in severity order (the score does).
+        width: 104,
+        render: (r) =>
+          r.bandKnown ? (
+            <Badge intent={severityIntent[r.crit] ?? 'neutral'} dot>
+              {t(`risks.band.${r.crit}`)}
+            </Badge>
+          ) : (
+            muted
+          ),
       },
       {
         key: 'status',
         header: t('riskRegister.col.status'),
         sortKey: 'status',
-        width: 130,
+        width: 104,
         render: (r) => (
-          <Badge intent={riskStatusIntent[r.statusValue] ?? 'neutral'}>
+          <Badge intent={registerStatusIntent[r.statusValue] ?? 'neutral'}>
             {t(`riskRegister.status.${r.statusValue}`)}
           </Badge>
         ),
@@ -130,7 +132,7 @@ export function useRiskColumns({
       {
         key: 'owner',
         header: t('riskRegister.col.owner'),
-        width: 190,
+        width: 136,
         render: (r) => {
           const name = ownerOf(r);
           if (!name) return muted;
@@ -142,7 +144,9 @@ export function useRiskColumns({
               >
                 {initialsOf(name)}
               </span>
-              <span className="text-[13px] text-ink-soft truncate">{name}</span>
+              <span className="text-[13px] text-ink-soft truncate max-w-[80px]" title={name}>
+                {name}
+              </span>
             </span>
           );
         },
@@ -152,13 +156,11 @@ export function useRiskColumns({
             {
               key: 'ale',
               header: (
-                <span title={t('riskRegister.col.aleUnsortable')}>
-                  {t('riskRegister.col.ale', { currency: money.currency })}
-                </span>
+                <span title={t('riskRegister.col.aleUnsortable')}>{t('riskRegister.col.ale')}</span>
               ),
-              headerLabel: t('riskRegister.col.ale', { currency: money.currency }),
+              headerLabel: t('riskRegister.col.aleUnit', { currency: money.currency }),
               align: 'right' as const,
-              width: 110,
+              width: 64,
               render: (r: UiRisk): ReactNode =>
                 r.ale ? (
                   <span className="mono text-[13px] font-semibold text-ink whitespace-nowrap">
@@ -174,14 +176,14 @@ export function useRiskColumns({
         key: 'trend',
         header: t('riskRegister.col.trend'),
         align: 'right',
-        width: 70,
+        width: 56,
         render: (r) => <TrendCell trend={r.trend} />,
       },
       {
         key: 'review',
         header: t('riskRegister.col.review'),
         sortKey: 'next_review_at',
-        width: 130,
+        width: 92,
         render: (r) => {
           const s = reviewState(r.nextReviewAt, r.statusValue, now);
           switch (s.kind) {

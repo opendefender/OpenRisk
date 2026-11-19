@@ -20,6 +20,8 @@ export interface UiRisk {
   raw: Risk;
   name: string;
   crit: Criticality;
+  /** False when the server sent no band: the screen shows "—", never a made-up "low". */
+  bandKnown: boolean;
   score: number;
   prob: number;
   impact: number;
@@ -55,13 +57,14 @@ export interface UiRisk {
 
 const CRITS = new Set<Criticality>(['critical', 'high', 'medium', 'low']);
 
-function toCrit(r: Risk): Criticality {
+function toCrit(r: Risk): Criticality | null {
   const c = ((r as { criticality?: string }).criticality ?? r.level ?? '').toString().toLowerCase();
   if (CRITS.has(c as Criticality)) return c as Criticality;
   // No client-side fallback from the number. Deriving a band here is exactly how
   // the label came to disagree with the value it sat next to; a server that did
-  // not send a criticality has not said "low", so we do not say it either.
-  return 'low';
+  // not send a criticality has not said "low", so we do not say it either: the
+  // band is unknown, and `bandKnown` says so.
+  return null;
 }
 
 /** Both live vocabularies → the design's 4-state pill. */
@@ -112,7 +115,9 @@ export function mapRisk(r: Risk, lang: LocaleCode): UiRisk {
     id: r.id,
     raw: r,
     name: rr.name || r.title || '—',
-    crit: toCrit(r),
+    // `crit` keeps a value for the legacy consumers; `bandKnown` is the truth.
+    crit: toCrit(r) ?? 'low',
+    bandKnown: toCrit(r) !== null,
     score: r.score ?? 0,
     prob: r.probability ?? 0,
     impact: r.impact ?? 0,

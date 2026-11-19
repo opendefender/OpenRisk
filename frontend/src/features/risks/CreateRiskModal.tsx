@@ -49,7 +49,6 @@ import { useI18n } from '../../hooks/useI18n';
 import { useScorePreview } from '../../hooks/useScore';
 import { bandTextColor } from '../../services/scoreService';
 import { FieldHelp } from '../../shared/FieldHelp';
-import { ScoreExplainerButton } from '../../shared/ScoreExplainer';
 import { useUIStore } from '../../store/uiStore';
 import { useInvalidateActivation, useOnboardingSuggestions } from '../onboarding/useActivation';
 import type { RiskSuggestion } from '../../services/activationService';
@@ -260,6 +259,7 @@ export const CreateRiskModal = ({
               form="create-risk-form"
               variant="primary"
               loading={isSubmitting}
+              disabled={title.trim().length < 4}
               data-testid="create-risk-submit"
             >
               {t('risks.new.submit')}
@@ -273,19 +273,6 @@ export const CreateRiskModal = ({
           noValidate
           className="grid gap-4"
         >
-          <SuggestionPicker
-            suggestions={suggestions?.risks ?? []}
-            visible={!title?.trim() && !description?.trim()}
-            lang={lang}
-            onPick={(sugg) => {
-              setValue('title', sugg.title, { shouldValidate: true });
-              setValue('description', sugg.description, { shouldValidate: true });
-              setValue('probability', sugg.probability, { shouldValidate: true });
-              setValue('impact', sugg.impact, { shouldValidate: true });
-              if (sugg.suggested_tags?.length) setValue('tags', sugg.suggested_tags);
-            }}
-          />
-
           <Field
             label={t('risks.new.titleLabel')}
             message={errors.title?.message}
@@ -371,10 +358,7 @@ export const CreateRiskModal = ({
               {formatScore(locale, preview?.risk_score)}
             </span>
             <span className="flex-1 min-w-0 text-[12.5px] text-ink-soft">
-              <span className="flex items-center gap-1.5">
-                {t('risks.new.liveScore')}
-                <ScoreExplainerButton score={preview} />
-              </span>
+              <span className="block">{t('risks.new.liveScore')}</span>
               <span className="block text-[11.5px] text-ink-muted">
                 {t('risks.new.liveScoreHint')}
               </span>
@@ -410,7 +394,9 @@ export const CreateRiskModal = ({
           </Field>
 
           <div className="grid gap-2">
-            <span className="text-[12.5px] font-semibold text-ink">{t('risks.riskAssets')}</span>
+            <span className="text-[12.5px] font-semibold text-ink">
+              {t('risks.new.assetsLabel')}
+            </span>
             {assetIds.length > 0 && (
               <div className="flex flex-wrap gap-1.5">
                 {assetIds.map((id) => {
@@ -458,6 +444,19 @@ export const CreateRiskModal = ({
             />
             <p className="m-0 text-[11.5px] text-ink-muted">{t('risks.new.assetsHint')}</p>
           </div>
+
+          <SuggestionPicker
+            suggestions={suggestions?.risks ?? []}
+            visible={!title?.trim() && !description?.trim()}
+            lang={lang}
+            onPick={(sugg) => {
+              setValue('title', sugg.title, { shouldValidate: true });
+              setValue('description', sugg.description, { shouldValidate: true });
+              setValue('probability', sugg.probability, { shouldValidate: true });
+              setValue('impact', sugg.impact, { shouldValidate: true });
+              if (sugg.suggested_tags?.length) setValue('tags', sugg.suggested_tags);
+            }}
+          />
 
           <div>
             <button
@@ -542,6 +541,7 @@ function SuggestionPicker({
   onPick: (s: RiskSuggestion) => void;
 }) {
   const { locale } = useI18n();
+  const [open, setOpen] = useState(false);
   if (!visible || suggestions.length === 0) return null;
   const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
 
@@ -550,42 +550,59 @@ function SuggestionPicker({
       className="rounded-xl border border-border-default bg-surface-1 p-3"
       data-testid="risk-suggestions"
     >
-      <div className="flex items-center gap-2 mb-1">
+      <button
+        type="button"
+        aria-expanded={open}
+        aria-controls="risk-suggestions-list"
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-center gap-2 text-left"
+      >
         <Sparkles size={15} className="text-accent" aria-hidden="true" />
-        <span className="text-[13px] font-semibold text-ink">
+        <span className="flex-1 text-[13px] font-semibold text-ink">
           {tr(
             'Partir d’un risque courant de votre secteur',
             'Start from a common risk in your sector',
           )}
         </span>
-      </div>
-      <p className="text-xs text-ink-muted mb-2.5 mt-0">
-        {tr(
-          'Nous remplissons le formulaire ; à vous d’ajuster les valeurs et de valider.',
-          'We fill the form in; you adjust the values and confirm.',
-        )}
-      </p>
-      <div className="grid gap-2">
-        {suggestions.map((s) => (
-          <button
-            key={s.key}
-            type="button"
-            data-testid={`risk-suggestion-${s.key}`}
-            onClick={() => onPick(s)}
-            className="text-left rounded-lg border border-border-default bg-surface-2 px-3 py-2.5 transition-colors hover:border-accent"
-          >
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-[13px] font-semibold text-ink">{s.title}</span>
-              <span className="mono shrink-0 text-[11px] text-ink-muted">
-                P {formatProbability(locale, s.probability)} · I {formatImpact(locale, s.impact)}
-              </span>
-            </div>
-            <p className="mt-1 mb-0 line-clamp-2 text-[12px] leading-snug text-ink-soft">
-              {s.description}
-            </p>
-          </button>
-        ))}
-      </div>
+        <ChevronDown
+          size={14}
+          aria-hidden="true"
+          className="text-ink-muted transition-transform duration-fast"
+          style={{ transform: open ? 'rotate(180deg)' : undefined }}
+        />
+      </button>
+      {open && (
+        <>
+          <p className="text-xs text-ink-muted mb-2.5 mt-1">
+            {tr(
+              'Nous remplissons le formulaire ; à vous d’ajuster les valeurs et de valider.',
+              'We fill the form in; you adjust the values and confirm.',
+            )}
+          </p>
+          <div id="risk-suggestions-list" className="grid gap-2">
+            {suggestions.map((s) => (
+              <button
+                key={s.key}
+                type="button"
+                data-testid={`risk-suggestion-${s.key}`}
+                onClick={() => onPick(s)}
+                className="text-left rounded-lg border border-border-default bg-surface-2 px-3 py-2.5 transition-colors hover:border-accent"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-[13px] font-semibold text-ink">{s.title}</span>
+                  <span className="mono shrink-0 text-[11px] text-ink-muted">
+                    P {formatProbability(locale, s.probability)} · I{' '}
+                    {formatImpact(locale, s.impact)}
+                  </span>
+                </div>
+                <p className="mt-1 mb-0 line-clamp-2 text-[12px] leading-snug text-ink-soft">
+                  {s.description}
+                </p>
+              </button>
+            ))}
+          </div>
+        </>
+      )}
     </div>
   );
 }
