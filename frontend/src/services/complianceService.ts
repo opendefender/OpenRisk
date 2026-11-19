@@ -10,6 +10,8 @@ import type {
   ControlEvidence,
   ComplianceProgress,
   CreateFrameworkInput,
+  FrameworkExportDocument,
+  FrameworkImportResult,
   CreateControlInput,
   UpdateControlInput,
   ComplianceCatalogSummary,
@@ -26,6 +28,29 @@ import type {
   ControlMapping,
   CreateControlMappingInput,
 } from '../types/compliance';
+
+// saveBlob hands a blob to the browser as a download.
+function saveBlob(data: Blob, filename: string): void {
+  const url = URL.createObjectURL(data);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+// filenameFromDisposition reads the server's Content-Disposition filename,
+// falling back to `fallback` when it is absent or unreadable.
+function filenameFromDisposition(disposition: unknown, fallback: string): string {
+  if (typeof disposition !== 'string') return fallback;
+  const match = disposition.match(/filename\*?=(?:UTF-8'')?"?([^";]+)"?/i);
+  if (!match?.[1]) return fallback;
+  try {
+    return decodeURIComponent(match[1]);
+  } catch {
+    return match[1];
+  }
+}
 
 export const complianceService = {
   listCatalogs: async (): Promise<ComplianceCatalogSummary[]> => {
@@ -61,6 +86,29 @@ export const complianceService = {
 
   deleteFramework: async (frameworkId: string): Promise<void> => {
     await api.delete(`/compliance/frameworks/${frameworkId}`);
+  },
+
+  // exportFramework downloads a framework as the JSON exchange document (#307)
+  // and triggers a browser download named by the server (<slug>-<version>.json).
+  exportFramework: async (frameworkId: string): Promise<void> => {
+    const response = await api.get(`/compliance/frameworks/${frameworkId}/export`, {
+      responseType: 'blob',
+    });
+    const filename = filenameFromDisposition(
+      response.headers?.['content-disposition'],
+      'framework.json',
+    );
+    saveBlob(response.data as Blob, filename);
+  },
+
+  // importFramework creates a custom framework and all its controls from the
+  // JSON exchange document, in one request (all or nothing, server-side).
+  importFramework: async (document: FrameworkExportDocument): Promise<FrameworkImportResult> => {
+    const response = await api.post<FrameworkImportResult>(
+      '/compliance/frameworks/import',
+      document,
+    );
+    return response.data;
   },
 
   getProgress: async (frameworkId: string): Promise<ComplianceProgress> => {

@@ -136,6 +136,11 @@ const VulnerabilitiesPage = lazyScreen(() =>
 const MitigationsBoard = lazyScreen(() =>
   import('./features/mitigations/MitigationsBoard').then((m) => ({ default: m.MitigationsBoard })),
 );
+const CustomFrameworkImportPage = lazyScreen(() =>
+  import('./features/compliance/CustomFrameworkImportPage').then((m) => ({
+    default: m.CustomFrameworkImportPage,
+  })),
+);
 const ComplianceScreen = lazyScreen(() =>
   import('./features/compliance/ComplianceScreen').then((m) => ({ default: m.ComplianceScreen })),
 );
@@ -769,6 +774,8 @@ function App() {
             <Route path="compliance/audits/:auditId" element={<AuditDetailPage />} />
             <Route path="compliance/remediation" element={<RemediationPage />} />
             <Route path="compliance/remediation/:planId" element={<RemediationDetailPage />} />
+            {/* Static segment before :frameworkId so "import" is never read as an id. */}
+            <Route path="compliance/frameworks/import" element={<CustomFrameworkImportPage />} />
             <Route path="compliance/frameworks/:frameworkId" element={<FrameworkDetail />} />
             <Route path="compliance/frameworks/:frameworkId/gaps" element={<GapAnalysisPage />} />
 

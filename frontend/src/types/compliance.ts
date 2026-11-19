@@ -17,6 +17,11 @@ export type ComplianceControl = components['schemas']['ComplianceControl'];
 export type ControlEvidence = components['schemas']['ControlEvidence'];
 export type ComplianceProgress = components['schemas']['ComplianceProgress'];
 
+export type FrameworkExportDocument = components['schemas']['FrameworkExportDocument'];
+export type FrameworkImportResult = components['schemas']['FrameworkImportResult'];
+export type FrameworkImportValidationError =
+  components['schemas']['FrameworkImportValidationError'];
+
 export type CreateFrameworkInput = components['schemas']['CreateFrameworkInput'];
 export type CreateControlInput = components['schemas']['CreateControlInput'];
 export type UpdateControlInput = components['schemas']['UpdateControlInput'];

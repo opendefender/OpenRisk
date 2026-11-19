@@ -322,6 +322,72 @@
       "generating": "Generating…",
       "success": "Compliance report generated",
       "error": "Failed to generate report"
+    },
+    "export": {
+      "button": "Export (JSON)",
+      "generating": "Preparing the JSON export…",
+      "success": "Framework exported",
+      "error": "Failed to export the framework"
+    },
+    "customImport": {
+      "entry": "Import (JSON)",
+      "back": "Back to compliance",
+      "title": "Import a custom framework (JSON)",
+      "intro": "Load your own framework from a JSON file: it is created with all its controls in one step, every control starting as not implemented.",
+      "dropHere": "Drop a JSON file here or click to choose one",
+      "limits": ".json file, 2 MB maximum, 2000 controls maximum",
+      "emptyTitle": "No file chosen",
+      "emptyHint": "Choose a framework JSON file, for example one exported from OpenRisk with « Export (JSON) ».",
+      "choose": "Choose a file",
+      "onlyJson": "Only .json files are accepted",
+      "fileEmpty": "The file is empty",
+      "tooLarge": "The file is larger than 2 MB",
+      "invalidFile": "This file cannot be used",
+      "unreadable": "The file could not be read",
+      "removeFile": "Remove the file",
+      "previewTitle": "Preview",
+      "previewName": "Name",
+      "previewVersion": "Version",
+      "previewControls": "Controls",
+      "controlsCount": {
+        "one": "{count} control",
+        "other": "{count} controls"
+      },
+      "previewMore": {
+        "one": "and {count} more control",
+        "other": "and {count} more controls"
+      },
+      "submit": "Import the framework",
+      "importing": "Importing the framework…",
+      "created": {
+        "one": "Framework imported with {count} control",
+        "other": "Framework imported with {count} controls"
+      },
+      "fileRefused": "The file was refused, nothing was imported",
+      "rejectedRows": "The file has errors, nothing was imported",
+      "fixRows": "Fix these lines in the file, then choose it again.",
+      "row": "Control #",
+      "field": "Field",
+      "problem": "Problem",
+      "document": "File",
+      "truncated": "Only the first {max} problems are shown.",
+      "conflict": "A framework with the same name and version already exists.",
+      "limit": "Your plan's framework limit is reached.",
+      "seePlans": "See plans",
+      "forbidden": "You do not have permission to import a framework.",
+      "unauthorized": "Your session has expired. Sign in again.",
+      "serverFailed": "The import failed. Try again.",
+      "problems": {
+        "notJson": "The file is not valid JSON",
+        "notObject": "Expected an object here",
+        "schemaVersion": "schema_version must be 1",
+        "required": "This field is required",
+        "notText": "This field must be text",
+        "tooLong": "Too long (maximum {max} characters)",
+        "noControls": "The file must contain at least one control",
+        "tooManyControls": "Too many controls (maximum {max})",
+        "duplicateCode": "The reference code \"{code}\" appears more than once"
+      }
     }
   },
   "assets": {

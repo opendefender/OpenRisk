@@ -35,7 +35,12 @@ import { useAuthStore } from '../../hooks/useAuthStore';
 import { useI18n } from '../../hooks/useI18n';
 import { downloadErrorMessage } from '../../lib/apiError';
 import { useUndoableRemove } from '../../shared/useUndoableRemove';
-import { useControls, useComplianceReport, useEvidences } from './useCompliance';
+import {
+  useControls,
+  useComplianceReport,
+  useEvidences,
+  useExportFramework,
+} from './useCompliance';
 import { useComplianceOverview, frameworkColorFor } from './complianceOverview';
 import { CreateControlDialog } from './ComplianceModals';
 import { ControlMappingsSection } from './ControlMappingsSection';
@@ -67,7 +72,9 @@ export function FrameworkDetail() {
   const fwIndex = fws.findIndex((f) => f.id === frameworkId);
   const fw = fwIndex >= 0 ? fws[fwIndex] : undefined;
   const { controls, isLoading, updateControl, deleteControl } = useControls(frameworkId);
+  const { t } = useI18n();
   const report = useComplianceReport();
+  const exportJson = useExportFramework();
   const [filter, setFilter] = useState<'all' | ControlStatus>('all');
   const [evidenceControl, setEvidenceControl] = useState<ComplianceControl | null>(null);
   const [showCreate, setShowCreate] = useState(false);
@@ -155,6 +162,15 @@ export function FrameworkDetail() {
     });
   };
 
+  const downloadJson = () => {
+    if (!frameworkId) return;
+    toast.promise(exportJson.mutateAsync(frameworkId), {
+      loading: t('compliance.export.generating'),
+      success: t('compliance.export.success'),
+      error: t('compliance.export.error'),
+    });
+  };
+
   const meta = (s?: string) => STATUS_META[s ?? 'not_implemented'] ?? STATUS_META.not_implemented;
 
   return (
@@ -178,6 +194,7 @@ export function FrameworkDetail() {
                 onClick={() => setShowCreate(true)}
               />
             )}
+            <Btn label={t('compliance.export.button')} icon={FileText} onClick={downloadJson} />
             <Btn label={L.exportPdf} icon={Download} primary onClick={downloadReport} />
           </>
         }

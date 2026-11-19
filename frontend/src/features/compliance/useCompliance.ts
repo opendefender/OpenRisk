@@ -9,6 +9,7 @@ import { complianceService } from '../../services/complianceService';
 import { ACTIVATION_QUERY_KEY } from '../onboarding/useActivation';
 import { ENTITLEMENTS_KEY } from '../billing/useEntitlements';
 import type {
+  FrameworkExportDocument,
   ComplianceControl,
   ComplianceFramework,
   ComplianceCatalogSummary,
@@ -90,6 +91,29 @@ export function useFrameworks() {
     }),
     [query, createFramework, deleteFramework],
   );
+}
+
+// useExportFramework downloads a framework as a JSON document (#307).
+export function useExportFramework() {
+  return useMutation({
+    mutationFn: (frameworkId: string) => complianceService.exportFramework(frameworkId),
+  });
+}
+
+// useImportFramework creates a custom framework from a JSON document (#307).
+// Not optimistic: the framework id and its controls only exist once the server
+// has written them, so there is nothing to show before the answer. On success
+// every list that shows frameworks is invalidated.
+export function useImportFramework() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (document: FrameworkExportDocument) => complianceService.importFramework(document),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: FRAMEWORKS_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: OVERVIEW_QUERY_KEY });
+      queryClient.invalidateQueries({ queryKey: ENTITLEMENTS_KEY });
+    },
+  });
 }
 
 // useComplianceReport downloads the official compliance report (PDF) for a
