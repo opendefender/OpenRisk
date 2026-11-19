@@ -397,6 +397,42 @@ describe('selection scope', () => {
     expect(run.mock.calls[0][0]).toMatchObject({ scope: 'selection', ids: ['a'], count: 1 });
   });
 
+  it('an action that needs a value renders as a listbox and runs with the picked one', async () => {
+    const run = vi.fn().mockResolvedValue(undefined);
+    const bulk: BulkAction<Row>[] = [
+      {
+        key: 'status',
+        label: 'Changer le statut…',
+        selectionOnly: true,
+        choices: [
+          { value: 'open', label: 'Ouvert' },
+          { value: 'closed', label: 'Clos' },
+        ],
+        run,
+      },
+    ];
+    renderTable({ bulkActions: bulk });
+
+    fireEvent.click(screen.getByTestId('row-select-a'));
+    const trigger = screen.getByTestId('bulk-action-status');
+    // The shared Listbox, not a native control.
+    expect(trigger).toHaveAttribute('role', 'combobox');
+    expect(trigger).toHaveTextContent('Changer le statut…');
+    fireEvent.click(trigger);
+    fireEvent.click(screen.getByRole('option', { name: 'Clos' }));
+
+    await waitFor(() => expect(run).toHaveBeenCalledTimes(1));
+    expect(run.mock.calls[0][0]).toMatchObject({ scope: 'selection', ids: ['a'] });
+    expect(run.mock.calls[0][1]).toBe('closed');
+  });
+
+  it('pages with the shared listbox, not a native select', () => {
+    renderTable({});
+    const size = screen.getByTestId('table-page-size');
+    expect(size).toHaveAttribute('role', 'combobox');
+    expect(document.querySelector('select')).toBeNull();
+  });
+
   it('hides a bulk action the user has no permission for', () => {
     const bulk: BulkAction<Row>[] = [
       { key: 'del', label: 'Supprimer', hidden: true, run: vi.fn() },

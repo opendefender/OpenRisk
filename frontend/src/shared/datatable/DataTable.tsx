@@ -45,6 +45,7 @@ import {
 } from 'lucide-react';
 import { useI18n } from '../../hooks/useI18n';
 import { useUIStore } from '../../store/uiStore';
+import { Listbox } from '../ds';
 import { EmptyState } from '../EmptyState';
 import { SkeletonRows } from '../ui';
 import { BulkBar } from './BulkBar';
@@ -977,22 +978,20 @@ export function DataTable<T>({
             {L.rowsRange(firstIndexOnPage, lastIndexOnPage, resultCount)}
           </span>
           <div className="flex-1" />
-          <label className="text-[12.5px] text-ink-muted inline-flex items-center gap-1.5">
-            <select
-              value={state.pageSize}
-              onChange={(e) => api.setPageSize(Number(e.target.value))}
+          <span className="text-[12.5px] text-ink-muted inline-flex items-center gap-1.5">
+            {/* The shared Listbox, not a native <select>: the browser draws its
+                list with OS chrome, which breaks the dark theme (#935). */}
+            <Listbox
+              size="sm"
+              value={String(state.pageSize)}
+              options={pageSizeOptions.map((n) => ({ value: String(n), label: String(n) }))}
+              onChange={(v) => api.setPageSize(Number(v))}
+              aria-label={L.perPage}
               data-testid="table-page-size"
-              className="h-8 px-2 rounded-[8px] text-[12.5px] text-ink outline-none"
-              style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)' }}
-            >
-              {pageSizeOptions.map((n) => (
-                <option key={n} value={n}>
-                  {n}
-                </option>
-              ))}
-            </select>
+              className="w-[4.5rem]"
+            />
             {L.perPage}
-          </label>
+          </span>
           <div className="inline-flex items-center gap-1">
             <button
               type="button"

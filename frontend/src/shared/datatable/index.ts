@@ -10,6 +10,7 @@ export { RowMenu } from './RowMenu';
 export {
   EMPTY_TABLE_STATE,
   type BulkAction,
+  type BulkChoice,
   type BulkScope,
   type Column,
   type ColumnPrefs,
