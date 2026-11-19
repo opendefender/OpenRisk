@@ -16,7 +16,7 @@ export type BulkResult = components['schemas']['BulkResult'];
 export type BulkSampleChange = components['schemas']['BulkSampleChange'];
 
 /** The actions the API can express. A register supports a subset. */
-export type BulkActionKind = NonNullable<BulkPreview['action']> | 'set_owner';
+export type BulkActionKind = NonNullable<BulkPreview['action']>;
 
 /**
  * Which register to act on. The prefix is the API path segment, which is also
