@@ -6465,6 +6465,37 @@ paths:
         '404': {description: "An id did not resolve — absent, or another tenant's, deliberately indistinguishable. Nothing was modified."}
         '409': {description: The selection changed since it was previewed. Nothing was modified.}
 
+  /risks/bulk/set-owner:
+    post:
+      tags: [Risks]
+      summary: Apply "set_owner" to many risks, all or none
+      description: >-
+        Writes the owner (owner_id, the register's Owner column) of every named
+        risk, or of none. The new owner must be an active member of the caller's
+        tenant, checked on preview and on apply, exactly as for a single-risk
+        owner change. One audit entry per modified risk; the new owner receives
+        one notice per batch. Risks from another tenant answer 404, identical to
+        fabricated ids. Requires `risks:update`.
+      operationId: risksBulkSetOwner
+      security: [{bearerAuth: []}]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BulkApplyInput'
+      responses:
+        '200':
+          description: The batch was applied in full
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BulkResult'
+        '400': {description: "Validation error — empty selection, over 100 items, missing owner_id, or an owner who is not an active member of the tenant"}
+        '403': {description: "The caller lacks risks:update, or the session carries no tenant"}
+        '404': {description: "An id did not resolve — absent, or another tenant's, deliberately indistinguishable. Nothing was modified."}
+        '409': {description: The selection changed since it was previewed. Nothing was modified.}
+
   /risks/bulk/add-tags:
     post:
       tags: [Risks]
@@ -9819,9 +9850,9 @@ components:
           type: string
           description: >-
             `delete` requires risks:delete (#1423); prefer POST /risks/bulk/delete.
-            `set_owner` writes owner_id (the register's Owner column); `assign_to`
-            writes the legacy assigned_to column.
-          enum: [change_status, assign_to, set_owner, add_tags, remove_tags, delete]
+            `assign_to` writes the legacy assigned_to column; to set the
+            register's Owner column use POST /risks/bulk/set-owner.
+          enum: [change_status, assign_to, add_tags, remove_tags, delete]
         risk_ids:
           type: array
           minItems: 1
@@ -9898,7 +9929,7 @@ components:
             The tag actions exist only on the risk register.
           items:
             type: string
-            enum: [change_status, delete, add_tags, remove_tags]
+            enum: [change_status, set_owner, delete, add_tags, remove_tags]
 
     BulkPreviewInput:
       type: object
@@ -9906,7 +9937,7 @@ components:
       properties:
         action:
           type: string
-          enum: [change_status, delete, add_tags, remove_tags]
+          enum: [change_status, set_owner, delete, add_tags, remove_tags]
         ids:
           type: array
           minItems: 1
@@ -9915,6 +9946,10 @@ components:
         status:
           type: string
           description: The target value, for change_status.
+        owner_id:
+          type: string
+          format: uuid
+          description: The new owner, for set_owner. Must be an active member of the caller's tenant.
         tags:
           type: array
           maxItems: 50
@@ -9934,6 +9969,10 @@ components:
         status:
           type: string
           description: The target value, for the change-status route.
+        owner_id:
+          type: string
+          format: uuid
+          description: The new owner, for set_owner. Must be an active member of the caller's tenant.
         tags:
           type: array
           maxItems: 50
@@ -9995,7 +10034,7 @@ components:
           description: Pass to the apply call to detect a selection that moved.
         action:
           type: string
-          enum: [change_status, delete, add_tags, remove_tags]
+          enum: [change_status, set_owner, delete, add_tags, remove_tags]
 
     BulkResult:
       type: object

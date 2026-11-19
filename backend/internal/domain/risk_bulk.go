@@ -5,7 +5,11 @@
 
 package domain
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/google/uuid"
+)
 
 // ---------------------------------------------------------------------------
 // The risk register on the governed bulk engine (#599).
@@ -22,6 +26,7 @@ var RiskBulkActions = []BulkAction{
 	BulkActionChangeStatus,
 	BulkActionAddTags,
 	BulkActionRemoveTags,
+	BulkActionSetOwner,
 	BulkActionDelete,
 }
 
@@ -63,6 +68,11 @@ func (r *Risk) ApplyBulkChange(c BulkChange) {
 		r.Tags = AddTags(r.Tags, c.Tags)
 	case BulkActionRemoveTags:
 		r.Tags = RemoveTags(r.Tags, c.Tags)
+	case BulkActionSetOwner:
+		if c.OwnerID != nil {
+			owner := *c.OwnerID // copy: the row must not alias the change
+			r.OwnerID = &owner
+		}
 	}
 }
 
@@ -101,6 +111,9 @@ func PredictRiskBulk(row BulkRow, c BulkChange) map[string]interface{} {
 		LifecyclePhase: RiskPhase(str("lifecycle_phase")),
 		Tags:           snapshotTags(row.Snapshot["tags"]),
 	}
+	if id, err := uuid.Parse(str("owner_id")); err == nil {
+		r.OwnerID = &id
+	}
 	r.ApplyBulkChange(c)
 
 	after := make(map[string]interface{}, len(row.Snapshot))
@@ -116,6 +129,10 @@ func PredictRiskBulk(row BulkRow, c BulkChange) map[string]interface{} {
 		tags := make([]string, len(r.Tags))
 		copy(tags, r.Tags)
 		after["tags"] = tags
+	case BulkActionSetOwner:
+		if r.OwnerID != nil {
+			after["owner_id"] = r.OwnerID.String()
+		}
 	}
 	return after
 }

@@ -34,12 +34,15 @@ func NewBulkHandler(engine *bulkapp.Engine) *BulkHandler {
 type bulkRequestInput struct {
 	// Action is read only by the preview, which needs to know WHICH change to
 	// project. The apply routes take it from the route instead — see Apply.
-	Action string   `json:"action" validate:"omitempty,oneof=change_status delete add_tags remove_tags"`
+	Action string   `json:"action" validate:"omitempty,oneof=change_status delete add_tags remove_tags set_owner"`
 	IDs    []string `json:"ids" validate:"required,min=1,max=100,dive,uuid"`
 	Status string   `json:"status" validate:"omitempty,max=64"`
 	// Tags are the labels add_tags and remove_tags act on.
-	Tags          []string `json:"tags" validate:"omitempty,max=50,dive,max=100"`
-	Justification string   `json:"justification" validate:"omitempty,max=1000"`
+	Tags []string `json:"tags" validate:"omitempty,max=50,dive,max=100"`
+	// OwnerID is the target user of set_owner: the owner is validated as an
+	// active member of the caller's tenant by the engine, not here.
+	OwnerID       string `json:"owner_id" validate:"omitempty,uuid"`
+	Justification string `json:"justification" validate:"omitempty,max=1000"`
 	// Fingerprint is what Preview returned. Sent back on apply so a selection
 	// that moved underneath the user is refused rather than silently applied.
 	Fingerprint string `json:"fingerprint" validate:"omitempty,hexadecimal,len=64"`
@@ -54,12 +57,21 @@ func (in *bulkRequestInput) toRequest() (bulkapp.Request, error) {
 		}
 		ids = append(ids, id)
 	}
+	var owner *uuid.UUID
+	if in.OwnerID != "" {
+		id, err := uuid.Parse(in.OwnerID)
+		if err != nil {
+			return bulkapp.Request{}, domain.NewValidationError("owner_id is not a uuid")
+		}
+		owner = &id
+	}
 	return bulkapp.Request{
 		IDs: ids,
 		Change: domain.BulkChange{
 			Action:        domain.BulkAction(in.Action),
 			Status:        in.Status,
 			Tags:          in.Tags,
+			OwnerID:       owner,
 			Justification: in.Justification,
 		},
 		Fingerprint: in.Fingerprint,

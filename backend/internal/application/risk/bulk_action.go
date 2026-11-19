@@ -37,13 +37,9 @@ type BulkActionType string
 const (
 	BulkActionChangeStatus BulkActionType = "change_status"
 	BulkActionAssignTo     BulkActionType = "assign_to"
-	// BulkActionSetOwner writes the risk owner (owner_id), the slot the register's
-	// Owner column shows. assign_to writes the legacy assigned_to column and is
-	// unchanged.
-	BulkActionSetOwner    BulkActionType = "set_owner"
-	BulkActionAddTags     BulkActionType = "add_tags"
-	BulkActionRemoveTags  BulkActionType = "remove_tags"
-	BulkActionDeleteRisks BulkActionType = "delete"
+	BulkActionAddTags      BulkActionType = "add_tags"
+	BulkActionRemoveTags   BulkActionType = "remove_tags"
+	BulkActionDeleteRisks  BulkActionType = "delete"
 )
 
 // MaxBulkActionItems caps one request. The cap is what makes a synchronous
@@ -58,7 +54,6 @@ type BulkActionRequest struct {
 	// Action-specific parameters.
 	Status        *domain.RiskStatus `json:"status,omitempty"`        // change_status
 	AssignToID    *uuid.UUID         `json:"assign_to_id,omitempty"`  // assign_to
-	OwnerID       *uuid.UUID         `json:"owner_id,omitempty"`      // set_owner
 	Tags          []string           `json:"tags,omitempty"`          // add_tags / remove_tags
 	Justification string             `json:"justification,omitempty"` // recorded on the audit entry
 }
@@ -101,16 +96,6 @@ type BulkActionUseCase struct {
 	riskRepo domain.RiskRepository
 	journal  AuditJournal
 	notices  NoticeDeliverer
-	// ownership validates that a new owner is a member of the tenant, and tells
-	// them. Required by set_owner: without it that action is refused.
-	ownership OwnershipManager
-}
-
-// WithOwnership attaches the tenant-membership check and notifier used by
-// set_owner.
-func (uc *BulkActionUseCase) WithOwnership(m OwnershipManager) *BulkActionUseCase {
-	uc.ownership = m
-	return uc
 }
 
 // WithNotices tells each risk's owner when a bulk status change moves it
@@ -205,9 +190,6 @@ func (uc *BulkActionUseCase) Execute(
 				return nil
 			})
 
-	case BulkActionSetOwner:
-		return uc.setOwner(ctx, tenantID, ids, performedBy, input)
-
 	case BulkActionAddTags:
 		if len(input.Tags) == 0 {
 			return nil, domain.NewValidationError("tags are required for add_tags action")
@@ -239,113 +221,6 @@ func (uc *BulkActionUseCase) Execute(
 
 	default:
 		return nil, domain.NewValidationError(fmt.Sprintf("unknown action type: %s", input.Type))
-	}
-}
-
-// setOwner writes owner_id on every risk, exactly as a single-risk owner change
-// does (the same OwnershipPatch and the same membership check). The target is
-// validated BEFORE the transaction opens, so a user outside the tenant, or one
-// that does not exist, writes nothing; the notice goes out only after commit.
-func (uc *BulkActionUseCase) setOwner(
-	ctx context.Context,
-	tenantID uuid.UUID,
-	ids []uuid.UUID,
-	performedBy uuid.UUID,
-	input BulkActionRequest,
-) (*BulkActionResult, error) {
-	if input.OwnerID == nil || *input.OwnerID == uuid.Nil {
-		return nil, domain.NewValidationError("owner_id is required for set_owner action")
-	}
-	if uc.ownership == nil {
-		return nil, domain.NewInternalError("ownership validation is not configured")
-	}
-	owner := *input.OwnerID
-	patch := domain.OwnershipPatch{Owner: domain.NullableUUID{Present: true, Value: &owner}}
-
-	// Membership check against the tenant (ErrValidation when the user is not a
-	// member). The scratch block is discarded.
-	if _, err := uc.ownership.Apply(ctx, tenantID, &domain.Ownership{}, patch, performedBy); err != nil {
-		return nil, err
-	}
-
-	var order []uuid.UUID
-	changes := map[uuid.UUID][]domain.OwnershipChange{}
-	titles := map[uuid.UUID]string{}
-	result, err := uc.apply(ctx, tenantID, ids, performedBy, input,
-		fmt.Sprintf("bulk owner change to %s", owner),
-		func(r *domain.Risk) error {
-			before := r.Ownership
-			patch.Apply(&r.Ownership)
-			if _, seen := changes[r.ID]; !seen {
-				order = append(order, r.ID)
-			}
-			changes[r.ID] = domain.DiffOwnership(before, r.Ownership, performedBy)
-			titles[r.ID] = r.Title
-			return nil
-		})
-	if err != nil {
-		return nil, err
-	}
-	uc.announceOwner(ctx, tenantID, owner, performedBy, order, changes, titles)
-	return result, nil
-}
-
-// announceOwner tells the new owner once per batch, after commit. One risk
-// keeps the single-risk wording; several risks become ONE notice ("N risks have
-// been assigned to you"), so a 100-risk request is one email, not a hundred.
-// Nobody is told about their own action, nor about a risk whose owner did not
-// actually change.
-func (uc *BulkActionUseCase) announceOwner(
-	ctx context.Context,
-	tenantID, owner, actor uuid.UUID,
-	order []uuid.UUID,
-	changes map[uuid.UUID][]domain.OwnershipChange,
-	titles map[uuid.UUID]string,
-) {
-	if owner == actor {
-		return
-	}
-	var moved []uuid.UUID
-	for _, id := range order {
-		if len(changes[id]) > 0 {
-			moved = append(moved, id)
-		}
-	}
-	switch {
-	case len(moved) == 0:
-		return
-	case len(moved) == 1:
-		uc.ownership.Notify(ctx, tenantID, changes[moved[0]], domain.OwnershipSubject{
-			ResourceType: "risk", ResourceID: moved[0], Title: titles[moved[0]], Locale: "fr",
-		})
-	default:
-		if uc.notices == nil {
-			return
-		}
-		n := len(moved)
-		_ = uc.notices.Deliver(ctx, domain.Notice{
-			TenantID:     tenantID,
-			UserID:       owner,
-			Type:         domain.NotificationTypeActionAssigned,
-			ResourceType: "risk",
-			Compose: func(locale string) domain.NoticeMessage {
-				return ownerBatchNoticeCopy(locale, n)
-			},
-		})
-	}
-}
-
-// ownerBatchNoticeCopy words the one notice a bulk owner change sends.
-func ownerBatchNoticeCopy(locale string, n int) domain.NoticeMessage {
-	if locale == "en" {
-		return domain.NoticeMessage{
-			Subject: fmt.Sprintf("%d risks have been assigned to you", n),
-			Lines:   []string{fmt.Sprintf("You have been made owner of %d risks. You answer for their outcome.", n)},
-		}
-	}
-	return domain.NoticeMessage{
-		Subject: fmt.Sprintf("%d risques vous ont été attribués", n),
-		Lines:   []string{fmt.Sprintf("Vous êtes désormais responsable de %d risques. Vous répondez de leur issue.", n)},
 	}
 }
 

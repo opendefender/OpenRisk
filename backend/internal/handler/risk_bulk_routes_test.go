@@ -82,7 +82,27 @@ func (r *legacyRiskRepo) BulkApply(_ context.Context, _ uuid.UUID, ids []uuid.UU
 	return []domain.RiskMutation{{RiskID: ids[0]}}, nil
 }
 
+// tenantMembers is the ownership manager of the fixture: only `member` belongs
+// to the fixture's tenant.
+type tenantMembers struct {
+	tenant, member uuid.UUID
+}
+
+func (m tenantMembers) Apply(_ context.Context, tenant uuid.UUID, block *domain.Ownership, patch domain.OwnershipPatch, actor uuid.UUID) ([]domain.OwnershipChange, error) {
+	for _, id := range patch.CandidateIDs() {
+		if tenant != m.tenant || id != m.member {
+			return nil, domain.NewValidationError("user is not a member of this organization")
+		}
+	}
+	before := *block
+	patch.Apply(block)
+	return domain.DiffOwnership(before, *block, actor), nil
+}
+func (m tenantMembers) Notify(context.Context, uuid.UUID, []domain.OwnershipChange, domain.OwnershipSubject) {
+}
+
 type riskBulkFixture struct {
+	member uuid.UUID
 	app    *fiber.App
 	store  *countingRiskStore
 	legacy *legacyRiskRepo
@@ -112,15 +132,18 @@ func newRiskBulkApp(t *testing.T, perms ...string) *riskBulkFixture {
 	riskHandler := (&RiskHandler{}).WithBulkAction(risk.NewBulkActionUseCase(legacy, nil))
 	protected.Post("/risks/bulk", riskUpdate, riskHandler.BulkAction)
 
-	riskBulk := NewBulkHandler(bulkapp.New(store, nil))
+	member := uuid.New()
+	riskBulk := NewBulkHandler(bulkapp.New(store, nil).
+		WithChangeValidator(risk.BulkOwnerValidator(tenantMembers{tenant: tenant, member: member})))
 	protected.Get("/risks/bulk/capabilities", riskRead, riskBulk.Capabilities)
 	protected.Post("/risks/bulk/preview", riskRead, riskBulk.Preview)
 	protected.Post("/risks/bulk/change-status", riskUpdate, riskBulk.Apply(domain.BulkActionChangeStatus))
 	protected.Post("/risks/bulk/add-tags", riskUpdate, riskBulk.Apply(domain.BulkActionAddTags))
 	protected.Post("/risks/bulk/remove-tags", riskUpdate, riskBulk.Apply(domain.BulkActionRemoveTags))
+	protected.Post("/risks/bulk/set-owner", riskUpdate, riskBulk.Apply(domain.BulkActionSetOwner))
 	protected.Post("/risks/bulk/delete", riskDelete, riskBulk.Apply(domain.BulkActionDelete))
 
-	return &riskBulkFixture{app: app, store: store, legacy: legacy, tenant: tenant, id: id}
+	return &riskBulkFixture{member: member, app: app, store: store, legacy: legacy, tenant: tenant, id: id}
 }
 
 func (f *riskBulkFixture) do(t *testing.T, method, path, body string) (int, map[string]interface{}) {
@@ -226,7 +249,60 @@ func TestRiskBulkRoutes_CapabilitiesAreTheRegistersOwn(t *testing.T) {
 	require.Equal(t, fiber.StatusOK, status)
 	assert.Equal(t, "risk", body["entity_type"])
 	assert.ElementsMatch(t,
-		[]interface{}{"change_status", "add_tags", "remove_tags", "delete"}, body["actions"])
+		[]interface{}{"change_status", "add_tags", "remove_tags", "set_owner", "delete"}, body["actions"])
+}
+
+// #913 — set_owner is governed like the other actions: it sits behind
+// risks:update, previews without writing, and refuses an owner who is not a
+// member of the caller's tenant on BOTH preview and apply.
+func TestRiskBulkRoutes_SetOwner_Success(t *testing.T) {
+	f := newRiskBulkApp(t, "risks:read", "risks:update")
+	owner := `"owner_id":"` + f.member.String() + `"`
+
+	status, prev := f.do(t, "POST", "/api/v1/risks/bulk/preview", `{`+f.ids()+`,"action":"set_owner",`+owner+`}`)
+	require.Equal(t, fiber.StatusOK, status, "%v", prev)
+	assert.EqualValues(t, 1, prev["found"])
+	assert.Equal(t, "set_owner", prev["action"])
+	assert.Zero(t, f.store.applies, "the preview writes nothing")
+
+	status, body := f.do(t, "POST", "/api/v1/risks/bulk/set-owner",
+		`{`+f.ids()+`,`+owner+`,"fingerprint":"`+prev["fingerprint"].(string)+`"}`)
+	assert.Equal(t, fiber.StatusOK, status, "%v", body)
+	assert.Equal(t, 1, f.store.applies)
+}
+
+func TestRiskBulkRoutes_SetOwner_RejectsAnOwnerOutsideTheTenant(t *testing.T) {
+	f := newRiskBulkApp(t, "risks:read", "risks:update")
+	stranger := `"owner_id":"` + uuid.NewString() + `"`
+
+	status, _ := f.do(t, "POST", "/api/v1/risks/bulk/preview", `{`+f.ids()+`,"action":"set_owner",`+stranger+`}`)
+	assert.Equal(t, fiber.StatusBadRequest, status, "preview refuses it too")
+	status, _ = f.do(t, "POST", "/api/v1/risks/bulk/set-owner", `{`+f.ids()+`,`+stranger+`}`)
+	assert.Equal(t, fiber.StatusBadRequest, status)
+	assert.Zero(t, f.store.applies, "nothing written")
+}
+
+// An unknown risk id is the engine's 404, proven against real SQL in the
+// repository tests; here the request shape is checked.
+func TestRiskBulkRoutes_SetOwner_NotFound(t *testing.T) {
+	f := newRiskBulkApp(t, "risks:read", "risks:update")
+	status, prev := f.do(t, "POST", "/api/v1/risks/bulk/preview",
+		`{"ids":["`+uuid.NewString()+`"],"action":"set_owner","owner_id":"`+f.member.String()+`"}`)
+	require.Equal(t, fiber.StatusOK, status)
+	assert.EqualValues(t, 0, prev["found"], "an unknown id is reported missing before the user commits")
+	assert.Len(t, prev["missing"], 1)
+
+	status, _ = f.do(t, "POST", "/api/v1/risks/bulk/set-owner", `{`+f.ids()+`,"owner_id":"nope"}`)
+	assert.Equal(t, fiber.StatusBadRequest, status)
+	status, _ = f.do(t, "POST", "/api/v1/risks/bulk/set-owner", `{`+f.ids()+`}`)
+	assert.Equal(t, fiber.StatusBadRequest, status, "owner_id is required")
+}
+
+func TestRiskBulkRoutes_SetOwner_Unauthorized(t *testing.T) {
+	f := newRiskBulkApp(t, "risks:read", "risks:delete")
+	status, _ := f.do(t, "POST", "/api/v1/risks/bulk/set-owner", `{`+f.ids()+`,"owner_id":"`+f.member.String()+`"}`)
+	assert.Equal(t, fiber.StatusForbidden, status, "needs risks:update")
+	assert.Zero(t, f.store.applies)
 }
 
 // Criterion 5 — the legacy route announces its end.
@@ -259,6 +335,7 @@ func TestRiskBulkRoutes_MainGoMountsEachActionBehindItsPermission(t *testing.T) 
 		`Post("/risks/bulk/change-status"`: "riskUpdate",
 		`Post("/risks/bulk/add-tags"`:      "riskUpdate",
 		`Post("/risks/bulk/remove-tags"`:   "riskUpdate",
+		`Post("/risks/bulk/set-owner"`:     "riskUpdate",
 		`Post("/risks/bulk/delete"`:        "riskDelete",
 	}
 	for route, guard := range want {

@@ -97,3 +97,52 @@ func TestRiskBulkRow_LabelFallsBackToName(t *testing.T) {
 	assert.Equal(t, "by-name", RiskBulkRow(&Risk{Name: "by-name"}).Label)
 	assert.Equal(t, "by-title", RiskBulkRow(&Risk{Name: "n", Title: "by-title"}).Label)
 }
+
+// #913 — set_owner on the governed engine.
+
+func TestBulkSetOwner_Domain(t *testing.T) {
+	owner := uuid.New()
+	change := BulkChange{Action: BulkActionSetOwner, OwnerID: &owner}
+
+	assert.Contains(t, RiskBulkActions, BulkActionSetOwner)
+	require.NoError(t, change.Validate())
+	require.NoError(t, ValidateRiskBulkChange(change))
+
+	// owner_id is required, and not the nil uuid.
+	for _, bad := range []BulkChange{
+		{Action: BulkActionSetOwner},
+		{Action: BulkActionSetOwner, OwnerID: &uuid.UUID{}},
+	} {
+		err := bad.Validate()
+		require.Error(t, err)
+		assert.True(t, errors.Is(err, ErrValidation))
+	}
+
+	// The write goes to owner_id, never to the legacy assigned_to, and the row
+	// does not alias the change.
+	legacy := uuid.New()
+	r := &Risk{AssignedTo: &legacy}
+	r.ApplyBulkChange(change)
+	require.NotNil(t, r.OwnerID)
+	assert.Equal(t, owner, *r.OwnerID)
+	assert.Equal(t, legacy, *r.AssignedTo)
+	owner2 := uuid.New()
+	change.OwnerID = &owner2
+	assert.Equal(t, owner, *r.OwnerID, "changing the request afterwards must not move the row")
+
+	// The preview predicts exactly the write.
+	oldOwner := uuid.New()
+	row := RiskBulkRow(&Risk{ID: uuid.New(), Title: "t", Ownership: Ownership{OwnerID: &oldOwner}})
+	after := PredictRiskBulk(row, BulkChange{Action: BulkActionSetOwner, OwnerID: &owner})
+	assert.Equal(t, owner.String(), after["owner_id"])
+	assert.Equal(t, oldOwner.String(), row.Snapshot["owner_id"], "the before snapshot is untouched")
+	assert.Equal(t, []string{"owner_id"}, BulkChangedFields(row.Snapshot, after))
+
+	// A risk already owned by the target is unchanged, so not "affected".
+	same := RiskBulkRow(&Risk{ID: uuid.New(), Ownership: Ownership{OwnerID: &owner}})
+	assert.Empty(t, BulkChangedFields(same.Snapshot, PredictRiskBulk(same, BulkChange{Action: BulkActionSetOwner, OwnerID: &owner})))
+
+	// A risk with no owner reads as null before.
+	none := RiskBulkRow(&Risk{ID: uuid.New()})
+	assert.Equal(t, []string{"owner_id"}, BulkChangedFields(none.Snapshot, PredictRiskBulk(none, BulkChange{Action: BulkActionSetOwner, OwnerID: &owner})))
+}

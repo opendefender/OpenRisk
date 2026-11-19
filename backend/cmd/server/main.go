@@ -1529,7 +1529,7 @@ func main() {
 		// implementation accepted a performedBy and discarded it, so a supervisor
 		// asking "who reassigned these and when" had no answer. auditChainRepo is
 		// the same hash-chained, append-only store the rest of the trail uses.
-		WithBulkAction(risk.NewBulkActionUseCase(riskRepo, auditChainRepo).WithNotices(requestNoticeDispatcher).WithOwnership(ownershipService)).
+		WithBulkAction(risk.NewBulkActionUseCase(riskRepo, auditChainRepo).WithNotices(requestNoticeDispatcher)).
 		// #755 — CSV import: every row validated first, then all of them written
 		// in one transaction through CreateRiskUseCase, or none. The plan cap is
 		// checked against the whole file, not just the first row.
@@ -1631,13 +1631,22 @@ func main() {
 	// "bulk" is never parsed as a risk id.
 	riskBulk := handlers.NewBulkHandler(
 		bulkapp.New(repository.NewRiskBulkStore(database.DB), auditChainRepo).
-			WithAfterApply(risk.BulkStateNotices(riskRepo, requestNoticeDispatcher)))
+			// #913 set_owner: the new owner must be an active member of the
+			// caller's tenant (same check as a single-risk owner change), on preview
+			// and apply, and is told once per batch.
+			WithChangeValidator(risk.BulkOwnerValidator(ownershipService)).
+			WithAfterApply(bulkapp.ChainAfterApply(
+				risk.BulkStateNotices(riskRepo, requestNoticeDispatcher),
+				risk.BulkOwnerNotices(ownershipService, requestNoticeDispatcher))))
 	riskRead := middleware.RequirePermission("risks:read")
 	protected.Get("/risks/bulk/capabilities", riskRead, riskBulk.Capabilities)
 	protected.Post("/risks/bulk/preview", riskRead, riskBulk.Preview)
 	protected.Post("/risks/bulk/change-status", riskUpdate, riskBulk.Apply(domain.BulkActionChangeStatus))
 	protected.Post("/risks/bulk/add-tags", riskUpdate, riskBulk.Apply(domain.BulkActionAddTags))
 	protected.Post("/risks/bulk/remove-tags", riskUpdate, riskBulk.Apply(domain.BulkActionRemoveTags))
+	// #913 — the register's Owner column. Same permission as the single-risk
+	// owner change (/risks/:id/transfer-owner).
+	protected.Post("/risks/bulk/set-owner", riskUpdate, riskBulk.Apply(domain.BulkActionSetOwner))
 	protected.Post("/risks/bulk/delete", riskDelete, riskBulk.Apply(domain.BulkActionDelete))
 
 	protected.Post("/risks", riskCreate, capRisks, riskHandler.CreateRisk)

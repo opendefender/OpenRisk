@@ -41,9 +41,11 @@ import (
 //
 // The risk register (#599) does carry Tags, so add_tags and remove_tags join
 // the set — they are #581's actions, not new ones, and only the risk store
-// declares them. assign_to is still absent: the risk register's single-row
-// assignment validates the assignee's tenant membership through the ownership
-// manager, and a bulk path without that check would be a weaker copy of it.
+// declares them. assign_to is still absent. set_owner (#913) is the owner write
+// the register actually shows: the single-row owner change validates the new
+// owner's tenant membership through the ownership manager, and the engine runs
+// that same check before a bulk set_owner (preview and apply), so the bulk path
+// is not a weaker copy of it.
 // ---------------------------------------------------------------------------
 
 // BulkAction is the closed set of generalised bulk actions.
@@ -54,6 +56,11 @@ const (
 	BulkActionDelete       BulkAction = "delete"
 	BulkActionAddTags      BulkAction = "add_tags"
 	BulkActionRemoveTags   BulkAction = "remove_tags"
+	// BulkActionSetOwner writes the risk owner (owner_id). Only the risk register
+	// declares it, and its tenant-membership check runs in the engine's change
+	// validator (see bulk.ChangeValidator), which has the context the store port
+	// has not.
+	BulkActionSetOwner BulkAction = "set_owner"
 )
 
 // MaxBulkItems caps one request, carried over from #581 unchanged. The cap is
@@ -68,6 +75,8 @@ type BulkChange struct {
 	Status string `json:"status,omitempty"`
 	// Tags are the labels add_tags and remove_tags act on.
 	Tags []string `json:"tags,omitempty"`
+	// OwnerID is the target user of set_owner.
+	OwnerID *uuid.UUID `json:"owner_id,omitempty"`
 	// Justification is recorded on every audit entry the change produces.
 	Justification string `json:"justification,omitempty"`
 }
@@ -89,6 +98,11 @@ func (c BulkChange) Validate() error {
 		}
 		if len(c.Tags) == 0 {
 			return NewValidationError(fmt.Sprintf("tags are required for %s", c.Action))
+		}
+		return nil
+	case BulkActionSetOwner:
+		if c.OwnerID == nil || *c.OwnerID == uuid.Nil {
+			return NewValidationError("owner_id is required for set_owner")
 		}
 		return nil
 	case BulkActionDelete:

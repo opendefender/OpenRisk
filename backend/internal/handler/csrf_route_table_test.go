@@ -271,6 +271,7 @@ var mutatingRouteDefences = map[string]csrfDefence{
 	"POST /risks/bulk/change-status":                                              viaProtected,
 	"POST /risks/bulk/delete":                                                     viaProtected,
 	"POST /risks/bulk/preview":                                                    viaProtected,
+	"POST /risks/bulk/set-owner":                                                  viaProtected,
 	"POST /risks/bulk/remove-tags":                                                viaProtected,
 	"PUT /risk-scoring/weights":                                                   viaProtected,
 	"DELETE /risks/:id":                                                           viaProtected,

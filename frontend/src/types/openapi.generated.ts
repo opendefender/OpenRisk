@@ -2867,6 +2867,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/risks/bulk/set-owner": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Apply "set_owner" to many risks, all or none
+         * @description Writes the owner (owner_id, the register's Owner column) of every named risk, or of none. The new owner must be an active member of the caller's tenant, checked on preview and on apply, exactly as for a single-risk owner change. One audit entry per modified risk; the new owner receives one notice per batch. Risks from another tenant answer 404, identical to fabricated ids. Requires `risks:update`.
+         */
+        post: operations["risksBulkSetOwner"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/risks/bulk/add-tags": {
         parameters: {
             query?: never;
@@ -5074,10 +5094,10 @@ export interface components {
         };
         BulkRiskActionInput: {
             /**
-             * @description `delete` requires risks:delete (#1423); prefer POST /risks/bulk/delete. `set_owner` writes owner_id (the register's Owner column); `assign_to` writes the legacy assigned_to column.
+             * @description `delete` requires risks:delete (#1423); prefer POST /risks/bulk/delete. `assign_to` writes the legacy assigned_to column; to set the register's Owner column use POST /risks/bulk/set-owner.
              * @enum {string}
              */
-            type: "change_status" | "assign_to" | "set_owner" | "add_tags" | "remove_tags" | "delete";
+            type: "change_status" | "assign_to" | "add_tags" | "remove_tags" | "delete";
             /** @description Repeated ids are de-duplicated before the batch runs. */
             risk_ids: string[];
             /** @description Required for change_status. */
@@ -5110,14 +5130,19 @@ export interface components {
             /** @example vulnerability */
             entity_type?: string;
             /** @description Only the actions this register can actually perform. Assets expose delete alone — domain.Asset has no Status, no Tags, and a free-text Owner, so nothing else from the frozen action set maps onto it. The tag actions exist only on the risk register. */
-            actions?: ("change_status" | "delete" | "add_tags" | "remove_tags")[];
+            actions?: ("change_status" | "set_owner" | "delete" | "add_tags" | "remove_tags")[];
         };
         BulkPreviewInput: {
             /** @enum {string} */
-            action: "change_status" | "delete" | "add_tags" | "remove_tags";
+            action: "change_status" | "set_owner" | "delete" | "add_tags" | "remove_tags";
             ids: string[];
             /** @description The target value, for change_status. */
             status?: string;
+            /**
+             * Format: uuid
+             * @description The new owner, for set_owner. Must be an active member of the caller's tenant.
+             */
+            owner_id?: string;
             /** @description The labels, for add_tags and remove_tags. */
             tags?: string[];
         };
@@ -5126,6 +5151,11 @@ export interface components {
             ids: string[];
             /** @description The target value, for the change-status route. */
             status?: string;
+            /**
+             * Format: uuid
+             * @description The new owner, for set_owner. Must be an active member of the caller's tenant.
+             */
+            owner_id?: string;
             /** @description The labels, for the add-tags and remove-tags routes. */
             tags?: string[];
             /** @description Recorded on every audit entry the change produces. */
@@ -5161,7 +5191,7 @@ export interface components {
             /** @description Pass to the apply call to detect a selection that moved. */
             fingerprint?: string;
             /** @enum {string} */
-            action?: "change_status" | "delete" | "add_tags" | "remove_tags";
+            action?: "change_status" | "set_owner" | "delete" | "add_tags" | "remove_tags";
         };
         BulkResult: {
             total?: number;
@@ -13454,6 +13484,58 @@ export interface operations {
                 };
             };
             /** @description Validation error — empty selection, over 100 items, or an invalid status or tag */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The caller lacks risks:update, or the session carries no tenant */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description An id did not resolve — absent, or another tenant's, deliberately indistinguishable. Nothing was modified. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The selection changed since it was previewed. Nothing was modified. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    risksBulkSetOwner: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BulkApplyInput"];
+            };
+        };
+        responses: {
+            /** @description The batch was applied in full */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BulkResult"];
+                };
+            };
+            /** @description Validation error — empty selection, over 100 items, missing owner_id, or an owner who is not an active member of the tenant */
             400: {
                 headers: {
                     [name: string]: unknown;
