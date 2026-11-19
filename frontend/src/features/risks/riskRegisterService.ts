@@ -34,12 +34,12 @@ export function toTrend(raw: unknown): RiskTrend | null {
   }
 }
 
-/** The API's page cap for GET /risks (risk_handler: limit <= 200). */
-export const LIST_PAGE_LIMIT = 200;
+/** The API's page cap for GET /risks (RiskQuery.Sanitize clamps limit to 100). */
+export const LIST_PAGE_LIMIT = 100;
 
 export const riskRegisterService = {
   /**
-   * Every risk matching `params`, read page by page (200 at a time) until the
+   * Every risk matching `params`, read page by page (100 at a time) until the
    * server's `total` is reached. Used by the export, which must write the whole
    * view and not the loaded page. Stops on an empty page, so a total that
    * shrinks under us cannot loop.

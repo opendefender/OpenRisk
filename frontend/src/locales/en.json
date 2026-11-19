@@ -2519,7 +2519,8 @@
         "planned": "To plan"
       },
       "loadFailedTitle": "Risk unavailable",
-      "loadFailedBody": "This risk could not be loaded. It may have been deleted."
+      "loadFailedBody": "This risk could not be loaded. It may have been deleted.",
+      "financialInputUnit": "Entered in {unit} (storage unit)."
     }
   }
 }

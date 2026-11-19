@@ -2519,7 +2519,8 @@
         "planned": "À planifier"
       },
       "loadFailedTitle": "Risque indisponible",
-      "loadFailedBody": "Ce risque n’a pas pu être chargé. Il a peut-être été supprimé."
+      "loadFailedBody": "Ce risque n’a pas pu être chargé. Il a peut-être été supprimé.",
+      "financialInputUnit": "Saisie en {unit} (unité de stockage)."
     }
   }
 }

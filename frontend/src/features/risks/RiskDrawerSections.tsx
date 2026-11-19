@@ -8,7 +8,7 @@
 // drawer's "Plus" tab. The redesigned tabs (Aperçu, Mitigations, Historique)
 // live in RiskDrawer.tsx.
 
-import { useFormat, usePreferredDate } from '../../hooks/useI18n';
+import { useFormat, useI18n, usePreferredDate } from '../../hooks/useI18n';
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -740,6 +740,7 @@ export function DrawerFinancial({ r }: { r: UiRisk }) {
   );
   const [busy, setBusy] = useState(false);
   const fmt = useFormat();
+  const { t } = useI18n();
 
   // Money goes through `Intl` in the reader's locale: XAF prints "FCFA" with no
   // minor unit and USD prints "$" with cents suppressed, in both languages.
@@ -880,6 +881,13 @@ export function DrawerFinancial({ r }: { r: UiRisk }) {
           <div className="text-[11px] font-semibold uppercase tracking-[.05em] text-ink-muted mb-2">
             {tr('Pertes', 'Losses')}
           </div>
+          {/* The cards above show the display currency; what is typed here is stored
+              in XAF. Said once, only when the two differ. */}
+          {money.code !== 'XAF' && (
+            <p className="m-0 mb-2 text-[11.5px] text-ink-muted" data-testid="financial-input-unit">
+              {t('riskRegister.drawer.financialInputUnit', { unit })}
+            </p>
+          )}
           <div className="grid grid-cols-2 gap-3 mb-3">
             {field(tr(`SLE explicite (${unit})`, `Explicit SLE (${unit})`), sle, setSle)}
             {field(tr('ARO — Fréquence / an', 'ARO — Frequency / yr'), aro, setAro, '0.1')}

@@ -19,7 +19,7 @@
 // URL: `f.scope` is the tab, `f.criticality` / `f.status` / `f.owner_id` the
 // filters, `view=matrix` the layout (kept for the dashboard's matrix link).
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
@@ -212,22 +212,29 @@ export function RiskRegisterPage() {
     [locale, money, t],
   );
   // The header's "Exporter" writes the WHOLE current view, not the loaded page:
-  // the list API is read 200 rows at a time until its total, with the button
+  // the list API is read 100 rows at a time until its total, with the button
   // busy meanwhile, and the toast states the number actually written.
   const [exporting, setExporting] = useState(false);
+  // Leaving the page abandons an export in flight: its requests are cancelled,
+  // and a cancellation is not an error to report.
+  const exportAbort = useRef<AbortController | null>(null);
+  useEffect(() => () => exportAbort.current?.abort(), []);
   const exportView = async () => {
     if (exporting) return;
+    const controller = new AbortController();
+    exportAbort.current = controller;
     setExporting(true);
     try {
-      const all = await riskRegisterService.listAll(params);
+      const all = await riskRegisterService.listAll(params, undefined, controller.signal);
+      if (controller.signal.aborted) return;
       exportRows(
         all.map((r) => mapRisk(r, locale)),
         'risques',
       );
     } catch {
-      toast.error(t('riskRegister.export.failed'));
+      if (!controller.signal.aborted) toast.error(t('riskRegister.export.failed'));
     } finally {
-      setExporting(false);
+      if (!controller.signal.aborted) setExporting(false);
     }
   };
   const exportRows = (rows: readonly UiRisk[], filename: string) => {

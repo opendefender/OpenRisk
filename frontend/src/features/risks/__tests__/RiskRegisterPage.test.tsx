@@ -55,13 +55,14 @@ vi.mock('../useRiskRegisterData', async () => {
     ...actual,
     useRegisterMoney: () => ({
       entitled: true,
-      currency: 'FCFA',
-      code: 'XAF',
+      currency: moneyFixture.currency,
+      code: moneyFixture.code,
       toDisplay: (xaf: number) => xaf,
     }),
   };
 });
 
+const moneyFixture = vi.hoisted(() => ({ code: 'XAF', currency: 'FCFA' }));
 const get = vi.fn();
 const post = vi.fn();
 const patch = vi.fn();
@@ -127,6 +128,20 @@ function route(url: string, config?: { params?: Record<string, number> }) {
             control_code: 'A.5.15',
           },
         ],
+      },
+    });
+  if (url === '/risks/r1/financial')
+    return Promise.resolve({
+      data: {
+        sle: { xaf: 1, usd: 1 },
+        downtime_cost: { xaf: 1, usd: 1 },
+        ale: { xaf: 1_000_000, usd: 1600 },
+        ale_average: { xaf: 1, usd: 1 },
+        ale_worst: { xaf: 1, usd: 1 },
+        ale_after: { xaf: 1, usd: 1 },
+        sle_basis: 'reference',
+        rosi: 0,
+        rosi_computable: false,
       },
     });
   if (/^\/risks\/[^/]+\/transitions$/.test(url)) return Promise.resolve({ data: transitions });
@@ -484,7 +499,7 @@ describe('the matrix', () => {
   it('opens from the dashboard link (?view=matrix) and asks for the largest page', async () => {
     renderPage('/risks?view=matrix');
     const matrix = await screen.findByTestId('risk-matrix');
-    expect(listParams()[0]).toMatchObject({ page: 1, limit: 200 });
+    expect(listParams()[0]).toMatchObject({ page: 1, limit: 100 });
     // P 0.62 → level 4, I 8 → level 4: the cell and its marker, in the one format.
     const marker = within(matrix).getByTestId('risk-marker-r1');
     expect(marker).toHaveTextContent('7,2');
@@ -513,7 +528,7 @@ describe('the matrix', () => {
       expect(listParams().at(-1)).toMatchObject({
         view: 'hot',
         criticality: 'critical',
-        limit: 200,
+        limit: 100,
       }),
     );
     expect(screen.getByTestId('risk-tab-hot')).toHaveAttribute('aria-selected', 'true');
@@ -797,6 +812,51 @@ describe('the drawer', () => {
   });
 });
 
+describe('round-2 review fixes', () => {
+  it('cancels an export in flight when the page is left, without an error toast (S-b)', async () => {
+    let signal: AbortSignal | undefined;
+    let fail: (e: Error) => void = () => {};
+    const { unmount } = renderPage();
+    await waitFor(() => expect(screen.getByTestId('risk-export')).toBeEnabled());
+    get.mockImplementation((url: string, config?: { signal?: AbortSignal }) => {
+      if (url !== '/risks') return route(url);
+      signal = config?.signal;
+      return new Promise((_resolve, reject) => {
+        fail = reject;
+      });
+    });
+    await userEvent.click(screen.getByTestId('risk-export'));
+    await waitFor(() => expect(signal).toBeDefined());
+    expect(signal?.aborted).toBe(false);
+    unmount();
+    expect(signal?.aborted).toBe(true);
+    fail(new Error('canceled'));
+    await new Promise((r) => setTimeout(r, 0));
+    expect(toast.error).not.toHaveBeenCalled();
+    expect(toast.success).not.toHaveBeenCalled();
+  });
+
+  it('says in which unit the financial inputs are typed when the display currency differs (W-b)', async () => {
+    moneyFixture.code = 'EUR';
+    moneyFixture.currency = 'EUR';
+    try {
+      renderPage('/risks?focus=r1&tab=financial');
+      const hint = await screen.findByTestId('financial-input-unit');
+      // Cards in EUR, inputs in the storage unit (XAF, written FCFA).
+      expect(hint).toHaveTextContent('Saisie en FCFA (unité de stockage).');
+    } finally {
+      moneyFixture.code = 'XAF';
+      moneyFixture.currency = 'FCFA';
+    }
+  });
+
+  it('gives no unit hint when the display currency is already the storage unit (W-b)', async () => {
+    renderPage('/risks?focus=r1&tab=financial');
+    await screen.findByText(/Quantification financière/);
+    expect(screen.queryByTestId('financial-input-unit')).not.toBeInTheDocument();
+  });
+});
+
 describe('round-1 review and live-pass fixes', () => {
   it('exports the WHOLE view, page by page, and says how many rows it wrote (W1)', async () => {
     rows = Array.from({ length: 450 }, (_, i) =>
@@ -821,8 +881,8 @@ describe('round-1 review and live-pass fixes', () => {
 
     await waitFor(() => expect(written.length).toBe(1));
     const calls = listParams();
-    expect(calls.map((p) => p.page)).toEqual([1, 2, 3]);
-    expect(calls.every((p) => p.limit === 200)).toBe(true);
+    expect(calls.map((p) => p.page)).toEqual([1, 2, 3, 4, 5]);
+    expect(calls.every((p) => p.limit === 100)).toBe(true);
     // Header + 450 rows, not the 50 that were on screen.
     expect(written[0].split('\n').length).toBe(451);
     expect(toast.success).toHaveBeenCalledWith('450 risques exportés en CSV');
@@ -839,7 +899,7 @@ describe('round-1 review and live-pass fixes', () => {
     );
     await userEvent.click(screen.getByTestId('risk-export'));
     await waitFor(() => expect(toast.error).toHaveBeenCalled());
-    expect(listParams()[0]).toMatchObject({ view: 'hot', criticality: 'critical', limit: 200 });
+    expect(listParams()[0]).toMatchObject({ view: 'hot', criticality: 'critical', limit: 100 });
     expect(toast.success).not.toHaveBeenCalled();
   });
 

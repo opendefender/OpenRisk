@@ -36,8 +36,8 @@ export const BANDS: readonly Criticality[] = ['critical', 'high', 'medium', 'low
 export const RISK_STATUSES = ['open', 'in_progress', 'mitigated', 'accepted', 'closed'] as const;
 export type RiskStatusValue = (typeof RISK_STATUSES)[number];
 
-/** Rows fetched in matrix mode: the API's page cap (risk_handler: limit <= 200). */
-export const MATRIX_LIMIT = 200;
+/** Rows fetched in matrix mode: the API's page cap (RiskQuery.Sanitize clamps limit to 100). */
+export const MATRIX_LIMIT = 100;
 
 /** Normalizes casing and refuses an unknown value: it falls back to "all". */
 export function parseView(raw: string | null | undefined): RiskView {
