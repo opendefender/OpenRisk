@@ -1126,10 +1126,10 @@ function BillingTab({ tr: _tr }: { tr: Tr }) {
   return <BillingPanel />;
 }
 
-// The danger zone shipped a "Delete organization" button wired to nothing: the
-// single most destructive control in the product was a <button> with no onClick.
-// It now calls DELETE /rbac/tenants/:id for real, behind an impact radiography,
-// and signs the user out afterwards — there is nothing left to be signed in to.
+// The danger zone once shipped a "Delete organization" button wired to nothing.
+// It is now DangerZonePanel: export first, exact-name confirmation, MFA code for
+// enrolled admins, and a 30-day cancelable grace window. Nothing is destroyed
+// synchronously.
 function DangerTab({ L, tr: _tr }: { L: ReturnType<typeof useUIStrings>; tr: Tr }) {
   return (
     <div>

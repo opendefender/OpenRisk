@@ -115,6 +115,7 @@ export function DangerZonePanel() {
 
       {/* Delete */}
       <div
+        data-testid="delete-org"
         className="rounded-[16px] p-[22px]"
         style={{
           border: '1px solid color-mix(in srgb, var(--danger) 35%, transparent)',
@@ -135,6 +136,7 @@ export function DangerZonePanel() {
           <strong className="text-ink">{orgName}</strong>
         </label>
         <input
+          data-testid="delete-org-confirm-name"
           value={confirmName}
           onChange={(e) => setConfirmName(e.target.value)}
           placeholder={orgName}
@@ -161,6 +163,7 @@ export function DangerZonePanel() {
         />
 
         <button
+          data-testid="delete-org-submit"
           onClick={submit}
           disabled={!nameOk || request.isPending}
           className="h-[38px] px-4 rounded-[10px] text-[13px] font-semibold disabled:opacity-50 disabled:pointer-events-none"
