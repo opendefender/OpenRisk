@@ -17,10 +17,10 @@
 
 export const ALPHA_CLASSES = [
   'bg-danger/10',
-  'bg-primary/10',
   'ring-primary/40',
   'ring-primary/50',
   'bg-accent/10',
+  'bg-primary/10',
   'bg-success/10',
   'bg-surface-1/5',
   'bg-warning/10',
@@ -41,5 +41,6 @@ export const ALPHA_CLASSES = [
   'border-warning/20',
   'border-warning/30',
   'ring-accent/30',
+  'ring-accent/40',
   'shadow-primary/20',
 ] as const;
