@@ -15,9 +15,10 @@ package compliance
 // Ce catalogue retient les obligations à la charge des opérateurs de réseaux, exploitants
 // de systèmes d'information, fournisseurs d'accès/de contenus et autorités de
 // certification. Les descriptions sont des reformulations synthétiques rédigées pour ce
-// produit ; la SourceReference cite l'article précis. À valider par un juriste avant usage
-// en audit réel : les codes d'article sont fiables (relevés dans le texte fourni), la
-// formulation reste à confirmer.
+// produit ; la SourceReference cite l'article précis. Les codes d'article ont été relevés
+// dans le texte fourni ; la formulation des descriptions n'est pas confirmée.
+//
+// Review status: see Catalog.Review in the register call below. This header makes no review claim.
 
 func init() {
 	register(Catalog{
@@ -26,6 +27,7 @@ func init() {
 		Version:     "2010",
 		Description: "Obligations de cybersécurité et de protection des réseaux, systèmes d'information et données personnelles au titre de la Loi n°2010/012 du 21 décembre 2010 (Cameroun).",
 		Available:   true,
+		Review:      Review{Status: ReviewUnreviewed},
 		Controls:    anticCMControls,
 	})
 }

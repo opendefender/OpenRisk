@@ -8220,7 +8220,7 @@ components:
     ComplianceCatalogSummary:
       type: object
       description: A regulatory control catalog available (or not yet available) for import.
-      required: [key, name, available, control_count]
+      required: [key, name, available, control_count, review]
       properties:
         key:
           type: string
@@ -8235,9 +8235,39 @@ components:
           type: string
         available:
           type: boolean
-          description: False for placeholder catalogs with no reviewed control content yet.
+          description: >
+            True when the catalog can be imported. It does not say the content was reviewed;
+            see review.status.
         control_count:
           type: integer
+        review:
+          $ref: '#/components/schemas/ComplianceCatalogReview'
+
+    ComplianceCatalogReview:
+      type: object
+      description: >
+        Sign-off state of a catalog's content against the regulatory text (D-120). Date,
+        reviewer, sources and gaps are empty while status is unreviewed.
+      required: [status, date, reviewer, sources, gaps]
+      properties:
+        status:
+          type: string
+          enum: [unreviewed, structure_reviewed, reviewed]
+        date:
+          type: string
+        reviewer:
+          type: string
+        sources:
+          type: array
+          items:
+            type: object
+            required: [document, url]
+            properties:
+              document: { type: string }
+              url: { type: string }
+        gaps:
+          type: array
+          items: { type: string }
 
     ImportCatalogInput:
       type: object

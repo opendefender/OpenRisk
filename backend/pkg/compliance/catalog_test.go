@@ -292,3 +292,144 @@ func TestCameroonDataProtection_IsWithdrawnPendingItsText(t *testing.T) {
 		t.Fatalf("the reconstruction ticket should be referenced, got %q", c.TrackingTicket)
 	}
 }
+
+// validateReview returns one message per violation of the Review contract (D-120), each naming
+// the catalog key and the offending field. Taking a Catalog keeps the failure cases testable
+// with synthetic catalogs, without touching the registry.
+//
+//   - Available => Status is one of the three known values (a catalog cannot be importable
+//     with the review state left blank).
+//   - structure_reviewed / reviewed => Date, Reviewer, at least one Source with a URL, and Gaps.
+//   - unreviewed => no sign-off fields: a reviewer or date on an unreviewed catalog is a
+//     sign-off nobody can have performed.
+func validateReview(c Catalog) []string {
+	var errs []string
+	r := c.Review
+	switch r.Status {
+	case ReviewUnreviewed:
+		if r.Date != "" || r.Reviewer != "" || len(r.Sources) > 0 || len(r.Gaps) > 0 {
+			errs = append(errs, fmt.Sprintf("catalog %q: Review has sign-off fields but Status is %q", c.Key, r.Status))
+		}
+	case ReviewStructureReviewed, ReviewReviewed:
+		if r.Date == "" {
+			errs = append(errs, fmt.Sprintf("catalog %q: Review.Date is missing for status %q", c.Key, r.Status))
+		}
+		if r.Reviewer == "" {
+			errs = append(errs, fmt.Sprintf("catalog %q: Review.Reviewer is missing for status %q", c.Key, r.Status))
+		}
+		hasURL := false
+		for _, s := range r.Sources {
+			if s.Document != "" && s.URL != "" {
+				hasURL = true
+			}
+		}
+		if !hasURL {
+			errs = append(errs, fmt.Sprintf("catalog %q: Review.Sources needs at least one source with a document and a URL for status %q", c.Key, r.Status))
+		}
+		if len(r.Gaps) == 0 {
+			errs = append(errs, fmt.Sprintf("catalog %q: Review.Gaps is missing for status %q", c.Key, r.Status))
+		}
+	case "":
+		if c.Available {
+			errs = append(errs, fmt.Sprintf("catalog %q: Available but Review.Status is empty", c.Key))
+		}
+	default:
+		errs = append(errs, fmt.Sprintf("catalog %q: Review.Status %q is not a known status", c.Key, r.Status))
+	}
+	return errs
+}
+
+// TestCatalogReviewContract enforces D-120 on the real registry, and proves the validator
+// itself rejects each violation on synthetic catalogs.
+func TestCatalogReviewContract(t *testing.T) {
+	t.Run("registry", func(t *testing.T) {
+		for _, cat := range List() {
+			for _, msg := range validateReview(cat) {
+				t.Error(msg)
+			}
+		}
+	})
+
+	// No review record is committed (#1469): until one is, every Available catalog is unreviewed.
+	t.Run("all_available_unreviewed_until_1469", func(t *testing.T) {
+		n := 0
+		for _, cat := range List() {
+			if !cat.Available {
+				continue
+			}
+			n++
+			if cat.Review.Status != ReviewUnreviewed {
+				t.Errorf("catalog %q is %q but no committed review record exists", cat.Key, cat.Review.Status)
+			}
+		}
+		if n != 17 {
+			t.Errorf("expected 17 available catalogs, got %d", n)
+		}
+	})
+
+	signed := func(status ReviewStatus) Catalog {
+		return Catalog{Key: "synthetic", Available: true, Review: Review{
+			Status:   status,
+			Date:     "2026-01-01",
+			Reviewer: "Test Reviewer",
+			Sources:  []ReviewSource{{Document: "Doc", URL: "https://example.test/doc"}},
+			Gaps:     []string{"none found in scope X"},
+		}}
+	}
+
+	t.Run("valid_blocks_pass", func(t *testing.T) {
+		for _, c := range []Catalog{
+			{Key: "u", Available: true, Review: Review{Status: ReviewUnreviewed}},
+			{Key: "p", Available: false},
+			signed(ReviewStructureReviewed),
+			signed(ReviewReviewed),
+		} {
+			if errs := validateReview(c); len(errs) != 0 {
+				t.Errorf("catalog %q should be valid, got %v", c.Key, errs)
+			}
+		}
+	})
+
+	t.Run("available_with_empty_status_fails_naming_key", func(t *testing.T) {
+		errs := validateReview(Catalog{Key: "no-status", Available: true})
+		if len(errs) != 1 || !strings.Contains(errs[0], `"no-status"`) || !strings.Contains(errs[0], "Review.Status") {
+			t.Errorf("expected one error naming the key and Review.Status, got %v", errs)
+		}
+	})
+
+	t.Run("unknown_status_fails", func(t *testing.T) {
+		c := signed("approved")
+		if errs := validateReview(c); len(errs) != 1 || !strings.Contains(errs[0], "not a known status") {
+			t.Errorf("got %v", errs)
+		}
+	})
+
+	t.Run("unreviewed_with_signoff_fields_fails", func(t *testing.T) {
+		c := signed(ReviewUnreviewed)
+		if errs := validateReview(c); len(errs) != 1 {
+			t.Errorf("expected one error, got %v", errs)
+		}
+	})
+
+	for _, status := range []ReviewStatus{ReviewStructureReviewed, ReviewReviewed} {
+		for _, field := range []string{"Review.Date", "Review.Reviewer", "Review.Sources", "Review.Gaps"} {
+			t.Run(fmt.Sprintf("%s_missing_%s_fails_naming_field", status, field), func(t *testing.T) {
+				c := signed(status)
+				switch field {
+				case "Review.Date":
+					c.Review.Date = ""
+				case "Review.Reviewer":
+					c.Review.Reviewer = ""
+				case "Review.Sources":
+					c.Review.Sources = []ReviewSource{{Document: "Doc"}} // a source without URL does not count
+				case "Review.Gaps":
+					c.Review.Gaps = nil
+				}
+				errs := validateReview(c)
+				if len(errs) != 1 || !strings.Contains(errs[0], field) || !strings.Contains(errs[0], `"synthetic"`) {
+					t.Errorf("expected one error naming %s and the key, got %v", field, errs)
+				}
+			})
+		}
+	}
+}

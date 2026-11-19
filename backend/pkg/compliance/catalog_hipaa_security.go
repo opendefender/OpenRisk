@@ -12,6 +12,8 @@ package compliance
 // here are original summaries of each Standard's intent; the required and
 // addressable implementation specifications under each Standard can be added as
 // ad-hoc controls on the imported framework.
+//
+// Review status: see Catalog.Review in the register call below. This header makes no review claim.
 
 func init() {
 	register(Catalog{
@@ -20,6 +22,7 @@ func init() {
 		Version:     "45 CFR Part 164 Subpart C",
 		Description: "Standards for the protection of electronic protected health information (ePHI) — Administrative, Physical and Technical Safeguards.",
 		Available:   true,
+		Review:      Review{Status: ReviewUnreviewed},
 		Controls:    hipaaSecurityControls,
 	})
 }

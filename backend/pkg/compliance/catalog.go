@@ -28,11 +28,16 @@ type Catalog struct {
 	Name        string // framework display name, e.g. "ISO/IEC 27001"
 	Version     string // e.g. "2022"
 	Description string
-	// Available is false for catalogs that exist as a placeholder (registered so the product
-	// can announce them) but have no reviewed control content yet — Controls is empty and
-	// ImportCatalogUseCase refuses to import them. Flip to true once a compliance-competent
-	// reviewer has verified the content against the actual regulatory text.
+	// Available means importable, nothing more. It is false for catalogs that exist as a
+	// placeholder (registered so the product can announce them) but carry no control
+	// content yet — Controls is empty and ImportCatalogUseCase refuses to import them.
+	// It does NOT say anyone checked the content against the regulatory text: that is
+	// Review.Status, and an Available catalog may well be ReviewUnreviewed (D-120).
 	Available bool
+
+	// Review records whether a competent reviewer checked this catalog's content against the
+	// regulatory text, and who. Every Available catalog must carry a Status; see Review.
+	Review Review
 
 	// Withdrawn removes a catalog from the import picker entirely, as opposed to
 	// showing it as "coming soon".
@@ -55,6 +60,40 @@ type Catalog struct {
 	TrackingTicket string
 
 	Controls []CatalogControl
+}
+
+// ReviewStatus says how far a catalog's content has been checked against the regulatory text.
+type ReviewStatus string
+
+const (
+	// ReviewUnreviewed: no sign-off is recorded. The catalog is importable but nobody has
+	// attested to it. This is the only honest status until a committed review record exists.
+	ReviewUnreviewed ReviewStatus = "unreviewed"
+	// ReviewStructureReviewed: a reviewer checked reference codes and titles against the
+	// source, not the wording of the descriptions.
+	ReviewStructureReviewed ReviewStatus = "structure_reviewed"
+	// ReviewReviewed: a reviewer checked codes, titles and descriptions against the source.
+	ReviewReviewed ReviewStatus = "reviewed"
+)
+
+// ReviewSource is one document the reviewer checked the catalog against.
+type ReviewSource struct {
+	Document string // e.g. "Règlement COBAC R-2016/04"
+	URL      string
+}
+
+// Review is the sign-off block of a catalog. For any Status other than ReviewUnreviewed,
+// Date, Reviewer, at least one Source with a URL, and Gaps are all required (enforced by
+// TestCatalogReviewContract). Never fill them without a committed review record: an invented
+// reviewer or date is worse than "unreviewed" (D-120).
+type Review struct {
+	Status   ReviewStatus
+	Date     string // ISO date, e.g. "2026-10-30"
+	Reviewer string
+	Sources  []ReviewSource
+	// Gaps lists what the review did not cover or found missing, in writing. An empty Gaps on
+	// a signed-off catalog is rejected: "no gaps" must be said, not left blank.
+	Gaps []string
 }
 
 // catalogs is the registry of every known catalog, keyed by Catalog.Key.
