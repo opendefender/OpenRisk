@@ -1167,6 +1167,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/compliance/frameworks/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Import a custom framework from a JSON document
+         * @description Creates a hand-built framework (no catalog key) and all of its controls in one transaction, from the document `GET .../export` produces. The body is the JSON document itself (not multipart), at most 2 MiB. The tenant is the session's; a `tenant_id`, `status` or any other unknown field in the file is ignored. Every control starts `not_implemented`. Nothing is written when any row is invalid.
+         */
+        post: operations["importComplianceFramework"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/compliance/frameworks/{frameworkId}/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Export a framework and its controls as a JSON document
+         * @description Returns the framework metadata and its controls as a downloadable file (`Content-Disposition: attachment`). The document carries no id, tenant_id, status or evidence. A framework of another tenant answers 404, the same as an unknown id.
+         */
+        get: operations["exportComplianceFramework"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/compliance/frameworks/{frameworkId}": {
         parameters: {
             query?: never;
@@ -3633,6 +3673,37 @@ export interface components {
             name: string;
             version?: string;
             description?: string;
+        };
+        /** @description Exchange format of a custom framework: what export writes and import reads. No id, tenant, status, evidence or timestamp. */
+        FrameworkExportDocument: {
+            /** @enum {integer} */
+            schema_version: 1;
+            framework: {
+                name: string;
+                version?: string;
+                description?: string;
+            };
+            controls: {
+                /** @description Unique within the file */
+                reference_code: string;
+                name: string;
+                description?: string;
+                source_reference?: string;
+            }[];
+        };
+        /** @description The created framework plus the number of controls created with it. */
+        FrameworkImportResult: components["schemas"]["ComplianceFramework"] & {
+            controls_created: number;
+        };
+        FrameworkImportValidationError: {
+            error: string;
+            errors?: {
+                /** @description 0-based position in `controls`, null for a problem on the framework or document itself */
+                index: number | null;
+                /** @example reference_code */
+                field: string;
+                message: string;
+            }[];
         };
         /** @description Tenant-scoped control instantiated under a global framework. */
         ComplianceControl: {
@@ -8966,6 +9037,111 @@ export interface operations {
             };
             /** @description A framework with this name and version already exists */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    importComplianceFramework: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FrameworkExportDocument"];
+            };
+        };
+        responses: {
+            /** @description Framework and controls created */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FrameworkImportResult"];
+                };
+            };
+            /** @description Invalid document (malformed JSON, over 2 MiB, wrong schema_version, empty or duplicate reference_code, empty or too-long field, 0 or more than 2000 controls). `errors` lists each problem, up to 100. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FrameworkImportValidationError"];
+                };
+            };
+            /** @description No tenant context */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The plan's cap on active frameworks is reached (limit_reached, D-076) */
+            402: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden — requires compliance:frameworks:create */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description A framework with this name and version already exists */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    exportComplianceFramework: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                frameworkId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The framework document */
+            200: {
+                headers: {
+                    "Content-Disposition"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FrameworkExportDocument"];
+                };
+            };
+            /** @description No tenant context */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden — requires compliance:frameworks:read */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Framework not found */
+            404: {
                 headers: {
                     [name: string]: unknown;
                 };

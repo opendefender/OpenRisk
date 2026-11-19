@@ -34,6 +34,18 @@ type AppError struct {
 	// Reason is an optional stable machine-readable code the client can switch
 	// on (and map to a translated message). Empty for the common errors.
 	Reason string
+	// Fields lists the per-row problems of a validation error that covers a
+	// whole document (a bulk import). Empty for every other error.
+	Fields []FieldError
+}
+
+// FieldError is one problem found in one place of a submitted document.
+// Index is the 0-based position in the document's list, nil for a problem on
+// the document itself rather than on a row.
+type FieldError struct {
+	Index   *int   `json:"index"`
+	Field   string `json:"field"`
+	Message string `json:"message"`
 }
 
 func (e *AppError) Error() string {
@@ -105,6 +117,23 @@ func NewValidationError(message string) *AppError {
 		Message: message,
 		Code:    http.StatusBadRequest,
 	}
+}
+
+// NewValidationErrorWithFields is a validation error (400) that carries the
+// per-row problems of a bulk document, so the client can point at each one.
+func NewValidationErrorWithFields(message string, fields []FieldError) *AppError {
+	e := NewValidationError(message)
+	e.Fields = fields
+	return e
+}
+
+// FieldErrorsFromError returns the per-row problems an error carries, or nil.
+func FieldErrorsFromError(err error) []FieldError {
+	var appErr *AppError
+	if errors.As(err, &appErr) {
+		return appErr.Fields
+	}
+	return nil
 }
 
 // NewPayloadTooLargeError is a validation error (ErrValidation) answered with

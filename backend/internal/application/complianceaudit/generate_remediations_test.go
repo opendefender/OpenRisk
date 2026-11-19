@@ -62,6 +62,9 @@ type mockComplianceRepo struct {
 func (m *mockComplianceRepo) CreateFramework(context.Context, *domain.ComplianceFramework) error {
 	return nil
 }
+func (m *mockComplianceRepo) CreateFrameworkWithControls(context.Context, *domain.ComplianceFramework, []*domain.ComplianceControl) error {
+	return nil
+}
 func (m *mockComplianceRepo) GetFrameworkByID(context.Context, uuid.UUID, uuid.UUID) (*domain.ComplianceFramework, error) {
 	return nil, nil
 }

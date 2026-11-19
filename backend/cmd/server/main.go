@@ -1761,7 +1761,8 @@ func main() {
 		getProgressUC, listCatalogsUC, importCatalogUC, generateReportUC,
 		getGapAnalysisUC,
 		createMappingUC, listMappingsUC, deleteMappingUC,
-	).WithInheritedCoverage(inheritedCoverageUC)
+	).WithInheritedCoverage(inheritedCoverageUC).
+		WithFrameworkTransfer(compliance.NewExportFrameworkUseCase(complianceRepo), compliance.NewImportFrameworkUseCase(complianceRepo))
 
 	// NOTE: these routes sit under `protected`, whose base middleware (middleware.Protected,
 	// RS256) stores the *new* multi-tenant claims in c.Locals("user")/("permissions"). The
@@ -1789,6 +1790,11 @@ func main() {
 	protected.Post("/compliance/frameworks/:frameworkId/import-catalog", complianceFrameworkCreate, complianceHandler.ImportCatalog)
 
 	protected.Get("/compliance/frameworks", complianceFrameworkRead, complianceHandler.ListFrameworks)
+	// JSON exchange of a custom framework (#307). The static /import is registered
+	// before any /:frameworkId route. Import creates a framework, so it carries the
+	// same permission and plan cap as creating one by hand.
+	protected.Post("/compliance/frameworks/import", complianceFrameworkCreate, capFrameworks, complianceHandler.ImportFramework)
+	protected.Get("/compliance/frameworks/:frameworkId/export", complianceFrameworkRead, complianceHandler.ExportFramework)
 	protected.Post("/compliance/frameworks", complianceFrameworkCreate, capFrameworks, complianceHandler.CreateFramework)
 	protected.Get("/compliance/frameworks/:frameworkId", complianceFrameworkRead, complianceHandler.GetFramework)
 	protected.Delete("/compliance/frameworks/:frameworkId", complianceFrameworkDelete, complianceHandler.DeleteFramework)

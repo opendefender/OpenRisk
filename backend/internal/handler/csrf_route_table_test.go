@@ -170,6 +170,7 @@ var mutatingRouteDefences = map[string]csrfDefence{
 	"POST /compliance/controls/:controlId/evidences":                              viaProtected,
 	"DELETE /compliance/evidences/:evidenceId":                                    viaProtected,
 	"POST /compliance/frameworks":                                                 viaProtected,
+	"POST /compliance/frameworks/import":                                          viaProtected,
 	"DELETE /compliance/frameworks/:frameworkId":                                  viaProtected,
 	"POST /compliance/frameworks/:frameworkId/controls":                           viaProtected,
 	"POST /compliance/frameworks/:frameworkId/import-catalog":                     viaProtected,

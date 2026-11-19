@@ -322,6 +322,77 @@
       "generating": "Génération…",
       "success": "Rapport de conformité généré",
       "error": "Échec de la génération du rapport"
+    },
+    "export": {
+      "button": "Exporter (JSON)",
+      "generating": "Préparation de l'export JSON…",
+      "success": "Référentiel exporté",
+      "error": "Échec de l'export du référentiel"
+    },
+    "customImport": {
+      "entry": "Importer (JSON)",
+      "back": "Retour à la conformité",
+      "title": "Importer un référentiel personnalisé (JSON)",
+      "intro": "Chargez votre propre référentiel depuis un fichier JSON : il est créé avec tous ses contrôles en une seule étape, chaque contrôle démarrant « non implémenté ».",
+      "dropHere": "Déposez un fichier JSON ici ou cliquez pour en choisir un",
+      "limits": "Fichier .json, 2 Mo maximum, 2000 contrôles maximum",
+      "emptyTitle": "Aucun fichier choisi",
+      "emptyHint": "Choisissez un fichier JSON de référentiel, par exemple exporté depuis OpenRisk avec « Exporter (JSON) ».",
+      "choose": "Choisir un fichier",
+      "onlyJson": "Seuls les fichiers .json sont acceptés",
+      "fileEmpty": "Le fichier est vide",
+      "tooLarge": "Le fichier dépasse 2 Mo",
+      "invalidFile": "Ce fichier ne peut pas être utilisé",
+      "unreadable": "Le fichier n'a pas pu être lu",
+      "removeFile": "Retirer le fichier",
+      "previewTitle": "Aperçu",
+      "previewName": "Nom",
+      "previewVersion": "Version",
+      "previewControls": "Contrôles",
+      "controlsCount": {
+        "one": "{count} contrôle",
+        "other": "{count} contrôles"
+      },
+      "previewMore": {
+        "one": "et {count} contrôle de plus",
+        "other": "et {count} contrôles de plus"
+      },
+      "submit": "Importer le référentiel",
+      "importing": "Import du référentiel en cours…",
+      "created": {
+        "one": "Référentiel importé avec {count} contrôle",
+        "other": "Référentiel importé avec {count} contrôles"
+      },
+      "fileRefused": "Le fichier a été refusé, rien n'a été importé",
+      "rejectedRows": "Le fichier contient des erreurs, rien n'a été importé",
+      "fixRows": "Corrigez ces lignes dans le fichier, puis choisissez-le à nouveau.",
+      "row": "Contrôle n°",
+      "field": "Champ",
+      "problem": "Problème",
+      "document": "Fichier",
+      "truncated": "Seuls les {max} premiers problèmes sont affichés.",
+      "conflict": "Un référentiel de même nom et de même version existe déjà.",
+      "limit": "La limite de référentiels de votre offre est atteinte.",
+      "seePlans": "Voir les offres",
+      "forbidden": "Vous n'avez pas la permission d'importer un référentiel.",
+      "unauthorized": "Votre session a expiré. Reconnectez-vous.",
+      "serverFailed": "L'import a échoué. Réessayez.",
+      "problems": {
+        "notJson": "Le fichier n'est pas du JSON valide",
+        "notObject": "Un objet est attendu ici",
+        "schemaVersion": "schema_version doit valoir 1",
+        "required": "Ce champ est obligatoire",
+        "notText": "Ce champ doit être du texte",
+        "tooLong": "Trop long ({max} caractères maximum)",
+        "noControls": "Le fichier doit contenir au moins un contrôle",
+        "tooManyControls": "Trop de contrôles (maximum {max})",
+        "duplicateCode": "Le code de référence « {code} » apparaît plusieurs fois"
+      }
+    },
+    "progressState": {
+      "unavailable": "Progression indisponible",
+      "unavailableShort": "— (progression indisponible)",
+      "controlStatus": "Statut du contrôle {code}"
     }
   },
   "assets": {

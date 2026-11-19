@@ -41,6 +41,14 @@ type ComplianceRepository interface {
 	// DeleteControlsByFramework so the tenant's controls go away too.
 	DeleteFramework(ctx context.Context, id uuid.UUID, tenantID uuid.UUID) error
 
+	// CreateFrameworkWithControls persists a framework and all of its controls
+	// in ONE transaction, with each control mirrored onto the control chain in
+	// that same transaction: either everything exists afterwards or nothing
+	// does. The tenant comes from framework.TenantID (refused when nil) and is
+	// stamped on every control. Returns ErrConflict when the tenant already has
+	// a framework with the same name and version.
+	CreateFrameworkWithControls(ctx context.Context, framework *ComplianceFramework, controls []*ComplianceControl) error
+
 	// =========================================================================
 	// Controls (tenant-scoped)
 	// =========================================================================

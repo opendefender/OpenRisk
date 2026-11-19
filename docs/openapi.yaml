@@ -3048,6 +3048,83 @@ paths:
         '409':
           description: A framework with this name and version already exists
 
+  /compliance/frameworks/import:
+    post:
+      tags: [Compliance]
+      summary: Import a custom framework from a JSON document
+      description: >
+        Creates a hand-built framework (no catalog key) and all of its controls
+        in one transaction, from the document `GET .../export` produces. The
+        body is the JSON document itself (not multipart), at most 2 MiB. The
+        tenant is the session's; a `tenant_id`, `status` or any other unknown
+        field in the file is ignored. Every control starts `not_implemented`.
+        Nothing is written when any row is invalid.
+      operationId: importComplianceFramework
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FrameworkExportDocument'
+      responses:
+        '201':
+          description: Framework and controls created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FrameworkImportResult'
+        '400':
+          description: >
+            Invalid document (malformed JSON, over 2 MiB, wrong schema_version,
+            empty or duplicate reference_code, empty or too-long field, 0 or more
+            than 2000 controls). `errors` lists each problem, up to 100.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FrameworkImportValidationError'
+        '401':
+          description: No tenant context
+        '402':
+          description: The plan's cap on active frameworks is reached (limit_reached, D-076)
+        '403':
+          description: Forbidden — requires compliance:frameworks:create
+        '409':
+          description: A framework with this name and version already exists
+
+  /compliance/frameworks/{frameworkId}/export:
+    get:
+      tags: [Compliance]
+      summary: Export a framework and its controls as a JSON document
+      description: >
+        Returns the framework metadata and its controls as a downloadable file
+        (`Content-Disposition: attachment`). The document carries no id,
+        tenant_id, status or evidence. A framework of another tenant answers 404,
+        the same as an unknown id.
+      operationId: exportComplianceFramework
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: frameworkId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: The framework document
+          headers:
+            Content-Disposition:
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FrameworkExportDocument'
+        '401':
+          description: No tenant context
+        '403':
+          description: Forbidden — requires compliance:frameworks:read
+        '404':
+          description: Framework not found
+
   /compliance/frameworks/{frameworkId}:
     get:
       tags: [Compliance]
@@ -7712,6 +7789,63 @@ components:
           type: string
         description:
           type: string
+
+    FrameworkExportDocument:
+      type: object
+      description: >
+        Exchange format of a custom framework: what export writes and import
+        reads. No id, tenant, status, evidence or timestamp.
+      required: [schema_version, framework, controls]
+      properties:
+        schema_version:
+          type: integer
+          enum: [1]
+        framework:
+          type: object
+          required: [name]
+          properties:
+            name: { type: string, maxLength: 255 }
+            version: { type: string, maxLength: 50 }
+            description: { type: string, maxLength: 10000 }
+        controls:
+          type: array
+          minItems: 1
+          maxItems: 2000
+          items:
+            type: object
+            required: [reference_code, name]
+            properties:
+              reference_code: { type: string, maxLength: 50, description: Unique within the file }
+              name: { type: string, maxLength: 255 }
+              description: { type: string, maxLength: 10000 }
+              source_reference: { type: string, maxLength: 255 }
+
+    FrameworkImportResult:
+      description: The created framework plus the number of controls created with it.
+      allOf:
+        - $ref: '#/components/schemas/ComplianceFramework'
+        - type: object
+          required: [controls_created]
+          properties:
+            controls_created: { type: integer }
+
+    FrameworkImportValidationError:
+      type: object
+      required: [error]
+      properties:
+        error: { type: string }
+        errors:
+          type: array
+          maxItems: 100
+          items:
+            type: object
+            required: [index, field, message]
+            properties:
+              index:
+                type: [integer, 'null']
+                description: 0-based position in `controls`, null for a problem on the framework or document itself
+              field: { type: string, example: reference_code }
+              message: { type: string }
 
     ComplianceControl:
       type: object
