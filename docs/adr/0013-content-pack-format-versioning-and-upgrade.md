@@ -137,6 +137,10 @@ Uniqueness is enforced by a partial unique index leading on `tenant_id`, deleted
 `(tenant_id, framework_id, pack_key, pack_item_key) WHERE pack_key <> ''` on rows that have a
 framework, `(tenant_id, pack_key, pack_item_key) WHERE pack_key <> ''` on `control_crosswalks`.
 
+`pack_reverted_by` alone is also added, expand-only, to the canonical `controls` table (migration
+0086), which the pack never writes directly but a revert soft-deletes with a requirement (D5,
+Reversibility). The other six columns are not added there.
+
 **Who writes them.** The seven columns are written only by the pack use case. They are absent from
 every input DTO (PATCH, bulk, #307 import) and read-only in the API. #307 export does not emit them.
 
@@ -182,7 +186,7 @@ the framework's rows **including soft-deleted ones**, with `tenant_id` in the WH
 | **Changed upstream AND edited by tenant** | the same field differs in `T` and `U` from `B`, and `T ≠ U` | **conflict**: the conflicting fields are left as the tenant has them; non-conflicting upstream fields are applied; the conflict is recorded open | `conflict` · field, yours, upstream, base |
 | **Removed upstream** | row has provenance, item absent from `U` | **never deleted, never status-changed**: `pack_retired_in :=` new version. Evidence links, results, exceptions, mappings, audit history untouched. Gap analysis and progress count it exactly as before until the tenant acts (sets it not applicable, or deletes it through the existing audited delete) | `retired` · item, the changelog reason; flagged "edited by you" when `T ≠ B` |
 | Deleted by tenant | soft-deleted row with that `pack_item_key` and `pack_reverted_by` null | **not re-created**, whether upstream changed it or not | `kept deleted` · and "changed upstream since" when `U ≠ B` |
-| Reverted earlier | soft-deleted row with that `pack_item_key` and `pack_reverted_by` set, item in `U` | **restored, same row id**: `deleted_at` and `pack_reverted_by` cleared, fields `:= U`, provenance stamped. The restore is `UPDATE … WHERE id = ? AND tenant_id = ? AND framework_id = ? AND deleted_at IS NOT NULL AND pack_reverted_by = ?`, where the `pack_reverted_by` value is a `content_pack_upgrades` row of the same tenant and framework, read under the lock. A chain row (split `controls` row, `addressed_by` edge) is restored only if it carries the `pack_reverted_by` of the revert being undone (the split control id is deterministic, ADR 0008 D7) | `added` (restored after revert); `restored without its control` when the tenant deleted the control independently |
+| Reverted earlier | soft-deleted row with that `pack_item_key` and `pack_reverted_by` set, item in `U` | **restored, same row id**: `deleted_at` and `pack_reverted_by` cleared, fields `:= U`, provenance stamped. The restore is `UPDATE … WHERE id = ? AND tenant_id = ? AND framework_id = ? AND deleted_at IS NOT NULL AND pack_reverted_by = ?`, where the `pack_reverted_by` value is a `content_pack_upgrades` row of the same tenant and framework, read under the lock. The split `controls` row is restored only if it carries the `pack_reverted_by` of the revert being undone (the split control id is deterministic, ADR 0008 D7). `canonical_edges` has no `deleted_at` (migration 0086), so the revert hard-deletes the `addressed_by` edge; the restore re-creates it through the mirror, in the same transaction, only when it restores the control | `added` (restored after revert); `restored without its control` when the tenant deleted the control independently |
 
 **Conflict resolution.** An open conflict offers two actions, each its own audited write:
 *keep mine* (`pack_base := U`, so the next upgrade compares against the new content and does not
@@ -233,8 +237,8 @@ framework that is not yet reverted (older ones revert in order), in one transact
   nothing" also covers its split `controls` row: no `control_implementations`, `control_tests`,
   `control_test_results`, `control_gap_findings`, `control_exceptions` (migrations 0086 and 0087),
   and no `canonical_edges` row on that control other than its own `addressed_by` edge, all read
-  under `tenant_id`. If that check passes, the revert soft-deletes the control and removes the edge
-  in the same transaction, and marks the control with the same `pack_reverted_by`. A control the
+  under `tenant_id`. If that check passes, the revert soft-deletes the control and hard-deletes the
+  edge (the table has no `deleted_at`) in the same transaction, and marks the control with the same `pack_reverted_by`. A control the
   tenant deleted independently stays deleted, and a later re-apply reports the requirement as
   restored without its control. `controlchain/mirror.go` has no function for a requirement deletion
   today (`DeleteControl` in `gorm_compliance_repository.go` does not mirror); the follow-up adds one;
@@ -243,7 +247,10 @@ framework that is not yet reverted (older ones revert in order), in one transact
 A revert is itself recorded as an upgrade (to-version = the previous one), so the history reads
 forward. The upgrade it undoes gets `content_pack_upgrades.reverted_by_upgrade_id` set to the
 revert's id, inside the revert's transaction; that column is the persistent "already reverted"
-marker revert targeting reads, and the only field of an upgrade row ever written after its insert. Revert never needs the old pack content, which the code does not keep (Context 5).
+marker revert targeting reads, and, with the `deleted_at` cascade, the only field of an upgrade row
+ever written after its insert. The revert also restores `compliance_frameworks.catalog_pending_kinds`
+to its value before the upgrade being undone (stored on that upgrade row), in the same transaction,
+so a pending kind that upgrade processed is offered again. Revert never needs the old pack content, which the code does not keep (Context 5).
 
 **Tenant gate of the new tables.** The upgrade record and its items live in two new tables,
 `content_pack_upgrades` (one row per apply or revert: framework, from and to versions, actor, and a
@@ -281,9 +288,13 @@ framework key alone.
 each skipped kind in a new framework column `compliance_frameworks.catalog_pending_kinds`
 (`jsonb NOT NULL DEFAULT '[]'`, expand only): kind, content version, skipped-at upgrade id. The
 framework page and every later preview list them as `pending (permission)`, and an upgrade is
-available while the list is non-empty. A later apply by a caller who holds the key processes the
-pending kinds against the current content, with the D5 rules, and removes them from the list in
-the same transaction. Rejected: excluding 3b, 4 and 5 from the version stamp, which would give one
+available while the list is non-empty. Every apply re-checks each pending kind against its own
+caller's module keys; the stored entry grants nothing. A caller who holds the key processes the
+pending kind against the current content, with the D5 rules, and removes it from the list in the
+same transaction; a caller who lacks it leaves it pending. `catalog_content_version`,
+`catalog_crosswalks_version` and `catalog_pending_kinds` are written only by the pack use case:
+they are absent from every framework input DTO (create, update, #307 import), never added to
+`UpdateFramework`'s `Select` list, and #307 export does not emit them. Rejected: excluding 3b, 4 and 5 from the version stamp, which would give one
 framework two meanings of "current". The routes sit in the `protected` group, which already applies the general per-tenant budget
 (`middleware.TenantRateLimit`, `internal/middleware/apiquota.go`); no mutation-specific limiter
 exists today, and the upgrade follow-up adds a dedicated per-tenant limit on preview, apply and
