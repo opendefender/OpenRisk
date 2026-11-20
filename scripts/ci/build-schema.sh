@@ -81,7 +81,7 @@ PID=$!
 START=$SECONDS
 while [ $((SECONDS - START)) -lt "$TIMEOUT" ]; do
   if curl -fsS --max-time 2 "http://localhost:${PORT}/api/v1/health" >/dev/null 2>&1; then
-    kill "$PID"; wait "$PID" || true
+    kill "$PID" 2>/dev/null || true; wait "$PID" || true
     PID=""
     # #808: seeds and backfills swallow their errors and log them, so the
     # tenant guard's refusals are only visible here. Any line fails the step.

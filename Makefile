@@ -148,10 +148,10 @@ test-integration:
 	@set -e; \
 	cleanup() { docker rm -f openrisk-it-pg openrisk-it-redis >/dev/null 2>&1 || true; }; \
 	trap cleanup EXIT; cleanup; \
-	docker run -d --rm --name openrisk-it-pg -p $(IT_DB_PORT):5432 \
+	docker run -d --rm --name openrisk-it-pg -p 127.0.0.1:$(IT_DB_PORT):5432 \
 	  -e POSTGRES_USER=test -e POSTGRES_PASSWORD=test -e POSTGRES_DB=openrisk_test \
 	  --tmpfs /var/lib/postgresql/data postgres:16-alpine >/dev/null; \
-	docker run -d --rm --name openrisk-it-redis -p $(IT_REDIS_PORT):6379 redis:7-alpine >/dev/null; \
+	docker run -d --rm --name openrisk-it-redis -p 127.0.0.1:$(IT_REDIS_PORT):6379 redis:7-alpine >/dev/null; \
 	for i in $$(seq 1 30); do docker exec openrisk-it-pg pg_isready -h 127.0.0.1 -U test -d openrisk_test >/dev/null 2>&1 && break; sleep 1; done; \
 	docker exec openrisk-it-pg pg_isready -h 127.0.0.1 -U test -d openrisk_test; \
 	export DATABASE_URL="$(IT_DB_URL)" DB_HOST=localhost DB_PORT=$(IT_DB_PORT) DB_USER=test DB_PASSWORD=test \
