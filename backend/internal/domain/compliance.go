@@ -59,6 +59,8 @@ type ComplianceFramework struct {
 	// unknown: imported before #1478, or hand-built. It is never filled afterwards
 	// by a guess, and a re-import of the same catalogue does not move it, because
 	// a re-import only adds missing controls and never rewrites existing wording.
+	// It describes the catalogue that was imported, not every control the framework
+	// holds: controls a user created by hand, or edited since, keep their own wording.
 	CatalogRevision string `gorm:"size:64;not null;default:''" json:"catalog_revision"`
 
 	// Relations (loaded via Preload)

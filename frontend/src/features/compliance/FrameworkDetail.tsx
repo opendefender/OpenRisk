@@ -57,6 +57,10 @@ import {
 } from '../../types/compliance';
 import { useEscapeToClose } from '../../shared/useBackTo';
 
+// Stands in for the catalogue revision while its sentence is translated, so the
+// hash can then be wrapped in monospace without searching the translated text.
+const REVISION_SLOT = '\u0000';
+
 const STATUS_META: Record<string, { color: string; fr: string; en: string }> = {
   implemented: { color: 'var(--low)', fr: 'Implémenté', en: 'Implemented' },
   in_progress: { color: 'var(--high)', fr: 'En cours', en: 'In progress' },
@@ -204,9 +208,11 @@ export function FrameworkDetail() {
                 {' · '}
                 {fw.catalog_revision
                   ? // Whole sentence is translated (word order differs in FR); only the
-                    // hash is split out so it can be set in monospace.
-                    t('compliance.catalogVersion.revision', { revision: fw.catalog_revision })
-                      .split(fw.catalog_revision)
+                    // hash is set in monospace. Splitting on the sentinel rather than on
+                    // the hash means neither the wording nor a repeated placeholder can
+                    // mis-split it.
+                    t('compliance.catalogVersion.revision', { revision: REVISION_SLOT })
+                      .split(REVISION_SLOT)
                       .flatMap((part, i) =>
                         i === 0
                           ? [part]
