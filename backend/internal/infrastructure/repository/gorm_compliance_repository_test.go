@@ -48,6 +48,8 @@ func setupComplianceRepo(t *testing.T) *GormComplianceRepository {
 			name TEXT NOT NULL,
 			version TEXT NOT NULL DEFAULT '',
 			catalog_key TEXT NOT NULL DEFAULT '',
+			catalog_version TEXT NOT NULL DEFAULT '',
+			catalog_revision TEXT NOT NULL DEFAULT '',
 			description TEXT,
 			created_at DATETIME,
 			updated_at DATETIME,
@@ -536,4 +538,43 @@ func TestCountEvidencesByFramework_JudgesEvidenceExpiryAgainstTheGivenInstant(t 
 	countsB, err := repo.CountEvidencesByFramework(ctx, tenantB, framework, evidenceExpiry419.Add(-24*time.Hour))
 	require.NoError(t, err)
 	assert.Empty(t, countsB, "tenant B must not see tenant A's evidence counts")
+}
+
+func TestUpdateFramework_PersistsCatalogVersion_TenantScoped(t *testing.T) {
+	repo := setupComplianceRepo(t)
+	ctx := context.Background()
+	tenantA, tenantB := uuid.New(), uuid.New()
+
+	hand := &domain.ComplianceFramework{ID: uuid.New(), TenantID: tenantA, Name: "Hand", Version: "1"}
+	require.NoError(t, repo.CreateFramework(ctx, hand))
+	got, err := repo.GetFrameworkByID(ctx, hand.ID, tenantA)
+	require.NoError(t, err)
+	assert.Empty(t, got.CatalogKey, "hand-built: no catalogue origin")
+	assert.Empty(t, got.CatalogVersion, "hand-built: no catalogue edition")
+	assert.Empty(t, got.CatalogRevision, "hand-built: no content fingerprint")
+
+	fw := &domain.ComplianceFramework{ID: uuid.New(), TenantID: tenantA, Name: "ISO", Version: "2022"}
+	require.NoError(t, repo.CreateFramework(ctx, fw))
+	fw.CatalogKey, fw.CatalogVersion, fw.CatalogRevision = "iso27001-2022", "2022", "abc123def456"
+	require.NoError(t, repo.UpdateFramework(ctx, fw))
+
+	got, err = repo.GetFrameworkByID(ctx, fw.ID, tenantA)
+	require.NoError(t, err)
+	assert.Equal(t, "iso27001-2022", got.CatalogKey)
+	assert.Equal(t, "2022", got.CatalogVersion)
+	assert.Equal(t, "abc123def456", got.CatalogRevision)
+
+	// Tenant B can neither read nor stamp it, and lists nothing of A's.
+	other, err := repo.GetFrameworkByID(ctx, fw.ID, tenantB)
+	require.NoError(t, err)
+	assert.Nil(t, other)
+	list, err := repo.ListFrameworks(ctx, tenantB)
+	require.NoError(t, err)
+	assert.Empty(t, list)
+	foreign := *fw
+	foreign.TenantID, foreign.CatalogVersion, foreign.CatalogRevision = tenantB, "hijacked", "hijacked"
+	assert.Error(t, repo.UpdateFramework(ctx, &foreign))
+	got, _ = repo.GetFrameworkByID(ctx, fw.ID, tenantA)
+	assert.Equal(t, "2022", got.CatalogVersion)
+	assert.Equal(t, "abc123def456", got.CatalogRevision)
 }

@@ -441,6 +441,13 @@
         "duplicateCode": "The reference code \"{code}\" appears more than once"
       }
     },
+    "catalogVersion": {
+      "known": "Catalogue version: {version}",
+      "unknown": "Catalogue version: Unknown",
+      "revision": "revision {revision}",
+      "revisionUnknown": "revision unknown",
+      "hint": "Fingerprint of the catalogue content at the time this framework was imported."
+    },
     "progressState": {
       "unavailable": "Progress unavailable",
       "unavailableShort": "— (progress unavailable)",

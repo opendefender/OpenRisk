@@ -217,3 +217,70 @@ func TestImportCatalogUseCase_UpgradeFromSummaryCatalog_IsAdditive(t *testing.T)
 		})
 	}
 }
+
+// stampRecorder runs an import against a framework in the given state and returns
+// what UpdateFramework received (nil when it was never called).
+func stampRecorder(t *testing.T, fw domain.ComplianceFramework, key string) *domain.ComplianceFramework {
+	t.Helper()
+	tenantID := fw.TenantID
+	var stamped *domain.ComplianceFramework
+	repo := &MockComplianceRepository{
+		getFrameworkByIDFunc: func(_ context.Context, _, tid uuid.UUID) (*domain.ComplianceFramework, error) {
+			require.Equal(t, tenantID, tid)
+			f := fw
+			return &f, nil
+		},
+		updateFrameworkFunc: func(_ context.Context, f *domain.ComplianceFramework) error {
+			require.Equal(t, tenantID, f.TenantID, "the stamp is written under the importing tenant")
+			c := *f
+			stamped = &c
+			return nil
+		},
+	}
+	_, err := NewImportCatalogUseCase(repo).Execute(context.Background(), tenantID, ImportCatalogInput{FrameworkID: fw.ID, CatalogKey: key})
+	require.NoError(t, err)
+	return stamped
+}
+
+func TestImportCatalogUseCase_StampsCatalogVersion(t *testing.T) {
+	tenantID := uuid.New()
+	got := stampRecorder(t, domain.ComplianceFramework{ID: uuid.New(), TenantID: tenantID, Name: "ISO"}, "iso27001-2022")
+	require.NotNil(t, got)
+	assert.Equal(t, "iso27001-2022", got.CatalogKey)
+	assert.Equal(t, "2022", got.CatalogVersion)
+	assert.Regexp(t, `^[0-9a-f]{12}$`, got.CatalogRevision)
+}
+
+func TestImportCatalogUseCase_SameKeyReimportStampsNothing(t *testing.T) {
+	tenantID := uuid.New()
+	// Imported before #1478: key set, version and revision empty. A re-import adds
+	// missing controls only, so filling them would be a guess (AC2).
+	got := stampRecorder(t, domain.ComplianceFramework{ID: uuid.New(), TenantID: tenantID, CatalogKey: "iso27001-2022"}, "iso27001-2022")
+	assert.Nil(t, got, "same-key re-import must not stamp version or revision")
+
+	// Already stamped: untouched too.
+	got = stampRecorder(t, domain.ComplianceFramework{ID: uuid.New(), TenantID: tenantID, CatalogKey: "iso27001-2022", CatalogVersion: "2022", CatalogRevision: "old"}, "iso27001-2022")
+	assert.Nil(t, got, "same-key re-import must not refresh the revision")
+}
+
+func TestImportCatalogUseCase_DifferentKeyStampsAllThree(t *testing.T) {
+	tenantID := uuid.New()
+	got := stampRecorder(t, domain.ComplianceFramework{ID: uuid.New(), TenantID: tenantID, CatalogKey: "soc2-tsc", CatalogVersion: "x", CatalogRevision: "stale"}, "iso27001-2022")
+	require.NotNil(t, got)
+	assert.Equal(t, "iso27001-2022", got.CatalogKey)
+	assert.Equal(t, "2022", got.CatalogVersion)
+	assert.Regexp(t, `^[0-9a-f]{12}$`, got.CatalogRevision)
+}
+
+func TestImportCatalogUseCase_Unauthorized_NoStampWithoutOwnedFramework(t *testing.T) {
+	// Another tenant's framework resolves to nothing for the importing tenant:
+	// the import fails closed and stamps nothing.
+	repo := &MockComplianceRepository{
+		updateFrameworkFunc: func(context.Context, *domain.ComplianceFramework) error {
+			t.Error("must not stamp a framework the tenant does not own")
+			return nil
+		},
+	}
+	_, err := NewImportCatalogUseCase(repo).Execute(context.Background(), uuid.New(), ImportCatalogInput{FrameworkID: uuid.New(), CatalogKey: "iso27001-2022"})
+	require.Error(t, err)
+}

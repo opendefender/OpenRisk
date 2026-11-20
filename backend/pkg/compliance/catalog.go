@@ -10,6 +10,13 @@
 // and registering it in the catalogs map, nothing else in this package changes.
 package compliance
 
+import (
+	"crypto/sha256"
+	"encoding/hex"
+	"sort"
+	"strconv"
+)
+
 // CatalogControl is one control entry in a regulatory catalog, not yet attached to any
 // tenant. ImportCatalogUseCase turns these into domain.ComplianceControl rows.
 type CatalogControl struct {
@@ -156,4 +163,37 @@ func List() []Catalog {
 		}
 	}
 	return out
+}
+
+// Revision is a deterministic fingerprint of this catalog's CONTENT: the first 12 hex
+// characters of a sha256 over its controls, sorted by ReferenceCode, each serialised as
+// ReferenceCode, Name, Description, SourceReference. It moves when any of those four
+// fields of any control changes, and only then; Version (the edition of the standard)
+// does not move when our wording is corrected, Revision does.
+//
+// Every field is written length-prefixed ("<byte length>:<bytes>"), so no field value,
+// whatever it contains, can shift a boundary: two different control sets never
+// serialise to the same bytes. A catalog with no controls has no content to
+// fingerprint and returns "". c.Controls is not mutated (a copy is sorted).
+func (c Catalog) Revision() string {
+	if len(c.Controls) == 0 {
+		return ""
+	}
+	controls := make([]CatalogControl, len(c.Controls))
+	copy(controls, c.Controls)
+	sort.SliceStable(controls, func(i, j int) bool { return controls[i].ReferenceCode < controls[j].ReferenceCode })
+
+	h := sha256.New()
+	field := func(s string) {
+		h.Write([]byte(strconv.Itoa(len(s))))
+		h.Write([]byte{':'})
+		h.Write([]byte(s))
+	}
+	for _, cc := range controls {
+		field(cc.ReferenceCode)
+		field(cc.Name)
+		field(cc.Description)
+		field(cc.SourceReference)
+	}
+	return hex.EncodeToString(h.Sum(nil))[:12]
 }
