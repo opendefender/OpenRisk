@@ -9,6 +9,20 @@ recommends, and surfaces these in the daily brief. Run `/decide` to clear them.
 
 ## Resolved
 
+### D-121 — Content packs (#1477): manifest, edition vs content version, provenance, upgrade merge rules, ISO 27001 editions · decided 2026-11-20
+**Decided (agent: tech-lead, 2026-11-20)** — for #1477, under D-089. The rules are ADR 0013. No code, no migration, nothing irreversible, nothing that spends money.
+**Question** — What is a content pack, how is its version identified against the standard's edition, what is recorded on imported rows, what does an upgrade do to added, changed, removed and tenant-edited content, and are ISO 27001:2013 and :2022 one pack or two?
+**Options** — Format: (A) Go `Catalog` extended, (B) YAML/JSON pack files, (C) a new `Pack` type wrapping `Catalog`. Upgrade: (D) upstream overwrites, (E) never update existing rows (today), (F) field-level three-way merge against a stored base snapshot, conflicts left as the tenant has them. Editions: (G) one pack, two versions; (H) two packs, edition in the key.
+**Choice** — A, F, H.
+1. The pack is `pkg/compliance.Catalog`, extended; the manifest is its fields. Eight content kinds: requirements and controls required, mappings, risks, questionnaires, evidence expectations, assessment templates optional and imported per tenant with `tenant_id NOT NULL`; report templates optional and pack-resident (no row). Evidence expectations attach to the tenant's imported control (answers #1480 question 3).
+2. `Catalog.Version` stays the edition (#1478's `catalog_version`). A new semver `Catalog.ContentVersion` (and `CrosswalksVersion`) is our content revision, stored as `compliance_frameworks.catalog_content_version`; ADR 0008's catalogue `source_version` is the content version.
+3. Every pack-written row carries `pack_key`, `pack_item_key`, `pack_version`, `pack_base` (snapshot of pack-managed fields), `pack_base_hash`, `pack_retired_in`, expand-only. Legacy rows are matched by reference code on first upgrade, never backfilled at boot, never overwritten when they differ.
+4. Upgrade: added inserted; changed upstream applied where the tenant did not edit; tenant edits kept; same field changed on both sides is an open conflict left as the tenant has it; removed upstream is retired, never deleted, status and evidence untouched; tenant-deleted rows are not re-created. Preview before apply, persisted report, one transaction for the whole apply, revert of the latest upgrade from stored before-images, same version re-import writes nothing.
+5. `Review` gains `ContentVersion`; content past the reviewed version shows `unreviewed` (D-120).
+6. ISO 27001:2013 and :2022 are two packs: edition moves are #325 migrations along crosswalks, never upgrades.
+**Reason** — B adds a dependency or loses the typed catalogue tests; C renames every caller for nothing. D destroys tenant work (#556 criterion 4); E leaves known-wrong citations in audit files; F is the only option where a tenant keeps its wording and still receives an upstream citation fix on the same row. G would turn an upgrade into an edition migration keyed on reference codes that the 2022 edition renumbered, and `CrosswalksBetween` refuses a self-crosswalk, so edition-to-edition mappings (#325) need two keys. Score Engine and SmartScore are untouched; no new dependency.
+**Overturn** — amend ADR 0013 before the first follow-up ("pack content version, changelog and per-row provenance", to open) merges; after that, any change to D4 columns is a new expand-only migration.
+
 ### D-120 — Catalogues without a review sign-off: review them, or show "not reviewed" at import · decided 2026-11-18
 **Decided (agent: po-openrisk, 2026-11-18)** — for #1190, under D-089.
 **Question** — 17 catalogues are `Available: true`, and the contract in `backend/pkg/compliance/catalog.go` says
