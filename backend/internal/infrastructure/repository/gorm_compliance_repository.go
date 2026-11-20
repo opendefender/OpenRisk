@@ -255,6 +255,8 @@ func (r *GormComplianceRepository) ApplyCatalogImport(ctx context.Context, plan 
 		updates := map[string]interface{}{}
 		if plan.CatalogKey != "" {
 			updates["catalog_key"] = plan.CatalogKey
+			updates["catalog_version"] = plan.CatalogVersion
+			updates["catalog_revision"] = plan.CatalogRevision
 		}
 		if plan.Stamp != nil {
 			updates["catalog_content_version"] = plan.Stamp.ContentVersion
@@ -429,7 +431,7 @@ func (r *GormComplianceRepository) UpdateFramework(ctx context.Context, framewor
 	res := r.db.WithContext(ctx).
 		Model(&domain.ComplianceFramework{}).
 		Where("id = ? AND tenant_id = ?", framework.ID, framework.TenantID).
-		Select("name", "version", "description", "catalog_key").
+		Select("name", "version", "description", "catalog_key", "catalog_version", "catalog_revision").
 		Updates(framework)
 	if res.Error != nil {
 		return fmt.Errorf("failed to update framework: %w", res.Error)

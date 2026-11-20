@@ -46,6 +46,8 @@ func setupComplianceSchema(t *testing.T) *gorm.DB {
 			catalog_key TEXT NOT NULL DEFAULT '',
 			catalog_content_version TEXT NOT NULL DEFAULT '', catalog_crosswalks_version TEXT NOT NULL DEFAULT '',
 			catalog_pending_kinds TEXT NOT NULL DEFAULT '[]',
+			catalog_version TEXT NOT NULL DEFAULT '',
+			catalog_revision TEXT NOT NULL DEFAULT '',
 			description TEXT, created_at DATETIME, updated_at DATETIME, deleted_at DATETIME
 		);
 	`).Error)

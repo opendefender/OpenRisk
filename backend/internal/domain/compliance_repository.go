@@ -126,8 +126,12 @@ type CatalogFrameworkStamp struct {
 type CatalogImportPlan struct {
 	TenantID    uuid.UUID
 	FrameworkID uuid.UUID
-	// CatalogKey, when non-empty, is written as the framework's catalog_key.
-	CatalogKey string
+	// CatalogKey, when non-empty, is written as the framework's catalog_key,
+	// together with CatalogVersion and CatalogRevision (#1478): the three
+	// describe the same catalogue and are only ever stamped together.
+	CatalogKey      string
+	CatalogVersion  string
+	CatalogRevision string
 	// Stamp, when non-nil, is written as the framework's version stamp.
 	Stamp *CatalogFrameworkStamp
 	// Controls are new rows (ID, reference, name, provenance set by the caller).

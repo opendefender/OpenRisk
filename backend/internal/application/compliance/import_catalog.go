@@ -158,8 +158,17 @@ func (uc *ImportCatalogUseCase) Execute(ctx context.Context, tenantID uuid.UUID,
 
 	plan := &domain.CatalogImportPlan{TenantID: tenantID, FrameworkID: input.FrameworkID, Controls: created}
 	// Stamp what this framework IS, so crosswalks keep working after a rename.
+	// Key, edition and revision are stamped together, and only when the
+	// catalogue changes (first import, or a different one) (#1478). A re-import
+	// of the same key only ADDS missing controls and never rewrites existing
+	// wording, so refreshing the revision would claim content the framework does
+	// not hold, and filling an empty one on a pre-#1478 framework would be a
+	// guess. They travel in the import plan, so they are written in the same
+	// transaction as the controls (#1483), not as a best-effort side write.
 	if fw.CatalogKey != input.CatalogKey {
 		plan.CatalogKey = input.CatalogKey
+		plan.CatalogVersion = catalog.Version
+		plan.CatalogRevision = catalog.Revision()
 	}
 	// The version stamp is written only on a first import: unstamped AND no
 	// control ever held, live or deleted. A legacy framework keeps '' (unknown):

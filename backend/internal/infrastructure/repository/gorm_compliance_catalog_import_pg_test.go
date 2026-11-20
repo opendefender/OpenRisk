@@ -80,6 +80,7 @@ func TestApplyCatalogImport_Postgres(t *testing.T) {
 		PackKey: "crosswalks", PackItemKey: "iso:A.1|iso:A.2", PackVersion: "1.0.0"}
 	require.NoError(t, repo.ApplyCatalogImport(ctx, &domain.CatalogImportPlan{
 		TenantID: tenantA, FrameworkID: fwA.ID, CatalogKey: "iso",
+		CatalogVersion: "2022", CatalogRevision: "abcdef012345",
 		Stamp:    &domain.CatalogFrameworkStamp{ContentVersion: "1.0.0", CrosswalksVersion: "1.0.0"},
 		Controls: []*domain.ComplianceControl{a1, a2}, Links: []*domain.ControlCrosswalk{link},
 	}))
@@ -97,6 +98,10 @@ func TestApplyCatalogImport_Postgres(t *testing.T) {
 	fw, err := repo.GetFrameworkByID(ctx, fwA.ID, tenantA)
 	require.NoError(t, err)
 	assert.Equal(t, "1.0.0", fw.CatalogContentVersion)
+	// #1478's edition and revision travel with the key, in the same transaction.
+	assert.Equal(t, "iso", fw.CatalogKey)
+	assert.Equal(t, "2022", fw.CatalogVersion)
+	assert.Equal(t, "abcdef012345", fw.CatalogRevision)
 	assert.Equal(t, "[]", strings.ReplaceAll(fw.CatalogPendingKinds, " ", ""))
 	assert.EqualValues(t, 2, tableCount(t, repo.db, controlchain.TableControls))
 
