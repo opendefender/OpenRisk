@@ -92,7 +92,12 @@ export interface RiskQueryParams {
 
 export interface CreateRiskInput {
   title: string;
-  description: string;
+  /** Optional on the API (`omitempty`); the register's new-risk modal leaves it free. */
+  description?: string;
+  /** The tenant's controlled category. */
+  category_id?: string;
+  /** Responsable, as picked in the ownership pickers. */
+  owner_id?: string;
   probability: number;
   impact: number;
   asset_criticality?: number;
@@ -140,12 +145,14 @@ export interface UpdateRiskInput {
  * sends the preview's fingerprint (#1441).
  */
 export interface BulkRiskActionInput {
-  type: 'change_status' | 'assign_to' | 'add_tags' | 'remove_tags' | 'delete';
+  type: 'change_status' | 'assign_to' | 'set_owner' | 'add_tags' | 'remove_tags' | 'delete';
   risk_ids: string[];
   /** change_status */
   status?: RiskStatus;
-  /** assign_to */
+  /** assign_to — writes the legacy assigned_to column */
   assign_to_id?: string;
+  /** set_owner — writes owner_id, the slot the register's Owner column shows */
+  owner_id?: string;
   /** add_tags / remove_tags */
   tags?: string[];
   /** Recorded on each audit entry. */

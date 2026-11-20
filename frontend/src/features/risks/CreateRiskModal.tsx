@@ -2,13 +2,29 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 // This program is free software: you can redistribute it and/or modify it under
 // the terms of the GNU Affero General Public License v3.0 (see LICENSE).
+//
+// "Nouveau risque" on the October 2026 redesign (#913): title, category, owner,
+// the two 5-level pickers, the live score and an optional description, in a
+// 580 px modal with a pinned footer.
+//
+// What the mockup does not draw and the product needs stays, compactly:
+//   - "Actifs concernés": the server derives the asset-criticality term of the
+//     score from the linked assets, so a risk without assets is scored with the
+//     default factor. Picked here as chips.
+//   - the first-risk suggestions of the onboarding (only while the form is
+//     untouched);
+//   - "Plus d'options": free tags and the mapping to controls, collapsed.
+//
+// The live figure is /score/preview, debounced: its `risk_score` and
+// `risk_criticality` come from the same frozen Score Engine as the stored score
+// (P × I × criticality), so what is shown here is what the register will show.
+// Asset criticality is neutral until the risk is saved with its assets.
 
-import { useEffect, useRef, useState } from 'react';
-import { AnimatePresence, dialogMotion, motion } from '../../shared/motion';
+import { useEffect, useMemo, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { X, Zap, Database, ShieldAlert, Sparkles } from 'lucide-react';
+import { ChevronDown, Database, Sparkles, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAssetStore } from '../../hooks/useAssetStore';
@@ -17,31 +33,50 @@ import { taxonomyService } from '../../services/taxonomyService';
 import { ComplianceMappingField, type MappingDraft } from './ComplianceMappingField';
 import { useRiskCategories, IMPORTED_FRAMEWORKS_KEY } from './useTaxonomy';
 import { ImportFrameworkDialog } from '../compliance/ComplianceModals';
-import { Button, Field, Input, ScrollProgress, TagInput, Textarea } from '../../shared/ds';
+import {
+  Button,
+  Collapse,
+  Field,
+  Input,
+  Listbox,
+  Modal,
+  TagInput,
+  Textarea,
+  type ListboxOption,
+} from '../../shared/ds';
 import { useRiskTagLabels } from './useRiskTagLabels';
 import { useI18n } from '../../hooks/useI18n';
-import { useEscapeToClose } from '../../shared/useBackTo';
-import { FieldHelp } from '../../shared/FieldHelp';
 import { useScorePreview } from '../../hooks/useScore';
-import { bandColor, bandLabel } from '../../services/scoreService';
-import { ScoreExplainerButton } from '../../shared/ScoreExplainer';
+import { bandTextColor } from '../../services/scoreService';
+import { FieldHelp } from '../../shared/FieldHelp';
 import { useUIStore } from '../../store/uiStore';
 import { useInvalidateActivation, useOnboardingSuggestions } from '../onboarding/useActivation';
 import type { RiskSuggestion } from '../../services/activationService';
 import type { LocaleCode } from '../../i18n/locales';
+import { LevelPicker } from './LevelPicker';
+import { formatImpact, formatProbability, formatScore } from './riskFormat';
+import {
+  LEVELS,
+  impactForLevel,
+  impactLevel,
+  probabilityForLevel,
+  probabilityLevel,
+} from './riskLevels';
+import { useRegisterMembers } from './useRiskRegisterData';
+import { memberName } from './riskMembers';
 
-const createRiskSchema = z.object({
-  title: z.string().min(5, 'Le nom doit comporter au moins 5 caractères').max(100),
-  description: z.string().min(10, 'La description doit comporter au moins 10 caractères'),
-  impact: z.number().min(1).max(10),
-  probability: z.number().min(0).max(1),
-  assetCriticality: z.number().min(0.1).max(3),
-  tags: z.array(z.string()).optional(),
-  category_id: z.string().optional(),
-  asset_ids: z.array(z.string()).optional(),
-});
+const NONE = 'none';
 
-type CreateRiskForm = z.infer<typeof createRiskSchema>;
+interface CreateRiskForm {
+  title: string;
+  description: string;
+  category_id: string;
+  owner_id: string;
+  probability: number;
+  impact: number;
+  asset_ids: string[];
+  tags: string[];
+}
 
 interface CreateRiskModalProps {
   isOpen: boolean;
@@ -53,15 +88,6 @@ interface CreateRiskModalProps {
   initialTitle?: string;
 }
 
-// The live score USED TO BE COMPUTED HERE — a multiplication plus its own band
-// thresholds (≥7 critical / ≥4 high / ≥2 medium), which is the reported bug in
-// miniature: the number on the 0–30 engine scale, the label from a second set of
-// cuts, and neither agreeing with the register beside it.
-//
-// It now calls POST /score/preview, debounced 300 ms: the SAME model, on the same
-// scale, with the band the server assigns. A preview computed by a different
-// formula is a lie told at exactly the moment the user is deciding.
-
 export const CreateRiskModal = ({
   isOpen,
   onClose,
@@ -69,24 +95,38 @@ export const CreateRiskModal = ({
   initialAssetIds,
   initialTitle,
 }: CreateRiskModalProps) => {
-  // Esc closes this overlay (spec §2).
-  useEscapeToClose(isOpen, onClose);
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const lang = useUIStore((st) => st.lang);
   const { assets, fetchAssets, isLoading: assetsLoading } = useAssetStore();
+  const { members, isLoading: membersLoading } = useRegisterMembers();
 
-  // Sector-driven help + first-risk suggestions (spec §5/§6). The sector comes
-  // from the onboarding answers; with none, the suggestions fall back to the
-  // generic trio and the help to generic examples.
+  // First-risk suggestions (onboarding §5/§6), drawn from the sector chosen at signup.
   const { data: suggestions } = useOnboardingSuggestions();
+  // Sector-driven help on P and I: the sector chosen at signup.
   const sector = suggestions?.industry ?? '';
   const refreshActivation = useInvalidateActivation();
-
   const tagLabels = useRiskTagLabels();
-  // Bumped from the form's own onInvalid handler, once per failed submit —
-  // never from onChange, or every keystroke before the user has even
-  // submitted would shake the field (see Shake).
-  const [shakeNonce, setShakeNonce] = useState(0);
+  const { data: categories } = useRiskCategories();
+  const queryClient = useQueryClient();
+
+  const schema = useMemo(
+    () =>
+      z.object({
+        title: z
+          .string()
+          .trim()
+          .min(4, t('risks.new.errors.titleShort'))
+          .max(100, t('risks.new.errors.titleLong')),
+        description: z.string().max(5000, t('risks.new.errors.descriptionLong')),
+        category_id: z.string(),
+        owner_id: z.string(),
+        probability: z.number().min(0).max(1),
+        impact: z.number().min(0).max(10),
+        asset_ids: z.array(z.string()),
+        tags: z.array(z.string()),
+      }),
+    [t],
+  );
 
   const {
     register,
@@ -97,79 +137,61 @@ export const CreateRiskModal = ({
     formState: { errors, isSubmitting },
     reset,
   } = useForm<CreateRiskForm>({
-    resolver: zodResolver(createRiskSchema),
+    resolver: zodResolver(schema),
     defaultValues: {
-      title: '',
+      title: initialTitle ?? '',
       description: '',
-      impact: 5,
-      probability: 0.5,
-      assetCriticality: 1.5,
-      tags: [],
       category_id: '',
+      owner_id: '',
+      // Level 3 of each, as the design starts: the midpoints of their buckets.
+      probability: probabilityForLevel(3),
+      impact: impactForLevel(3),
       asset_ids: initialAssetIds ?? [],
-      ...(initialTitle ? { title: initialTitle } : {}),
+      tags: [],
     },
   });
 
-  const watchedImpact = watch('impact');
-  const watchedProbability = watch('probability');
-  const watchedCriticality = watch('assetCriticality');
-  const watchedTitle = watch('title');
-  const watchedDescription = watch('description');
-  // Mappings live OUTSIDE the zod form: they are written after the risk exists
-  // (they reference its id), and the import drawer must be able to open over
-  // the form without unmounting it.
+  const probability = watch('probability');
+  const impact = watch('impact');
+  const title = watch('title');
+  const description = watch('description');
+  const assetIds = watch('asset_ids');
+
+  // Mappings are written after the risk exists (they reference its id), and the
+  // import drawer must open over the form without unmounting it.
   const [mappings, setMappings] = useState<MappingDraft[]>([]);
   const [importOpen, setImportOpen] = useState(false);
-  // The scrolling body, for the progress keyline under the header.
-  const bodyRef = useRef<HTMLDivElement>(null);
-  const { data: categories } = useRiskCategories();
-  const queryClient = useQueryClient();
-  const watchedAssetIds = watch('asset_ids') ?? [];
-
-  // The live figure comes from the server's model, debounced at 300 ms.
-  const { data: preview } = useScorePreview(
-    {
-      scope: 'risk',
-      probability: watchedProbability,
-      impact: watchedImpact,
-      asset_criticality: watchedCriticality,
-    },
-    isOpen,
-  );
-
+  const [moreOpen, setMoreOpen] = useState(false);
+  // The assets the risk can be linked to are read when the modal opens.
   useEffect(() => {
-    if (isOpen) {
-      fetchAssets();
-      setTimeout(() => {
-        const input = document.querySelector('input[name="title"]') as HTMLInputElement | null;
-        input?.focus();
-      }, 50);
-    }
+    if (isOpen) void fetchAssets();
   }, [isOpen, fetchAssets]);
+
+  // The live figure comes from the server, debounced at 300 ms.
+  const { data: preview } = useScorePreview({ scope: 'risk', probability, impact }, isOpen);
 
   const handleClose = () => {
     reset();
+    setMappings([]);
+    setMoreOpen(false);
     onClose();
   };
 
   const onSubmit = async (values: CreateRiskForm) => {
     try {
-      const payload = {
-        title: values.title,
-        description: values.description,
+      const created = await riskService.createRisk({
+        title: values.title.trim(),
+        description: values.description.trim() || undefined,
         probability: values.probability,
         impact: values.impact,
-        asset_criticality: values.assetCriticality,
         tags: values.tags,
         category_id: values.category_id || undefined,
+        owner_id: values.owner_id || undefined,
         asset_ids: values.asset_ids,
         source: 'manual',
-      };
-      const created = await riskService.createRisk(payload);
-      // Mappings are written after the risk exists — they reference its id. A
-      // failure here must NOT lose the risk that was just created, so each one
-      // is best-effort and reported separately.
+      });
+      // Mappings are written after the risk exists. A failure here must NOT lose
+      // the risk that was just created, so each one is best-effort, reported apart.
       const failed: string[] = [];
       for (const m of mappings) {
         try {
@@ -183,405 +205,329 @@ export const CreateRiskModal = ({
       }
       if (failed.length) {
         toast.warning(
-          `Risque créé, mais ${failed.length} mapping(s) n'ont pas pu être enregistrés : ${failed.join(', ')}. Rattachez-les depuis « Risques non mappés ».`,
+          t('risks.new.mappingsFailed', { count: failed.length, names: failed.join(', ') }),
         );
       }
-      // No client-side celebration here. The server records risk.created; the
-      // checklist re-reads it and decides whether this is a milestone worth a
-      // burst. Firing confetti from the client is what made it fire at random.
+      // The server records risk.created; the checklist re-reads it and decides
+      // whether this is a milestone. No client-side celebration.
       refreshActivation();
-      toast.success(t('messages.riskCreatedSuccess'), {
-        description: 'Le risque a été créé et le score est calculé en backend.',
-        icon: <Zap className="w-4 h-4 text-primary" />,
-      });
+      toast.success(t('messages.riskCreatedSuccess'));
       onCreated?.(created);
       handleClose();
     } catch (err) {
       console.error(err);
-      toast.error(t('errors.failedToCreateRisk'), {
-        description: t('errors.serverError'),
-        icon: <ShieldAlert className="w-4 h-4 text-danger-text" />,
-      });
+      toast.error(t('errors.failedToCreateRisk'), { description: t('errors.serverError') });
     }
   };
 
+  const categoryOptions: ListboxOption[] = [
+    { value: NONE, label: t('risks.uncategorised') },
+    ...(categories ?? []).map((c) => ({ value: c.id, label: c.name })),
+  ];
+  const ownerOptions: ListboxOption[] = [
+    { value: NONE, label: t('risks.new.ownerNone') },
+    ...members.map((m) => ({ value: m.user_id, label: memberName(m) })),
+  ];
+  const pickableAssets: ListboxOption[] = assets
+    .filter((a) => !assetIds.includes(a.id))
+    .map((a) => ({ value: a.id, label: a.name }));
+  const pNames = LEVELS.map((k) => t(`risks.level.probability.${k}`));
+  const iNames = LEVELS.map((k) => t(`risks.level.impact.${k}`));
+
+  // The register's own score and band, from the server (POST /score/preview).
+  const band = preview?.risk_criticality;
+  const bandText = band ? t(`risks.band.${band}`) : null;
+
   return (
-    <AnimatePresence>
-      {isOpen && (
-        <>
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={handleClose}
-            className="fixed inset-0 z-40 bg-surface-overlay backdrop-blur-sm"
+    <>
+      <Modal
+        open={isOpen}
+        onClose={handleClose}
+        dismissable={!isSubmitting}
+        size="md"
+        className="max-w-145"
+        title={t('risks.new.title')}
+        subtitle={t('risks.new.subtitle')}
+        closeLabel={t('common.close')}
+        footer={
+          <>
+            <Button type="button" variant="secondary" onClick={handleClose} disabled={isSubmitting}>
+              {t('common.cancel')}
+            </Button>
+            <Button
+              type="submit"
+              form="create-risk-form"
+              variant="primary"
+              loading={isSubmitting}
+              disabled={title.trim().length < 4}
+              data-testid="create-risk-submit"
+            >
+              {t('risks.new.submit')}
+            </Button>
+          </>
+        }
+      >
+        <form
+          id="create-risk-form"
+          onSubmit={handleSubmit(onSubmit)}
+          noValidate
+          className="grid gap-4"
+        >
+          <Field
+            label={t('risks.new.titleLabel')}
+            message={errors.title?.message}
+            status={errors.title?.message ? 'invalid' : 'default'}
+          >
+            <Input
+              {...register('title')}
+              autoFocus
+              placeholder={t('risks.new.titlePlaceholder')}
+              disabled={isSubmitting}
+            />
+          </Field>
+
+          <div className="grid grid-cols-2 gap-3">
+            <label className="grid gap-1.5 min-w-0">
+              <span className="text-[12.5px] font-semibold text-ink">{t('risks.category')}</span>
+              <Controller
+                name="category_id"
+                control={control}
+                render={({ field }) => (
+                  <Listbox
+                    value={field.value || NONE}
+                    options={categoryOptions}
+                    onChange={(v) => field.onChange(v === NONE ? '' : v)}
+                    disabled={isSubmitting}
+                    data-testid="create-risk-category"
+                  />
+                )}
+              />
+            </label>
+            <label className="grid gap-1.5 min-w-0">
+              <span className="text-[12.5px] font-semibold text-ink">
+                {t('risks.new.ownerLabel')}
+              </span>
+              <Controller
+                name="owner_id"
+                control={control}
+                render={({ field }) => (
+                  <Listbox
+                    value={field.value || NONE}
+                    options={ownerOptions}
+                    onChange={(v) => field.onChange(v === NONE ? '' : v)}
+                    loading={membersLoading}
+                    disabled={isSubmitting}
+                    data-testid="create-risk-owner"
+                  />
+                )}
+              />
+            </label>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <LevelPicker
+              label={t('risks.probability')}
+              level={probabilityLevel(probability)}
+              levelNames={pNames}
+              exact={formatProbability(locale, probability)}
+              disabled={isSubmitting}
+              testId="create-risk-p"
+              help={<FieldHelp field="probability" lang={lang} sector={sector} />}
+              onPick={(k) => setValue('probability', probabilityForLevel(k), { shouldDirty: true })}
+            />
+            <LevelPicker
+              label={t('risks.impact')}
+              level={impactLevel(impact)}
+              levelNames={iNames}
+              exact={formatImpact(locale, impact)}
+              disabled={isSubmitting}
+              testId="create-risk-i"
+              help={<FieldHelp field="impact" lang={lang} sector={sector} />}
+              onPick={(k) => setValue('impact', impactForLevel(k), { shouldDirty: true })}
+            />
+          </div>
+
+          <div
+            className="flex items-center gap-3.5 px-3.5 py-3 rounded-[10px] bg-surface-1 border border-border-subtle"
+            data-testid="create-risk-score"
+          >
+            <span
+              className="mono text-[26px] font-semibold leading-none"
+              style={{ color: bandTextColor(band) }}
+            >
+              {formatScore(locale, preview?.risk_score)}
+            </span>
+            <span className="flex-1 min-w-0 text-[12.5px] text-ink-soft">
+              <span className="block">{t('risks.new.liveScore')}</span>
+              <span className="block text-[11.5px] text-ink-muted">
+                {t('risks.new.liveScoreHint')}
+              </span>
+            </span>
+            {bandText && (
+              <span
+                className="text-[11px] px-2 py-0.5 rounded-full font-semibold bg-surface-3"
+                style={{ color: bandTextColor(band) }}
+              >
+                {bandText}
+              </span>
+            )}
+          </div>
+
+          <Field
+            label={
+              <>
+                {t('risks.new.descriptionLabel')}{' '}
+                <span className="font-normal text-ink-muted">— {t('risks.new.optional')}</span>
+              </>
+            }
+            htmlFor="create-risk-description"
+            message={errors.description?.message}
+            status={errors.description?.message ? 'invalid' : 'default'}
+          >
+            <Textarea
+              id="create-risk-description"
+              {...register('description')}
+              rows={3}
+              placeholder={t('risks.new.descriptionPlaceholder')}
+              disabled={isSubmitting}
+            />
+          </Field>
+
+          <div className="grid gap-2">
+            <span className="text-[12.5px] font-semibold text-ink">
+              {t('risks.new.assetsLabel')}
+            </span>
+            {assetIds.length > 0 && (
+              <div className="flex flex-wrap gap-1.5">
+                {assetIds.map((id) => {
+                  const name = assets.find((a) => a.id === id)?.name ?? id;
+                  return (
+                    <span
+                      key={id}
+                      className="inline-flex items-center gap-1.5 h-[26px] pl-2.5 pr-1 rounded-lg border border-border-default bg-surface-2 text-[12.5px] text-ink"
+                    >
+                      <Database size={13} aria-hidden="true" className="text-ink-muted" />
+                      {name}
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setValue(
+                            'asset_ids',
+                            assetIds.filter((x) => x !== id),
+                            { shouldDirty: true },
+                          )
+                        }
+                        aria-label={t('risks.new.removeAsset', { name })}
+                        className="size-5 inline-flex items-center justify-center rounded-md text-ink-muted hover:bg-surface-3 hover:text-ink"
+                      >
+                        <X size={12} aria-hidden="true" />
+                      </button>
+                    </span>
+                  );
+                })}
+              </div>
+            )}
+            <Listbox
+              value=""
+              options={pickableAssets}
+              onChange={(id) => setValue('asset_ids', [...assetIds, id], { shouldDirty: true })}
+              loading={assetsLoading}
+              disabled={isSubmitting}
+              placeholder={
+                assets.length === 0 && !assetsLoading
+                  ? t('assets.noAssets')
+                  : t('risks.new.addAsset')
+              }
+              emptyLabel={t('risks.new.noMoreAssets')}
+              aria-label={t('risks.new.addAsset')}
+              data-testid="create-risk-assets"
+            />
+            <p className="m-0 text-[11.5px] text-ink-muted">{t('risks.new.assetsHint')}</p>
+          </div>
+
+          <SuggestionPicker
+            suggestions={suggestions?.risks ?? []}
+            visible={!title?.trim() && !description?.trim()}
+            lang={lang}
+            onPick={(sugg) => {
+              setValue('title', sugg.title, { shouldValidate: true });
+              setValue('description', sugg.description, { shouldValidate: true });
+              setValue('probability', sugg.probability, { shouldValidate: true });
+              setValue('impact', sugg.impact, { shouldValidate: true });
+              if (sugg.suggested_tags?.length) setValue('tags', sugg.suggested_tags);
+            }}
           />
 
-          <motion.div
-            {...dialogMotion}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4"
-            // The app's primary creation flow was a bare <div>: no dialog role,
-            // no aria-modal, no accessible name. Assistive technology never
-            // announced it as a dialog and never trapped into it, so a screen
-            // reader could walk straight out into the register behind it while
-            // the form sat open on top.
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="create-risk-title"
-          >
-            {/* Bounded height + scrollable body so a tall form never pushes the header
-                or the submit button off-screen (the modal used to be vertically centered
-                with no max-height, hiding its own actions). Header and footer stay pinned. */}
-            <div className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-3xl border border-border bg-elevated shadow-card-lg">
-              <div className="flex shrink-0 items-center justify-between gap-4 border-b border-border px-6 py-5">
-                <div>
-                  <h2 id="create-risk-title" className="text-2xl font-semibold text-ink">
-                    {t('risks.createRisk')}
-                  </h2>
-                  <p className="text-sm text-ink-muted">{t('risks.createRiskSubtitle')}</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={handleClose}
-                  className="rounded-full p-2 text-ink-soft hover:bg-hover hover:text-ink transition-colors"
-                >
-                  <X size={20} />
-                </button>
+          <div>
+            <button
+              type="button"
+              aria-expanded={moreOpen}
+              aria-controls="create-risk-more"
+              onClick={() => setMoreOpen((v) => !v)}
+              className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-accent-strong hover:underline"
+            >
+              <ChevronDown
+                size={14}
+                aria-hidden="true"
+                className="transition-transform duration-fast"
+                style={{ transform: moreOpen ? 'rotate(180deg)' : undefined }}
+              />
+              {t('risks.new.more')}
+            </button>
+            <Collapse id="create-risk-more" open={moreOpen} className="grid gap-4 pt-3">
+              <div className="grid gap-1.5">
+                <label htmlFor="create-risk-tags" className="text-[12.5px] font-semibold text-ink">
+                  {t('risks.riskTags')}
+                </label>
+                <Controller
+                  name="tags"
+                  control={control}
+                  render={({ field }) => (
+                    <TagInput
+                      id="create-risk-tags"
+                      value={field.value}
+                      onValueChange={field.onChange}
+                      labels={tagLabels}
+                      disabled={isSubmitting}
+                    />
+                  )}
+                />
               </div>
-              {/* Sits on the header's bottom rule and fills as the body scrolls. */}
-              <ScrollProgress target={bodyRef} className="-mt-px shrink-0" />
+              <div className="grid gap-1.5">
+                <span className="text-[12.5px] font-semibold text-ink">
+                  {t('risks.riskFramework')}
+                </span>
+                <ComplianceMappingField
+                  value={mappings}
+                  onChange={setMappings}
+                  disabled={isSubmitting}
+                  onImportFramework={() => setImportOpen(true)}
+                />
+              </div>
+            </Collapse>
+          </div>
+        </form>
+      </Modal>
 
-              <form
-                onSubmit={handleSubmit(onSubmit, () => setShakeNonce((n) => n + 1))}
-                className="flex min-h-0 flex-1 flex-col"
-              >
-                <div className="flex-1 space-y-6 overflow-y-auto px-6 py-6 scrollbar-thin">
-                  {/* Guided first risk (spec §5). Three drafts drawn from the
-                    sector chosen at signup. We do NOT create anything: clicking
-                    one fills the form, and the user adjusts and validates it —
-                    which is the difference between "the product made a risk" and
-                    "I made my first risk". Only shown while the form is untouched
-                    so it never gets in the way of someone who knows what to type. */}
-                  <SuggestionPicker
-                    suggestions={suggestions?.risks ?? []}
-                    visible={!watchedTitle?.trim() && !watchedDescription?.trim()}
-                    lang={lang}
-                    onPick={(sugg) => {
-                      setValue('title', sugg.title, { shouldValidate: true });
-                      setValue('description', sugg.description, { shouldValidate: true });
-                      setValue('probability', sugg.probability, { shouldValidate: true });
-                      setValue('impact', sugg.impact, { shouldValidate: true });
-                      if (sugg.suggested_tags?.length) setValue('tags', sugg.suggested_tags);
-                    }}
-                  />
-                  <Field
-                    label={t('risks.riskName')}
-                    message={errors.title?.message}
-                    status={errors.title?.message ? 'invalid' : 'default'}
-                    shakeKey={errors.title?.message ? shakeNonce : undefined}
-                  >
-                    <Input {...register('title')} disabled={isSubmitting} />
-                  </Field>
-                  <Field
-                    label={t('risks.riskDescription')}
-                    htmlFor="create-risk-description"
-                    message={errors.description?.message}
-                    status={errors.description?.message ? 'invalid' : 'default'}
-                    shakeKey={errors.description?.message ? shakeNonce : undefined}
-                  >
-                    <Textarea
-                      id="create-risk-description"
-                      {...register('description')}
-                      rows={5}
-                      disabled={isSubmitting}
-                    />
-                  </Field>
-
-                  <div className="grid gap-4 sm:grid-cols-3">
-                    <div className="space-y-2">
-                      <label
-                        htmlFor="create-risk-probability"
-                        className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted"
-                      >
-                        {t('risks.probability')}
-                        <FieldHelp field="probability" lang={lang} sector={sector} />
-                      </label>
-                      <input
-                        type="range"
-                        min={0}
-                        max={1}
-                        step={0.05}
-                        id="create-risk-probability"
-                        {...register('probability', { valueAsNumber: true })}
-                        // The visible value sits in a separate row below, which a
-                        // screen reader reads as loose text rather than as this
-                        // slider's value.
-                        aria-valuetext={watchedProbability.toFixed(2)}
-                        className="w-full"
-                      />
-                      <div className="flex items-center justify-between text-xs text-ink-muted">
-                        <span>0</span>
-                        <span>{watchedProbability.toFixed(2)}</span>
-                        <span>1</span>
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <label
-                        htmlFor="create-risk-impact"
-                        className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted"
-                      >
-                        {t('risks.impact')}
-                        <FieldHelp field="impact" lang={lang} sector={sector} />
-                      </label>
-                      <input
-                        type="range"
-                        min={1}
-                        max={10}
-                        step={1}
-                        id="create-risk-impact"
-                        {...register('impact', { valueAsNumber: true })}
-                        // The visible value sits in a separate row below, which a
-                        // screen reader reads as loose text rather than as this
-                        // slider's value.
-                        aria-valuetext={String(watchedImpact)}
-                        className="w-full"
-                      />
-                      <div className="flex items-center justify-between text-xs text-ink-muted">
-                        <span>1</span>
-                        <span>{watchedImpact}</span>
-                        <span>10</span>
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <label
-                        htmlFor="create-risk-asset-criticality"
-                        className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted"
-                      >
-                        {t('risks.riskAssetCriticality')}
-                        <FieldHelp field="asset_criticality" lang={lang} sector={sector} />
-                      </label>
-                      <input
-                        type="range"
-                        min={0.1}
-                        max={3}
-                        step={0.1}
-                        id="create-risk-asset-criticality"
-                        {...register('assetCriticality', { valueAsNumber: true })}
-                        // The visible value sits in a separate row below, which a
-                        // screen reader reads as loose text rather than as this
-                        // slider's value.
-                        aria-valuetext={watchedCriticality.toFixed(1)}
-                        className="w-full"
-                      />
-                      <div className="flex items-center justify-between text-xs text-ink-muted">
-                        <span>0.1</span>
-                        <span>{watchedCriticality.toFixed(1)}</span>
-                        <span>3.0</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <motion.div
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="rounded-3xl border border-border bg-hover p-4"
-                  >
-                    <div className="flex items-center justify-between gap-4">
-                      <div>
-                        <p className="flex items-center gap-1.5 text-xs uppercase tracking-[0.18em] text-ink-muted">
-                          Score en direct
-                          <ScoreExplainerButton score={preview} />
-                        </p>
-                        <p className="text-3xl font-semibold text-ink">
-                          {preview ? preview.value.toFixed(1) : '—'}
-                          <span className="text-sm text-ink-muted"> / 100</span>
-                        </p>
-                      </div>
-                      {/* Band and colour are the server's, exactly as received. */}
-                      <div
-                        className="rounded-3xl px-4 py-2 text-xs font-semibold"
-                        style={{
-                          background: `color-mix(in srgb, ${bandColor(preview?.band)} 16%, transparent)`,
-                          color: bandColor(preview?.band),
-                        }}
-                      >
-                        {bandLabel(preview?.band, lang)}
-                      </div>
-                    </div>
-                  </motion.div>
-
-                  {/* Classification — three separate concepts, three separate
-                    fields. Conflating them is what put a user's label in the
-                    "Référentiel" column wearing a framework badge. */}
-                  <div className="space-y-2">
-                    <label
-                      htmlFor="create-risk-category"
-                      className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted"
-                    >
-                      {t('risks.category')}
-                    </label>
-                    <select
-                      id="create-risk-category"
-                      {...register('category_id')}
-                      className="w-full rounded-3xl border border-border bg-elevated px-4 py-3 text-sm text-ink"
-                      disabled={isSubmitting}
-                    >
-                      <option value="">{t('risks.uncategorised')}</option>
-                      {(categories ?? []).map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.name}
-                        </option>
-                      ))}
-                    </select>
-                    <p className="text-[11px] text-ink-muted">
-                      Vocabulaire contrôlé, configuré par votre organisation — à ne pas confondre
-                      avec les étiquettes libres.
-                    </p>
-                  </div>
-
-                  {/* The free tags the note above refers to. This form declared
-                      `tags` in its schema and watched the value, but rendered no
-                      control at all — so every risk created here was submitted
-                      with an empty array (#631). */}
-                  <div className="space-y-2">
-                    <label
-                      htmlFor="create-risk-tags"
-                      className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted"
-                    >
-                      {t('risks.riskTags')}
-                    </label>
-                    <Controller
-                      name="tags"
-                      control={control}
-                      render={({ field }) => (
-                        <TagInput
-                          id="create-risk-tags"
-                          value={field.value ?? []}
-                          onValueChange={field.onChange}
-                          labels={tagLabels}
-                          disabled={isSubmitting}
-                        />
-                      )}
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted">
-                      {t('risks.riskFramework')}
-                    </label>
-                    <ComplianceMappingField
-                      value={mappings}
-                      onChange={setMappings}
-                      disabled={isSubmitting}
-                      onImportFramework={() => setImportOpen(true)}
-                    />
-                  </div>
-
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <div className="space-y-2">
-                      <label className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-muted">
-                        {t('risks.riskAssets')}
-                      </label>
-                      <div className="rounded-3xl border border-border bg-app p-3 min-h-[120px] overflow-y-auto">
-                        {assetsLoading ? (
-                          <p className="text-xs text-ink-muted">{t('common.loading')}</p>
-                        ) : assets.length === 0 ? (
-                          <p className="text-xs text-ink-muted">{t('assets.noAssets')}</p>
-                        ) : (
-                          <div className="grid gap-2">
-                            {assets.map((asset) => (
-                              <button
-                                type="button"
-                                key={asset.id}
-                                onClick={() => {
-                                  const current = watchedAssetIds || [];
-                                  if (current.includes(asset.id)) {
-                                    setValue(
-                                      'asset_ids',
-                                      current.filter((id) => id !== asset.id),
-                                      { shouldValidate: true },
-                                    );
-                                  } else {
-                                    setValue('asset_ids', [...current, asset.id], {
-                                      shouldValidate: true,
-                                    });
-                                  }
-                                }}
-                                className={`w-full rounded-2xl border px-3 py-2 text-left text-sm transition-colors ${watchedAssetIds.includes(asset.id) ? 'border-primary bg-primary/10 text-accent' : 'border-border bg-app text-ink-soft hover:border-border-strong'}`}
-                              >
-                                <div className="flex items-center gap-2">
-                                  <Database size={16} />
-                                  <span>{asset.name}</span>
-                                </div>
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  <Field label={t('risks.riskTags')}>
-                    <Input
-                      {...register('tags', {
-                        setValueAs: (value) =>
-                          typeof value === 'string'
-                            ? value
-                                .split(',')
-                                .map((tag) => tag.trim())
-                                .filter(Boolean)
-                            : value,
-                      })}
-                      placeholder="critical, api, cloud"
-                      disabled={isSubmitting}
-                    />
-                  </Field>
-                </div>
-
-                <div className="flex shrink-0 flex-wrap justify-end gap-3 border-t border-border bg-elevated px-6 py-4">
-                  <Button type="button" variant="ghost" onClick={handleClose}>
-                    Annuler
-                  </Button>
-                  <Button
-                    type="submit"
-                    variant="secondary"
-                    loading={isSubmitting}
-                    className="gap-2"
-                  >
-                    <Zap size={16} /> {t('common.save')}
-                  </Button>
-                </div>
-              </form>
-            </div>
-          </motion.div>
-
-          {/* The import drawer opens OVER the form. The form is never unmounted,
-              so a half-written risk survives the detour — losing it to fix a
-              missing framework would be the worse bug. */}
-          {importOpen ? (
-            <ImportFrameworkDialog
-              onClose={() => setImportOpen(false)}
-              onImported={() => {
-                setImportOpen(false);
-                void queryClient.invalidateQueries({ queryKey: IMPORTED_FRAMEWORKS_KEY });
-              }}
-            />
-          ) : null}
-        </>
-      )}
-    </AnimatePresence>
+      {/* The import drawer opens OVER the form. The form is never unmounted, so a
+          half-written risk survives the detour. */}
+      {importOpen ? (
+        <ImportFrameworkDialog
+          onClose={() => setImportOpen(false)}
+          onImported={() => {
+            setImportOpen(false);
+            void queryClient.invalidateQueries({ queryKey: IMPORTED_FRAMEWORKS_KEY });
+          }}
+        />
+      ) : null}
+    </>
   );
 };
 
 /**
- * The three pre-filled first-risk drafts (spec §5).
- *
- * Clicking one fills the form; it does not submit, and it does not create
- * anything. The user still has to look at the numbers and press save — which is
- * exactly the point: they must feel this is THEIR risk, not one the product
- * invented on their behalf.
+ * The first-risk drafts (onboarding §5). Clicking one fills the form; it does
+ * not submit and it does not create anything — the user still looks at the
+ * numbers and confirms, so it is THEIR risk and not one the product invented.
  */
 function SuggestionPicker({
   suggestions,
@@ -594,47 +540,69 @@ function SuggestionPicker({
   lang: LocaleCode;
   onPick: (s: RiskSuggestion) => void;
 }) {
+  const { locale } = useI18n();
+  const [open, setOpen] = useState(false);
   if (!visible || suggestions.length === 0) return null;
   const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
 
   return (
-    <div className="rounded-3xl border border-border bg-hover p-4" data-testid="risk-suggestions">
-      <div className="flex items-center gap-2 mb-1">
-        <Sparkles size={15} className="text-primary" />
-        <span className="text-sm font-semibold text-ink">
+    <div
+      className="rounded-xl border border-border-default bg-surface-1 p-3"
+      data-testid="risk-suggestions"
+    >
+      <button
+        type="button"
+        aria-expanded={open}
+        aria-controls="risk-suggestions-list"
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-center gap-2 text-left"
+      >
+        <Sparkles size={15} className="text-accent" aria-hidden="true" />
+        <span className="flex-1 text-[13px] font-semibold text-ink">
           {tr(
             'Partir d’un risque courant de votre secteur',
             'Start from a common risk in your sector',
           )}
         </span>
-      </div>
-      <p className="text-xs text-ink-muted mb-3">
-        {tr(
-          'Nous remplissons le formulaire ; à vous d’ajuster les valeurs et de valider.',
-          'We fill the form in; you adjust the values and confirm.',
-        )}
-      </p>
-      <div className="grid gap-2">
-        {suggestions.map((s) => (
-          <button
-            key={s.key}
-            type="button"
-            data-testid={`risk-suggestion-${s.key}`}
-            onClick={() => onPick(s)}
-            className="text-left rounded-2xl border border-border bg-elevated px-3.5 py-3 transition-colors hover:border-primary"
-          >
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-[13.5px] font-semibold text-ink">{s.title}</span>
-              <span className="mono shrink-0 text-[11px] text-ink-muted">
-                P {s.probability.toFixed(2)} · I {s.impact}
-              </span>
-            </div>
-            <p className="mt-1 line-clamp-2 text-[12px] leading-snug text-ink-soft">
-              {s.description}
-            </p>
-          </button>
-        ))}
-      </div>
+        <ChevronDown
+          size={14}
+          aria-hidden="true"
+          className="text-ink-muted transition-transform duration-fast"
+          style={{ transform: open ? 'rotate(180deg)' : undefined }}
+        />
+      </button>
+      {open && (
+        <>
+          <p className="text-xs text-ink-muted mb-2.5 mt-1">
+            {tr(
+              'Nous remplissons le formulaire ; à vous d’ajuster les valeurs et de valider.',
+              'We fill the form in; you adjust the values and confirm.',
+            )}
+          </p>
+          <div id="risk-suggestions-list" className="grid gap-2">
+            {suggestions.map((s) => (
+              <button
+                key={s.key}
+                type="button"
+                data-testid={`risk-suggestion-${s.key}`}
+                onClick={() => onPick(s)}
+                className="text-left rounded-lg border border-border-default bg-surface-2 px-3 py-2.5 transition-colors hover:border-accent"
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-[13px] font-semibold text-ink">{s.title}</span>
+                  <span className="mono shrink-0 text-[11px] text-ink-muted">
+                    P {formatProbability(locale, s.probability)} · I{' '}
+                    {formatImpact(locale, s.impact)}
+                  </span>
+                </div>
+                <p className="mt-1 mb-0 line-clamp-2 text-[12px] leading-snug text-ink-soft">
+                  {s.description}
+                </p>
+              </button>
+            ))}
+          </div>
+        </>
+      )}
     </div>
   );
 }

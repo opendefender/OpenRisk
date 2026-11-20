@@ -12,12 +12,16 @@ import { mappingHref, mappingLabel } from '../../services/taxonomyService';
 import type { Criticality } from '../../shared/riskColors';
 import type { RiskStatus } from '../../shared/ui';
 import type { LocaleCode } from '../../i18n/locales';
+import { toTrend, type RiskTrend } from './riskRegisterService';
+import { toStatusValue, type RiskStatusValue } from './riskViews';
 
 export interface UiRisk {
   id: string;
   raw: Risk;
   name: string;
   crit: Criticality;
+  /** False when the server sent no band: the screen shows "—", never a made-up "low". */
+  bandKnown: boolean;
   score: number;
   prob: number;
   impact: number;
@@ -33,22 +37,34 @@ export interface UiRisk {
   fw: string;
   fwHref: string;
   status: RiskStatus;
+  /** The 5-value status the register shows (closed is its own value). */
+  statusValue: RiskStatusValue;
   phase: RiskPhase;
   owner: string;
+  ownerId: string | null;
   ownerName: string;
   mod: string;
   desc: string;
+  /** Linked assets, whole list (the table shows two, the drawer all). */
+  assetRefs: { id: string; name: string }[];
+  /** Annual loss expectancy in XAF, null when the API did not send one. */
+  ale: number | null;
+  trend: RiskTrend | null;
+  nextReviewAt: string | null;
+  /** Residual score (after treatments), same scale as `score`; null when absent. */
+  residual: number | null;
 }
 
 const CRITS = new Set<Criticality>(['critical', 'high', 'medium', 'low']);
 
-function toCrit(r: Risk): Criticality {
+function toCrit(r: Risk): Criticality | null {
   const c = ((r as { criticality?: string }).criticality ?? r.level ?? '').toString().toLowerCase();
   if (CRITS.has(c as Criticality)) return c as Criticality;
   // No client-side fallback from the number. Deriving a band here is exactly how
   // the label came to disagree with the value it sat next to; a server that did
-  // not send a criticality has not said "low", so we do not say it either.
-  return 'low';
+  // not send a criticality has not said "low", so we do not say it either: the
+  // band is unknown, and `bandKnown` says so.
+  return null;
 }
 
 /** Both live vocabularies → the design's 4-state pill. */
@@ -99,7 +115,9 @@ export function mapRisk(r: Risk, lang: LocaleCode): UiRisk {
     id: r.id,
     raw: r,
     name: rr.name || r.title || '—',
-    crit: toCrit(r),
+    // `crit` keeps a value for the legacy consumers; `bandKnown` is the truth.
+    crit: toCrit(r) ?? 'low',
+    bandKnown: toCrit(r) !== null,
     score: r.score ?? 0,
     prob: r.probability ?? 0,
     impact: r.impact ?? 0,
@@ -121,10 +139,17 @@ export function mapRisk(r: Risk, lang: LocaleCode): UiRisk {
     fw: primary ? mappingLabel(primary) : '—',
     fwHref: primary ? mappingHref(primary) : '',
     status: toRiskStatus(r.status),
+    statusValue: toStatusValue(r.status),
     phase: r.lifecycle_phase ?? 'identified',
     owner: initialsOf(ownerName),
+    ownerId: r.owner_id ?? null,
     ownerName: ownerName || '—',
     mod: relTime(rr.updated_at ?? r.created_at, lang),
     desc: r.description || '—',
+    assetRefs: (r.assets ?? []).map((a) => ({ id: String(a.id), name: a.name ?? '—' })),
+    ale: typeof r.ale_xaf === 'number' ? r.ale_xaf : null,
+    trend: toTrend(r.trend),
+    nextReviewAt: r.next_review_at ?? null,
+    residual: typeof r.residual_risk === 'number' ? r.residual_risk : null,
   };
 }

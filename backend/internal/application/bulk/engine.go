@@ -118,11 +118,36 @@ type Journal interface {
 // that failed, so a rolled-back change has told nobody anything.
 type AfterApply func(ctx context.Context, caller Caller, change domain.BulkChange, mutations []domain.BulkMutation)
 
+// ChangeValidator is a register's context-aware check of a change, run by both
+// Preview and Apply before anything is read for the selection. The store port's
+// ValidateBulkChange has no context or tenant, so a rule that needs a lookup
+// lives here: the risk register checks that a new owner is an active member of
+// the caller's tenant.
+type ChangeValidator func(ctx context.Context, caller Caller, change domain.BulkChange) error
+
+// ChainAfterApply runs several post-commit hooks in order. Nil hooks are skipped.
+func ChainAfterApply(hooks ...AfterApply) AfterApply {
+	return func(ctx context.Context, caller Caller, change domain.BulkChange, mutations []domain.BulkMutation) {
+		for _, h := range hooks {
+			if h != nil {
+				h(ctx, caller, change, mutations)
+			}
+		}
+	}
+}
+
 // Engine runs bulk operations for ONE register.
 type Engine struct {
 	store      domain.BulkStore
 	journal    Journal
 	afterApply AfterApply
+	validator  ChangeValidator
+}
+
+// WithChangeValidator attaches a context-aware validator. Nil-safe.
+func (e *Engine) WithChangeValidator(v ChangeValidator) *Engine {
+	e.validator = v
+	return e
 }
 
 // New wires an engine. The journal is required, not optional: #581's whole
@@ -153,7 +178,7 @@ func (e *Engine) SupportedActions() []domain.BulkAction { return e.store.Support
 // whose change is more than a field write implements domain.BulkPredictor, and
 // its prediction is used instead.
 func (e *Engine) Preview(ctx context.Context, caller Caller, req Request) (*Preview, error) {
-	ids, err := e.validate(caller, req)
+	ids, err := e.validate(ctx, caller, req)
 	if err != nil {
 		return nil, err
 	}
@@ -206,7 +231,7 @@ func (e *Engine) Preview(ctx context.Context, caller Caller, req Request) (*Prev
 // Apply performs the change, all or none, and journals one entry per modified
 // row.
 func (e *Engine) Apply(ctx context.Context, caller Caller, req Request) (*Result, error) {
-	ids, err := e.validate(caller, req)
+	ids, err := e.validate(ctx, caller, req)
 	if err != nil {
 		return nil, err
 	}
@@ -267,7 +292,7 @@ func (e *Engine) predict(row domain.BulkRow, change domain.BulkChange) map[strin
 
 // validate applies every module-agnostic guard, in the order that fails
 // cheapest first.
-func (e *Engine) validate(caller Caller, req Request) ([]uuid.UUID, error) {
+func (e *Engine) validate(ctx context.Context, caller Caller, req Request) ([]uuid.UUID, error) {
 	if err := caller.Validate(); err != nil {
 		return nil, err
 	}
@@ -283,7 +308,16 @@ func (e *Engine) validate(caller Caller, req Request) ([]uuid.UUID, error) {
 	if err := e.store.ValidateBulkChange(req.Change); err != nil {
 		return nil, err
 	}
-	return distinctIDs(req.IDs)
+	ids, err := distinctIDs(req.IDs)
+	if err != nil {
+		return nil, err
+	}
+	if e.validator != nil {
+		if err := e.validator(ctx, caller, req.Change); err != nil {
+			return nil, err
+		}
+	}
+	return ids, nil
 }
 
 // distinctIDs validates the selection and removes repeats. De-duplication is not
@@ -342,6 +376,10 @@ func (e *Engine) journalAll(
 		summary = fmt.Sprintf("bulk add tags %v on %s", change.Tags, e.store.EntityType())
 	case domain.BulkActionRemoveTags:
 		summary = fmt.Sprintf("bulk remove tags %v on %s", change.Tags, e.store.EntityType())
+	case domain.BulkActionSetOwner:
+		if change.OwnerID != nil {
+			summary = fmt.Sprintf("bulk owner change to %s on %s", change.OwnerID, e.store.EntityType())
+		}
 	}
 	if change.Justification != "" {
 		summary = fmt.Sprintf("%s — %s", summary, change.Justification)

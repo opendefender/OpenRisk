@@ -583,6 +583,8 @@ var decisions = []Decision{
 	// --- Risks and scoring (5) --------------------------------------------
 	{"/api/v1/risks", Covered,
 		"handler/risk_isolation_test TestRiskIsolation_ListLeaksNothing drives GET /risks over the real handler and repository from one tenant against another's register; TestRiskIsolation_NilTenantIsDenied covers the unresolved-tenant case"},
+	{"/api/v1/risks/summary", Covered,
+		"#913, the register header, tabs and band pills. GetRiskSummaryUseCase refuses uuid.Nil with 401 before any read, and every GormRiskRepository summary query (ViewCounts, CriticalityCounts, CountActive, ActiveExposureInputs) opens with `tenant_id = ?`; handler/risk_register_summary_test TestRiskSummary_Handler_CrossTenant seeds three critical risks in a second tenant and asserts the first tenant's counts, bands and active total do not include them, TestRiskSummary_Handler_Unauthorized asserts the 401, and repository TestRiskRegister_Postgres (DATABASE_URL-gated) repeats it against Postgres. The score-trend batch behind GET /risks items reads risk_histories through a join to risks.tenant_id: the same Postgres test asserts another tenant's risk id returns no snapshot"},
 	{"/api/v1/risks/unmapped", Pending,
 		"assessed, not pinned: ListUnmapped takes the tenant from the token, and repository/gorm_risk_taxonomy_repository_test TestRiskControlMappingRepo_EnrichesAndScopesToTenant covers the mapping repository's scoping generally. Unresolved: TestRiskControlMappingRepo_UnmappedExcludesMappedAndClosed asserts WHICH risks are unmapped but does not seed a second tenant, so the tenant predicate on THIS query is untested. Settled by adding a second tenant to that test"},
 	{"/api/v1/risk-categories", Pending,

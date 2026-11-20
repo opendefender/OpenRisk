@@ -14,6 +14,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 
+	"github.com/opendefender/openrisk/internal/domain"
 	"github.com/opendefender/openrisk/internal/middleware"
 	"github.com/opendefender/openrisk/pkg/cache"
 )
@@ -145,8 +146,28 @@ func riskListCacheKey(c *fiber.Ctx) (string, bool) {
 	if !ok {
 		return "", false
 	}
+	// "Mes risques" is derived from the AUTHENTICATED user, not from anything in
+	// the URL, so two members of one tenant with the same role would share a key
+	// and be served each other's list. Not cached: it is one user's slice, and a
+	// per-user key would only fill the cache with entries nobody else reads.
+	// Every other per-person filter (owner_id, assigned_to, reviewer_id) carries
+	// the id in the query string, which the wrapper already hashes into the key.
+	if riskListIsPersonal(c) {
+		return "", false
+	}
 	return fmt.Sprintf("risk:list:%s:page:%s:sev:%s:status:%s",
 		scope, c.Query("page", "1"), c.Query("severity", ""), c.Query("status", "")), true
+}
+
+// riskListIsPersonal reports a list whose content depends on who is asking:
+// ?mine=true (as the handler reads it, exact) or ?view=mine (any case, trimmed,
+// as domain.ParseRiskView reads it).
+func riskListIsPersonal(c *fiber.Ctx) bool {
+	if c.Query("mine") == "true" {
+		return true
+	}
+	v, err := domain.ParseRiskView(c.Query("view"))
+	return err == nil && v == domain.RiskViewMine
 }
 
 func riskSearchCacheKey(c *fiber.Ctx) (string, bool) {

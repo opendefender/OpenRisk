@@ -734,6 +734,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/score/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Live score of the values a form is editing
+         * @description Persists nothing. Returns the 0-100 model score (fields as the score explainer) and, beside it, the register's own score for the same values, computed by the frozen Score Engine: risk_score = probability x impact x asset_criticality (asset_criticality defaults to 1 when absent), and its band risk_criticality (>= 7 critical, >= 4 high, >= 2 medium, else low). It equals the score a risk created with these values is stored with.
+         */
+        post: operations["previewScore"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/risks/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Register header, view tabs and band pills
+         * @description Counts for the register screen (#913), scoped to the caller's tenant like the list. views counts every view and ignores view and q. by_criticality counts inside the selected view and q, so a band pill shows what picking it would add. active is the not-closed part of the whole register; its ale_xaf is the sum of the per-risk annual loss expectancy the list computes, and is null when the plan does not include financial quantification (null, never 0).
+         */
+        get: operations["getRiskSummary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/risks/{id}": {
         parameters: {
             query?: never;
@@ -2821,6 +2861,26 @@ export interface paths {
          *     The action is fixed by the route, not read from the body, so this endpoint's permission always matches what it performs. Requires `risks:update`.
          */
         post: operations["risksBulkChangeStatus"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/risks/bulk/set-owner": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Apply "set_owner" to many risks, all or none
+         * @description Writes the owner (owner_id, the register's Owner column) of every named risk, or of none. The new owner must be an active member of the caller's tenant, checked on preview and on apply, exactly as for a single-risk owner change. One audit entry per modified risk; the new owner receives one notice per batch. Risks from another tenant answer 404, identical to fabricated ids. Requires `risks:update`.
+         */
+        post: operations["risksBulkSetOwner"];
         delete?: never;
         options?: never;
         head?: never;
@@ -5034,7 +5094,7 @@ export interface components {
         };
         BulkRiskActionInput: {
             /**
-             * @description `delete` requires risks:delete (#1423); prefer POST /risks/bulk/delete.
+             * @description `delete` requires risks:delete (#1423); prefer POST /risks/bulk/delete. `assign_to` writes the legacy assigned_to column; to set the register's Owner column use POST /risks/bulk/set-owner.
              * @enum {string}
              */
             type: "change_status" | "assign_to" | "add_tags" | "remove_tags" | "delete";
@@ -5044,7 +5104,7 @@ export interface components {
             status?: string;
             /**
              * Format: uuid
-             * @description Required for assign_to.
+             * @description Required for assign_to. Writes the legacy assigned_to column, not the risk owner; the owner is set through POST /risks/bulk/set-owner.
              */
             assign_to_id?: string;
             /** @description Required for add_tags and remove_tags. Removing an absent tag is a no-op. */
@@ -5065,14 +5125,19 @@ export interface components {
             /** @example vulnerability */
             entity_type?: string;
             /** @description Only the actions this register can actually perform. Assets expose delete alone — domain.Asset has no Status, no Tags, and a free-text Owner, so nothing else from the frozen action set maps onto it. The tag actions exist only on the risk register. */
-            actions?: ("change_status" | "delete" | "add_tags" | "remove_tags")[];
+            actions?: ("change_status" | "set_owner" | "delete" | "add_tags" | "remove_tags")[];
         };
         BulkPreviewInput: {
             /** @enum {string} */
-            action: "change_status" | "delete" | "add_tags" | "remove_tags";
+            action: "change_status" | "set_owner" | "delete" | "add_tags" | "remove_tags";
             ids: string[];
             /** @description The target value, for change_status. */
             status?: string;
+            /**
+             * Format: uuid
+             * @description The new owner, for set_owner. Must be an active member of the caller's tenant.
+             */
+            owner_id?: string;
             /** @description The labels, for add_tags and remove_tags. */
             tags?: string[];
         };
@@ -5081,6 +5146,11 @@ export interface components {
             ids: string[];
             /** @description The target value, for the change-status route. */
             status?: string;
+            /**
+             * Format: uuid
+             * @description The new owner, for set_owner. Must be an active member of the caller's tenant.
+             */
+            owner_id?: string;
             /** @description The labels, for the add-tags and remove-tags routes. */
             tags?: string[];
             /** @description Recorded on every audit entry the change produces. */
@@ -5116,7 +5186,7 @@ export interface components {
             /** @description Pass to the apply call to detect a selection that moved. */
             fingerprint?: string;
             /** @enum {string} */
-            action?: "change_status" | "delete" | "add_tags" | "remove_tags";
+            action?: "change_status" | "set_owner" | "delete" | "add_tags" | "remove_tags";
         };
         BulkResult: {
             total?: number;
@@ -5513,6 +5583,55 @@ export interface components {
             created_at: string;
             /** Format: date-time */
             updated_at: string;
+        };
+        /** @enum {string} */
+        RiskView: "all" | "mine" | "hot" | "review_due" | "accepted";
+        /**
+         * @description Direction of the score over the last 30 days. The baseline is the latest history snapshot taken at or before now minus 30 days, else the oldest snapshot; a change of 0.5 or less either way is flat. Absent (null on a list item) when the risk has no snapshot.
+         * @enum {string}
+         */
+        RiskTrend: "up" | "down" | "flat";
+        RiskListItem: components["schemas"]["Risk"] & {
+            /** @description Score trend; null when the risk has no history snapshot. */
+            trend: components["schemas"]["RiskTrend"] | null;
+        };
+        RiskListResponse: {
+            items: components["schemas"]["RiskListItem"][];
+            /**
+             * Format: int64
+             * @description Size of the whole filtered set, not of the page.
+             */
+            total: number;
+        };
+        RiskSummary: {
+            views: {
+                /** Format: int64 */
+                all: number;
+                /** Format: int64 */
+                mine: number;
+                /** Format: int64 */
+                hot: number;
+                /** Format: int64 */
+                review_due: number;
+                /** Format: int64 */
+                accepted: number;
+            };
+            by_criticality: {
+                /** Format: int64 */
+                critical: number;
+                /** Format: int64 */
+                high: number;
+                /** Format: int64 */
+                medium: number;
+                /** Format: int64 */
+                low: number;
+            };
+            active: {
+                /** Format: int64 */
+                count: number;
+                /** @description Summed annual loss expectancy in XAF; null without the financial-quantification entitlement. */
+                ale_xaf: number | null;
+            };
         };
         ErrorResponse: {
             /** @example Invalid input */
@@ -7783,6 +7902,10 @@ export interface operations {
                 page?: number;
                 limit?: number;
                 sort_by?: string;
+                /** @description A named slice of the register (#913). The same definitions drive the counts of GET /risks/summary. all = no constraint; mine = the caller is owner, assignee or reviewer (identical to mine=true); hot = criticality high or critical and status not closed; review_due = next_review_at set and within 30 days, overdue included, status not closed; accepted = status accepted. An unknown value answers 400 validation_failed. */
+                view?: components["schemas"]["RiskView"];
+                /** @description Free-text search over title and description. */
+                q?: string;
                 /** @description Keep only risks whose residual-risk acceptance still stands and ends within this many days (0 = already due). #811. */
                 acceptance_expires_within?: number;
             };
@@ -7792,13 +7915,22 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description List of risks */
+            /** @description One page of risks and the size of the whole filtered set */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Risk"][];
+                    "application/json": components["schemas"]["RiskListResponse"];
+                };
+            };
+            /** @description Validation error, for example an unknown view */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
             /** @description Unauthorized */
@@ -7854,6 +7986,111 @@ export interface operations {
             };
             /** @description The plan's cap on risks is reached (limit_reached, D-078) */
             402: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    previewScore: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @enum {string} */
+                    scope?: "risk";
+                    probability?: number;
+                    impact?: number;
+                    asset_criticality?: number;
+                    mitigation_effectiveness?: number;
+                };
+            };
+        };
+        responses: {
+            /** @description The preview */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        risk_score: number;
+                        /** @enum {string} */
+                        risk_criticality: "low" | "medium" | "high" | "critical";
+                    } & {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description A term out of range, or a scope other than risk */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    getRiskSummary: {
+        parameters: {
+            query?: {
+                /** @description The view whose risks by_criticality counts (default all). */
+                view?: components["schemas"]["RiskView"];
+                /** @description Free-text search, as on the list. */
+                q?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The summary */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RiskSummary"];
+                };
+            };
+            /** @description Unknown view (validation_failed) */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unauthorized, or the session carries no tenant */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description The caller lacks risks:read */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -13242,6 +13479,58 @@ export interface operations {
                 };
             };
             /** @description Validation error — empty selection, over 100 items, or an invalid status or tag */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The caller lacks risks:update, or the session carries no tenant */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description An id did not resolve — absent, or another tenant's, deliberately indistinguishable. Nothing was modified. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The selection changed since it was previewed. Nothing was modified. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    risksBulkSetOwner: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BulkApplyInput"];
+            };
+        };
+        responses: {
+            /** @description The batch was applied in full */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BulkResult"];
+                };
+            };
+            /** @description Validation error — empty selection, over 100 items, missing owner_id, or an owner who is not an active member of the tenant */
             400: {
                 headers: {
                     [name: string]: unknown;

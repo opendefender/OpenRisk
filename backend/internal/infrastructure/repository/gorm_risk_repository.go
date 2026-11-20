@@ -33,6 +33,16 @@ import (
 // - Create audit entries on mutations
 type GormRiskRepository struct {
 	db *gorm.DB
+	// clock is the "now" the register views are evaluated at. time.Now except
+	// in tests.
+	clock func() time.Time
+}
+
+func (r *GormRiskRepository) now() time.Time {
+	if r.clock != nil {
+		return r.clock().UTC()
+	}
+	return time.Now().UTC()
 }
 
 // RunRiskTx runs fn inside one transaction with a risk repository bound to it,
@@ -128,32 +138,30 @@ func (r *GormRiskRepository) List(ctx context.Context, tenantID uuid.UUID, query
 		Where("tenant_id = ?", tenantID)
 
 	// Apply filters
-	if query.Search != "" {
-		// Full-text search (tsvector on name+description) OR'd with a prefix-ish
-		// ILIKE. The tsvector alone is lexeme-exact: typing "log" matched nothing
-		// while "Log4Shell" sat in the register, which made the register's search
-		// box look broken. The ILIKE arm only ever ADDS rows, so full-text ranking
-		// behaviour for real words is unchanged. Both arms are bound parameters.
-		like := "%" + query.Search + "%"
-		db = db.Where(
-			"(to_tsvector(?, name || ' ' || COALESCE(description, '')) @@ plainto_tsquery(?, ?) OR name ILIKE ? OR title ILIKE ? OR COALESCE(description, '') ILIKE ?)",
-			query.SearchLanguage,
-			query.SearchLanguage,
-			query.Search,
-			like,
-			like,
-			like,
-		)
+	db = applyRiskSearch(db, query.Search, query.SearchLanguage)
+
+	// Register view (#913) — its definition lives in domain.RiskView, shared with
+	// the summary counts so a tab and its table cannot disagree.
+	if query.View != "" {
+		db = applyRiskView(db, query.View.Predicate(r.now()), query.InvolvedUser)
 	}
 
 	// Status filter (supports multiple statuses)
 	if len(query.Status) > 0 {
-		db = db.Where("status IN ?", query.Status)
+		cond, args := statusSelectorCondition(domain.SelectStatuses(query.Status))
+		db = db.Where(cond, args...)
 	}
 
 	// Criticality filter
+	// Compared lower-cased on both sides: the column carries a legacy upper-case
+	// vocabulary, and the band pills count with LOWER(criticality). A case-
+	// sensitive filter dropped a HIGH row the pill had counted.
 	if len(query.Criticality) > 0 {
-		db = db.Where("criticality IN ?", query.Criticality)
+		levels := make([]string, len(query.Criticality))
+		for i, l := range query.Criticality {
+			levels[i] = strings.ToLower(strings.TrimSpace(l))
+		}
+		db = db.Where("LOWER(criticality) IN ?", levels)
 	}
 
 	// Lifecycle phase filter (ISO 31000)
@@ -195,8 +203,8 @@ func (r *GormRiskRepository) List(ctx context.Context, tenantID uuid.UUID, query
 	// point of splitting them: a single filter can now mean "anything I answer
 	// for, work on, or must validate".
 	if query.InvolvedUser != nil {
-		u := *query.InvolvedUser
-		db = db.Where("(owner_id = ? OR assignee_id = ? OR reviewer_id = ? OR assigned_to = ?)", u, u, u, u)
+		cond, args := involvedCondition(*query.InvolvedUser)
+		db = db.Where(cond, args...)
 	}
 	if query.OwnedBy != nil {
 		db = db.Where("owner_id = ?", *query.OwnedBy)
@@ -263,9 +271,16 @@ func (r *GormRiskRepository) List(ctx context.Context, tenantID uuid.UUID, query
 	}
 
 	// Apply pagination and sorting
+	order := fmt.Sprintf("%s %s", query.SortBy, query.SortOrder)
+	if query.SortBy == "next_review_at" {
+		// NULLs last in both directions: a risk with no review date is not the
+		// "earliest" review, and ascending must not open on a page of blanks. The
+		// id tiebreak keeps pages stable when many reviews share a date.
+		order = fmt.Sprintf("next_review_at %s NULLS LAST, id ASC", query.SortOrder)
+	}
 	var risks []domain.Risk
 	err := db.
-		Order(fmt.Sprintf("%s %s", query.SortBy, query.SortOrder)).
+		Order(order).
 		Offset(query.Offset()).
 		Limit(query.Limit).
 		// Scoped: a plan of another tenant pointing at this risk must not ride

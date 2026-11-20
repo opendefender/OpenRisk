@@ -130,3 +130,89 @@ func TestBulkEngine_Conflict_MessageIsReadable(t *testing.T) {
 	assert.Contains(t, msg, "changed since it was previewed")
 	assert.NotContains(t, msg, "already exists")
 }
+
+// #913 — a context-aware validator runs on Preview AND Apply, before any row is
+// read, and a chain of post-commit hooks runs in order.
+
+func ownerStore() *fakeStore {
+	return newFakeStore(domain.BulkActionChangeStatus, domain.BulkActionDelete, domain.BulkActionSetOwner)
+}
+
+func TestBulkEngine_ChangeValidator_Success(t *testing.T) {
+	store := ownerStore()
+	tenant := uuid.New()
+	id := store.seed(tenant, "r", "open")
+	owner := uuid.New()
+	var gotTenant uuid.UUID
+	e, _ := newEngine(store)
+	e.WithChangeValidator(func(_ context.Context, c Caller, ch domain.BulkChange) error {
+		gotTenant = c.TenantID
+		return nil
+	})
+	req := Request{IDs: []uuid.UUID{id}, Change: domain.BulkChange{Action: domain.BulkActionSetOwner, OwnerID: &owner}}
+
+	_, err := e.Preview(context.Background(), Caller{TenantID: tenant, UserID: uuid.New()}, req)
+	require.NoError(t, err)
+	assert.Equal(t, tenant, gotTenant, "the validator sees the caller's tenant")
+	_, err = e.Apply(context.Background(), Caller{TenantID: tenant, UserID: uuid.New()}, req)
+	require.NoError(t, err)
+}
+
+func TestBulkEngine_ChangeValidator_RejectsBeforeAnythingIsRead(t *testing.T) {
+	store := ownerStore()
+	tenant := uuid.New()
+	id := store.seed(tenant, "r", "open")
+	owner := uuid.New()
+	e, _ := newEngine(store)
+	e.WithChangeValidator(func(context.Context, Caller, domain.BulkChange) error {
+		return domain.NewValidationError("not a member")
+	})
+	req := Request{IDs: []uuid.UUID{id}, Change: domain.BulkChange{Action: domain.BulkActionSetOwner, OwnerID: &owner}}
+	caller := Caller{TenantID: tenant, UserID: uuid.New()}
+
+	for name, run := range map[string]func() error{
+		"preview": func() error { _, err := e.Preview(context.Background(), caller, req); return err },
+		"apply":   func() error { _, err := e.Apply(context.Background(), caller, req); return err },
+	} {
+		err := run()
+		require.Error(t, err, name)
+		assert.ErrorIs(t, err, domain.ErrValidation, name)
+	}
+	assert.Zero(t, store.loads, "rejected before the selection is read")
+}
+
+func TestBulkEngine_ChangeValidator_Unauthorized(t *testing.T) {
+	// The caller check comes first: a zero tenant never reaches the validator.
+	store := ownerStore()
+	owner := uuid.New()
+	called := false
+	e, _ := newEngine(store)
+	e.WithChangeValidator(func(context.Context, Caller, domain.BulkChange) error { called = true; return nil })
+	_, err := e.Apply(context.Background(), Caller{UserID: uuid.New()}, Request{
+		IDs: []uuid.UUID{uuid.New()}, Change: domain.BulkChange{Action: domain.BulkActionSetOwner, OwnerID: &owner}})
+	require.Error(t, err)
+	assert.ErrorIs(t, err, domain.ErrForbidden)
+	assert.False(t, called)
+}
+
+func TestBulkEngine_SetOwnerNeedsASupportingStore(t *testing.T) {
+	// A register that does not declare set_owner refuses it (assets, vulnerabilities).
+	store := newFakeStore()
+	owner := uuid.New()
+	e, _ := newEngine(store)
+	_, err := e.Preview(context.Background(), Caller{TenantID: uuid.New(), UserID: uuid.New()}, Request{
+		IDs: []uuid.UUID{uuid.New()}, Change: domain.BulkChange{Action: domain.BulkActionSetOwner, OwnerID: &owner}})
+	require.Error(t, err)
+	assert.ErrorIs(t, err, domain.ErrValidation)
+}
+
+func TestChainAfterApply_RunsInOrderAndSkipsNil(t *testing.T) {
+	var order []string
+	chain := ChainAfterApply(
+		func(context.Context, Caller, domain.BulkChange, []domain.BulkMutation) { order = append(order, "a") },
+		nil,
+		func(context.Context, Caller, domain.BulkChange, []domain.BulkMutation) { order = append(order, "b") },
+	)
+	chain(context.Background(), Caller{}, domain.BulkChange{}, nil)
+	assert.Equal(t, []string{"a", "b"}, order)
+}

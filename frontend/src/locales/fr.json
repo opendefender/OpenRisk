@@ -122,7 +122,59 @@
     "noAssets": "Aucun actif.",
     "updated": "Risque mis à jour",
     "updateFailed": "Erreur lors de la mise à jour",
-    "fieldDescription": "Description"
+    "fieldDescription": "Description",
+    "band": {
+      "critical": "Critique",
+      "high": "Élevé",
+      "medium": "Moyen",
+      "low": "Faible",
+      "unknown": "Niveau inconnu"
+    },
+    "level": {
+      "probability": {
+        "1": "Rare",
+        "2": "Peu probable",
+        "3": "Possible",
+        "4": "Probable",
+        "5": "Quasi certain"
+      },
+      "impact": {
+        "1": "Négligeable",
+        "2": "Mineur",
+        "3": "Modéré",
+        "4": "Majeur",
+        "5": "Critique"
+      }
+    },
+    "new": {
+      "title": "Nouveau risque",
+      "subtitle": "Il sera ajouté au registre avec le statut « Ouvert ».",
+      "titleLabel": "Intitulé",
+      "titlePlaceholder": "Ex. Compromission de la messagerie de la direction",
+      "ownerLabel": "Propriétaire",
+      "ownerNone": "Non assigné",
+      "descriptionLabel": "Description",
+      "optional": "facultatif",
+      "descriptionPlaceholder": "Scénario, causes, conséquences attendues",
+      "liveScore": "Score inhérent (probabilité × impact × criticité)",
+      "liveScoreHint": "Estimation du score du registre. La criticité des actifs liés est appliquée à l’enregistrement.",
+      "submit": "Créer le risque",
+      "addAsset": "Ajouter un actif…",
+      "noMoreAssets": "Tous les actifs sont déjà liés.",
+      "removeAsset": "Retirer {name}",
+      "assetsHint": "La criticité des actifs liés entre dans le calcul du score.",
+      "more": "Plus d’options",
+      "mappingsFailed": {
+        "one": "Risque créé, mais {count} rattachement n’a pas pu être enregistré : {names}. Rattachez-le depuis « Risques non mappés ».",
+        "other": "Risque créé, mais {count} rattachements n’ont pas pu être enregistrés : {names}. Rattachez-les depuis « Risques non mappés »."
+      },
+      "errors": {
+        "titleShort": "L’intitulé doit comporter au moins 4 caractères.",
+        "titleLong": "L’intitulé ne peut pas dépasser 100 caractères.",
+        "descriptionLong": "La description ne peut pas dépasser 5 000 caractères."
+      },
+      "assetsLabel": "Actifs concernés"
+    }
   },
   "statuses": {
     "open": "Ouvert",
@@ -569,7 +621,8 @@
   "bulk": {
     "title": {
       "delete": "Supprimer {n} {entity} ?",
-      "changeStatus": "Changer le statut de {n} {entity} ?"
+      "changeStatus": "Changer le statut de {n} {entity} ?",
+      "setOwner": "Changer le responsable de {n} {entity} ?"
     },
     "subtitle": "Rien n'a encore changé. Voici ce qui changerait.",
     "previewing": "Calcul de ce qui changerait…",
@@ -2314,6 +2367,273 @@
       "not_found": "Contrôle introuvable.",
       "invalid_control_id": "L'identifiant du contrôle est invalide.",
       "unavailable": "Le statut du contrôle est momentanément indisponible. Veuillez réessayer."
+    }
+  },
+  "riskRegister": {
+    "title": "Registre des risques",
+    "newRisk": "Nouveau risque",
+    "import": "Importer",
+    "retry": "Réessayer",
+    "cancel": "Annuler",
+    "subtitle": {
+      "withAle": {
+        "one": "{count, number} risque actif · {ale} M {currency} d’exposition annualisée",
+        "other": "{count, number} risques actifs · {ale} M {currency} d’exposition annualisée"
+      },
+      "noAle": {
+        "one": "{count, number} risque actif",
+        "other": "{count, number} risques actifs"
+      },
+      "error": "Le résumé du registre n’a pas pu être chargé."
+    },
+    "export": {
+      "action": "Exporter la vue",
+      "done": {
+        "one": "{count} risque exporté en CSV",
+        "other": "{count} risques exportés en CSV"
+      },
+      "empty": "Aucun risque à exporter.",
+      "failed": "L’export a échoué : le registre n’a pas pu être lu en entier. Réessayez."
+    },
+    "view": {
+      "label": "Vues du registre",
+      "all": "Tous",
+      "mine": "Mes risques",
+      "hot": "Critiques et élevés",
+      "review_due": "Revue < 30 j",
+      "accepted": "Acceptés"
+    },
+    "counts": {
+      "retry": "Réessayer les compteurs"
+    },
+    "search": {
+      "placeholder": "Intitulé ou description",
+      "label": "Rechercher dans le registre",
+      "clear": "Effacer la recherche"
+    },
+    "filter": {
+      "bands": "Niveau",
+      "status": "Statut",
+      "owner": "Propriétaire",
+      "allStatuses": "Tous les statuts",
+      "allOwners": "Tous les propriétaires",
+      "reset": "Réinitialiser"
+    },
+    "layout": {
+      "label": "Affichage",
+      "table": "Tableau",
+      "matrix": "Matrice"
+    },
+    "status": {
+      "open": "Ouvert",
+      "in_progress": "En cours",
+      "mitigated": "Atténué",
+      "accepted": "Accepté",
+      "closed": "Clos"
+    },
+    "phase": {
+      "identified": "Identifié",
+      "analyzed": "Évalué",
+      "evaluated": "Traitement planifié",
+      "treated": "En traitement",
+      "monitored": "Traité / accepté",
+      "closed": "Clôturé"
+    },
+    "source": {
+      "manual": "Manuel",
+      "cti_auto": "CTI (auto)",
+      "scan_auto": "Scanner (auto)",
+      "import": "Import"
+    },
+    "facet": {
+      "phase": "Étape du cycle de vie",
+      "category": "Catégorie",
+      "source": "Origine",
+      "unmapped": "Contrôles",
+      "unmappedOption": "Non mappés à un contrôle"
+    },
+    "col": {
+      "id": "ID",
+      "risk": "Risque",
+      "score": "Score",
+      "band": "Criticité",
+      "status": "Statut",
+      "owner": "Responsable",
+      "ale": "ALE",
+      "aleUnsortable": "Non triable : l’ALE est calculé après la lecture de la page, le serveur ne peut pas trier dessus.",
+      "trend": "Tend.",
+      "review": "Revue",
+      "phase": "Phase",
+      "framework": "Contrôle",
+      "tags": "Étiquettes",
+      "updated": "Mis à jour",
+      "category": "Catégorie",
+      "aleUnit": "ALE (M {currency})"
+    },
+    "trend": {
+      "up": "En hausse",
+      "down": "En baisse",
+      "flat": "Stable",
+      "none": "Pas de tendance (aucun historique)"
+    },
+    "review": {
+      "closed": "Clos",
+      "none": "Aucune revue planifiée",
+      "overdue": "Revue en retard",
+      "soon": "Revue dans moins de 14 jours"
+    },
+    "ale": {
+      "locked": "L’exposition financière n’est pas incluse dans votre offre."
+    },
+    "footer": {
+      "count": {
+        "one": "{shown} sur {count, number} risque",
+        "other": "{shown} sur {count, number} risques"
+      },
+      "formula": "Score = probabilité (0–1) × impact (0–10) × criticité de l’actif (0,1–3) · critique ≥ 7 · élevé ≥ 4 · moyen ≥ 2 · faible < 2",
+      "ale": "ALE en M {currency} / an"
+    },
+    "empty": {
+      "title": "Aucun risque pour le moment",
+      "body": "Créez votre premier risque pour commencer à cartographier votre exposition.",
+      "readOnly": "Aucun risque n’est encore enregistré. Votre rôle permet de consulter le registre ; un administrateur peut vous donner le droit d’en créer."
+    },
+    "noMatch": {
+      "title": "Aucun risque ne correspond à ces filtres",
+      "body": "Élargissez la recherche ou",
+      "reset": "réinitialisez les filtres"
+    },
+    "error": {
+      "title": "Chargement impossible",
+      "body": "Le registre n’a pas pu être lu. Vérifiez votre connexion puis réessayez."
+    },
+    "row": {
+      "view": "Voir",
+      "edit": "Modifier",
+      "mitigate": "Créer une mitigation",
+      "export": "Exporter en CSV",
+      "delete": "Supprimer"
+    },
+    "delete": {
+      "title": "Supprimer ce risque ?",
+      "body": "Action irréversible. Voici ce qui sera supprimé :",
+      "impactMiti": "Plans de mitigation liés",
+      "impactHistory": "Historique et scores du risque",
+      "lost": "perdus",
+      "exportFirst": "Exporter le risque (CSV) avant de supprimer",
+      "exportFirstHint": "Gardez une trace hors ligne avant la suppression.",
+      "confirm": "Supprimer définitivement",
+      "done": "Risque supprimé",
+      "failed": "Suppression échouée"
+    },
+    "miti": {
+      "linked": "Plan de mitigation lié au risque"
+    },
+    "bulk": {
+      "status": "Changer le statut…",
+      "owner": "Assigner à…",
+      "export": "Exporter",
+      "delete": "Supprimer",
+      "statusDone": {
+        "one": "{count} risque mis à jour · {status}",
+        "other": "{count} risques mis à jour · {status}"
+      },
+      "ownerDone": {
+        "one": "{count} risque assigné à {name}",
+        "other": "{count} risques assignés à {name}"
+      },
+      "undo": "Annuler",
+      "undone": "Modification annulée",
+      "undoFailed": "L’annulation a échoué : rechargez la page pour vérifier l’état des risques.",
+      "failed": "Aucun risque modifié : la requête a échoué.",
+      "stale": "Aucun risque modifié : la sélection a changé. Rechargez et réessayez.",
+      "deleted": {
+        "one": "{count} risque supprimé",
+        "other": "{count} risques supprimés"
+      },
+      "entity": "risques"
+    },
+    "matrix": {
+      "caption": "Matrice des risques — probabilité par impact",
+      "probability": "Probabilité",
+      "impact": "Impact",
+      "ranking": "Classement par score",
+      "hint": "Cliquez une case pour l’isoler",
+      "cellTitle": "Probabilité {p} × impact {i}",
+      "cellSub": {
+        "one": "{pName} · {iName} · {count} risque",
+        "other": "{pName} · {iName} · {count} risques"
+      },
+      "cellEmpty": "Aucun risque dans cette case.",
+      "cellAria": {
+        "one": "Probabilité {p}, {pName} ; impact {i}, {iName} ; {count} risque",
+        "other": "Probabilité {p}, {pName} ; impact {i}, {iName} ; {count} risques"
+      },
+      "markerAria": "{title} — score {score}, niveau {band}",
+      "truncated": "Matrice limitée aux {limit} premiers risques sur {total}. Affinez les filtres pour voir les autres."
+    },
+    "drawer": {
+      "sections": "Sections du risque",
+      "close": "Fermer",
+      "closeHint": "Fermer (Échap)",
+      "copyLink": "Copier le lien",
+      "linkCopied": "Lien copié",
+      "linkCopyFailed": "Impossible de copier le lien.",
+      "edit": "Modifier",
+      "export": "Exporter en CSV",
+      "tab": {
+        "overview": "Aperçu",
+        "miti": "Mitigations",
+        "history": "Historique",
+        "ownership": "Responsabilités et contrôles",
+        "lifecycle": "Cycle de vie",
+        "score": "Détail du score",
+        "smart": "Score intelligent",
+        "financial": "Financier",
+        "cti": "Threat Intel (CTI)",
+        "ai": "Plan de traitement IA"
+      },
+      "probability": "Probabilité",
+      "impact": "Impact",
+      "levelSet": "{field} : niveau {level}",
+      "inherentScore": "Score inhérent",
+      "inherentAle": "ALE inhérente",
+      "residualScore": "Score résiduel",
+      "status": "Statut",
+      "owner": "Propriétaire",
+      "unassigned": "Non assigné",
+      "statusSet": "Statut : {status}",
+      "ownerSet": "Propriétaire mis à jour",
+      "saveFailed": "L’enregistrement a échoué. La valeur précédente est rétablie.",
+      "scenario": "Scénario",
+      "noScenario": "Aucun scénario renseigné.",
+      "assets": "Actifs concernés",
+      "noAssets": "Aucun actif lié",
+      "controls": "Contrôles associés",
+      "noControls": "Aucun contrôle associé",
+      "controlsError": "Les contrôles n’ont pas pu être chargés.",
+      "nextReview": "Prochaine revue",
+      "accept": "Demander l’acceptation",
+      "acceptRequested": "Acceptation demandée",
+      "closeRisk": "Clore le risque",
+      "closed": "Risque clos",
+      "transitionRefused": "La transition a été refusée.",
+      "transitionsError": "Les actions de cycle de vie n’ont pas pu être chargées.",
+      "transitionNone": "Cette action n’est pas disponible à l’étape actuelle du risque.",
+      "transitionBlocked": "Cette action est bloquée à l’étape actuelle du risque.",
+      "miti": {
+        "empty": "Aucune mitigation planifiée pour ce risque.",
+        "add": "Planifier une mitigation",
+        "done": "Terminée",
+        "inProgress": "En cours",
+        "planned": "À planifier"
+      },
+      "loadFailedTitle": "Risque indisponible",
+      "loadFailedBody": "Ce risque n’a pas pu être chargé. Il a peut-être été supprimé.",
+      "financialInputUnit": "Saisie en {unit} (unité de stockage)."
+    },
+    "owner": {
+      "none": "Non assigné"
     }
   }
 }

@@ -308,3 +308,88 @@ func TestRiskBulkStore_RefusesBulkResidualAcceptance(t *testing.T) {
 	assert.True(t, errors.Is(err, domain.ErrValidation))
 	assert.Equal(t, "open", statusOf(t, db, a))
 }
+
+// ---------------------------------------------------------------------------
+// #913 — set_owner on a real table
+// ---------------------------------------------------------------------------
+
+func ownerOf(t *testing.T, db *gorm.DB, id uuid.UUID) string {
+	t.Helper()
+	var got *string
+	require.NoError(t, db.Raw(`SELECT owner_id FROM risks WHERE id = ?`, id.String()).Scan(&got).Error)
+	if got == nil {
+		return ""
+	}
+	return *got
+}
+
+func TestRiskBulkStore_SetOwner_Success(t *testing.T) {
+	e, j, db := setupRiskBulkEngine(t)
+	ctx := context.Background()
+	tenant, owner := uuid.New(), uuid.New()
+	a, b := seedBulkRisk(t, db, tenant, "open"), seedBulkRisk(t, db, tenant, "open")
+	change := domain.BulkChange{Action: domain.BulkActionSetOwner, OwnerID: &owner}
+	req := bulkapp.Request{IDs: []uuid.UUID{a, b}, Change: change}
+
+	p, err := e.Preview(ctx, riskCaller(tenant), req)
+	require.NoError(t, err)
+	assert.Equal(t, 2, p.Affected)
+	require.NotEmpty(t, p.Sample)
+	assert.Equal(t, []string{"owner_id"}, p.Sample[0].ChangedFields)
+	assert.Empty(t, ownerOf(t, db, a), "the preview wrote nothing")
+
+	req.Fingerprint = p.Fingerprint
+	res, err := e.Apply(ctx, riskCaller(tenant), req)
+	require.NoError(t, err)
+	assert.Equal(t, 2, res.Applied)
+	assert.Equal(t, owner.String(), ownerOf(t, db, a))
+	assert.Equal(t, owner.String(), ownerOf(t, db, b))
+
+	require.Len(t, j.events, 2, "one audit entry per risk")
+	assert.Contains(t, []string(j.events[0].ChangedFields), "owner_id")
+	assert.Contains(t, j.events[0].Summary, owner.String())
+
+	// Re-applying the same owner is a no-op the preview reports as unchanged.
+	again, err := e.Preview(ctx, riskCaller(tenant), bulkapp.Request{IDs: []uuid.UUID{a, b}, Change: change})
+	require.NoError(t, err)
+	assert.Equal(t, 0, again.Affected)
+	assert.Equal(t, 2, again.Unchanged)
+}
+
+func TestRiskBulkStore_SetOwner_NotFound_RollsBack(t *testing.T) {
+	e, j, db := setupRiskBulkEngine(t)
+	tenant, owner := uuid.New(), uuid.New()
+	a := seedBulkRisk(t, db, tenant, "open")
+
+	_, err := e.Apply(context.Background(), riskCaller(tenant), bulkapp.Request{
+		IDs:    []uuid.UUID{a, uuid.New()},
+		Change: domain.BulkChange{Action: domain.BulkActionSetOwner, OwnerID: &owner},
+	})
+	require.Error(t, err)
+	assert.ErrorIs(t, err, domain.ErrNotFound)
+	assert.Empty(t, ownerOf(t, db, a), "one unknown id fails the batch, nothing is written")
+	assert.Empty(t, j.events)
+}
+
+func TestRiskBulkStore_SetOwner_Unauthorized_CrossTenant(t *testing.T) {
+	e, _, db := setupRiskBulkEngine(t)
+	victim, attacker, owner := uuid.New(), uuid.New(), uuid.New()
+	a := seedBulkRisk(t, db, victim, "open")
+
+	// Another tenant's risk answers exactly like an unknown id.
+	_, err := e.Apply(context.Background(), riskCaller(attacker), bulkapp.Request{
+		IDs:    []uuid.UUID{a},
+		Change: domain.BulkChange{Action: domain.BulkActionSetOwner, OwnerID: &owner},
+	})
+	require.Error(t, err)
+	assert.ErrorIs(t, err, domain.ErrNotFound)
+	assert.Empty(t, ownerOf(t, db, a))
+
+	// No tenant at all is refused outright.
+	_, err = e.Apply(context.Background(), bulkapp.Caller{UserID: uuid.New()}, bulkapp.Request{
+		IDs:    []uuid.UUID{a},
+		Change: domain.BulkChange{Action: domain.BulkActionSetOwner, OwnerID: &owner},
+	})
+	assert.ErrorIs(t, err, domain.ErrForbidden)
+	assert.Empty(t, ownerOf(t, db, a))
+}

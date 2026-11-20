@@ -366,6 +366,12 @@ type Risk struct {
 	MitigationsCount int      `gorm:"-" json:"mitigations_count"`
 	Assets           []*Asset `gorm:"many2many:risk_assets;" json:"assets,omitempty"`
 
+	// ScoreTrend is computed, NOT persisted: set by the list use case from the
+	// history snapshots (nil = no snapshot). Not serialised here — the list
+	// response carries it as `trend`, other endpoints do not claim a trend they
+	// did not compute.
+	ScoreTrend *RiskTrend `gorm:"-" json:"-"`
+
 	// Computed Fields (NOT persisted, populated by handlers/use cases)
 	// These help with API responses but are never stored in DB
 	RiskWithDetails *RiskDetail `gorm:"-" json:"-"`
@@ -442,6 +448,10 @@ func (r *Risk) BulkSnapshot() map[string]interface{} {
 	if r.AssignedTo != nil {
 		assignedTo = r.AssignedTo.String()
 	}
+	var ownerID interface{}
+	if r.OwnerID != nil {
+		ownerID = r.OwnerID.String()
+	}
 	// Copy the slice: the snapshot must not alias the live risk, or mutating the
 	// tags would retroactively rewrite the "before" the caller already took.
 	tags := make([]string, len(r.Tags))
@@ -452,6 +462,7 @@ func (r *Risk) BulkSnapshot() map[string]interface{} {
 		// a trail that showed one without the other would not explain the change.
 		"lifecycle_state": string(r.State()),
 		"assigned_to":     assignedTo,
+		"owner_id":        ownerID,
 		"tags":            tags,
 	}
 }

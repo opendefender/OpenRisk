@@ -1477,7 +1477,8 @@ func main() {
 		WithOwnership(ownershipService)
 	listRisksUseCase := risk.NewListRisksUseCase(riskRepo).
 		WithMappings(riskControlMappingRepo).
-		WithOwnership(ownershipService)
+		WithOwnership(ownershipService).
+		WithTrends(riskRepo)
 	updateRiskUseCase := risk.NewUpdateRiskUseCase(riskRepo).
 		WithNotices(requestNoticeDispatcher).
 		WithOwnership(ownershipService).
@@ -1520,6 +1521,9 @@ func main() {
 		WithJournal(auditChainRepo)
 	riskHandler := handlers.NewRiskHandler(createRiskUseCase, getRiskUseCase, listRisksUseCase, updateRiskUseCase, deleteRiskUseCase, markReviewedUseCase, transitionStateUseCase, redisClientInstance, riskQuantifier).
 		WithFinancialPresenters(financialPresenters).
+		// #913 — register header, view tabs and band pills. ale_xaf is null unless
+		// the plan has financial quantification.
+		WithSummary(risk.NewGetRiskSummaryUseCase(riskRepo, riskQuantifier, riskFinancialEntitlement{levels: entitlementService})).
 		// #581 — bulk actions are transactional and audited. The journal is a
 		// REQUIRED constructor argument, not an optional extra: the previous
 		// implementation accepted a performedBy and discarded it, so a supervisor
@@ -1575,6 +1579,9 @@ func main() {
 	// /asset-dependencies.
 	protected.Get("/risks/unmapped",
 		middleware.RequirePermission("risks:read"), riskTaxonomyHandler.ListUnmappedRisks)
+	// Same trap for the register summary (#913): "summary" would parse as a uuid.
+	protected.Get("/risks/summary",
+		middleware.RequirePermission("risks:read"), riskHandler.GetRiskSummary)
 	protected.Get("/risks/:id",
 		middleware.RequirePermission("risks:read"),
 		cacheableHandlers.CacheRiskGetByIDGET(riskHandler.GetRisk))
@@ -1624,13 +1631,22 @@ func main() {
 	// "bulk" is never parsed as a risk id.
 	riskBulk := handlers.NewBulkHandler(
 		bulkapp.New(repository.NewRiskBulkStore(database.DB), auditChainRepo).
-			WithAfterApply(risk.BulkStateNotices(riskRepo, requestNoticeDispatcher)))
+			// #913 set_owner: the new owner must be an active member of the
+			// caller's tenant (same check as a single-risk owner change), on preview
+			// and apply, and is told once per batch.
+			WithChangeValidator(risk.BulkOwnerValidator(ownershipService)).
+			WithAfterApply(bulkapp.ChainAfterApply(
+				risk.BulkStateNotices(riskRepo, requestNoticeDispatcher),
+				risk.BulkOwnerNotices(ownershipService, requestNoticeDispatcher))))
 	riskRead := middleware.RequirePermission("risks:read")
 	protected.Get("/risks/bulk/capabilities", riskRead, riskBulk.Capabilities)
 	protected.Post("/risks/bulk/preview", riskRead, riskBulk.Preview)
 	protected.Post("/risks/bulk/change-status", riskUpdate, riskBulk.Apply(domain.BulkActionChangeStatus))
 	protected.Post("/risks/bulk/add-tags", riskUpdate, riskBulk.Apply(domain.BulkActionAddTags))
 	protected.Post("/risks/bulk/remove-tags", riskUpdate, riskBulk.Apply(domain.BulkActionRemoveTags))
+	// #913 — the register's Owner column. Same permission as the single-risk
+	// owner change (/risks/:id/transfer-owner).
+	protected.Post("/risks/bulk/set-owner", riskUpdate, riskBulk.Apply(domain.BulkActionSetOwner))
 	protected.Post("/risks/bulk/delete", riskDelete, riskBulk.Apply(domain.BulkActionDelete))
 
 	protected.Post("/risks", riskCreate, capRisks, riskHandler.CreateRisk)

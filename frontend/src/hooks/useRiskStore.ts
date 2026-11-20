@@ -93,7 +93,17 @@ export interface Risk {
   other_direct_cost_xaf?: number | null;
   remediation_cost_xaf?: number | null;
   mitigation_effectiveness?: number | null;
+  // --- Register (#913)
+  /** Score against its baseline 30 days ago; null/absent = no snapshot. */
+  trend?: 'up' | 'down' | 'flat' | null;
+  next_review_at?: string | null;
+  /** The residual score (after treatments), on the same scale as `score`. */
+  residual_risk?: number | null;
+  asset_criticality?: number;
 }
+
+/** The body of a risk write: any subset of the risk's own fields. */
+export type RiskPayload = Partial<Risk> & Record<string, unknown>;
 
 interface RiskFetchParams {
   q?: string;
@@ -103,6 +113,8 @@ interface RiskFetchParams {
   tag?: string;
   sort_by?: string;
   sort_dir?: 'asc' | 'desc';
+  /** The register's own filters (view, criticality, owner_id, category_id…). */
+  [param: string]: string | number | undefined;
 }
 
 interface RiskFilters {
@@ -152,14 +164,20 @@ interface RiskStore {
    * fingerprint, and which calls the undo when the server refuses the batch.
    */
   removeOptimistically: (ids: ReadonlySet<string>) => () => void;
+  /**
+   * Optimistic local patch of a set of rows (ABSOLUTE RULE 10), for a bulk
+   * change the server is about to confirm. Returns the function that puts the
+   * previous rows back if the server refuses.
+   */
+  patchRisks: (ids: readonly string[], patch: Partial<Risk>) => () => void;
 
   // import / export helpers
   importRisks: (file: File) => Promise<void>;
-  exportRisks: (params?: Record<string, any>) => Promise<Blob>;
+  exportRisks: (params?: Record<string, string | number | boolean | undefined>) => Promise<Blob>;
 
   fetchRisks: (params?: RiskFetchParams & { page?: number; limit?: number }) => Promise<void>;
-  createRisk: (payload: any) => Promise<void>;
-  updateRisk: (id: string, payload: any) => Promise<void>;
+  createRisk: (payload: RiskPayload) => Promise<void>;
+  updateRisk: (id: string, payload: RiskPayload) => Promise<void>;
   transitionPhase: (id: string, phase: RiskPhase, note?: string) => Promise<Risk>;
   deleteRisk: (id: string) => Promise<void>;
 }
@@ -302,6 +320,19 @@ export const useRiskStore = create<RiskStore>((set, get) => ({
     } finally {
       set({ isLoading: false });
     }
+  },
+
+  patchRisks: (ids, patch) => {
+    const wanted = new Set(ids);
+    const before = new Map(
+      get()
+        .risks.filter((r) => wanted.has(r.id))
+        .map((r) => [r.id, r]),
+    );
+    set((state) => ({
+      risks: state.risks.map((r) => (wanted.has(r.id) ? { ...r, ...patch } : r)),
+    }));
+    return () => set((state) => ({ risks: state.risks.map((r) => before.get(r.id) ?? r) }));
   },
 
   // filters & selection implementation

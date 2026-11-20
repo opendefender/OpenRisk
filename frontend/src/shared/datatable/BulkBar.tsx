@@ -13,6 +13,7 @@
 
 import { useState } from 'react';
 import { Check, Loader2, TriangleAlert, X } from 'lucide-react';
+import { Listbox } from '../ds';
 import type { BulkAction, BulkScope } from './types';
 
 type Phase =
@@ -34,10 +35,10 @@ export function BulkBar<T>({ count, actions, buildScope, onClear, labels }: Bulk
   const visible = actions.filter((a) => !a.hidden);
   if (count === 0 || visible.length === 0) return null;
 
-  const run = async (action: BulkAction<T>) => {
+  const run = async (action: BulkAction<T>, choice?: string) => {
     setPhase({ kind: 'running', key: action.key });
     try {
-      await action.run(buildScope(action));
+      await action.run(buildScope(action), choice);
       setPhase({ kind: 'done', key: action.key });
       window.setTimeout(
         () => setPhase((p) => (p.kind === 'done' && p.key === action.key ? { kind: 'idle' } : p)),
@@ -53,7 +54,7 @@ export function BulkBar<T>({ count, actions, buildScope, onClear, labels }: Bulk
       role="toolbar"
       aria-label={labels.selected(count)}
       data-testid="bulk-bar"
-      className="fixed bottom-6 left-1/2 z-60 glass-strong rounded-[14px] shadow-card-lg px-3.5 py-2.5 flex items-center gap-3 flex-wrap"
+      className="fixed bottom-6 left-1/2 z-60 glass-strong rounded-[14px] shadow-card-lg px-3.5 py-2.5 flex items-center gap-3 flex-nowrap whitespace-nowrap max-w-[calc(100vw-2rem)] overflow-x-auto"
       style={{
         transform: 'translateX(-50%)',
         animation: 'or-fadeup var(--dur-slow) var(--ease-out)',
@@ -69,6 +70,29 @@ export function BulkBar<T>({ count, actions, buildScope, onClear, labels }: Bulk
         const running = phase.kind === 'running' && phase.key === action.key;
         const done = phase.kind === 'done' && phase.key === action.key;
         const failed = phase.kind === 'error' && phase.key === action.key;
+        if (action.choices) {
+          return (
+            <span key={action.key} className="inline-flex items-center gap-1.5">
+              <Listbox
+                size="sm"
+                value=""
+                options={action.choices}
+                placeholder={action.label}
+                aria-label={action.label}
+                disabled={phase.kind === 'running'}
+                loading={running}
+                onChange={(value) => void run(action, value)}
+                className="min-w-[10rem]"
+                data-testid={`bulk-action-${action.key}`}
+              />
+              {failed && (
+                <span role="alert" className="text-[12px] font-semibold text-danger-text">
+                  {labels.failed}
+                </span>
+              )}
+            </span>
+          );
+        }
         return (
           <button
             key={action.key}

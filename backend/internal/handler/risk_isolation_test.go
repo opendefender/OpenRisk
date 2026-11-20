@@ -22,6 +22,7 @@ import (
 	"gorm.io/gorm"
 
 	applicationrisk "github.com/opendefender/openrisk/internal/application/risk"
+	scoreapp "github.com/opendefender/openrisk/internal/application/score"
 	"github.com/opendefender/openrisk/internal/infrastructure/database"
 	"github.com/opendefender/openrisk/internal/infrastructure/repository"
 	"github.com/opendefender/openrisk/internal/middleware"
@@ -47,6 +48,9 @@ type tenantRiskApp struct {
 	app    *fiber.App
 	db     *gorm.DB
 	acting *uuid.UUID
+	// user is the authenticated user of every request; zero means a fresh one
+	// per request, which is what most probes want.
+	user *uuid.UUID
 }
 
 func newTenantRiskApp(t *testing.T) *tenantRiskApp {
@@ -64,12 +68,16 @@ func newTenantRiskApp(t *testing.T) *tenantRiskApp {
 	database.DB = db
 	t.Cleanup(func() { database.DB = orig })
 
-	h := &tenantRiskApp{db: db, acting: new(uuid.UUID)}
+	h := &tenantRiskApp{db: db, acting: new(uuid.UUID), user: new(uuid.UUID)}
 
 	app := fiber.New()
 	app.Use(func(c *fiber.Ctx) error {
+		user := *h.user
+		if user == uuid.Nil {
+			user = uuid.New()
+		}
 		middleware.SetContext(c, &middleware.RequestContext{
-			UserID:         uuid.New(),
+			UserID:         user,
 			OrganizationID: *h.acting,
 		})
 		return c.Next()
@@ -86,11 +94,13 @@ func newTenantRiskApp(t *testing.T) *tenantRiskApp {
 		applicationrisk.NewTransitionRiskStateUseCase(riskRepo),
 		nil,
 		crq.NewQuantifier(0, crq.Reference{}),
-	)
+	).WithSummary(applicationrisk.NewGetRiskSummaryUseCase(riskRepo, crq.NewQuantifier(600, crq.DefaultReference()), nil))
 
 	api := app.Group("/api/v1")
 	api.Post("/risks", handler.CreateRisk)
 	api.Get("/risks", handler.GetRisks)
+	api.Get("/risks/summary", handler.GetRiskSummary) // before /risks/:id, as in main.go
+	api.Post("/score/preview", NewScoreHandler(scoreapp.New()).PreviewScore)
 	api.Get("/risks/:id", handler.GetRisk)
 	api.Patch("/risks/:id", handler.UpdateRisk)
 	api.Post("/risks/:id/transition", handler.TransitionPhase)

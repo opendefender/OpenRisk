@@ -45,6 +45,7 @@ import {
 } from 'lucide-react';
 import { useI18n } from '../../hooks/useI18n';
 import { useUIStore } from '../../store/uiStore';
+import { Listbox } from '../ds';
 import { EmptyState } from '../EmptyState';
 import { SkeletonRows } from '../ui';
 import { BulkBar } from './BulkBar';
@@ -87,6 +88,8 @@ export interface DataTableProps<T> {
   onExportAllMatching?: () => Promise<void> | void;
   /** Extra toolbar controls, rendered before the filter button. */
   toolbarExtra?: ReactNode;
+  /** Rendered at the end of the toolbar, after the filter and column controls. */
+  toolbarEnd?: ReactNode;
   minWidth?: number;
   /**
    * Row height for the virtualiser, in px. Omit to follow the density token
@@ -101,6 +104,10 @@ export interface DataTableProps<T> {
   virtualThreshold?: number;
   /** Accessible name of the grid. */
   ariaLabel: string;
+  /** Extra classes on the search box's container (e.g. a max width). */
+  searchClassName?: string;
+  /** Replaces the generic "no results" panel when filters match nothing. */
+  noResults?: ReactNode;
   pageSizeOptions?: number[];
   /**
    * Rows that open in place (#909): a leading chevron toggles a detail row
@@ -204,6 +211,44 @@ function useLabels() {
 
 /* ---------------------------------------------------------------- component */
 
+/**
+ * The table's "Filtres" button and panel, saved filters included, usable on its
+ * own: a screen that swaps the table for another view of the same rows (the
+ * risk register's matrix) keeps the same filters, URL state and saved views by
+ * rendering this with the same `id`.
+ */
+export function TableFilters<T>({
+  id,
+  facets,
+  api,
+  resultCount,
+}: {
+  /** The table id: namespaces the saved filters, as in <DataTable>. */
+  id: string;
+  facets: Facet<T>[];
+  api: TableStateApi;
+  resultCount: number;
+}) {
+  const L = useLabels();
+  const savedViews = useSavedViews(id);
+  return (
+    <FilterPanel
+      facets={facets}
+      api={api}
+      resultCount={resultCount}
+      views={savedViews.views}
+      viewsStatus={savedViews.status}
+      viewsMutationError={savedViews.mutationError}
+      canEditOthersViews={savedViews.canEditOthers}
+      onSaveView={savedViews.save}
+      onDeleteView={savedViews.remove}
+      onSetViewVisibility={savedViews.setVisibility}
+      onRetryViews={savedViews.retry}
+      labels={L}
+    />
+  );
+}
+
 export function DataTable<T>({
   id,
   rows,
@@ -226,11 +271,14 @@ export function DataTable<T>({
   exportFilename,
   onExportAllMatching,
   toolbarExtra,
+  toolbarEnd,
   minWidth = 820,
   estimateRowHeight,
   maxBodyHeight = 620,
   virtualThreshold = 30,
   ariaLabel,
+  searchClassName = '',
+  noResults,
   pageSizeOptions = [25, 50, 100],
   expansion,
 }: DataTableProps<T>) {
@@ -259,7 +307,6 @@ export function DataTable<T>({
   /* ------------------------------------------------------------- saved views */
   // Server-side since #580. Fetched independently of the rows on purpose: a
   // saved-views outage must never keep the register off the screen.
-  const savedViews = useSavedViews(id);
 
   /* ---------------------------------------------------------- client shaping */
   // In server mode the API already did all of this; `rows` is the page.
@@ -548,7 +595,7 @@ export function DataTable<T>({
 
   const toolbar = (
     <div className="flex flex-wrap items-center gap-2 mb-3">
-      <div className="relative flex-1 min-w-[200px]">
+      <div className={`relative flex-1 min-w-[200px] ${searchClassName}`}>
         <Search
           size={15}
           className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted pointer-events-none"
@@ -601,20 +648,7 @@ export function DataTable<T>({
       {toolbarExtra}
 
       {facets.length > 0 && (
-        <FilterPanel
-          facets={facets}
-          api={api}
-          resultCount={resultCount}
-          views={savedViews.views}
-          viewsStatus={savedViews.status}
-          viewsMutationError={savedViews.mutationError}
-          canEditOthersViews={savedViews.canEditOthers}
-          onSaveView={savedViews.save}
-          onDeleteView={savedViews.remove}
-          onSetViewVisibility={savedViews.setVisibility}
-          onRetryViews={savedViews.retry}
-          labels={L}
-        />
+        <TableFilters id={id} facets={facets} api={api} resultCount={resultCount} />
       )}
 
       <ColumnsMenu
@@ -626,6 +660,8 @@ export function DataTable<T>({
         onReset={prefs.reset}
         labels={L}
       />
+
+      {toolbarEnd}
 
       {exportFilename && (
         <button
@@ -775,30 +811,30 @@ export function DataTable<T>({
       </div>
     );
   } else if (pageRows.length === 0) {
-    body = hasQueryOrFilters ? (
-      <EmptyState
-        variant="no-results"
-        title={L.noResultsTitle}
-        description={L.noResultsDesc}
-        primaryAction={
-          <button
-            type="button"
-            onClick={() => api.clearFilters()}
-            data-testid="table-clear-filters"
-            className="h-9 px-3.5 rounded-[10px] text-[13px] font-semibold"
-            style={{
-              border: '1px solid var(--border-strong)',
-              background: 'var(--bg-elevated)',
-              color: 'var(--fg-primary)',
-            }}
-          >
-            {L.clearFilters}
-          </button>
-        }
-      />
-    ) : (
-      (empty ?? <EmptyState variant="first-use" title={L.noResultsTitle} />)
-    );
+    body = hasQueryOrFilters
+      ? (noResults ?? (
+          <EmptyState
+            variant="no-results"
+            title={L.noResultsTitle}
+            description={L.noResultsDesc}
+            primaryAction={
+              <button
+                type="button"
+                onClick={() => api.clearFilters()}
+                data-testid="table-clear-filters"
+                className="h-9 px-3.5 rounded-[10px] text-[13px] font-semibold"
+                style={{
+                  border: '1px solid var(--border-strong)',
+                  background: 'var(--bg-elevated)',
+                  color: 'var(--fg-primary)',
+                }}
+              >
+                {L.clearFilters}
+              </button>
+            }
+          />
+        ))
+      : (empty ?? <EmptyState variant="first-use" title={L.noResultsTitle} />);
   } else {
     body = (
       <div
@@ -977,22 +1013,20 @@ export function DataTable<T>({
             {L.rowsRange(firstIndexOnPage, lastIndexOnPage, resultCount)}
           </span>
           <div className="flex-1" />
-          <label className="text-[12.5px] text-ink-muted inline-flex items-center gap-1.5">
-            <select
-              value={state.pageSize}
-              onChange={(e) => api.setPageSize(Number(e.target.value))}
+          <span className="text-[12.5px] text-ink-muted inline-flex items-center gap-1.5">
+            {/* The shared Listbox, not a native <select>: the browser draws its
+                list with OS chrome, which breaks the dark theme (#935). */}
+            <Listbox
+              size="sm"
+              value={String(state.pageSize)}
+              options={pageSizeOptions.map((n) => ({ value: String(n), label: String(n) }))}
+              onChange={(v) => api.setPageSize(Number(v))}
+              aria-label={L.perPage}
               data-testid="table-page-size"
-              className="h-8 px-2 rounded-[8px] text-[12.5px] text-ink outline-none"
-              style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)' }}
-            >
-              {pageSizeOptions.map((n) => (
-                <option key={n} value={n}>
-                  {n}
-                </option>
-              ))}
-            </select>
+              className="w-[4.5rem]"
+            />
             {L.perPage}
-          </label>
+          </span>
           <div className="inline-flex items-center gap-1">
             <button
               type="button"

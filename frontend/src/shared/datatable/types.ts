@@ -95,6 +95,12 @@ export interface BulkScope<T> {
   state: TableState;
 }
 
+/** One pickable value of a bulk action that needs one (a status, an owner). */
+export interface BulkChoice {
+  value: string;
+  label: string;
+}
+
 export interface BulkAction<T> {
   key: string;
   label: string;
@@ -103,8 +109,16 @@ export interface BulkAction<T> {
   /**
    * The effect. Rejecting surfaces an error on the bar; resolving surfaces a
    * success tick. Both are visible states — rule (b).
+   *
+   * `choice` is the picked value when the action carries `choices`.
    */
-  run: (ctx: BulkScope<T>) => Promise<void> | void;
+  run: (ctx: BulkScope<T>, choice?: string) => Promise<void> | void;
+  /**
+   * An action that needs a value first ("Change status…", "Assign to…") renders
+   * as a listbox whose label is the action's, instead of a button. Picking an
+   * option runs the action with it.
+   */
+  choices?: readonly BulkChoice[];
   /** Permission gate — a bulk action the user cannot perform is not rendered. */
   hidden?: boolean;
   /** Actions that cannot address the whole result set (e.g. a per-id API). */
