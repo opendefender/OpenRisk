@@ -126,20 +126,29 @@ to existing tables and created with new ones:
 | Column | Type | Meaning |
 |---|---|---|
 | `pack_key` | `varchar(64) NOT NULL DEFAULT ''` | `Catalog.Key`, or `crosswalks` for 3a. Empty: not from a pack (hand-made). |
-| `pack_item_key` | `varchar(255) NOT NULL DEFAULT ''` | the item's identity inside the pack. Requirements: the `ReferenceCode` as shipped. Crosswalks: `<catalog>:<code>|<catalog>:<code>`, the two ends in key order. Separate from `reference_code` so a tenant who renumbers a control does not lose its identity. |
+| `pack_item_key` | `varchar(255) NOT NULL DEFAULT ''` | the item's identity inside the pack. Requirements: the `ReferenceCode` as shipped. Crosswalks: `<catalog>:<code>|<catalog>:<code>`, the two ends ordered by catalog key, then by code; it names the pair of catalogue items, not one link, because a tenant can import a catalogue into two frameworks (see the index below). Separate from `reference_code` so a tenant who renumbers a control does not lose its identity. |
 | `pack_version` | `varchar(32) NOT NULL DEFAULT ''` | the content version that last wrote the row |
 | `pack_base` | `jsonb` | snapshot of the pack-managed fields as the pack last wrote them |
-| `pack_base_hash` | `char(64)` | SHA-256 (stdlib) of the canonical JSON of `pack_base`, prefixed by a hash-rule version |
+| `pack_base_hash` | `char(64)` | lowercase hex SHA-256 (stdlib) of `"openrisk-pack-base/v1\n" + canonicalJSON(pack_base)` (D-122). The hash-rule version is a domain-separation prefix of the hashed input, never of the stored value, so the column stays 64 hex characters; a rule `v2` recomputes from the stored `pack_base`. Canonical JSON is `encoding/json` over the decoded document: keys sorted, no insignificant whitespace, no HTML escaping. The hash is always taken from a decoded document, never from the bytes `jsonb` returns (`pkg/compliance/provenance.go`, `PackBaseHashRule`, `HashPackBase`) |
 | `pack_retired_in` | `varchar(32) NOT NULL DEFAULT ''` | the content version that retired the item (D5); empty while live |
 | `pack_reverted_by` | `uuid NULL` | set only on a row a revert soft-deleted (D5, Reversibility): the id of that revert's `content_pack_upgrades` row. It is what tells a revert tombstone from a tenant deletion. |
 
 Uniqueness is enforced by a partial unique index leading on `tenant_id`, deleted rows included:
 `(tenant_id, framework_id, pack_key, pack_item_key) WHERE pack_key <> ''` on rows that have a
-framework, `(tenant_id, pack_key, pack_item_key) WHERE pack_key <> ''` on `control_crosswalks`.
+framework (`ux_compliance_controls_pack_item`), and
+`(tenant_id, pack_key, pack_item_key, source_control_id, target_control_id) WHERE pack_key <> ''`
+on `control_crosswalks` (`ux_control_crosswalks_pack_item`, D-123). A link has no `framework_id`,
+and one tenant can import the same catalogue into two frameworks, which gives two links the same
+`pack_item_key`; the control pair is what tells them apart. A crosswalk item is therefore always
+matched on `pack_key`, `pack_item_key` **and** the two control ids. A soft-deleted link blocks its
+re-creation only when it carries provenance; a deleted hand-made link does not, as for controls, and
+a live link of any origin still blocks a duplicate. Both indexes are created by migration 0091.
 
 `pack_reverted_by` alone is also added, expand-only, to the canonical `controls` table (migration
 0086), which the pack never writes directly but a revert soft-deletes with a requirement (D5,
-Reversibility). The other six columns are not added there.
+Reversibility). The other six columns are not added there. The column is never part of an INSERT
+(GORM `<-:update` on `controlchain.ControlRow`, so the mirror keeps working on a schema without it);
+the revert sets it, and the re-apply clears it, through a tenant-scoped `UPDATE`.
 
 **Who writes them.** The seven columns are written only by the pack use case. They are absent from
 every input DTO (PATCH, bulk, #307 import) and read-only in the API. #307 export does not emit them.
@@ -173,7 +182,10 @@ report as `duplicate (not tracked)`.
 
 `B` is the row's `pack_base`, `T` its current pack-managed fields, `U` the item in the pack's current
 content. Rules apply per item and, for D4's fields, per field. Tombstones count: the upgrade reads
-the framework's rows **including soft-deleted ones**, with `tenant_id` in the WHERE.
+the framework's rows **including soft-deleted ones**, with `tenant_id` in the WHERE. "That
+`pack_item_key`" below means, for a requirement, the same `framework_id` and `pack_item_key`; for a
+crosswalk link, the same `pack_item_key` and the same `source_control_id` and `target_control_id`
+(D4, D-123).
 
 | Case | Condition | What happens to the row | Report line |
 |---|---|---|---|
@@ -238,7 +250,8 @@ framework that is not yet reverted (older ones revert in order), in one transact
   `control_test_results`, `control_gap_findings`, `control_exceptions` (migrations 0086 and 0087),
   and no `canonical_edges` row on that control other than its own `addressed_by` edge, all read
   under `tenant_id`. If that check passes, the revert soft-deletes the control and hard-deletes the
-  edge (the table has no `deleted_at`) in the same transaction, and marks the control with the same `pack_reverted_by`. A control the
+  edge (the table has no `deleted_at`) in the same transaction, and marks the control with the same `pack_reverted_by`
+by `UPDATE … WHERE id = ? AND tenant_id = ?` (the column is never written on insert, D4). A control the
   tenant deleted independently stays deleted, and a later re-apply reports the requirement as
   restored without its control. `controlchain/mirror.go` has no function for a requirement deletion
   today (`DeleteControl` in `gorm_compliance_repository.go` does not mirror); the follow-up adds one;
@@ -428,3 +441,16 @@ Harder:
   and it does not move when our wording does.
 - **Revert any past upgrade in any order.** Before-images of an older upgrade can be invalid once a
   later one has written the same rows; latest-first keeps every revert well defined.
+
+## Amendments
+
+- **2026-11-20, D4 and D5, per D-122 and D-123** (#1483, PR #1486). `pack_base_hash` is the lowercase
+  hex SHA-256 of `"openrisk-pack-base/v1\n" + canonicalJSON(pack_base)`: the hash-rule version moved
+  into the hashed input, because "prefixed by a hash-rule version" cannot fit in `char(64)` (D-122).
+  The `control_crosswalks` unique index also holds `source_control_id` and `target_control_id`,
+  because a tenant can import one catalogue into two frameworks and `(tenant_id, pack_key,
+  pack_item_key)` alone would refuse the second import's links; D5 matches a link on that pair too
+  (D-123; rejected: skipping colliding links, which loses them silently, and forbidding a duplicate
+  `catalog_key` per tenant, which changes behaviour and is not expand-only). Also stated from the
+  implementation: canonical `controls.pack_reverted_by` is never written on insert, so the revert
+  sets it through a tenant-scoped `UPDATE`; the indexes are in migration 0091 (0090 is #1478's).
