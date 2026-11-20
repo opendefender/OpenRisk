@@ -5844,6 +5844,21 @@ export interface components {
         };
     };
     responses: {
+        /** @description The request carried a `Content-Encoding` other than absent or `identity` (gzip, deflate, br...). Compressed request bodies are refused on every route, before any handler, so they are never decompressed (#1472). Resend the body uncompressed. */
+        UnsupportedContentEncoding: {
+            headers: {
+                /** @description Always `identity` (RFC 7694). */
+                "Accept-Encoding"?: "identity";
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": {
+                    /** @enum {boolean} */
+                    error?: true;
+                    msg?: string;
+                };
+            };
+        };
         /** @description The API-wide quota, per IP on every /api/v1 route and per tenant on authenticated ones. Retry-After gives the seconds to wait. */
         QuotaExceeded: {
             headers: {
