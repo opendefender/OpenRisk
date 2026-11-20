@@ -3724,6 +3724,10 @@ export interface components {
             name: string;
             version: string;
             description?: string;
+            /** @description Content version of the catalogue this framework was imported at (semver). Empty means unknown, imported before content versions existed. Set by the catalogue import only. */
+            readonly catalog_content_version?: string;
+            /** @description Crosswalks version materialised at import (semver). Empty means unknown. */
+            readonly catalog_crosswalks_version?: string;
             /** Format: date-time */
             created_at: string;
             /** Format: date-time */

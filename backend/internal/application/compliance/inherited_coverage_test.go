@@ -28,6 +28,10 @@ func (f *fakeCrosswalkRepo) Create(_ context.Context, m *domain.ControlCrosswalk
 	return nil
 }
 
+func (f *fakeCrosswalkRepo) PackTombstoneExists(context.Context, uuid.UUID, uuid.UUID, uuid.UUID, string) (bool, error) {
+	return false, nil
+}
+
 func (f *fakeCrosswalkRepo) Exists(_ context.Context, tenantID, a, b uuid.UUID) (bool, error) {
 	for _, l := range f.links {
 		if l.TenantID != tenantID {

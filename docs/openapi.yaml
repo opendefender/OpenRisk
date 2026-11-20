@@ -7967,6 +7967,14 @@ components:
           type: string
         description:
           type: string
+        catalog_content_version:
+          type: string
+          readOnly: true
+          description: Content version of the catalogue this framework was imported at (semver). Empty means unknown, imported before content versions existed. Set by the catalogue import only.
+        catalog_crosswalks_version:
+          type: string
+          readOnly: true
+          description: Crosswalks version materialised at import (semver). Empty means unknown.
         created_at:
           type: string
           format: date-time

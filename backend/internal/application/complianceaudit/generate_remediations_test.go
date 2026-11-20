@@ -65,6 +65,12 @@ func (m *mockComplianceRepo) CreateFramework(context.Context, *domain.Compliance
 func (m *mockComplianceRepo) CreateFrameworkWithControls(context.Context, *domain.ComplianceFramework, []*domain.ComplianceControl) error {
 	return nil
 }
+func (m *mockComplianceRepo) ApplyCatalogImport(context.Context, *domain.CatalogImportPlan) error {
+	return nil
+}
+func (m *mockComplianceRepo) ListControlsByFrameworkIncludingDeleted(context.Context, uuid.UUID, uuid.UUID) ([]domain.ComplianceControl, error) {
+	return nil, nil
+}
 func (m *mockComplianceRepo) GetFrameworkByID(context.Context, uuid.UUID, uuid.UUID) (*domain.ComplianceFramework, error) {
 	return nil, nil
 }

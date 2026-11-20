@@ -48,6 +48,23 @@ func (r *GormControlCrosswalkRepository) Exists(ctx context.Context, tenantID, a
 	return count > 0, nil
 }
 
+// PackTombstoneExists: see domain.ControlCrosswalkRepository. Tenant-scoped.
+func (r *GormControlCrosswalkRepository) PackTombstoneExists(ctx context.Context, tenantID, a, b uuid.UUID, packItemKey string) (bool, error) {
+	if tenantID == uuid.Nil {
+		return false, domain.NewForbiddenError("tenant_id is required")
+	}
+	var count int64
+	err := r.db.WithContext(ctx).Unscoped().
+		Model(&domain.ControlCrosswalk{}).
+		Where("tenant_id = ? AND pack_key = ? AND pack_item_key = ?", tenantID, "crosswalks", packItemKey).
+		Where("(source_control_id = ? AND target_control_id = ?) OR (source_control_id = ? AND target_control_id = ?)", a, b, b, a).
+		Count(&count).Error
+	if err != nil {
+		return false, fmt.Errorf("failed to check crosswalk tombstone: %w", err)
+	}
+	return count > 0, nil
+}
+
 func (r *GormControlCrosswalkRepository) List(ctx context.Context, tenantID uuid.UUID, controlID *uuid.UUID) ([]domain.ControlCrosswalk, error) {
 	q := r.db.WithContext(ctx).Where("tenant_id = ?", tenantID)
 	if controlID != nil {

@@ -7,6 +7,16 @@ package compliance
 
 import "sort"
 
+// CrosswalksVersion is the content version of the curated crosswalk registry,
+// semver MAJOR.MINOR.PATCH (ADR 0013 D3). A crosswalk entry belongs to a pair of
+// catalogues, not to one, so it is versioned on its own. Bump it in the same
+// change that edits an entry: PATCH a rationale, MINOR entries added, MAJOR an
+// entry retired.
+const CrosswalksVersion = "1.0.0"
+
+// CrosswalksPackKey is the pack_key of every materialised crosswalk row.
+const CrosswalksPackKey = "crosswalks"
+
 // Coverage says how much of the target control the source control answers.
 //
 // Two values, not five. A compliance officer's decision is binary in practice —

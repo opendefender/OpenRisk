@@ -44,6 +44,8 @@ func setupComplianceSchema(t *testing.T) *gorm.DB {
 		CREATE TABLE compliance_frameworks (
 			id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, name TEXT NOT NULL, version TEXT NOT NULL DEFAULT '',
 			catalog_key TEXT NOT NULL DEFAULT '',
+			catalog_content_version TEXT NOT NULL DEFAULT '', catalog_crosswalks_version TEXT NOT NULL DEFAULT '',
+			catalog_pending_kinds TEXT NOT NULL DEFAULT '[]',
 			description TEXT, created_at DATETIME, updated_at DATETIME, deleted_at DATETIME
 		);
 	`).Error)
@@ -57,6 +59,8 @@ func setupComplianceSchema(t *testing.T) *gorm.DB {
 			reference_code TEXT NOT NULL DEFAULT '', name TEXT NOT NULL, description TEXT,
 			source_reference TEXT NOT NULL DEFAULT '',
 			status TEXT NOT NULL DEFAULT 'not_implemented',
+			pack_key TEXT NOT NULL DEFAULT '', pack_item_key TEXT NOT NULL DEFAULT '', pack_version TEXT NOT NULL DEFAULT '',
+			pack_base TEXT, pack_base_hash TEXT, pack_retired_in TEXT NOT NULL DEFAULT '', pack_reverted_by TEXT,
 			created_at DATETIME, updated_at DATETIME, deleted_at DATETIME
 		);
 	`).Error)
@@ -64,6 +68,11 @@ func setupComplianceSchema(t *testing.T) *gorm.DB {
 		CREATE UNIQUE INDEX idx_compliance_controls_tenant_fw_ref
 			ON compliance_controls(tenant_id, framework_id, reference_code)
 			WHERE deleted_at IS NULL AND reference_code != '';
+	`).Error)
+	require.NoError(t, db.Exec(`
+		CREATE UNIQUE INDEX ux_compliance_controls_pack_item
+			ON compliance_controls(tenant_id, framework_id, pack_key, pack_item_key)
+			WHERE pack_key <> '';
 	`).Error)
 	// The evidence library's tables come from the models, not from hand-written
 	// DDL: the two tests in this repository that were red for months were both

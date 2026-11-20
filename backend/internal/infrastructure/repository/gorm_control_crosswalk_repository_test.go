@@ -101,3 +101,36 @@ func TestControlMappingRepo_TenantIsolationAndDelete(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, mine)
 }
+
+// #1483: a deleted link with pack provenance is a tombstone, visible to its own
+// tenant only; a deleted manual link is not.
+func TestControlMappingRepo_PackTombstoneExists_TenantScoped(t *testing.T) {
+	repo := setupMappingRepo(t)
+	ctx := context.Background()
+	tenant, other := uuid.New(), uuid.New()
+	a, b, c, d := uuid.New(), uuid.New(), uuid.New(), uuid.New()
+	curated := &domain.ControlCrosswalk{ID: uuid.New(), TenantID: tenant, SourceControlID: a, TargetControlID: b, Coverage: domain.CoverageFull,
+		PackKey: "crosswalks", PackItemKey: "x:1|y:2"}
+	manual := &domain.ControlCrosswalk{ID: uuid.New(), TenantID: tenant, SourceControlID: c, TargetControlID: d, Coverage: domain.CoverageFull}
+	for _, l := range []*domain.ControlCrosswalk{curated, manual} {
+		require.NoError(t, repo.Create(ctx, l))
+		require.NoError(t, repo.Delete(ctx, l.ID, tenant))
+	}
+
+	for _, pair := range [][2]uuid.UUID{{a, b}, {b, a}} {
+		tomb, err := repo.PackTombstoneExists(ctx, tenant, pair[0], pair[1], "x:1|y:2")
+		require.NoError(t, err)
+		assert.True(t, tomb, "seen in both directions")
+	}
+	wrongKey, err := repo.PackTombstoneExists(ctx, tenant, a, b, "x:9|y:9")
+	require.NoError(t, err)
+	assert.False(t, wrongKey)
+	man, err := repo.PackTombstoneExists(ctx, tenant, c, d, "")
+	require.NoError(t, err)
+	assert.False(t, man, "a deleted manual link is not a tombstone")
+	foreign, err := repo.PackTombstoneExists(ctx, other, a, b, "x:1|y:2")
+	require.NoError(t, err)
+	assert.False(t, foreign, "another tenant cannot see it")
+	_, err = repo.PackTombstoneExists(ctx, uuid.Nil, a, b, "x:1|y:2")
+	require.ErrorIs(t, err, domain.ErrForbidden)
+}
