@@ -446,7 +446,6 @@
       "unknown": "Catalogue version: Unknown",
       "revision": "revision {revision}",
       "revisionUnknown": "revision unknown",
-      "hintLabel": "About the catalogue revision",
       "hint": "Fingerprint of the catalogue content at the time this framework was imported."
     },
     "progressState": {

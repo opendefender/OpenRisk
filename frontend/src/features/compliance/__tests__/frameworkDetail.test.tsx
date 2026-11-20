@@ -411,12 +411,13 @@ describe('FrameworkDetail catalogue version and revision (#1478)', () => {
     expect(el).toHaveTextContent('Catalogue version: 2022 · revision a1b2c3d4e5f6');
     expect(el.querySelector('.mono')).toHaveTextContent('a1b2c3d4e5f6');
     expect(el).not.toHaveAttribute('title');
-    const hint = screen.getByRole('button', { name: 'About the catalogue revision' });
-    hint.focus();
-    expect(hint).toHaveFocus();
-    fireEvent.focus(hint);
+    // The chip itself is the focus target: no inert help button beside it.
+    expect(screen.queryByRole('button', { name: /catalogue revision/i })).toBeNull();
+    el.focus();
+    expect(el).toHaveFocus();
+    fireEvent.focus(el);
     expect(await screen.findByRole('tooltip')).toHaveTextContent('Fingerprint of the catalogue');
-    expect(hint).toHaveAccessibleDescription(expect.stringContaining('Fingerprint'));
+    expect(el).toHaveAccessibleDescription(expect.stringContaining('Fingerprint'));
   });
 
   it('shows revision unknown when only the revision is empty', async () => {
@@ -457,7 +458,6 @@ describe('FrameworkDetail catalogue version and revision (#1478)', () => {
     renderDetail();
     expect(await screen.findByText('Control 1')).toBeInTheDocument();
     expect(screen.queryByTestId('framework-catalog-version')).toBeNull();
-    expect(screen.queryByTestId('framework-catalog-hint')).toBeNull();
     expect(screen.queryByText(/catalogue|revision/i)).toBeNull();
   });
 });

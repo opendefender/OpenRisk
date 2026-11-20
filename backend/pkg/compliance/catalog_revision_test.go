@@ -19,7 +19,8 @@ func revCatalog() Catalog {
 
 func TestRevision_DeterministicAndOrderIndependent(t *testing.T) {
 	a := revCatalog()
-	if a.Revision() == "" || a.Revision() != a.Revision() {
+	first, second := a.Revision(), a.Revision()
+	if first == "" || first != second {
 		t.Fatal("revision must be non-empty and stable")
 	}
 	b := Catalog{Controls: []CatalogControl{a.Controls[1], a.Controls[0]}}

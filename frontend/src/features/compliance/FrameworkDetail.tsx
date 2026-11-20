@@ -197,10 +197,14 @@ export function FrameworkDetail() {
         }
         badge={
           fw?.catalog_key ? (
-            <>
+            // The chip itself carries the explanation: it takes focus (keyboard, and a
+            // tap on touch) and the tooltip opens on focus or hover. A separate help
+            // <button> would do nothing when clicked, which is an inert action.
+            <Tooltip content={t('compliance.catalogVersion.hint')} delay={0}>
               <span
+                tabIndex={0}
                 data-testid="framework-catalog-version"
-                className="text-xs font-semibold text-ink-soft px-2.5 py-1 rounded-full bg-surface-3"
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-ink-soft px-2.5 py-1 rounded-full bg-surface-3 cursor-help focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
               >
                 {fw.catalog_version
                   ? t('compliance.catalogVersion.known', { version: fw.catalog_version })
@@ -224,18 +228,9 @@ export function FrameworkDetail() {
                             ],
                       )
                   : t('compliance.catalogVersion.revisionUnknown')}
+                <HelpCircle size={13} aria-hidden="true" />
               </span>
-              <Tooltip content={t('compliance.catalogVersion.hint')} delay={0}>
-                <button
-                  type="button"
-                  data-testid="framework-catalog-hint"
-                  aria-label={t('compliance.catalogVersion.hintLabel')}
-                  className="inline-flex items-center justify-center rounded-full text-ink-soft hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
-                >
-                  <HelpCircle size={15} aria-hidden="true" />
-                </button>
-              </Tooltip>
-            </>
+            </Tooltip>
           ) : undefined
         }
         actions={
