@@ -179,6 +179,8 @@ export function MitigationsBoard() {
                   </div>
                   <button
                     onClick={() => navigate('/risks')}
+                    aria-label={L.addPlan}
+                    title={L.addPlan}
                     className="w-[22px] h-[22px] rounded-md flex items-center justify-center text-ink-muted hover:bg-hover transition-colors"
                   >
                     <Plus size={14} />
