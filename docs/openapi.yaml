@@ -9,6 +9,11 @@ info:
     **Authentication**: All protected endpoints require a Bearer JWT token in the `Authorization` header.
     
     **Base URL**: `/api/v1`
+    
+    **Request bodies are never compressed**: any request whose `Content-Encoding` is
+    not absent or `identity` is refused with 415 before it reaches a route (see
+    `#/components/responses/UnsupportedContentEncoding`). This applies to every
+    operation below, authenticated or not.
   contact:
     name: OpenDefender Team
   license:
@@ -6897,6 +6902,23 @@ components:
       schema: { type: string, format: date-time }
 
   responses:
+    UnsupportedContentEncoding:
+      description: >-
+        The request carried a `Content-Encoding` other than absent or
+        `identity` (gzip, deflate, br...). Compressed request bodies are
+        refused on every route, before any handler, so they are never
+        decompressed (#1472). Resend the body uncompressed.
+      headers:
+        Accept-Encoding:
+          description: Always `identity` (RFC 7694).
+          schema: { type: string, enum: [identity] }
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error: { type: boolean, enum: [true] }
+              msg: { type: string }
     QuotaExceeded:
       description: >-
         The API-wide quota, per IP on every /api/v1 route and per tenant on
