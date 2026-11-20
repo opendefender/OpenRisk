@@ -248,18 +248,28 @@ func TestImportCatalogUseCase_StampsCatalogVersion(t *testing.T) {
 	require.NotNil(t, got)
 	assert.Equal(t, "iso27001-2022", got.CatalogKey)
 	assert.Equal(t, "2022", got.CatalogVersion)
+	assert.Regexp(t, `^[0-9a-f]{12}$`, got.CatalogRevision)
 }
 
-func TestImportCatalogUseCase_ReimportRefreshesStaleVersion(t *testing.T) {
+func TestImportCatalogUseCase_SameKeyReimportStampsNothing(t *testing.T) {
 	tenantID := uuid.New()
-	// Imported before the column existed: key stamped, version empty.
+	// Imported before #1478: key set, version and revision empty. A re-import adds
+	// missing controls only, so filling them would be a guess (AC2).
 	got := stampRecorder(t, domain.ComplianceFramework{ID: uuid.New(), TenantID: tenantID, CatalogKey: "iso27001-2022"}, "iso27001-2022")
-	require.NotNil(t, got, "a missing version is stamped even when the key already matches")
-	assert.Equal(t, "2022", got.CatalogVersion)
+	assert.Nil(t, got, "same-key re-import must not stamp version or revision")
 
-	// Already current: no write.
-	got = stampRecorder(t, domain.ComplianceFramework{ID: uuid.New(), TenantID: tenantID, CatalogKey: "iso27001-2022", CatalogVersion: "2022"}, "iso27001-2022")
-	assert.Nil(t, got, "nothing to refresh, nothing written")
+	// Already stamped: untouched too.
+	got = stampRecorder(t, domain.ComplianceFramework{ID: uuid.New(), TenantID: tenantID, CatalogKey: "iso27001-2022", CatalogVersion: "2022", CatalogRevision: "old"}, "iso27001-2022")
+	assert.Nil(t, got, "same-key re-import must not refresh the revision")
+}
+
+func TestImportCatalogUseCase_DifferentKeyStampsAllThree(t *testing.T) {
+	tenantID := uuid.New()
+	got := stampRecorder(t, domain.ComplianceFramework{ID: uuid.New(), TenantID: tenantID, CatalogKey: "soc2-tsc", CatalogVersion: "x", CatalogRevision: "stale"}, "iso27001-2022")
+	require.NotNil(t, got)
+	assert.Equal(t, "iso27001-2022", got.CatalogKey)
+	assert.Equal(t, "2022", got.CatalogVersion)
+	assert.Regexp(t, `^[0-9a-f]{12}$`, got.CatalogRevision)
 }
 
 func TestImportCatalogUseCase_Unauthorized_NoStampWithoutOwnedFramework(t *testing.T) {

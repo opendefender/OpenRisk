@@ -18,6 +18,7 @@ import {
   X,
   FileText,
   Plus,
+  HelpCircle,
 } from 'lucide-react';
 import {
   PageFrame,
@@ -30,6 +31,7 @@ import {
   Skeleton,
   EmptyState,
 } from '../../shared/ui';
+import { Tooltip } from '../../shared/ds';
 import { useUIStrings } from '../../shared/uiStrings';
 import { useUIStore } from '../../store/uiStore';
 import { useAuthStore } from '../../hooks/useAuthStore';
@@ -191,14 +193,43 @@ export function FrameworkDetail() {
         }
         badge={
           fw?.catalog_key ? (
-            <span
-              data-testid="framework-catalog-version"
-              className="text-xs font-semibold text-ink-soft px-2.5 py-1 rounded-full bg-surface-3"
-            >
-              {fw.catalog_version
-                ? t('compliance.catalogVersion.known', { version: fw.catalog_version })
-                : t('compliance.catalogVersion.unknown')}
-            </span>
+            <>
+              <span
+                data-testid="framework-catalog-version"
+                className="text-xs font-semibold text-ink-soft px-2.5 py-1 rounded-full bg-surface-3"
+              >
+                {fw.catalog_version
+                  ? t('compliance.catalogVersion.known', { version: fw.catalog_version })
+                  : t('compliance.catalogVersion.unknown')}
+                {' · '}
+                {fw.catalog_revision
+                  ? // Whole sentence is translated (word order differs in FR); only the
+                    // hash is split out so it can be set in monospace.
+                    t('compliance.catalogVersion.revision', { revision: fw.catalog_revision })
+                      .split(fw.catalog_revision)
+                      .flatMap((part, i) =>
+                        i === 0
+                          ? [part]
+                          : [
+                              <span key={i} className="mono">
+                                {fw.catalog_revision}
+                              </span>,
+                              part,
+                            ],
+                      )
+                  : t('compliance.catalogVersion.revisionUnknown')}
+              </span>
+              <Tooltip content={t('compliance.catalogVersion.hint')} delay={0}>
+                <button
+                  type="button"
+                  data-testid="framework-catalog-hint"
+                  aria-label={t('compliance.catalogVersion.hintLabel')}
+                  className="inline-flex items-center justify-center rounded-full text-ink-soft hover:text-ink focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+                >
+                  <HelpCircle size={15} aria-hidden="true" />
+                </button>
+              </Tooltip>
+            </>
           ) : undefined
         }
         actions={

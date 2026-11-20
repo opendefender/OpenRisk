@@ -397,39 +397,67 @@ describe('FrameworkDetail accessibility', () => {
   });
 });
 
-describe('FrameworkDetail catalogue version (#1478)', () => {
-  it('shows the version when the framework came from a catalogue', async () => {
+describe('FrameworkDetail catalogue version and revision (#1478)', () => {
+  const chip = () => screen.findByTestId('framework-catalog-version');
+
+  it('shows version and revision, hash in monospace', async () => {
     serve([control(1, 'not_implemented')], ZERO, {
       catalog_key: 'iso27001-2022',
       catalog_version: '2022',
+      catalog_revision: 'a1b2c3d4e5f6',
     });
     renderDetail();
-    expect(await screen.findByTestId('framework-catalog-version')).toHaveTextContent(
-      'Catalogue version: 2022',
+    const el = await chip();
+    expect(el).toHaveTextContent('Catalogue version: 2022 · revision a1b2c3d4e5f6');
+    expect(el.querySelector('.mono')).toHaveTextContent('a1b2c3d4e5f6');
+    expect(el).not.toHaveAttribute('title');
+    const hint = screen.getByRole('button', { name: 'About the catalogue revision' });
+    hint.focus();
+    expect(hint).toHaveFocus();
+    fireEvent.focus(hint);
+    expect(await screen.findByRole('tooltip')).toHaveTextContent('Fingerprint of the catalogue');
+    expect(hint).toHaveAccessibleDescription(expect.stringContaining('Fingerprint'));
+  });
+
+  it('shows revision unknown when only the revision is empty', async () => {
+    serve([control(1, 'not_implemented')], ZERO, {
+      catalog_key: 'iso27001-2022',
+      catalog_version: '2022',
+      catalog_revision: '',
+    });
+    renderDetail();
+    expect(await chip()).toHaveTextContent('Catalogue version: 2022 · revision unknown');
+  });
+
+  it('shows both unknown on a pre-#1478 row', async () => {
+    serve([control(1, 'not_implemented')], ZERO, { catalog_key: 'iso27001-2022' });
+    renderDetail();
+    expect(await chip()).toHaveTextContent('Catalogue version: Unknown · revision unknown');
+  });
+
+  it('shows the French variant', async () => {
+    useUIStore.setState({ lang: 'fr' });
+    serve([control(1, 'not_implemented')], ZERO, {
+      catalog_key: 'soc2',
+      catalog_version: '',
+      catalog_revision: 'a1b2c3d4e5f6',
+    });
+    renderDetail();
+    expect(await chip()).toHaveTextContent(
+      'Version du catalogue : Inconnue · révision a1b2c3d4e5f6',
     );
   });
 
-  it('shows Unknown when the catalogue is known but the version is empty', async () => {
-    serve([control(1, 'not_implemented')], ZERO, {
-      catalog_key: 'iso27001-2022',
-      catalog_version: '',
-    });
-    renderDetail();
-    expect(await screen.findByTestId('framework-catalog-version')).toHaveTextContent('Unknown');
-  });
-
-  it('shows Inconnue in French', async () => {
-    useUIStore.setState({ lang: 'fr' });
-    serve([control(1, 'not_implemented')], ZERO, { catalog_key: 'soc2', catalog_version: '' });
-    renderDetail();
-    expect(await screen.findByTestId('framework-catalog-version')).toHaveTextContent('Inconnue');
-  });
-
   it('shows nothing about a catalogue on a hand-built framework', async () => {
-    serve([control(1, 'not_implemented')], ZERO, { catalog_key: '', catalog_version: '' });
+    serve([control(1, 'not_implemented')], ZERO, {
+      catalog_key: '',
+      catalog_version: '',
+      catalog_revision: '',
+    });
     renderDetail();
     expect(await screen.findByText('Control 1')).toBeInTheDocument();
     expect(screen.queryByTestId('framework-catalog-version')).toBeNull();
-    expect(screen.queryByText(/catalogue/i)).toBeNull();
+    expect(screen.queryByTestId('framework-catalog-hint')).toBeNull();
+    expect(screen.queryByText(/catalogue|revision/i)).toBeNull();
   });
 });

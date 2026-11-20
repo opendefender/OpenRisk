@@ -443,7 +443,11 @@
     },
     "catalogVersion": {
       "known": "Version du catalogue : {version}",
-      "unknown": "Version du catalogue : Inconnue"
+      "unknown": "Version du catalogue : Inconnue",
+      "revision": "révision {revision}",
+      "revisionUnknown": "révision inconnue",
+      "hintLabel": "À propos de la révision du catalogue",
+      "hint": "Empreinte du contenu du catalogue au moment de l'import de ce référentiel."
     },
     "progressState": {
       "unavailable": "Progression indisponible",

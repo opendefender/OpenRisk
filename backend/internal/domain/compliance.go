@@ -54,6 +54,13 @@ type ComplianceFramework struct {
 	// it does not move when a description is corrected here.
 	CatalogVersion string `gorm:"size:64;not null;default:''" json:"catalog_version"`
 
+	// CatalogRevision is a fingerprint of OUR catalog content (pkg/compliance
+	// Catalog.Revision) at the import that stamped the catalogue. Empty means
+	// unknown: imported before #1478, or hand-built. It is never filled afterwards
+	// by a guess, and a re-import of the same catalogue does not move it, because
+	// a re-import only adds missing controls and never rewrites existing wording.
+	CatalogRevision string `gorm:"size:64;not null;default:''" json:"catalog_revision"`
+
 	// Relations (loaded via Preload)
 	Controls []ComplianceControl `gorm:"foreignKey:FrameworkID" json:"controls,omitempty"`
 

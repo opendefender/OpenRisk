@@ -19,6 +19,8 @@ interface RawFramework {
   // catalogue edition is unknown (framework imported before it was recorded).
   catalog_key?: string;
   catalog_version?: string;
+  // 12-hex fingerprint of the catalogue content at import; '' = unknown.
+  catalog_revision?: string;
 }
 interface RawProgress {
   Total: number;

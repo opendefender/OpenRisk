@@ -3728,6 +3728,8 @@ export interface components {
             catalog_key: string;
             /** @description Edition of the standard the catalogue reproduces (e.g. 2022), recorded at import. Empty for a hand-built framework, for one imported before this field existed, and for a catalogue with no published edition. It is not a revision of OpenRisk's own wording. */
             catalog_version: string;
+            /** @description Content fingerprint (12 hex characters) of OpenRisk's own catalogue wording at the import that stamped the catalogue. Empty means unknown, for a hand-built framework or one imported before this field existed; it is never guessed. A re-import of the same catalogue only adds missing controls and does not change it. */
+            catalog_revision: string;
             /** Format: date-time */
             created_at: string;
             /** Format: date-time */

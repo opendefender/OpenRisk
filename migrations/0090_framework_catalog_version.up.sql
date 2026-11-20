@@ -14,3 +14,6 @@
 -- compliance_frameworks already carries tenant_id; no new table, no new index.
 
 ALTER TABLE compliance_frameworks ADD COLUMN IF NOT EXISTS catalog_version VARCHAR(64) NOT NULL DEFAULT '';
+-- catalog_revision: fingerprint of OpenRisk's own catalogue content at the import
+-- that stamped the catalogue. Same rules: expand only, no backfill, '' means unknown.
+ALTER TABLE compliance_frameworks ADD COLUMN IF NOT EXISTS catalog_revision VARCHAR(64) NOT NULL DEFAULT '';

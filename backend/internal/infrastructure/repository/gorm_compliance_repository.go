@@ -288,7 +288,7 @@ func (r *GormComplianceRepository) UpdateFramework(ctx context.Context, framewor
 	res := r.db.WithContext(ctx).
 		Model(&domain.ComplianceFramework{}).
 		Where("id = ? AND tenant_id = ?", framework.ID, framework.TenantID).
-		Select("name", "version", "description", "catalog_key", "catalog_version").
+		Select("name", "version", "description", "catalog_key", "catalog_version", "catalog_revision").
 		Updates(framework)
 	if res.Error != nil {
 		return fmt.Errorf("failed to update framework: %w", res.Error)
