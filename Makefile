@@ -133,12 +133,32 @@ test-unit:
 	@echo "🧪 Running unit tests (fast)..."
 	cd backend && go test -v -short ./...
 
+# Same order as CI (#1491): a fresh Postgres 16 and Redis 7 (throwaway, tmpfs,
+# like the CI services), the schema built by one server boot
+# (scripts/ci/build-schema.sh), then the tests. Without the boot every *_Postgres
+# test that reads the real schema fails on "relation ... does not exist".
+# The containers are removed whatever the outcome.
+IT_DB_PORT     ?= 5437
+IT_REDIS_PORT  ?= 6381
+IT_SERVER_PORT ?= 18080
+IT_DB_URL      := postgres://test:test@localhost:$(IT_DB_PORT)/openrisk_test?sslmode=disable
+
 test-integration:
 	@echo "🧪 Running integration tests..."
-	$(COMPOSE) up -d test_db
-	@sleep 2
-	cd backend && DATABASE_URL="postgres://test:test@localhost:5435/openrisk_test" go test -v -tags=integration ./...
-	$(COMPOSE) stop test_db
+	@set -e; \
+	cleanup() { docker rm -f openrisk-it-pg openrisk-it-redis >/dev/null 2>&1 || true; }; \
+	trap cleanup EXIT; cleanup; \
+	docker run -d --rm --name openrisk-it-pg -p $(IT_DB_PORT):5432 \
+	  -e POSTGRES_USER=test -e POSTGRES_PASSWORD=test -e POSTGRES_DB=openrisk_test \
+	  --tmpfs /var/lib/postgresql/data postgres:16-alpine >/dev/null; \
+	docker run -d --rm --name openrisk-it-redis -p $(IT_REDIS_PORT):6379 redis:7-alpine >/dev/null; \
+	for i in $$(seq 1 30); do docker exec openrisk-it-pg pg_isready -h 127.0.0.1 -U test -d openrisk_test >/dev/null 2>&1 && break; sleep 1; done; \
+	docker exec openrisk-it-pg pg_isready -h 127.0.0.1 -U test -d openrisk_test; \
+	export DATABASE_URL="$(IT_DB_URL)" DB_HOST=localhost DB_PORT=$(IT_DB_PORT) DB_USER=test DB_PASSWORD=test \
+	  DB_NAME=openrisk_test REDIS_HOST=localhost REDIS_PORT=$(IT_REDIS_PORT) \
+	  REDIS_URL=redis://localhost:$(IT_REDIS_PORT) APP_ENV=test; \
+	PORT=$(IT_SERVER_PORT) scripts/ci/build-schema.sh; \
+	cd backend && go test -race -tags=integration ./...
 
 frontend-test:
 	@echo "🧪 Running frontend tests..."
