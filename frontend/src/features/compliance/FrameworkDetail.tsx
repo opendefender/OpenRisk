@@ -18,6 +18,7 @@ import {
   X,
   FileText,
   Plus,
+  HelpCircle,
 } from 'lucide-react';
 import {
   PageFrame,
@@ -30,6 +31,7 @@ import {
   Skeleton,
   EmptyState,
 } from '../../shared/ui';
+import { Tooltip } from '../../shared/ds';
 import { useUIStrings } from '../../shared/uiStrings';
 import { useUIStore } from '../../store/uiStore';
 import { useAuthStore } from '../../hooks/useAuthStore';
@@ -54,6 +56,10 @@ import {
   type ComplianceControl,
 } from '../../types/compliance';
 import { useEscapeToClose } from '../../shared/useBackTo';
+
+// Stands in for the catalogue revision while its sentence is translated, so the
+// hash can then be wrapped in monospace without searching the translated text.
+const REVISION_SLOT = '\u0000';
 
 const STATUS_META: Record<string, { color: string; fr: string; en: string }> = {
   implemented: { color: 'var(--low)', fr: 'Implémenté', en: 'Implemented' },
@@ -188,6 +194,44 @@ export function FrameworkDetail() {
             : progressLoading
               ? undefined
               : t('compliance.progressState.unavailableShort')
+        }
+        badge={
+          fw?.catalog_key ? (
+            // The chip itself carries the explanation: it takes focus (keyboard, and a
+            // tap on touch) and the tooltip opens on focus or hover. A separate help
+            // <button> would do nothing when clicked, which is an inert action.
+            <Tooltip content={t('compliance.catalogVersion.hint')} delay={0}>
+              <span
+                tabIndex={0}
+                data-testid="framework-catalog-version"
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-ink-soft px-2.5 py-1 rounded-full bg-surface-3 cursor-help focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+              >
+                {fw.catalog_version
+                  ? t('compliance.catalogVersion.known', { version: fw.catalog_version })
+                  : t('compliance.catalogVersion.unknown')}
+                {' · '}
+                {fw.catalog_revision
+                  ? // Whole sentence is translated (word order differs in FR); only the
+                    // hash is set in monospace. Splitting on the sentinel rather than on
+                    // the hash means neither the wording nor a repeated placeholder can
+                    // mis-split it.
+                    t('compliance.catalogVersion.revision', { revision: REVISION_SLOT })
+                      .split(REVISION_SLOT)
+                      .flatMap((part, i) =>
+                        i === 0
+                          ? [part]
+                          : [
+                              <span key={i} className="mono">
+                                {fw.catalog_revision}
+                              </span>,
+                              part,
+                            ],
+                      )
+                  : t('compliance.catalogVersion.revisionUnknown')}
+                <HelpCircle size={13} aria-hidden="true" />
+              </span>
+            </Tooltip>
+          ) : undefined
         }
         actions={
           <>

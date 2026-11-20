@@ -9,6 +9,11 @@ info:
     **Authentication**: All protected endpoints require a Bearer JWT token in the `Authorization` header.
     
     **Base URL**: `/api/v1`
+    
+    **Request bodies are never compressed**: any request whose `Content-Encoding` is
+    not absent or `identity` is refused with 415 before it reaches a route (see
+    `#/components/responses/UnsupportedContentEncoding`). This applies to every
+    operation below, authenticated or not.
   contact:
     name: OpenDefender Team
   license:
@@ -7070,6 +7075,23 @@ components:
       schema: { type: string, format: date-time }
 
   responses:
+    UnsupportedContentEncoding:
+      description: >-
+        The request carried a `Content-Encoding` other than absent or
+        `identity` (gzip, deflate, br...). Compressed request bodies are
+        refused on every route, before any handler, so they are never
+        decompressed (#1472). Resend the body uncompressed.
+      headers:
+        Accept-Encoding:
+          description: Always `identity` (RFC 7694).
+          schema: { type: string, enum: [identity] }
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error: { type: boolean, enum: [true] }
+              msg: { type: string }
     QuotaExceeded:
       description: >-
         The API-wide quota, per IP on every /api/v1 route and per tenant on
@@ -7931,7 +7953,7 @@ components:
     ComplianceFramework:
       type: object
       description: Tenant-scoped framework a tenant tracks, e.g. ISO 27001, COBAC. Each tenant owns its own.
-      required: [id, tenant_id, name, version, created_at, updated_at]
+      required: [id, tenant_id, name, version, catalog_key, catalog_version, catalog_revision, created_at, updated_at]
       properties:
         id:
           type: string
@@ -7945,6 +7967,15 @@ components:
           type: string
         description:
           type: string
+        catalog_key:
+          type: string
+          description: Catalogue this framework was imported from (e.g. iso27001-2022). Empty for a hand-built framework.
+        catalog_version:
+          type: string
+          description: Edition of the standard the catalogue reproduces (e.g. 2022), recorded at import. Empty for a hand-built framework, for one imported before this field existed, and for a catalogue with no published edition. It is not a revision of OpenRisk's own wording.
+        catalog_revision:
+          type: string
+          description: 'Content fingerprint (12 hex characters) of OpenRisk''s own catalogue wording at the import that stamped the catalogue. Empty means unknown, for a hand-built framework or one imported before this field existed; it is never guessed. A re-import of the same catalogue only adds missing controls and does not change it. It describes the imported catalogue, not every control in the framework: controls created by hand or edited since keep their own wording.'
         created_at:
           type: string
           format: date-time

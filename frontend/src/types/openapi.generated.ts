@@ -3724,6 +3724,12 @@ export interface components {
             name: string;
             version: string;
             description?: string;
+            /** @description Catalogue this framework was imported from (e.g. iso27001-2022). Empty for a hand-built framework. */
+            catalog_key: string;
+            /** @description Edition of the standard the catalogue reproduces (e.g. 2022), recorded at import. Empty for a hand-built framework, for one imported before this field existed, and for a catalogue with no published edition. It is not a revision of OpenRisk's own wording. */
+            catalog_version: string;
+            /** @description Content fingerprint (12 hex characters) of OpenRisk's own catalogue wording at the import that stamped the catalogue. Empty means unknown, for a hand-built framework or one imported before this field existed; it is never guessed. A re-import of the same catalogue only adds missing controls and does not change it. It describes the imported catalogue, not every control in the framework: controls created by hand or edited since keep their own wording. */
+            catalog_revision: string;
             /** Format: date-time */
             created_at: string;
             /** Format: date-time */
@@ -5844,6 +5850,21 @@ export interface components {
         };
     };
     responses: {
+        /** @description The request carried a `Content-Encoding` other than absent or `identity` (gzip, deflate, br...). Compressed request bodies are refused on every route, before any handler, so they are never decompressed (#1472). Resend the body uncompressed. */
+        UnsupportedContentEncoding: {
+            headers: {
+                /** @description Always `identity` (RFC 7694). */
+                "Accept-Encoding"?: "identity";
+                [name: string]: unknown;
+            };
+            content: {
+                "application/json": {
+                    /** @enum {boolean} */
+                    error?: true;
+                    msg?: string;
+                };
+            };
+        };
         /** @description The API-wide quota, per IP on every /api/v1 route and per tenant on authenticated ones. Retry-After gives the seconds to wait. */
         QuotaExceeded: {
             headers: {
