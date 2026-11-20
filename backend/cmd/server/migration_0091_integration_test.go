@@ -7,10 +7,10 @@
 
 package main
 
-// #1483 — migration 0090 adds the content-version stamp on frameworks and the
+// #1483 — migration 0091 adds the content-version stamp on frameworks and the
 // pack provenance columns, plus one partial unique index. The previous release's
 // shape is rebuilt by AutoMigrate over the current models and then stripping the
-// 0090 columns, with the SQL layer at 89, so the SQL DDL is what is under test.
+// 0091 columns, with the SQL layer at 89, so the SQL DDL is what is under test.
 //
 // Runs in the CI "Backend Integration Tests" job (DATABASE_URL, -tags=integration).
 
@@ -29,7 +29,7 @@ import (
 	"github.com/opendefender/openrisk/internal/infrastructure/database"
 )
 
-const lastVersionBefore0090 = 89
+const lastVersionBefore0091 = 89
 
 var (
 	tenantA1483 = uuid.MustParse("00000000-0000-4000-8483-00000000000a")
@@ -45,8 +45,8 @@ var packColumns = map[string][]string{
 	"controls":              {"pack_reverted_by"},
 }
 
-// strip0090 removes what 0090 adds, from a schema AutoMigrate just built.
-func (c *pack1483) strip0090(t *testing.T) {
+// strip0091 removes what 0091 adds, from a schema AutoMigrate just built.
+func (c *pack1483) strip0091(t *testing.T) {
 	t.Helper()
 	require.NoError(t, c.db.Exec(`DROP INDEX IF EXISTS ux_compliance_controls_pack_item`).Error)
 	require.NoError(t, c.db.Exec(`DROP INDEX IF EXISTS ux_control_crosswalks_pack_item`).Error)
@@ -57,13 +57,13 @@ func (c *pack1483) strip0090(t *testing.T) {
 	}
 }
 
-func pre0090DB(t *testing.T) *pack1483 {
+func pre0091DB(t *testing.T) *pack1483 {
 	t.Helper()
 	base := os.Getenv("DATABASE_URL")
 	if base == "" {
 		t.Skip("DATABASE_URL not set")
 	}
-	schema := "mig0090_" + strings.ReplaceAll(uuid.New().String(), "-", "")[:12]
+	schema := "mig0091_" + strings.ReplaceAll(uuid.New().String(), "-", "")[:12]
 	admin := openGorm(t, base)
 	require.NoError(t, admin.Exec(fmt.Sprintf(`CREATE SCHEMA %s`, schema)).Error)
 	t.Cleanup(func() { _ = admin.Exec(fmt.Sprintf(`DROP SCHEMA %s CASCADE`, schema)).Error })
@@ -77,8 +77,8 @@ func pre0090DB(t *testing.T) *pack1483 {
 
 	require.NoError(t, database.PrepareForAutoMigrate(c.db))
 	require.NoError(t, c.db.AutoMigrate(schemaModels()...))
-	c.strip0090(t)
-	require.NoError(t, newMigrator(t, c.dsn).Migrate(lastVersionBefore0090))
+	c.strip0091(t)
+	require.NoError(t, newMigrator(t, c.dsn).Migrate(lastVersionBefore0091))
 	return c
 }
 
@@ -139,18 +139,18 @@ func (c *pack1483) insertControl(fw, tenant uuid.UUID, ref, packKey, item string
 		VALUES (?, ?, ?, ?, 'N', ?, ?, %s, now(), now())`, del), uuid.New(), tenant, fw, ref, packKey, item).Error
 }
 
-func TestMigration0090_Success(t *testing.T) {
-	c := pre0090DB(t)
+func TestMigration0091_Success(t *testing.T) {
+	c := pre0091DB(t)
 	for table, cols := range packColumns {
 		for _, col := range cols {
-			require.False(t, c.hasColumn(t, table, col), "%s.%s belongs to 0090", table, col)
+			require.False(t, c.hasColumn(t, table, col), "%s.%s belongs to 0091", table, col)
 		}
 	}
 	c.seedRows(t)
 
-	require.NoError(t, newMigrator(t, c.dsn).Migrate(90))
+	require.NoError(t, newMigrator(t, c.dsn).Migrate(91))
 	v, dirty := c.version(t)
-	assert.Equal(t, uint(90), v)
+	assert.Equal(t, uint(91), v)
 	assert.False(t, dirty)
 	for table, cols := range packColumns {
 		for _, col := range cols {
@@ -198,10 +198,10 @@ func TestMigration0090_Success(t *testing.T) {
 }
 
 // Up/down/up on a database that holds rows, and an expand-only up file.
-func TestMigration0090_Rollback(t *testing.T) {
-	c := pre0090DB(t)
+func TestMigration0091_Rollback(t *testing.T) {
+	c := pre0091DB(t)
 	c.seedRows(t)
-	require.NoError(t, newMigrator(t, c.dsn).Migrate(90))
+	require.NoError(t, newMigrator(t, c.dsn).Migrate(91))
 	require.NoError(t, c.insertControl(uuid.New(), tenantA1483, "P.1", "iso", "P.1", false))
 
 	require.NoError(t, newMigrator(t, c.dsn).Steps(-1))
@@ -217,13 +217,13 @@ func TestMigration0090_Rollback(t *testing.T) {
 	assert.EqualValues(t, 2, c.count(t, `SELECT count(*) FROM compliance_controls`), "down loses no row")
 	assert.EqualValues(t, 1, c.count(t, `SELECT count(*) FROM compliance_frameworks`))
 
-	require.NoError(t, newMigrator(t, c.dsn).Migrate(90))
+	require.NoError(t, newMigrator(t, c.dsn).Migrate(91))
 	assert.True(t, c.hasColumn(t, "compliance_controls", "pack_key"))
 	assert.EqualValues(t, 2, c.count(t, `SELECT count(*) FROM compliance_controls`))
 }
 
-func TestMigration0090_UpIsExpandOnly(t *testing.T) {
-	raw, err := os.ReadFile("../../../migrations/0090_pack_provenance.up.sql")
+func TestMigration0091_UpIsExpandOnly(t *testing.T) {
+	raw, err := os.ReadFile("../../../migrations/0091_pack_provenance.up.sql")
 	require.NoError(t, err)
 	var stmts []string
 	for _, line := range strings.Split(string(raw), "\n") {
@@ -234,15 +234,15 @@ func TestMigration0090_UpIsExpandOnly(t *testing.T) {
 	}
 	sql := strings.ToUpper(strings.Join(stmts, " "))
 	for _, forbidden := range []string{"DROP ", "RENAME", "ALTER COLUMN", "TRUNCATE", "DELETE FROM", "UPDATE "} {
-		assert.NotContains(t, sql, forbidden, "0090 must only add columns, defaults and indexes")
+		assert.NotContains(t, sql, forbidden, "0091 must only add columns, defaults and indexes")
 	}
 	assert.Regexp(t, regexp.MustCompile(`ADD COLUMN IF NOT EXISTS`), sql)
 }
 
 // A compose boot builds the columns and the index with AutoMigrate; the SQL layer
 // that follows must be a no-op over them.
-func TestMigration0090_AutoMigrateFirstThenSQL(t *testing.T) {
-	c := pre0090DB(t)
+func TestMigration0091_AutoMigrateFirstThenSQL(t *testing.T) {
+	c := pre0091DB(t)
 	require.NoError(t, c.db.AutoMigrate(schemaModels()...))
 	for table, cols := range packColumns {
 		for _, col := range cols {
@@ -256,9 +256,9 @@ func TestMigration0090_AutoMigrateFirstThenSQL(t *testing.T) {
 	assert.Contains(t, def, "(tenant_id, pack_key, pack_item_key, source_control_id, target_control_id)")
 
 	before := c.shape(t)
-	require.NoError(t, newMigrator(t, c.dsn).Migrate(90))
-	assert.Equal(t, before, c.shape(t), "0090 over an AutoMigrate-built schema changes nothing")
+	require.NoError(t, newMigrator(t, c.dsn).Migrate(91))
+	assert.Equal(t, before, c.shape(t), "0091 over an AutoMigrate-built schema changes nothing")
 	v, dirty := c.version(t)
-	assert.Equal(t, uint(90), v)
+	assert.Equal(t, uint(91), v)
 	assert.False(t, dirty)
 }

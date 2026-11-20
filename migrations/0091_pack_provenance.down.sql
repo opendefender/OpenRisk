@@ -1,4 +1,4 @@
--- Reverses 0090: the indexes first, then the added columns.
+-- Reverses 0091: the indexes first, then the added columns.
 DROP INDEX IF EXISTS ux_control_crosswalks_pack_item;
 DROP INDEX IF EXISTS ux_compliance_controls_pack_item;
 

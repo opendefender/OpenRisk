@@ -226,3 +226,75 @@ func TestUpdateControl_CannotWriteProvenance(t *testing.T) {
 	assert.NotEqual(t, forged, *got.PackBaseHash)
 	assert.Empty(t, got.PackRetiredIn)
 }
+
+// Link ends are verified inside the transaction: tenant, liveness, framework.
+func TestApplyCatalogImport_LinkEnds_Refused(t *testing.T) {
+	linkTo := func(src, tgt uuid.UUID) *domain.ControlCrosswalk {
+		return &domain.ControlCrosswalk{SourceControlID: src, TargetControlID: tgt, Coverage: "full", Origin: domain.CrosswalkOriginCurated}
+	}
+	assertNothing := func(t *testing.T, repo *GormComplianceRepository, fw *domain.ComplianceFramework, controls int64) {
+		assert.Zero(t, tableCount(t, repo.db, "control_crosswalks"), "no link written")
+		assert.Equal(t, controls, tableCount(t, repo.db, "compliance_controls"), "no new control written")
+		var got domain.ComplianceFramework
+		require.NoError(t, repo.db.First(&got, "id = ?", fw.ID).Error)
+		assert.Empty(t, got.CatalogContentVersion, "no stamp")
+	}
+	stamp := &domain.CatalogFrameworkStamp{ContentVersion: "1.0.0", CrosswalksVersion: "1.0.0"}
+
+	t.Run("foreign tenant control", func(t *testing.T) {
+		repo, tenant, fw := importFixture(t)
+		ctx := context.Background()
+		otherTenant := uuid.New()
+		otherFw := &domain.ComplianceFramework{ID: uuid.New(), TenantID: otherTenant, Name: "X", Version: "1"}
+		require.NoError(t, repo.CreateFramework(ctx, otherFw))
+		foreign := packControl("F.1")
+		require.NoError(t, repo.ApplyCatalogImport(ctx, &domain.CatalogImportPlan{TenantID: otherTenant, FrameworkID: otherFw.ID, Controls: []*domain.ComplianceControl{foreign}}))
+
+		a := packControl("A.1")
+		err := repo.ApplyCatalogImport(ctx, &domain.CatalogImportPlan{TenantID: tenant, FrameworkID: fw.ID, Stamp: stamp,
+			Controls: []*domain.ComplianceControl{a}, Links: []*domain.ControlCrosswalk{linkTo(a.ID, foreign.ID)}})
+		require.ErrorIs(t, err, domain.ErrNotFound)
+		assertNothing(t, repo, fw, 1) // only the other tenant's control exists
+	})
+
+	t.Run("deleted end", func(t *testing.T) {
+		repo, tenant, fw := importFixture(t)
+		ctx := context.Background()
+		dead := packControl("D.1")
+		require.NoError(t, repo.ApplyCatalogImport(ctx, &domain.CatalogImportPlan{TenantID: tenant, FrameworkID: fw.ID, Controls: []*domain.ComplianceControl{dead}}))
+		require.NoError(t, repo.DeleteControl(ctx, dead.ID, tenant))
+
+		a := packControl("A.1")
+		err := repo.ApplyCatalogImport(ctx, &domain.CatalogImportPlan{TenantID: tenant, FrameworkID: fw.ID, Stamp: stamp,
+			Controls: []*domain.ComplianceControl{a}, Links: []*domain.ControlCrosswalk{linkTo(a.ID, dead.ID)}})
+		require.ErrorIs(t, err, domain.ErrNotFound)
+		assertNothing(t, repo, fw, 1) // the deleted row only
+	})
+
+	t.Run("no end in the framework", func(t *testing.T) {
+		repo, tenant, fw := importFixture(t)
+		ctx := context.Background()
+		fw2 := &domain.ComplianceFramework{ID: uuid.New(), TenantID: tenant, Name: "Two", Version: "1"}
+		require.NoError(t, repo.CreateFramework(ctx, fw2))
+		x, y := packControl("X.1"), packControl("Y.1")
+		require.NoError(t, repo.ApplyCatalogImport(ctx, &domain.CatalogImportPlan{TenantID: tenant, FrameworkID: fw2.ID, Controls: []*domain.ComplianceControl{x, y}}))
+
+		err := repo.ApplyCatalogImport(ctx, &domain.CatalogImportPlan{TenantID: tenant, FrameworkID: fw.ID, Stamp: stamp,
+			Links: []*domain.ControlCrosswalk{linkTo(x.ID, y.ID)}})
+		require.ErrorIs(t, err, domain.ErrNotFound)
+		assertNothing(t, repo, fw, 2)
+	})
+
+	t.Run("accepted: one end created here, one existing in another framework", func(t *testing.T) {
+		repo, tenant, fw := importFixture(t)
+		ctx := context.Background()
+		fw2 := &domain.ComplianceFramework{ID: uuid.New(), TenantID: tenant, Name: "Two", Version: "1"}
+		require.NoError(t, repo.CreateFramework(ctx, fw2))
+		x := packControl("X.1")
+		require.NoError(t, repo.ApplyCatalogImport(ctx, &domain.CatalogImportPlan{TenantID: tenant, FrameworkID: fw2.ID, Controls: []*domain.ComplianceControl{x}}))
+		a := packControl("A.1")
+		require.NoError(t, repo.ApplyCatalogImport(ctx, &domain.CatalogImportPlan{TenantID: tenant, FrameworkID: fw.ID,
+			Controls: []*domain.ComplianceControl{a}, Links: []*domain.ControlCrosswalk{linkTo(a.ID, x.ID)}}))
+		assert.EqualValues(t, 1, tableCount(t, repo.db, "control_crosswalks"))
+	})
+}

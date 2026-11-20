@@ -287,6 +287,9 @@ func (r *GormComplianceRepository) ApplyCatalogImport(ctx context.Context, plan 
 				return err
 			}
 		}
+		if err := verifyLinkEnds(tx, plan); err != nil {
+			return err
+		}
 		for _, link := range plan.Links {
 			link.TenantID = plan.TenantID
 			if link.ID == uuid.Nil {
@@ -299,9 +302,57 @@ func (r *GormComplianceRepository) ApplyCatalogImport(ctx context.Context, plan 
 		return nil
 	})
 	if errors.Is(err, gorm.ErrDuplicatedKey) {
-		return domain.NewConflictError("control", "pack_item_key")
+		return domain.NewConflictError("catalog import", "pack_item_key")
 	}
 	return err
+}
+
+// verifyLinkEnds runs inside the import transaction, after the plan's controls
+// are created. Every link end must be a live control of the plan's tenant (a
+// foreign or deleted id is refused), and at least one end of each link must
+// belong to the plan's framework: created by this plan, or already in it.
+func verifyLinkEnds(tx *gorm.DB, plan *domain.CatalogImportPlan) error {
+	if len(plan.Links) == 0 {
+		return nil
+	}
+	seen := map[uuid.UUID]bool{}
+	var ids []uuid.UUID
+	for _, l := range plan.Links {
+		for _, id := range []uuid.UUID{l.SourceControlID, l.TargetControlID} {
+			if !seen[id] {
+				seen[id] = true
+				ids = append(ids, id)
+			}
+		}
+	}
+	var n int64
+	if err := tx.Model(&domain.ComplianceControl{}).
+		Where("tenant_id = ? AND id IN ?", plan.TenantID, ids).
+		Count(&n).Error; err != nil {
+		return err
+	}
+	if int(n) != len(ids) {
+		return domain.NewNotFoundError("control", "link end")
+	}
+	inFramework := make(map[uuid.UUID]bool, len(plan.Controls))
+	for _, c := range plan.Controls {
+		inFramework[c.ID] = true
+	}
+	var inFw []uuid.UUID
+	if err := tx.Model(&domain.ComplianceControl{}).
+		Where("tenant_id = ? AND framework_id = ? AND id IN ?", plan.TenantID, plan.FrameworkID, ids).
+		Pluck("id", &inFw).Error; err != nil {
+		return err
+	}
+	for _, id := range inFw {
+		inFramework[id] = true
+	}
+	for _, l := range plan.Links {
+		if !inFramework[l.SourceControlID] && !inFramework[l.TargetControlID] {
+			return domain.NewNotFoundError("control", "link end in framework")
+		}
+	}
+	return nil
 }
 
 // SearchControls is a lightweight, tenant-scoped substring search over a control's

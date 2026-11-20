@@ -19,7 +19,7 @@ loses its links. (b) Extend the index to `(tenant_id, pack_key, pack_item_key, s
 WHERE pack_key <> ''`: still leads on `tenant_id`, still covers deleted rows, one row per control pair. (c) Forbid two
 frameworks with the same `catalog_key` per tenant: changes existing behaviour, and a unique constraint could fail on
 tenants that already hold duplicates, which is not expand-only.
-**Choice** — B, index `ux_control_crosswalks_pack_item` in migration 0090.
+**Choice** — B, index `ux_control_crosswalks_pack_item` in migration 0091.
 **Reason** — (a) loses data without a word; (c) changes behaviour and can fail a migration. (b) keeps the guarantees the
 index exists for (tenant-first, deleted rows included) and refuses only a true duplicate of the same pair.
 **Link tombstone** — a soft-deleted link blocks re-creation only when it carries provenance (`pack_key = 'crosswalks'`, same
