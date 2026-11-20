@@ -75,7 +75,10 @@ type ControlRow struct {
 	Tags                       string `gorm:"type:jsonb;not null;default:'[]'"`
 	// PackRevertedBy is set only on a split control a pack revert soft-deleted
 	// (ADR 0013 D4). Nothing writes it yet; it is the column the upgrade needs.
-	PackRevertedBy *uuid.UUID `gorm:"type:uuid"`
+	// "<-:update": never part of an INSERT, so the reconcile and the mirror keep
+	// working on a schema where migration 0091 has not run yet (0086 to 0090).
+	// AutoMigrate still creates the column; reads still see it.
+	PackRevertedBy *uuid.UUID `gorm:"type:uuid;<-:update"`
 }
 
 // TableName implements gorm's Tabler.
