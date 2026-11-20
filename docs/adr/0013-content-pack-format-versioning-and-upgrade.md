@@ -160,7 +160,10 @@ backfills do not run on a `DB_HOST` boot here). A live legacy row equal to the n
 is adopted (provenance stamped); a live legacy row that differs is a conflict with "baseline
 unknown", because a tenant edit and an upstream change cannot be told apart. It is never
 overwritten. A soft-deleted legacy row is `kept deleted` with "baseline unknown": it gets the
-provenance stamp so later upgrades recognise it, and it is never re-created.
+provenance stamp so later upgrades recognise it, and it is never re-created. When several legacy
+rows of one framework share a `reference_code`, only one is stamped: the live row if there is one,
+otherwise the most recently deleted. The others keep empty provenance and are listed once in the
+report as `duplicate (not tracked)`.
 
 ### D5 — Upgrade merge rules and what the report shows (AC2)
 
@@ -179,7 +182,7 @@ the framework's rows **including soft-deleted ones**, with `tenant_id` in the WH
 | **Changed upstream AND edited by tenant** | the same field differs in `T` and `U` from `B`, and `T ≠ U` | **conflict**: the conflicting fields are left as the tenant has them; non-conflicting upstream fields are applied; the conflict is recorded open | `conflict` · field, yours, upstream, base |
 | **Removed upstream** | row has provenance, item absent from `U` | **never deleted, never status-changed**: `pack_retired_in :=` new version. Evidence links, results, exceptions, mappings, audit history untouched. Gap analysis and progress count it exactly as before until the tenant acts (sets it not applicable, or deletes it through the existing audited delete) | `retired` · item, the changelog reason; flagged "edited by you" when `T ≠ B` |
 | Deleted by tenant | soft-deleted row with that `pack_item_key` and `pack_reverted_by` null | **not re-created**, whether upstream changed it or not | `kept deleted` · and "changed upstream since" when `U ≠ B` |
-| Reverted earlier | soft-deleted row with that `pack_item_key` and `pack_reverted_by` set, item in `U` | **restored, same row id**: `deleted_at` and `pack_reverted_by` cleared, fields `:= U`, provenance stamped, its control-chain rows restored (the split control id is deterministic, ADR 0008 D7) | `added` (restored after revert) |
+| Reverted earlier | soft-deleted row with that `pack_item_key` and `pack_reverted_by` set, item in `U` | **restored, same row id**: `deleted_at` and `pack_reverted_by` cleared, fields `:= U`, provenance stamped. The restore is `UPDATE … WHERE id = ? AND tenant_id = ? AND framework_id = ? AND deleted_at IS NOT NULL AND pack_reverted_by = ?`, where the `pack_reverted_by` value is a `content_pack_upgrades` row of the same tenant and framework, read under the lock. A chain row (split `controls` row, `addressed_by` edge) is restored only if it carries the `pack_reverted_by` of the revert being undone (the split control id is deterministic, ADR 0008 D7) | `added` (restored after revert); `restored without its control` when the tenant deleted the control independently |
 
 **Conflict resolution.** An open conflict offers two actions, each its own audited write:
 *keep mine* (`pack_base := U`, so the next upgrade compares against the new content and does not
@@ -196,7 +199,8 @@ Apply is a second call that recomputes (the report it returns is the one that ap
 preview's).
 
 **Idempotence.** Re-importing or re-upgrading when both the content version and the crosswalks
-version already held equal the registry's writes **no row**
+version already held equal the registry's, and the framework has no pending kind (see Routes and
+permissions), writes **no row**
 (no update, no `updated_at` change, no upgrade record, no audit entry) and returns a report of
 zero changes. Import and upgrade are the same use case: a first import is an upgrade from nothing.
 
@@ -208,10 +212,11 @@ Any failure rolls the whole upgrade back; there is no partial upgrade.
 
 **Locking and conditional writes.** Apply, revert and both conflict resolutions lock the framework
 row (`FOR UPDATE`) first, and choose the latest upgrade or read the conflict only after taking the
-lock. Crosswalk rows span two frameworks, so an apply or revert that writes 3a rows locks, in one
-statement and in `id` order, the path framework **and** every framework of the tenant whose
-`catalog_key` forms a crosswalk pair with it; two upgrades of A and B therefore serialise instead of
-racing on the same links. The partial unique index of D4 is the backstop: a violation fails the
+lock. Crosswalk rows span two frameworks, so apply, revert and a resolution on a 3a row always
+lock, as their first statement, `SELECT … FROM compliance_frameworks WHERE tenant_id = ? AND id IN
+(?) ORDER BY id FOR UPDATE`, with the id set computed beforehand from the path framework and its
+crosswalk-paired `catalog_key`s of that tenant; two upgrades of A and B therefore serialise instead
+of racing on the same links. The partial unique index of D4 is the backstop: a violation fails the
 transaction, which rolls back whole and can be retried. Each row write is conditional:
 `UPDATE … WHERE id = ? AND tenant_id = ? AND <fields> = <expected>`. 0 rows affected means the row
 changed since; it is reported as a conflict and never forced. Take-upstream carries the `T` it
@@ -224,14 +229,21 @@ framework that is not yet reverted (older ones revert in order), in one transact
 - an added row is soft-deleted only if the tenant has done nothing to it since (status, evidence
   links, results, exceptions, mappings unchanged); otherwise it stays and is reported. The
   soft-delete sets `pack_reverted_by` to the revert's upgrade id, so it never counts as a tenant
-  deletion: a later re-apply restores the row (D5, "Reverted earlier"). For a requirement, the
-  revert also soft-deletes its split `controls` row and removes its `addressed_by` edge in the same
-  transaction. `controlchain/mirror.go` has no function for a requirement deletion today
-  (`DeleteControl` in `gorm_compliance_repository.go` does not mirror); the follow-up adds one;
+  deletion: a later re-apply restores the row (D5, "Reverted earlier"). For a requirement, "done
+  nothing" also covers its split `controls` row: no `control_implementations`, `control_tests`,
+  `control_test_results`, `control_gap_findings`, `control_exceptions` (migrations 0086 and 0087),
+  and no `canonical_edges` row on that control other than its own `addressed_by` edge, all read
+  under `tenant_id`. If that check passes, the revert soft-deletes the control and removes the edge
+  in the same transaction, and marks the control with the same `pack_reverted_by`. A control the
+  tenant deleted independently stays deleted, and a later re-apply reports the requirement as
+  restored without its control. `controlchain/mirror.go` has no function for a requirement deletion
+  today (`DeleteControl` in `gorm_compliance_repository.go` does not mirror); the follow-up adds one;
 - a retired row has `pack_retired_in` cleared;
 - a row the tenant changed since the upgrade is left and reported as a conflict.
 A revert is itself recorded as an upgrade (to-version = the previous one), so the history reads
-forward. Revert never needs the old pack content, which the code does not keep (Context 5).
+forward. The upgrade it undoes gets `content_pack_upgrades.reverted_by_upgrade_id` set to the
+revert's id, inside the revert's transaction; that column is the persistent "already reverted"
+marker revert targeting reads, and the only field of an upgrade row ever written after its insert. Revert never needs the old pack content, which the code does not keep (Context 5).
 
 **Tenant gate of the new tables.** The upgrade record and its items live in two new tables,
 `content_pack_upgrades` (one row per apply or revert: framework, from and to versions, actor, and a
@@ -249,7 +261,8 @@ use case maps the kind to a fixed repository, never a table name from data.
 
 Items are append-only. A resolution is a new item row (action `resolved_keep_mine` or
 `resolved_take_upstream`, actor, before, after) plus an `audit_events` row; a conflict is open while
-no resolution item follows it. Items are never UPDATEd or DELETEd. Upgrade records and items follow
+no resolution item follows it. Items never receive a content update and are never hard-deleted;
+the only write after insert is the `deleted_at` cascade below. Upgrade records and items follow
 their framework's deletion (soft-deleted with it) and are included in the tenant's export and
 erasure. They are never written to logs or `audit_events` metadata.
 
@@ -258,9 +271,20 @@ erasure. They are never written to logs or `audit_events` metadata.
 resolution: `compliance:frameworks:create`, the key the catalogue import route already uses. In
 addition, the use case checks the caller's own permission for every other module a pack writes:
 kinds 3b and 4 require `risks:create`, kind 5 requires `vendors:manage`, and a revert that
-soft-deletes a requirement requires `compliance:controls:delete`. A missing key drops that kind from
-the apply with a report line `skipped (permission)`. It is never written with the framework key
-alone. The routes sit in the `protected` group, which already applies the general per-tenant budget
+soft-deletes a requirement requires `compliance:controls:delete`. Revert and conflict resolution
+check the module's update or delete key for the row they write (`risks:update` or `risks:delete`,
+`vendors:manage`, `compliance:controls:update` or `compliance:controls:delete`). A missing key drops
+that kind from the apply with a report line `skipped (permission)`. It is never written with the
+framework key alone.
+
+**Skipped kinds stay pending.** The apply still stamps the versions for what it wrote, and records
+each skipped kind in a new framework column `compliance_frameworks.catalog_pending_kinds`
+(`jsonb NOT NULL DEFAULT '[]'`, expand only): kind, content version, skipped-at upgrade id. The
+framework page and every later preview list them as `pending (permission)`, and an upgrade is
+available while the list is non-empty. A later apply by a caller who holds the key processes the
+pending kinds against the current content, with the D5 rules, and removes them from the list in
+the same transaction. Rejected: excluding 3b, 4 and 5 from the version stamp, which would give one
+framework two meanings of "current". The routes sit in the `protected` group, which already applies the general per-tenant budget
 (`middleware.TenantRateLimit`, `internal/middleware/apiquota.go`); no mutation-specific limiter
 exists today, and the upgrade follow-up adds a dedicated per-tenant limit on preview, apply and
 revert.
@@ -324,8 +348,9 @@ Existing, now unblocked or constrained by this ADR:
 To open:
 1. **Pack content version, changelog and per-row provenance** — `Catalog.ContentVersion`,
    `Changelog`, `Review.ContentVersion`, `CrosswalksVersion`; columns of D3 and D4 on
-   `compliance_frameworks` (`catalog_content_version`, `catalog_crosswalks_version`),
-   `compliance_controls`, `control_crosswalks`, with the partial unique indexes (expand only, next free
+   `compliance_frameworks` (`catalog_content_version`, `catalog_crosswalks_version`,
+   `catalog_pending_kinds`), `compliance_controls`, `control_crosswalks`, `pack_reverted_by` on
+   `controls`, with the partial unique indexes (expand only, next free
    migration number, mirrored in the GORM models); the import made one transaction and
    tombstone-aware (Context 2 and 3).
 2. **Pack upgrade: preview, apply, report, conflict resolution, revert** — D5 and D6, the two
@@ -344,6 +369,9 @@ To open:
 `TestUpgradePack_LegacyDeletedRowKeptDeleted`, `TestUpgradePack_CrosswalksOnlyBumpUpgrades`,
 `TestUpgradePack_ConcurrentPairSerialises`, `TestUpgradePack_MissingModulePermissionSkipsKind`,
 `TestResolvePackConflict_NotFound` (conflict id of another tenant or another framework: 404),
+`TestUpgradePack_SkippedKindAppliedByPermittedCaller` (skipped kind listed pending; a later apply by
+a permitted caller writes it and empties the list), `TestUpgradePack_LegacyLiveAndDeletedDuplicate`,
+`TestRevertPackUpgrade_ControlWithChainRowsKept`, `TestRevertThenReapply_TenantDeletedControlStaysDeleted`,
 and a Postgres isolation test over both new tables.
 
 ## Consequences
