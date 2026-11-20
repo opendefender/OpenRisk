@@ -60,6 +60,8 @@ import { useRegisterMoney } from './useRiskRegisterData';
 // whose changed_by named the risk's creator for every change.
 export function DrawerTimeline({ r }: { r: UiRisk }) {
   const lang = useUIStore((s) => s.lang);
+  const { t } = useI18n();
+  // toHistoryEntries (riskTimelineEntries.ts) takes a (fr, en) picker.
   const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
   const { data, isLoading, error, hasNextPage, isFetchingNextPage, fetchNextPage } =
     useEntityTimeline('risk', r.id, true);
@@ -75,18 +77,17 @@ export function DrawerTimeline({ r }: { r: UiRisk }) {
         entries={entries}
         isLoading={isLoading}
         error={!!error}
-        emptyLabel={tr(
-          'Aucun changement enregistré pour ce risque.',
-          'No changes recorded for this risk yet.',
-        )}
-        errorLabel={tr('Chargement de l’historique impossible.', 'Could not load the history.')}
+        emptyLabel={t('riskRegister.legacy.noChangesRecordedForThis')}
+        errorLabel={t('riskRegister.legacy.couldNotLoadTheHistory')}
         formatDate={(iso) => relTime(iso, lang)}
       />
       {hasNextPage && (
         <div className="mt-3">
           <Btn
             label={
-              isFetchingNextPage ? tr('Chargement…', 'Loading…') : tr('Afficher plus', 'Show more')
+              isFetchingNextPage
+                ? t('riskRegister.legacy.loading')
+                : t('riskRegister.legacy.showMore')
             }
             onClick={() => void fetchNextPage()}
           />
@@ -111,9 +112,8 @@ export function DrawerTimeline({ r }: { r: UiRisk }) {
 //   - the risk names none   → says so, and explains what would populate it,
 //     instead of implying the whole tab is unbuilt.
 export function DrawerCTI({ r }: { r: UiRisk }) {
-  const lang = useUIStore((s) => s.lang);
   const when = usePreferredDate();
-  const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
+  const { t } = useI18n();
   const navigate = useNavigate();
   const cve = r.raw.source_cve_id ?? '';
   // The advisory comes from the CTI routes, which open at Business (#783). On a
@@ -131,14 +131,11 @@ export function DrawerCTI({ r }: { r: UiRisk }) {
       <div className="py-8 px-[22px]">
         <EmptyState
           icon={Bug}
-          title={tr('Aucune CVE associée', 'No CVE linked')}
-          description={tr(
-            'Ce risque n’est rattaché à aucune vulnérabilité publique. Les risques créés par le moteur CTI, ou rattachés à une CVE, affichent ici leur avis complet (CVSS, CISA-KEV, MITRE ATT&CK).',
-            'This risk is not linked to a public vulnerability. Risks raised by the CTI engine, or linked to a CVE, show the full advisory here (CVSS, CISA-KEV, MITRE ATT&CK).',
-          )}
+          title={t('riskRegister.legacy.noCveLinked')}
+          description={t('riskRegister.legacy.thisRiskIsNotLinked')}
           primaryAction={
             <Btn
-              label={tr('Ouvrir Threat Intel', 'Open Threat Intel')}
+              label={t('riskRegister.legacy.openThreatIntel')}
               onClick={() => navigate('/threat-map')}
             />
           }
@@ -154,13 +151,10 @@ export function DrawerCTI({ r }: { r: UiRisk }) {
         <EmptyState
           icon={Bug}
           title={cve}
-          description={tr(
-            `Ce risque est rattaché à ${cve}. L’avis complet (CVSS, CISA-KEV, MITRE ATT&CK) vient du renseignement sur les menaces, disponible à partir du plan ${plan}.`,
-            `This risk is linked to ${cve}. The full advisory (CVSS, CISA-KEV, MITRE ATT&CK) comes from threat intelligence, available from the ${plan} plan.`,
-          )}
+          description={t('riskRegister.legacy.thisRiskIsLinkedTo', { cve, plan })}
           primaryAction={
             <Btn
-              label={tr('Voir les plans', 'See plans')}
+              label={t('riskRegister.legacy.seePlans')}
               onClick={() => navigate('/settings?tab=billing')}
             />
           }
@@ -182,13 +176,10 @@ export function DrawerCTI({ r }: { r: UiRisk }) {
     return (
       <div className="py-8 px-[22px]">
         <ErrorState
-          title={tr('Avis indisponible', 'Advisory unavailable')}
-          description={tr(
-            `${cve} n’a pas pu être lu depuis le moteur CTI. Le flux n’a peut-être pas encore été synchronisé.`,
-            `${cve} could not be read from the CTI engine. The feed may not have been synchronised yet.`,
-          )}
+          title={t('riskRegister.legacy.advisoryUnavailable')}
+          description={t('riskRegister.legacy.cveCouldNotBeRead', { cve })}
           onRetry={() => navigate('/threat-map')}
-          retryLabel={tr('Ouvrir Threat Intel', 'Open Threat Intel')}
+          retryLabel={t('riskRegister.legacy.openThreatIntel')}
         />
       </div>
     );
@@ -225,28 +216,25 @@ export function DrawerCTI({ r }: { r: UiRisk }) {
 
       {data.cisa_known && data.cisa_due_date && (
         <Fact
-          label={tr('Échéance CISA', 'CISA due date')}
+          label={t('riskRegister.legacy.cisaDueDate')}
           value={when.calendarDate(data.cisa_due_date)}
         />
       )}
       {!!data.mitre_tactics?.length && (
-        <Fact
-          label={tr('Tactiques MITRE', 'MITRE tactics')}
-          value={data.mitre_tactics.join(', ')}
-        />
+        <Fact label={t('riskRegister.legacy.mitreTactics')} value={data.mitre_tactics.join(', ')} />
       )}
       {!!data.mitre_techniques?.length && (
         <Fact
-          label={tr('Techniques MITRE', 'MITRE techniques')}
+          label={t('riskRegister.legacy.mitreTechniques')}
           value={data.mitre_techniques.join(', ')}
         />
       )}
       {data.remediation && (
-        <Fact label={tr('Remédiation', 'Remediation')} value={data.remediation} />
+        <Fact label={t('riskRegister.legacy.remediation')} value={data.remediation} />
       )}
 
       <Btn
-        label={tr('Voir dans Threat Intel', 'View in Threat Intel')}
+        label={t('riskRegister.legacy.viewInThreatIntel')}
         onClick={() => navigate(`/threat-map?q=${encodeURIComponent(data.cve_id)}`)}
       />
     </div>
@@ -269,16 +257,16 @@ function Fact({ label, value }: { label: string; value: string }) {
 // when configured, deterministic template otherwise (shown in the provenance line).
 export function DrawerAI({ r }: { r: UiRisk }) {
   const lang = useUIStore((s) => s.lang);
-  const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
+  const { t } = useI18n();
   const locale = lang === 'fr' ? 'fr' : 'en';
   const plan = useTreatmentPlan();
   const res = plan.data;
 
   const stratLabel: Record<string, string> = {
-    mitigate: tr('Atténuer', 'Mitigate'),
-    accept: tr('Accepter', 'Accept'),
-    transfer: tr('Transférer', 'Transfer'),
-    avoid: tr('Éviter', 'Avoid'),
+    mitigate: t('riskRegister.legacy.mitigate'),
+    accept: t('riskRegister.legacy.accept'),
+    transfer: t('riskRegister.legacy.transfer'),
+    avoid: t('riskRegister.legacy.avoid'),
   };
   const prioColor: Record<string, string> = {
     high: 'var(--critical)',
@@ -291,13 +279,10 @@ export function DrawerAI({ r }: { r: UiRisk }) {
       <div className="flex items-start gap-2 mb-4">
         <div className="flex-1">
           <div className="text-[14px] font-semibold text-ink mb-1">
-            {tr('Plan de traitement assisté par IA', 'AI-assisted treatment plan')}
+            {t('riskRegister.legacy.aiAssistedTreatmentPlan')}
           </div>
           <div className="text-[12.5px] text-ink-soft leading-relaxed">
-            {tr(
-              "L'IA synthétise ce risque et propose une stratégie et un plan d'actions, à partir de son score, sa criticité et l'actif lié.",
-              'The AI synthesises this risk and proposes a strategy and action plan from its score, criticality and linked asset.',
-            )}
+            {t('riskRegister.legacy.theAiSynthesisesThisRisk')}
           </div>
         </div>
       </div>
@@ -310,29 +295,29 @@ export function DrawerAI({ r }: { r: UiRisk }) {
       >
         {plan.isPending ? <Loader2 size={17} className="animate-spin" /> : <Sparkles size={17} />}
         {plan.isPending
-          ? tr('Génération…', 'Generating…')
+          ? t('riskRegister.legacy.generating')
           : res
-            ? tr('Régénérer', 'Regenerate')
-            : tr('Générer avec l’IA', 'Generate with AI')}
+            ? t('riskRegister.legacy.regenerate')
+            : t('riskRegister.legacy.generateWithAi')}
       </button>
 
       {plan.isPending && (
         // Informative wait (UX-09): the LLM call takes a few seconds — surface the
         // conceptual steps + the risk being analysed instead of a bare spinner.
         <ProgressState
-          title={tr('Analyse en cours…', 'Analysing…')}
-          stat={tr(`Risque : ${r.name}`, `Risk: ${r.name}`)}
+          title={t('riskRegister.legacy.analysing')}
+          stat={t('riskRegister.legacy.riskName', { name: r.name })}
           steps={[
-            tr('Analyse du risque et de l’actif lié', 'Analysing the risk and linked asset'),
-            tr('Choix de la stratégie de traitement', 'Choosing the treatment strategy'),
-            tr('Priorisation du plan d’actions', 'Prioritising the action plan'),
+            t('riskRegister.legacy.analysingTheRiskAndLinked'),
+            t('riskRegister.legacy.choosingTheTreatmentStrategy'),
+            t('riskRegister.legacy.prioritisingTheActionPlan'),
           ]}
         />
       )}
 
       {plan.isError && (
         <div className="mt-4 text-[12.5px]" style={{ color: 'var(--critical)' }}>
-          {tr('La génération a échoué. Réessayez.', 'Generation failed. Please try again.')}
+          {t('riskRegister.legacy.generationFailedPleaseTryAgain')}
         </div>
       )}
 
@@ -343,14 +328,14 @@ export function DrawerAI({ r }: { r: UiRisk }) {
         >
           <div>
             <div className="text-[11px] font-semibold text-ink-muted uppercase tracking-wide mb-1.5">
-              {tr('Synthèse', 'Summary')}
+              {t('riskRegister.legacy.summary')}
             </div>
             <div className="text-[13px] text-ink leading-relaxed">{res.plan.summary}</div>
           </div>
 
           <div className="flex items-center gap-2">
             <span className="text-[11px] font-semibold text-ink-muted uppercase tracking-wide">
-              {tr('Stratégie', 'Strategy')}
+              {t('riskRegister.legacy.strategy')}
             </span>
             <span
               className="text-[12px] font-semibold px-2.5 py-1 rounded-full"
@@ -366,7 +351,7 @@ export function DrawerAI({ r }: { r: UiRisk }) {
 
           <div>
             <div className="text-[11px] font-semibold text-ink-muted uppercase tracking-wide mb-2">
-              {tr('Plan d’actions', 'Action plan')}
+              {t('riskRegister.legacy.actionPlan')}
             </div>
             <div className="space-y-2.5">
               {res.plan.actions.map((a, i) => (
@@ -409,14 +394,10 @@ export function DrawerAI({ r }: { r: UiRisk }) {
             style={{ borderTop: '1px solid var(--border)' }}
           >
             <span className="pt-2 inline-block">
-              {tr('Généré par', 'Generated by')} :{' '}
+              {t('riskRegister.legacy.generatedBy')} :{' '}
               <span className="font-semibold">{res.generated_by}</span>
               {res.generated_by === 'template' &&
-                ' · ' +
-                  tr(
-                    'mode local (configurez ANTHROPIC_API_KEY pour Claude)',
-                    'local mode (set ANTHROPIC_API_KEY for Claude)',
-                  )}
+                ' · ' + t('riskRegister.legacy.localModeSetAnthropicApi')}
             </span>
           </div>
         </div>
@@ -428,7 +409,7 @@ export function DrawerAI({ r }: { r: UiRisk }) {
 export function DrawerDetails({ r, onCreateMiti }: { r: UiRisk; onCreateMiti: () => void }) {
   const L = useUIStrings();
   const lang = useUIStore((s) => s.lang);
-  const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
+  const { t } = useI18n();
   const navigate = useNavigate();
   const canUpdate = useAuthStore((s) => s.hasPermission('risks:update'));
   const updateRisk = useRiskStore((s) => s.updateRisk);
@@ -457,11 +438,11 @@ export function DrawerDetails({ r, onCreateMiti }: { r: UiRisk; onCreateMiti: ()
       await updateRisk(r.id, ownershipPatch({ [role]: userId }));
       toast.success(
         userId
-          ? tr('Affectation enregistrée', 'Assignment saved')
-          : tr('Affectation retirée', 'Assignment removed'),
+          ? t('riskRegister.legacy.assignmentSaved')
+          : t('riskRegister.legacy.assignmentRemoved'),
       );
     } catch {
-      toast.error(tr("L'affectation a échoué.", 'The assignment failed.'));
+      toast.error(t('riskRegister.legacy.theAssignmentFailed'));
     } finally {
       setSavingOwner(false);
     }
@@ -475,7 +456,7 @@ export function DrawerDetails({ r, onCreateMiti }: { r: UiRisk; onCreateMiti: ()
           control_id: d.control_id ?? null,
         });
       } catch {
-        toast.error(tr(`Impossible de rattacher ${d.label}`, `Could not map ${d.label}`));
+        toast.error(t('riskRegister.legacy.couldNotMapLabel', { label: d.label }));
       }
     }
     setMappingDrafts([]);
@@ -495,7 +476,7 @@ export function DrawerDetails({ r, onCreateMiti }: { r: UiRisk; onCreateMiti: ()
           behind an edit modal. */}
       <div className="mb-5">
         <div className="text-[11px] font-semibold uppercase tracking-[.04em] text-ink-muted mb-2">
-          {tr('Responsabilités', 'Ownership')}
+          {t('riskRegister.legacy.ownership')}
         </div>
         <OwnershipFields
           value={r.raw}
@@ -512,10 +493,7 @@ export function DrawerDetails({ r, onCreateMiti }: { r: UiRisk; onCreateMiti: ()
         </div>
         {(mappings ?? []).length === 0 ? (
           <p className="text-[12.5px] text-ink-muted mb-2">
-            {tr(
-              'Ce risque n’est rattaché à aucun contrôle.',
-              'This risk is not linked to any control.',
-            )}
+            {t('riskRegister.legacy.thisRiskIsNotLinked2')}
           </p>
         ) : (
           <div className="flex flex-wrap gap-1.5 mb-2">
@@ -539,7 +517,7 @@ export function DrawerDetails({ r, onCreateMiti }: { r: UiRisk; onCreateMiti: ()
                   <button
                     type="button"
                     onClick={() => deleteMapping.mutate(m.id)}
-                    aria-label={tr('Retirer', 'Remove')}
+                    aria-label={t('riskRegister.legacy.remove')}
                     className="opacity-70 hover:opacity-100"
                   >
                     <X size={11} />
@@ -567,7 +545,7 @@ export function DrawerDetails({ r, onCreateMiti }: { r: UiRisk; onCreateMiti: ()
                   color: 'var(--fg-on-solid)',
                 }}
               >
-                {tr('Rattacher', 'Map')}
+                {t('riskRegister.legacy.map')}
               </button>
             ) : null}
           </>
@@ -588,7 +566,7 @@ export function DrawerDetails({ r, onCreateMiti }: { r: UiRisk; onCreateMiti: ()
           }}
         >
           <ShieldCheck size={16} />{' '}
-          {tr(`Voir les mitigations (${mitiCount})`, `View mitigations (${mitiCount})`)}
+          {t('riskRegister.legacy.viewMitigationsMiticount', { mitiCount })}
         </button>
       ) : (
         <button
@@ -618,7 +596,7 @@ export function DrawerScore({ r }: { r: UiRisk }) {
 /* ---------------- smart score (multifactor, spec §8) ---------------- */
 export function DrawerSmart({ r }: { r: UiRisk }) {
   const lang = useUIStore((s) => s.lang);
-  const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
+  const { t } = useI18n();
   const navigate = useNavigate();
   const { data, isLoading, isError } = useRiskSmartScore(r.id);
 
@@ -632,7 +610,7 @@ export function DrawerSmart({ r }: { r: UiRisk }) {
   if (isError || !data) {
     return (
       <div className="py-10 px-[22px] text-center text-[13px] text-ink-soft">
-        {tr('Impossible de calculer le score intelligent.', 'Could not compute the smart score.')}
+        {t('riskRegister.legacy.couldNotComputeTheSmart')}
       </div>
     );
   }
@@ -644,13 +622,10 @@ export function DrawerSmart({ r }: { r: UiRisk }) {
         className="mt-4 w-full h-9 rounded-[10px] flex items-center justify-center gap-2 text-[12.5px] font-semibold transition-all hover:bg-hover"
         style={{ border: '1px solid var(--border-strong)', color: 'var(--fg-secondary)' }}
       >
-        <SlidersHorizontal size={15} /> {tr('Configurer les pondérations', 'Configure weights')}
+        <SlidersHorizontal size={15} /> {t('riskRegister.legacy.configureWeights')}
       </button>
       <p className="mt-3 text-[11px] text-ink-muted leading-snug">
-        {tr(
-          'Score multifactoriel (0–100) : criticité métier, exposition Internet, vulnérabilités, maturité des contrôles, historique d’incidents, exploitabilité, valeur financière et menaces actives (CTI). Le score classique P × I × Criticité reste inchangé.',
-          'Multifactor score (0–100): business criticality, internet exposure, vulnerabilities, control maturity, incident history, exploitability, financial value and active threats (CTI). The classic P × I × Criticality score is unchanged.',
-        )}
+        {t('riskRegister.legacy.multifactorScore0100Business')}
       </p>
     </div>
   );
@@ -695,16 +670,12 @@ export function DrawerLifecycle({
   r: UiRisk;
   onOpenMitigations?: () => void;
 }) {
-  const lang = useUIStore((s) => s.lang);
   const navigate = useNavigate();
-  const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
+  const { t } = useI18n();
   return (
     <div className="px-[22px] py-5">
       <div className="text-[13px] text-ink-soft mb-4">
-        {tr(
-          'Le cycle de vie et le plan de mitigation sont un seul flux : une étape se débloque quand le travail correspondant est fait, pas quand on coche une case.',
-          'The lifecycle and the mitigation plan are one flow: a step unlocks when the work behind it is done, not when someone ticks a box.',
-        )}
+        {t('riskRegister.legacy.theLifecycleAndTheMitigation')}
       </div>
       <LifecycleStepper
         riskId={r.id}
@@ -717,8 +688,6 @@ export function DrawerLifecycle({
 
 /* ---------------- financial (CRQ) ---------------- */
 export function DrawerFinancial({ r }: { r: UiRisk }) {
-  const lang = useUIStore((s) => s.lang);
-  const tr = (fr: string, en: string) => (lang === 'fr' ? fr : en);
   const updateRisk = useRiskStore((s) => s.updateRisk);
   const canUpdate = useAuthStore((s) => s.hasPermission('risks:update'));
   const qc = useQueryClient();
@@ -770,9 +739,9 @@ export function DrawerFinancial({ r }: { r: UiRisk }) {
         mitigation_effectiveness: eff,
       });
       await qc.invalidateQueries({ queryKey: ['financial'] });
-      toast.success(tr('Exposition recalculée', 'Exposure recalculated'));
+      toast.success(t('riskRegister.legacy.exposureRecalculated'));
     } catch {
-      toast.error(tr('Échec du recalcul', 'Recalculation failed'));
+      toast.error(t('riskRegister.legacy.recalculationFailed'));
     } finally {
       setBusy(false);
     }
@@ -809,10 +778,7 @@ export function DrawerFinancial({ r }: { r: UiRisk }) {
   return (
     <div className="px-[22px] py-5">
       <div className="text-[13px] text-ink-soft mb-4">
-        {tr(
-          'Quantification financière (FAIR/CRQ) — ALE = SLE × ARO ; ROSI = (ALE − ALE résiduel − remédiation) / remédiation.',
-          'Financial quantification (FAIR/CRQ) — ALE = SLE × ARO; ROSI = (ALE − residual ALE − remediation) / remediation.',
-        )}
+        {t('riskRegister.legacy.financialQuantificationFairCrqAle')}
       </div>
 
       {/* Headline ALE (XAF + USD) */}
@@ -846,14 +812,14 @@ export function DrawerFinancial({ r }: { r: UiRisk }) {
       {fin && (
         <div className="grid grid-cols-3 gap-2 mb-3">
           {stat('SLE', fmtXAF(fin.sle.xaf))}
-          {stat(tr('Coût interruptions', 'Downtime cost'), fmtXAF(fin.downtime_cost.xaf))}
+          {stat(t('riskRegister.legacy.downtimeCost'), fmtXAF(fin.downtime_cost.xaf))}
           {stat(
-            tr('Pire cas (ALE)', 'Worst-case ALE'),
+            t('riskRegister.legacy.worstCaseAle'),
             fmtXAF(fin.ale_worst.xaf),
             'var(--critical)',
           )}
-          {stat(tr('ALE moyen', 'Average ALE'), fmtXAF(fin.ale_average.xaf))}
-          {stat(tr('ALE résiduel', 'Residual ALE'), fmtXAF(fin.ale_after.xaf), 'var(--low)')}
+          {stat(t('riskRegister.legacy.averageAle'), fmtXAF(fin.ale_average.xaf))}
+          {stat(t('riskRegister.legacy.residualAle'), fmtXAF(fin.ale_after.xaf), 'var(--low)')}
           {stat(
             'ROSI',
             fin.rosi_computable ? fmtPct(fin.rosi) : '—',
@@ -862,15 +828,12 @@ export function DrawerFinancial({ r }: { r: UiRisk }) {
         </div>
       )}
       <div className="text-[11.5px] text-ink-muted mb-4">
-        {tr('Base SLE : ', 'SLE basis: ')}
+        {t('riskRegister.legacy.sleBasis')}
         {fin?.sle_basis === 'explicit'
-          ? tr('saisie explicite', 'explicit input')
+          ? t('riskRegister.legacy.explicitInput')
           : fin?.sle_basis === 'composed'
-            ? tr(
-                'composé (interruptions + amendes + perte de données)',
-                'composed (downtime + fines + data loss)',
-              )
-            : tr('valeur de référence par criticité', 'reference value by criticality')}
+            ? t('riskRegister.legacy.composedDowntimeFinesDataLoss')
+            : t('riskRegister.legacy.referenceValueByCriticality')}
       </div>
 
       {canUpdate && (
@@ -879,7 +842,7 @@ export function DrawerFinancial({ r }: { r: UiRisk }) {
           style={{ border: '1px solid var(--border)', background: 'var(--bg-hover)' }}
         >
           <div className="text-[11px] font-semibold uppercase tracking-[.05em] text-ink-muted mb-2">
-            {tr('Pertes', 'Losses')}
+            {t('riskRegister.legacy.losses')}
           </div>
           {/* The cards above show the display currency; what is typed here is stored
               in XAF. Said once, only when the two differ. */}
@@ -889,22 +852,22 @@ export function DrawerFinancial({ r }: { r: UiRisk }) {
             </p>
           )}
           <div className="grid grid-cols-2 gap-3 mb-3">
-            {field(tr(`SLE explicite (${unit})`, `Explicit SLE (${unit})`), sle, setSle)}
-            {field(tr('ARO — Fréquence / an', 'ARO — Frequency / yr'), aro, setAro, '0.1')}
-            {field(tr('Heures d’interruption', 'Downtime hours'), dh, setDh, '0.5')}
-            {field(tr(`Coût horaire (${unit})`, `Hourly cost (${unit})`), hc, setHc)}
-            {field(tr(`Perte de données (${unit})`, `Data loss (${unit})`), dl, setDl)}
-            {field(tr(`Amendes (${unit})`, `Fines (${unit})`), fn, setFn)}
-            {field(tr(`Autre coût direct (${unit})`, `Other direct cost (${unit})`), oc, setOc)}
+            {field(t('riskRegister.legacy.explicitSleUnit', { unit }), sle, setSle)}
+            {field(t('riskRegister.legacy.aroFrequencyYr'), aro, setAro, '0.1')}
+            {field(t('riskRegister.legacy.downtimeHours'), dh, setDh, '0.5')}
+            {field(t('riskRegister.legacy.hourlyCostUnit', { unit }), hc, setHc)}
+            {field(t('riskRegister.legacy.dataLossUnit', { unit }), dl, setDl)}
+            {field(t('riskRegister.legacy.finesUnit', { unit }), fn, setFn)}
+            {field(t('riskRegister.legacy.otherDirectCostUnit', { unit }), oc, setOc)}
           </div>
           <div className="text-[11px] font-semibold uppercase tracking-[.05em] text-ink-muted mb-2">
-            {tr('Remédiation (ROSI)', 'Remediation (ROSI)')}
+            {t('riskRegister.legacy.remediationRosi')}
           </div>
           <div className="grid grid-cols-2 gap-3 mb-3 items-end">
-            {field(tr(`Coût de remédiation (${unit})`, `Remediation cost (${unit})`), rc, setRc)}
+            {field(t('riskRegister.legacy.remediationCostUnit', { unit }), rc, setRc)}
             <label className="block">
               <span className="flex items-center justify-between text-[11px] font-semibold uppercase tracking-[.04em] text-ink-muted">
-                {tr('Efficacité', 'Effectiveness')}
+                {t('riskRegister.legacy.effectiveness')}
                 <span className="mono text-ink">{Math.round(eff * 100)}%</span>
               </span>
               <input
@@ -924,13 +887,10 @@ export function DrawerFinancial({ r }: { r: UiRisk }) {
             className="w-full h-10 rounded-[10px] flex items-center justify-center gap-2 text-[13px] font-semibold text-fg-on-solid disabled:opacity-60"
             style={{ background: 'var(--accent-solid)', color: 'var(--fg-on-solid)' }}
           >
-            <Coins size={16} /> {tr('Recalculer l’exposition', 'Recalculate exposure')}
+            <Coins size={16} /> {t('riskRegister.legacy.recalculateExposure')}
           </button>
           <div className="text-[11px] text-ink-muted mt-2">
-            {tr(
-              'SLE explicite prioritaire ; sinon composé depuis interruptions + amendes + perte de données ; sinon référence par criticité.',
-              'Explicit SLE wins; else composed from downtime + fines + data loss; else reference by criticality.',
-            )}
+            {t('riskRegister.legacy.explicitSleWinsElseComposed')}
           </div>
         </div>
       )}

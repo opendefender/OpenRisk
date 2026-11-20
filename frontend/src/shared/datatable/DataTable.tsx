@@ -230,6 +230,8 @@ export function TableFilters<T>({
   resultCount: number;
 }) {
   const L = useLabels();
+  // Saved views are server-side since #580, fetched independently of the rows
+  // on purpose: a saved-views outage must never keep the table off the screen.
   const savedViews = useSavedViews(id);
   return (
     <FilterPanel
@@ -303,10 +305,6 @@ export function DataTable<T>({
         .filter((c): c is Column<T> => !!c && !prefs.hidden.includes(c.key)),
     [prefs.order, prefs.hidden, columns],
   );
-
-  /* ------------------------------------------------------------- saved views */
-  // Server-side since #580. Fetched independently of the rows on purpose: a
-  // saved-views outage must never keep the register off the screen.
 
   /* ---------------------------------------------------------- client shaping */
   // In server mode the API already did all of this; `rows` is the page.
