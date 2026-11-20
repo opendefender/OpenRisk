@@ -10,7 +10,7 @@ package main
 // #1483 — migration 0091 adds the content-version stamp on frameworks and the
 // pack provenance columns, plus one partial unique index. The previous release's
 // shape is rebuilt by AutoMigrate over the current models and then stripping the
-// 0091 columns, with the SQL layer at 89, so the SQL DDL is what is under test.
+// 0091 columns, with the SQL layer at 90 (0090 is #1478), so the SQL DDL is what is under test.
 //
 // Runs in the CI "Backend Integration Tests" job (DATABASE_URL, -tags=integration).
 
@@ -29,7 +29,7 @@ import (
 	"github.com/opendefender/openrisk/internal/infrastructure/database"
 )
 
-const lastVersionBefore0091 = 89
+const lastVersionBefore0091 = 90
 
 var (
 	tenantA1483 = uuid.MustParse("00000000-0000-4000-8483-00000000000a")
@@ -206,7 +206,7 @@ func TestMigration0091_Rollback(t *testing.T) {
 
 	require.NoError(t, newMigrator(t, c.dsn).Steps(-1))
 	v, dirty := c.version(t)
-	assert.Equal(t, uint(89), v)
+	assert.Equal(t, uint(lastVersionBefore0091), v)
 	assert.False(t, dirty)
 	for table, cols := range packColumns {
 		for _, col := range cols {
