@@ -330,11 +330,11 @@ async function ensureMitigation() {
   const found = list.find((m) => m?.title === spec.title);
   if (found) return { mitigationId: found.id };
   const risk = asArray((await api('GET', '/risks?limit=200')).body).find((r) => r?.title === spec.risk_title);
-  if (!risk) {
-    console.warn(`[seed] mitigation: risk "${spec.risk_title}" not found`);
-    return { mitigationId: undefined };
-  }
+  // Fail here, not later in a spec as a vague "not visible": the board's views
+  // only render when a plan exists.
+  if (!risk) throw new Error(`[seed] mitigation: risk "${spec.risk_title}" not found`);
   const res = await api('POST', `/risks/${risk.id}/mitigations`, { title: spec.title });
+  if (!res.ok) throw new Error(`[seed] mitigation create -> ${res.status} ${JSON.stringify(res.body)}`);
   console.log(`[seed] mitigation create -> ${res.status}`);
   return { mitigationId: idOf(res.body) };
 }

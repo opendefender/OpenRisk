@@ -114,6 +114,13 @@ test.describe('buttons that had no handler at all', () => {
 
     await page.getByRole('button', { name: /^(affichage|display)$/i }).click();
     await expect(page.getByTestId('topo-display')).toBeVisible();
+    // One level off hides that level only: the count turns into "shown / total"
+    // with something still shown (the seed holds one asset per level).
+    await page.getByTestId('topo-crit-critical').click();
+    await expect(count).toHaveText(/^[1-9]\d* \/ \d+/, { timeout: 10_000 });
+    await page.getByTestId('topo-crit-critical').click();
+    await expect(count).toHaveText(before);
+
     // Switch every criticality off: whatever the seed holds, nothing is left.
     for (const c of ['critical', 'high', 'medium', 'low']) {
       const opt = page.getByTestId(`topo-crit-${c}`);
