@@ -530,6 +530,12 @@ func main() {
 	// configured explicitly. See middleware.LoadSecurityHeadersConfig for the
 	// env overrides and why the API policy is maximally strict.
 	app.Use(middleware.SecurityHeaders(middleware.LoadSecurityHeadersConfig()))
+	// Refuse compressed request bodies (#1472). Fiber's Ctx.Body() inflates
+	// gzip/deflate/br in full, in memory, before any size check, so a small
+	// request could exhaust the API's memory without an account. Mounted on the
+	// root app ahead of every route and every middleware that reads the body.
+	// Nothing above it reads the body.
+	app.Use(middleware.RejectCompressedRequestBody())
 
 	// CORS: honour the CORS_ORIGINS env var (comma-separated allowlist) when set
 	// — this is what .env.example documents and what deployments need to point at

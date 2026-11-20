@@ -28,4 +28,12 @@ var TenantTables = []string{
 	// Control status evaluations (migration 0089, #555). The engine's cache, one row
 	// per (tenant_id, control_id); engine output, never an input.
 	"control_status_evaluations",
+	// The compliance catalogue a tenant owns: its frameworks, their controls and the
+	// crosswalk links between controls (#1490, follow-up of the #1483 security review).
+	// They predate the control chain and are created by AutoMigrate from the domain
+	// models (domain.ComplianceFramework, domain.ComplianceControl,
+	// domain.ControlCrosswalk), not by a numbered SQL migration.
+	"compliance_frameworks",
+	"compliance_controls",
+	"control_crosswalks",
 }

@@ -547,6 +547,9 @@ points at it. #553 persists exactly these ids.
 A requirement imported from a catalogue gets `source = openrisk_catalogue` and `source_version =`
 the catalogue version. One built by hand gets `source = openrisk_user`.
 
+> Amended 2026-11-20 by ADR 0013 D3 (#1477): "the catalogue version" is the pack's content version
+> (`Catalog.ContentVersion`), not the standard's edition (`Catalog.Version`).
+
 #### `domain.Control` — `integration_models.go:36`, no table
 
 The integration contract with OpenRMF. **It is not persisted**, so nothing migrates. Its fields
