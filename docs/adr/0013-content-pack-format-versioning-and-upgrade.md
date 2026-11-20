@@ -69,18 +69,18 @@ global canonical record; it is also the only way the merge of D5 has a tenant ro
 No kind introduces a global (tenant-less) table. Pack content itself is compiled-in static data and
 is never stored in a shared table.
 
-| # | Kind | Required | In code today | Lands in | Tenant scoping |
+| # | Kind | Required | Pack content shipped today | Lands in (table exists today unless stated) | Tenant scoping |
 |---|---|---|---|---|---|
 | 1 | Requirements | **required** (at least one row when `Available`) | **yes**: `Catalog.Controls []CatalogControl` | `compliance_controls` (`domain.ComplianceControl`); ADR 0008 D7 reads each row as one `Requirement` | `tenant_id NOT NULL` on the row; its `framework_id` points at a `compliance_frameworks` row that also carries `tenant_id` |
 | 2 | Controls | **required**, carried by the same entries as 1 | **yes**, as the split: `controlchain.MirrorRequirementCreated` writes one `controls` row per requirement, joined by an `addressed_by` edge in `canonical_edges` (migration 0086) | `controls`, `canonical_edges` | `tenant_id NOT NULL` on both (0086; listed in `security/isolation/tables.go`) |
 | 3a | Mappings: cross-framework crosswalks | optional | **yes**: `crosswalks.go`, materialised by `CrosswalkMaterialiser.ForFramework` with `Origin = curated` | `control_crosswalks` (`domain.ControlCrosswalk`) | `tenant_id NOT NULL` on the row; both control ids are resolved in the same tenant |
-| 3b | Mappings: requirement to risk | optional | no — #556 | `risk_control_mappings` (`domain.RiskControlMapping`), mirrored to a `mitigated_by` edge by `controlchain.MirrorMappingCreated` | `tenant_id NOT NULL` on the row and the edge |
-| 3c | Mappings: control to evidence collector, default test definitions with cadence | optional | no — #556 | test definitions: `control_tests` (0086, has `cadence`); collector mapping: table designed by #556 | `tenant_id NOT NULL` on `control_tests`; #556's table must carry it too |
-| 4 | Risks (typical risks of the framework) | optional | no — #556. The nearest existing content is the generic starter catalogue `backend/pkg/onboarding/starter.go`, which is not per framework | `risks`, written **only for the risks the tenant selects**, as onboarding does with `SourceStarter`; never written in bulk into a register | `tenant_id NOT NULL` on `risks` |
-| 5 | Questionnaires | optional | no — #1481 (whether it reuses `vendor_questionnaire_templates` is #1481's refinement question) | if reused: `vendor_questionnaire_templates` and `vendor_questionnaire_questions` | both carry `tenant_id NOT NULL` (`domain/vendor_assessment.go`) |
-| 6 | Evidence expectations | optional | no — #1480 | a child table of the tenant's imported requirement (one control has several), designed by #1480 | `tenant_id NOT NULL` on the row **and** the parent `compliance_controls` row resolved in the same tenant |
-| 7 | Assessment templates | optional | no — #1481 (no assessment entity exists in `domain/compliance.go`) | imported per tenant, table designed by #1481 | `tenant_id NOT NULL` |
-| 8 | Report templates | optional | no — #1481 | **not imported**: pack-resident, read-only layout rendered by `generate_compliance_report.go` | no row, so nothing to scope; the data it renders is read by that tenant-scoped use case |
+| 3b | Mappings: requirement to risk | optional | no pack content — #556 (the target table exists) | `risk_control_mappings` (`domain.RiskControlMapping`), mirrored to a `mitigated_by` edge by `controlchain.MirrorMappingCreated` | `tenant_id NOT NULL` on the row and the edge |
+| 3c | Mappings: control to evidence collector, default test definitions with cadence | optional | no pack content — #556 (`control_tests` exists) | test definitions: `control_tests` (0086, has `cadence`); collector mapping: no table yet, designed by #556 | `tenant_id NOT NULL` on `control_tests`; #556's table must carry it too |
+| 4 | Risks (typical risks of the framework) | optional | no pack content — #556. The nearest existing content is the generic starter catalogue `backend/pkg/onboarding/starter.go`, which is not per framework | `risks`, written **only for the risks the tenant selects**, as onboarding does with `SourceStarter`; never written in bulk into a register | `tenant_id NOT NULL` on `risks` |
+| 5 | Questionnaires | optional | no pack content — #1481 (whether it reuses `vendor_questionnaire_templates` is #1481's refinement question) | if reused: `vendor_questionnaire_templates` and `vendor_questionnaire_questions` | both carry `tenant_id NOT NULL` (`domain/vendor_assessment.go`) |
+| 6 | Evidence expectations | optional | no pack content — #1480 | no table yet: a child table of the tenant's imported requirement (one control has several), designed by #1480 | `tenant_id NOT NULL` on the row **and** the parent `compliance_controls` row resolved in the same tenant |
+| 7 | Assessment templates | optional | no pack content — #1481 (no assessment entity exists in `domain/compliance.go`) | no table yet: imported per tenant, table designed by #1481 | `tenant_id NOT NULL` |
+| 8 | Report templates | optional | no pack content — #1481 | **not imported**: pack-resident, read-only layout rendered through `generate_compliance_report.go` and `pkg/report` | no row, so nothing to scope; the data it renders is read by that tenant-scoped use case |
 
 Decisions inside the table:
 - **Evidence expectations attach to the tenant's imported control, editable** (answers #1480 open
@@ -89,6 +89,9 @@ Decisions inside the table:
 - **Report templates are the only pack-resident kind.** A layout the tenant cannot edit has no
   merge problem, and importing it would copy static text into every tenant for nothing. If a tenant
   later needs to customise one, it becomes an imported kind under D4 and D5, by amendment.
+  A pack-resident report template is a typed layout value rendered by `pkg/report`. It is never a
+  `text/template` or `html/template` source, and tenant values are only ever data inserted into it,
+  never parsed as template text.
 - **Requirement-to-risk mappings and pack risks are written in one go with the risks the tenant
   selected**, so a pack never asserts a risk the tenant did not accept.
 
@@ -101,19 +104,24 @@ Decisions inside the table:
   - PATCH: wording or citation corrected on existing items, rationale of a crosswalk changed.
   - MINOR: items or content kinds added, crosswalk entries added.
   - MAJOR: an item retired (D5), or an item's identity changed.
-  Every existing catalogue starts at `1.0.0` when the field lands. The crosswalk registry gets its own
-  `CrosswalksVersion` with the same rules, because a crosswalk entry belongs to a pair of packs, not
-  to one.
-  Stored on the framework as a new column `compliance_frameworks.catalog_content_version`
-  (`varchar(32) NOT NULL DEFAULT ''`, expand only, no backfill). Empty means "imported before
-  content versions existed" and is shown as unknown, the rule #1478 applies to the edition.
+  Every existing catalogue starts at `1.0.0` when the field lands. Stored on the framework as a new
+  column `compliance_frameworks.catalog_content_version` (`varchar(32) NOT NULL DEFAULT ''`, expand
+  only, no backfill). Empty means "imported before content versions existed" and is shown as
+  unknown, the rule #1478 applies to the edition.
+- **Crosswalks version** — new `CrosswalksVersion` in `crosswalks.go`, same semver rules, because a
+  crosswalk entry belongs to a pair of packs, not to one. Stored on each framework as a new column
+  `compliance_frameworks.catalog_crosswalks_version` (`varchar(32) NOT NULL DEFAULT ''`, expand only):
+  the crosswalks version last materialised for that framework's pairs. A 3a row's `pack_version` is
+  the `CrosswalksVersion` that last wrote it. An upgrade is available when **either**
+  `catalog_content_version` or `catalog_crosswalks_version` differs from the registry, so a
+  crosswalks-only bump triggers one; idempotence (D5) holds only when both are equal.
 - **ADR 0008 reading.** For `source = openrisk_catalogue`, `source_version` is the content version,
   not the edition: the edition is constant per key, so it cannot say which revision a row holds.
 
 ### D4 — Provenance recorded on every imported row
 
-Every row a pack writes (kinds 1, 3a, 3b, 3c, 4, 5, 6, 7) carries six columns, added expand-only to
-existing tables and created with new ones:
+Every row a pack writes (kinds 1, 3a, 3b, 3c, 4, 5, 6, 7) carries seven columns, added expand-only
+to existing tables and created with new ones:
 
 | Column | Type | Meaning |
 |---|---|---|
@@ -123,8 +131,16 @@ existing tables and created with new ones:
 | `pack_base` | `jsonb` | snapshot of the pack-managed fields as the pack last wrote them |
 | `pack_base_hash` | `char(64)` | SHA-256 (stdlib) of the canonical JSON of `pack_base`, prefixed by a hash-rule version |
 | `pack_retired_in` | `varchar(32) NOT NULL DEFAULT ''` | the content version that retired the item (D5); empty while live |
+| `pack_reverted_by` | `uuid NULL` | set only on a row a revert soft-deleted (D5, Reversibility): the id of that revert's `content_pack_upgrades` row. It is what tells a revert tombstone from a tenant deletion. |
 
-`(pack_key, pack_item_key)` is unique among a framework's rows (requirements) or a tenant's rows (crosswalks), deleted rows included, always under `tenant_id`. Where a canonical
+Uniqueness is enforced by a partial unique index leading on `tenant_id`, deleted rows included:
+`(tenant_id, framework_id, pack_key, pack_item_key) WHERE pack_key <> ''` on rows that have a
+framework, `(tenant_id, pack_key, pack_item_key) WHERE pack_key <> ''` on `control_crosswalks`.
+
+**Who writes them.** The seven columns are written only by the pack use case. They are absent from
+every input DTO (PATCH, bulk, #307 import) and read-only in the API. #307 export does not emit them.
+
+Where a canonical
 projection carries the ADR 0008 envelope, `source_id` is derived from it and `source_version` is
 `pack_version`; ADR 0008 does not fix a catalogue `source_id` format today, and the follow-up sets it.
 
@@ -139,10 +155,12 @@ base snapshot, not only a hash, gives a field-level three-way merge: a tenant wh
 description still receives an upstream citation fix on the same row.
 
 **Legacy rows** (imported before D4 exists) have empty provenance. They are matched on first upgrade
-by `(framework, reference_code)`, so no boot backfill is needed (SQL backfills do not run on a
-`DB_HOST` boot here). A legacy row equal to the new upstream content is adopted (provenance
-stamped); a legacy row that differs is a conflict with "baseline unknown", because a tenant edit and
-an upstream change cannot be told apart. It is never overwritten.
+by `(framework, reference_code)`, **soft-deleted rows included**, so no boot backfill is needed (SQL
+backfills do not run on a `DB_HOST` boot here). A live legacy row equal to the new upstream content
+is adopted (provenance stamped); a live legacy row that differs is a conflict with "baseline
+unknown", because a tenant edit and an upstream change cannot be told apart. It is never
+overwritten. A soft-deleted legacy row is `kept deleted` with "baseline unknown": it gets the
+provenance stamp so later upgrades recognise it, and it is never re-created.
 
 ### D5 — Upgrade merge rules and what the report shows (AC2)
 
@@ -160,7 +178,8 @@ the framework's rows **including soft-deleted ones**, with `tenant_id` in the WH
 | Edited by tenant, converged | `T = U ≠ B` | `pack_base := U`, `pack_version :=` new | `already up to date` |
 | **Changed upstream AND edited by tenant** | the same field differs in `T` and `U` from `B`, and `T ≠ U` | **conflict**: the conflicting fields are left as the tenant has them; non-conflicting upstream fields are applied; the conflict is recorded open | `conflict` · field, yours, upstream, base |
 | **Removed upstream** | row has provenance, item absent from `U` | **never deleted, never status-changed**: `pack_retired_in :=` new version. Evidence links, results, exceptions, mappings, audit history untouched. Gap analysis and progress count it exactly as before until the tenant acts (sets it not applicable, or deletes it through the existing audited delete) | `retired` · item, the changelog reason; flagged "edited by you" when `T ≠ B` |
-| Deleted by tenant | soft-deleted row with that `pack_item_key` | **not re-created**, whether upstream changed it or not | `kept deleted` · and "changed upstream since" when `U ≠ B` |
+| Deleted by tenant | soft-deleted row with that `pack_item_key` and `pack_reverted_by` null | **not re-created**, whether upstream changed it or not | `kept deleted` · and "changed upstream since" when `U ≠ B` |
+| Reverted earlier | soft-deleted row with that `pack_item_key` and `pack_reverted_by` set, item in `U` | **restored, same row id**: `deleted_at` and `pack_reverted_by` cleared, fields `:= U`, provenance stamped, its control-chain rows restored (the split control id is deterministic, ADR 0008 D7) | `added` (restored after revert) |
 
 **Conflict resolution.** An open conflict offers two actions, each its own audited write:
 *keep mine* (`pack_base := U`, so the next upgrade compares against the new content and does not
@@ -176,37 +195,75 @@ what changed, from which version to which, and who decided.
 Apply is a second call that recomputes (the report it returns is the one that applied, not the
 preview's).
 
-**Idempotence.** Re-importing or re-upgrading to the content version already held writes **no row**
+**Idempotence.** Re-importing or re-upgrading when both the content version and the crosswalks
+version already held equal the registry's writes **no row**
 (no update, no `updated_at` change, no upgrade record, no audit entry) and returns a report of
 zero changes. Import and upgrade are the same use case: a first import is an upgrade from nothing.
 
 **Transaction (rule 7).** One use case, one transaction for the whole apply: every row insert and
 update, the control-chain mirror writes, the ADR 0012 stale marks of the controls it touches, the
-crosswalk materialisation (no longer best-effort), the framework's `catalog_version` and
-`catalog_content_version` stamp, the upgrade record and its items, and one `audit_events` row.
-The framework row is locked (`FOR UPDATE` on Postgres) first, so two upgrades of one framework
-serialise. Any failure rolls the whole upgrade back; there is no partial upgrade.
+crosswalk materialisation (no longer best-effort), the framework's `catalog_version`,
+`catalog_content_version` and `catalog_crosswalks_version` stamp, the upgrade record and its items, and one `audit_events` row.
+Any failure rolls the whole upgrade back; there is no partial upgrade.
+
+**Locking and conditional writes.** Apply, revert and both conflict resolutions lock the framework
+row (`FOR UPDATE`) first, and choose the latest upgrade or read the conflict only after taking the
+lock. Crosswalk rows span two frameworks, so an apply or revert that writes 3a rows locks, in one
+statement and in `id` order, the path framework **and** every framework of the tenant whose
+`catalog_key` forms a crosswalk pair with it; two upgrades of A and B therefore serialise instead of
+racing on the same links. The partial unique index of D4 is the backstop: a violation fails the
+transaction, which rolls back whole and can be retried. Each row write is conditional:
+`UPDATE … WHERE id = ? AND tenant_id = ? AND <fields> = <expected>`. 0 rows affected means the row
+changed since; it is reported as a conflict and never forced. Take-upstream carries the `T` it
+displayed and fails with `ErrConflict` if `T` moved.
 
 **Reversibility.** Each applied upgrade stores, per row it touched, the before and after values of
-the pack-managed fields and provenance. *Revert* applies to the latest upgrade of a framework only
-(older ones revert in order), in one transaction:
+the pack-managed fields and provenance. *Revert* targets the latest non-revert upgrade of the
+framework that is not yet reverted (older ones revert in order), in one transaction:
 - an updated row whose fields still equal the after-image returns to the before-image;
 - an added row is soft-deleted only if the tenant has done nothing to it since (status, evidence
-  links, results, exceptions, mappings unchanged); otherwise it stays and is reported;
+  links, results, exceptions, mappings unchanged); otherwise it stays and is reported. The
+  soft-delete sets `pack_reverted_by` to the revert's upgrade id, so it never counts as a tenant
+  deletion: a later re-apply restores the row (D5, "Reverted earlier"). For a requirement, the
+  revert also soft-deletes its split `controls` row and removes its `addressed_by` edge in the same
+  transaction. `controlchain/mirror.go` has no function for a requirement deletion today
+  (`DeleteControl` in `gorm_compliance_repository.go` does not mirror); the follow-up adds one;
 - a retired row has `pack_retired_in` cleared;
 - a row the tenant changed since the upgrade is left and reported as a conflict.
 A revert is itself recorded as an upgrade (to-version = the previous one), so the history reads
 forward. Revert never needs the old pack content, which the code does not keep (Context 5).
 
 **Tenant gate of the new tables.** The upgrade record and its items live in two new tables,
-`content_pack_upgrades` (one row per apply or revert: framework, from and to versions, actor,
-report) and `content_pack_upgrade_items` (one row per touched item: action, before, after, conflict
-resolution). Both carry `tenant_id uuid NOT NULL` with an index leading on it, every read and write
-filters on it, the framework is resolved `WHERE id = ? AND tenant_id = ?` before anything else
-(miss: `ErrNotFound`), and both are added to `security/isolation/tables.go`. Routes reuse existing
-keys: preview `compliance:frameworks:read`; apply, revert and conflict resolution
-`compliance:frameworks:create`, the key the catalogue import route already uses. A missing tenant
-context is a 401, never a cross-tenant read.
+`content_pack_upgrades` (one row per apply or revert: framework, from and to versions, actor, and a
+`report` holding counts only) and `content_pack_upgrade_items` (one row per touched item: kind,
+row id, action, before, after; the report lines live here). Both carry `tenant_id uuid NOT NULL`
+with an index leading on it, every read and write filters on it, the framework is resolved
+`WHERE id = ? AND tenant_id = ?` before anything else (miss: `ErrNotFound`), and both are added to
+`security/isolation/tables.go`. A missing tenant context is a 401, never a cross-tenant read.
+
+Every target row a revert or resolution writes is re-read `WHERE id = ? AND tenant_id = ? AND
+framework_id = ?` (for a crosswalk: `tenant_id` and one end in the framework), soft-deleted rows
+included. A conflict id from the client is resolved `WHERE id = ? AND tenant_id = ? AND upgrade_id
+IN (upgrades of the path framework)`; a miss is `ErrNotFound`. Items store `(kind, row_id)` and the
+use case maps the kind to a fixed repository, never a table name from data.
+
+Items are append-only. A resolution is a new item row (action `resolved_keep_mine` or
+`resolved_take_upstream`, actor, before, after) plus an `audit_events` row; a conflict is open while
+no resolution item follows it. Items are never UPDATEd or DELETEd. Upgrade records and items follow
+their framework's deletion (soft-deleted with it) and are included in the tenant's export and
+erasure. They are never written to logs or `audit_events` metadata.
+
+**Routes and permissions.** Preview and reading upgrade history and items:
+`compliance:frameworks:read` plus `compliance:controls:read`. Apply, revert and conflict
+resolution: `compliance:frameworks:create`, the key the catalogue import route already uses. In
+addition, the use case checks the caller's own permission for every other module a pack writes:
+kinds 3b and 4 require `risks:create`, kind 5 requires `vendors:manage`, and a revert that
+soft-deletes a requirement requires `compliance:controls:delete`. A missing key drops that kind from
+the apply with a report line `skipped (permission)`. It is never written with the framework key
+alone. The routes sit in the `protected` group, which already applies the general per-tenant budget
+(`middleware.TenantRateLimit`, `internal/middleware/apiquota.go`); no mutation-specific limiter
+exists today, and the upgrade follow-up adds a dedicated per-tenant limit on preview, apply and
+revert.
 
 ### D6 — Interaction with D-120 review status
 
@@ -267,11 +324,13 @@ Existing, now unblocked or constrained by this ADR:
 To open:
 1. **Pack content version, changelog and per-row provenance** — `Catalog.ContentVersion`,
    `Changelog`, `Review.ContentVersion`, `CrosswalksVersion`; columns of D3 and D4 on
-   `compliance_frameworks`, `compliance_controls`, `control_crosswalks` (expand only, next free
+   `compliance_frameworks` (`catalog_content_version`, `catalog_crosswalks_version`),
+   `compliance_controls`, `control_crosswalks`, with the partial unique indexes (expand only, next free
    migration number, mirrored in the GORM models); the import made one transaction and
    tombstone-aware (Context 2 and 3).
 2. **Pack upgrade: preview, apply, report, conflict resolution, revert** — D5 and D6, the two
-   tables, the routes, and the framework page that shows the report and open conflicts. Depends on 1.
+   tables, the routes, the per-module permission checks, the requirement-deletion mirror, the
+   dedicated rate limit, and the framework page that shows the report and open conflicts. Depends on 1.
 
 ## Tests that prove this design when implemented
 
@@ -281,7 +340,11 @@ To open:
 `TestUpgradePack_SameVersion_WritesNothing` (row count and `updated_at` unchanged),
 `TestUpgradePack_DeletedRowNotResurrected`, `TestUpgradePack_RetiredKeepsEvidenceAndStatus`,
 `TestUpgradePack_FailureRollsBackEverything`, `TestRevertPackUpgrade_RestoresBeforeImage`,
-`TestRevertPackUpgrade_LeavesTenantTouchedRows`, and a Postgres isolation test over both new tables.
+`TestRevertPackUpgrade_LeavesTenantTouchedRows`, `TestRevertThenReapply_RecreatesAddedItems`,
+`TestUpgradePack_LegacyDeletedRowKeptDeleted`, `TestUpgradePack_CrosswalksOnlyBumpUpgrades`,
+`TestUpgradePack_ConcurrentPairSerialises`, `TestUpgradePack_MissingModulePermissionSkipsKind`,
+`TestResolvePackConflict_NotFound` (conflict id of another tenant or another framework: 404),
+and a Postgres isolation test over both new tables.
 
 ## Consequences
 
@@ -297,6 +360,11 @@ Harder:
   re-created by a re-import. That is the intended fix, and it is announced in the follow-up's notes.
 - Legacy rows that differ from current content surface as conflicts on first upgrade; the first
   upgrade of an old tenant may show many. That is the honest reading: we cannot know who changed them.
+- A legacy control the tenant deleted before provenance existed stays deleted forever, even if it was
+  deleted by mistake; restoring it is a manual re-creation. Re-creating it would repeat today's
+  resurrection defect.
+- An upgrade of one framework locks every framework it shares crosswalks with, so upgrades of
+  paired frameworks in one tenant run one after the other.
 - Old pack content is not kept in code, so a conflict's "base" comes from the row's own snapshot,
   and legacy rows have none.
 
