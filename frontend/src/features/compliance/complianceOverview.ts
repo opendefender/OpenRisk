@@ -15,6 +15,10 @@ interface RawFramework {
   name: string;
   version: string;
   description?: string;
+  // #1478: absent on a hand-built framework; catalog_version is '' when the
+  // catalogue edition is unknown (framework imported before it was recorded).
+  catalog_key?: string;
+  catalog_version?: string;
 }
 interface RawProgress {
   Total: number;

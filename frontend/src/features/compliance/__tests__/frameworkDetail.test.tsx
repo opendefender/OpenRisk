@@ -71,10 +71,16 @@ function ok<T>(data: T): Promise<AxiosResponse<T>> {
 // field names, as the live server sends them) or an Error to simulate a failure.
 const ZERO = { Total: 3, ByStatus: { not_implemented: 3 }, Applicable: 3, PercentComplete: 0 };
 
-function serve(controls: ComplianceControl[], progress: unknown = ZERO) {
+function serve(
+  controls: ComplianceControl[],
+  progress: unknown = ZERO,
+  extra: Record<string, unknown> = {},
+) {
   get.mockImplementation((url: string) => {
     if (url === '/compliance/frameworks') {
-      return ok([{ id: FRAMEWORK_ID, name: 'ISO 27001', version: '2022', description: 'Desc' }]);
+      return ok([
+        { id: FRAMEWORK_ID, name: 'ISO 27001', version: '2022', description: 'Desc', ...extra },
+      ]);
     }
     if (url === `/compliance/frameworks/${FRAMEWORK_ID}/progress`) {
       return progress instanceof Error ? Promise.reject(progress) : ok(progress);
@@ -388,5 +394,42 @@ describe('FrameworkDetail accessibility', () => {
       (v) => v.impact === 'serious' || v.impact === 'critical',
     );
     expect(serious.map((v) => `${v.id}: ${v.help}`)).toEqual([]);
+  });
+});
+
+describe('FrameworkDetail catalogue version (#1478)', () => {
+  it('shows the version when the framework came from a catalogue', async () => {
+    serve([control(1, 'not_implemented')], ZERO, {
+      catalog_key: 'iso27001-2022',
+      catalog_version: '2022',
+    });
+    renderDetail();
+    expect(await screen.findByTestId('framework-catalog-version')).toHaveTextContent(
+      'Catalogue version: 2022',
+    );
+  });
+
+  it('shows Unknown when the catalogue is known but the version is empty', async () => {
+    serve([control(1, 'not_implemented')], ZERO, {
+      catalog_key: 'iso27001-2022',
+      catalog_version: '',
+    });
+    renderDetail();
+    expect(await screen.findByTestId('framework-catalog-version')).toHaveTextContent('Unknown');
+  });
+
+  it('shows Inconnue in French', async () => {
+    useUIStore.setState({ lang: 'fr' });
+    serve([control(1, 'not_implemented')], ZERO, { catalog_key: 'soc2', catalog_version: '' });
+    renderDetail();
+    expect(await screen.findByTestId('framework-catalog-version')).toHaveTextContent('Inconnue');
+  });
+
+  it('shows nothing about a catalogue on a hand-built framework', async () => {
+    serve([control(1, 'not_implemented')], ZERO, { catalog_key: '', catalog_version: '' });
+    renderDetail();
+    expect(await screen.findByText('Control 1')).toBeInTheDocument();
+    expect(screen.queryByTestId('framework-catalog-version')).toBeNull();
+    expect(screen.queryByText(/catalogue/i)).toBeNull();
   });
 });

@@ -3724,6 +3724,10 @@ export interface components {
             name: string;
             version: string;
             description?: string;
+            /** @description Catalogue this framework was imported from (e.g. iso27001-2022). Empty for a hand-built framework. */
+            catalog_key: string;
+            /** @description Edition of the standard the catalogue reproduces (e.g. 2022), recorded at import. Empty for a hand-built framework, for one imported before this field existed, and for a catalogue with no published edition. It is not a revision of OpenRisk's own wording. */
+            catalog_version: string;
             /** Format: date-time */
             created_at: string;
             /** Format: date-time */

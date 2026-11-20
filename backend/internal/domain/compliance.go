@@ -45,6 +45,15 @@ type ComplianceFramework struct {
 	// stop working the moment somebody renamed one.
 	CatalogKey string `gorm:"size:64;not null;default:'';index" json:"catalog_key"`
 
+	// CatalogVersion is the edition of the standard the catalog reproduces
+	// (pkg/compliance Catalog.Version, e.g. "2022"), stamped at import. Empty for a
+	// hand-built framework, for one imported before the field existed (never
+	// guessed), and for a catalog with no published edition.
+	//
+	// It is the edition of the STANDARD, not a revision of OpenRisk's own wording:
+	// it does not move when a description is corrected here.
+	CatalogVersion string `gorm:"size:64;not null;default:''" json:"catalog_version"`
+
 	// Relations (loaded via Preload)
 	Controls []ComplianceControl `gorm:"foreignKey:FrameworkID" json:"controls,omitempty"`
 

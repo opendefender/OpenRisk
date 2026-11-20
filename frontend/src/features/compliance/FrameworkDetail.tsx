@@ -189,6 +189,18 @@ export function FrameworkDetail() {
               ? undefined
               : t('compliance.progressState.unavailableShort')
         }
+        badge={
+          fw?.catalog_key ? (
+            <span
+              data-testid="framework-catalog-version"
+              className="text-xs font-semibold text-ink-soft px-2.5 py-1 rounded-full bg-surface-3"
+            >
+              {fw.catalog_version
+                ? t('compliance.catalogVersion.known', { version: fw.catalog_version })
+                : t('compliance.catalogVersion.unknown')}
+            </span>
+          ) : undefined
+        }
         actions={
           <>
             {canCreate && (

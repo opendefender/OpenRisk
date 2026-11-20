@@ -441,6 +441,10 @@
         "duplicateCode": "Le code de référence « {code} » apparaît plusieurs fois"
       }
     },
+    "catalogVersion": {
+      "known": "Version du catalogue : {version}",
+      "unknown": "Version du catalogue : Inconnue"
+    },
     "progressState": {
       "unavailable": "Progression indisponible",
       "unavailableShort": "— (progression indisponible)",

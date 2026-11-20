@@ -143,8 +143,11 @@ func (uc *ImportCatalogUseCase) Execute(ctx context.Context, tenantID uuid.UUID,
 	// Stamp what this framework IS, so crosswalks keep working after a rename.
 	// Best-effort: failing the import over a label would be a poor trade, and the
 	// controls — the thing the user asked for — are already in.
-	if fw.CatalogKey != input.CatalogKey {
+	// A re-import refreshes the version label too; it still only adds missing
+	// controls, so the label says which edition was imported, not that wording moved.
+	if fw.CatalogKey != input.CatalogKey || fw.CatalogVersion != catalog.Version {
 		fw.CatalogKey = input.CatalogKey
+		fw.CatalogVersion = catalog.Version
 		_ = uc.repo.UpdateFramework(ctx, fw)
 	}
 
