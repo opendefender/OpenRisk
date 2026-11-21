@@ -168,9 +168,9 @@ jobs:
 
       # The *_Postgres tests read the real schema (public.mfa_secrets,
       # audit_events, ...), which only exists once the server has booted: it
-      # runs AutoMigrate and then the SQL migrations. Against the empty
-      # database they failed or skipped, so build the schema the way production
-      # does, with one boot, and stop the server once /health answers.
+      # runs AutoMigrate and then the SQL migrations. One boot builds it, and
+      # the server stops once /health answers. The script is shared with
+      # `make test-integration`, so a local run means what CI means (#1491).
       - name: Build the schema with one server boot
         env:
           DATABASE_URL: postgres://test:test@localhost:5432/openrisk_test?sslmode=disable
@@ -182,36 +182,8 @@ jobs:
           REDIS_HOST: localhost
           REDIS_PORT: '6379'
           REDIS_URL: redis://localhost:6379
-          APP_ENV: test
           PORT: '8080'
-          CTI_SYNC_ENABLED: 'false'
-          PASSWORD_HIBP_DISABLED: 'true'
-          OPENRISK_DEPLOYMENT: self_hosted
-          # #808: the production boot path (seeds, backfills) runs under the tenant guard.
-          TENANT_GUARD: enforce
-        run: |
-          mkdir -p "$RUNNER_TEMP/keys"
-          ( umask 077 && openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out "$RUNNER_TEMP/keys/private.pem" 2>/dev/null )
-          openssl rsa -in "$RUNNER_TEMP/keys/private.pem" -pubout -out "$RUNNER_TEMP/keys/public.pem" 2>/dev/null
-          export RSA_PRIVATE_KEY_PATH="$RUNNER_TEMP/keys/private.pem" RSA_PUBLIC_KEY_PATH="$RUNNER_TEMP/keys/public.pem"
-          (cd backend && go build -o "$RUNNER_TEMP/openrisk" ./cmd/server)
-          "$RUNNER_TEMP/openrisk" > "$RUNNER_TEMP/boot.log" 2>&1 &
-          PID=$!
-          for i in $(seq 1 90); do
-            if curl -fsS http://localhost:8080/api/v1/health >/dev/null; then
-              kill "$PID"; wait "$PID" || true
-              # #808: seeds and backfills swallow their errors and log them, so the
-              # tenant guard's refusals are only visible here. Any line fails the job.
-              if grep -n 'tenantguard' "$RUNNER_TEMP/boot.log"; then
-                echo "the boot ran a query the tenant guard refused (#808)"; exit 1
-              fi
-              echo "schema built after ${i}s"; exit 0
-            fi
-            kill -0 "$PID" 2>/dev/null || break
-            sleep 1
-          done
-          tail -50 "$RUNNER_TEMP/boot.log"
-          echo "the server did not come up, so the schema was not built"; exit 1
+        run: scripts/ci/build-schema.sh
 
       - name: Run integration tests
         env:

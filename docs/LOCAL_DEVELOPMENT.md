@@ -294,8 +294,14 @@ docker-compose exec frontend npm test
 ### Integration Tests
 
 ```bash
-# Run integration tests (requires test_db running)
-docker-compose exec backend go test -v -tags=integration ./...
+# Run integration tests the way CI does: a throwaway Postgres 16 and Redis 7
+# (tmpfs, removed afterwards), the schema built by one server boot
+# (scripts/ci/build-schema.sh), then go test. Needs Docker and openssl.
+make test-integration
+
+# Against a database you already run: build its schema first, or every
+# *_Postgres test fails on "relation ... does not exist"
+DATABASE_URL=postgres://... DB_HOST=... DB_PORT=... scripts/ci/build-schema.sh
 
 # Or use the helper script
 ./scripts/run-integration-tests.sh
