@@ -86,6 +86,9 @@ export function buildAuthUser(login: LoginResult): Record<string, unknown> {
     org_roles: claims.org_roles ?? (login.user as { org_roles?: unknown }).org_roles,
     tenant_id: claims.tenant_id ?? (login.user as { tenant_id?: unknown }).tenant_id,
     business_role: login.business_role ?? (login.user as { business_role?: string }).business_role ?? '',
+    // The SPA folds the organization's name in at sign-in (useAuthStore). The
+    // danger zone confirms against it; without it the delete stays disabled.
+    org_name: (login.organization as { name?: string } | undefined)?.name,
   };
 }
 

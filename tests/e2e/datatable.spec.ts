@@ -333,8 +333,12 @@ test.describe('the other six registers use the same table', () => {
     test(`${path} renders <DataTable> with a real search box`, async ({ page }) => {
       await page.goto(path, { waitUntil: 'domcontentloaded' });
       if (path.includes('mitigations')) {
-        // The board defaults to Kanban; switch to the table view.
-        await page.getByTitle('Table').first().click().catch(() => {});
+        // ?view=table selects the table view (#591). Its toggle must say so.
+        // getByTitle('Table') used to match "Tableau de bord" in the sidebar
+        // first, so this case clicked its way to the dashboard.
+        await expect(page.getByTestId('miti-view-table')).toHaveAttribute('aria-pressed', 'true', {
+          timeout: 20_000,
+        });
       }
       await expect(page.getByTestId(testid)).toBeVisible({ timeout: 20_000 });
       await expect(page.getByTestId('table-search')).toBeVisible();

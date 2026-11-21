@@ -999,6 +999,7 @@ function DisplaySettings({
           {CRITS.map((c) => (
             <Opt
               key={c}
+              testId={`topo-crit-${c.toLowerCase()}`}
               on={critFilter.has(c)}
               onClick={() => {
                 const next = new Set(critFilter);
@@ -1039,16 +1040,19 @@ function Opt({
   on,
   onClick,
   children,
+  testId,
 }: {
   on: boolean;
   onClick: () => void;
   children: React.ReactNode;
+  testId?: string;
 }) {
   return (
     <button
       type="button"
       aria-pressed={on}
       onClick={onClick}
+      data-testid={testId}
       className={`h-7 px-2.5 rounded-full border text-[12px] font-semibold ${
         on
           ? 'bg-surface-3 border-border-strong text-ink'

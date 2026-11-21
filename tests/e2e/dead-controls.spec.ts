@@ -100,35 +100,63 @@ test.describe('buttons that had a handler but showed nothing', () => {
 });
 
 test.describe('buttons that had no handler at all', () => {
-  test('Asset Universe: the funnel is a real criticality filter', async ({ page }) => {
+  // The Asset Universe page and its funnel were replaced on 2026-08-12 by the
+  // topology (46344624); /assets/universe now redirects there. The criticality
+  // filter lives in the topology's Display popover (#591).
+  test('Topology (formerly Asset Universe): the criticality filter really filters', async ({ page }) => {
     await page.goto('/assets/universe', { waitUntil: 'domcontentloaded' });
+    await expect(page).toHaveURL(/\/assets\/topology/);
 
-    const count = page.getByTestId('universe-node-count');
-    await expect(count).toBeVisible({ timeout: 20_000 });
+    const count = page.getByTestId('topo-count');
+    await expect(count).toHaveText(/\d/, { timeout: 20_000 });
     const before = (await count.textContent()) ?? '';
+    expect(before).not.toContain('/');
 
-    await page.getByTestId('universe-filter').click();
-    await expect(page.getByTestId('universe-filter-panel')).toBeVisible();
-    await page.getByTestId('universe-filter-critical').click();
+    await page.getByRole('button', { name: /^(affichage|display)$/i }).click();
+    await expect(page.getByTestId('topo-display')).toBeVisible();
+    // One level off hides that level only: the count turns into "shown / total"
+    // with something still shown (the seed holds one asset per level).
+    await page.getByTestId('topo-crit-critical').click();
+    await expect(count).toHaveText(/^[1-9]\d* \/ \d+/, { timeout: 10_000 });
+    await page.getByTestId('topo-crit-critical').click();
+    await expect(count).toHaveText(before);
 
-    // Observable effect: the node count changes shape ("n / total" once filtered).
-    await expect(count).not.toHaveText(before, { timeout: 10_000 });
-    await expect(count).toContainText('/');
+    // Switch every criticality off: whatever the seed holds, nothing is left.
+    for (const c of ['critical', 'high', 'medium', 'low']) {
+      const opt = page.getByTestId(`topo-crit-${c}`);
+      await expect(opt).toHaveAttribute('aria-pressed', 'true');
+      await opt.click();
+      await expect(opt).toHaveAttribute('aria-pressed', 'false');
+    }
+
+    // Observable effect: the count turns into "shown / total" and shows nothing.
+    await expect(count).toHaveText(/^0 \/ \d+/, { timeout: 10_000 });
   });
 
-  test('Settings danger zone: "Delete organization" opens a real impact radiography', async ({ page }) => {
+  // The 2026-08-07 "Delete organization" dialog (impact radiography, immediate
+  // DELETE) was replaced on 2026-08-18 by the hardened DangerZonePanel
+  // (458d8f65): export first, exact-name confirmation, MFA, 30-day grace (#591).
+  test('Settings danger zone: deleting the organization is gated by its exact name', async ({ page }) => {
     await page.goto('/settings?tab=danger', { waitUntil: 'domcontentloaded' });
 
-    const del = page.getByTestId('delete-org');
-    await expect(del).toBeVisible({ timeout: 20_000 });
-    await del.click();
+    const zone = page.getByTestId('delete-org');
+    await expect(zone).toBeVisible({ timeout: 20_000 });
+    await expect(zone).toContainText(/30 jours|30 days/i);
+    await expect(page.getByRole('link', { name: /exporter mon organisation|export my organization/i })).toBeVisible();
 
-    // The dialog states what is destroyed and offers a safer exit. We stop here
-    // on purpose: confirming would delete the E2E tenant.
-    await expect(page.getByText(/supprimer l’organisation|delete this organization/i).first()).toBeVisible();
-    await expect(page.getByText(/piste d’audit|audit trail/i).first()).toBeVisible();
-    await page.keyboard.press('Escape');
-    await expect(page.getByText(/définitivement l’organisation|permanently delete the organization/i)).toHaveCount(0);
+    const submit = page.getByTestId('delete-org-submit');
+    const name = page.getByTestId('delete-org-confirm-name');
+    await expect(submit).toBeDisabled();
+
+    await name.fill('not the organization');
+    await expect(submit).toBeDisabled();
+
+    // The exact name enables it. We stop here on purpose: submitting would
+    // schedule the deletion of the E2E tenant.
+    const orgName = (await name.getAttribute('placeholder')) ?? '';
+    expect(orgName).not.toBe('');
+    await name.fill(orgName);
+    await expect(submit).toBeEnabled();
   });
 
   test('API tokens: the prefix copy control actually copies', async ({ page, context }) => {

@@ -8,7 +8,7 @@
 
 import { localeTag } from '../../i18n/locales';
 import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router';
+import { useNavigate, useSearchParams } from 'react-router';
 import { useQueryClient, useMutation } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import {
@@ -64,7 +64,21 @@ export function MitigationsBoard() {
   // Adding a plan is offered only to a member who may create one (#739).
   const canCreate = useAuthStore((s) => s.hasPermission('mitigations:create'));
   const { columns, items, isLoading, isError, refetch } = useMitigations();
-  const [view, setView] = useState<View>('kanban');
+  // The view lives in the URL (?view=table|gantt) so a view can be linked and
+  // survives a reload; Kanban is the default and keeps the URL clean (#591).
+  const [searchParams, setSearchParams] = useSearchParams();
+  const urlView = searchParams.get('view');
+  const view: View = urlView === 'table' || urlView === 'gantt' ? urlView : 'kanban';
+  const setView = (v: View) =>
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        if (v === 'kanban') next.delete('view');
+        else next.set('view', v);
+        return next;
+      },
+      { replace: true },
+    );
 
   // Live scanner-driven auto-completions push over SSE → refresh the board so the
   // "Auto-detected" badge appears without a manual reload.
@@ -110,6 +124,8 @@ export function MitigationsBoard() {
                   key={v}
                   onClick={() => setView(v)}
                   title={lbl}
+                  aria-pressed={view === v}
+                  data-testid={`miti-view-${v}`}
                   className="h-8 px-2.5 rounded-[8px] text-[12.5px] font-semibold inline-flex items-center gap-1.5 transition-colors"
                   style={{
                     background: view === v ? 'var(--accent-soft)' : 'transparent',
@@ -163,6 +179,8 @@ export function MitigationsBoard() {
                   </div>
                   <button
                     onClick={() => navigate('/risks')}
+                    aria-label={L.addPlan}
+                    title={L.addPlan}
                     className="w-[22px] h-[22px] rounded-md flex items-center justify-center text-ink-muted hover:bg-hover transition-colors"
                   >
                     <Plus size={14} />

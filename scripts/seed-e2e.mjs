@@ -303,6 +303,42 @@ async function ensureIncident() {
   return { incidentId };
 }
 
+// One asset per criticality, so the topology's criticality filter has something
+// to filter (#591). Idempotent by name.
+async function ensureAssets() {
+  const before = asArray((await api('GET', '/assets')).body);
+  const existing = new Set(before.map((a) => a?.name));
+  let created = 0;
+  for (const a of dataset.assets ?? []) {
+    if (existing.has(a.name)) continue;
+    const res = await api('POST', '/assets', a);
+    if (res.ok) created++;
+    else console.warn(`[seed] asset "${a.name}" -> ${res.status} ${JSON.stringify(res.body)}`);
+  }
+  const after = asArray((await api('GET', '/assets')).body);
+  console.log(`[seed] assets: ${after.length} present (+${created} created)`);
+  return { count: after.length };
+}
+
+// One mitigation plan, so the mitigations board renders its views instead of
+// its empty state (#591). It hangs off a dedicated dataset risk that no spec
+// asserts on, never off riskId. Idempotent by title.
+async function ensureMitigation() {
+  const spec = dataset.mitigation;
+  if (!spec) return { mitigationId: undefined };
+  const list = asArray((await api('GET', '/mitigations')).body);
+  const found = list.find((m) => m?.title === spec.title);
+  if (found) return { mitigationId: found.id };
+  const risk = asArray((await api('GET', '/risks?limit=200')).body).find((r) => r?.title === spec.risk_title);
+  // Fail here, not later in a spec as a vague "not visible": the board's views
+  // only render when a plan exists.
+  if (!risk) throw new Error(`[seed] mitigation: risk "${spec.risk_title}" not found`);
+  const res = await api('POST', `/risks/${risk.id}/mitigations`, { title: spec.title });
+  if (!res.ok) throw new Error(`[seed] mitigation create -> ${res.status} ${JSON.stringify(res.body)}`);
+  console.log(`[seed] mitigation create -> ${res.status}`);
+  return { mitigationId: idOf(res.body) };
+}
+
 // Provision analyst + auditor as business-role members of the tenant. Recorded
 // honestly whether it works or not, with the server's own error when it refuses.
 async function tryPersonas() {
@@ -348,6 +384,8 @@ async function main() {
   const frameworks = await ensureFrameworks();
   const vulns = await ensureVulnerabilities();
   const incident = await ensureIncident();
+  const assets = await ensureAssets();
+  const mitigation = await ensureMitigation();
   const personas = await tryPersonas();
 
   const out = {
@@ -355,8 +393,14 @@ async function main() {
     frameworkId: frameworks.frameworkId,
     riskId: risks.riskId,
     incidentId: incident.incidentId,
+    mitigationId: mitigation.mitigationId,
     personas,
-    counts: { risks: risks.count, frameworks: frameworks.count, vulnerabilities: vulns.count },
+    counts: {
+      risks: risks.count,
+      frameworks: frameworks.count,
+      vulnerabilities: vulns.count,
+      assets: assets.count,
+    },
     // Reused by global-setup to build the admin storageState WITHOUT a 2nd login
     // (keeps the rate-limited auth endpoint from wedging repeat runs).
     adminLogin: ADMIN_LOGIN,
