@@ -6,6 +6,7 @@
 import { create } from 'zustand';
 import { api } from '../lib/api';
 import { decodeAccessToken, permitted } from '../lib/jwt';
+import { activeOrgRole } from '../lib/orgRole';
 import { setAccessToken } from '../lib/session';
 import { clearSessionScope } from '../lib/sessionScope';
 import { isSecondFactorStep, orgSwitchService } from '../features/organization/orgSwitchService';
@@ -295,11 +296,11 @@ export const useAuthStore = create<AuthStore>((set, get) => ({
     // org_roles. user.role is a legacy field that is empty on every account
     // created by registration or invitation, so reading it alone made
     // hasRole('admin') false for everyone (#867).
-    const orgRole = (user.tenant_id ? user.org_roles?.[user.tenant_id] : undefined) ?? '';
+    const orgRole = activeOrgRole(user);
     // root outranks every role gate, as middleware.RequireRole does on the server.
-    if (orgRole.toLowerCase() === 'root') return true;
+    if (orgRole === 'root') return true;
     return (
-      orgRole.toLowerCase() === target ||
+      orgRole === target ||
       (user.role ?? '').toLowerCase() === target ||
       (user.business_role ?? '').toLowerCase() === target
     );

@@ -110,6 +110,21 @@ function dto(over: Partial<SavedViewDTO> = {}): SavedViewDTO {
   };
 }
 
+// The shape login stores: legacy role "" and the org role in org_roles (#702).
+const signInAs = (orgRole: string, legacyRole = '') =>
+  useAuthStore.setState({
+    user: {
+      id: ME,
+      email: 'me@example.test',
+      username: 'me',
+      full_name: 'Me',
+      role: legacyRole,
+      business_role: '',
+      tenant_id: 'org-1',
+      org_roles: { 'org-1': orgRole },
+    },
+  });
+
 const openPanel = () => fireEvent.click(screen.getByTestId('filters-trigger'));
 
 /** The POST bodies sent to /saved-views, in order. */
@@ -119,7 +134,7 @@ const created = () =>
 beforeEach(() => {
   vi.clearAllMocks();
   window.localStorage.clear();
-  useAuthStore.setState({ user: { id: ME, role: 'user' } as never });
+  signInAs('user');
   listed([]);
   vi.mocked(api.post).mockImplementation(async (_url, body) => {
     const b = body as { name: string; visibility?: SavedViewDTO['visibility'] };
@@ -296,15 +311,41 @@ describe('Issue 580 — sharing a view within the tenant', () => {
     expect(screen.queryByLabelText(/Vue du RSSI/i)).not.toBeInTheDocument();
   });
 
-  it('lets a tenant admin edit a shared view they do not own', async () => {
-    useAuthStore.setState({ user: { id: ME, role: 'admin' } as never });
+  // #702, criteria 2 and 5 — the org role from the token, not user.role.
+  it.each(['root', 'admin'])(
+    'lets an org %s edit and delete a shared view they do not own',
+    async (orgRole) => {
+      signInAs(orgRole);
+      listed([
+        dto({ id: 'v3', user_id: 'someone-else', name: 'Vue partagée', visibility: 'shared' }),
+      ]);
+      renderTable();
+      openPanel();
+
+      expect(await screen.findByTestId('saved-view-share-Vue partagée')).toBeInTheDocument();
+      fireEvent.click(screen.getByLabelText(/Vue partagée/i));
+      await waitFor(() => expect(api.delete).toHaveBeenCalledTimes(1));
+      expect(vi.mocked(api.delete).mock.calls[0]?.[0]).toContain('v3');
+    },
+  );
+
+  it.each([
+    ['a member', 'user', ''],
+    ['a member whose legacy role reads admin', 'user', 'admin'],
+  ])("keeps a colleague's shared view read-only for %s", async (_who, orgRole, legacy) => {
+    signInAs(orgRole, legacy);
     listed([
       dto({ id: 'v3', user_id: 'someone-else', name: 'Vue partagée', visibility: 'shared' }),
+      dto({ id: 'v4', user_id: ME, name: 'Ma vue', visibility: 'shared' }),
     ]);
     renderTable();
     openPanel();
 
-    expect(await screen.findByTestId('saved-view-share-Vue partagée')).toBeInTheDocument();
+    await screen.findByTestId('saved-view-Vue partagée');
+    expect(screen.queryByTestId('saved-view-share-Vue partagée')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/Vue partagée/i)).not.toBeInTheDocument();
+    // Their own view stays theirs to edit.
+    expect(screen.getByTestId('saved-view-share-Ma vue')).toBeInTheDocument();
   });
 
   it('saves a new view as shared when the box is ticked', async () => {

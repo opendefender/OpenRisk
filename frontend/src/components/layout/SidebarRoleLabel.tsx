@@ -18,6 +18,7 @@
 //   3. otherwise nothing. Defaulting to "member" is the defect being fixed.
 
 import { useAuthStore } from '../../hooks/useAuthStore';
+import { activeOrgRole } from '../../lib/orgRole';
 import { useI18n } from '../../hooks/useI18n';
 import { useRbacCatalog } from '../../features/rbac/useRbac';
 
@@ -33,7 +34,7 @@ export function SidebarRoleLabel() {
   const businessRole = user?.business_role ?? '';
   const { data: catalog, isLoading } = useRbacCatalog();
 
-  const orgRole = user?.tenant_id ? user.org_roles?.[user.tenant_id] : undefined;
+  const orgRole = activeOrgRole(user);
   const orgRoleKey = orgRole ? ORG_ROLE_KEYS[orgRole] : undefined;
 
   let label: string | undefined;
