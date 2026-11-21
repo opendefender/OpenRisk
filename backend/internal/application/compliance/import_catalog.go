@@ -73,6 +73,10 @@ func (uc *ImportCatalogUseCase) WithCrosswalks(m *CrosswalkMaterialiser, cov *Ge
 }
 
 func (uc *ImportCatalogUseCase) Execute(ctx context.Context, tenantID uuid.UUID, input ImportCatalogInput) (*ImportCatalogResult, error) {
+	// Fail closed before any read: no tenant context is a 401, never "all tenants".
+	if tenantID == uuid.Nil {
+		return nil, domain.NewUnauthorizedError("tenant context is required")
+	}
 	if input.FrameworkID == uuid.Nil {
 		return nil, domain.NewValidationError("framework_id is required")
 	}
@@ -106,25 +110,35 @@ func (uc *ImportCatalogUseCase) Execute(ctx context.Context, tenantID uuid.UUID,
 		return nil, domain.NewValidationError("catalog " + input.CatalogKey + " is not yet available — no reviewed control content")
 	}
 
-	existing, err := uc.repo.ListControlsByFramework(ctx, tenantID, input.FrameworkID)
+	// Live AND soft-deleted rows, tenant and framework scoped. A row with this
+	// catalogue's provenance that the tenant deleted is a tombstone: it is
+	// counted as already imported and never re-created (#1483 criterion 5).
+	// Deleted rows WITHOUT provenance (hand-made, or imported before provenance
+	// existed) do not block: existing behaviour is kept for them (criterion 7).
+	all, err := uc.repo.ListControlsByFrameworkIncludingDeleted(ctx, tenantID, input.FrameworkID)
 	if err != nil {
 		return nil, err
 	}
-	existingCodes := make(map[string]bool, len(existing))
-	for _, c := range existing {
-		if c.ReferenceCode != "" {
+	existingCodes := make(map[string]bool, len(all))
+	packItems := make(map[string]bool, len(all))
+	for _, c := range all {
+		if c.PackKey == catalog.Key && c.PackItemKey != "" {
+			packItems[c.PackItemKey] = true
+		}
+		if c.ReferenceCode != "" && !c.DeletedAt.Valid {
 			existingCodes[c.ReferenceCode] = true
 		}
 	}
 
 	result := &ImportCatalogResult{Total: len(catalog.Controls)}
+	var created []*domain.ComplianceControl
 	for _, cc := range catalog.Controls {
-		if existingCodes[cc.ReferenceCode] {
+		if existingCodes[cc.ReferenceCode] || packItems[cc.ReferenceCode] {
 			result.Skipped++
 			continue
 		}
-
-		control := &domain.ComplianceControl{
+		pb := pkgcompliance.RequirementPackBase(cc)
+		created = append(created, &domain.ComplianceControl{
 			ID:              uuid.New(),
 			TenantID:        tenantID,
 			FrameworkID:     input.FrameworkID,
@@ -133,33 +147,42 @@ func (uc *ImportCatalogUseCase) Execute(ctx context.Context, tenantID uuid.UUID,
 			Description:     cc.Description,
 			SourceReference: cc.SourceReference,
 			Status:          domain.ControlStatusNotImplemented,
-		}
-		if err := uc.repo.CreateControl(ctx, control); err != nil {
-			return nil, err
-		}
+			PackKey:         catalog.Key,
+			PackItemKey:     cc.ReferenceCode,
+			PackVersion:     catalog.ContentVersion,
+			PackBase:        &pb.JSON,
+			PackBaseHash:    &pb.Hash,
+		})
 		result.Imported++
 	}
 
+	plan := &domain.CatalogImportPlan{TenantID: tenantID, FrameworkID: input.FrameworkID, Controls: created}
 	// Stamp what this framework IS, so crosswalks keep working after a rename.
-	// Best-effort: failing the import over a label would be a poor trade, and the
-	// controls — the thing the user asked for — are already in.
-	// Key, version and revision are stamped together, and only when the catalogue
-	// changes (first import, or a different one). A re-import of the same key only
-	// ADDS missing controls and never rewrites existing wording, so refreshing the
-	// revision would claim content the framework does not hold, and filling an
-	// empty one on a pre-#1478 framework would be a guess.
+	// Key, edition and revision are stamped together, and only when the
+	// catalogue changes (first import, or a different one) (#1478). A re-import
+	// of the same key only ADDS missing controls and never rewrites existing
+	// wording, so refreshing the revision would claim content the framework does
+	// not hold, and filling an empty one on a pre-#1478 framework would be a
+	// guess. They travel in the import plan, so they are written in the same
+	// transaction as the controls (#1483), not as a best-effort side write.
 	if fw.CatalogKey != input.CatalogKey {
-		fw.CatalogKey = input.CatalogKey
-		fw.CatalogVersion = catalog.Version
-		fw.CatalogRevision = catalog.Revision()
-		_ = uc.repo.UpdateFramework(ctx, fw)
+		plan.CatalogKey = input.CatalogKey
+		plan.CatalogVersion = catalog.Version
+		plan.CatalogRevision = catalog.Revision()
+	}
+	// The version stamp is written only on a first import: unstamped AND no
+	// control ever held, live or deleted. A legacy framework keeps '' (unknown):
+	// the future upgrade adopts it (ADR 0013 D4).
+	if fw.CatalogContentVersion == "" && fw.CatalogCrosswalksVersion == "" && len(all) == 0 {
+		plan.Stamp = &domain.CatalogFrameworkStamp{
+			ContentVersion:    catalog.ContentVersion,
+			CrosswalksVersion: pkgcompliance.CrosswalksVersion,
+		}
 	}
 
-	// Materialise the curated crosswalks against everything the tenant already
-	// holds, then answer the question they are about to ask: how much of this do
-	// I already have? Both are best-effort — a tenant who just imported 93
-	// controls must not be told the import failed because a head-start number
-	// could not be computed.
+	// Curated crosswalks are planned here and written in the same transaction as
+	// the controls. A failure to plan or write them fails the import: half an
+	// import cannot be told from tenant edits afterwards.
 	if uc.materialiser != nil {
 		catalogOf := func(id uuid.UUID) string {
 			f, err := uc.repo.GetFrameworkByID(ctx, id, tenantID)
@@ -168,10 +191,21 @@ func (uc *ImportCatalogUseCase) Execute(ctx context.Context, tenantID uuid.UUID,
 			}
 			return f.CatalogKey
 		}
-		if cw, err := uc.materialiser.ForFramework(ctx, tenantID, input.FrameworkID, input.CatalogKey, catalogOf); err == nil {
-			result.Crosswalks = cw
+		links, cw, err := uc.materialiser.Plan(ctx, tenantID, input.FrameworkID, input.CatalogKey, created, catalogOf)
+		if err != nil {
+			return nil, err
 		}
+		plan.Links = links
+		result.Crosswalks = cw
 	}
+
+	// A re-import with nothing to create writes nothing at all (criterion 14).
+	if err := uc.repo.ApplyCatalogImport(ctx, plan); err != nil {
+		return nil, err
+	}
+
+	// The head start is best-effort: a tenant who just imported 93 controls must
+	// not be told the import failed because a number could not be computed.
 	if uc.coverage != nil {
 		if cov, err := uc.coverage.Execute(ctx, tenantID, input.FrameworkID); err == nil && cov.CrosswalkedControls > 0 {
 			result.InheritedCoverage = cov

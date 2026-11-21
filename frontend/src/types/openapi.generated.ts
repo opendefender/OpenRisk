@@ -3724,6 +3724,10 @@ export interface components {
             name: string;
             version: string;
             description?: string;
+            /** @description Content version of the catalogue this framework was imported at (semver). Empty means unknown, imported before content versions existed. Set by the catalogue import only. */
+            readonly catalog_content_version?: string;
+            /** @description Crosswalks version materialised at import (semver). Empty means unknown. */
+            readonly catalog_crosswalks_version?: string;
             /** @description Catalogue this framework was imported from (e.g. iso27001-2022). Empty for a hand-built framework. */
             catalog_key: string;
             /** @description Edition of the standard the catalogue reproduces (e.g. 2022), recorded at import. Empty for a hand-built framework, for one imported before this field existed, and for a catalogue with no published edition. It is not a revision of OpenRisk's own wording. */

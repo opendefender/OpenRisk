@@ -219,7 +219,9 @@ func TestImportCatalogUseCase_UpgradeFromSummaryCatalog_IsAdditive(t *testing.T)
 }
 
 // stampRecorder runs an import against a framework in the given state and returns
-// what UpdateFramework received (nil when it was never called).
+// the key, edition and revision the import plan stamps (nil when it stamps none).
+// They travel in the plan, written in the import's transaction (#1483), so a
+// separate UpdateFramework side write is a failure.
 func stampRecorder(t *testing.T, fw domain.ComplianceFramework, key string) *domain.ComplianceFramework {
 	t.Helper()
 	tenantID := fw.TenantID
@@ -230,10 +232,21 @@ func stampRecorder(t *testing.T, fw domain.ComplianceFramework, key string) *dom
 			f := fw
 			return &f, nil
 		},
-		updateFrameworkFunc: func(_ context.Context, f *domain.ComplianceFramework) error {
-			require.Equal(t, tenantID, f.TenantID, "the stamp is written under the importing tenant")
-			c := *f
-			stamped = &c
+		updateFrameworkFunc: func(context.Context, *domain.ComplianceFramework) error {
+			t.Error("the catalogue stamp is written by the import plan, not by UpdateFramework")
+			return nil
+		},
+		applyCatalogImportFunc: func(_ context.Context, plan *domain.CatalogImportPlan) error {
+			require.Equal(t, tenantID, plan.TenantID, "the stamp is written under the importing tenant")
+			if plan.CatalogKey != "" {
+				stamped = &domain.ComplianceFramework{
+					ID:              plan.FrameworkID,
+					TenantID:        plan.TenantID,
+					CatalogKey:      plan.CatalogKey,
+					CatalogVersion:  plan.CatalogVersion,
+					CatalogRevision: plan.CatalogRevision,
+				}
+			}
 			return nil
 		},
 	}

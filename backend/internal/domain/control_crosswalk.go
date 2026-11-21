@@ -72,11 +72,12 @@ type ControlCrosswalk struct {
 	// default means the model cannot migrate under sqlite — which forces every
 	// test to hand-write its schema, which is how three of them drifted from the
 	// struct they were mirroring. Same fix as domain.AuditEvent.
-	ID       uuid.UUID `gorm:"type:uuid;primaryKey" json:"id"`
-	TenantID uuid.UUID `gorm:"type:uuid;not null;index" json:"tenant_id"`
+	ID uuid.UUID `gorm:"type:uuid;primaryKey" json:"id"`
+	// tenant: struct tag only, no query. The tag adds tenant_id (leading) to the pack unique index.
+	TenantID uuid.UUID `gorm:"type:uuid;not null;index;uniqueIndex:ux_control_crosswalks_pack_item,priority:1,where:pack_key <> ''" json:"tenant_id"`
 
-	SourceControlID uuid.UUID `gorm:"type:uuid;not null;index" json:"source_control_id"`
-	TargetControlID uuid.UUID `gorm:"type:uuid;not null;index" json:"target_control_id"`
+	SourceControlID uuid.UUID `gorm:"type:uuid;not null;index;uniqueIndex:ux_control_crosswalks_pack_item,priority:4,where:pack_key <> ''" json:"source_control_id"`
+	TargetControlID uuid.UUID `gorm:"type:uuid;not null;index;uniqueIndex:ux_control_crosswalks_pack_item,priority:5,where:pack_key <> ''" json:"target_control_id"`
 
 	Coverage CrosswalkCoverage `gorm:"type:varchar(16);not null;default:'full'" json:"coverage"`
 	// Rationale says WHY the two correspond. Required, and not decoration: the
@@ -86,6 +87,17 @@ type ControlCrosswalk struct {
 	Origin    CrosswalkOrigin `gorm:"type:varchar(16);not null;default:'manual';index" json:"origin"`
 
 	CreatedBy *uuid.UUID `gorm:"type:uuid" json:"created_by"`
+
+	// Pack provenance (ADR 0013 D4): pack_key 'crosswalks', pack_item_key
+	// "<catalog>:<code>|<catalog>:<code>". Written only by the catalogue import,
+	// never serialised. The unique index also holds the two control ids (D-123).
+	PackKey        string     `gorm:"size:64;not null;default:'';uniqueIndex:ux_control_crosswalks_pack_item,priority:2,where:pack_key <> ''" json:"-"`
+	PackItemKey    string     `gorm:"size:255;not null;default:'';uniqueIndex:ux_control_crosswalks_pack_item,priority:3,where:pack_key <> ''" json:"-"`
+	PackVersion    string     `gorm:"size:32;not null;default:''" json:"-"`
+	PackBase       *string    `gorm:"type:jsonb" json:"-"`
+	PackBaseHash   *string    `gorm:"type:char(64)" json:"-"`
+	PackRetiredIn  string     `gorm:"size:32;not null;default:''" json:"-"`
+	PackRevertedBy *uuid.UUID `gorm:"type:uuid" json:"-"`
 
 	CreatedAt time.Time      `json:"created_at"`
 	UpdatedAt time.Time      `json:"updated_at"`
@@ -112,6 +124,12 @@ type ControlCrosswalkRepository interface {
 	// Exists reports whether a crosswalk between the two controls already exists
 	// in EITHER direction for the tenant.
 	Exists(ctx context.Context, tenantID, a, b uuid.UUID) (bool, error)
+	// PackTombstoneExists reports whether the tenant holds a link between the two
+	// controls, in either direction, with pack_key 'crosswalks' and this
+	// pack_item_key, soft-deleted rows included. A deleted curated link is a
+	// tombstone the catalogue import must not re-create; a deleted manual link
+	// (empty pack_key) is not one.
+	PackTombstoneExists(ctx context.Context, tenantID, a, b uuid.UUID, packItemKey string) (bool, error)
 	// List returns every crosswalk for the tenant. If controlID is non-nil, only
 	// crosswalks touching that control (as source OR target) are returned.
 	List(ctx context.Context, tenantID uuid.UUID, controlID *uuid.UUID) ([]ControlCrosswalk, error)

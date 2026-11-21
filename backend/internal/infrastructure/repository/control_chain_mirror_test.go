@@ -49,7 +49,9 @@ func mirrorLegacyDDL(id, ts string) []string {
 	return []string{
 		`CREATE TABLE compliance_controls (id ` + id + ` PRIMARY KEY, tenant_id ` + id + ` NOT NULL, framework_id ` + id + ` NOT NULL,
 			reference_code TEXT NOT NULL DEFAULT '', name TEXT NOT NULL, description TEXT, source_reference TEXT NOT NULL DEFAULT '',
-			status TEXT NOT NULL DEFAULT 'not_implemented', created_at ` + ts + `, updated_at ` + ts + `, deleted_at ` + ts + `)`,
+			status TEXT NOT NULL DEFAULT 'not_implemented', pack_key TEXT NOT NULL DEFAULT '', pack_item_key TEXT NOT NULL DEFAULT '',
+			pack_version TEXT NOT NULL DEFAULT '', pack_base TEXT, pack_base_hash TEXT, pack_retired_in TEXT NOT NULL DEFAULT '',
+			pack_reverted_by ` + id + `, created_at ` + ts + `, updated_at ` + ts + `, deleted_at ` + ts + `)`,
 		`CREATE UNIQUE INDEX idx_mirror_compliance_controls_ref ON compliance_controls (tenant_id, framework_id, reference_code)
 			WHERE deleted_at IS NULL AND reference_code <> ''`,
 		`CREATE TABLE risks (id ` + id + ` PRIMARY KEY, tenant_id ` + id + ` NOT NULL, title TEXT, score DOUBLE PRECISION DEFAULT 0,

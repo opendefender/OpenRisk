@@ -73,6 +73,12 @@ type ControlRow struct {
 	ApplicabilityReviewPending bool   `gorm:"not null;default:false" json:"-"`
 	DeclaredStatus             string `gorm:"size:20;not null;check:chk_controls_declared_status,declared_status IN ('not_implemented', 'in_progress', 'implemented')"`
 	Tags                       string `gorm:"type:jsonb;not null;default:'[]'"`
+	// PackRevertedBy is set only on a split control a pack revert soft-deleted
+	// (ADR 0013 D4). Nothing writes it yet; it is the column the upgrade needs.
+	// "<-:update": never part of an INSERT, so the reconcile and the mirror keep
+	// working on a schema where migration 0091 has not run yet (0086 to 0090).
+	// AutoMigrate still creates the column; reads still see it.
+	PackRevertedBy *uuid.UUID `gorm:"type:uuid;<-:update"`
 }
 
 // TableName implements gorm's Tabler.

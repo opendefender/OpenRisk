@@ -36,6 +36,37 @@ type MockComplianceRepository struct {
 	deleteControlFunc           func(ctx context.Context, id, tenantID uuid.UUID) error
 	countEvidencesByFwFunc      func(ctx context.Context, tenantID, frameworkID uuid.UUID) (map[uuid.UUID]int, error)
 	deleteEvidenceFunc          func(ctx context.Context, id, tenantID uuid.UUID) error
+	listControlsAllFunc         func(ctx context.Context, tenantID, frameworkID uuid.UUID) ([]domain.ComplianceControl, error)
+	applyCatalogImportFunc      func(ctx context.Context, plan *domain.CatalogImportPlan) error
+	// appliedPlans records every plan ApplyCatalogImport received.
+	appliedPlans []*domain.CatalogImportPlan
+}
+
+// ListControlsByFrameworkIncludingDeleted falls back to the live list so tests
+// written before tombstones existed keep their meaning.
+func (m *MockComplianceRepository) ListControlsByFrameworkIncludingDeleted(ctx context.Context, tenantID, frameworkID uuid.UUID) ([]domain.ComplianceControl, error) {
+	if m.listControlsAllFunc != nil {
+		return m.listControlsAllFunc(ctx, tenantID, frameworkID)
+	}
+	return m.ListControlsByFramework(ctx, tenantID, frameworkID)
+}
+
+func (m *MockComplianceRepository) ApplyCatalogImport(ctx context.Context, plan *domain.CatalogImportPlan) error {
+	m.appliedPlans = append(m.appliedPlans, plan)
+	if m.applyCatalogImportFunc != nil {
+		return m.applyCatalogImportFunc(ctx, plan)
+	}
+	if plan.Empty() {
+		return nil
+	}
+	for _, c := range plan.Controls {
+		if m.createControlFunc != nil {
+			if err := m.createControlFunc(ctx, c); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 func (m *MockComplianceRepository) CreateFramework(ctx context.Context, fw *domain.ComplianceFramework) error {

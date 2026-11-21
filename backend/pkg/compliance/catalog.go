@@ -33,8 +33,19 @@ type CatalogControl struct {
 type Catalog struct {
 	Key         string // stable identifier, e.g. "iso27001-2022" — used in the API and as a map key
 	Name        string // framework display name, e.g. "ISO/IEC 27001"
-	Version     string // e.g. "2022"
+	Version     string // e.g. "2022" — the standard's own edition, never our revision
 	Description string
+
+	// ContentVersion is OUR revision of this catalogue's content, semver
+	// MAJOR.MINOR.PATCH (ADR 0013 D3), distinct from Version (the standard's
+	// edition). It is not set in the catalog_*.go files: those may be generated
+	// (cmd/catalogsync) and must survive regeneration, so register fills it from
+	// contentRevisions (catalog_content.go). TestCatalogContentVersions fails for
+	// a catalogue that has none.
+	ContentVersion string
+	// Changelog says what each content version changed, newest last. It carries
+	// an entry for ContentVersion. Same provenance as ContentVersion.
+	Changelog []ChangelogEntry
 	// Available means importable, nothing more. It is false for catalogs that exist as a
 	// placeholder (registered so the product can announce them) but carry no control
 	// content yet — Controls is empty and ImportCatalogUseCase refuses to import them.
@@ -94,10 +105,14 @@ type ReviewSource struct {
 // TestCatalogReviewContract). Never fill them without a committed review record: an invented
 // reviewer or date is worse than "unreviewed" (D-120).
 type Review struct {
-	Status   ReviewStatus
-	Date     string // ISO date, e.g. "2026-10-30"
-	Reviewer string
-	Sources  []ReviewSource
+	Status ReviewStatus
+	// ContentVersion is the content version the reviewer checked (ADR 0013 D1,
+	// D-121 item 5). Empty is allowed: no review has been tied to a version yet.
+	// When set it is semver.
+	ContentVersion string
+	Date           string // ISO date, e.g. "2026-10-30"
+	Reviewer       string
+	Sources        []ReviewSource
 	// Gaps lists what the review did not cover or found missing, in writing. An empty Gaps on
 	// a signed-off catalog is rejected: "no gaps" must be said, not left blank.
 	Gaps []string
@@ -110,6 +125,14 @@ var catalogs = map[string]Catalog{}
 func register(c Catalog) {
 	if _, exists := catalogs[c.Key]; exists {
 		panic("compliance: duplicate catalog key " + c.Key)
+	}
+	if rev, ok := contentRevisions[c.Key]; ok {
+		if c.ContentVersion == "" {
+			c.ContentVersion = rev.Version
+		}
+		if c.Changelog == nil {
+			c.Changelog = rev.Changelog
+		}
 	}
 	catalogs[c.Key] = c
 }

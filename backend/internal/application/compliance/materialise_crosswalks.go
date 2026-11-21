@@ -42,34 +42,49 @@ type MaterialiseResult struct {
 	Unmatched int `json:"unmatched"`
 }
 
-// ForFramework links a freshly imported framework to every other framework the
-// tenant already holds, using the curated crosswalks for their catalogs.
+// Plan works out the curated links a freshly imported framework gets against
+// every other framework the tenant holds, without writing anything: the import
+// applies them in its own transaction (ComplianceRepository.ApplyCatalogImport).
+//
+// newControls are the controls this import is about to create (their ids are
+// already assigned); they join the framework's live controls as link ends.
 //
 // catalogOf tells us which catalog a framework was imported from. A framework
-// built by hand has no catalog and simply takes part in nothing — there is
-// nothing curated to say about controls the product has never seen.
-func (m *CrosswalkMaterialiser) ForFramework(
+// built by hand has no catalog and simply takes part in nothing.
+//
+// A pair with a live link, or with a deleted link of this pack's provenance, is
+// skipped: a deleted curated link is a tombstone, never re-created. Every lookup is tenant-scoped.
+func (m *CrosswalkMaterialiser) Plan(
 	ctx context.Context,
 	tenantID, frameworkID uuid.UUID,
 	catalogKey string,
+	newControls []*domain.ComplianceControl,
 	catalogOf func(frameworkID uuid.UUID) string,
-) (*MaterialiseResult, error) {
+) ([]*domain.ControlCrosswalk, *MaterialiseResult, error) {
 	res := &MaterialiseResult{}
 	if catalogKey == "" || m.crosswalks == nil {
-		return res, nil
+		return nil, res, nil
 	}
 
-	newControls, err := m.repo.ListControlsByFramework(ctx, tenantID, frameworkID)
+	live, err := m.repo.ListControlsByFramework(ctx, tenantID, frameworkID)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	newByCode := indexByCode(newControls)
+	newByCode := indexByCode(live)
+	fresh := make(map[uuid.UUID]bool, len(newControls))
+	for _, c := range newControls {
+		if c.ReferenceCode != "" {
+			newByCode[c.ReferenceCode] = *c
+			fresh[c.ID] = true
+		}
+	}
 
 	others, err := m.repo.ListFrameworks(ctx, tenantID)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
+	var links []*domain.ControlCrosswalk
 	for _, other := range others {
 		if other.ID == frameworkID {
 			continue
@@ -86,7 +101,7 @@ func (m *CrosswalkMaterialiser) ForFramework(
 
 		otherControls, err := m.repo.ListControlsByFramework(ctx, tenantID, other.ID)
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 		otherByCode := indexByCode(otherControls)
 
@@ -100,31 +115,48 @@ func (m *CrosswalkMaterialiser) ForFramework(
 				continue
 			}
 
-			exists, err := m.crosswalks.Exists(ctx, tenantID, src.ID, tgt.ID)
-			if err != nil {
-				return nil, err
-			}
-			if exists {
-				res.Skipped++
-				continue
+			itemKey := pkgcompliance.CrosswalkItemKey(e)
+			// A control created by this very import has no link yet; skip the
+			// queries. Otherwise skip a live link of any origin (no duplicate) and
+			// a deleted link that carries this pack's provenance (a tombstone). A
+			// deleted manual link does not block.
+			if !fresh[src.ID] {
+				exists, err := m.crosswalks.Exists(ctx, tenantID, src.ID, tgt.ID)
+				if err != nil {
+					return nil, nil, err
+				}
+				if !exists {
+					exists, err = m.crosswalks.PackTombstoneExists(ctx, tenantID, src.ID, tgt.ID, itemKey)
+					if err != nil {
+						return nil, nil, err
+					}
+				}
+				if exists {
+					res.Skipped++
+					continue
+				}
 			}
 
-			link := &domain.ControlCrosswalk{
+			pb := pkgcompliance.CrosswalkPackBase(e)
+			links = append(links, &domain.ControlCrosswalk{
+				ID:              uuid.New(),
 				TenantID:        tenantID,
 				SourceControlID: src.ID,
 				TargetControlID: tgt.ID,
 				Coverage:        domain.CrosswalkCoverage(e.Coverage),
 				Rationale:       e.Rationale,
 				Origin:          domain.CrosswalkOriginCurated,
-			}
-			if err := m.crosswalks.Create(ctx, link); err != nil {
-				return nil, err
-			}
+				PackKey:         pkgcompliance.CrosswalksPackKey,
+				PackItemKey:     itemKey,
+				PackVersion:     pkgcompliance.CrosswalksVersion,
+				PackBase:        &pb.JSON,
+				PackBaseHash:    &pb.Hash,
+			})
 			res.Created++
 		}
 	}
 
-	return res, nil
+	return links, res, nil
 }
 
 func indexByCode(controls []domain.ComplianceControl) map[string]domain.ComplianceControl {

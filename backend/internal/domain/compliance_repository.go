@@ -49,6 +49,15 @@ type ComplianceRepository interface {
 	// a framework with the same name and version.
 	CreateFrameworkWithControls(ctx context.Context, framework *ComplianceFramework, controls []*ComplianceControl) error
 
+	// ApplyCatalogImport writes a whole catalogue import in ONE transaction: the
+	// framework's catalog key and version stamp, every new control with its
+	// provenance and control-chain mirror, and every new crosswalk link with its
+	// provenance. Either all of it exists afterwards or none of it. An empty plan
+	// writes nothing, not even an empty transaction. plan.TenantID is required
+	// (domain.ErrForbidden when nil) and is stamped on every row; a framework the
+	// tenant does not own is ErrNotFound and nothing is written.
+	ApplyCatalogImport(ctx context.Context, plan *CatalogImportPlan) error
+
 	// =========================================================================
 	// Controls (tenant-scoped)
 	// =========================================================================
@@ -68,6 +77,12 @@ type ComplianceRepository interface {
 
 	// ListControlsByFramework retrieves all controls for a (tenant, framework) pair.
 	ListControlsByFramework(ctx context.Context, tenantID uuid.UUID, frameworkID uuid.UUID) ([]ComplianceControl, error)
+
+	// ListControlsByFrameworkIncludingDeleted is ListControlsByFramework over
+	// soft-deleted rows too. The catalogue import reads it to find the tombstones
+	// of controls a tenant deleted, which it must not re-create. Filtered by
+	// tenant_id AND framework_id.
+	ListControlsByFrameworkIncludingDeleted(ctx context.Context, tenantID uuid.UUID, frameworkID uuid.UUID) ([]ComplianceControl, error)
 
 	// UpdateControl updates an existing control.
 	// MANDATORY: Must include tenant_id in WHERE clause.
@@ -97,4 +112,35 @@ type ComplianceRepository interface {
 	// asOf is the instant validity is judged at, from the caller's clock, on the
 	// same terms as GetControlByID (#419).
 	CountEvidencesByFramework(ctx context.Context, tenantID uuid.UUID, frameworkID uuid.UUID, asOf time.Time) (map[uuid.UUID]int, error)
+}
+
+// CatalogFrameworkStamp is the content versions a first import writes on a
+// framework (ADR 0013 D3). CatalogPendingKinds is left at its '[]' default.
+type CatalogFrameworkStamp struct {
+	ContentVersion    string
+	CrosswalksVersion string
+}
+
+// CatalogImportPlan is everything one catalogue import writes, computed by the
+// use case before any write and applied by ComplianceRepository.ApplyCatalogImport.
+type CatalogImportPlan struct {
+	TenantID    uuid.UUID
+	FrameworkID uuid.UUID
+	// CatalogKey, when non-empty, is written as the framework's catalog_key,
+	// together with CatalogVersion and CatalogRevision (#1478): the three
+	// describe the same catalogue and are only ever stamped together.
+	CatalogKey      string
+	CatalogVersion  string
+	CatalogRevision string
+	// Stamp, when non-nil, is written as the framework's version stamp.
+	Stamp *CatalogFrameworkStamp
+	// Controls are new rows (ID, reference, name, provenance set by the caller).
+	Controls []*ComplianceControl
+	// Links are new curated crosswalk links (provenance set by the caller).
+	Links []*ControlCrosswalk
+}
+
+// Empty reports whether applying the plan would write nothing.
+func (p *CatalogImportPlan) Empty() bool {
+	return p.CatalogKey == "" && p.Stamp == nil && len(p.Controls) == 0 && len(p.Links) == 0
 }

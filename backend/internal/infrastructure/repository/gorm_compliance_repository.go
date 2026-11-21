@@ -214,6 +214,149 @@ func (r *GormComplianceRepository) ListControlsByFramework(ctx context.Context, 
 	return controls, err
 }
 
+// ListControlsByFrameworkIncludingDeleted returns live and soft-deleted controls
+// of a (tenant, framework) pair, so the import can see tombstones.
+func (r *GormComplianceRepository) ListControlsByFrameworkIncludingDeleted(ctx context.Context, tenantID uuid.UUID, frameworkID uuid.UUID) ([]domain.ComplianceControl, error) {
+	if tenantID == uuid.Nil {
+		return nil, domain.NewForbiddenError("tenant_id is required")
+	}
+	var controls []domain.ComplianceControl
+	err := r.db.WithContext(ctx).Unscoped().
+		Where("tenant_id = ? AND framework_id = ?", tenantID, frameworkID).
+		Order("reference_code ASC").
+		Find(&controls).Error
+	return controls, err
+}
+
+// ApplyCatalogImport applies a catalogue import plan in one transaction.
+// Mirrors CreateFrameworkWithControls: each control is mirrored onto the control
+// chain on the same tx. Every statement carries tenant_id (and framework_id for
+// controls); the links are written on the same tx so a failure anywhere rolls
+// the framework stamp, the controls, the mirrors and the links back together.
+func (r *GormComplianceRepository) ApplyCatalogImport(ctx context.Context, plan *domain.CatalogImportPlan) error {
+	if plan.TenantID == uuid.Nil {
+		return domain.NewForbiddenError("tenant_id is required")
+	}
+	if plan.Empty() {
+		return nil
+	}
+	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		// Ownership of the framework, inside the transaction.
+		var owned int64
+		if err := tx.Model(&domain.ComplianceFramework{}).
+			Where("id = ? AND tenant_id = ?", plan.FrameworkID, plan.TenantID).
+			Count(&owned).Error; err != nil {
+			return err
+		}
+		if owned == 0 {
+			return domain.NewNotFoundError("framework", plan.FrameworkID)
+		}
+
+		updates := map[string]interface{}{}
+		if plan.CatalogKey != "" {
+			updates["catalog_key"] = plan.CatalogKey
+			updates["catalog_version"] = plan.CatalogVersion
+			updates["catalog_revision"] = plan.CatalogRevision
+		}
+		if plan.Stamp != nil {
+			updates["catalog_content_version"] = plan.Stamp.ContentVersion
+			updates["catalog_crosswalks_version"] = plan.Stamp.CrosswalksVersion
+			updates["catalog_pending_kinds"] = "[]"
+		}
+		if len(updates) > 0 {
+			res := tx.Model(&domain.ComplianceFramework{}).
+				Where("id = ? AND tenant_id = ?", plan.FrameworkID, plan.TenantID).
+				Updates(updates)
+			if res.Error != nil {
+				return res.Error
+			}
+			if res.RowsAffected == 0 {
+				return domain.NewNotFoundError("framework", plan.FrameworkID)
+			}
+		}
+
+		for _, control := range plan.Controls {
+			control.TenantID = plan.TenantID
+			control.FrameworkID = plan.FrameworkID
+			control.Status = domain.ControlStatusNotImplemented
+			if err := tx.Create(control).Error; err != nil {
+				return err
+			}
+			if err := controlchain.MirrorRequirementCreated(ctx, tx, controlchain.RequirementRow{
+				ID: control.ID, TenantID: control.TenantID, Name: control.Name, Description: control.Description,
+				Status: string(control.Status), CreatedAt: control.CreatedAt, UpdatedAt: control.UpdatedAt,
+			}); err != nil {
+				return err
+			}
+		}
+		if err := verifyLinkEnds(tx, plan); err != nil {
+			return err
+		}
+		for _, link := range plan.Links {
+			link.TenantID = plan.TenantID
+			if link.ID == uuid.Nil {
+				link.ID = uuid.New()
+			}
+			if err := tx.Create(link).Error; err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if errors.Is(err, gorm.ErrDuplicatedKey) {
+		return domain.NewConflictError("catalog import", "pack_item_key")
+	}
+	return err
+}
+
+// verifyLinkEnds runs inside the import transaction, after the plan's controls
+// are created. Every link end must be a live control of the plan's tenant (a
+// foreign or deleted id is refused), and at least one end of each link must
+// belong to the plan's framework: created by this plan, or already in it.
+func verifyLinkEnds(tx *gorm.DB, plan *domain.CatalogImportPlan) error {
+	if len(plan.Links) == 0 {
+		return nil
+	}
+	seen := map[uuid.UUID]bool{}
+	var ids []uuid.UUID
+	for _, l := range plan.Links {
+		for _, id := range []uuid.UUID{l.SourceControlID, l.TargetControlID} {
+			if !seen[id] {
+				seen[id] = true
+				ids = append(ids, id)
+			}
+		}
+	}
+	var n int64
+	if err := tx.Model(&domain.ComplianceControl{}).
+		Where("tenant_id = ? AND id IN ?", plan.TenantID, ids).
+		Count(&n).Error; err != nil {
+		return err
+	}
+	if int(n) != len(ids) {
+		return domain.NewNotFoundError("control", "link end")
+	}
+	inFramework := make(map[uuid.UUID]bool, len(plan.Controls))
+	for _, c := range plan.Controls {
+		inFramework[c.ID] = true
+	}
+	var inFw []uuid.UUID
+	if err := tx.Model(&domain.ComplianceControl{}).
+		Where("tenant_id = ? AND framework_id = ? AND id IN ?", plan.TenantID, plan.FrameworkID, ids).
+		Pluck("id", &inFw).Error; err != nil {
+		return err
+	}
+	for _, id := range inFw {
+		inFramework[id] = true
+	}
+	for _, l := range plan.Links {
+		if !inFramework[l.SourceControlID] && !inFramework[l.TargetControlID] {
+			return domain.NewNotFoundError("control", "link end in framework")
+		}
+	}
+	return nil
+}
+
 // SearchControls is a lightweight, tenant-scoped substring search over a control's
 // reference code / name / description, for the universal search palette. Concrete
 // method (off the ComplianceRepository port) so mocks stay intact.
