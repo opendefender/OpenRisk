@@ -162,49 +162,6 @@ func (np *NotificationPreference) TableName() string {
 	return "notification_preferences"
 }
 
-// NotificationTemplate defines reusable notification templates
-type NotificationTemplate struct {
-	ID          uuid.UUID `gorm:"primaryKey"`
-	TenantID    uuid.UUID `gorm:"index"`
-	Type        NotificationType
-	Channel     NotificationChannel
-	Subject     string `gorm:"size:500"`
-	Template    string `gorm:"type:text"` // Template with placeholders like {{RiskTitle}}, {{DeadlineDate}}
-	Description string
-	IsActive    bool `gorm:"default:true"`
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
-
-	// Relations
-	Tenant *Tenant
-}
-
-// TableName specifies table name for NotificationTemplate
-func (nt *NotificationTemplate) TableName() string {
-	return "notification_templates"
-}
-
-// NotificationLog tracks notification delivery history
-type NotificationLog struct {
-	ID              uuid.UUID `gorm:"primaryKey"`
-	NotificationID  uuid.UUID `gorm:"index"`
-	Attempt         int
-	Status          NotificationStatus
-	ErrorMessage    string
-	StatusCode      int    // HTTP status code if applicable
-	ResponsePayload string `gorm:"type:text"`
-	SentAt          time.Time
-	CreatedAt       time.Time
-
-	// Relations
-	Notification *Notification
-}
-
-// TableName specifies table name for NotificationLog
-func (nl *NotificationLog) TableName() string {
-	return "notification_logs"
-}
-
 // MitigationDeadlineNotificationPayload represents data for mitigation deadline notification
 type MitigationDeadlineNotificationPayload struct {
 	MitigationID    uuid.UUID

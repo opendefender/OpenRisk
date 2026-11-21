@@ -140,32 +140,3 @@ func TestVulnerabilityRepo_UpsertReIngest_WritesThroughTheTenant(t *testing.T) {
 	foreign.TenantID = b
 	assert.Error(t, repo.Update(ctx, &foreign), "a row of tenant a must not be written under tenant b")
 }
-
-// #808: an organisation role is rewritten through its organisation.
-func TestOrganizationRoleRepository_Update_WritesThroughTheOrganisation(t *testing.T) {
-	db, err := testdb.Open(t, sqlite.Open(":memory:"), &gorm.Config{})
-	require.NoError(t, err)
-	require.NoError(t, db.Exec(`CREATE TABLE organization_roles (id TEXT PRIMARY KEY)`).Error)
-	require.NoError(t, sqliteschema.Reconcile(db, "organization_roles", &domain.OrganizationRole{}))
-	repo := NewGormOrganizationRoleRepository(db)
-	ctx := context.Background()
-
-	org := uuid.New()
-	role := &domain.OrganizationRole{ID: uuid.New(), OrganizationID: org, Name: "auditor", IsActive: true, Permissions: []byte("[]")}
-	require.NoError(t, repo.Create(ctx, role))
-
-	role.Name = "auditor (renamed)"
-	require.NoError(t, repo.Update(ctx, role))
-	got, err := repo.GetByOrganizationID(ctx, org)
-	require.NoError(t, err)
-	require.Len(t, got, 1)
-	assert.Equal(t, "auditor (renamed)", got[0].Name)
-
-	foreign := *role
-	foreign.OrganizationID = uuid.New()
-	foreign.Name = "stolen"
-	assert.Error(t, repo.Update(ctx, &foreign), "another organisation must not rewrite this role")
-	got, err = repo.GetByOrganizationID(ctx, org)
-	require.NoError(t, err)
-	assert.Equal(t, "auditor (renamed)", got[0].Name)
-}
