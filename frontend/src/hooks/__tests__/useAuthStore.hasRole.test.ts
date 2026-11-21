@@ -4,6 +4,7 @@
 import { describe, it, expect, afterEach } from 'vitest';
 
 import { useAuthStore } from '../useAuthStore';
+import { activeOrgRole, isOrgAdmin } from '../../lib/orgRole';
 
 // #867 — hasRole read only user.role, which is "" on every account created by
 // registration or invitation; the role in the organization lives in the
@@ -59,5 +60,26 @@ describe('hasRole', () => {
   it('is false when signed out', () => {
     useAuthStore.setState({ user: null });
     expect(useAuthStore.getState().hasRole('admin')).toBe(false);
+  });
+});
+
+// #702 — the org role is read in one place; hasRole and the saved-views gate
+// both go through it.
+describe('activeOrgRole / isOrgAdmin', () => {
+  it('reads the role of the active organization only', () => {
+    expect(activeOrgRole({ tenant_id: 'org-1', org_roles: { 'org-1': 'Admin' } })).toBe('admin');
+    expect(activeOrgRole({ tenant_id: 'org-1', org_roles: { 'org-2': 'root' } })).toBe('');
+    expect(activeOrgRole({ org_roles: { 'org-1': 'root' } })).toBe('');
+    expect(activeOrgRole(null)).toBe('');
+  });
+
+  it('holds for root and admin, not for a member', () => {
+    expect(isOrgAdmin({ ...base, org_roles: { 'org-1': 'root' } })).toBe(true);
+    expect(isOrgAdmin({ ...base, org_roles: { 'org-1': 'admin' } })).toBe(true);
+    expect(isOrgAdmin({ ...base, org_roles: { 'org-1': 'user' } })).toBe(false);
+  });
+
+  it('ignores the legacy user.role, which the server does not read either', () => {
+    expect(isOrgAdmin({ ...base, role: 'admin', org_roles: { 'org-1': 'user' } })).toBe(false);
   });
 });

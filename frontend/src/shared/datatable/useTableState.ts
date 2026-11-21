@@ -20,6 +20,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { useAuthStore } from '../../hooks/useAuthStore';
+import { isOrgAdmin } from '../../lib/orgRole';
 import {
   migrateLegacyViews,
   savedViewService,
@@ -306,7 +307,10 @@ function toSavedView(dto: SavedViewDTO, currentUserId: string): SavedView {
 export function useSavedViews(tableId: string): SavedViewsApi {
   const user = useAuthStore((s) => s.user);
   const currentUserId = user?.id ?? '';
-  const canEditOthers = user?.role === 'admin' || user?.role === 'root';
+  // The org role of the active organization, from the token (#702). user.role
+  // is empty for every account created by sign-up, which hid the edit and
+  // delete affordances from the owners the server lets use them.
+  const canEditOthers = isOrgAdmin(user);
 
   const [views, setViews] = useState<SavedView[]>([]);
   const [status, setStatus] = useState<SavedViewsStatus>('loading');

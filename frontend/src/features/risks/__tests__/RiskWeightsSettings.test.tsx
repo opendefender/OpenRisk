@@ -27,14 +27,27 @@ vi.mock('../useSmartScore', () => ({
   useRiskWeights: () => ({ data: weightsData, isLoading: false, isError: false, refetch: vi.fn() }),
   useUpdateRiskWeights: () => ({ mutateAsync, isPending: false }),
 }));
-vi.mock('../../../hooks/useAuthStore', () => ({
-  useAuthStore: (sel: (s: { hasRole: (r: string) => boolean }) => unknown) =>
-    sel({ hasRole: () => true }),
-}));
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
 import { RiskWeightsSettings } from '../RiskWeightsSettings';
 import { useUIStore } from '../../../store/uiStore';
+import { useAuthStore } from '../../../hooks/useAuthStore';
+
+// The real store, signed in with the shape login stores: role "" and the org
+// role in org_roles. Stubbing hasRole is what hid #867 and #702.
+const signInAs = (orgRole: string) =>
+  useAuthStore.setState({
+    user: {
+      id: 'u1',
+      email: 'a@example.test',
+      username: 'a',
+      full_name: 'A',
+      role: '',
+      business_role: '',
+      tenant_id: 'org-1',
+      org_roles: { 'org-1': orgRole },
+    },
+  });
 
 const renderPage = () =>
   render(
@@ -50,6 +63,7 @@ describe('RiskWeightsSettings', () => {
     useUIStore.getState().setLang('en');
     mutateAsync.mockReset().mockResolvedValue(undefined);
     weightsData = SERVER;
+    signInAs('admin');
   });
 
   it('shows the server’s weights on first render', () => {
@@ -88,5 +102,19 @@ describe('RiskWeightsSettings', () => {
     renderPage();
     fireEvent.click(screen.getByText('Defaults'));
     expect(sliders()[0]?.value).toBe('0.15');
+  });
+
+  // #702, criteria 1 and 5 — who may edit the weights.
+  it.each([
+    ['root', true],
+    ['admin', true],
+    ['user', false],
+  ])('an org %s can edit: %s', (orgRole, canEdit) => {
+    signInAs(orgRole);
+    renderPage();
+    expect(sliders().every((s) => s.disabled)).toBe(!canEdit);
+    expect(screen.queryByText('Save') !== null).toBe(canEdit);
+    expect(screen.queryByText('Defaults') !== null).toBe(canEdit);
+    expect(screen.queryByText(/administrator role is required/i) !== null).toBe(!canEdit);
   });
 });
