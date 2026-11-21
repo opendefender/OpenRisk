@@ -103,26 +103,6 @@ func (m *OrganizationMember) NeedsProfile() bool {
 	return m.Role == "user"
 }
 
-// OrganizationRole represents a custom IAM role within an organization
-type OrganizationRole struct {
-	ID             uuid.UUID      `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`
-	OrganizationID uuid.UUID      `gorm:"type:uuid;index;not null" json:"organization_id"`
-	Name           string         `gorm:"not null;index" json:"name"` // custom role name
-	Description    string         `json:"description"`
-	Permissions    datatypes.JSON `gorm:"type:jsonb;not null;default:'[]'" json:"permissions"` // list of permissions
-	IsActive       bool           `gorm:"default:true;index" json:"is_active"`
-	CreatedAt      time.Time      `gorm:"autoCreateTime" json:"created_at"`
-	UpdatedAt      time.Time      `gorm:"autoUpdateTime" json:"updated_at"`
-
-	// Relations
-	Organization *Organization `gorm:"foreignKey:OrganizationID" json:"organization,omitempty"`
-}
-
-// TableName specifies the table name
-func (OrganizationRole) TableName() string {
-	return "organization_roles"
-}
-
 // AuthAuditLog represents an audit log entry for authentication events
 type AuthAuditLog struct {
 	ID         uuid.UUID  `gorm:"type:uuid;primaryKey;default:gen_random_uuid()" json:"id"`

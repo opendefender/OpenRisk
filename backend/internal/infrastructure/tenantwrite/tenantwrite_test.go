@@ -110,3 +110,22 @@ func TestUpdateInTenant_ModelOfAnotherTenantIsForbidden(t *testing.T) {
 	assert.ErrorIs(t, tenantwrite.UpdateInTenant(db, b, row), domain.ErrForbidden)
 	assert.Equal(t, []string{"a's"}, names(t, db, a))
 }
+
+// #710: the organisation path had its only cross-organisation test in the
+// deleted organisation-role repository; this keeps the guard pinned.
+func TestUpdateInOrganization_ModelOfAnotherOrganisationIsForbidden(t *testing.T) {
+	db := setup(t)
+	a, b := uuid.New(), uuid.New()
+	o := &orgThing{ID: uuid.New(), OrganizationID: a, Name: "a's"}
+	require.NoError(t, db.Create(o).Error)
+
+	// The caller claims organisation b but hands in a model stamped with a.
+	assert.ErrorIs(t, tenantwrite.UpdateInOrganization(db, b, o), domain.ErrForbidden)
+	// The same id restamped with b matches no row of b: nothing is overwritten.
+	err := tenantwrite.UpdateInOrganization(db, b, &orgThing{ID: o.ID, OrganizationID: b, Name: "stolen"})
+	assert.ErrorIs(t, err, domain.ErrNotFound)
+
+	var got orgThing
+	require.NoError(t, db.First(&got, "id = ?", o.ID).Error)
+	assert.Equal(t, "a's", got.Name)
+}

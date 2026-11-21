@@ -43,12 +43,6 @@ var knownMissingTables = map[string]string{
 	"Connector":      "#392",
 	"MarketplaceApp": "#392",
 	"MarketplaceLog": "#392",
-	// Used only by code no production path constructs.
-	"NotificationLog":   "#710",
-	"OrganizationRole":  "#710",
-	"Profile":           "#710",
-	"ProfilePermission": "#710",
-	"UserSession":       "#710",
 }
 
 // notPersisted are domain structs with a primaryKey tag that are never stored:
