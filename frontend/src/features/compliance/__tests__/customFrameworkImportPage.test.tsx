@@ -81,6 +81,15 @@ async function choose(file: File) {
   fireEvent.change(input, { target: { files: [file] } });
 }
 
+// The submit button renders as soon as a file is chosen, but stays disabled
+// until the file has been read and parsed. Clicking it before that does nothing,
+// which made these cases flaky on a slow runner (#1497).
+async function clickImport() {
+  const submit = await screen.findByRole('button', { name: /import the framework/i });
+  await waitFor(() => expect(submit).toBeEnabled());
+  fireEvent.click(submit);
+}
+
 function axiosFailure(status: number, data: unknown): AxiosError {
   return new AxiosError('failed', 'ERR_BAD_REQUEST', undefined, undefined, {
     status,
@@ -166,7 +175,7 @@ describe('CustomFrameworkImportPage', () => {
     );
     renderPage();
     await choose(jsonFile(VALID));
-    fireEvent.click(await screen.findByRole('button', { name: /import the framework/i }));
+    await clickImport();
     const err = await screen.findByTestId('framework-import-error');
     const rows = within(err).getAllByRole('row').slice(1);
     expect(rows).toHaveLength(2);
@@ -185,7 +194,7 @@ describe('CustomFrameworkImportPage', () => {
     importFramework.mockRejectedValue(axiosFailure(status, { error: 'x' }));
     renderPage();
     await choose(jsonFile(VALID));
-    fireEvent.click(await screen.findByRole('button', { name: /import the framework/i }));
+    await clickImport();
     expect(await screen.findByTestId('framework-import-error')).toHaveTextContent(message);
   });
 
@@ -194,7 +203,7 @@ describe('CustomFrameworkImportPage', () => {
     importFramework.mockReturnValue(new Promise((r) => (resolve = r)));
     const { invalidate } = renderPage();
     await choose(jsonFile(VALID));
-    fireEvent.click(await screen.findByRole('button', { name: /import the framework/i }));
+    await clickImport();
     expect(await screen.findByTestId('framework-import-skeleton')).toBeInTheDocument();
 
     resolve({ id: 'new-fw-id', name: 'Circulaire 2026', controls_created: 2 } as Awaited<
@@ -230,7 +239,7 @@ describe('CustomFrameworkImportPage accessibility', () => {
   it('has no serious or critical axe violations with a valid file previewed', async () => {
     const { container } = render(<Harness />);
     await choose(jsonFile(VALID));
-    await screen.findByRole('button', { name: /import the framework/i });
+    await screen.findByTestId('framework-import-preview');
     await expectNoSeriousViolations(container);
   });
 
