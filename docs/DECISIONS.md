@@ -5,7 +5,94 @@ recommends, and surfaces these in the daily brief. Run `/decide` to clear them.
 
 ## Open
 
-*No open decision on 2026-11-11.*
+### D-124 — Launch scope: reverse D-054 to option A · raised 2026-11-24
+**Raised by** — `/plan-milestone` for `v1.0 — Launch` (milestone #21), po-openrisk with
+tech-lead on sequencing. Reversing an owner decision is the owner's call.
+
+**Context** — D-054 kept every release train in scope for January, against the
+recommendation (A). On 2026-11-24, 7.5 weeks remain. 498 issues are open; about 240 are
+created and 120 closed per month. Most of the Evidence Fabric engine already merged
+(#553, #554, #555 slices 1–2, #811, #809, #487). The milestone holds 51 issues (about
+92 PR-equivalents) against an estimated 90–110 of launch capacity.
+
+**Options**
+- **A — Trust + canonical-model GRC slice + Evidence Fabric.** Releases 1.3, 1.5, 1.6 and
+  the vision issues come after the launch. Cut from the launch, kept in Release 1.4:
+  #556 and the pack-upgrade chain #1484/#1487–#1489 (L+, plus licence clearance of ISO and
+  SOC 2 text, #1479), #1451, #1456.
+- **C — keep every train** (D-054 as decided). Does not fit; none of the trains finishes.
+
+**Recommendation** — **A.** It is the path tech-lead measured as fitting:
+#1450 → #489 → #488/#233 on the release candidate, about 2–2.5 sprints.
+
+**Cost of delay** — High. Every week raises the risk that v1.1.0 ships without the install
+and audit proofs a pilot tests first.
+
+**Blocks** — nothing already applied is lost if overturned: issues moved into #21 go back
+to their train with `gh issue edit <n> --milestone "<train>"`.
+
+### D-125 — What 18 January 2027 is · raised 2026-11-24
+**Raised by** — `/plan-milestone`. The GA date is the owner's (D-054 asked for it and
+never received it).
+
+**Context** — D-054 proposed 18 January as the GA. A paid hosted GA needs the external
+penetration test of D-051, which has not been quoted yet, and a legal entity to invoice.
+
+**Options**
+- **(a) 18 January = open-source v1.1.0 stable + Design Partner pilots on synthetic data
+  (D-051).** Hosted paid GA in Q2 2027, after the pentest.
+- **(b) 18 January = hosted paid GA.**
+
+**Recommendation** — **(a).**
+
+**Cost of delay** — Medium. The pilots (#494) and the announce kit (#1090) are organised
+around a date.
+
+**Blocks** — #1504 (v1.1.0 stable cut), #1090.
+
+### D-126 — Signing key of the sealed audit pack (#489) · raised 2026-11-24
+**Raised by** — tech-lead sequencing review. Crypto design: agents may decide it under
+D-089 with an ADR; it is listed here so the owner can overturn it.
+
+**Context** — #489 (sealed audit pack) is on the launch critical path and asks for a
+detached signature. The repository has no signing-key infrastructure: no Ed25519 or ECDSA
+signer outside `internal/auth/token.go`. Undecided: whose key signs, how a self-hoster
+generates and rotates it, how a third party verifies a pack offline.
+
+**Options**
+- **A — per-instance Ed25519 key generated at install**, public key published by the
+  instance, standalone offline verifier script. Go standard library only (`crypto/ed25519`).
+- **B — operator-supplied key** only.
+- **C — hosted signing service.** Costs money; escalation required.
+
+**Recommendation** — **A**, shipped in two stages: export plus a SHA-256 manifest first,
+signature second. If stage 2 misses 9 January, v1.1.0 ships with the manifest only and the
+claim matrix says so (rule 12).
+
+**Cost of delay** — High. #489 is on the critical path; it must be refined by 28 November.
+
+**Blocks** — #489 stage 2.
+
+### D-127 — Wave-P0 gates that do not block an open-source launch · raised 2026-11-24
+**Raised by** — `/plan-milestone`. The meaning of the wave-family `priority:P0` (D-003,
+"blocks the launch") changes by owner decision only.
+
+**Context** — #340 (enterprise-scale benchmarks: 10 tenants, 500k evidence records),
+#351 (real mobile and WebKit E2E), #346 (alert rules fired on a real Prometheus stack)
+and #232 (WCAG 2.1 gate, subsumed by #339) carry `priority:P0`. Under D-125 (a) they gate
+the hosted GA, not the open-source v1.1.0. Wave 7 holds 134 issues; only the launch keepers
+left it.
+
+**Options**
+- **A — move the four to `priority:P1`**, comment "hosted-GA gate, D-125/D-127" on each,
+  keep Wave 7 as the post-launch polish bucket.
+- **B — keep them P0 and move the date.**
+
+**Recommendation** — **A.** No `tier:` label changes in either option.
+
+**Cost of delay** — Medium. The board keeps ordering work that does not ship on 18 January.
+
+**Blocks** — the label change on #340, #351, #346, #232 (not applied).
 
 ## Resolved
 
