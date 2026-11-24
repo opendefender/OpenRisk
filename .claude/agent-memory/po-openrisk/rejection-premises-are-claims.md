@@ -30,4 +30,8 @@ plainly in the issue comment which rejection reasons were wrong and why, so the
 next agent through the loop does not re-file the same one. `CLAUDE.md`'s label
 table is the Constitution family only; it does not enumerate the wave family, so
 "not in the table" is never by itself evidence a label is invalid.
+
+**Superseded on labels by D-128 (2026-11-24):** the wave family is now retired, so a
+wave label *is* drift today and is replaced by its table equivalent. The general rule
+stands: check the claim against the current decision before acting on it.
 See [[label-taxonomy-drift]] and [[verify-agent-claims-before-drafting]].

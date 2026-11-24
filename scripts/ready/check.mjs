@@ -2,7 +2,7 @@
 //
 // An issue is workable only with: a problem statement in user terms, numbered testable
 // acceptance criteria, a Definition of Done, a milestone, and the three labels type:,
-// area:, priority: (either label family, D-003).
+// area:, priority:, each with a value from the CLAUDE.md label table (one family, D-128).
 //
 // Section titles are matched by meaning, in English or French, because the backlog was
 // written over months by different people: "Problem", "Problème", "Goal", "Outcome",
@@ -14,6 +14,13 @@ const TRUSTED = ['OWNER', 'MEMBER', 'COLLABORATOR'];
 // An epic tracks child issues; each child carries its own criteria (e.g. #899, #1002).
 const CHILDREN = /^(child issues|sub-issues|issues filles|sous-issues)\b/i;
 const DOD = /^(definition of done|dod|définition de (fini|terminé)|definition de (fini|termine))\b/i;
+// The CLAUDE.md label table. The wave family (`priority:P1`, `area:grc`, `type:hardening`)
+// is retired by D-128 and no longer makes an issue Ready.
+const TAXONOMY = {
+  'type:': ['feature', 'bug', 'chore', 'security', 'docs', 'design', 'debt'],
+  'area:': ['backend', 'frontend', 'infra', 'design', 'marketing', 'docs', 'db'],
+  'priority:': ['P0-critical', 'P1-high', 'P2-medium', 'P3-low'],
+};
 
 // Splits a Markdown body into { title, text } sections at headings of level 2 or 3.
 export function sections(body) {
@@ -61,8 +68,10 @@ export function checkReady(issue) {
     missing.push('a maintainer to take it over (it was opened from outside the team)');
   }
   const labels = issue.labels || [];
-  for (const p of ['type:', 'area:', 'priority:']) {
-    if (!labels.some((l) => l.startsWith(p))) missing.push(`a \`${p}\` label`);
+  for (const [p, values] of Object.entries(TAXONOMY)) {
+    if (!labels.some((l) => l.startsWith(p) && values.includes(l.slice(p.length)))) {
+      missing.push(`a \`${p}\` label from the CLAUDE.md table (${values.join(' · ')})`);
+    }
   }
   return { ready: missing.length === 0, missing };
 }

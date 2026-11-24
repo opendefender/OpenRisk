@@ -66,9 +66,9 @@ test('branchIssueNumbers: only <type>/<n>-<slug>', () => {
   assert.deepEqual([...n].sort((a, b) => a - b), [12, 1248]);
 });
 
-test('priority: Constitution family first, then the wave family, most urgent wins', () => {
+test('priority: taxonomy labels only (D-128), most urgent wins', () => {
   assert.equal(derivePriority(['priority:P2-medium', 'priority:P1']), 'P2-medium');
-  assert.equal(derivePriority(['priority:P1']), 'P1-high');
+  assert.equal(derivePriority(['priority:P1']), null);
   assert.equal(derivePriority(['priority:P3-low', 'priority:P0-critical']), 'P0-critical');
   assert.equal(derivePriority(['type:bug']), null);
   assert.equal(derivePriority(['priority:P9']), null);

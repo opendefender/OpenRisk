@@ -1,4 +1,4 @@
-- [Label taxonomy drift](label-taxonomy-drift.md) — D-003: both label families are permanent, every issue must be dual-labelled + status:, never strip either
+- [Label taxonomy drift](label-taxonomy-drift.md) — D-128 (2026-11-24): one family, the CLAUDE.md table; wave labels (priority:P0–P3, type:hardening, area:foundation…) are retired
 - [Verify agent claims before drafting](verify-agent-claims-before-drafting.md) — relayed and doc-sourced claims were wrong twice (#200 split, ds-v1 epic); falsify before it enters an issue
 - [Splitting bundled P0 issues](split-bundled-p0-issues.md) — OR-P0-xx issues bundle a small bug with a cross-cutting mechanism; split, park the mechanism in DECISIONS.md
 - [Rejection premises are claims](rejection-premises-are-claims.md) — bounced-issue rejection reasons need falsifying too; wave labels reported as invalid taxonomy twice

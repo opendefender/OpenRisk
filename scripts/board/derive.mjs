@@ -73,14 +73,12 @@ export function branchIssueNumbers(refs) {
   return out;
 }
 
-// Both label families (D-003): `priority:P1-high` and the wave family's `priority:P1`.
-// The Constitution family wins when both are present; otherwise the most urgent.
+// One label family (D-128): only `priority:P1-high` and its siblings count; the retired
+// bare `priority:P1` is ignored. The most urgent wins.
 const PRIORITY = { P0: 'P0-critical', P1: 'P1-high', P2: 'P2-medium', P3: 'P3-low' };
 export function derivePriority(labels) {
   const long = labels.map((l) => /^priority:(P[0-3])-[a-z]+$/.exec(l)?.[1]).filter(Boolean).sort();
-  if (long.length) return PRIORITY[long[0]];
-  const short = labels.map((l) => /^priority:(P[0-3])$/.exec(l)?.[1]).filter(Boolean).sort();
-  return short.length ? PRIORITY[short[0]] : null;
+  return long.length ? PRIORITY[long[0]] : null;
 }
 
 const TIERS = ['0-trust', '1-product-engine', '2-killer-workflow', '3-ecosystem', '4-ux', '5-deferred'];
