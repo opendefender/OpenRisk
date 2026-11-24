@@ -43,12 +43,20 @@ test('definition of done: missing or empty fails', () => {
   assert.ok(!checkReady(ok({ body: GOOD.replace('PR green, live check pasted.', '<!-- todo -->') })).ready);
 });
 
-test('milestone and the three label prefixes, either family', () => {
+test('milestone and the three label prefixes, taxonomy values only', () => {
   assert.match(checkReady(ok({ milestone: null })).missing.join(), /milestone/);
-  assert.match(checkReady(ok({ labels: ['area:backend', 'priority:P2'] })).missing.join(), /type:/);
-  assert.match(checkReady(ok({ labels: ['type:bug', 'priority:P2'] })).missing.join(), /area:/);
+  assert.match(checkReady(ok({ labels: ['area:backend', 'priority:P2-medium'] })).missing.join(), /type:/);
+  assert.match(checkReady(ok({ labels: ['type:bug', 'priority:P2-medium'] })).missing.join(), /area:/);
   assert.match(checkReady(ok({ labels: ['type:bug', 'area:backend'] })).missing.join(), /priority:/);
-  assert.ok(checkReady(ok({ labels: ['type:bug', 'area:foundation', 'priority:P1'] })).ready);
+  assert.ok(checkReady(ok({ labels: ['type:bug', 'area:db', 'priority:P0-critical'] })).ready);
+});
+
+test('the retired wave family no longer makes an issue Ready (D-128)', () => {
+  const r = checkReady(ok({ labels: ['type:hardening', 'area:foundation', 'priority:P1'] }));
+  assert.ok(!r.ready);
+  assert.equal(r.missing.length, 3);
+  assert.ok(!checkReady(ok({ labels: ['type:bug', 'area:backend', 'priority:P1'] })).ready);
+  assert.ok(checkReady(ok({ labels: ['type:bug', 'area:backend', 'area:grc', 'priority:P1-high'] })).ready);
 });
 
 test('headings: level 2 and 3, emphasis stripped, level 1 and 4 ignored', () => {

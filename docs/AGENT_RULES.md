@@ -79,7 +79,7 @@ constitution; this file is its operating detail (#1277).
 | # | Rule | Enforced by | Status |
 |---|---|---|---|
 | 7.1 | Board fields are changed only by `scripts/board/setup.mjs`, which keeps option ids. A raw `singleSelectOptions` mutation is refused: it recreates the options and clears every value (2026-11-04). | hook `guard-bash.sh` | 🔧 patch on #1277 |
-| 7.2 | Labels and milestones are never deleted from the repository. On an issue, a label is removed only for a `status:` transition or by refinement, with the reason (D-003, #1270). | hook `guard-bash.sh` (`gh label delete`, `DELETE repos/…/labels/…`, `DELETE repos/…/milestones/…`) · review | 🔧 patch on #1277 |
+| 7.2 | Labels and milestones are never deleted from the repository. On an issue, a label is removed only for a `status:` transition, by refinement, or to replace a retired label by its taxonomy equivalent (D-128), with the reason (#1270). | hook `guard-bash.sh` (`gh label delete`, `DELETE repos/…/labels/…`, `DELETE repos/…/milestones/…`) · review | 🔧 patch on #1277 |
 | 7.3 | Issues are never closed by hand. A merge closes them; refinement closes duplicates and obsolete issues with proof (#1270). | hook `guard-bash.sh` (`gh issue close`) | 🔧 patch on #1277 |
 | 7.4 | A body posted from a file uses `-F body=@file` and is read back (`--jq '.body\|length'`). | hook `guard-bash.sh` blocks `-f body=@` | ✅ |
 | 7.5 | A script that writes shared state is run with `--dry-run` first, and the dry run is pasted. | review | 📝 |

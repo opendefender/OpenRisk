@@ -96,6 +96,36 @@ left it.
 
 ## Resolved
 
+### D-128 — One label family: the wave labels are retired · decided 2026-11-24
+**Decided (owner, 2026-11-24)** — supersedes D-003 ("keep both"). Implemented by #1508.
+
+**Context** — D-003 made every issue carry two label families, the wave family and the
+CLAUDE.md table. On 2026-11-24, 207 open issues carried a wave priority (109 of them
+with no taxonomy priority), 13 carried `type:hardening`, 46 carried only a wave `area:`,
+and five open issues were `priority:P0` and `priority:P1-high` at once (#229, #232,
+#233, #340, #346). Nobody could say which one counted.
+
+**Options**
+- **A — keep both** (D-003 as decided).
+- **B — one family, the CLAUDE.md table**, migrate every issue, retire the wave labels.
+
+**Choice** — **B.** Mapping applied to every issue, open and closed:
+- `priority:P1` → `P1-high`, `P2` → `P2-medium`, `P3` → `P3-low`.
+- `priority:P0` → `P1-high`. The wave P0 meant "blocks the launch"; `P0-critical` means
+  "production broken or exposed — work now" and would have sent GTM chores (#491–#494)
+  and WCAG gates (#339) to the top of every brief.
+- When an issue already carried a taxonomy label, it is kept and the wave label dropped.
+- `type:hardening` is dropped when another `type:` is present; otherwise one type was
+  chosen per issue (15 issues).
+- A wave `area:` is dropped when a taxonomy `area:` is present; otherwise the area of
+  the issue's main layer was chosen (59 issues, mostly epics in `tier:5-deferred`;
+  refinement may correct them).
+
+The retired labels stay in the repository (AGENT_RULES 7.2), described
+`RETIRED (D-128) — use …`. `scripts/ready/check.mjs` accepts only table values, and
+`scripts/board/derive.mjs` no longer reads the bare `priority:P[0-3]`. The original
+labels of the 387 changed issues are posted on #1508.
+
 ### D-123 — Crosswalk unique index also holds the two control ids · decided 2026-11-20
 **Decided (agent, 2026-11-20)** — for #1483, under D-089. ADR 0013 D4 to amend (the ADR is on PR #1482).
 **Question** — ADR 0013 D4 puts a partial unique index `(tenant_id, pack_key, pack_item_key) WHERE pack_key <> ''` on
