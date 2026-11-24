@@ -3686,6 +3686,8 @@ obtained later, it returns as a new issue with a full citation.
 **Unblocked** — the framework catalogue can ship without a placeholder row.
 
 ### D-003 — Label taxonomies: keep both · 2026-08-28
+**Superseded by D-128 (2026-11-24)** — one family, the CLAUDE.md table; the rest of this
+entry is history.
 **Decided** — Option C. Both label families stay; every new issue carries both.
 **Rationale (owner)** — Recommendation was A (declare the wave family canonical);
 the owner chose C. Neither family is retired and no backlog migration happens.
