@@ -302,6 +302,7 @@ go test -v -bench=. ./tests/performance_benchmark_test.go -timeout 30m
 **Docker Compose Testing** - Isolated test environment
 ```bash
 export TEST_AUDIT_HASH_KEY="$(openssl rand -base64 32)"   # required by the backend (D-065)
+export TEST_MFA_ENCRYPTION_KEY="$(openssl rand -hex 32)"    # required by the backend (#1062)
 docker-compose -f docker-compose.test.yaml up -d
 docker-compose -f docker-compose.test.yaml run integration_tests
 docker-compose -f docker-compose.test.yaml run security_tests

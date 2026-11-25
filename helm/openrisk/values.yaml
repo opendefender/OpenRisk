@@ -331,6 +331,12 @@ secrets:
     # it as backend.env.MFA_ENCRYPTION_KEY: that value is used, and moved into
     # the Secret, when this one is empty.
     mfaEncryptionKey: ""
+    # Optional (#1317): rotation. Put the OLD mfaEncryptionKey here and the new
+    # one above; the next boot re-encrypts every two-factor secret, then this
+    # can be emptied. See docs/security/KEY_ROTATION.md.
+    mfaEncryptionPreviousKey: ""
+    # Optional: signs audit exports; empty = exports are unsigned.
+    auditExportKey: ""
     # Optional (D-064): signs the trusted-device cookie. Empty = derived from
     # auditHashKey. At least 32 characters when set. To rotate, move the old
     # value to deviceCookiePreviousKey for 90 days.

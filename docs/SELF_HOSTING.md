@@ -305,6 +305,9 @@ one day for the sign-up alert). Every replica must have the same key.
 During a rolling upgrade, old and new replicas count per-address attempts
 separately until the rollout ends.
 
+Every production secret, what it protects and how to rotate it (including
+`MFA_ENCRYPTION_PREVIOUS_KEY`): [`docs/security/KEY_ROTATION.md`](security/KEY_ROTATION.md).
+
 The same upgrade removes the unkeyed hashes written before it (migration
 0079, decision D-074): in the sign-in audit trail they read
 `email_sha256=redacted` and the rest of each entry stays; expired password-reset

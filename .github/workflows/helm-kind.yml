@@ -81,6 +81,21 @@ jobs:
               || { echo "❌ render without $missing failed for another reason:"; echo "$out"; exit 1; }
             echo "✅ the render refuses a missing secrets.inline.$missing"
           done
+          # The RS256 pair is required too (#1317): without it, or an existing
+          # Secret, the render must refuse, not deploy a backend that panics.
+          for missing in rsaPrivateKey rsaPublicKey; do
+            args=(-f helm/kind/values.yaml --set backend.deployment=self_hosted
+              --set secrets.inline.mfaEncryptionKey=render-check
+              --set secrets.inline.auditHashKey=render-check-audit-hash-key-000000)
+            [ "$missing" = rsaPrivateKey ] || args+=(--set-file secrets.inline.rsaPrivateKey=private.pem)
+            [ "$missing" = rsaPublicKey ] || args+=(--set-file secrets.inline.rsaPublicKey=public.pem)
+            if out="$(helm template openrisk helm/openrisk "${args[@]}" 2>&1)"; then
+              echo "❌ the chart renders without secrets.inline.$missing"; exit 1
+            fi
+            echo "$out" | grep -q "secrets.inline.$missing is required" \
+              || { echo "❌ render without $missing failed for another reason:"; echo "$out"; exit 1; }
+            echo "✅ the render refuses a missing secrets.inline.$missing"
+          done
           # backend.deployment has no default (D-081): missing or misspelt, the
           # render refuses and names both values; each valid one reaches the
           # backend as OPENRISK_DEPLOYMENT. The "hosted" case below is a render
@@ -122,7 +137,7 @@ jobs:
           echo "backend reads: $refs"; echo "Secret holds:  $held"
           missing="$(jq -nr --argjson r "$refs" --argjson h "$held" '($r - $h) | join(", ")')"
           [ -z "$missing" ] || { echo "❌ the backend reads keys openrisk-secrets does not hold: $missing"; exit 1; }
-          for key in mfa-encryption-key audit-hash-key; do
+          for key in mfa-encryption-key audit-hash-key mfa-encryption-previous-key audit-export-key; do
             jq -e --arg k "$key" 'index($k) != null' <<<"$refs" >/dev/null \
               || { echo "❌ the backend no longer reads $key from openrisk-secrets"; exit 1; }
           done

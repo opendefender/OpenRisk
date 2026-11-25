@@ -63,6 +63,16 @@ spec:
             secretKeyRef:
               name: openrisk-secrets
               key: mfa-encryption-key
+        - name: MFA_ENCRYPTION_PREVIOUS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: openrisk-secrets
+              key: mfa-encryption-previous-key
+        - name: AUDIT_EXPORT_KEY
+          valueFrom:
+            secretKeyRef:
+              name: openrisk-secrets
+              key: audit-export-key
         - name: DATABASE_URL
           valueFrom:
             secretKeyRef:
