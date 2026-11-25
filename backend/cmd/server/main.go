@@ -76,7 +76,6 @@ import (
 	"github.com/opendefender/openrisk/internal/infrastructure/controlchain"
 	"github.com/opendefender/openrisk/internal/infrastructure/controlexception"
 	"github.com/opendefender/openrisk/internal/infrastructure/controlstatus"
-	"github.com/opendefender/openrisk/internal/infrastructure/credrekey"
 	"github.com/opendefender/openrisk/internal/infrastructure/ctimatch"
 	"github.com/opendefender/openrisk/internal/infrastructure/database"
 	"github.com/opendefender/openrisk/internal/infrastructure/demoseed"
@@ -105,7 +104,6 @@ import (
 	pkgbilling "github.com/opendefender/openrisk/pkg/billing"
 	"github.com/opendefender/openrisk/pkg/cache"
 	"github.com/opendefender/openrisk/pkg/crq"
-	pkgcrypto "github.com/opendefender/openrisk/pkg/crypto"
 	"github.com/opendefender/openrisk/pkg/cti"
 	ent "github.com/opendefender/openrisk/pkg/entitlements"
 	"github.com/opendefender/openrisk/pkg/hibp"
@@ -2376,23 +2374,17 @@ func main() {
 	// Credentials an earlier boot encrypted with the dev key move to the real
 	// one before anything reads them, so nobody has to enter them again.
 	// Idempotent and safe across replicas booting together.
-	if !isDevScannerKey(credKeyRaw) {
-		devKey, _ := pkgcrypto.DeriveKey([]byte(devScannerCredentialKey), nil)
-		realKey, err := pkgcrypto.DeriveKey([]byte(credKeyRaw), nil)
-		if err != nil {
-			log.Fatalf("credential key: %v", err)
+	credResults, err := rekeyDevCredentials(context.Background(), database.DB, credKeyRaw)
+	if err != nil {
+		log.Fatalf("Credentials: re-encrypting values left on the development key failed: %v. Rows already moved stay readable; the next boot finishes the pass", err)
+	}
+	for _, r := range credResults {
+		if r.Rekeyed > 0 {
+			log.Printf("Credentials: re-encrypted %d value(s) in %s.%s from the development key to SCANNER_CREDENTIAL_KEY", r.Rekeyed, r.Table, r.Column)
+			log.Printf("WARN: Credentials: %d value(s) in %s.%s were stored under the public development key; rotate them at their provider, backups taken before this boot still expose them", r.Rekeyed, r.Table, r.Column)
 		}
-		results, err := credrekey.Rekey(context.Background(), database.DB, devKey, realKey, credrekey.Columns)
-		if err != nil {
-			log.Fatalf("Credentials: re-encrypting values left on the development key failed: %v", err)
-		}
-		for _, r := range results {
-			if r.Rekeyed > 0 {
-				log.Printf("Credentials: re-encrypted %d value(s) in %s.%s from the development key to SCANNER_CREDENTIAL_KEY", r.Rekeyed, r.Table, r.Column)
-			}
-			if r.Unreadable > 0 {
-				log.Printf("ERROR: Credentials: %d value(s) in %s.%s decrypt with neither SCANNER_CREDENTIAL_KEY nor the development key; was the key changed?", r.Unreadable, r.Table, r.Column)
-			}
+		if r.Unreadable > 0 {
+			log.Printf("ERROR: Credentials: %d value(s) in %s.%s decrypt with neither SCANNER_CREDENTIAL_KEY nor the development key; was the key changed?", r.Unreadable, r.Table, r.Column)
 		}
 	}
 	vulnIntegRepo := repository.NewGormVulnIntegrationRepository(database.DB)

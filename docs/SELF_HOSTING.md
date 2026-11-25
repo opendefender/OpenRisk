@@ -334,8 +334,11 @@ when `.env` lacks it. Helm: `secrets.inline.scannerCredentialKey`, stored in the
 `openrisk-secrets` Secret, required at render; a values file that sets
 `backend.env.SCANNER_CREDENTIAL_KEY` keeps working and its value moves into the
 Secret. If you never set one, set any new random secret: credentials encrypted
-with the development key are re-encrypted with yours at boot. Keep the value
-you already use otherwise: a different key cannot decrypt the stored
+with the development key are re-encrypted with yours at boot. That changes
+the live rows only: any backup taken while the key was unset still holds them
+under a public key, so rotate those credentials at their provider (cloud keys,
+vulnerability-tool and Jira/ServiceNow tokens) and re-register the scanner
+agents. Keep the value you already use otherwise: a different key cannot decrypt the stored
 credentials, and they have to be entered again.
 
 `DEVICE_COOKIE_KEY` is optional (Helm: `secrets.inline.deviceCookieKey` and

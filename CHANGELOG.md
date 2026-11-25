@@ -14,8 +14,14 @@ Git tags use the `vMAJOR.MINOR.PATCH[-rc.N]` convention; see [docs/VERSIONING.md
 >   Keep the value you already use. If you never set one, set any new random secret
 >   (`openssl rand -hex 32`): at boot, cloud, scanner-agent, vulnerability-tool and
 >   Jira/ServiceNow credentials that were encrypted with the development key are
->   re-encrypted with yours, and nobody has to enter them again. Never change it
->   afterwards, and give every replica the same value.
+>   re-encrypted with yours. Never change it afterwards, and give every replica the
+>   same value.
+> - If the backend ever ran without `SCANNER_CREDENTIAL_KEY`, rotate those credentials
+>   anyway. Re-encryption only changes the live rows: every backup, dump, replica or
+>   WAL archive taken before still holds them under a key anyone can read in this
+>   repository. Rotate the AWS, Azure and GCP keys, the vulnerability-tool and
+>   Jira/ServiceNow tokens at their provider, and re-register the scanner agents.
+>   The first boot with a real key logs a `WARN` line for each column it moved.
 >   Self-hosted compose: re-running `./scripts/install.sh` fills it when absent.
 >   Helm: `--set secrets.inline.scannerCredentialKey=...`, stored in the
 >   `openrisk-secrets` Secret; the render fails without it, so `helm upgrade` stops

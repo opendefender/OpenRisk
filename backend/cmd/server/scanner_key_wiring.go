@@ -7,9 +7,13 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"strings"
 
+	"gorm.io/gorm"
+
+	"github.com/opendefender/openrisk/internal/infrastructure/credrekey"
 	"github.com/opendefender/openrisk/pkg/crypto"
 )
 
@@ -50,4 +54,23 @@ func isDevScannerKey(raw string) bool {
 	}
 	dev, _ := crypto.DeriveKey([]byte(devScannerCredentialKey), nil)
 	return bytes.Equal(got, dev)
+}
+
+// rekeyDevCredentials moves the credentials an earlier boot encrypted with the
+// development key onto raw, before anything reads them, so nobody has to
+// enter them again. Nothing to do when raw is the development key itself.
+// Idempotent and safe across replicas booting together (credrekey.Rekey).
+func rekeyDevCredentials(ctx context.Context, db *gorm.DB, raw string) ([]credrekey.Result, error) {
+	if isDevScannerKey(raw) {
+		return nil, nil
+	}
+	dev, err := crypto.DeriveKey([]byte(devScannerCredentialKey), nil)
+	if err != nil {
+		return nil, err
+	}
+	real, err := crypto.DeriveKey([]byte(raw), nil)
+	if err != nil {
+		return nil, err
+	}
+	return credrekey.Rekey(ctx, db, dev, real, credrekey.Columns)
 }

@@ -13,6 +13,7 @@ import (
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
 
 	"github.com/opendefender/openrisk/internal/domain"
 	"github.com/opendefender/openrisk/internal/infrastructure/tenantguard"
@@ -61,6 +62,10 @@ type Result struct {
 // keys, replicas booting together cannot overwrite each other, and a pass
 // interrupted half-way is finished by the next boot.
 func Rekey(ctx context.Context, db *gorm.DB, from, to []byte, cols []Column) ([]Result, error) {
+	// Silent: the bound parameters are ciphertexts under the public dev key,
+	// and the production logger prints them on an error or a slow query
+	// (#1317). Errors still come back through the return value.
+	db = db.Session(&gorm.Session{Logger: logger.Discard})
 	results := make([]Result, 0, len(cols))
 	for _, c := range cols {
 		res, err := rekeyColumn(ctx, db, from, to, c)
