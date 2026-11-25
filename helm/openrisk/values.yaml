@@ -331,6 +331,12 @@ secrets:
     # it as backend.env.MFA_ENCRYPTION_KEY: that value is used, and moved into
     # the Secret, when this one is empty.
     mfaEncryptionKey: ""
+    # Encrypts tenant cloud, agent and ITSM credentials at rest. Required
+    # (#1200); once credentials are stored, it must keep the same value
+    # forever. An older values file may set it as
+    # backend.env.SCANNER_CREDENTIAL_KEY: that value is used, and moved into the
+    # Secret, when this one is empty.
+    scannerCredentialKey: ""
     # Optional (D-064): signs the trusted-device cookie. Empty = derived from
     # auditHashKey. At least 32 characters when set. To rotate, move the old
     # value to deviceCookiePreviousKey for 90 days.

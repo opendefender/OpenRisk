@@ -12,6 +12,19 @@ refuses (#1062).
 {{- end -}}
 
 {{/*
+The tenant credential key (#1200): secrets.inline.scannerCredentialKey, or,
+for a values file that set it before, backend.env.SCANNER_CREDENTIAL_KEY. Same
+reason as the MFA key: an upgrade must keep the key the stored cloud, agent and
+ITSM credentials are encrypted with. Empty when neither is set, which
+secrets.yaml refuses.
+*/}}
+{{- define "openrisk.scannerCredentialKey" -}}
+{{- $inline := .Values.secrets.inline.scannerCredentialKey | default "" -}}
+{{- $legacy := (.Values.backend.env | default dict).SCANNER_CREDENTIAL_KEY | default "" -}}
+{{- $inline | default $legacy -}}
+{{- end -}}
+
+{{/*
 Who runs this instance (D-081): backend.deployment, rendered into
 OPENRISK_DEPLOYMENT. No default on purpose. "hosted" read by mistake caps a
 self-hoster at Free, "self_hosted" read by mistake opens the SaaS to every

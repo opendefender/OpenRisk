@@ -76,6 +76,7 @@ import (
 	"github.com/opendefender/openrisk/internal/infrastructure/controlchain"
 	"github.com/opendefender/openrisk/internal/infrastructure/controlexception"
 	"github.com/opendefender/openrisk/internal/infrastructure/controlstatus"
+	"github.com/opendefender/openrisk/internal/infrastructure/credrekey"
 	"github.com/opendefender/openrisk/internal/infrastructure/ctimatch"
 	"github.com/opendefender/openrisk/internal/infrastructure/database"
 	"github.com/opendefender/openrisk/internal/infrastructure/demoseed"
@@ -104,6 +105,7 @@ import (
 	pkgbilling "github.com/opendefender/openrisk/pkg/billing"
 	"github.com/opendefender/openrisk/pkg/cache"
 	"github.com/opendefender/openrisk/pkg/crq"
+	pkgcrypto "github.com/opendefender/openrisk/pkg/crypto"
 	"github.com/opendefender/openrisk/pkg/cti"
 	ent "github.com/opendefender/openrisk/pkg/entitlements"
 	"github.com/opendefender/openrisk/pkg/hibp"
@@ -2358,13 +2360,40 @@ func main() {
 	// with the same key family as the scanner (SCANNER_CREDENTIAL_KEY) and are
 	// never returned to the API. A tenant can wire the 7 external tools, an inbound
 	// webhook token, and its ITSM (Jira/ServiceNow) here.
-	vulnIntegKeyRaw := os.Getenv("SCANNER_CREDENTIAL_KEY")
-	if vulnIntegKeyRaw == "" {
-		vulnIntegKeyRaw = "openrisk-dev-scanner-credential-key-change-me"
+	// #1200: required in production, and never the public dev value. The same
+	// cipher serves the scanner below (cloud credentials, agent push secrets).
+	credKeyRaw, credKeyWarning, err := scannerCredentialKey(os.Getenv, middleware.IsProductionEnv())
+	if err != nil {
+		log.Fatalf("%v", err)
 	}
-	vulnIntegCipher, vulnIntegCipherErr := scanapp.NewCredentialCipher([]byte(vulnIntegKeyRaw))
+	if credKeyWarning != "" {
+		log.Println(credKeyWarning)
+	}
+	vulnIntegCipher, vulnIntegCipherErr := scanapp.NewCredentialCipher([]byte(credKeyRaw))
 	if vulnIntegCipherErr != nil {
-		log.Fatalf("failed to init vulnerability integration cipher: %v", vulnIntegCipherErr)
+		log.Fatalf("failed to init credential cipher: %v", vulnIntegCipherErr)
+	}
+	// Credentials an earlier boot encrypted with the dev key move to the real
+	// one before anything reads them, so nobody has to enter them again.
+	// Idempotent and safe across replicas booting together.
+	if !isDevScannerKey(credKeyRaw) {
+		devKey, _ := pkgcrypto.DeriveKey([]byte(devScannerCredentialKey), nil)
+		realKey, err := pkgcrypto.DeriveKey([]byte(credKeyRaw), nil)
+		if err != nil {
+			log.Fatalf("credential key: %v", err)
+		}
+		results, err := credrekey.Rekey(context.Background(), database.DB, devKey, realKey, credrekey.Columns)
+		if err != nil {
+			log.Fatalf("Credentials: re-encrypting values left on the development key failed: %v", err)
+		}
+		for _, r := range results {
+			if r.Rekeyed > 0 {
+				log.Printf("Credentials: re-encrypted %d value(s) in %s.%s from the development key to SCANNER_CREDENTIAL_KEY", r.Rekeyed, r.Table, r.Column)
+			}
+			if r.Unreadable > 0 {
+				log.Printf("ERROR: Credentials: %d value(s) in %s.%s decrypt with neither SCANNER_CREDENTIAL_KEY nor the development key; was the key changed?", r.Unreadable, r.Table, r.Column)
+			}
+		}
 	}
 	vulnIntegRepo := repository.NewGormVulnIntegrationRepository(database.DB)
 	// Outbound requests to tenant-configured URLs only reach public addresses
@@ -3068,15 +3097,8 @@ func main() {
 	// =========================================================================
 
 	// Credential cipher (AES-256-GCM) for cloud creds + per-agent push secrets.
-	scannerKeyRaw := os.Getenv("SCANNER_CREDENTIAL_KEY")
-	if scannerKeyRaw == "" {
-		scannerKeyRaw = "openrisk-dev-scanner-credential-key-change-me"
-		log.Println("Warning: SCANNER_CREDENTIAL_KEY not set — using an insecure dev key. Set a strong key in production.")
-	}
-	scannerCipher, cipherErr := scanapp.NewCredentialCipher([]byte(scannerKeyRaw))
-	if cipherErr != nil {
-		log.Fatalf("Scanner: credential cipher init failed: %v", cipherErr)
-	}
+	// Same key and cipher as the integrations above (#1200).
+	scannerCipher := vulnIntegCipher
 
 	// Provider registry. Cloud scanners run real SDK collectors (aws-sdk-go-v2,
 	// Azure Resource Graph, GCP Compute) — credentials are decrypted only at scan

@@ -326,6 +326,18 @@ keeps working, and its value moves into the Secret on the next upgrade. Move it
 to the new place with **the same value**: once anyone has enrolled two-factor, a
 different key cannot decrypt their secrets and they are locked out of it.
 
+`SCANNER_CREDENTIAL_KEY` follows the same rule (#1200). It encrypts each
+organisation's cloud, scanner-agent, vulnerability-tool and Jira/ServiceNow
+credentials. In production the backend refuses to boot without it or with the
+public development value. Compose: re-running `./scripts/install.sh` fills it
+when `.env` lacks it. Helm: `secrets.inline.scannerCredentialKey`, stored in the
+`openrisk-secrets` Secret, required at render; a values file that sets
+`backend.env.SCANNER_CREDENTIAL_KEY` keeps working and its value moves into the
+Secret. If you never set one, set any new random secret: credentials encrypted
+with the development key are re-encrypted with yours at boot. Keep the value
+you already use otherwise: a different key cannot decrypt the stored
+credentials, and they have to be entered again.
+
 `DEVICE_COOKIE_KEY` is optional (Helm: `secrets.inline.deviceCookieKey` and
 `deviceCookiePreviousKey`; compose: `.env`). It signs the cookie that lets a browser
 which already signed in get past a sign-in lock someone else keeps setting

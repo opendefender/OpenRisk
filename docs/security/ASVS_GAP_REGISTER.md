@@ -179,8 +179,11 @@ script, but every path was read at the base commit.
   truncates long ones. Its comment says HKDF, it ignores its salt, and a short
   operator key is accepted in production
   (`TestMFAEncryptionKey_ProductionKeepsAShortExistingKey`). #1347.
-- ❌ 6.4.x `SCANNER_CREDENTIAL_KEY` falls back to a public development key in
-  production (#1200). #1317.
+- ⚠️ 6.4.x `SCANNER_CREDENTIAL_KEY` no longer falls back to the public
+  development key in production (#1200,
+  `cmd/server/scanner_key_wiring_test.go`); values left on it are re-encrypted
+  at boot (`internal/infrastructure/credrekey/rekey_test.go`). The key is
+  still derived by `crypto.DeriveKey` (#1347, #1317).
 - ⚠️ 6.3.x Random values come from `crypto/rand` (grep, no test). `math/rand` appears only in
   the Monte-Carlo simulator (`pkg/crq/montecarlo.go`). `md5` and `sha1` appear
   only in a cache key and the HIBP prefix, both non-security uses.
