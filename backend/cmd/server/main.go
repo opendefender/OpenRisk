@@ -153,6 +153,13 @@ func main() {
 	// 1. CONFIGURATION & INFRASTRUCTURE
 	// =========================================================================
 
+	// #1317: one gate for every secret, before any of them is loaded or used.
+	// Names every unusable variable at once, never a value. (The scanner key is
+	// checked by its own wiring, #1200.)
+	if err := checkProductionSecrets(os.Getenv, os.ReadFile, middleware.IsProductionEnv()); err != nil {
+		log.Fatalf("%v", err)
+	}
+
 	// Chargement de la configuration (.env)
 	cfg := config.LoadConfig()
 	// if err != nil {
@@ -709,6 +716,15 @@ func main() {
 		if res.Unreadable > 0 {
 			log.Printf("ERROR: MFA: %d two-factor secret(s) decrypt with neither MFA_ENCRYPTION_KEY nor the development key; was the key changed?", res.Unreadable)
 		}
+	}
+	// #1317 key rotation: secrets still under MFA_ENCRYPTION_PREVIOUS_KEY move
+	// to the current key. Counts only in the log, never a key.
+	if prev, ok := mfaPreviousKey(os.Getenv, mfaKeyRaw); ok {
+		res, err := authmfa.RekeySecrets(context.Background(), database.DB, prev, mfaKey[:])
+		if err != nil {
+			log.Fatalf("MFA: re-encrypting secrets from MFA_ENCRYPTION_PREVIOUS_KEY failed: %v", err)
+		}
+		log.Printf("MFA: key rotation: %d two-factor secret(s) re-encrypted from MFA_ENCRYPTION_PREVIOUS_KEY, %d readable with neither key", res.Rekeyed, res.Unreadable)
 	}
 
 	// #1063: replicas compare fingerprints of their secret keys through Redis.

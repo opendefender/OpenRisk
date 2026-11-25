@@ -43,3 +43,30 @@ func TestMFAEncryptionKey_DevelopmentWarnsAndFallsBack(t *testing.T) {
 		t.Fatalf("raw=%q warning=%q err=%v", raw, warning, err)
 	}
 }
+
+func TestMFAPreviousKey_Success(t *testing.T) {
+	env := func(k string) string {
+		if k == "MFA_ENCRYPTION_PREVIOUS_KEY" {
+			return " old-key "
+		}
+		return ""
+	}
+	key, ok := mfaPreviousKey(env, "new-key")
+	if !ok || len(key) != 32 {
+		t.Fatalf("ok=%v len=%d, want a 32-byte key", ok, len(key))
+	}
+}
+
+func TestMFAPreviousKey_IgnoredWhenUnsetSameOrDev(t *testing.T) {
+	for name, prev := range map[string]string{"unset": "", "same as current": "new-key", "dev key": devMFAEncryptionKey} {
+		env := func(k string) string {
+			if k == "MFA_ENCRYPTION_PREVIOUS_KEY" {
+				return prev
+			}
+			return ""
+		}
+		if _, ok := mfaPreviousKey(env, "new-key"); ok {
+			t.Errorf("%s: want ignored", name)
+		}
+	}
+}

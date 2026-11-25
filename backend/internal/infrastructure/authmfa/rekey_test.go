@@ -120,3 +120,39 @@ func TestRekeySecrets_DoesNotOverwriteAConcurrentRekey(t *testing.T) {
 		t.Fatal("the conditional update overwrote a newer ciphertext")
 	}
 }
+
+// #1317: rotating MFA_ENCRYPTION_KEY. A secret written under the previous key
+// is readable with the new key after the boot pass, and the previous key no
+// longer decrypts it.
+func TestRekeySecrets_DecryptsDataWrittenWithThePreviousKey(t *testing.T) {
+	db := rekeyDB(t)
+	previous, current := keyOf("the-previous-key"), keyOf("the-new-key")
+	id := addSecret(t, db, "JBSWY3DPEHPK3PXP", previous, false)
+
+	res, err := RekeySecrets(context.Background(), db, previous, current)
+	if err != nil || res.Rekeyed != 1 || res.Unreadable != 0 {
+		t.Fatalf("got %+v, %v; want 1 rekeyed", res, err)
+	}
+	if got, err := secretFor(t, db, id, current); err != nil || got != "JBSWY3DPEHPK3PXP" {
+		t.Fatalf("new key: got %q, %v", got, err)
+	}
+	if _, err := secretFor(t, db, id, previous); err == nil {
+		t.Fatal("the previous key still decrypts after rotation")
+	}
+}
+
+// Without the previous key the data stays readable only by it: the pass
+// reports it as unreadable and leaves it untouched.
+func TestRekeySecrets_WrongPreviousKeyLeavesDataUntouched(t *testing.T) {
+	db := rekeyDB(t)
+	previous := keyOf("the-previous-key")
+	id := addSecret(t, db, "JBSWY3DPEHPK3PXP", previous, false)
+
+	res, err := RekeySecrets(context.Background(), db, keyOf("not-the-previous"), keyOf("the-new-key"))
+	if err != nil || res.Rekeyed != 0 || res.Unreadable != 1 {
+		t.Fatalf("got %+v, %v; want 1 unreadable", res, err)
+	}
+	if got, _ := secretFor(t, db, id, previous); got != "JBSWY3DPEHPK3PXP" {
+		t.Fatal("data was altered by a wrong previous key")
+	}
+}

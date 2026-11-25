@@ -6,6 +6,7 @@
 package main
 
 import (
+	"crypto/sha256"
 	"errors"
 	"strings"
 )
@@ -30,4 +31,17 @@ func mfaEncryptionKey(getenv func(string) string, production bool) (raw, warning
 		return devMFAEncryptionKey, "Warning: MFA_ENCRYPTION_KEY not set — two-factor secrets are encrypted with a public development key. Set it in production.", nil
 	}
 	return raw, "", nil
+}
+
+// mfaPreviousKey reads MFA_ENCRYPTION_PREVIOUS_KEY (#1317): the key being
+// rotated away from. ok is false when it is unset, equals the current key
+// (nothing to move) or is the public dev key (already handled by the dev-key
+// pass). The 32-byte AES key is derived like the current one.
+func mfaPreviousKey(getenv func(string) string, currentRaw string) (key []byte, ok bool) {
+	raw := strings.TrimSpace(getenv("MFA_ENCRYPTION_PREVIOUS_KEY"))
+	if raw == "" || raw == currentRaw || raw == devMFAEncryptionKey {
+		return nil, false
+	}
+	k := sha256.Sum256([]byte(raw))
+	return k[:], true
 }
