@@ -402,7 +402,10 @@ A maintained chart lives in [`helm/openrisk`](../helm/openrisk) with
 `values-dev.yaml` / `values-staging.yaml` / `values-prod.yaml`. It schedules on
 ARM64 nodes when you provide ARM64 images (above). Provide the same secrets
 (`RSA_*`, `MFA_ENCRYPTION_KEY`, `SCANNER_CREDENTIAL_KEY`, `AUDIT_EXPORT_KEY`) and
-optional payment/telemetry env via the chart's `values` / a `Secret`.
+optional payment/telemetry env via the chart's `values` / a `Secret`. Set
+`AUDIT_EXPORT_KEY` as `secrets.inline.auditExportKey` (and rotation as
+`secrets.inline.mfaEncryptionPreviousKey`); the older `backend.env.<NAME>` form
+still works and is moved into the Secret.
 
 `backend.deployment` has no default and the render fails without it (D-081).
 The repository's values files set it to `self_hosted`; with your own values

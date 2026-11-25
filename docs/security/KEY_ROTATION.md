@@ -7,8 +7,8 @@ start and lists **every** unusable variable in one message, never a value.
 
 A secret is refused when it is empty (where required), when it is a public
 development default or an example placeholder (`change-me`, `changeme`,
-`secret`, `test`, `password`, `your-api-key`, anything containing
-`change-me`/`changeme`, the built-in development keys), or when it is too weak
+`secret`, `test`, `password`, `your-api-key`, refused only as exact values;
+anything containing `change-me`/`changeme`, the built-in development keys), or when it is too weak
 (`AUDIT_HASH_KEY` under 32 characters, a JWT key under 2048 bits).
 
 ## Every key, what it protects, how to rotate
@@ -32,12 +32,20 @@ development default or an example placeholder (`change-me`, `changeme`,
    - Helm: `secrets.inline.mfaEncryptionKey` (new) and
      `secrets.inline.mfaEncryptionPreviousKey` (old).
 3. Restart. At boot the backend re-encrypts every two-factor secret that only
-   the previous key can read (`authmfa.RekeySecrets`, idempotent, safe while
-   replicas boot together) and logs counts only:
+   the previous key can read (`authmfa.RekeySecrets`, idempotent, safe when
+   replicas boot together on the new key) and logs counts only:
    `MFA: key rotation: N two-factor secret(s) re-encrypted ... M readable with neither key`.
+   **Rolling updates are not seamless.** At run time a replica decrypts with
+   one key only. During the rollout, pods still on the old key reject every
+   TOTP for secrets already moved, and enrolments made on old pods are written
+   under the old key. Either use a recreate / scale-to-one window, or accept
+   TOTP failures until the rollout ends. A runtime fallback to the previous key
+   is a follow-up.
 4. `M` should be 0. A non-zero `M` means some rows were written under a third
    key: keep the previous key set and find it before removing anything.
-5. Remove `MFA_ENCRYPTION_PREVIOUS_KEY` once `N` is 0 on a second boot.
+5. Keep `MFA_ENCRYPTION_PREVIOUS_KEY` set and restart once more after the
+   rollout, to move enrolments written by old pods. Remove it only after a boot
+   shows `N` = 0.
 
 Proof: `TestRekeySecrets_DecryptsDataWrittenWithThePreviousKey` in
 `backend/internal/infrastructure/authmfa/rekey_test.go` writes a secret under

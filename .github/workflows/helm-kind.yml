@@ -142,6 +142,28 @@ jobs:
               || { echo "❌ the backend no longer reads $key from openrisk-secrets"; exit 1; }
           done
           echo "✅ every key the backend reads is in openrisk-secrets"
+          # A key an older values file still sets as backend.env.<NAME> must
+          # not be duplicated in the backend container (Kubernetes keeps the
+          # last one, an empty Secret value would win) and must land in the
+          # Secret, never in clear in the Deployment (#1317).
+          helm template openrisk helm/openrisk -f helm/kind/values.yaml \
+            --set backend.deployment=self_hosted \
+            --set-file secrets.inline.rsaPrivateKey=private.pem \
+            --set-file secrets.inline.rsaPublicKey=public.pem \
+            --set secrets.inline.mfaEncryptionKey=render-check \
+            --set secrets.inline.auditHashKey=render-check-audit-hash-key-000000 \
+            --set backend.env.AUDIT_EXPORT_KEY=legacy-export-value \
+            --set backend.env.MFA_ENCRYPTION_PREVIOUS_KEY=legacy-previous-value > legacy.yaml
+          dups="$(yq -o=json -I=0 '[select(.kind == "Deployment" and .metadata.name == "backend") | .spec.template.spec.containers[].env[].name]' legacy.yaml | jq -sc 'add | group_by(.) | map(select(length > 1) | .[0]) | join(", ")' -r)"
+          [ -z "$dups" ] || { echo "❌ env names appear twice in the backend container: $dups"; exit 1; }
+          if yq 'select(.kind == "Deployment")' legacy.yaml | grep -q "legacy-export-value\|legacy-previous-value"; then
+            echo "❌ a legacy backend.env secret is in clear in the Deployment"; exit 1
+          fi
+          for pair in "audit-export-key:legacy-export-value" "mfa-encryption-previous-key:legacy-previous-value"; do
+            got="$(yq -r 'select(.kind == "Secret" and .metadata.name == "openrisk-secrets") | .data["'"${pair%%:*}"'"]' legacy.yaml | base64 -d)"
+            [ "$got" = "${pair##*:}" ] || { echo "❌ ${pair%%:*} did not reach the Secret"; exit 1; }
+          done
+          echo "✅ legacy backend.env keys move into the Secret, no duplicate env names"
           helm install openrisk helm/openrisk -f helm/kind/values.yaml \
             --set backend.deployment=self_hosted \
             --set-file secrets.inline.rsaPrivateKey=private.pem \
