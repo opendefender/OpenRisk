@@ -22,7 +22,7 @@ import (
 // credentials with. It is in the public source, so production refuses it
 // (#1200), and a server given a real key re-encrypts whatever was left under
 // it (credrekey.Rekey).
-const devScannerCredentialKey = "openrisk-dev-scanner-credential-key-change-me"
+const devScannerCredentialKey = "openrisk-dev-scanner-credential-key-change-me" //nolint:gosec // G101: public on purpose; it is what production refuses (#1200)
 
 // scannerCredentialKey reads the key that encrypts tenant credentials at rest.
 //
