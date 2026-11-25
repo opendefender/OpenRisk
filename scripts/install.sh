@@ -104,6 +104,12 @@ if ! grep -qE '^[[:space:]]*(export[[:space:]]+)?MFA_ENCRYPTION_KEY=[^[:space:]]
   set_kv MFA_ENCRYPTION_KEY "$(rand_hex 32)"
 fi
 
+# Same for SCANNER_CREDENTIAL_KEY (#1200): production refuses to boot without
+# it, and credentials saved while it was unset move onto it at boot.
+if ! grep -qE '^[[:space:]]*(export[[:space:]]+)?SCANNER_CREDENTIAL_KEY=[^[:space:]]' .env; then
+  set_kv SCANNER_CREDENTIAL_KEY "$(rand_b64_32)"
+fi
+
 # Any existing line counts, however it is written (`export`, leading spaces):
 # adding a second one could silently replace the key in use.
 if ! grep -qE '^[[:space:]]*(export[[:space:]]+)?AUDIT_HASH_KEY=[^[:space:]]' .env; then

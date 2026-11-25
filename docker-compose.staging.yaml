@@ -67,6 +67,8 @@ services:
       AUDIT_HASH_KEY: ${STAGING_AUDIT_HASH_KEY:?set STAGING_AUDIT_HASH_KEY in .env.staging}
       # Also required in production; never change it once secrets are encrypted with it.
       MFA_ENCRYPTION_KEY: ${STAGING_MFA_ENCRYPTION_KEY:?set STAGING_MFA_ENCRYPTION_KEY in .env.staging}
+      # Same rule for tenant cloud and ITSM credentials (#1200).
+      SCANNER_CREDENTIAL_KEY: ${STAGING_SCANNER_CREDENTIAL_KEY:?set STAGING_SCANNER_CREDENTIAL_KEY in .env.staging}
       DB_HOST: postgres-staging
       DB_PORT: 5432
       DB_USER: openrisk_user
