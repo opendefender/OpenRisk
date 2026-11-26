@@ -137,8 +137,20 @@ two Go advisories. Both are tracked in #1207.
 
 ## 4. DAST
 
-See section 4 of the appendix below. It is filled in from the CI run on this
-branch.
+| | |
+|---|---|
+| Tool | OWASP ZAP 2.17.0 baseline (passive), `.github/workflows/dast.yml`, gate `.zap/rules.tsv` (every passive rule is FAIL) |
+| Stack | The real backend binary on Postgres 16 and Redis 7 in CI, ephemeral RS256 keys, `OPENRISK_DEPLOYMENT=self_hosted`, OpenAPI spec imported so every documented path is scanned |
+| Run | `gh workflow run dast.yml --ref security/1319-cross-tenant-suite`: run 45823419745 on `53c5b0fb`, conclusion success |
+
+| Scan | URLs scanned | Documented paths | Result |
+|---|---|---|---|
+| Signed out | 216 | 150 | `FAIL-NEW: 0 WARN-NEW: 0 INFO: 0 IGNORE: 0 PASS: 67` |
+| Signed in (Bearer, GET only) | 136 | 88 | `FAIL-NEW: 0 WARN-NEW: 0 INFO: 0 IGNORE: 0 PASS: 67` |
+| Cache-Control on signed-in GETs | 47 routes | | 43 answered 2xx, 0 cacheable |
+
+No finding. Limits: the scan is passive (no active attack rules), and it sees only
+the paths documented in `docs/openapi.yaml` (150 of them). See RR-DAST-1.
 
 ## 5. Residual-risk register
 
@@ -165,6 +177,7 @@ lands, or the stated reason. The owner's acceptance of this register is D-130.
 | RR-SCA-2 | 5 frontend development-only advisories (`nanoid`, vitest) | low | Dependabot | Accept: not shipped |
 | RR-SAST-1 | Uploaded files are written 0640 and the CTI data directory 0755. Group and other read access on a shared host | low | #1521 | Accept: the image runs as one non-root user, `openrisk` (`Dockerfile:51`) |
 | RR-SAST-2 | 21 low gosec issues not triaged one by one | low | #1521 | Accept |
+| RR-DAST-1 | DAST is passive only, and it covers only the routes documented in `docs/openapi.yaml`. No active scan (injection, fuzzing) was run against a live stack | medium | #1121 (documentation); active scan not planned | Accept for v1.0: the cross-tenant suite and the input-validation audit (#1316) cover the active classes that matter most |
 | RR-SCOPE-1 | Not covered by the suite: cookie sessions (Bearer only), a principal in both tenants, the attacker's own object carrying B's id in the body, and the MFA enrolment branch (a new root is in its 7-day grace period) | medium | #1521 | Accept until #1521 |
 
 ## Appendix: how to reproduce

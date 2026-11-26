@@ -14,7 +14,7 @@ suite (272 of 505 routes probed on Postgres; 109 exempted against a register row
 with nothing to name, 57 auto-exempt), gosec, govulncheck, npm audit and the ZAP
 baseline on a live stack. Seven findings were fixed in #1319, four of them cross-tenant
 leaks with private advisories (GHSA-m6gp-q4m7-27c6, GHSA-3x9h-57v5-w5q3,
-GHSA-39cg-g3rv-985p). The register has 18 rows; each one names an owning issue or
+GHSA-39cg-g3rv-985p). The register has 19 rows; each one names an owning issue or
 a reason. The high-severity row is RR-SCA-1 (Go standard-library advisories,
 #1207).
 
