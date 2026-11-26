@@ -75,6 +75,11 @@ services:
       MFA_ENCRYPTION_KEY: ${MFA_ENCRYPTION_KEY}
       # Optional (#1317): the key being rotated away from, see docs/security/KEY_ROTATION.md.
       MFA_ENCRYPTION_PREVIOUS_KEY: ${MFA_ENCRYPTION_PREVIOUS_KEY:-}
+      # Encrypts tenant cloud, scanner-agent, vulnerability-tool and
+      # Jira/ServiceNow credentials. Required: APP_ENV is production here, and
+      # the backend refuses to boot without it or with the public development
+      # key (#1200). Never change it once credentials are stored; credentials
+      # saved before it was set are re-encrypted with it at boot.
       SCANNER_CREDENTIAL_KEY: ${SCANNER_CREDENTIAL_KEY}
       AUDIT_EXPORT_KEY: ${AUDIT_EXPORT_KEY}
       AUDIT_HASH_KEY: ${AUDIT_HASH_KEY}

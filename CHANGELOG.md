@@ -8,6 +8,36 @@ Git tags use the `vMAJOR.MINOR.PATCH[-rc.N]` convention; see [docs/VERSIONING.md
 
 ## [Unreleased]
 
+> **Operator actions**
+> - Set `SCANNER_CREDENTIAL_KEY` before upgrading. In production the backend now
+>   refuses to boot without it, or with the public development value (#1200).
+>   Keep the value you already use. If you never set one, set any new random secret
+>   (`openssl rand -hex 32`): at boot, cloud, scanner-agent, vulnerability-tool and
+>   Jira/ServiceNow credentials that were encrypted with the development key are
+>   re-encrypted with yours. Never change it afterwards, and give every replica the
+>   same value.
+> - If the backend ever ran without `SCANNER_CREDENTIAL_KEY`, rotate those credentials
+>   anyway. Re-encryption only changes the live rows: every backup, dump, replica or
+>   WAL archive taken before still holds them under a key anyone can read in this
+>   repository. Rotate the AWS, Azure and GCP keys, the vulnerability-tool and
+>   Jira/ServiceNow tokens at their provider, and re-register the scanner agents.
+>   The first boot with a real key logs a `WARN` line for each column it moved.
+>   Self-hosted compose: re-running `./scripts/install.sh` fills it when absent.
+>   Helm: `--set secrets.inline.scannerCredentialKey=...`, stored in the
+>   `openrisk-secrets` Secret; the render fails without it, so `helm upgrade` stops
+>   before any pod restarts. A values file that sets `backend.env.SCANNER_CREDENTIAL_KEY`
+>   keeps working, and the value moves into the Secret. Staging compose: set
+>   `STAGING_SCANNER_CREDENTIAL_KEY` in `.env.staging`.
+
+### Security
+- **Tenant credentials are no longer encrypted with a public key in production (#1200).**
+  When `SCANNER_CREDENTIAL_KEY` was unset, the server encrypted every tenant's cloud,
+  scanner-agent, vulnerability-tool and ITSM credentials with a constant from this
+  repository, so anyone with a database backup could decrypt them. Production now
+  refuses to boot without a real key, and values left on the development key are
+  re-encrypted at boot. Credentials that decrypt with neither key are left as they
+  are and counted in an `ERROR` log line.
+
 ### Planned
 - Board Report mensuel (IA, human-in-the-loop, FCFA) — the second half of M4
 - Mobile app (React Native)

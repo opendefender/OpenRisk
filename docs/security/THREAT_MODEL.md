@@ -182,7 +182,7 @@ the hosting provider's own controls, and physical security.
 | S / I | SSRF to loopback, link-local or cloud metadata through a tenant-supplied URL | `backend/pkg/netguard` resolves, checks at dial time, re-checks redirects and ignores proxy variables. Used by the vulnerability live-pull, ticketing (Jira/ServiceNow), the integration test probe, and the GitHub/GitLab/Docker/Kubernetes/AD/VMware collectors (`backend/internal/scanner/collectors/egress.go`) | Proven: `netguard_test.go`, `collectors/egress_test.go::TestEgress_DefaultIsGuarded` |
 | S / I | Outbound clients not yet inventoried | TheHive is operator-configured; M365 Graph uses a fixed host | #1315 inventories every outbound client that takes a tenant-supplied host |
 | T | Tenant disables TLS verification for its Kubernetes collector | none: `creds["insecure"] == "true"` sets `rest.TLSClientConfig{Insecure: true}` (`collectors/kubernetes.go:64`) | #1348 |
-| I | Tenant cloud credentials disclosed at rest | AES-256-GCM with a random nonce (`backend/pkg/crypto/aes.go`). **The key comes from `DeriveKey`, which pads or truncates instead of running a KDF**, and `SCANNER_CREDENTIAL_KEY` falls back to a public development key (#1200) | #1317, #1200, #1347 |
+| I | Tenant cloud credentials disclosed at rest | AES-256-GCM with a random nonce (`backend/pkg/crypto/aes.go`). **The key comes from `DeriveKey`, which pads or truncates instead of running a KDF**. Production refuses an unset `SCANNER_CREDENTIAL_KEY` or the public development value, and re-encrypts values left on it at boot (#1200) | #1317, #1347 |
 
 ### 7.3 Inbound webhooks and CTI
 
@@ -220,7 +220,7 @@ results. It reports available updates but never replaces itself
 | T | Vulnerable dependency ships | Trivy (backend modules, frontend production dependencies, images) and govulncheck, gated on HIGH and CRITICAL. Exceptions need an owner and expire within 90 days. "Dependency gate" is a required check on `master` | Proven: `backend/pkg/vulngate/vulngate_test.go`. The `agent/` module is not scanned: #1318 |
 | T | Unsigned release artefacts | none. No image signing or provenance in `.github/workflows/release.yml` | #1350 |
 | I | Secrets committed to the repository | TruffleHog "Secret Detection" (required check) | Code-read (CI) |
-| I | Production boots with a development key | Refused for `MFA_ENCRYPTION_KEY` and the audit hash key | Proven: `cmd/server/mfa_key_wiring_test.go`, `audit_hash_key_wiring_test.go`. `SCANNER_CREDENTIAL_KEY`: #1200 / #1317 |
+| I | Production boots with a development key | Refused for `MFA_ENCRYPTION_KEY` and the audit hash key | Proven: `cmd/server/mfa_key_wiring_test.go`, `audit_hash_key_wiring_test.go`. `SCANNER_CREDENTIAL_KEY` too: `cmd/server/scanner_key_wiring_test.go` (#1200) |
 | I | Secrets in logs | Production GORM logger at Warn level (no statement trace) | Partial. Errors and slow queries (> 200 ms) are still logged **with bound values** (`internal/infrastructure/database/database.go`): #1317 |
 
 ---

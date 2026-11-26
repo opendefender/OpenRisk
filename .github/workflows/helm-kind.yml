@@ -63,16 +63,18 @@ jobs:
             --set-file secrets.inline.rsaPrivateKey=private.pem \
             --set-file secrets.inline.rsaPublicKey=public.pem \
             --set secrets.inline.mfaEncryptionKey=lint-only-mfa-key \
+            --set secrets.inline.scannerCredentialKey=lint-only-scanner-key \
             --set secrets.inline.auditHashKey=lint-only-audit-hash-key-0000000000
           # helm lint reports a failed `required` without failing, so the guard
           # each secret relies on is checked by rendering: leave one out and the
-          # render must refuse (#1062, D-065). A merge once dropped the MFA key
+          # render must refuse (#1062, D-065, #1200). A merge once dropped the MFA key
           # from the Secret and nothing here noticed (#1115).
-          for missing in mfaEncryptionKey auditHashKey; do
+          for missing in mfaEncryptionKey scannerCredentialKey auditHashKey; do
             args=(-f helm/kind/values.yaml --set backend.deployment=self_hosted
               --set-file secrets.inline.rsaPrivateKey=private.pem
               --set-file secrets.inline.rsaPublicKey=public.pem)
             [ "$missing" = mfaEncryptionKey ] || args+=(--set secrets.inline.mfaEncryptionKey=render-check)
+            [ "$missing" = scannerCredentialKey ] || args+=(--set secrets.inline.scannerCredentialKey=render-check)
             [ "$missing" = auditHashKey ] || args+=(--set secrets.inline.auditHashKey=render-check-audit-hash-key-000000)
             if out="$(helm template openrisk helm/openrisk "${args[@]}" 2>&1)"; then
               echo "❌ the chart renders without secrets.inline.$missing"; exit 1
@@ -86,6 +88,7 @@ jobs:
           for missing in rsaPrivateKey rsaPublicKey; do
             args=(-f helm/kind/values.yaml --set backend.deployment=self_hosted
               --set secrets.inline.mfaEncryptionKey=render-check
+              --set secrets.inline.scannerCredentialKey=render-check
               --set secrets.inline.auditHashKey=render-check-audit-hash-key-000000)
             [ "$missing" = rsaPrivateKey ] || args+=(--set-file secrets.inline.rsaPrivateKey=private.pem)
             [ "$missing" = rsaPublicKey ] || args+=(--set-file secrets.inline.rsaPublicKey=public.pem)
@@ -104,6 +107,7 @@ jobs:
             --set-file secrets.inline.rsaPrivateKey=private.pem
             --set-file secrets.inline.rsaPublicKey=public.pem
             --set secrets.inline.mfaEncryptionKey=render-check
+            --set secrets.inline.scannerCredentialKey=render-check
             --set secrets.inline.auditHashKey=render-check-audit-hash-key-000000)
           for bad in "" selfhosted-typo; do
             args=("${base[@]}")
@@ -131,13 +135,14 @@ jobs:
             --set-file secrets.inline.rsaPrivateKey=private.pem \
             --set-file secrets.inline.rsaPublicKey=public.pem \
             --set secrets.inline.mfaEncryptionKey=render-check \
+            --set secrets.inline.scannerCredentialKey=render-check \
             --set secrets.inline.auditHashKey=render-check-audit-hash-key-000000 > rendered.yaml
           refs="$(yq -o=json -I=0 '[select(.kind == "Deployment" and .metadata.name == "backend") | .spec.template.spec.containers[].env[] | select(.valueFrom.secretKeyRef.name == "openrisk-secrets") | .valueFrom.secretKeyRef.key]' rendered.yaml | jq -sc 'add // []')"
           held="$(yq -o=json -I=0 'select(.kind == "Secret" and .metadata.name == "openrisk-secrets") | .data | keys' rendered.yaml | jq -sc 'add // []')"
           echo "backend reads: $refs"; echo "Secret holds:  $held"
           missing="$(jq -nr --argjson r "$refs" --argjson h "$held" '($r - $h) | join(", ")')"
           [ -z "$missing" ] || { echo "❌ the backend reads keys openrisk-secrets does not hold: $missing"; exit 1; }
-          for key in mfa-encryption-key audit-hash-key mfa-encryption-previous-key audit-export-key; do
+          for key in mfa-encryption-key scanner-credential-key audit-hash-key mfa-encryption-previous-key audit-export-key; do
             jq -e --arg k "$key" 'index($k) != null' <<<"$refs" >/dev/null \
               || { echo "❌ the backend no longer reads $key from openrisk-secrets"; exit 1; }
           done
@@ -151,6 +156,7 @@ jobs:
             --set-file secrets.inline.rsaPrivateKey=private.pem \
             --set-file secrets.inline.rsaPublicKey=public.pem \
             --set secrets.inline.mfaEncryptionKey=render-check \
+            --set secrets.inline.scannerCredentialKey=render-check \
             --set secrets.inline.auditHashKey=render-check-audit-hash-key-000000 \
             --set backend.env.AUDIT_EXPORT_KEY=legacy-export-value \
             --set backend.env.MFA_ENCRYPTION_PREVIOUS_KEY=legacy-previous-value > legacy.yaml
@@ -170,6 +176,7 @@ jobs:
             --set-file secrets.inline.rsaPublicKey=public.pem \
             --set backend.env.INITIAL_ADMIN_PASSWORD="Kind-$(openssl rand -hex 12)" \
             --set secrets.inline.mfaEncryptionKey="$(openssl rand -hex 32)" \
+            --set secrets.inline.scannerCredentialKey="$(openssl rand -hex 32)" \
             --set secrets.inline.auditHashKey="$(openssl rand -base64 32)"
 
       - name: Backend and frontend become Ready
