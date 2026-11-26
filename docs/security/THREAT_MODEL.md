@@ -114,11 +114,11 @@ the hosting provider's own controls, and physical security.
 |---|---|---|---|
 | S | Request forged with a stolen or forged JWT | RS256 only; the signing method is pinned in code (`backend/pkg/auth/jwt.go`). The login MFA token is refused on protected routes (`backend/internal/middleware/auth.go`) | Partial: a foreign signature is refused (`pkg/auth/jwt_test.go`) and the MFA token ratchet is proven (`internal/handler/typed_token_route_ratchet_test.go`); algorithm pinning is code-read. `iss` and `aud` are set but not validated: #1344 |
 | S | Client sets `X-Forwarded-For` to dodge the per-IP quota | `EnableTrustedProxyCheck` with `TRUSTED_PROXIES` (`backend/internal/middleware/trustedproxy.go`) | Proven: `trustedproxy_test.go::TestRateLimit_SpoofedForwardedForCannotResetCounter` |
-| T | Cross-tenant write (IDOR) on an ID-parameterised route | `tenant_id` filters in the repositories. A CI gate demands an isolation decision for every route (`backend/internal/security/isolation/registry.go`) | Partial. Of 200 route decisions, **45 are still `Pending`**: #1319 |
+| T | Cross-tenant write (IDOR) on an ID-parameterised route | `tenant_id` filters in the repositories. A CI gate demands an isolation decision for every route (`backend/internal/security/isolation/registry.go`) | Partial. A live two-tenant suite on Postgres probes 272 of 505 routes, every route without a probe is exempted against a residual-risk row ([`SECURITY_TEST_REPORT.md`](SECURITY_TEST_REPORT.md), `backend/internal/security/crosstenant/`, #1319). Of 217 route decisions, 39 are still `Pending`: #1521 |
 | T | Mass assignment, e.g. `tenant_id` or role sent in a body | Use cases build entities from typed inputs. The tenant comes from the token (`middleware.GetContext`) | Code-read. No test sweeps every handler: #1316 |
 | T | SQL injection through sort or filter parameters | GORM bound parameters. Sort columns are allow-listed (`backend/internal/domain/risk_repository.go`, `vulnerability_repository.go`) | Code-read. No test pins the allow-lists: #1316 |
 | R | Mutation without an attributable actor | `auditMutations` and `stampAuditActor` middleware, hash-chained `audit_events`, database trigger blocks UPDATE and DELETE | Proven: `internal/domain/audit_chain_test.go`, `internal/handler/audit_trail_e2e_test.go`, `internal/infrastructure/repository/audit_chain_pg_test.go` (runs when `DATABASE_URL` is set) |
-| I | Cross-tenant read (IDOR) and enumeration through counts and lists | As for T above. Collection routes are also in the registry | Partial (45 pending): #1319 |
+| I | Cross-tenant read (IDOR) and enumeration through counts and lists | As for T above. Collection routes are also in the registry | Partial: as for T above, collection routes are probed for B's ids and canaries in A's body (113 of 154). #1521 |
 | I | Internal error text returned to the client | Global handler hides details in production (`backend/internal/middleware/errorhandler.go`). `serverError` helper. A guard test scans for `Status(5xx)` followed by `err.Error()` on the same line | Partial. The guard only matches a literal `Status(5\d\d)`: four handlers that write `fiber.StatusInternalServerError` still return `err.Error()` (`org_deletion_handler.go:99`, `billing_handler.go:119`, `cti_handler.go:128`, `dashboard_handler.go:165`). About 85 more lines return `err.Error()` at 4xx: #1346 |
 | I | Unauthenticated `/metrics` shows runtime and business metrics | none | #1346 |
 | I | Signed-in responses cached by a shared cache | `Cache-Control: no-store` by default (`backend/internal/middleware/securityheaders.go`) | Proven: `securityheaders_test.go::TestSecurityHeaders_DefaultsToNoStore`, `securityheaders_cache_test.go` |
@@ -243,8 +243,8 @@ Further findings were reported privately and are tracked in security advisories 
 ## 11. Limits of this model
 
 - Everything here comes from reading the code at `05b64c8f`. No live
-  penetration test was run for this document. #1319 owns DAST and the live
-  cross-tenant suite.
+  penetration test was run for this document. The live cross-tenant suite, SAST,
+  SCA and DAST results are in [`SECURITY_TEST_REPORT.md`](SECURITY_TEST_REPORT.md) (#1319).
 - The frontend was reviewed only for token storage, URL sinks and the CSP
   question. A full client-side review is part of #1316.
 - Kubernetes, Helm and ingress hardening (network policies, pod security) is
