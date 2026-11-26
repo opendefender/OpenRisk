@@ -512,6 +512,15 @@ func main() {
 		DisableStartupMessage: true, // Plus propre dans les logs de prod
 		ReadTimeout:           10 * time.Second,
 		WriteTimeout:          10 * time.Second,
+		// Immutable (#1319, D-129). Without it, every string Fiber hands out
+		// (c.Params, c.Query, c.Get, c.FormValue, ...) aliases fasthttp's request
+		// buffer, which the next request on the same worker overwrites. A handler
+		// that keeps such a string past its request (a map key, a cache entry, a
+		// goroutine) then holds whatever the next caller sent, possibly another
+		// tenant's data. The live cross-tenant suite hit exactly this in the
+		// scoring-config store. Copying every value costs a few allocations per
+		// request and closes the whole class instead of one call site at a time.
+		Immutable: true,
 		// Trusted proxies (audit finding F-04). Fiber only resolves ProxyHeader
 		// into c.IP() when the peer socket address is in TrustedProxies. With an
 		// empty TRUSTED_PROXIES the check trusts nobody, so a client-supplied
