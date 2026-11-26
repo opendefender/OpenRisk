@@ -332,7 +332,7 @@ func TestRetryAfter_IsTheRestOfTheFixedWindow(t *testing.T) {
 		{window - 300*time.Millisecond, time.Second}, // never below one second
 	}
 	for _, tc := range cases {
-		if got := retryAfter(start.Add(tc.at), window); got != tc.want {
+		if got := RetryAfter(start.Add(tc.at), window); got != tc.want {
 			t.Errorf("at +%v: got %v, want %v", tc.at, got, tc.want)
 		}
 	}

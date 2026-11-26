@@ -221,3 +221,65 @@ func TestRender_FailsAndNamesEachFinding(t *testing.T) {
 		t.Fatalf("empty result must pass:\n%s", out.String())
 	}
 }
+
+// #1318: npm audit is the second opinion on the frontend lockfile. Only the
+// advisory objects are findings; a `via` that names a dependency repeats an
+// advisory listed under that dependency, and MODERATE is never gated.
+func TestParseNpmAudit_KeepsHighAndCriticalAdvisories(t *testing.T) {
+	f, err := os.Open("testdata/npm-audit.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+	got, err := ParseNpmAudit(f)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := Finding{Source: "npm-audit", Target: "frontend/package-lock.json", ID: "GHSA-2v37-7h3g-55p8",
+		Package: "nanoid", Installed: "<3.3.18", Fixed: "available", Severity: "HIGH"}
+	if len(got) != 1 || got[0] != want {
+		t.Fatalf("want only the nanoid advisory %+v, got %+v", want, got)
+	}
+}
+
+// A scan that did not run must fail the gate, never pass it empty.
+func TestParseNpmAudit_AuditErrorIsAnError(t *testing.T) {
+	for name, body := range map[string]string{
+		// What npm 10 prints when the registry refuses its quick-audit call.
+		"registry 400": `{"message":"400 Bad Request - POST https://registry.npmjs.org/-/npm/v1/security/audits/quick","uri":"https://registry.npmjs.org/-/npm/v1/security/audits/quick"}`,
+		// offline=true in an .npmrc: a valid, empty report of nothing audited.
+		"nothing audited": `{"auditReportVersion":2,"vulnerabilities":{},"metadata":{"dependencies":{"prod":0,"dev":0,"total":0}}}`,
+		"npm error":       `{"error":{"code":"ENOLOCK","summary":"This command requires an existing lockfile."}}`,
+		"old format":      `{"advisories":{},"metadata":{}}`,
+		"not json":        `npm ERR! network`,
+	} {
+		if _, err := ParseNpmAudit(strings.NewReader(body)); err == nil {
+			t.Errorf("%s: want an error, got none", name)
+		}
+	}
+}
+
+func TestParseNpmAudit_FixVersionIsNamed(t *testing.T) {
+	body := `{"auditReportVersion":2,"vulnerabilities":{"axios":{"via":[{"name":"axios",
+		"url":"https://github.com/advisories/GHSA-wf5p-g6vw-rhxx","severity":"critical","range":"<1.6.0"}],
+		"fixAvailable":{"name":"axios","version":"1.6.0","isSemVerMajor":false}}},
+		"metadata":{"dependencies":{"prod":1}}}`
+	got, err := ParseNpmAudit(strings.NewReader(body))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 1 || got[0].Fixed != "axios@1.6.0" || got[0].Severity != "CRITICAL" {
+		t.Fatalf("got %+v", got)
+	}
+}
+
+// An npm audit finding is excepted on the same exact (id, package) pair.
+func TestApply_NpmAuditFindingUsesExceptions(t *testing.T) {
+	exc := validException()
+	exc.ID, exc.Package = "GHSA-2v37-7h3g-55p8", "nanoid"
+	f := Finding{Source: "npm-audit", Target: "frontend/package-lock.json", ID: exc.ID, Package: "nanoid", Severity: "HIGH"}
+	res := Apply([]Finding{f}, []Exception{exc})
+	if len(res.Blocking) != 0 || len(res.Excepted) != 1 {
+		t.Fatalf("want the finding excepted, got %+v", res)
+	}
+}

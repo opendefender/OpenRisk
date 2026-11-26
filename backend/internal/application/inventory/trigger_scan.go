@@ -79,6 +79,8 @@ var ErrScanCooldown = &domain.AppError{
 	Err:     domain.ErrConflict,
 	Message: "a scan was started less than 10 minutes ago",
 	Code:    http.StatusTooManyRequests,
+	// The upper bound: the cooldown is not measured per request here (#1318).
+	RetryAfter: ScanCooldown,
 }
 
 // Execute dispatches an inventory job to the tenant's online agents.

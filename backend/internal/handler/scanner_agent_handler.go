@@ -17,6 +17,7 @@ import (
 	invapp "github.com/opendefender/openrisk/internal/application/inventory"
 	scanapp "github.com/opendefender/openrisk/internal/application/scanner"
 	"github.com/opendefender/openrisk/internal/domain"
+	"github.com/opendefender/openrisk/internal/middleware"
 	scanpkg "github.com/opendefender/openrisk/internal/scanner"
 )
 
@@ -243,7 +244,8 @@ func (h *ScannerHandler) AgentHeartbeat(c *fiber.Ctx) error {
 	// middleware and an agent beats about once a minute.
 	if h.heartbeatLimiter != nil && !h.heartbeatLimiter.IsAllowed(
 		"scanner-agent-heartbeat:"+agent.ID.String(), agentHeartbeatLimit, time.Minute) {
-		return writeAppError(c, domain.NewRateLimitError("too many heartbeats"))
+		return writeAppError(c, domain.NewRateLimitError("too many heartbeats",
+			middleware.RetryAfter(time.Now(), time.Minute)))
 	}
 	status := domain.AgentOnline
 	if s := c.Query("status"); s == string(domain.AgentScanning) {

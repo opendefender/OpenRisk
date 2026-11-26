@@ -7,6 +7,7 @@ package auth
 
 import (
 	"errors"
+	"strconv"
 	"strings"
 
 	"github.com/gofiber/fiber/v2"
@@ -126,6 +127,8 @@ func (h *PasswordHandler) ForgotPassword(c *fiber.Ctx) error {
 	switch {
 	case errors.Is(err, appauth.ErrResetRateLimited):
 		h.logAuth(c, coreauth.AuditActionPasswordResetRequest, false, strPtr("rate_limited"))
+		// The header for HTTP clients, the body for the SPA (#688, #1318).
+		c.Set(fiber.HeaderRetryAfter, strconv.Itoa(int(domain.PasswordResetWindow.Seconds())))
 		return c.Status(fiber.StatusTooManyRequests).JSON(fiber.Map{
 			"error":       rateLimitMessage(locale),
 			"retry_after": int(domain.PasswordResetWindow.Seconds()),

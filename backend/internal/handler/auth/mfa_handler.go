@@ -280,6 +280,7 @@ func (h *MFAHandler) Disable(c *fiber.Ctx) error {
 	// Checked before the password is: a refused attempt must not reach the hasher.
 	if h.disableAttempts != nil &&
 		!h.disableAttempts.IsAllowed("mfa-disable:"+userID.String(), mfaDisableMaxAttempts, mfaDisableWindow) {
+		setDisableRetryAfter(c)
 		return fail(fiber.StatusTooManyRequests, "too_many_attempts",
 			pick(locale,
 				"Trop de tentatives. Réessayez dans quelques minutes.",
@@ -404,6 +405,7 @@ func (h *MFAHandler) RegenerateBackupCodes(c *fiber.Ctx) error {
 	// Checked before the password is: a refused attempt must not reach the hasher.
 	if h.disableAttempts != nil &&
 		!h.disableAttempts.IsAllowed("mfa-disable:"+userID.String(), mfaDisableMaxAttempts, mfaDisableWindow) {
+		setDisableRetryAfter(c)
 		return fail(fiber.StatusTooManyRequests, "too_many_attempts",
 			pick(locale,
 				"Trop de tentatives. Réessayez dans quelques minutes.",
@@ -595,4 +597,12 @@ func mapAuthError(c *fiber.Ctx, err error) error {
 	}
 	log.Printf("auth: %s failed: %v", c.Path(), err)
 	return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": genericFailure(resolveLocale(c, ""))})
+}
+
+// setDisableRetryAfter says how long a refused disable or regenerate waits
+// (#1318): the end of the counter's current window, which is when the budget
+// comes back.
+func setDisableRetryAfter(c *fiber.Ctx) {
+	wait := middleware.RetryAfter(time.Now(), mfaDisableWindow)
+	c.Set(fiber.HeaderRetryAfter, strconv.Itoa(int(wait/time.Second)))
 }

@@ -7,6 +7,7 @@ package handler
 
 import (
 	"context"
+	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
@@ -57,14 +58,19 @@ func seedTokenAgent(t *testing.T, repo *repository.GormScannerAgentRepository, k
 
 func beat(t *testing.T, h *ScannerHandler, token, query string) int {
 	t.Helper()
+	return beatResponse(t, h, token, query).StatusCode
+}
+
+func beatResponse(t *testing.T, h *ScannerHandler, token, query string) *http.Response {
+	t.Helper()
 	app := fiber.New()
 	app.Post("/scanner/agent/heartbeat", h.AgentHeartbeat)
 	req := httptest.NewRequest("POST", "/scanner/agent/heartbeat"+query, nil)
 	req.Header.Set("Authorization", "Bearer "+token)
 	resp, err := app.Test(req)
 	require.NoError(t, err)
-	defer resp.Body.Close()
-	return resp.StatusCode
+	_ = resp.Body.Close()
+	return resp
 }
 
 func TestAgentHeartbeat_Success(t *testing.T) {
@@ -128,7 +134,9 @@ func TestAgentHeartbeat_RateLimitedPerAgent(t *testing.T) {
 	for i := 1; i <= 12; i++ {
 		require.Equal(t, 200, beat(t, h, tokenA, ""), "heartbeat %d", i)
 	}
-	assert.Equal(t, 429, beat(t, h, tokenA, ""), "the 13th inside a minute")
+	over := beatResponse(t, h, tokenA, "")
+	assert.Equal(t, 429, over.StatusCode, "the 13th inside a minute")
+	assertRetryAfterWithin(t, over.Header, 60)
 	assert.Equal(t, 200, beat(t, h, tokenB, ""), "another agent has its own budget")
 }
 

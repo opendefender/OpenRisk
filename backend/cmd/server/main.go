@@ -571,21 +571,25 @@ func main() {
 	//
 	// Until now the codebase declared Prometheus metrics but never served them in
 	// the exposition format, so nothing could scrape them.
-	app.Get("/metrics", adaptor.HTTPHandler(promhttp.Handler()))
-
-	api := app.Group("/api/v1")
-
+	//
 	// Baseline per-IP quota across the whole API (audit finding F-03: only 2 of
-	// 289 routes were metered). Mounted here so it also covers unauthenticated
-	// surface — OAuth/SAML callbacks, webhooks, health. Credential endpoints keep
-	// their own much stricter throttle below. The per-tenant quota is mounted
-	// after the auth gate, where the tenant is known.
+	// 289 routes were metered). Mounted on /metrics and on the /api/v1 prefix so
+	// it also covers unauthenticated surface — OAuth/SAML callbacks, webhooks,
+	// health, the scrape target. Credential endpoints keep their own much
+	// stricter throttle below. The per-tenant quota is mounted after the auth
+	// gate, where the tenant is known. docs/security/RATE_LIMITS.md lists every
+	// public route's limiter; internal/handler/rate_limit_table_test.go fails
+	// when a public route is missing from it (#1318).
 	//
 	// Shares the Redis-backed store so counters hold across a horizontally-scaled
 	// deployment, falling back to a per-instance limiter if Redis is unreachable.
 	apiQuota := middleware.LoadQuotaConfig()
 	quotaStore := middleware.NewRedisRateLimitStore(redisClientInstance)
-	api.Use(middleware.IPRateLimit(quotaStore, apiQuota))
+	ipQuota := middleware.IPRateLimit(quotaStore, apiQuota)
+	app.Get("/metrics", ipQuota, adaptor.HTTPHandler(promhttp.Handler()))
+
+	api := app.Group("/api/v1")
+	api.Use(ipQuota)
 
 	// =========================================================================
 	// 5.1 CLEAN ARCHITECTURE AUTH MODULE INITIALIZATION

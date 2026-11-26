@@ -696,6 +696,9 @@ func TestInvitationLifecycle_ResendRevokeAndExpiry(t *testing.T) {
 	// Rate limited immediately after creation.
 	if r := f.call(t, "admin@a.io", http.MethodPost, resendPath, nil); r.status != http.StatusTooManyRequests {
 		t.Fatalf("resend inside the cooldown: got %d, want 429", r.status)
+	} else if got := r.header.Get("Retry-After"); got != "60" {
+		// The fixture clock has not moved since the send: the whole cooldown.
+		t.Fatalf("resend inside the cooldown: Retry-After %q, want \"60\" (#1318)", got)
 	}
 
 	f.now = f.now.Add(domain.InvitationResendCooldown + time.Second)
