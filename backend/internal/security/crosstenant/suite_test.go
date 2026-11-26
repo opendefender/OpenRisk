@@ -73,7 +73,7 @@ func TestCrossTenant(t *testing.T) {
 						for _, f := range fails {
 							t.Errorf("%s: %s", p.ID(), f)
 						}
-						t.Logf("evidence: attack=%d %.200q | random=%d | control=%d %.200q",
+						t.Logf("evidence: attack=%d %.700q | random=%d | control=%d %.200q",
 							o.AttackStatus, o.AttackBody, o.RandomStatus, o.ControlStatus, o.ControlBody)
 					}
 				})

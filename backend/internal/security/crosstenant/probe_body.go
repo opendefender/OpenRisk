@@ -32,4 +32,12 @@ var bodyProbes = []Probe{
 		"risk_ids is accepted and not resolved: incidents hold unsigned integer risk ids while risks are UUIDs, so nothing foreign is joined or returned", "RR-12", 201),
 	post("/api/v1/evidence", `{"title":"attacker","description":"x","control_ids":["{{control}}"]}`, KindControl),
 	post("/api/v1/auth/switch-org", `{"organization_id":"{{tenant}}"}`, KindTenant),
+	get("/api/v1/score-engine/configs/:id", KindScoreConfig),
+	put("/api/v1/score-engine/configs/:id", `{"base_formula":"impact*probability","risk_matrix_thresholds":{"low":4,"medium":9,"high":16,"critical":23}}`, KindScoreConfig),
+	allow(q(post("/api/v1/score-engine/configs", `{"name":"attacker","base_formula":"impact*probability","risk_matrix_thresholds":{"low":4,"medium":9,"high":16,"critical":23}}`, KindScoreConfig), "id={{scoreconfig}}"),
+		"the id is per tenant: A's write under B's id creates A's own copy and B's configuration is verified unchanged", "RR-13", 201),
+	allow(post("/api/v1/score-engine/compute", `{"impact":3,"probability":3,"config_id":"{{scoreconfig}}"}`, KindScoreConfig),
+		"an id that is not the caller's scores with the built-in default; B's configuration is not read", "RR-13", 200),
+	allow(post("/api/v1/score-engine/classify", `{"score":10,"config_id":"{{scoreconfig}}"}`, KindScoreConfig),
+		"an id that is not the caller's classifies with the built-in default; B's configuration is not read", "RR-13", 200),
 }

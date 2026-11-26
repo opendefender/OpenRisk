@@ -7,7 +7,10 @@ package service
 
 import (
 	"fmt"
+	"strings"
 	"sync"
+
+	"github.com/google/uuid"
 
 	"github.com/opendefender/openrisk/internal/domain"
 	"gorm.io/gorm"
@@ -28,10 +31,22 @@ type ScoringConfig struct {
 	UpdatedAt            string
 }
 
+// DefaultConfigID is the built-in configuration every tenant sees. It is code,
+// not data: it cannot be written, so no tenant can change what another reads.
+const DefaultConfigID = "default"
+
+// configKey scopes a stored configuration to its tenant (#1319). The store used
+// to be keyed by id alone and shared by the whole process, so one tenant's write
+// to an id was read back by every other tenant.
+type configKey struct {
+	tenantID uuid.UUID
+	id       string
+}
+
 // ScoreEngineService gère le calcul de score avec configurations personnalisées
 type ScoreEngineService struct {
 	db      *gorm.DB
-	configs map[string]*ScoringConfig
+	configs map[configKey]*ScoringConfig
 	mu      sync.RWMutex
 }
 
@@ -39,7 +54,7 @@ type ScoreEngineService struct {
 func NewScoreEngineService(db *gorm.DB) *ScoreEngineService {
 	return &ScoreEngineService{
 		db:      db,
-		configs: make(map[string]*ScoringConfig),
+		configs: make(map[configKey]*ScoringConfig),
 	}
 }
 
@@ -70,54 +85,129 @@ func (s *ScoreEngineService) DefaultScoringConfig() *ScoringConfig {
 	}
 }
 
-// GetConfig récupère une configuration de scoring
-func (s *ScoreEngineService) GetConfig(configID string) *ScoringConfig {
+// LookupConfig returns the tenant's own configuration with this id. The built-in
+// default is returned for DefaultConfigID; any other id that is not this
+// tenant's is not found, whoever owns it elsewhere. A nil tenant finds nothing.
+func (s *ScoreEngineService) LookupConfig(tenantID uuid.UUID, configID string) (*ScoringConfig, bool) {
+	if configID == DefaultConfigID {
+		return s.DefaultScoringConfig(), true
+	}
+	if tenantID == uuid.Nil {
+		return nil, false
+	}
 	s.mu.RLock()
 	defer s.mu.RUnlock()
+	config, ok := s.configs[configKey{tenantID, configID}]
+	if !ok {
+		return nil, false
+	}
+	return cloneConfig(config), true
+}
 
-	if config, ok := s.configs[configID]; ok {
+// GetConfig is LookupConfig with the fallback the compute, matrix and classify
+// routes always had: an id that is not found scores with the built-in default.
+func (s *ScoreEngineService) GetConfig(tenantID uuid.UUID, configID string) *ScoringConfig {
+	if config, ok := s.LookupConfig(tenantID, configID); ok {
 		return config
 	}
-
 	return s.DefaultScoringConfig()
 }
 
-// CreateConfig crée une nouvelle configuration de scoring
-func (s *ScoreEngineService) CreateConfig(config *ScoringConfig) error {
-	if config.ID == "" {
-		return fmt.Errorf("config ID is required")
+// ListConfigs returns the tenant's own configurations, never another tenant's.
+func (s *ScoreEngineService) ListConfigs(tenantID uuid.UUID) []*ScoringConfig {
+	out := []*ScoringConfig{}
+	if tenantID == uuid.Nil {
+		return out
 	}
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	for k, c := range s.configs {
+		if k.tenantID == tenantID {
+			out = append(out, cloneConfig(c))
+		}
+	}
+	return out
+}
+
+// CreateConfig stores a configuration under the tenant. The id "default" is
+// refused: a tenant that wants different thresholds creates its own id, and the
+// built-in stays what every tenant without an override reads.
+func (s *ScoreEngineService) CreateConfig(tenantID uuid.UUID, config *ScoringConfig) error {
+	if tenantID == uuid.Nil {
+		return domain.ErrForbidden
+	}
+	if config.ID == "" {
+		return domain.NewValidationError("config ID is required")
+	}
+	if config.ID == DefaultConfigID {
+		return domain.NewValidationError("the default configuration is built in and cannot be overwritten")
+	}
+
+	stored := cloneConfig(config)
+	stored.ID = strings.Clone(config.ID)
+	stored.TenantID = tenantID.String()
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
-
-	s.configs[config.ID] = config
+	s.configs[configKey{tenantID, stored.ID}] = stored
 	return nil
 }
 
-// UpdateConfig met à jour une configuration de scoring
-func (s *ScoreEngineService) UpdateConfig(configID string, updates *ScoringConfig) error {
+// UpdateConfig updates the tenant's own configuration. An id that is not the
+// tenant's is ErrNotFound, the same for a foreign id and an unknown one.
+func (s *ScoreEngineService) UpdateConfig(tenantID uuid.UUID, configID string, updates *ScoringConfig) error {
+	if tenantID == uuid.Nil {
+		return domain.ErrForbidden
+	}
+	if configID == DefaultConfigID {
+		return domain.NewValidationError("the default configuration is built in and cannot be overwritten")
+	}
+
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if _, ok := s.configs[configID]; !ok {
-		return fmt.Errorf("config not found: %s", configID)
+	cfg, ok := s.configs[configKey{tenantID, configID}]
+	if !ok {
+		return domain.NewNotFoundError("config", configID)
 	}
-
 	if updates.BaseFormula != "" {
-		s.configs[configID].BaseFormula = updates.BaseFormula
+		cfg.BaseFormula = updates.BaseFormula
 	}
 	if updates.WeightingFactors != nil {
-		s.configs[configID].WeightingFactors = updates.WeightingFactors
+		cfg.WeightingFactors = updates.WeightingFactors
 	}
 	if updates.RiskMatrixThresholds != nil {
-		s.configs[configID].RiskMatrixThresholds = updates.RiskMatrixThresholds
+		cfg.RiskMatrixThresholds = updates.RiskMatrixThresholds
 	}
 	if updates.AssetCriticalityMult != nil {
-		s.configs[configID].AssetCriticalityMult = updates.AssetCriticalityMult
+		cfg.AssetCriticalityMult = updates.AssetCriticalityMult
 	}
-
 	return nil
+}
+
+// cloneConfig copies the maps so a caller holding a returned configuration cannot
+// mutate the stored one.
+func cloneConfig(c *ScoringConfig) *ScoringConfig {
+	out := *c
+	if c.WeightingFactors != nil {
+		out.WeightingFactors = make(map[string]float64, len(c.WeightingFactors))
+		for k, v := range c.WeightingFactors {
+			out.WeightingFactors[k] = v
+		}
+	}
+	if c.RiskMatrixThresholds != nil {
+		out.RiskMatrixThresholds = make(map[string]int, len(c.RiskMatrixThresholds))
+		for k, v := range c.RiskMatrixThresholds {
+			out.RiskMatrixThresholds[k] = v
+		}
+	}
+	if c.AssetCriticalityMult != nil {
+		out.AssetCriticalityMult = make(map[domain.AssetCriticality]float64, len(c.AssetCriticalityMult))
+		for k, v := range c.AssetCriticalityMult {
+			out.AssetCriticalityMult[k] = v
+		}
+	}
+	return &out
 }
 
 // ComputeScoreWithConfig calcule le score en utilisant une configuration personnalisée

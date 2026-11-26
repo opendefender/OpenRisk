@@ -51,8 +51,9 @@ const (
 	KindAssetDep  Kind = "assetdep"
 	KindControl   Kind = "control" // a framework control; also yields the framework
 
-	KindAssessment      Kind = "assessment" // a sent vendor assessment
-	KindVendor          Kind = "vendor"     // an asset of category vendor
+	KindAssessment      Kind = "assessment"  // a sent vendor assessment
+	KindScoreConfig     Kind = "scoreconfig" // a scoring configuration, id chosen by the caller
+	KindVendor          Kind = "vendor"      // an asset of category vendor
 	KindInternalControl Kind = "internalcontrol"
 	KindTenant          Kind = "tenant" // the tenant's own id (virtual: nothing is created)
 	KindWorkflow        Kind = "workflow"
@@ -99,6 +100,7 @@ var Kinds = map[Kind]KindSpec{
 	KindRemediation:     {},
 	KindUser:            {},
 	KindAssessment:      {ReadPath: "/api/v1/vendor-assessments/{assessment}"},
+	KindScoreConfig:     {ReadPath: "/api/v1/score-engine/configs/{scoreconfig}"},
 	KindVendor:          {ReadPath: "/api/v1/vendors/{vendor}/chain"},
 	KindInternalControl: {ReadPath: "/api/v1/compliance/internal-controls/{internalcontrol}"},
 	KindTenant:          {},

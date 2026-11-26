@@ -75,7 +75,7 @@ var collectionProbes = []Probe{
 	agg("/api/v1/risks/summary"),
 	agg("/api/v1/risks/unmapped"),
 	agg("/api/v1/score"),
-	agg("/api/v1/score-engine/configs"),
+	list("/api/v1/score-engine/configs", KindScoreConfig),
 	agg("/api/v1/score-engine/matrix"),
 	agg("/api/v1/score-engine/metrics"),
 	agg("/api/v1/score/history"),

@@ -168,6 +168,21 @@ func seederTable() map[Kind]seeder {
 			}))
 			return with(one(KindAssessment, id), KindVendor, v[KindVendor])
 		},
+		KindScoreConfig: func(h *harness, p *principal) map[Kind]string {
+			// The id is the caller's choice (?id=), so it is chosen here.
+			c := h.canary(p, KindScoreConfig)
+			id := c + "-" + randHex(3)
+			status, resp := h.do(p, "POST", "/api/v1/score-engine/configs?id="+id, jb(map[string]any{
+				"name": c, "description": c, "base_formula": "impact*probability",
+				"risk_matrix_thresholds": map[string]int{"low": 3, "medium": 8, "high": 15, "critical": 22},
+			}))
+			if status != 201 {
+				h.t.Logf("seed: POST score-engine/configs as %s answered %d %.200s", p.name, status, resp)
+				return nil
+			}
+			p.learn(id)
+			return map[Kind]string{KindScoreConfig: id}
+		},
 		KindVendor: func(h *harness, p *principal) map[Kind]string {
 			c := h.canary(p, KindVendor)
 			return one(KindVendor, h.create(p, "/api/v1/assets", jb(map[string]any{

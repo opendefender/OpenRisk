@@ -6,7 +6,10 @@
 package service
 
 import (
+	"errors"
 	"testing"
+
+	"github.com/google/uuid"
 
 	"github.com/opendefender/openrisk/internal/domain"
 	"github.com/stretchr/testify/assert"
@@ -139,10 +142,10 @@ func TestCreateAndGetConfig(t *testing.T) {
 		},
 	}
 
-	err := service.CreateConfig(customConfig)
+	err := service.CreateConfig(testTenantA, customConfig)
 	assert.NoError(t, err)
 
-	retrieved := service.GetConfig("custom")
+	retrieved := service.GetConfig(testTenantA, "custom")
 	assert.NotNil(t, retrieved)
 	assert.Equal(t, "custom", retrieved.ID)
 	assert.Equal(t, "Custom Risk Config", retrieved.Name)
@@ -200,7 +203,7 @@ func TestUpdateConfig(t *testing.T) {
 		},
 	}
 
-	service.CreateConfig(config)
+	service.CreateConfig(testTenantA, config)
 
 	updates := &ScoringConfig{
 		WeightingFactors: map[string]float64{
@@ -208,10 +211,10 @@ func TestUpdateConfig(t *testing.T) {
 		},
 	}
 
-	err := service.UpdateConfig("test", updates)
+	err := service.UpdateConfig(testTenantA, "test", updates)
 	assert.NoError(t, err)
 
-	retrieved := service.GetConfig("test")
+	retrieved := service.GetConfig(testTenantA, "test")
 	assert.Equal(t, 1.5, retrieved.WeightingFactors["impact"])
 }
 
@@ -260,4 +263,74 @@ func TestTrendAdjustment_NegativeScore(t *testing.T) {
 	// Large negative trend should not result in negative score
 	adjusted := service.ApplyTrendAdjustment(5.0, -1.0, config)
 	assert.GreaterOrEqual(t, adjusted, 0.0)
+}
+
+var testTenantA, testTenantB = uuid.New(), uuid.New()
+
+func cfgWith(id, formula string) *ScoringConfig {
+	return &ScoringConfig{
+		ID: id, BaseFormula: formula,
+		WeightingFactors:     map[string]float64{"impact": 1.0},
+		RiskMatrixThresholds: map[string]int{"low": 5, "medium": 12, "high": 19, "critical": 20},
+	}
+}
+
+// TestScoringConfig_Success: a tenant reads back the configuration it wrote.
+func TestScoringConfig_Success(t *testing.T) {
+	svc := NewScoreEngineService(nil)
+	assert.NoError(t, svc.CreateConfig(testTenantA, cfgWith("mine", "a")))
+	got, ok := svc.LookupConfig(testTenantA, "mine")
+	assert.True(t, ok)
+	assert.Equal(t, "a", got.BaseFormula)
+	assert.Equal(t, testTenantA.String(), got.TenantID)
+}
+
+// TestScoringConfig_NotFound: an unknown id is not found, and so is an id that
+// only another tenant holds; both answer the same way.
+func TestScoringConfig_NotFound(t *testing.T) {
+	svc := NewScoreEngineService(nil)
+	assert.NoError(t, svc.CreateConfig(testTenantB, cfgWith("theirs", "b")))
+	for _, id := range []string{"unknown", "theirs"} {
+		_, ok := svc.LookupConfig(testTenantA, id)
+		assert.False(t, ok, id)
+		err := svc.UpdateConfig(testTenantA, id, &ScoringConfig{BaseFormula: "x"})
+		assert.True(t, errors.Is(err, domain.ErrNotFound), id)
+	}
+}
+
+// TestScoringConfig_Unauthorized: a nil tenant reads and writes nothing, and never
+// falls back to all tenants.
+func TestScoringConfig_Unauthorized(t *testing.T) {
+	svc := NewScoreEngineService(nil)
+	assert.NoError(t, svc.CreateConfig(testTenantA, cfgWith("mine", "a")))
+	_, ok := svc.LookupConfig(uuid.Nil, "mine")
+	assert.False(t, ok)
+	assert.Empty(t, svc.ListConfigs(uuid.Nil))
+	assert.True(t, errors.Is(svc.CreateConfig(uuid.Nil, cfgWith("x", "x")), domain.ErrForbidden))
+	assert.True(t, errors.Is(svc.UpdateConfig(uuid.Nil, "mine", &ScoringConfig{}), domain.ErrForbidden))
+}
+
+// TestScoringConfig_CrossTenant: B writing the same id as A does not change what
+// A reads, B cannot update A's copy, and neither can overwrite the built-in default.
+func TestScoringConfig_CrossTenant(t *testing.T) {
+	svc := NewScoreEngineService(nil)
+	assert.NoError(t, svc.CreateConfig(testTenantA, cfgWith("shared-id", "A-formula")))
+	assert.NoError(t, svc.CreateConfig(testTenantB, cfgWith("shared-id", "B-formula")))
+
+	a, _ := svc.LookupConfig(testTenantA, "shared-id")
+	b, _ := svc.LookupConfig(testTenantB, "shared-id")
+	assert.Equal(t, "A-formula", a.BaseFormula)
+	assert.Equal(t, "B-formula", b.BaseFormula)
+
+	assert.NoError(t, svc.UpdateConfig(testTenantB, "shared-id", &ScoringConfig{BaseFormula: "B2"}))
+	a, _ = svc.LookupConfig(testTenantA, "shared-id")
+	assert.Equal(t, "A-formula", a.BaseFormula, "B's update reached A's configuration")
+	assert.Len(t, svc.ListConfigs(testTenantA), 1)
+
+	// The built-in default is read-only for everyone.
+	assert.True(t, errors.Is(svc.CreateConfig(testTenantB, cfgWith("default", "evil")), domain.ErrValidation))
+	assert.True(t, errors.Is(svc.UpdateConfig(testTenantB, "default", &ScoringConfig{BaseFormula: "evil"}), domain.ErrValidation))
+	def, ok := svc.LookupConfig(testTenantA, "default")
+	assert.True(t, ok)
+	assert.Equal(t, "impact*probability", def.BaseFormula)
 }

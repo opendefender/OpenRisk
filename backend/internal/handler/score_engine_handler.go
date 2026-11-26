@@ -6,7 +6,9 @@
 package handler
 
 import (
+	"errors"
 	"log"
+	"strings"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
@@ -47,9 +49,14 @@ type CreateScoringConfigInput struct {
 // @Success 200 {array} service.ScoringConfig
 // @Router /api/v1/score-engine/configs [get]
 func (h *ScoreEngineHandler) GetScoringConfigs(c *fiber.Ctx) error {
+	tenantID := safeGetUUID(c, "tenant_id")
+	if tenantID == uuid.Nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "not authenticated"})
+	}
 	return c.JSON(fiber.Map{
 		"message": "Scoring configurations retrieved successfully",
 		"default": h.service.DefaultScoringConfig(),
+		"configs": h.service.ListConfigs(tenantID),
 	})
 }
 
@@ -68,8 +75,12 @@ func (h *ScoreEngineHandler) GetScoringConfig(c *fiber.Ctx) error {
 		return c.Status(400).JSON(fiber.Map{"error": "Configuration ID is required"})
 	}
 
-	config := h.service.GetConfig(id)
-	if config == nil {
+	tenantID := safeGetUUID(c, "tenant_id")
+	if tenantID == uuid.Nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "not authenticated"})
+	}
+	config, ok := h.service.LookupConfig(tenantID, id)
+	if !ok {
 		return c.Status(404).JSON(fiber.Map{"error": "Configuration not found"})
 	}
 
@@ -86,6 +97,10 @@ func (h *ScoreEngineHandler) GetScoringConfig(c *fiber.Ctx) error {
 // @Success 201 {object} service.ScoringConfig
 // @Router /api/v1/score-engine/configs [post]
 func (h *ScoreEngineHandler) CreateScoringConfig(c *fiber.Ctx) error {
+	tenantID := safeGetUUID(c, "tenant_id")
+	if tenantID == uuid.Nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "not authenticated"})
+	}
 	input := new(CreateScoringConfigInput)
 	if err := c.BodyParser(input); err != nil {
 		return c.Status(400).JSON(fiber.Map{"error": "Invalid request body"})
@@ -106,7 +121,10 @@ func (h *ScoreEngineHandler) CreateScoringConfig(c *fiber.Ctx) error {
 
 	// Create configuration object
 	config := &service.ScoringConfig{
-		ID:                   c.Query("id", ""),
+		// strings.Clone: fasthttp hands out strings that alias the request buffer,
+		// and this one becomes a long-lived map key. Uncloned, a later request
+		// overwrote it, so a stored configuration changed id (#1319).
+		ID:                   strings.Clone(c.Query("id", "")),
 		Name:                 input.Name,
 		Description:          input.Description,
 		BaseFormula:          input.BaseFormula,
@@ -129,7 +147,10 @@ func (h *ScoreEngineHandler) CreateScoringConfig(c *fiber.Ctx) error {
 	}
 
 	// Create in service
-	if err := h.service.CreateConfig(config); err != nil {
+	if err := h.service.CreateConfig(tenantID, config); err != nil {
+		if errors.Is(err, domain.ErrValidation) {
+			return c.Status(400).JSON(fiber.Map{"error": err.Error()})
+		}
 		return serverError(c, "score engine request failed", err)
 	}
 
@@ -152,14 +173,17 @@ func (h *ScoreEngineHandler) UpdateScoringConfig(c *fiber.Ctx) error {
 		return c.Status(400).JSON(fiber.Map{"error": "Configuration ID is required"})
 	}
 
+	tenantID := safeGetUUID(c, "tenant_id")
+	if tenantID == uuid.Nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "not authenticated"})
+	}
 	input := new(CreateScoringConfigInput)
 	if err := c.BodyParser(input); err != nil {
 		return c.Status(400).JSON(fiber.Map{"error": "Invalid request body"})
 	}
 
-	// Get existing config
-	existing := h.service.GetConfig(id)
-	if existing == nil {
+	// Get existing config: the tenant's own, never another tenant's.
+	if _, ok := h.service.LookupConfig(tenantID, id); !ok {
 		return c.Status(404).JSON(fiber.Map{"error": "Configuration not found"})
 	}
 
@@ -179,11 +203,17 @@ func (h *ScoreEngineHandler) UpdateScoringConfig(c *fiber.Ctx) error {
 	}
 
 	// Apply updates
-	if err := h.service.UpdateConfig(id, updates); err != nil {
+	if err := h.service.UpdateConfig(tenantID, id, updates); err != nil {
+		switch {
+		case errors.Is(err, domain.ErrNotFound):
+			return c.Status(404).JSON(fiber.Map{"error": "Configuration not found"})
+		case errors.Is(err, domain.ErrValidation):
+			return c.Status(400).JSON(fiber.Map{"error": err.Error()})
+		}
 		return serverError(c, "score engine request failed", err)
 	}
 
-	updated := h.service.GetConfig(id)
+	updated := h.service.GetConfig(tenantID, id)
 	return c.JSON(updated)
 }
 
@@ -220,17 +250,17 @@ func (h *ScoreEngineHandler) ComputeRiskScore(c *fiber.Ctx) error {
 		return c.Status(400).JSON(fiber.Map{"error": "Probability must be between 1 and 5"})
 	}
 
-	// Get configuration
-	config := h.service.GetConfig(input.ConfigID)
-	if config == nil {
-		config = h.service.DefaultScoringConfig()
+	tenantID := safeGetUUID(c, "tenant_id")
+	if tenantID == uuid.Nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "not authenticated"})
 	}
+	// Get configuration: the tenant's own, else the built-in default.
+	config := h.service.GetConfig(tenantID, input.ConfigID)
 
 	// Load assets if provided — scoped to the caller's tenant so a client cannot
 	// fold another tenant's asset criticality into a computed score (RULE #2).
 	var assets []*domain.Asset
 	if len(input.AssetIDs) > 0 {
-		tenantID := safeGetUUID(c, "tenant_id")
 		if err := h.db.Where("id IN ? AND tenant_id = ?", input.AssetIDs, tenantID).Find(&assets).Error; err != nil {
 			return c.Status(400).JSON(fiber.Map{"error": "Failed to load assets"})
 		}
@@ -269,8 +299,12 @@ func (h *ScoreEngineHandler) ComputeRiskScore(c *fiber.Ctx) error {
 // @Success 200 {object} fiber.Map
 // @Router /api/v1/score-engine/matrix [get]
 func (h *ScoreEngineHandler) GetRiskMatrix(c *fiber.Ctx) error {
+	tenantID := safeGetUUID(c, "tenant_id")
+	if tenantID == uuid.Nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "not authenticated"})
+	}
 	configID := c.Query("config_id", "default")
-	config := h.service.GetConfig(configID)
+	config := h.service.GetConfig(tenantID, configID)
 
 	matrix := h.service.GetRiskMatrix(config)
 
@@ -308,7 +342,11 @@ func (h *ScoreEngineHandler) ClassifyRisk(c *fiber.Ctx) error {
 		return c.Status(400).JSON(fiber.Map{"error": "Score must be non-negative"})
 	}
 
-	config := h.service.GetConfig(input.ConfigID)
+	tenantID := safeGetUUID(c, "tenant_id")
+	if tenantID == uuid.Nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "not authenticated"})
+	}
+	config := h.service.GetConfig(tenantID, input.ConfigID)
 	level := h.service.ClassifyRiskLevel(input.Score, config)
 
 	return c.JSON(fiber.Map{

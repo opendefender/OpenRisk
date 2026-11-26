@@ -193,8 +193,8 @@ func TestRatchet_UnparameterisedWritesAreAccountedFor(t *testing.T) {
 		}
 		k := routeKey(r.Method, r.Path)
 		if p, ok := probes[k]; ok {
-			if len(p.Kinds) == 0 || !strings.Contains(p.Body, "{{") {
-				t.Errorf("%s: a write probe with no {{kind}} in its body proves nothing about body-addressed ids", k)
+			if len(p.Kinds) == 0 || !strings.Contains(p.Body+p.Query, "{{") {
+				t.Errorf("%s: a write probe with no {{kind}} in its body proves nothing about body- or query-addressed ids", k)
 			}
 			continue
 		}
