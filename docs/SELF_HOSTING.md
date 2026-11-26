@@ -305,6 +305,9 @@ one day for the sign-up alert). Every replica must have the same key.
 During a rolling upgrade, old and new replicas count per-address attempts
 separately until the rollout ends.
 
+Every production secret, what it protects and how to rotate it (including
+`MFA_ENCRYPTION_PREVIOUS_KEY`): [`docs/security/KEY_ROTATION.md`](security/KEY_ROTATION.md).
+
 The same upgrade removes the unkeyed hashes written before it (migration
 0079, decision D-074): in the sign-in audit trail they read
 `email_sha256=redacted` and the rest of each entry stays; expired password-reset
@@ -414,7 +417,10 @@ A maintained chart lives in [`helm/openrisk`](../helm/openrisk) with
 `values-dev.yaml` / `values-staging.yaml` / `values-prod.yaml`. It schedules on
 ARM64 nodes when you provide ARM64 images (above). Provide the same secrets
 (`RSA_*`, `MFA_ENCRYPTION_KEY`, `SCANNER_CREDENTIAL_KEY`, `AUDIT_EXPORT_KEY`) and
-optional payment/telemetry env via the chart's `values` / a `Secret`.
+optional payment/telemetry env via the chart's `values` / a `Secret`. Set
+`AUDIT_EXPORT_KEY` as `secrets.inline.auditExportKey` (and rotation as
+`secrets.inline.mfaEncryptionPreviousKey`); the older `backend.env.<NAME>` form
+still works and is moved into the Secret.
 
 `backend.deployment` has no default and the render fails without it (D-081).
 The repository's values files set it to `self_hosted`; with your own values

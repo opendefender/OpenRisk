@@ -51,7 +51,7 @@ spec:
         env:
         {{- range $key, $value := .Values.backend.env }}
         {{- /* Never in clear in the Deployment (#1057): read from the Secret below. */}}
-        {{- if not (has $key (list "MFA_ENCRYPTION_KEY" "SCANNER_CREDENTIAL_KEY")) }}
+        {{- if not (has $key (list "MFA_ENCRYPTION_KEY" "MFA_ENCRYPTION_PREVIOUS_KEY" "AUDIT_EXPORT_KEY" "SCANNER_CREDENTIAL_KEY")) }}
         - name: {{ $key }}
           value: {{ $value | quote }}
         {{- end }}
@@ -68,6 +68,16 @@ spec:
             secretKeyRef:
               name: openrisk-secrets
               key: scanner-credential-key
+        - name: MFA_ENCRYPTION_PREVIOUS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: openrisk-secrets
+              key: mfa-encryption-previous-key
+        - name: AUDIT_EXPORT_KEY
+          valueFrom:
+            secretKeyRef:
+              name: openrisk-secrets
+              key: audit-export-key
         - name: DATABASE_URL
           valueFrom:
             secretKeyRef:

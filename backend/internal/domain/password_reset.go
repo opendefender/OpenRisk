@@ -117,6 +117,10 @@ func HashEmailForReset(email string) string {
 // to boot without a real key (cmd/server), so this never keys a real trail.
 var devAddressHashKey = []byte("openrisk-dev-audit-hash-key-not-a-secret")
 
+// IsDevAddressHashKey reports whether k is the public development key, so the
+// production secrets gate (cmd/server) can refuse it (#1317).
+func IsDevAddressHashKey(k string) bool { return k == string(devAddressHashKey) }
+
 var configuredAddressHashKey atomic.Pointer[[]byte]
 
 // SetAddressHashKey installs the server key. main.go calls it once at boot,

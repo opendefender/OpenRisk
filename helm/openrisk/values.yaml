@@ -331,6 +331,12 @@ secrets:
     # it as backend.env.MFA_ENCRYPTION_KEY: that value is used, and moved into
     # the Secret, when this one is empty.
     mfaEncryptionKey: ""
+    # Optional (#1317): rotation. Put the OLD mfaEncryptionKey here and the new
+    # one above; the next boot re-encrypts every two-factor secret, then this
+    # can be emptied. See docs/security/KEY_ROTATION.md.
+    mfaEncryptionPreviousKey: ""
+    # Optional: signs audit exports; empty = exports are unsigned.
+    auditExportKey: ""
     # Encrypts tenant cloud, agent and ITSM credentials at rest. Required
     # (#1200); once credentials are stored, it must keep the same value
     # forever. An older values file may set it as

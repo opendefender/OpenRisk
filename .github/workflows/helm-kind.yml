@@ -83,6 +83,22 @@ jobs:
               || { echo "❌ render without $missing failed for another reason:"; echo "$out"; exit 1; }
             echo "✅ the render refuses a missing secrets.inline.$missing"
           done
+          # The RS256 pair is required too (#1317): without it, or an existing
+          # Secret, the render must refuse, not deploy a backend that panics.
+          for missing in rsaPrivateKey rsaPublicKey; do
+            args=(-f helm/kind/values.yaml --set backend.deployment=self_hosted
+              --set secrets.inline.mfaEncryptionKey=render-check
+              --set secrets.inline.scannerCredentialKey=render-check
+              --set secrets.inline.auditHashKey=render-check-audit-hash-key-000000)
+            [ "$missing" = rsaPrivateKey ] || args+=(--set-file secrets.inline.rsaPrivateKey=private.pem)
+            [ "$missing" = rsaPublicKey ] || args+=(--set-file secrets.inline.rsaPublicKey=public.pem)
+            if out="$(helm template openrisk helm/openrisk "${args[@]}" 2>&1)"; then
+              echo "❌ the chart renders without secrets.inline.$missing"; exit 1
+            fi
+            echo "$out" | grep -q "secrets.inline.$missing is required" \
+              || { echo "❌ render without $missing failed for another reason:"; echo "$out"; exit 1; }
+            echo "✅ the render refuses a missing secrets.inline.$missing"
+          done
           # backend.deployment has no default (D-081): missing or misspelt, the
           # render refuses and names both values; each valid one reaches the
           # backend as OPENRISK_DEPLOYMENT. The "hosted" case below is a render
@@ -126,11 +142,34 @@ jobs:
           echo "backend reads: $refs"; echo "Secret holds:  $held"
           missing="$(jq -nr --argjson r "$refs" --argjson h "$held" '($r - $h) | join(", ")')"
           [ -z "$missing" ] || { echo "❌ the backend reads keys openrisk-secrets does not hold: $missing"; exit 1; }
-          for key in mfa-encryption-key scanner-credential-key audit-hash-key; do
+          for key in mfa-encryption-key scanner-credential-key audit-hash-key mfa-encryption-previous-key audit-export-key; do
             jq -e --arg k "$key" 'index($k) != null' <<<"$refs" >/dev/null \
               || { echo "❌ the backend no longer reads $key from openrisk-secrets"; exit 1; }
           done
           echo "✅ every key the backend reads is in openrisk-secrets"
+          # A key an older values file still sets as backend.env.<NAME> must
+          # not be duplicated in the backend container (Kubernetes keeps the
+          # last one, an empty Secret value would win) and must land in the
+          # Secret, never in clear in the Deployment (#1317).
+          helm template openrisk helm/openrisk -f helm/kind/values.yaml \
+            --set backend.deployment=self_hosted \
+            --set-file secrets.inline.rsaPrivateKey=private.pem \
+            --set-file secrets.inline.rsaPublicKey=public.pem \
+            --set secrets.inline.mfaEncryptionKey=render-check \
+            --set secrets.inline.scannerCredentialKey=render-check \
+            --set secrets.inline.auditHashKey=render-check-audit-hash-key-000000 \
+            --set backend.env.AUDIT_EXPORT_KEY=legacy-export-value \
+            --set backend.env.MFA_ENCRYPTION_PREVIOUS_KEY=legacy-previous-value > legacy.yaml
+          dups="$(yq -o=json -I=0 '[select(.kind == "Deployment" and .metadata.name == "backend") | .spec.template.spec.containers[].env[].name]' legacy.yaml | jq -sc 'add | group_by(.) | map(select(length > 1) | .[0]) | join(", ")' -r)"
+          [ -z "$dups" ] || { echo "❌ env names appear twice in the backend container: $dups"; exit 1; }
+          if yq 'select(.kind == "Deployment")' legacy.yaml | grep -q "legacy-export-value\|legacy-previous-value"; then
+            echo "❌ a legacy backend.env secret is in clear in the Deployment"; exit 1
+          fi
+          for pair in "audit-export-key:legacy-export-value" "mfa-encryption-previous-key:legacy-previous-value"; do
+            got="$(yq -r 'select(.kind == "Secret" and .metadata.name == "openrisk-secrets") | .data["'"${pair%%:*}"'"]' legacy.yaml | base64 -d)"
+            [ "$got" = "${pair##*:}" ] || { echo "❌ ${pair%%:*} did not reach the Secret"; exit 1; }
+          done
+          echo "✅ legacy backend.env keys move into the Secret, no duplicate env names"
           helm install openrisk helm/openrisk -f helm/kind/values.yaml \
             --set backend.deployment=self_hosted \
             --set-file secrets.inline.rsaPrivateKey=private.pem \

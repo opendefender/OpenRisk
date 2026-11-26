@@ -12,6 +12,19 @@ refuses (#1062).
 {{- end -}}
 
 {{/*
+Optional keys that older values files set as backend.env.<NAME> (#1317). The
+inline value wins; the legacy one is moved into the Secret, so an upgrade keeps
+the operator's key and it never sits in clear in the Deployment.
+*/}}
+{{- define "openrisk.mfaEncryptionPreviousKey" -}}
+{{- .Values.secrets.inline.mfaEncryptionPreviousKey | default ((.Values.backend.env | default dict).MFA_ENCRYPTION_PREVIOUS_KEY) | default "" -}}
+{{- end -}}
+
+{{- define "openrisk.auditExportKey" -}}
+{{- .Values.secrets.inline.auditExportKey | default ((.Values.backend.env | default dict).AUDIT_EXPORT_KEY) | default "" -}}
+{{- end -}}
+
+{{/*
 The tenant credential key (#1200): secrets.inline.scannerCredentialKey, or,
 for a values file that set it before, backend.env.SCANNER_CREDENTIAL_KEY. Same
 reason as the MFA key: an upgrade must keep the key the stored cloud, agent and
