@@ -162,7 +162,7 @@ func RateLimit(config RateLimitConfig) fiber.Handler {
 			// #688: say how long to wait. The header serves HTTP clients; the
 			// body serves the SPA, which cannot read a header CORS does not
 			// expose. error/msg stay for the clients that already read them.
-			wait := int(retryAfter(time.Now(), config.WindowSize) / time.Second)
+			wait := int(RetryAfter(time.Now(), config.WindowSize) / time.Second)
 			c.Set(fiber.HeaderRetryAfter, strconv.Itoa(wait))
 			return c.Status(fiber.StatusTooManyRequests).JSON(fiber.Map{
 				"error":       true,
@@ -176,14 +176,15 @@ func RateLimit(config RateLimitConfig) fiber.Handler {
 	}
 }
 
-// retryAfter is the time left in the current window, rounded up to whole
-// seconds and never under one.
+// RetryAfter is the time left in the current window, rounded up to whole
+// seconds and never under one. Exported for the limiters that live in handlers
+// (#1318), so every 429 announces the same wait the counter will honour.
 //
 // The Redis store counts in fixed, wall-clock-aligned buckets (now / window, see
 // redis.Client.AllowRate), so the end of the bucket is known without asking
 // Redis. The in-memory fallback slides instead, so in degraded mode this can be
 // early by up to one window; a retry then is simply refused again.
-func retryAfter(now time.Time, window time.Duration) time.Duration {
+func RetryAfter(now time.Time, window time.Duration) time.Duration {
 	left := window - time.Duration(now.UnixNano()%int64(window))
 	if left < time.Second {
 		return time.Second

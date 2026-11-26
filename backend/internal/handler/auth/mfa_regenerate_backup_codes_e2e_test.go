@@ -206,9 +206,10 @@ func TestRegenerateBackupCodesE2E_SharesTheDisableBudget(t *testing.T) {
 		status, _ := f.do(t, http.MethodPost, regeneratePath, token, jsonBody{"password": "guess-" + uuid.NewString(), "code": "000000"})
 		require.Equal(t, http.StatusUnauthorized, status)
 	}
-	status, resp := f.do(t, http.MethodPost, regeneratePath, token,
+	status, resp, header := f.doWithHeader(t, http.MethodPost, regeneratePath, token,
 		jsonBody{"password": deferredPassword, "code": liveCode(t, plain)})
 	assert.Equal(t, http.StatusTooManyRequests, status)
+	assertRetryAfterWithin(t, header, 15*60)
 	assert.Equal(t, "too_many_attempts", resp["code"])
 	assert.Len(t, f.codeHashes(t, f.memberA), 8)
 	for _, h := range f.codeHashes(t, f.memberA) {

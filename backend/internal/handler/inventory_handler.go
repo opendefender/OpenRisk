@@ -6,10 +6,6 @@
 package handler
 
 import (
-	"errors"
-	"net/http"
-	"strconv"
-
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 
@@ -35,9 +31,7 @@ func NewInventoryHandler(t *invapp.TriggerScanUseCase, l *invapp.ListAssetInvent
 func (h *InventoryHandler) Scan(c *fiber.Ctx) error {
 	res, err := h.trigger.Execute(c.UserContext(), tenantID(c))
 	if err != nil {
-		if errors.Is(err, domain.ErrConflict) && domain.HTTPStatusFromError(err) == http.StatusTooManyRequests {
-			c.Set(fiber.HeaderRetryAfter, strconv.Itoa(int(invapp.ScanCooldown.Seconds())))
-		}
+		// ErrScanCooldown carries its Retry-After; writeAppError sets it.
 		return writeAppError(c, err)
 	}
 	return c.Status(fiber.StatusAccepted).JSON(res)

@@ -8,6 +8,7 @@ package handler
 import (
 	"context"
 	"io"
+	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
@@ -106,17 +107,19 @@ func TestPublicVendorAssessmentHandler_PerTokenAndPerSubmitLimitsAnswer429(t *te
 	store := &deadAssessmentStore{}
 	app := publicApp(store, limiter)
 
-	send := func(method, path string) int {
+	send := func(method, path string) *http.Response {
 		req := httptest.NewRequest(method, path, strings.NewReader(`{}`))
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set(VendorAssessmentTokenHeader, "same-token")
 		resp, err := app.Test(req)
 		require.NoError(t, err)
-		return resp.StatusCode
+		return resp
 	}
 
-	assert.Equal(t, 404, send("GET", "/api/v1/public/vendor-assessment"))
-	assert.Equal(t, 429, send("GET", "/api/v1/public/vendor-assessment"), "the second request with the same token is over the limit")
+	assert.Equal(t, 404, send("GET", "/api/v1/public/vendor-assessment").StatusCode)
+	over := send("GET", "/api/v1/public/vendor-assessment")
+	assert.Equal(t, 429, over.StatusCode, "the second request with the same token is over the limit")
+	assertRetryAfterWithin(t, over.Header, 3600)
 
 	for k := range limiter.seen {
 		assert.False(t, strings.Contains(k, "same-token"), "the counter store never holds the token: %s", k)

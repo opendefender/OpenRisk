@@ -3,12 +3,12 @@
 
 // Command vulngate is the dependency vulnerability gate run by CI and by the
 // release workflow. It exits 1 when a HIGH/CRITICAL (Trivy) or reachable
-// (govulncheck) finding has no valid exception, or when the exception file is
+// (govulncheck) finding, or a HIGH/CRITICAL npm audit advisory, has no valid exception, or when the exception file is
 // malformed or holds an expired entry; 2 when its inputs cannot be read.
 //
 //	vulngate -exceptions security/vulnerability-exceptions.yaml \
 //	    -trivy backend.json -trivy frontend.json -trivy image.json \
-//	    -govulncheck govulncheck.json
+//	    -govulncheck govulncheck.json -npmaudit npm-audit.json
 package main
 
 import (
@@ -34,16 +34,17 @@ func main() {
 func run(args []string, stdout, stderr io.Writer) int {
 	fs := flag.NewFlagSet("vulngate", flag.ContinueOnError)
 	fs.SetOutput(stderr)
-	var trivy, govuln fileList
+	var trivy, govuln, npmAudit fileList
 	excPath := fs.String("exceptions", "security/vulnerability-exceptions.yaml", "exceptions file")
 	todayFlag := fs.String("today", "", "evaluate expiry as of this YYYY-MM-DD date (default: today, UTC)")
 	fs.Var(&trivy, "trivy", "Trivy JSON report (repeatable)")
 	fs.Var(&govuln, "govulncheck", "govulncheck -format json output (repeatable)")
+	fs.Var(&npmAudit, "npmaudit", "npm audit --json output (repeatable)")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
-	if len(trivy)+len(govuln) == 0 {
-		fmt.Fprintln(stderr, "vulngate: at least one -trivy or -govulncheck report is required")
+	if len(trivy)+len(govuln)+len(npmAudit) == 0 {
+		fmt.Fprintln(stderr, "vulngate: at least one -trivy, -govulncheck or -npmaudit report is required")
 		return 2
 	}
 
@@ -74,6 +75,14 @@ func run(args []string, stdout, stderr io.Writer) int {
 	}
 	for _, p := range govuln {
 		f, err := parseFile(p, vulngate.ParseGovulncheck)
+		if err != nil {
+			fmt.Fprintf(stderr, "vulngate: %s: %v\n", p, err)
+			return 2
+		}
+		findings = append(findings, f...)
+	}
+	for _, p := range npmAudit {
+		f, err := parseFile(p, vulngate.ParseNpmAudit)
 		if err != nil {
 			fmt.Fprintf(stderr, "vulngate: %s: %v\n", p, err)
 			return 2

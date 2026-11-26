@@ -50,6 +50,8 @@ var ErrPushCooldown = &domain.AppError{
 	Err:     domain.ErrConflict,
 	Message: "an inventory was received from this agent less than a minute ago",
 	Code:    http.StatusTooManyRequests,
+	// The upper bound, as for ErrScanCooldown (#1318).
+	RetryAfter: PushCooldown,
 }
 
 // HostReport is the host as the agent describes it.

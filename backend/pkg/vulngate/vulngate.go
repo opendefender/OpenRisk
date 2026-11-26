@@ -3,8 +3,8 @@
 
 // Package vulngate decides whether a set of dependency scan results may ship.
 //
-// It reads Trivy JSON reports (Go modules, npm lockfile, container image) and
-// govulncheck JSON streams, applies the exceptions declared in
+// It reads Trivy JSON reports (Go modules, npm lockfile, container image),
+// govulncheck JSON streams and `npm audit --json` reports, applies the exceptions declared in
 // security/vulnerability-exceptions.yaml, and reports every finding that is
 // neither fixed nor covered by a valid, unexpired exception. An exception file
 // that is malformed, or holds an expired entry, fails the gate on its own:
@@ -36,11 +36,11 @@ var githubHandle = regexp.MustCompile(`^[A-Za-z0-9](?:[A-Za-z0-9]|-[A-Za-z0-9]){
 
 // Finding is one vulnerable package reported by a scanner.
 type Finding struct {
-	Source    string // "trivy" or "govulncheck"
+	Source    string // "trivy", "govulncheck" or "npm-audit"
 	Target    string // lockfile, image layer or binary the scanner looked at
 	ID        string // CVE-, GHSA- or GO- identifier
 	Package   string // module, npm package or OS package name
-	Installed string
+	Installed string // version, or the vulnerable range for npm audit, which names no version
 	Fixed     string // empty when no fixed version exists
 	Severity  string // HIGH, CRITICAL, or "REACHABLE" for govulncheck
 }
@@ -300,6 +300,112 @@ func ParseGovulncheck(r io.Reader) ([]Finding, error) {
 			Severity:  "REACHABLE",
 		})
 	}
+}
+
+// ---------------------------------------------------------------------------
+// npm audit
+// ---------------------------------------------------------------------------
+
+type npmAuditReport struct {
+	AuditReportVersion int             `json:"auditReportVersion"`
+	Error              json.RawMessage `json:"error"`
+	Vulnerabilities    map[string]struct {
+		// Each entry is an advisory object, or the name of the dependency the
+		// package is vulnerable through. Only the advisories are findings: the
+		// names repeat an advisory already listed under that dependency.
+		Via          []json.RawMessage `json:"via"`
+		FixAvailable json.RawMessage   `json:"fixAvailable"`
+	} `json:"vulnerabilities"`
+	Metadata struct {
+		Dependencies struct {
+			Prod int `json:"prod"`
+		} `json:"dependencies"`
+	} `json:"metadata"`
+}
+
+type npmAdvisory struct {
+	Name     string `json:"name"`
+	URL      string `json:"url"`
+	Severity string `json:"severity"`
+	Range    string `json:"range"`
+}
+
+// ParseNpmAudit reads `npm audit --json` (npm 7 and later, report version 2) and
+// keeps HIGH and CRITICAL advisories. The identifier is the GHSA id that ends
+// the advisory URL. A report that carries an "error" key (no lockfile, registry
+// unreachable), no report version, or no production dependency audited is an
+// error, never an empty result: a scan that did not run must not pass the gate.
+func ParseNpmAudit(r io.Reader) ([]Finding, error) {
+	var rep npmAuditReport
+	if err := json.NewDecoder(r).Decode(&rep); err != nil {
+		return nil, fmt.Errorf("npm audit report: %w", err)
+	}
+	if len(rep.Error) > 0 && string(rep.Error) != "null" {
+		return nil, fmt.Errorf("npm audit report: the audit failed: %s", rep.Error)
+	}
+	if rep.AuditReportVersion != 2 {
+		return nil, fmt.Errorf("npm audit report: auditReportVersion %d, want 2 (npm 7 or later)", rep.AuditReportVersion)
+	}
+	// npm prints a well-formed empty report when it audited nothing: offline
+	// mode set in an .npmrc, or no lockfile entries. That is a scan that did not
+	// run, not a clean one.
+	if rep.Metadata.Dependencies.Prod == 0 {
+		return nil, fmt.Errorf("npm audit report: no production dependency was audited")
+	}
+	names := make([]string, 0, len(rep.Vulnerabilities))
+	for name := range rep.Vulnerabilities {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+
+	var out []Finding
+	for _, name := range names {
+		v := rep.Vulnerabilities[name]
+		for _, raw := range v.Via {
+			var adv npmAdvisory
+			if json.Unmarshal(raw, &adv) != nil {
+				continue // a dependency name, not an advisory
+			}
+			sev := strings.ToUpper(adv.Severity)
+			if sev != "HIGH" && sev != "CRITICAL" {
+				continue
+			}
+			id := adv.URL[strings.LastIndex(adv.URL, "/")+1:]
+			if id == "" {
+				return nil, fmt.Errorf("npm audit report: %s: advisory without an id (url %q)", name, adv.URL)
+			}
+			pkg := adv.Name
+			if pkg == "" {
+				pkg = name
+			}
+			out = append(out, Finding{
+				Source:    "npm-audit",
+				Target:    "frontend/package-lock.json",
+				ID:        id,
+				Package:   pkg,
+				Installed: adv.Range,
+				Fixed:     npmFix(v.FixAvailable),
+				Severity:  sev,
+			})
+		}
+	}
+	return out, nil
+}
+
+// npmFix renders fixAvailable, which npm writes as false, true, or the package
+// and version `npm audit fix` would install.
+func npmFix(raw json.RawMessage) string {
+	var fix struct {
+		Name    string `json:"name"`
+		Version string `json:"version"`
+	}
+	switch {
+	case string(raw) == "true":
+		return "available"
+	case json.Unmarshal(raw, &fix) == nil && fix.Version != "":
+		return fix.Name + "@" + fix.Version
+	}
+	return ""
 }
 
 // ---------------------------------------------------------------------------

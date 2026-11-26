@@ -2,8 +2,8 @@ name: Dependency gate
 
 # The single blocking gate on known vulnerabilities in what OpenRisk ships
 # (#487): backend Go modules, frontend production dependencies, the image
-# built from the root Dockerfile and the two self-host images. HIGH and CRITICAL findings, and govulncheck
-# findings our code reaches, fail it unless security/vulnerability-exceptions.yaml
+# built from the root Dockerfile and the two self-host images. HIGH and CRITICAL findings (Trivy, and
+# npm audit on the frontend lockfile since #1318), and govulncheck findings our code reaches, fail it unless security/vulnerability-exceptions.yaml
 # holds a valid, unexpired entry for that exact id and package.
 #
 # The daily run matters on its own: a new advisory, or an exception reaching
@@ -30,6 +30,7 @@ permissions:
   contents: read
 
 env:
+  NPM_VERSION: 11.21.3
   TRIVY_VERSION: v0.74.0
   GOVULNCHECK_VERSION: v1.7.0
 
@@ -61,6 +62,16 @@ jobs:
         with:
           version: ${{ env.TRIVY_VERSION }}
           cache: true
+
+      # npm audit reads frontend/package-lock.json only; nothing is installed.
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+
+      # npm 10 (Node 22's) calls the quick-audit endpoint the registry is
+      # retiring and can get a 400; npm 11 uses the bulk advisory endpoint.
+      - name: Pin npm for npm audit
+        run: npm install -g npm@${NPM_VERSION}
 
       - name: Install govulncheck
         run: go install "golang.org/x/vuln/cmd/govulncheck@${GOVULNCHECK_VERSION}"

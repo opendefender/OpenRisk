@@ -115,3 +115,16 @@ func TestDisableMFA_ReplayedCodeIsRefused(t *testing.T) {
 	assert.ErrorIs(t, f.runWithCode("", code), ErrMFADisableCodeIncorrect)
 	f.assertStillEnrolled(t)
 }
+
+// #1318: verify is the enrolment step only. On an account whose factor is live
+// it must not judge codes at all — not even the right one — or it becomes a
+// guessing oracle outside the challenge's lockout.
+func TestVerifyMFA_AlreadyVerified_Conflict(t *testing.T) {
+	f := newReplayFixture(t, true)
+
+	_, err := NewVerifyMFAUseCase(f.repo, repository.GormUserRepository{}, replayKey).Execute(context.Background(),
+		VerifyMFAInput{UserID: f.user, TenantID: f.tenant, Code: f.codeAt(t, 0)})
+	require.ErrorIs(t, err, domain.ErrConflict)
+
+	assert.NoError(t, f.challenge(f.codeAt(t, 0)), "the refused verify spent no code")
+}
