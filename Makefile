@@ -1,4 +1,4 @@
-.PHONY: help build test lint clean docker-build docker-up docker-down migrate migrate-rollback migrate-status migrate-force seed seed-dev dev install setup version sync-version check-version
+.PHONY: help build test test-cross-tenant lint clean docker-build docker-up docker-down migrate migrate-rollback migrate-status migrate-force seed seed-dev dev install setup version sync-version check-version
 
 # ============================================================================
 # VERSION — single source of truth is the root VERSION file (see docs/VERSIONING.md)
@@ -159,6 +159,25 @@ test-integration:
 	  REDIS_URL=redis://localhost:$(IT_REDIS_PORT) APP_ENV=test; \
 	PORT=$(IT_SERVER_PORT) scripts/ci/build-schema.sh; \
 	cd backend && go test -race -tags=integration ./...
+
+# The live cross-tenant suite (#1319), run the way the cross-tenant-suite CI job
+# runs it: throwaway Postgres and Redis, one server boot, the suite against it,
+# the boot log checked for tenantguard lines. Run from the repository root.
+test-cross-tenant:
+	@echo "Running the cross-tenant suite against a booted server..."
+	@set -e; \
+	cleanup() { docker rm -f openrisk-xt-pg openrisk-xt-redis >/dev/null 2>&1 || true; }; \
+	trap cleanup EXIT; cleanup; \
+	docker run -d --rm --name openrisk-xt-pg -p 127.0.0.1:$(IT_DB_PORT):5432 \
+	  -e POSTGRES_USER=test -e POSTGRES_PASSWORD=test -e POSTGRES_DB=openrisk_test \
+	  --tmpfs /var/lib/postgresql/data postgres:16-alpine >/dev/null; \
+	docker run -d --rm --name openrisk-xt-redis -p 127.0.0.1:$(IT_REDIS_PORT):6379 redis:7-alpine >/dev/null; \
+	for i in $$(seq 1 30); do docker exec openrisk-xt-pg pg_isready -h 127.0.0.1 -U test -d openrisk_test >/dev/null 2>&1 && break; sleep 1; done; \
+	docker exec openrisk-xt-pg pg_isready -h 127.0.0.1 -U test -d openrisk_test; \
+	export DATABASE_URL="$(IT_DB_URL)" DB_HOST=localhost DB_PORT=$(IT_DB_PORT) DB_USER=test DB_PASSWORD=test \
+	  DB_NAME=openrisk_test REDIS_HOST=localhost REDIS_PORT=$(IT_REDIS_PORT) \
+	  REDIS_URL=redis://localhost:$(IT_REDIS_PORT) APP_ENV=test; \
+	PORT=$(IT_SERVER_PORT) scripts/ci/cross-tenant.sh
 
 frontend-test:
 	@echo "🧪 Running frontend tests..."
