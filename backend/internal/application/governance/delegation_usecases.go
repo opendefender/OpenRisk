@@ -31,10 +31,25 @@ type CreateDelegationInput struct {
 	ActorIsAdmin bool
 }
 
+// MemberLookup is the narrow port that proves a user belongs to the tenant.
+// Satisfied structurally by the membership repository (cmd/server memberDirectory).
+type MemberLookup interface {
+	GetMember(ctx context.Context, tenantID, userID uuid.UUID) (*domain.OrganizationMember, error)
+}
+
 type CreateDelegationUseCase struct {
 	repo     domain.DelegationRepository
 	recorder *AuditRecorder
 	lookup   UserLookup
+	members  MemberLookup
+}
+
+// WithMembers makes Execute refuse a delegate who is not a member of the
+// tenant (#1319). Without it any user id, from any organisation, was accepted,
+// and listing the delegation then resolved that user's e-mail address.
+func (uc *CreateDelegationUseCase) WithMembers(m MemberLookup) *CreateDelegationUseCase {
+	uc.members = m
+	return uc
 }
 
 func NewCreateDelegationUseCase(repo domain.DelegationRepository) *CreateDelegationUseCase {
@@ -72,6 +87,18 @@ func (uc *CreateDelegationUseCase) Execute(ctx context.Context, tenantID, actorI
 	}
 	if in.DelegateID == delegator {
 		return nil, domain.NewValidationError("cannot delegate to yourself")
+	}
+	// #1319: the delegate must belong to THIS tenant. A foreign or unknown id
+	// answers not-found, the same for both, so the answer says nothing about
+	// whether the user exists elsewhere.
+	if uc.members != nil {
+		member, err := uc.members.GetMember(ctx, tenantID, in.DelegateID)
+		if err != nil {
+			return nil, err
+		}
+		if member == nil {
+			return nil, domain.NewNotFoundError("user", in.DelegateID.String())
+		}
 	}
 	perms := normalisePermissions(in.Permissions)
 	if len(perms) == 0 {

@@ -655,3 +655,45 @@ func TestRevokeDelegation_Unauthorized_Bystander(t *testing.T) {
 		}
 	}
 }
+
+// fakeMembers answers GetMember for the users it was given, per tenant.
+type fakeMembers struct{ in map[[2]uuid.UUID]bool }
+
+func (f fakeMembers) GetMember(_ context.Context, tenantID, userID uuid.UUID) (*domain.OrganizationMember, error) {
+	if f.in[[2]uuid.UUID{tenantID, userID}] {
+		return &domain.OrganizationMember{}, nil
+	}
+	return nil, nil
+}
+
+// TestCreateDelegation_RejectsDelegateOutsideTenant: a delegate from another
+// organisation reads back as not found, with the same error as an unknown id.
+func TestCreateDelegation_RejectsDelegateOutsideTenant(t *testing.T) {
+	repo := newFakeDelegationRepo()
+	tenant, otherTenant, actor, member, foreign := uuid.New(), uuid.New(), uuid.New(), uuid.New(), uuid.New()
+	members := fakeMembers{in: map[[2]uuid.UUID]bool{{tenant, member}: true, {otherTenant, foreign}: true}}
+	uc := NewCreateDelegationUseCase(repo).WithMembers(members)
+	end := time.Now().Add(24 * time.Hour)
+
+	// Success: a member of the tenant.
+	if _, err := uc.Execute(context.Background(), tenant, actor, CreateDelegationInput{
+		DelegateID: member, Permissions: []string{"risks:read"}, EndsAt: &end,
+	}); err != nil {
+		t.Fatalf("a member must be accepted: %v", err)
+	}
+	// NotFound: a user of another tenant, and a random id, answer the same.
+	for name, id := range map[string]uuid.UUID{"foreign": foreign, "random": uuid.New()} {
+		_, err := uc.Execute(context.Background(), tenant, actor, CreateDelegationInput{
+			DelegateID: id, Permissions: []string{"risks:read"}, EndsAt: &end,
+		})
+		if !errors.Is(err, domain.ErrNotFound) {
+			t.Fatalf("%s delegate: want ErrNotFound, got %v", name, err)
+		}
+	}
+	// Unauthorized: no actor at all is refused before any lookup.
+	if _, err := uc.Execute(context.Background(), tenant, uuid.Nil, CreateDelegationInput{
+		DelegateID: member, Permissions: []string{"risks:read"}, EndsAt: &end,
+	}); !errors.Is(err, domain.ErrValidation) {
+		t.Fatalf("a missing actor must be refused, got %v", err)
+	}
+}

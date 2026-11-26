@@ -364,7 +364,7 @@ func DeleteMitigation(c *fiber.Ctx) error {
 
 	repo := repository.NewGormMitigationRepository(database.DB)
 	if err := repo.Delete(ctx.OrganizationID.String(), uuid.MustParse(planID)); err != nil {
-		return c.Status(400).JSON(fiber.Map{"error": err.Error()})
+		return mitigationError(c, err)
 	}
 
 	return c.SendStatus(204)
@@ -392,9 +392,24 @@ func ValidateMitigation(c *fiber.Ctx) error {
 	}
 
 	if err := useCase.Execute(input); err != nil {
-		return c.Status(400).JSON(fiber.Map{"error": err.Error()})
+		return mitigationError(c, err)
 	}
 
 	validated, _ := repo.GetByIDWithSubActions(ctx.OrganizationID.String(), uuid.MustParse(planID))
 	return c.JSON(validated)
+}
+
+// mitigationError maps a use case error to the response. A plan or sub-action
+// that is absent or belongs to another tenant answers the same 404 with the same
+// body (#1319): a 400 carrying "not_found" or "forbidden" told a prober nothing
+// about the row but broke the 404-for-both rule the cross-tenant suite checks,
+// and err.Error() could carry a driver or guard message.
+func mitigationError(c *fiber.Ctx, err error) error {
+	switch {
+	case errors.Is(err, domain.ErrNotFound), errors.Is(err, domain.ErrForbidden):
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "not found"})
+	case errors.Is(err, domain.ErrConflict):
+		return c.Status(fiber.StatusConflict).JSON(fiber.Map{"error": err.Error()})
+	}
+	return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": err.Error()})
 }

@@ -9,6 +9,7 @@ import (
 	"log"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/google/uuid"
 	"github.com/opendefender/openrisk/internal/domain"
 	"github.com/opendefender/openrisk/internal/service"
 	"gorm.io/gorm"
@@ -326,6 +327,14 @@ func (h *ScoreEngineHandler) ClassifyRisk(c *fiber.Ctx) error {
 // @Success 200 {object} fiber.Map
 // @Router /api/v1/score-engine/metrics [get]
 func (h *ScoreEngineHandler) GetScoringMetrics(c *fiber.Ctx) error {
+	// #1319: the three queries below read every tenant's risks. The cross-tenant
+	// suite found it through the tenant guard (a no-tenant select on risks) and,
+	// with the guard off, the figures were a deployment-wide average and maximum.
+	// Fail closed on a missing tenant, never fall back to all tenants.
+	tenantID := safeGetUUID(c, "tenant_id")
+	if tenantID == uuid.Nil {
+		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "not authenticated"})
+	}
 	config := h.service.DefaultScoringConfig()
 
 	// Count risks by level
@@ -336,6 +345,7 @@ func (h *ScoreEngineHandler) GetScoringMetrics(c *fiber.Ctx) error {
 
 	var stats []RiskStats
 	h.db.Model(&domain.Risk{}).
+		Where("tenant_id = ?", tenantID).
 		Select("CASE "+
 			"WHEN score >= ? THEN 'critical' "+
 			"WHEN score >= ? THEN 'high' "+
@@ -350,13 +360,13 @@ func (h *ScoreEngineHandler) GetScoringMetrics(c *fiber.Ctx) error {
 
 	// Calculate average score
 	var avgScore float64
-	if err := h.db.Model(&domain.Risk{}).Select("AVG(score)").Row().Scan(&avgScore); err != nil {
+	if err := h.db.Model(&domain.Risk{}).Where("tenant_id = ?", tenantID).Select("AVG(score)").Row().Scan(&avgScore); err != nil {
 		log.Printf("Warning: failed to compute average risk score: %v", err)
 	}
 
 	// Calculate distribution
 	var maxScore float64
-	if err := h.db.Model(&domain.Risk{}).Select("MAX(score)").Row().Scan(&maxScore); err != nil {
+	if err := h.db.Model(&domain.Risk{}).Where("tenant_id = ?", tenantID).Select("MAX(score)").Row().Scan(&maxScore); err != nil {
 		log.Printf("Warning: failed to compute max risk score: %v", err)
 	}
 

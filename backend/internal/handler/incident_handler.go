@@ -143,6 +143,9 @@ func (h *IncidentHandler) UpdateIncident(c *fiber.Ctx) error {
 
 	incident, err := h.incidentService.UpdateIncident(tenantID, uint(incidentID), req, userID)
 	if err != nil {
+		if errors.Is(err, domain.ErrNotFound) {
+			return c.Status(http.StatusNotFound).JSON(fiber.Map{"error": "Incident not found"})
+		}
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
 			"error": fmt.Sprintf("Failed to update incident: %v", err),
 		})
@@ -164,6 +167,9 @@ func (h *IncidentHandler) DeleteIncident(c *fiber.Ctx) error {
 	tenantID := safeGetString(c, "tenant_id")
 
 	if err := h.incidentService.DeleteIncident(tenantID, uint(incidentID)); err != nil {
+		if errors.Is(err, domain.ErrNotFound) {
+			return c.Status(http.StatusNotFound).JSON(fiber.Map{"error": "Incident not found"})
+		}
 		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
 			"error": fmt.Sprintf("Failed to delete incident: %v", err),
 		})

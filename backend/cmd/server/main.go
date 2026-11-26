@@ -1493,7 +1493,8 @@ func main() {
 	createRiskUseCase := risk.NewCreateRiskUseCase(riskRepo).
 		WithActivation(activationRecorder).
 		WithOwnership(ownershipService).
-		WithAssets(riskAssetStore)
+		WithAssets(riskAssetStore).
+		WithCategories(repository.NewGormRiskCategoryRepository(database.DB))
 	getRiskUseCase := risk.NewGetRiskUseCase(riskRepo).
 		WithMappings(riskControlMappingRepo).
 		WithOwnership(ownershipService)
@@ -1504,7 +1505,8 @@ func main() {
 	updateRiskUseCase := risk.NewUpdateRiskUseCase(riskRepo).
 		WithNotices(requestNoticeDispatcher).
 		WithOwnership(ownershipService).
-		WithAssets(riskAssetStore)
+		WithAssets(riskAssetStore).
+		WithCategories(repository.NewGormRiskCategoryRepository(database.DB))
 	deleteRiskUseCase := risk.NewDeleteRiskUseCase(riskRepo)
 	// Cyber Risk Quantification: XAF→USD rate configurable via XAF_USD_RATE
 	// (default ≈ 600 FCFA/USD). Reference ALE bands match the board ExposureModel.
@@ -3736,7 +3738,7 @@ func main() {
 		SetRetention: governance.NewSetRetentionPolicyUseCase(auditRetentionRepo).WithRecorder(governanceRecorder),
 		PruneAudit:   governance.NewPruneAuditTrailUseCase(auditChainRepo, auditRetentionRepo),
 
-		CreateDelegation: governance.NewCreateDelegationUseCase(delegationRepo).WithRecorder(governanceRecorder).WithUserLookup(userRepo),
+		CreateDelegation: governance.NewCreateDelegationUseCase(delegationRepo).WithRecorder(governanceRecorder).WithUserLookup(userRepo).WithMembers(ownershipMembers),
 		ListDelegations:  governance.NewListDelegationsUseCase(delegationRepo).WithUserLookup(userRepo),
 		RevokeDelegation: governance.NewRevokeDelegationUseCase(delegationRepo).WithRecorder(governanceRecorder),
 		EffectivePerms:   governance.NewResolveEffectivePermissionsUseCase(delegationRepo),

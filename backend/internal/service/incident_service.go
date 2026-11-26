@@ -142,6 +142,12 @@ func (s *IncidentService) GetIncident(tenantID string, incidentID uint) (*domain
 	// this endpoint used to 500. RiskID is returned as-is.
 	if err := s.db.Where("tenant_id = ? AND id = ?", tenantID, incidentID).
 		First(&incident).Error; err != nil {
+		// #1319: a missing or foreign id is the typed ErrNotFound, so the handler
+		// answers 404 instead of a 500 that confirms nothing but breaks the
+		// oracle-equality rule of the cross-tenant suite.
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, fmt.Errorf("incident not found: %w", domain.ErrNotFound)
+		}
 		return nil, fmt.Errorf("incident not found: %w", err)
 	}
 	return &incident, nil
@@ -301,9 +307,15 @@ func (s *IncidentService) UpdateIncident(tenantID string, incidentID uint, req d
 
 // DeleteIncident soft deletes an incident
 func (s *IncidentService) DeleteIncident(tenantID string, incidentID uint) error {
-	if err := s.db.Where("tenant_id = ? AND id = ?", tenantID, incidentID).
-		Delete(&domain.Incident{}).Error; err != nil {
-		return fmt.Errorf("failed to delete incident: %w", err)
+	res := s.db.Where("tenant_id = ? AND id = ?", tenantID, incidentID).
+		Delete(&domain.Incident{})
+	if res.Error != nil {
+		return fmt.Errorf("failed to delete incident: %w", res.Error)
+	}
+	// #1319: deleting a row that is not this tenant's affects nothing and must
+	// say so, with the same answer as an id that never existed.
+	if res.RowsAffected == 0 {
+		return domain.ErrNotFound
 	}
 	return nil
 }
