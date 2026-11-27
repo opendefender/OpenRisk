@@ -2005,7 +2005,7 @@ func main() {
 	// -------------------------------------------------------------------------
 	complianceAuditRepo := repository.NewGormComplianceAuditRepository(database.DB)
 	complianceAuditHandler := handlers.NewComplianceAuditHandler(
-		complianceaudit.NewCreateAuditUseCase(complianceAuditRepo),
+		complianceaudit.NewCreateAuditUseCase(complianceAuditRepo, complianceRepo),
 		complianceaudit.NewListAuditsUseCase(complianceAuditRepo),
 		complianceaudit.NewGetAuditUseCase(complianceAuditRepo),
 		complianceaudit.NewUpdateAuditUseCase(complianceAuditRepo),
@@ -3756,12 +3756,13 @@ func main() {
 		RevokeDelegation: governance.NewRevokeDelegationUseCase(delegationRepo).WithRecorder(governanceRecorder),
 		EffectivePerms:   governance.NewResolveEffectivePermissionsUseCase(delegationRepo),
 
-		CreateWorkflow: governance.NewCreateWorkflowUseCase(approvalRepo),
+		CreateWorkflow: governance.NewCreateWorkflowUseCase(approvalRepo).WithMembers(ownershipMembers),
 		ListWorkflows:  governance.NewListWorkflowsUseCase(approvalRepo),
-		UpdateWorkflow: governance.NewUpdateWorkflowUseCase(approvalRepo),
+		UpdateWorkflow: governance.NewUpdateWorkflowUseCase(approvalRepo).WithMembers(ownershipMembers),
 		DeleteWorkflow: governance.NewDeleteWorkflowUseCase(approvalRepo),
 
 		SubmitApproval: governance.NewSubmitApprovalRequestUseCase(approvalRepo, approvalRepo).
+			WithEntities(approvalEntityOwnership{risks: riskRepo, controls: complianceRepo}).
 			WithRecorder(governanceRecorder).
 			WithNotifier(approvalNotifier),
 		DecideApproval: governance.NewDecideApprovalUseCase(approvalRepo).
