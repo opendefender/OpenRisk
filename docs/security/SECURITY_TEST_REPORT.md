@@ -172,8 +172,8 @@ lands, or the stated reason. The owner signed this register on 2026-11-27 (D-130
 | Id | Risk | Severity | Owner | Decision |
 |---|---|---|---|---|
 | RR-01 | 64 routes and 4 groups have no seed or no successful control call yet (compliance sub-resources, vulnerabilities, notifications, automation runs, bulk operations, report jobs, control exceptions, integrations, scanner-adjacent kinds). Their isolation rests on the recorded decision in `isolation/registry.go`, not on a test | medium | #1521 | Accept until #1521 |
-| RR-02 | Seven routes answer 200 with an empty body, or touch nothing, for a foreign parent or user id instead of 404. No foreign data is returned, and a random id gets the same answer | low | #1520 | Accept until #1520 |
-| RR-03 | Closed by #1518. 17 `/rbac` routes were unprobed because registration wrote no `tenants` row and no `user_tenants` row, so a new root got 403 there. Registration now writes both in its transaction (the root as Admin, no restart). Of the 17: 15 are live probes (6 of them allowed, under RR-02 or RR-15; `POST /rbac/users` is a plain probe: it now answers 404 for a user outside the caller's organisation), `POST /rbac/roles` is exempt as having no id to name, and `DELETE /rbac/tenants/:tenant_id` is exempt under RR-15 | medium | #1518 | Closed |
+| RR-02 | Closed. Seven routes used to answer 200 with an empty body, or touched nothing, for a foreign parent or user id instead of 404: five list routes, and `DELETE /rbac/users/:user_id` and `PATCH /rbac/users/:user_id/role` (added to this row by #1518). Each now answers 404, with one body for a foreign and an unknown id (proof below) | low | #1520 | Closed by #1520 |
+| RR-03 | Closed by #1518. 17 `/rbac` routes were unprobed because registration wrote no `tenants` row and no `user_tenants` row, so a new root got 403 there. Registration now writes both in its transaction (the root as Admin, no restart). Of the 17: 15 are live probes (4 of them allowed, under RR-15; the 2 that were allowed under RR-02 now answer 404, #1520; `POST /rbac/users` is a plain probe: it now answers 404 for a user outside the caller's organisation), `POST /rbac/roles` is exempt as having no id to name, and `DELETE /rbac/tenants/:tenant_id` is exempt under RR-15 | medium | #1518 | Closed |
 | RR-04 | 5 routes fail for every caller on Postgres, so no control exists (dashboard queries, `/audit-logs`, `/rbac/users/stats`) | medium | #1169, #1519 | Accept until fixed |
 | RR-05 | 17 routes and the `ai` group need an artefact the harness does not create (uploaded file, rendered document, second approver, AI provider) | low | #1521 | Accept |
 | RR-06 | 2 server-sent-event streams are not probed | low | #1521 | Accept |
@@ -181,7 +181,7 @@ lands, or the stated reason. The owner signed this register on 2026-11-27 (D-130
 | RR-09 | 2 dead incident-risk routes parse a UUID as an integer and answer 400 to everyone | low | #1519 | Accept until #1519 |
 | RR-10 | 2 bulk preview routes answer 200 with "missing" for a foreign id. The body is the same as for a random id, and nothing is read or written | low | #1520 | Accept |
 | RR-11 | 2 routes refuse foreign body ids with 400 rather than 404. The answer is the same for a random id, and nothing is written | low | #1520 | Accept |
-| RR-12 | 4 writes store a foreign body-addressed reference as is (201). It is never read back, because reads filter by tenant, and the approval notifier tells only active members of the tenant (F8) | medium | #1520 | Accept until #1520 |
+| RR-12 | Closed. Four writes (six with `PUT /governance/workflows/:id` and `PATCH /compliance/audits/:id`) used to store a foreign body-addressed reference as is (201). Each now answers 404 for a foreign or unknown id and stores nothing (proof below) | medium | #1520 | Closed by #1520 |
 | RR-13 | Scoring config ids are chosen by the caller. A write, compute or classify naming another tenant's id acts on the caller's own copy or on the default. B's config was verified unchanged; the unit tests pin the rest | low | devsecops (GHSA-m6gp-q4m7-27c6) | Accept: by design after F6. Revisit if configs move to the database |
 | RR-14 | Telemetry consent is one row for the whole deployment, and any tenant's admin can change it | medium | #1522 | Accept until #1522 |
 | RR-15 | `/rbac/tenants/:tenant_id` routes ignore the path id and act on the caller's own tenant: 4 probed routes answer 200 for a foreign id exactly as for a random one, and `DELETE` would delete the caller's own tenant, so it is exempt. Nothing of another tenant is read or changed. The path parameter is decorative | low | #1526 | Accept until fixed |
@@ -191,6 +191,63 @@ lands, or the stated reason. The owner signed this register on 2026-11-27 (D-130
 | RR-SAST-2 | 21 low gosec issues not triaged one by one | low | #1521 | Accept |
 | RR-DAST-1 | DAST is passive only, and it covers only the routes documented in `docs/openapi.yaml`. No active scan (injection, fuzzing) was run against a live stack | medium | #1121 (documentation); active scan not planned | Accept for v1.0: the cross-tenant suite and the input-validation audit (#1316) cover the active classes that matter most |
 | RR-SCOPE-1 | Not covered by the suite: cookie sessions (Bearer only), a principal in both tenants, the attacker's own object carrying B's id in the body, and the MFA enrolment branch (a new root is in its 7-day grace period) | medium | #1521 | Accept until #1521 |
+
+### RR-02 and RR-12: closure proof (#1520)
+
+Rule for every row: a foreign id and an unknown id give the same status and the
+same body (`{"error":"<resource> not found"}`, the id is not echoed), and the
+caller's own object keeps its previous answer. Each parent lookup is the
+tenant-scoped finder (`tenant_id = ?` from the token), never a query by id alone.
+The live suite no longer allows any of these answers: no `allow(` and no exemption
+carries RR-02 or RR-12 (`backend/internal/security/crosstenant/`), so a 200 or 201
+for a foreign id fails the run.
+
+RR-12, body-addressed writes (404, nothing written):
+
+| Route | Check | Unit tests |
+|---|---|---|
+| `POST /compliance/audits` (`framework_id`) | `complianceaudit.CreateAuditUseCase`, `frameworks.GetFrameworkByID(id, tenant)`; absent `framework_id` stays accepted | `create_audit_test.go`: `TestCreateAudit_Success`, `_NotFound_ForeignAndUnknownAlike`, `_Unauthorized` |
+| `PATCH /compliance/audits/:id` (`framework_id` in the body) | `complianceaudit.UpdateAuditUseCase`, same `frameworks.GetFrameworkByID(id, tenant)` as the create path, before any field is assigned; an absent `framework_id` or an empty `framework_id` (clears it) needs no lookup | `update_audit_test.go`: `TestUpdateAudit_Success`, `_NotFound`, `_Unauthorized` |
+| `POST /governance/approvals` (`entity_id`) | `governance.SubmitApprovalRequestUseCase`, `checkEntity`, through `approvalEntityOwnership` (`cmd/server/approval_entities.go`); empty `entity_id` stays accepted | `approval_ownership_test.go`: `TestSubmitApproval_OwnEntities_Success`, `_NotFound_ForeignAndUnknownAlike`, `_Unauthorized_NoTenantOrNoLookup` |
+| `POST /incidents` (`risk_ids`) | `service.IncidentService.checkRiskIDs`: one query `tenant_id = ? AND id IN ?`, before `db.Create`; a non-UUID entry is 400 | `service/incident_risk_ownership_test.go`: `TestCreateIncident_RiskIDs_Success`, `_NotFound_ForeignAndUnknownAlike`, `_Unauthorized`; route: `handler/incident_risk_ids_test.go` |
+| `POST /governance/workflows` (`steps[].approver_user_ids`) | `governance.checkApprovers`: `MemberLookup.GetMember(tenant, user)`, no member row is 404, a deactivated member is 400 | `approval_ownership_test.go`: `TestCreateWorkflow_Approvers_Success`, `_NotFound_ForeignAndUnknownAlike`, `_Unauthorized` |
+| `PUT /governance/workflows/:id` (same field; added so a clean workflow cannot be edited to name a foreign approver) | same `checkApprovers`, only when the call supplies `steps` | `TestUpdateWorkflow_Approvers_Success`, `TestUpdateWorkflow_NotFound_ForeignAndUnknownApproverAlike`, `TestUpdateWorkflow_Unauthorized` |
+
+Live suite probes: `probe_body.go` (audits, approvals, incidents), `probe_org.go`
+(`POST /governance/workflows`, new). There is no live `PUT` approver probe: the probe
+language puts B's id in every slot, so the workflow lookup (also B's id) answers 404 before
+the approver is read. The unit tests above pin the `PUT` check.
+
+`entity_id` of an approval request, per entity type (`domain/approval_engine.go`):
+
+| Entity type | Validated | Reason |
+|---|---|---|
+| `risk_acceptance` | yes, against the tenant's risks (`RiskRepository.GetByID`) | maps to `risks`; the risk lifecycle reads the approval |
+| `compliance_control` | yes, against the tenant's controls (`GetControlByID`) | maps to `compliance_controls` |
+| `security_exception`, `policy`, `access_request`, `vendor` | no, kept as an opaque label | no owning table or domain entity exists for these types, and no code reads `ApprovalRequest.EntityID` to join anything (it is only displayed and journaled), so a foreign value cannot be dereferenced |
+
+If one of those four types later gets an owning table, it must be added to
+`checkEntity` in the same change.
+
+RR-02, parent-addressed reads (404 for a foreign or unknown parent):
+
+| Route | Parent lookup | Unit tests |
+|---|---|---|
+| `GET /assets/:id/inventories` | `inventory.ListAssetInventoriesUseCase`, `AssetRepository.GetByID(id, tenant)`; an own asset with none answers 200 `[]` | `inventory/list_asset_inventories_test.go` |
+| `GET /automation/rules/:id/executions` | `automation.ExecutionService.ListByRule`, rule repository `GetByID(id, tenant)`; the handler now maps a typed error to its status | `automation/executions_test.go` |
+| `GET /compliance/frameworks/:frameworkId/progress` | `compliance.GetComplianceProgressUseCase`, `GetFrameworkByID(id, tenant)`; the id is no longer echoed | `compliance/progress_test.go`: `TestGetComplianceProgressUseCase_NotFound`, `_Unauthorized` |
+| `GET /audit-logs/user/:user_id` | `service.AuditService.EnsureUserInTenant`: a membership row in the caller's organisation (any status) or an audit row already recorded for that user in the caller's tenant (a removed member keeps their history, 200). A non-UUID `user_id` keeps today's empty 200. The 403 for a non-admin is evaluated first | `service/audit_user_in_tenant_test.go`; route: `handler/audit_log_user_ownership_test.go` |
+| `GET /risks/:id/control-mappings` | `risk.ControlMappingUseCase.ListForRisk`, `RiskRepository.GetByID(id, tenant)` | `risk/control_mapping_list_test.go` |
+
+Live suite probes: `probe_assets.go`, `probe_governance.go`, `probe_org.go`, `probe_risks.go`.
+
+Not covered, noted for follow-up (decision D-131):
+- Risk ids already stored by earlier versions on an incident may be foreign. They are not
+  rewritten here. `application/incident/postmortem.go` reads the first stored risk id
+  (`firstRiskID`) toward a mitigation, which is a possible read of a stored foreign id
+  and is mitigated, not closed, by the write check above.
+- `asset_ids` and `impacted_assets` on `POST /incidents` are not checked (they were never
+  part of RR-12).
 
 ## Appendix: how to reproduce
 

@@ -368,7 +368,7 @@ func TestSubmitApproval_Success_NoWorkflow(t *testing.T) {
 	submit := NewSubmitApprovalRequestUseCase(repo, repo)
 
 	req, err := submit.Execute(context.Background(), tenant, requester, SubmitApprovalInput{
-		EntityType: "risk_acceptance", Action: "accept", EntityID: "risk-1", Title: "Accept Log4Shell residual risk",
+		EntityType: "risk_acceptance", Action: "accept", Title: "Accept Log4Shell residual risk",
 	})
 	if err != nil {
 		t.Fatalf("unexpected: %v", err)
@@ -394,7 +394,7 @@ func TestDecideApproval_FullChain_And_Guards(t *testing.T) {
 	decide := NewDecideApprovalUseCase(repo)
 
 	req, _ := submit.Execute(context.Background(), tenant, requester, SubmitApprovalInput{
-		EntityType: "risk_acceptance", Action: "accept", EntityID: "risk-1", Title: "Accept residual risk",
+		EntityType: "risk_acceptance", Action: "accept", Title: "Accept residual risk",
 	})
 
 	// Four-eyes: the maker cannot check their own request.

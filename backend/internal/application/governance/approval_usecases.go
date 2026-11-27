@@ -54,7 +54,15 @@ func normaliseMode(mode string) string {
 }
 
 type CreateWorkflowUseCase struct {
-	repo domain.ApprovalWorkflowRepository
+	repo    domain.ApprovalWorkflowRepository
+	members MemberLookup
+}
+
+// WithMembers lets Execute prove that every named approver belongs to the
+// tenant (#1520). Without it a workflow that names approvers is refused.
+func (uc *CreateWorkflowUseCase) WithMembers(m MemberLookup) *CreateWorkflowUseCase {
+	uc.members = m
+	return uc
 }
 
 func NewCreateWorkflowUseCase(repo domain.ApprovalWorkflowRepository) *CreateWorkflowUseCase {
@@ -62,6 +70,9 @@ func NewCreateWorkflowUseCase(repo domain.ApprovalWorkflowRepository) *CreateWor
 }
 
 func (uc *CreateWorkflowUseCase) Execute(ctx context.Context, tenantID, actorID uuid.UUID, in WorkflowInput) (*domain.ApprovalWorkflow, error) {
+	if tenantID == uuid.Nil {
+		return nil, domain.NewUnauthorizedError("no tenant")
+	}
 	in.resolveType()
 	w := &domain.ApprovalWorkflow{
 		TenantID:       tenantID,
@@ -83,6 +94,9 @@ func (uc *CreateWorkflowUseCase) Execute(ctx context.Context, tenantID, actorID 
 		w.Enabled = *in.Enabled
 	}
 	if err := w.Validate(); err != nil {
+		return nil, err
+	}
+	if err := checkApprovers(ctx, uc.members, tenantID, []domain.WorkflowStep(w.Steps)); err != nil {
 		return nil, err
 	}
 	// One workflow per (tenant, entity_type, action).
@@ -107,13 +121,24 @@ func (uc *ListWorkflowsUseCase) Execute(ctx context.Context, tenantID uuid.UUID)
 }
 
 type UpdateWorkflowUseCase struct {
-	repo domain.ApprovalWorkflowRepository
+	repo    domain.ApprovalWorkflowRepository
+	members MemberLookup
+}
+
+// WithMembers lets Execute prove that every named approver belongs to the
+// tenant (#1520). Without it a workflow that names approvers is refused.
+func (uc *UpdateWorkflowUseCase) WithMembers(m MemberLookup) *UpdateWorkflowUseCase {
+	uc.members = m
+	return uc
 }
 
 func NewUpdateWorkflowUseCase(repo domain.ApprovalWorkflowRepository) *UpdateWorkflowUseCase {
 	return &UpdateWorkflowUseCase{repo: repo}
 }
 func (uc *UpdateWorkflowUseCase) Execute(ctx context.Context, tenantID, id uuid.UUID, in WorkflowInput) (*domain.ApprovalWorkflow, error) {
+	if tenantID == uuid.Nil {
+		return nil, domain.NewUnauthorizedError("no tenant")
+	}
 	in.resolveType()
 	w, err := uc.repo.GetWorkflowByID(ctx, id, tenantID)
 	if err != nil {
@@ -148,6 +173,14 @@ func (uc *UpdateWorkflowUseCase) Execute(ctx context.Context, tenantID, id uuid.
 	}
 	if err := w.Validate(); err != nil {
 		return nil, err
+	}
+	// Only the steps this call supplies are checked: stored approvers were
+	// checked when they were saved, and an edit that leaves them alone must
+	// not fail because someone has since left the organisation.
+	if in.Steps != nil {
+		if err := checkApprovers(ctx, uc.members, tenantID, []domain.WorkflowStep(w.Steps)); err != nil {
+			return nil, err
+		}
 	}
 	if err := uc.repo.UpdateWorkflow(ctx, w); err != nil {
 		return nil, err
@@ -185,6 +218,14 @@ type SubmitApprovalRequestUseCase struct {
 	requests  domain.ApprovalRequestRepository
 	recorder  *AuditRecorder
 	notifier  ApprovalNotifier
+	entities  EntityOwnership
+}
+
+// WithEntities lets Execute prove that a risk_acceptance or compliance_control
+// request names an entity of the tenant (#1520).
+func (uc *SubmitApprovalRequestUseCase) WithEntities(e EntityOwnership) *SubmitApprovalRequestUseCase {
+	uc.entities = e
+	return uc
 }
 
 func NewSubmitApprovalRequestUseCase(w domain.ApprovalWorkflowRepository, r domain.ApprovalRequestRepository) *SubmitApprovalRequestUseCase {
@@ -203,12 +244,18 @@ func (uc *SubmitApprovalRequestUseCase) WithNotifier(n ApprovalNotifier) *Submit
 }
 
 func (uc *SubmitApprovalRequestUseCase) Execute(ctx context.Context, tenantID, requesterID uuid.UUID, in SubmitApprovalInput) (*domain.ApprovalRequest, error) {
+	if tenantID == uuid.Nil {
+		return nil, domain.NewUnauthorizedError("no tenant")
+	}
 	entityType := strings.TrimSpace(in.EntityType)
 	if entityType == "" {
 		return nil, domain.NewValidationError("entity_type is required")
 	}
 	if strings.TrimSpace(in.Title) == "" {
 		return nil, domain.NewValidationError("title is required")
+	}
+	if err := checkEntity(ctx, uc.entities, tenantID, entityType, strings.TrimSpace(in.EntityID)); err != nil {
+		return nil, err
 	}
 	wf, err := uc.workflows.FindWorkflow(ctx, tenantID, entityType, strings.TrimSpace(in.Action))
 	if err != nil {
@@ -343,6 +390,98 @@ func (uc *ListApprovalRequestsUseCase) Execute(ctx context.Context, tenantID uui
 		}
 	}
 	return list, nil
+}
+
+// checkApprovers proves that every approver_user_ids entry of the steps is a
+// member of the tenant (#1520). A value that is not a UUID is a validation
+// error. A well-formed id with no membership row in THIS tenant — foreign or
+// unknown, indistinguishable — is not found, with the same message for both,
+// so the answer is no oracle for whether the user exists elsewhere. A member
+// who is deactivated is refused as in delegations. It fails closed when steps
+// name approvers and no membership lookup is wired.
+func checkApprovers(ctx context.Context, members MemberLookup, tenantID uuid.UUID, steps []domain.WorkflowStep) error {
+	seen := map[uuid.UUID]struct{}{}
+	var ids []uuid.UUID
+	for _, st := range steps {
+		for _, raw := range st.ApproverUserIDs {
+			id, err := uuid.Parse(raw)
+			if err != nil {
+				return domain.NewValidationError("approver_user_ids must contain user ids (UUIDs)")
+			}
+			if _, dup := seen[id]; dup {
+				continue
+			}
+			seen[id] = struct{}{}
+			ids = append(ids, id)
+		}
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+	if members == nil {
+		return domain.NewForbiddenError("approvers cannot be verified: no membership lookup is configured")
+	}
+	for _, id := range ids {
+		m, err := members.GetMember(ctx, tenantID, id)
+		if err != nil {
+			return err
+		}
+		if m == nil {
+			return domain.NewNotFoundError("user", id.String())
+		}
+		if !m.IsActive {
+			return domain.NewValidationError("an approver is deactivated and cannot be named in a workflow")
+		}
+	}
+	return nil
+}
+
+// EntityOwnership is the narrow, tenant-scoped port that proves the entity an
+// approval request is about belongs to the tenant (#1520). Each method reports
+// false (nil error) for an absent or foreign id.
+type EntityOwnership interface {
+	RiskOwned(ctx context.Context, tenantID, id uuid.UUID) (bool, error)
+	ControlOwned(ctx context.Context, tenantID, id uuid.UUID) (bool, error)
+}
+
+// Approval entity types whose entity_id names a tenant-owned row. The other
+// catalogue types (security_exception, policy, access_request, vendor) have no
+// owning table: entity_id there is an opaque label, never joined.
+const (
+	entityTypeRiskAcceptance    = "risk_acceptance"
+	entityTypeComplianceControl = "compliance_control"
+)
+
+// checkEntity validates entity_id for the types that map to an owned table.
+func checkEntity(ctx context.Context, owner EntityOwnership, tenantID uuid.UUID, entityType, entityID string) error {
+	if entityID == "" {
+		return nil
+	}
+	if entityType != entityTypeRiskAcceptance && entityType != entityTypeComplianceControl {
+		return nil
+	}
+	id, err := uuid.Parse(entityID)
+	if err != nil {
+		return domain.NewValidationError("entity_id must be a UUID for " + entityType)
+	}
+	if owner == nil {
+		return domain.NewForbiddenError("entity cannot be verified: no ownership lookup is configured")
+	}
+	var ok bool
+	resource := "risk"
+	if entityType == entityTypeComplianceControl {
+		resource = "control"
+		ok, err = owner.ControlOwned(ctx, tenantID, id)
+	} else {
+		ok, err = owner.RiskOwned(ctx, tenantID, id)
+	}
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return domain.NewNotFoundError(resource, id.String())
+	}
+	return nil
 }
 
 // normaliseSteps orders steps, backfills the order index and min-approvals.

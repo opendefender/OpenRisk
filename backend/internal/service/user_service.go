@@ -161,14 +161,23 @@ func (us *UserService) ChangeUserRole(ctx context.Context, userID uuid.UUID, ten
 	if err := us.db.WithContext(ctx).
 		Where("id = ? AND (tenant_id = ? OR is_predefined = true)", newRoleID, tenantID).
 		First(&role).Error; err != nil {
-		return fmt.Errorf("invalid role for tenant")
+		return fmt.Errorf("%w: invalid role for tenant", domain.ErrValidation)
 	}
 
-	// Update user-tenant relationship
-	return us.db.WithContext(ctx).
+	// Update user-tenant relationship. The tenant comes from the session; a user
+	// with no row in it, foreign or unknown, matches nothing and is ErrNotFound
+	// with one answer for both (#1520).
+	res := us.db.WithContext(ctx).
 		Model(&domain.UserTenant{}).
 		Where("user_id = ? AND tenant_id = ?", userID, tenantID).
-		Update("role_id", newRoleID).Error
+		Update("role_id", newRoleID)
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return domain.NewNotFoundError("user", userID.String())
+	}
+	return nil
 }
 
 // AddUserToTenant adds a user to a tenant with a specific role.
@@ -214,9 +223,16 @@ func (us *UserService) AddUserToTenant(ctx context.Context, userID uuid.UUID, te
 
 // RemoveUserFromTenant removes a user from a tenant
 func (us *UserService) RemoveUserFromTenant(ctx context.Context, userID uuid.UUID, tenantID uuid.UUID) error {
-	return us.db.WithContext(ctx).
+	res := us.db.WithContext(ctx).
 		Where("user_id = ? AND tenant_id = ?", userID, tenantID).
-		Delete(&domain.UserTenant{}).Error
+		Delete(&domain.UserTenant{})
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return domain.NewNotFoundError("user", userID.String())
+	}
+	return nil
 }
 
 // GetUserPermissions retrieves all permissions for a user in a tenant

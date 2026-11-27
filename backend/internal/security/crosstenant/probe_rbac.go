@@ -16,7 +16,6 @@ package crosstenant
 
 const (
 	rbacTenantIgnoredReason = "the handler takes the tenant from the session and ignores the path id: A gets 200 about its OWN tenant for B's id and for a random id alike; nothing of B is read or changed. The tenants row is not mutation-verified: KindTenant has no read path"
-	rbacNoOwnerCheckReason  = "no row of the caller's tenant matches a foreign or a random user id, so the tenant-filtered write touches nothing and answers 200 either way; B's membership is unchanged (verified by B's read)"
 )
 
 var rbacProbes = []Probe{
@@ -33,8 +32,9 @@ var rbacProbes = []Probe{
 
 	get("/api/v1/rbac/users/:user_id", KindRBACUser),
 	get("/api/v1/rbac/users/:user_id/permissions", KindRBACUser),
-	allow(del("/api/v1/rbac/users/:user_id", KindRBACUser), rbacNoOwnerCheckReason, "RR-02", 200),
-	allow(patch("/api/v1/rbac/users/:user_id/role", `{"role_id":"{{analyst}}"}`, KindRBACUser), rbacNoOwnerCheckReason, "RR-02", 200),
+	// A user with no row in the caller's tenant, B's or a random id, answers 404 (#1520).
+	del("/api/v1/rbac/users/:user_id", KindRBACUser),
+	patch("/api/v1/rbac/users/:user_id/role", `{"role_id":"{{analyst}}"}`, KindRBACUser),
 	// The target must be an active member of the caller's organisation: B's user and a random id both answer 404.
 	post("/api/v1/rbac/users", `{"user_id":"{{user}}","role_id":"{{viewer}}"}`, KindUser),
 

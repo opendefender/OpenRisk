@@ -21,7 +21,7 @@ func submitTwoStep(t *testing.T) (*fakeApprovalRepo, uuid.UUID, uuid.UUID, *doma
 	tenant, requester := uuid.New(), uuid.New()
 	seedTwoStepWorkflow(t, repo, tenant)
 	req, err := NewSubmitApprovalRequestUseCase(repo, repo).Execute(context.Background(), tenant, requester, SubmitApprovalInput{
-		EntityType: "risk_acceptance", Action: "accept", EntityID: "risk-1", Title: "Accept residual risk",
+		EntityType: "risk_acceptance", Action: "accept", Title: "Accept residual risk",
 	})
 	if err != nil {
 		t.Fatalf("submit: %v", err)

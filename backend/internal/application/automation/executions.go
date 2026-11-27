@@ -14,12 +14,19 @@ import (
 
 // ExecutionService exposes the automation execution audit trail (read-only).
 type ExecutionService struct {
-	repo domain.AutomationExecutionRepository
+	repo  domain.AutomationExecutionRepository
+	rules RuleLookup
+}
+
+// RuleLookup is the narrow, tenant-scoped port that proves a rule belongs to the
+// caller's organisation; GetByID returns a typed not-found otherwise (#1520).
+type RuleLookup interface {
+	GetByID(ctx context.Context, id, tenantID uuid.UUID) (*domain.AutomationRule, error)
 }
 
 // NewExecutionService builds the execution reader.
-func NewExecutionService(repo domain.AutomationExecutionRepository) *ExecutionService {
-	return &ExecutionService{repo: repo}
+func NewExecutionService(repo domain.AutomationExecutionRepository, rules RuleLookup) *ExecutionService {
+	return &ExecutionService{repo: repo, rules: rules}
 }
 
 // List returns the tenant's most recent executions (newest first).
@@ -29,6 +36,17 @@ func (s *ExecutionService) List(ctx context.Context, tenantID uuid.UUID, limit, 
 
 // ListByRule returns the recent executions of one rule.
 func (s *ExecutionService) ListByRule(ctx context.Context, tenantID, ruleID uuid.UUID, limit int) ([]domain.AutomationExecution, error) {
+	if tenantID == uuid.Nil {
+		return nil, domain.NewUnauthorizedError("no tenant")
+	}
+	// #1520: the rule must be this tenant's; foreign and unknown answer alike.
+	rule, err := s.rules.GetByID(ctx, ruleID, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	if rule == nil {
+		return nil, domain.NewNotFoundError("automation rule", ruleID.String())
+	}
 	return s.repo.ListByRule(ctx, ruleID, tenantID, limit)
 }
 

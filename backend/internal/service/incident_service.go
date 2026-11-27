@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/opendefender/openrisk/internal/domain"
 	"github.com/opendefender/openrisk/internal/infrastructure/database"
 	"gorm.io/datatypes"
@@ -72,6 +73,13 @@ func (s *IncidentService) CreateIncident(tenantID string, req domain.IncidentCre
 		return nil, fmt.Errorf("invalid severity: %s", req.Severity)
 	}
 
+	// #1520: every risk the incident names must be this tenant's. Checked before
+	// anything is written, so a refusal leaves no incident behind.
+	riskIDs, err := s.checkRiskIDs(tenantID, req.RiskIDs)
+	if err != nil {
+		return nil, err
+	}
+
 	// Convert assets to JSON
 	assetsJSON, _ := json.Marshal(req.ImpactedAssets)
 
@@ -91,7 +99,7 @@ func (s *IncidentService) CreateIncident(tenantID string, req domain.IncidentCre
 		ReportedBy:     req.ReportedBy,
 		RiskID:         req.RiskID,
 		ImpactedAssets: assetsJSON,
-		RiskIDs:        domain.StringList(req.RiskIDs),
+		RiskIDs:        domain.StringList(riskIDs),
 		AssetIDs:       domain.StringList(req.AssetIDs),
 		Stakeholders:   domain.IncidentStakeholderList(req.Stakeholders),
 
@@ -131,6 +139,54 @@ func (s *IncidentService) CreateIncident(tenantID string, req domain.IncidentCre
 	}
 
 	return incident, nil
+}
+
+// checkRiskIDs verifies, with one tenant-scoped query, that each entry of
+// risk_ids is a risk of the tenant. An entry that is not a UUID is a validation
+// error; a well-formed id that is not the tenant's, foreign or unknown, is
+// not-found with the same message for both, so the answer is no existence
+// oracle (#1520). Duplicates are collapsed before the lookup.
+func (s *IncidentService) checkRiskIDs(tenantID string, riskIDs []string) ([]string, error) {
+	if len(riskIDs) == 0 {
+		return riskIDs, nil
+	}
+	tid, err := uuid.Parse(tenantID)
+	if err != nil || tid == uuid.Nil {
+		return nil, domain.NewUnauthorizedError("no tenant")
+	}
+	seen := map[uuid.UUID]struct{}{}
+	ids := make([]uuid.UUID, 0, len(riskIDs))
+	canonical := make([]string, 0, len(riskIDs))
+	for _, raw := range riskIDs {
+		id, perr := uuid.Parse(strings.TrimSpace(raw))
+		if perr != nil {
+			return nil, domain.NewValidationError("risk_ids must contain risk ids (UUIDs)")
+		}
+		if _, dup := seen[id]; dup {
+			continue
+		}
+		seen[id] = struct{}{}
+		ids = append(ids, id)
+		canonical = append(canonical, id.String())
+	}
+	var found []string
+	if err := s.db.Model(&domain.Risk{}).
+		Where("tenant_id = ? AND id IN ?", tid, ids).
+		Pluck("id", &found).Error; err != nil {
+		return nil, fmt.Errorf("failed to verify risk_ids: %w", err)
+	}
+	owned := make(map[uuid.UUID]struct{}, len(found))
+	for _, f := range found {
+		if id, perr := uuid.Parse(f); perr == nil {
+			owned[id] = struct{}{}
+		}
+	}
+	for _, id := range ids {
+		if _, ok := owned[id]; !ok {
+			return nil, domain.NewNotFoundError("risk", id.String())
+		}
+	}
+	return canonical, nil
 }
 
 // GetIncident retrieves an incident by ID

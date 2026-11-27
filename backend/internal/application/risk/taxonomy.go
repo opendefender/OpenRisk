@@ -255,6 +255,17 @@ func (uc *ControlMappingUseCase) Create(ctx context.Context, tenantID uuid.UUID,
 }
 
 func (uc *ControlMappingUseCase) ListForRisk(ctx context.Context, tenantID, riskID uuid.UUID) ([]domain.RiskControlMapping, error) {
+	if tenantID == uuid.Nil {
+		return nil, domain.NewUnauthorizedError("no tenant")
+	}
+	// #1520: the risk must be this tenant's; foreign and unknown answer alike.
+	r, err := uc.risks.GetByID(ctx, riskID, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	if r == nil {
+		return nil, domain.NewNotFoundError("risk", riskID.String())
+	}
 	return uc.mappings.ListByRisk(ctx, tenantID, riskID)
 }
 

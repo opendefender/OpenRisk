@@ -6,6 +6,7 @@
 package handler
 
 import (
+	"errors"
 	"strconv"
 	"time"
 
@@ -175,6 +176,19 @@ func (h *AuditLogHandler) GetUserAuditLogs(c *fiber.Ctx) error {
 	}
 
 	offset := (page - 1) * limit
+
+	// #1520: the user must be known to THIS organisation (member of any status,
+	// or already present in its audit trail). Foreign and unknown ids answer the
+	// same 404. A value that is not a UUID keeps today's empty answer.
+	if parsed, perr := uuid.Parse(userID); perr == nil {
+		if err := h.auditService.EnsureUserInTenant(c.UserContext(), tenantID, parsed); err != nil {
+			var appErr *domain.AppError
+			if errors.As(err, &appErr) {
+				return writeAppError(c, err)
+			}
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to retrieve audit logs"})
+		}
+	}
 
 	logs, err := h.auditService.GetAuditLogsByUser(tenantID, parseUUID(userID), limit, offset)
 	if err != nil {
