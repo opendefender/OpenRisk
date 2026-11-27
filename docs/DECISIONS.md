@@ -104,7 +104,9 @@ condition that these close before the launch:
 - RR-12, foreign body-addressed references stored as is (#1520);
 - #1521, every route that takes an id probed by the cross-tenant suite (RR-01, RR-04,
   RR-05, RR-06, RR-08, RR-09 and RR-SCOPE-1 brought to zero). The owner asked for
-  every route to be tested.
+  every route to be tested. RR-04 and RR-09 are routes broken for every caller. Their
+  repair is tracked in #1169 and #1519, and #1521's AC1 requires it (there, or in
+  #1521 itself), so #1521 cannot close while they remain.
 
 Every other row is accepted until its issue lands, or for the reason it states.
 
