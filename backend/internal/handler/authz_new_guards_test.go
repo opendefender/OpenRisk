@@ -76,8 +76,6 @@ func newlyGuardedRoutes() []newlyGuardedRoute {
 		{"Post", "/bulk-operations", `middleware.RequirePermission("risks:update", "risks:delete")`, "",
 			middleware.RequirePermission("risks:update", "risks:delete"),
 			"a delete job with an empty filter empties the register"},
-		{"Get", "/risks/:id/incidents", `middleware.RequirePermission("risks:read")`, "", riskRead(),
-			"one risk's incident history is one risk's data"},
 		{"Get", "/risks/:id/timeline", "riskTimelineRead", `riskTimelineRead := middleware.RequirePermission("risks:read")`, riskRead(), "one risk's history"},
 		{"Get", "/risks/:id/timeline/status-changes", "riskTimelineRead", `riskTimelineRead := middleware.RequirePermission("risks:read")`, riskRead(), "one risk's history"},
 		{"Get", "/risks/:id/timeline/score-changes", "riskTimelineRead", `riskTimelineRead := middleware.RequirePermission("risks:read")`, riskRead(), "one risk's history"},

@@ -7,9 +7,10 @@ package domain
 
 import (
 	"database/sql/driver"
-	"time"
-
+	"fmt"
 	"net"
+	"strings"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -93,11 +94,66 @@ type AuditLog struct {
 	ResourceID   *uuid.UUID       `json:"resource_id,omitempty"` // ID of affected resource
 	Result       AuditLogResult   `gorm:"type:varchar(20);index" json:"result"`
 	ErrorMessage string           `json:"error_message,omitempty"` // Description of failure
-	IPAddress    *net.IP          `gorm:"type:inet" json:"ip_address,omitempty"`
+	IPAddress    *INetAddr        `gorm:"type:inet" json:"ip_address,omitempty"`
 	UserAgent    string           `json:"user_agent,omitempty"`
 	Timestamp    time.Time        `gorm:"index;default:CURRENT_TIMESTAMP" json:"timestamp"`
 	// Metadata for advanced queries
 	Duration int64 `json:"duration_ms,omitempty"` // Action duration in milliseconds
+}
+
+// INetAddr is a client address stored in a Postgres inet column.
+//
+// It exists because *net.IP cannot be scanned: the driver hands an inet column
+// back as a string, database/sql has no conversion from string to net.IP, and
+// every read of a row that carried an address failed with "unsupported Scan",
+// which GET /audit-logs reported as a 500 for every caller (#1519). The write
+// side sends the textual form, which inet accepts.
+type INetAddr net.IP
+
+// String renders the address in its textual form, "" when empty.
+func (a INetAddr) String() string {
+	if len(a) == 0 {
+		return ""
+	}
+	return net.IP(a).String()
+}
+
+// Scan reads an inet value, which arrives as a string or as bytes.
+func (a *INetAddr) Scan(value interface{}) error {
+	var text string
+	switch v := value.(type) {
+	case nil:
+		*a = nil
+		return nil
+	case string:
+		text = v
+	case []byte:
+		// A sqlite row written before this type stored the raw 4 or 16 bytes.
+		if len(v) == net.IPv4len || len(v) == net.IPv6len {
+			*a = append(INetAddr(nil), v...)
+			return nil
+		}
+		text = string(v)
+	default:
+		return fmt.Errorf("domain.INetAddr: cannot scan %T", value)
+	}
+	if i := strings.IndexByte(text, '/'); i >= 0 { // inet may carry a prefix length
+		text = text[:i]
+	}
+	ip := net.ParseIP(text)
+	if ip == nil {
+		return fmt.Errorf("domain.INetAddr: %q is not an IP address", text)
+	}
+	*a = INetAddr(ip)
+	return nil
+}
+
+// Value writes the textual form; an empty address is NULL.
+func (a INetAddr) Value() (driver.Value, error) {
+	if len(a) == 0 {
+		return nil, nil
+	}
+	return net.IP(a).String(), nil
 }
 
 // Implement database scanner and valuer interfaces

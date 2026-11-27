@@ -130,7 +130,6 @@ PUT /incidents/:id/actions/:actionId
 GET /incidents/:id/post-mortem
 PUT /incidents/:id/post-mortem
 POST /incidents/:id/post-mortem/publish
-POST /incidents/:id/risks/:riskId
 GET /incidents/:id/timeline
 GET /incidents/origins
 GET /incidents/stats
@@ -231,7 +230,6 @@ PATCH /risk-categories/:id
 GET /risks/:id/control-mappings
 POST /risks/:id/control-mappings
 DELETE /risks/:id/control-mappings/:mappingId
-GET /risks/:id/incidents
 GET /risks/:id/mitigations
 POST /risks/:id/review
 GET /risks/:id/score-working

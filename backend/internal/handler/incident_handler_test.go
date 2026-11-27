@@ -55,7 +55,6 @@ func buildIncidentApp(t *testing.T, db *gorm.DB, tenantID uuid.UUID) *fiber.App 
 	g.Put("/:id", h.UpdateIncident)
 	g.Delete("/:id", h.DeleteIncident)
 	g.Get("/:id/timeline", h.GetIncidentTimeline)
-	g.Post("/:id/risks/:riskId", h.LinkRisk)
 	g.Post("/:id/actions", h.CreateIncidentAction)
 	g.Get("/:id/actions", h.GetIncidentActions)
 	g.Put("/:id/actions/:actionId", h.UpdateIncidentAction)
@@ -292,4 +291,26 @@ func getJSON(t *testing.T, app *fiber.App, path string) map[string]any {
 	require.NoError(t, json.NewDecoder(resp.Body).Decode(&out))
 	resp.Body.Close()
 	return out
+}
+
+// #1519: POST /incidents with no severity, or an unknown one, answers 400 with
+// a typed field error naming severity (it answered 500).
+func TestCreateIncident_InvalidSeverity_Answers400NamingTheField(t *testing.T) {
+	db := setupIncidentDB(t)
+	app := buildIncidentApp(t, db, uuid.New())
+
+	for _, body := range []map[string]any{{}, {"title": "x", "severity": "urgent"}} {
+		req := httptest.NewRequest(http.MethodPost, "/incidents", mustJSON(t, body))
+		req.Header.Set("Content-Type", "application/json")
+		resp, err := app.Test(req)
+		require.NoError(t, err)
+		require.Equal(t, 400, resp.StatusCode)
+		var out struct {
+			Errors []domain.FieldError `json:"errors"`
+		}
+		require.NoError(t, json.NewDecoder(resp.Body).Decode(&out))
+		resp.Body.Close()
+		require.Len(t, out.Errors, 1)
+		require.Equal(t, "severity", out.Errors[0].Field)
+	}
 }
