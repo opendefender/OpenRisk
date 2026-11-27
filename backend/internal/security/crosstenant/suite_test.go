@@ -41,7 +41,17 @@ func TestCrossTenant_Seeds(t *testing.T) {
 func TestCrossTenant(t *testing.T) {
 	h := newHarness(t)
 	h.seedBoth(t)
+	h.runProbes(t, nil)
+}
 
+// answers is what one probe observed, kept to compare two runs of the suite.
+type answers struct{ attack, random, control int }
+
+// runProbes runs every probe as A against B and returns the statuses seen, by
+// probe id. skip names probes left out, with the reason a test states itself.
+func (h *harness) runProbes(t *testing.T, skip map[string]string) map[string]answers {
+	t.Helper()
+	seen := map[string]answers{}
 	groups := map[string][]Probe{}
 	for _, p := range allProbes() {
 		g := Group(p.Path)
@@ -56,11 +66,15 @@ func TestCrossTenant(t *testing.T) {
 	for _, g := range names {
 		t.Run(g, func(t *testing.T) {
 			for _, p := range groups[g] {
+				if _, ok := skip[p.ID()]; ok {
+					continue
+				}
 				t.Run(p.ID(), func(t *testing.T) {
 					o, supplied, err := h.observe(p)
 					if err != nil {
 						t.Fatalf("suite defect: %v", err)
 					}
+					seen[p.ID()] = answers{o.AttackStatus, o.RandomStatus, o.ControlStatus}
 					o.Allow = p.Allow
 					// Ids A supplied in any probe so far are not a leak when a
 					// later read shows them: that is the dangling reference
@@ -82,6 +96,7 @@ func TestCrossTenant(t *testing.T) {
 	}
 	// Guard silence (the boot log has no tenantguard line) is checked by
 	// scripts/ci/cross-tenant.sh, which owns the log.
+	return seen
 }
 
 // observe runs one probe and records what happened. The order matters: B's read

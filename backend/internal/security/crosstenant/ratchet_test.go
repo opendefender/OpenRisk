@@ -336,3 +336,27 @@ func TestRatchet_IsolationEvidenceNamesARealProbe(t *testing.T) {
 		}
 	}
 }
+
+// TestRatchet_OwnBodyProbesAreWellFormed: an own-object probe names a registered
+// route, takes one of A's own objects per path param, and names at least one B
+// id in its body (otherwise it would test nothing).
+func TestRatchet_OwnBodyProbesAreWellFormed(t *testing.T) {
+	registered := map[string]bool{}
+	for _, r := range allRoutes(t) {
+		registered[routeKey(r.Method, r.Path)] = true
+	}
+	if len(ownBodyProbes) < 2 {
+		t.Fatalf("the own-object shape needs the risk category route and at least one more, have %d", len(ownBodyProbes))
+	}
+	for _, p := range ownBodyProbes {
+		if !registered[routeKey(p.Method, p.Path)] {
+			t.Errorf("own-object probe %s names a route that is not registered", p.ID())
+		}
+		if len(p.Own) != ParamCount(p.Path) {
+			t.Errorf("own-object probe %s has %d own kinds for %d path params", p.ID(), len(p.Own), ParamCount(p.Path))
+		}
+		if len(p.Kinds) == 0 || !strings.Contains(p.Body, "{{") {
+			t.Errorf("own-object probe %s names no foreign id in its body", p.ID())
+		}
+	}
+}

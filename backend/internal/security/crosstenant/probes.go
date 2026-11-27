@@ -158,6 +158,12 @@ type Probe struct {
 	Allow      []int
 	Reason     string
 	RegisterID string
+	// Own marks the "own object, foreign id in the body" shape (#1521): the path
+	// params are filled with A's OWN objects of these kinds, in order, and Kinds
+	// are the body kinds only, filled with B's ids. The attacker owns the target
+	// and names a foreign id in the body. Such probes live in ownBodyProbes, not
+	// in allProbes: the route is already probed with B's id in its path.
+	Own []Kind
 }
 
 // ID is the probe name used in failure messages and in isolation evidence.
@@ -234,6 +240,10 @@ func list(path string, kinds ...Kind) Probe {
 func agg(path string) Probe {
 	return Probe{Method: "GET", Path: path, Collection: true, Aggregate: true}
 }
+
+// own turns a probe into the own-object shape: the path takes A's objects of
+// kinds, the body takes B's.
+func own(p Probe, kinds ...Kind) Probe { p.Own = kinds; return p }
 
 func q(p Probe, query string) Probe { p.Query = query; return p }
 
