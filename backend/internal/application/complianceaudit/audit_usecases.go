@@ -147,20 +147,37 @@ type UpdateAuditInput struct {
 }
 
 type UpdateAuditUseCase struct {
-	repo domain.ComplianceAuditRepository
+	repo       domain.ComplianceAuditRepository
+	frameworks FrameworkLookup
 }
 
-func NewUpdateAuditUseCase(repo domain.ComplianceAuditRepository) *UpdateAuditUseCase {
-	return &UpdateAuditUseCase{repo: repo}
+func NewUpdateAuditUseCase(repo domain.ComplianceAuditRepository, frameworks FrameworkLookup) *UpdateAuditUseCase {
+	return &UpdateAuditUseCase{repo: repo, frameworks: frameworks}
 }
 
 func (uc *UpdateAuditUseCase) Execute(ctx context.Context, tenantID, id uuid.UUID, in UpdateAuditInput) (*domain.ComplianceAudit, error) {
+	if tenantID == uuid.Nil {
+		return nil, domain.NewUnauthorizedError("no tenant")
+	}
 	audit, err := uc.repo.GetAuditByID(ctx, id, tenantID)
 	if err != nil {
 		return nil, err
 	}
 	if audit == nil {
 		return nil, domain.NewNotFoundError("audit", id)
+	}
+
+	// #1520: a framework_id from the body must be this tenant's, same answer as
+	// the create path for a foreign or unknown id. Checked before any field is
+	// assigned, so a refusal writes nothing.
+	if !in.ClearFramework && in.FrameworkID != nil {
+		fw, err := uc.frameworks.GetFrameworkByID(ctx, *in.FrameworkID, tenantID)
+		if err != nil {
+			return nil, err
+		}
+		if fw == nil {
+			return nil, domain.NewNotFoundError("framework", in.FrameworkID.String())
+		}
 	}
 
 	if in.Title != nil {

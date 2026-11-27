@@ -2008,7 +2008,7 @@ func main() {
 		complianceaudit.NewCreateAuditUseCase(complianceAuditRepo, complianceRepo),
 		complianceaudit.NewListAuditsUseCase(complianceAuditRepo),
 		complianceaudit.NewGetAuditUseCase(complianceAuditRepo),
-		complianceaudit.NewUpdateAuditUseCase(complianceAuditRepo),
+		complianceaudit.NewUpdateAuditUseCase(complianceAuditRepo, complianceRepo),
 		complianceaudit.NewDeleteAuditUseCase(complianceAuditRepo),
 		complianceaudit.NewCreateRemediationUseCase(complianceAuditRepo, complianceRepo),
 		complianceaudit.NewListRemediationsUseCase(complianceAuditRepo, complianceRepo),
