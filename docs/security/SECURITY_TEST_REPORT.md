@@ -45,19 +45,19 @@ written exemption, when a group has no passing probe, when a probe names a route
 that no longer exists, or when an exemption cites a register row that is not in
 this file.
 
-**Coverage** (505 routes in 60 groups, counted by the ratchet's own classifier):
+**Coverage** (503 routes in 60 groups, counted by the ratchet's own classifier):
 
 | Route class | Total | Probed live | of which allowed (row) | Exempt (row) | Exempt, nothing to name | Auto-exempt¹ |
 |---|---|---|---|---|---|---|
 | Parameterised | 236 | 153 | 11 | 68 | 1 | 14 |
-| Collection GET | 154 | 113 | 0 | 7 | 0 | 34 |
+| Collection GET | 152 | 113 | 0 | 5 | 0 | 34 |
 | Write without an id in the path | 115 | 21 | 10 | 19 | 66 | 9 |
-| **Total** | **505** | **287** | **21** | **94** | **67** | **57** |
+| **Total** | **503** | **287** | **21** | **92** | **67** | **57** |
 
 ¹ The isolation registry records the route as public by design, machine-authenticated
 or self-scoped.
 
-The suite probes every parameterised and collection route except the 94
+The suite probes every parameterised and collection route except the 92
 exemptions listed against a register row in
 `backend/internal/security/crosstenant/exemptions.go` and the four groups
 exempted as a whole (`ai`, `controls`, `control-exceptions`, `integrations`).
