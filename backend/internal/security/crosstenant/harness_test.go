@@ -204,7 +204,8 @@ func (h *harness) login(p *principal) {
 		out.TokenPair.Access, out.TokenPair.Refresh = h.enrolMFA(p, out.MFAToken)
 	}
 	if out.TokenPair.Access == "" {
-		h.t.Fatalf("login %s returned no access token: %s", p.name, body)
+		// The status line only: the body may carry an mfa_token.
+		h.t.Fatalf("login %s returned no access token (body of %d bytes withheld)", p.name, len(body))
 	}
 	p.mu.Lock()
 	p.access, p.refresh = out.TokenPair.Access, out.TokenPair.Refresh

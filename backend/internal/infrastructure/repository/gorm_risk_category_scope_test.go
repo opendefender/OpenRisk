@@ -27,7 +27,7 @@ func TestRiskRepo_ForeignCategoryIsNotPreloaded(t *testing.T) {
 	require.NoError(t, db.Exec(`CREATE TABLE risk_categories (id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, name TEXT, slug TEXT, description TEXT, color TEXT, sort_order INTEGER, active BOOLEAN, created_at DATETIME, updated_at DATETIME, deleted_at DATETIME)`).Error)
 	require.NoError(t, db.Exec(`CREATE TABLE risks (id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, title TEXT, category_id TEXT, probability REAL, impact REAL, score REAL, created_at DATETIME, updated_at DATETIME, deleted_at DATETIME)`).Error)
 	require.NoError(t, db.Exec(`CREATE TABLE mitigations (id TEXT PRIMARY KEY, tenant_id TEXT, risk_id TEXT, deleted_at DATETIME)`).Error)
-	require.NoError(t, db.Exec(`CREATE TABLE assets (id TEXT PRIMARY KEY, deleted_at DATETIME)`).Error)
+	require.NoError(t, db.Exec(`CREATE TABLE assets (id TEXT PRIMARY KEY, tenant_id TEXT, organization_id TEXT, name TEXT, deleted_at DATETIME)`).Error)
 	require.NoError(t, db.Exec(`CREATE TABLE risk_assets (risk_id TEXT, asset_id TEXT)`).Error)
 
 	a, b := uuid.New(), uuid.New()
@@ -65,6 +65,49 @@ func TestRiskRepo_ForeignCategoryIsNotPreloaded(t *testing.T) {
 	require.NoError(t, err)
 	require.Nil(t, got)
 	got, err = repo.GetByID(ctx, riskOwn, uuid.Nil)
+	require.NoError(t, err)
+	require.Nil(t, got)
+}
+
+// TestRiskRepo_ForeignAssetIsNotPreloaded: a risk_assets row written before the
+// write-side check, linking A's risk to B's asset, does not bring B's asset
+// back with the risk, on GetByID and List (#1319).
+func TestRiskRepo_ForeignAssetIsNotPreloaded(t *testing.T) {
+	db, err := testdb.Open(t, sqlite.Open(":memory:"), &gorm.Config{})
+	require.NoError(t, err)
+	require.NoError(t, db.Exec(`CREATE TABLE risk_categories (id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, name TEXT, slug TEXT, description TEXT, color TEXT, sort_order INTEGER, active BOOLEAN, created_at DATETIME, updated_at DATETIME, deleted_at DATETIME)`).Error)
+	require.NoError(t, db.Exec(`CREATE TABLE risks (id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, title TEXT, category_id TEXT, probability REAL, impact REAL, score REAL, created_at DATETIME, updated_at DATETIME, deleted_at DATETIME)`).Error)
+	require.NoError(t, db.Exec(`CREATE TABLE mitigations (id TEXT PRIMARY KEY, tenant_id TEXT, risk_id TEXT, deleted_at DATETIME)`).Error)
+	require.NoError(t, db.Exec(`CREATE TABLE assets (id TEXT PRIMARY KEY, tenant_id TEXT, organization_id TEXT, name TEXT, deleted_at DATETIME)`).Error)
+	require.NoError(t, db.Exec(`CREATE TABLE risk_assets (risk_id TEXT, asset_id TEXT)`).Error)
+
+	a, b := uuid.New(), uuid.New()
+	risk, own, foreign := uuid.New(), uuid.New(), uuid.New()
+	require.NoError(t, db.Exec(`INSERT INTO risks (id, tenant_id, title) VALUES (?,?,?)`, risk.String(), a.String(), "r").Error)
+	require.NoError(t, db.Exec(`INSERT INTO assets (id, tenant_id, organization_id, name) VALUES (?,?,?,?)`, own.String(), a.String(), a.String(), "own").Error)
+	require.NoError(t, db.Exec(`INSERT INTO assets (id, tenant_id, organization_id, name) VALUES (?,?,?,?)`, foreign.String(), b.String(), b.String(), "SECRET-OF-B").Error)
+	require.NoError(t, db.Exec(`INSERT INTO risk_assets (risk_id, asset_id) VALUES (?,?),(?,?)`, risk.String(), own.String(), risk.String(), foreign.String()).Error)
+
+	repo := NewGormRiskRepository(db)
+	ctx := context.Background()
+
+	// Success + CrossTenant: the own asset is loaded, the foreign one is not.
+	got, err := repo.GetByID(ctx, risk, a)
+	require.NoError(t, err)
+	require.NotNil(t, got)
+	require.Len(t, got.Assets, 1)
+	require.Equal(t, own, got.Assets[0].ID)
+
+	page, err := repo.List(ctx, a, domain.RiskQuery{Page: 1, Limit: 50})
+	require.NoError(t, err)
+	require.Len(t, page.Data, 1)
+	require.Len(t, page.Data[0].Assets, 1, "List preloaded another tenant's asset")
+
+	// NotFound / Unauthorized: B and a nil tenant do not read A's risk.
+	got, err = repo.GetByID(ctx, risk, b)
+	require.NoError(t, err)
+	require.Nil(t, got)
+	got, err = repo.GetByID(ctx, risk, uuid.Nil)
 	require.NoError(t, err)
 	require.Nil(t, got)
 }

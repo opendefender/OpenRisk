@@ -72,4 +72,15 @@ func TestNotifyPending_OnlyTenantMembers(t *testing.T) {
 	n.NotifyPending(context.Background(), tenant, req, nil, []uuid.UUID{foreign})
 	require.Empty(t, mail.to)
 	require.Empty(t, inApp.users)
+
+	// Roles branch: a deactivated member holding the role is not told.
+	n.NotifyPending(context.Background(), tenant, req, []string{"user"}, nil)
+	require.Equal(t, []string{"member@a.test"}, mail.to)
+	require.Equal(t, []uuid.UUID{member}, inApp.users)
+
+	// No database: nobody is notified, rather than unverified ids.
+	mail.to, inApp.users = nil, nil
+	NewApprovalNotifier(nil, inApp, mail, zerolog.Nop()).NotifyPending(context.Background(), tenant, req, nil, []uuid.UUID{member, foreign})
+	require.Empty(t, mail.to)
+	require.Empty(t, inApp.users)
 }

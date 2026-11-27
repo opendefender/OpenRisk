@@ -101,6 +101,8 @@ func (uc *CreateDelegationUseCase) Execute(ctx context.Context, tenantID, actorI
 			return nil, err
 		} else if m == nil {
 			return nil, domain.NewNotFoundError("user", delegator.String())
+		} else if !m.IsActive {
+			return nil, domain.NewValidationError("the delegator is deactivated and cannot lend rights")
 		}
 	}
 	member, err := uc.members.GetMember(ctx, tenantID, in.DelegateID)

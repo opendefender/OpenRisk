@@ -117,9 +117,8 @@ func (n *ApprovalNotifier) NotifyResolved(ctx context.Context, tenantID uuid.UUI
 func (n *ApprovalNotifier) resolveRecipients(ctx context.Context, tenantID uuid.UUID, roles []string, userIDs []uuid.UUID) map[uuid.UUID]string {
 	out := map[uuid.UUID]string{}
 	if n.db == nil {
-		for _, id := range userIDs {
-			out[id] = ""
-		}
+		// No database, no membership check: notify nobody rather than ids
+		// nobody verified (#1319).
 		return out
 	}
 

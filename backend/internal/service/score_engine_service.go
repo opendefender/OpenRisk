@@ -162,6 +162,9 @@ func (s *ScoreEngineService) UpdateConfig(tenantID uuid.UUID, configID string, u
 	if configID == DefaultConfigID {
 		return domain.NewValidationError("the default configuration is built in and cannot be overwritten")
 	}
+	if updates == nil {
+		return domain.NewValidationError("no configuration changes supplied")
+	}
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -170,6 +173,9 @@ func (s *ScoreEngineService) UpdateConfig(tenantID uuid.UUID, configID string, u
 	if !ok {
 		return domain.NewNotFoundError("config", configID)
 	}
+	// Clone the caller's maps so the stored configuration never aliases a
+	// request value, as Create and Lookup already do.
+	updates = cloneConfig(updates)
 	if updates.BaseFormula != "" {
 		cfg.BaseFormula = updates.BaseFormula
 	}

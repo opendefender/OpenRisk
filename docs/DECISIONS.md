@@ -147,7 +147,9 @@ by the suite.
    `Immutable: true` on the Fiber app. **Chose `Immutable`**: the suite caught one
    such site (the scoring-config store) and once saw a foreign canary echo. Finding
    every other site by reading is not reliable. The cost is a few allocations per
-   request.
+   request. **Not measured:** no before/after benchmark of the hot path was taken.
+   If one is ever needed, the per-request cost can be bought back by reverting to
+   `strings.Clone` at sites found by reading, at the risk this decision avoids.
 
 **Reason** — the launch gate needs evidence that cannot pass on its own, and a fix
 for a class of bug, not one instance of it.

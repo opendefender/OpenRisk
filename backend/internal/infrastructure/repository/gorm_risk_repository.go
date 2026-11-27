@@ -107,7 +107,9 @@ func (r *GormRiskRepository) GetByID(ctx context.Context, id uuid.UUID, tenantID
 		// Scoped: a plan of another tenant pointing at this risk must not ride
 		// along with it (GHSA-2w75-9qj8-fwwp).
 		Preload("Mitigations", "tenant_id = ?", tenantID).
-		Preload("Assets").
+		// Scoped: a risk_assets row written before the write-side check must
+		// not bring another tenant's asset along (#1319).
+		Preload("Assets", "assets.tenant_id = ?", tenantID).
 		// The controlled category is what the "Catégorie" column renders. Without
 		// this the column shipped dead: the row carried category_id but no name,
 		// so a classified risk read as unclassified.
@@ -286,7 +288,9 @@ func (r *GormRiskRepository) List(ctx context.Context, tenantID uuid.UUID, query
 		// Scoped: a plan of another tenant pointing at this risk must not ride
 		// along with it (GHSA-2w75-9qj8-fwwp).
 		Preload("Mitigations", "tenant_id = ?", tenantID).
-		Preload("Assets").
+		// Scoped: a risk_assets row written before the write-side check must
+		// not bring another tenant's asset along (#1319).
+		Preload("Assets", "assets.tenant_id = ?", tenantID).
 		// The controlled category is what the "Catégorie" column renders. Without
 		// this the column shipped dead: the row carried category_id but no name,
 		// so a classified risk read as unclassified.

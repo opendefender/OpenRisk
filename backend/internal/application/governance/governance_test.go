@@ -814,3 +814,30 @@ func TestListDelegations_HidesForeignEmails(t *testing.T) {
 		t.Fatal("without a membership lookup no e-mail may be resolved")
 	}
 }
+
+// fakeMemberStates answers per user: absent, active or deactivated.
+type fakeMemberStates map[uuid.UUID]bool
+
+func (f fakeMemberStates) GetMember(_ context.Context, _, userID uuid.UUID) (*domain.OrganizationMember, error) {
+	active, ok := f[userID]
+	if !ok {
+		return nil, nil
+	}
+	return &domain.OrganizationMember{IsActive: active}, nil
+}
+
+func TestCreateDelegation_RejectsDeactivatedDelegator(t *testing.T) {
+	repo := newFakeDelegationRepo()
+	admin, gone, cover := uuid.New(), uuid.New(), uuid.New()
+	uc := NewCreateDelegationUseCase(repo).WithMembers(fakeMemberStates{admin: true, gone: false, cover: true})
+	end := time.Now().Add(24 * time.Hour)
+	_, err := uc.Execute(context.Background(), uuid.New(), admin, CreateDelegationInput{
+		DelegatorID: gone, DelegateID: cover, Permissions: []string{"risks:read"}, EndsAt: &end, ActorIsAdmin: true,
+	})
+	if !errors.Is(err, domain.ErrValidation) {
+		t.Fatalf("a deactivated delegator must be refused, got %v", err)
+	}
+	if len(repo.items) != 0 {
+		t.Fatal("a refused delegation must not be stored")
+	}
+}

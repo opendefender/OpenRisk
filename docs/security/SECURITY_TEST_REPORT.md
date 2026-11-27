@@ -3,7 +3,7 @@
 | | |
 |---|---|
 | Date | 2026-11-26 |
-| Base commit | `9f9ea53a` (develop), branch `security/1319-cross-tenant-suite` |
+| Base commit | `ae28a16f` (develop, merged into the branch on 2026-11-27), branch `security/1319-cross-tenant-suite` |
 | Issue | #1319 (part of #229) |
 | Threat model | [`THREAT_MODEL.md`](THREAT_MODEL.md) |
 | Gap register | [`ASVS_GAP_REGISTER.md`](ASVS_GAP_REGISTER.md) |

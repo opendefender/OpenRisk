@@ -334,3 +334,28 @@ func TestScoringConfig_CrossTenant(t *testing.T) {
 	assert.True(t, ok)
 	assert.Equal(t, "impact*probability", def.BaseFormula)
 }
+
+// TestUpdateConfig_DoesNotAliasCallerMaps: changing the caller's map after an
+// update must not change the stored configuration (#1319).
+func TestUpdateConfig_DoesNotAliasCallerMaps(t *testing.T) {
+	s := NewScoreEngineService(nil)
+	tenant := uuid.New()
+	if err := s.CreateConfig(tenant, &ScoringConfig{ID: "own", BaseFormula: "f"}); err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	weights := map[string]float64{"impact": 1}
+	if err := s.UpdateConfig(tenant, "own", &ScoringConfig{WeightingFactors: weights}); err != nil {
+		t.Fatalf("update: %v", err)
+	}
+	weights["impact"] = 99
+	got := s.GetConfig(tenant, "own")
+	if got == nil {
+		t.Fatal("get: not found")
+	}
+	if got.WeightingFactors["impact"] != 1 {
+		t.Fatalf("stored config aliases the caller's map: %v", got.WeightingFactors)
+	}
+	if err := s.UpdateConfig(tenant, "own", nil); err == nil {
+		t.Fatal("a nil update must be refused")
+	}
+}
