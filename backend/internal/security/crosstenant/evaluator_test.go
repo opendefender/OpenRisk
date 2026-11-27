@@ -242,7 +242,7 @@ func TestHarness_DropsForeignMode(t *testing.T) {
 	clean := OwnBodyObservation{
 		ControlStatus: 200, AttackStatus: 200, RandomStatus: 200,
 		BeforeHash: "h", AfterHash: "changed", AfterBody: `{"assets":[]}`, Foreign: []string{b},
-		DropsForeign: true, ControlApplied: true,
+		DropsForeign: true, ControlApplied: true, LinkChecked: true,
 	}
 	if f := EvaluateOwnBody(clean); len(f) != 0 {
 		t.Fatalf("a dropped foreign id must pass, got %v", f)
@@ -253,7 +253,10 @@ func TestHarness_DropsForeignMode(t *testing.T) {
 			return FailMutation
 		},
 		"field not applied": func(o *OwnBodyObservation) string { o.ControlApplied = false; return FailVacuous },
-		"oracle":            func(o *OwnBodyObservation) string { o.RandomStatus = 404; return FailOracle },
+		// A's read filters assets by tenant, so only the store shows this link.
+		"link hidden from the read": func(o *OwnBodyObservation) string { o.ForeignLinkStored = true; return FailMutation },
+		"store not queried":         func(o *OwnBodyObservation) string { o.LinkChecked = false; return FailVacuous },
+		"oracle":                    func(o *OwnBodyObservation) string { o.RandomStatus = 404; return FailOracle },
 	} {
 		o := clean
 		code := mod(&o)

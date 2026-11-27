@@ -360,6 +360,9 @@ func TestRatchet_OwnBodyProbesAreWellFormed(t *testing.T) {
 		if len(p.Kinds) == 0 || !strings.Contains(p.Body, "{{") {
 			t.Errorf("own-object probe %s names no foreign id in its body", p.ID())
 		}
+		if p.DropsForeign && (p.LinkSQL == "" || !strings.Contains(p.LinkSQL, "tenant_id = $1")) {
+			t.Errorf("own-object probe %s accepts a 200 but has no tenant-gated LinkSQL: a tenant-filtered read cannot prove nothing is stored", p.ID())
+		}
 	}
 }
 

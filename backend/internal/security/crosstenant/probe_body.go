@@ -56,5 +56,8 @@ var ownBodyProbes = []Probe{
 	// dropped and the update answers 200, as it does for a random id. Today the
 	// update answers 500 for every caller, A's own asset included: the audit
 	// plugin's pre-image query breaks the association replace on Postgres (#1517).
-	blockedBy(dropsForeign(own(patch("/api/v1/risks/:id", `{"asset_ids":["{{asset}}"]}`, KindAsset), KindRisk)), "#1517"),
+	blockedBy(dropsForeign(own(patch("/api/v1/risks/:id", `{"asset_ids":["{{asset}}"]}`, KindAsset), KindRisk),
+		// risk_assets has no tenant_id: gated through the parent risk's tenant.
+		`SELECT count(*) FROM risk_assets ra JOIN risks r ON r.id = ra.risk_id
+		  WHERE r.tenant_id = $1 AND ra.risk_id = $2 AND ra.asset_id = $3`), "#1517"),
 }

@@ -11,6 +11,7 @@ import (
 	"bytes"
 	"crypto/rand"
 	"crypto/sha256"
+	"database/sql"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -85,6 +86,9 @@ type harness struct {
 	// the double-submit CSRF header, as the browser SPA does, instead of Bearer.
 	// Provisioning and login always use Bearer or no credential.
 	cookie bool
+
+	// db is the direct connection of database(), opened on first use.
+	db *sql.DB
 
 	roleMu  sync.Mutex
 	roleIDs map[string]string // predefined role name (lower case) -> id

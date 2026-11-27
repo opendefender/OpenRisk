@@ -181,6 +181,10 @@ type OwnBodyObservation struct {
 	// 200 with the id ignored. ControlApplied is whether A's own ids, sent by the
 	// control, then show in A's read: without it a 200 would prove nothing.
 	DropsForeign, ControlApplied bool
+	// LinkChecked is whether the store was queried for a link from A's object to
+	// B's id; ForeignLinkStored is what that query found. A tenant-filtered read
+	// cannot prove "not stored", so the mode requires the query.
+	LinkChecked, ForeignLinkStored bool
 }
 
 // EvaluateOwnBody returns the failures of an own-object probe. The refusal may be
@@ -212,6 +216,12 @@ func EvaluateOwnBody(o OwnBodyObservation) []string {
 		if !o.ControlApplied {
 			fail(FailVacuous, "the control's own ids do not show in A's read: the field is not applied, so a 200 proves nothing")
 		}
+		if !o.LinkChecked {
+			fail(FailVacuous, "the store was not queried for a link to B's id; A's tenant-filtered read cannot show one")
+		}
+	}
+	if o.ForeignLinkStored {
+		fail(FailMutation, "a link from A's object to B's id is stored")
 	}
 	switch {
 	case refused:

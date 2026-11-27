@@ -169,6 +169,12 @@ type Probe struct {
 	// such as a risk's asset_ids). Such a probe passes on 200 only when the
 	// control proves the field is applied and A's object holds nothing of B's.
 	DropsForeign bool
+	// LinkSQL counts the stored links from A's object to B's id, for a
+	// DropsForeign probe: A's own read cannot show such a link, since that read
+	// is itself filtered by tenant. Parameters: $1 A's tenant, $2 A's object id
+	// (the path), $3 B's id (the body). A join table with no tenant_id is gated
+	// through its parent's tenant column.
+	LinkSQL string
 	// BlockedBy names the issue of a functional defect that makes the route
 	// fail for every caller (its own-ids control answers 5xx). While the control
 	// fails the probe is skipped with that issue named; once the defect is fixed
@@ -256,7 +262,10 @@ func agg(path string) Probe {
 func own(p Probe, kinds ...Kind) Probe { p.Own = kinds; return p }
 
 // dropsForeign marks an own-object probe whose route drops a foreign id silently.
-func dropsForeign(p Probe) Probe { p.DropsForeign = true; return p }
+func dropsForeign(p Probe, linkSQL string) Probe {
+	p.DropsForeign, p.LinkSQL = true, linkSQL
+	return p
+}
 
 // blockedBy records the issue that keeps a probe's own-ids control failing.
 func blockedBy(p Probe, issue string) Probe { p.BlockedBy = issue; return p }

@@ -131,15 +131,10 @@ func TestCrossTenant_TwoTenantPrincipal(t *testing.T) {
 	h := newHarness(t)
 	h.seedBoth(t)
 
-	dsn := os.Getenv("DATABASE_URL")
-	if dsn == "" {
-		t.Fatal("OPENRISK_BASE_URL is set but DATABASE_URL is not: the two-tenant principal needs the membership row (make test-cross-tenant sets both)")
-	}
-	db, err := sql.Open("postgres", dsn)
+	db, err := h.database()
 	if err != nil {
-		t.Fatalf("open database: %v", err)
+		t.Fatalf("the two-tenant principal needs the membership row: %v", err)
 	}
-	t.Cleanup(func() { _ = db.Close() })
 
 	if _, err := db.Exec(`INSERT INTO organization_members
 		(id, organization_id, user_id, role, is_active, status, joined_at, created_at, updated_at)
@@ -267,6 +262,17 @@ func (h *harness) observeOwn(p Probe) (OwnBodyObservation, error) {
 	o.AfterHash, o.AfterBody = hashBody(after), after
 
 	o.ControlStatus, _ = h.do(h.A, p.Method, cpath, cbody)
+	if p.LinkSQL != "" && len(p.Own) == 1 && len(p.Kinds) == 1 {
+		db, err := h.database()
+		if err != nil {
+			return o, err
+		}
+		var n int
+		if err := db.QueryRow(p.LinkSQL, h.A.tenantID, attack[p.Own[0]], attack[p.Kinds[0]]).Scan(&n); err != nil {
+			return o, seedError("link query for " + p.ID() + ": " + err.Error())
+		}
+		o.LinkChecked, o.ForeignLinkStored = true, n != 0
+	}
 	if p.DropsForeign {
 		// The control must have applied A's own ids, or a 200 to B's id would
 		// prove only that the field is ignored altogether.
@@ -282,6 +288,26 @@ func (h *harness) observeOwn(p Probe) (OwnBodyObservation, error) {
 	o.Foreign = h.B.foreign(h.run)
 	o.Supplied = supplied
 	return o, nil
+}
+
+// database opens the suite's direct connection, for the checks no API can make
+// (a membership row, a link that a tenant-filtered read hides). It is opened
+// once per harness and closed with the test.
+func (h *harness) database() (*sql.DB, error) {
+	if h.db != nil {
+		return h.db, nil
+	}
+	dsn := os.Getenv("DATABASE_URL")
+	if dsn == "" {
+		return nil, seedError("OPENRISK_BASE_URL is set but DATABASE_URL is not: this check needs the database (make test-cross-tenant sets both)")
+	}
+	db, err := sql.Open("postgres", dsn)
+	if err != nil {
+		return nil, err
+	}
+	h.db = db
+	h.t.Cleanup(func() { _ = db.Close() })
+	return db, nil
 }
 
 type seedError string
