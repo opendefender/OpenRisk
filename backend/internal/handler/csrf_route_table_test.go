@@ -209,7 +209,6 @@ var mutatingRouteDefences = map[string]csrfDefence{
 	"PUT /incidents/:id/actions/:actionId":                                        viaProtected,
 	"PUT /incidents/:id/post-mortem":                                              viaProtected,
 	"POST /incidents/:id/post-mortem/publish":                                     viaProtected,
-	"POST /incidents/:id/risks/:riskId":                                           viaProtected,
 	"POST /incidents/:id/transfer-owner":                                          viaProtected,
 	"POST /integrations/:id/test":                                                 viaProtected,
 	"DELETE /mitigations/:id":                                                     viaProtected,

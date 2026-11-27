@@ -30,6 +30,8 @@ var rbacProbes = []Probe{
 	post("/api/v1/rbac/roles/:role_id/permissions", `{"permission_id":"{{permission}}"}`, KindRBACRole, KindPermission),
 	delWithBody("/api/v1/rbac/roles/:role_id/permissions", `{"permission_id":"{{permission}}"}`, KindRBACRole, KindPermission),
 
+	// Mounted before /:user_id, so "stats" is no longer read as a user id (#1519).
+	agg("/api/v1/rbac/users/stats"),
 	get("/api/v1/rbac/users/:user_id", KindRBACUser),
 	get("/api/v1/rbac/users/:user_id/permissions", KindRBACUser),
 	// A user with no row in the caller's tenant, B's or a random id, answers 404 (#1520).

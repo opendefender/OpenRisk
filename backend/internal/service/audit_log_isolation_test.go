@@ -256,3 +256,39 @@ func TestAuditLogs_ZeroTenantIsRecordedAsUnattributed(t *testing.T) {
 	require.NoError(t, db.First(&stored).Error)
 	require.Nil(t, stored.TenantID, "the zero UUID must be stored as NULL, not as an id")
 }
+
+// #1519: an audit row that carries an address must read back. On Postgres the
+// inet column arrives as text, and scanning it into *net.IP failed, which made
+// GET /audit-logs answer 500 for every caller. The Postgres half of the proof is
+// the live cross-tenant probe on GET /audit-logs; this pins the round trip and
+// the tenant predicate with rows that carry an address.
+func TestAuditLogs_RowsWithAnAddressReadBack(t *testing.T) {
+	svc := NewAuditServiceWithDB(newAuditDB(t))
+	now := time.Now()
+	from, to := now.Add(-time.Hour), now.Add(time.Hour)
+	a, b := auditOrgA, auditOrgB
+
+	require.NoError(t, svc.LogLogin(&a, uuid.New(), domain.ResultSuccess, "203.0.113.7", "ua", ""))
+	require.NoError(t, svc.LogLogin(&b, uuid.New(), domain.ResultSuccess, "198.51.100.9", "ua", ""))
+
+	logs, err := svc.GetAuditLogsByDateRange(auditOrgA, from, to, 10, 0)
+	require.NoError(t, err)
+	require.Len(t, logs, 1)
+	require.NotNil(t, logs[0].IPAddress)
+	require.Equal(t, "203.0.113.7", logs[0].IPAddress.String())
+	require.Equal(t, auditOrgA, *logs[0].TenantID)
+
+	byAction, err := svc.GetAuditLogsByAction(auditOrgA, domain.ActionLogin, 10, 0)
+	require.NoError(t, err)
+	require.Len(t, byAction, 1)
+}
+
+func TestAuditLogs_AnUnparsableAddressIsStoredAsNull(t *testing.T) {
+	svc := NewAuditServiceWithDB(newAuditDB(t))
+	o := auditOrgA
+	require.NoError(t, svc.LogLogin(&o, uuid.New(), domain.ResultSuccess, "not-an-ip", "ua", ""))
+	logs, err := svc.GetAuditLogsByDateRange(auditOrgA, time.Now().Add(-time.Hour), time.Now().Add(time.Hour), 10, 0)
+	require.NoError(t, err)
+	require.Len(t, logs, 1)
+	require.Nil(t, logs[0].IPAddress)
+}

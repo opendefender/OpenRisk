@@ -125,11 +125,15 @@ func GetUsers(c *fiber.Ctx) error {
 }
 
 // Helper function to parse IP address
-func parseIPAddressHelper(ipStr string) *net.IP {
+func parseIPAddressHelper(ipStr string) *domain.INetAddr {
 	if ipStr == "" {
 		return nil
 	}
-	ip := net.ParseIP(ipStr)
+	parsed := net.ParseIP(ipStr)
+	if parsed == nil {
+		return nil
+	}
+	ip := domain.INetAddr(parsed)
 	return &ip
 }
 

@@ -19,7 +19,6 @@ var Register = map[string]string{
 	"RR-13": "Scoring configurations are per tenant and ids are chosen by the caller. A write, compute or classify that names an id another tenant uses creates (or, for compute and classify, falls back from) the caller's own copy or the built-in default; the other tenant's configuration is neither read nor changed (verified by its unchanged read). The response carries the supplied id, so the live suite cannot tell a fallback from a read of B's copy by the body; the unit tests TestScoringConfig_CrossTenant and TestScoringConfig_NotFound pin that.",
 	"RR-14": "Telemetry consent is a deployment-wide singleton (GormTelemetryRepository.GetOrCreate takes no tenant): an admin of any tenant sets it for every tenant. Already recorded for the GET in the isolation registry; the PUT is unchanged here and needs a decision on instance-level versus tenant-level consent.",
 	"RR-15": "Legacy /rbac/tenants/:tenant_id routes take the tenant from the session and ignore the path id (GET, PATCH, stats, users answer about the caller's OWN tenant for any id, foreign or random, so A gets 200 and the same body for both); DELETE would delete the caller's own tenant. Nothing of another tenant is read or changed, and the tenants row is not mutation-verified (KindTenant has no read path). The path parameter is decorative; tracked in #1526, to be closed by validating it against the session tenant (404 on mismatch).",
-	"RR-09": "Dead route: the handler parses the risk id as an unsigned integer, so every UUID answers 400 and no data is reachable.",
 }
 
 // Exemptions removes individual routes from the ratchet. A route whose
@@ -42,8 +41,6 @@ var Exemptions = []Exemption{
 	{Method: "GET", Path: "/api/v1/attack-surface/schemas/:category", Reason: "no seed kind or control run exists for this route yet (#1521)", RegisterID: "RR-01"},
 	{Method: "PUT", Path: "/api/v1/attack-surface/schemas/:category", Reason: "no seed kind or control run exists for this route yet (#1521)", RegisterID: "RR-01"},
 	{Method: "POST", Path: "/api/v1/attack-surface/schemas/:category/reset", Reason: "no seed kind or control run exists for this route yet (#1521)", RegisterID: "RR-01"},
-	{Method: "GET", Path: "/api/v1/audit-logs", Reason: "GET /audit-logs answers 500 for every caller (the audit_logs read fails on Postgres) and lifecycle audit inserts fail on a missing risk_id column, so there is no 2xx control", RegisterID: "RR-04"},
-	{Method: "GET", Path: "/api/v1/audit-logs/action/:action", Reason: "GET /audit-logs answers 500 for every caller (the audit_logs read fails on Postgres) and lifecycle audit inserts fail on a missing risk_id column, so there is no 2xx control", RegisterID: "RR-04"},
 	{Method: "POST", Path: "/api/v1/auth/login", Reason: "pre-authentication or credential-bound surface, or the caller's own session; it names no tenant object", NotApplicable: true},
 	{Method: "POST", Path: "/api/v1/auth/logout", Reason: "pre-authentication or credential-bound surface, or the caller's own session; it names no tenant object", NotApplicable: true},
 	{Method: "POST", Path: "/api/v1/auth/mfa/backup-codes/regenerate", Reason: "pre-authentication or credential-bound surface, or the caller's own session; it names no tenant object", NotApplicable: true},
@@ -116,7 +113,6 @@ var Exemptions = []Exemption{
 	{Method: "PUT", Path: "/api/v1/governance/audit-retention", Reason: "id not in body: sets the caller's own retention, tenant taken from the session", NotApplicable: true},
 	{Method: "POST", Path: "/api/v1/governance/audit-retention/apply", Reason: "id not in body: applies the caller's own retention, tenant taken from the session", NotApplicable: true},
 	{Method: "PUT", Path: "/api/v1/incidents/:id/actions/:actionId", Reason: "no seed kind or control run exists for this route yet (#1521)", RegisterID: "RR-01"},
-	{Method: "POST", Path: "/api/v1/incidents/:id/risks/:riskId", Reason: "the handler parses the risk id as an unsigned integer, so every UUID risk id answers 400 and no data is reachable", RegisterID: "RR-09"},
 	{Method: "POST", Path: "/api/v1/integrations/:id/test", Reason: "no seed kind or control run exists for this route yet (#1521)", RegisterID: "RR-01"},
 	{Method: "POST", Path: "/api/v1/invitations/accept", Reason: "pre-authentication or credential-bound surface, or the caller's own session; it names no tenant object", NotApplicable: true},
 	{Method: "GET", Path: "/api/v1/mitigations/events", Reason: "SSE stream authenticated by query token or cookie; an unbounded body cannot be read to completion", RegisterID: "RR-06"},
@@ -141,7 +137,6 @@ var Exemptions = []Exemption{
 	{Method: "POST", Path: "/api/v1/public/vendor-assessment/submit", Reason: "pre-authentication or credential-bound surface, or the caller's own session; it names no tenant object", NotApplicable: true},
 	{Method: "POST", Path: "/api/v1/rbac/roles", Reason: "id not in body: creates a custom role (name, description, level) in the caller's tenant, tenant taken from the session", NotApplicable: true},
 	{Method: "DELETE", Path: "/api/v1/rbac/tenants/:tenant_id", Reason: "the handler ignores the path id and soft-deletes the CALLER's own tenant (session tenant), so any run, attack or control, removes the tenant the rest of the suite is using; no disposable tenant can be named through this route", RegisterID: "RR-15"},
-	{Method: "GET", Path: "/api/v1/rbac/users/stats", Reason: "shadowed by GET /rbac/users/:user_id: \"stats\" is parsed as a user id and answers 400 for every caller", RegisterID: "RR-04"},
 	{Method: "GET", Path: "/api/v1/realtime/events", Reason: "SSE stream authenticated by query token or cookie; an unbounded body cannot be read to completion", RegisterID: "RR-06"},
 	{Method: "POST", Path: "/api/v1/reports", Reason: "no seed kind or control run exists for this route yet (#1521)", RegisterID: "RR-01"},
 	{Method: "GET", Path: "/api/v1/reports/:reportId/download", Reason: "the control needs an uploaded file, a logo, an avatar or a rendered document that the harness does not create", RegisterID: "RR-05"},
@@ -155,7 +150,6 @@ var Exemptions = []Exemption{
 	{Method: "POST", Path: "/api/v1/risks/:id/acceptance/renew", Reason: "no seed kind or control run exists for this route yet (#1521)", RegisterID: "RR-01"},
 	{Method: "POST", Path: "/api/v1/risks/:id/control-mappings", Reason: "no seed kind or control run exists for this route yet (#1521)", RegisterID: "RR-01"},
 	{Method: "DELETE", Path: "/api/v1/risks/:id/control-mappings/:mappingId", Reason: "no seed kind or control run exists for this route yet (#1521)", RegisterID: "RR-01"},
-	{Method: "GET", Path: "/api/v1/risks/:id/incidents", Reason: "the handler parses the risk id as an unsigned integer, so every UUID risk id answers 400 and no data is reachable", RegisterID: "RR-09"},
 	{Method: "POST", Path: "/api/v1/risks/bulk", Reason: "no seed kind or control run exists for this route yet (#1521)", RegisterID: "RR-01"},
 	{Method: "POST", Path: "/api/v1/risks/import", Reason: "id not in body: imports rows into the caller's tenant, tenant taken from the session", NotApplicable: true},
 	{Method: "POST", Path: "/api/v1/saved-views", Reason: "id not in body: creates a view in the caller's tenant, tenant taken from the session", NotApplicable: true},

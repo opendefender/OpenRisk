@@ -146,9 +146,9 @@ func (h *IncidentHandler) UpdateIncident(c *fiber.Ctx) error {
 		if errors.Is(err, domain.ErrNotFound) {
 			return c.Status(http.StatusNotFound).JSON(fiber.Map{"error": "Incident not found"})
 		}
-		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
-			"error": fmt.Sprintf("Failed to update incident: %v", err),
-		})
+		// Typed errors map centrally: an unknown severity is a 400 naming the
+		// field, not a 500 that echoes the error (#1519).
+		return writeAppError(c, err)
 	}
 
 	return c.JSON(incident)
@@ -201,39 +201,6 @@ func (h *IncidentHandler) GetIncidentTimeline(c *fiber.Ctx) error {
 	}
 
 	return c.JSON(timeline)
-}
-
-// LinkRisk links incident to a risk
-// POST /incidents/:incidentId/link-risk/:riskId
-func (h *IncidentHandler) LinkRisk(c *fiber.Ctx) error {
-	incidentID, err := strconv.ParseUint(c.Params("id"), 10, 32)
-	if err != nil {
-		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
-			"error": "Invalid incident ID",
-		})
-	}
-
-	riskID, err := strconv.ParseUint(c.Params("riskId"), 10, 32)
-	if err != nil {
-		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
-			"error": "Invalid risk ID",
-		})
-	}
-
-	tenantID := safeGetString(c, "tenant_id")
-
-	if err := h.incidentService.LinkRisk(tenantID, uint(incidentID), uint(riskID)); err != nil {
-		if errors.Is(err, domain.ErrNotFound) {
-			return c.Status(http.StatusNotFound).JSON(fiber.Map{"error": "Incident not found"})
-		}
-		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
-			"error": fmt.Sprintf("Failed to link risk: %v", err),
-		})
-	}
-
-	return c.JSON(fiber.Map{
-		"message": "Risk linked successfully",
-	})
 }
 
 // CreateIncidentAction creates a mitigation action
@@ -344,28 +311,6 @@ func (h *IncidentHandler) GetIncidentStats(c *fiber.Ctx) error {
 	stats := h.incidentService.GetIncidentStats(tenantID)
 
 	return c.JSON(stats)
-}
-
-// GetIncidentsForRisk retrieves incidents for a specific risk
-// GET /risks/:id/incidents
-func (h *IncidentHandler) GetIncidentsForRisk(c *fiber.Ctx) error {
-	riskID, err := strconv.ParseUint(c.Params("id"), 10, 32)
-	if err != nil {
-		return c.Status(http.StatusBadRequest).JSON(fiber.Map{
-			"error": "Invalid risk ID",
-		})
-	}
-
-	tenantID := safeGetString(c, "tenant_id")
-
-	incidents, err := h.incidentService.GetIncidentsForRisk(tenantID, uint(riskID))
-	if err != nil {
-		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
-			"error": fmt.Sprintf("Failed to get incidents: %v", err),
-		})
-	}
-
-	return c.JSON(incidents)
 }
 
 // GetIncidents retrieves all incidents with pagination

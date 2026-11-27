@@ -35,5 +35,12 @@ var orgProbes = []Probe{
 	get("/api/v1/entities/:type/:id/timeline", "=risk", KindRisk),
 
 	get("/api/v1/audit-logs/user/:user_id", KindUser),
+	// The audit trail of the caller's own organisation (#1519): an ip_address
+	// the driver returns as text made every read of a row that carried one a 500.
+	list("/api/v1/audit-logs", KindUser),
+	// The path segment is an action name, not an id. Seeding a user writes a
+	// user_create row in each tenant, so B's control must show B's user and A's
+	// page must carry none of B's rows (not Aggregate: the VACUOUS guard stays on).
+	{Method: "GET", Path: "/api/v1/audit-logs/action/:action", Kinds: []Kind{"=user_create", KindUser}, Collection: true},
 	get("/api/v1/attack-surface/topology/:id/compromise-chain", KindAsset),
 }

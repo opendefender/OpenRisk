@@ -70,7 +70,10 @@ func (s *IncidentService) CreateIncident(tenantID string, req domain.IncidentCre
 	// Validate severity
 	validSeverities := map[string]bool{"critical": true, "high": true, "medium": true, "low": true}
 	if !validSeverities[req.Severity] {
-		return nil, fmt.Errorf("invalid severity: %s", req.Severity)
+		return nil, domain.NewValidationErrorWithFields("invalid incident", []domain.FieldError{{
+			Field:   "severity",
+			Message: "severity is required and must be one of critical, high, medium, low",
+		}})
 	}
 
 	// #1520: every risk the incident names must be this tenant's. Checked before
@@ -271,7 +274,10 @@ func (s *IncidentService) UpdateIncident(tenantID string, incidentID uint, req d
 	if req.Severity != "" {
 		validSeverities := map[string]bool{"critical": true, "high": true, "medium": true, "low": true}
 		if !validSeverities[req.Severity] {
-			return nil, fmt.Errorf("invalid severity: %s", req.Severity)
+			return nil, domain.NewValidationErrorWithFields("invalid incident", []domain.FieldError{{
+				Field:   "severity",
+				Message: "severity is required and must be one of critical, high, medium, low",
+			}})
 		}
 	}
 
@@ -427,27 +433,6 @@ func (s *IncidentService) GetTimeline(tenantID string, incidentID uint) ([]domai
 		return nil, fmt.Errorf("failed to get timeline: %w", err)
 	}
 	return timeline, nil
-}
-
-// LinkRisk links an incident to a risk (tenant-scoped)
-func (s *IncidentService) LinkRisk(tenantID string, incidentID, riskID uint) error {
-	if err := s.ownsIncident(tenantID, incidentID); err != nil {
-		return err
-	}
-	if err := s.db.Model(&domain.Incident{}).
-		Where("id = ? AND tenant_id = ?", incidentID, tenantID).
-		Update("risk_id", riskID).Error; err != nil {
-		return fmt.Errorf("failed to link risk: %w", err)
-	}
-
-	// Add timeline entry
-	if err := s.AddTimelineEntry(incidentID, "risk_link",
-		fmt.Sprintf("Linked to risk ID %d", riskID),
-		fmt.Sprintf("%d", riskID), "system"); err != nil {
-		log.Printf("Warning: failed to add risk_link timeline entry for incident %d: %v", incidentID, err)
-	}
-
-	return nil
 }
 
 // CreateIncidentAction creates a mitigation action for incident (tenant-scoped)
@@ -636,17 +621,6 @@ func (s *IncidentService) GetIncidentAnalytics(tenantID string, months int) (*In
 		out.Trend = append(out.Trend, IncidentTrendData{Month: r.Month, Total: r.Total, Critical: r.Critical, High: r.High})
 	}
 	return out, nil
-}
-
-// GetIncidentsForRisk retrieves all incidents linked to a risk
-func (s *IncidentService) GetIncidentsForRisk(tenantID string, riskID uint) ([]domain.Incident, error) {
-	var incidents []domain.Incident
-	if err := database.DB.Where("tenant_id = ? AND risk_id = ?", tenantID, riskID).
-		Order("created_at DESC").
-		Find(&incidents).Error; err != nil {
-		return nil, fmt.Errorf("failed to get incidents for risk: %w", err)
-	}
-	return incidents, nil
 }
 
 // GetIncidentMetrics retrieves comprehensive incident analytics metrics

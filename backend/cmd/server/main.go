@@ -2747,11 +2747,9 @@ func main() {
 	incidentsGroup.Get("/:id/post-mortem", incidentHandler.GetPostMortem)
 	incidentsGroup.Put("/:id/post-mortem", incidentUpdate, incidentHandler.SavePostMortem)
 	incidentsGroup.Post("/:id/post-mortem/publish", incidentUpdate, incidentHandler.PublishPostMortem)
-	incidentsGroup.Post("/:id/risks/:riskId", incidentUpdate, incidentHandler.LinkRisk)
 	incidentsGroup.Post("/:id/actions", incidentUpdate, incidentHandler.CreateIncidentAction)
 	incidentsGroup.Get("/:id/actions", incidentHandler.GetIncidentActions)
 	incidentsGroup.Put("/:id/actions/:actionId", incidentUpdate, incidentHandler.UpdateIncidentAction)
-	protected.Get("/risks/:id/incidents", middleware.RequirePermission("risks:read"), incidentHandler.GetIncidentsForRisk)
 
 	// NOTE: the legacy /risk-management/* lifecycle subsystem (service +
 	// handler + duplicate RiskRegister/TreatmentPlan/… models) was removed. Its
@@ -2943,11 +2941,12 @@ func main() {
 	rbacUsers := protected.Group("/rbac/users", adminRole)
 	rbacUsers.Get("", rbacUserHandler.ListUsers)
 	rbacUsers.Post("", rbacUserHandler.AddUserToTenant)
+	// Static sub-path before /:user_id (Fiber trap): "stats" is not a user id (#1519).
+	rbacUsers.Get("/stats", rbacUserHandler.GetTenantUserStats)
 	rbacUsers.Get("/:user_id", rbacUserHandler.GetUser)
 	rbacUsers.Patch("/:user_id/role", rbacUserHandler.ChangeUserRole)
 	rbacUsers.Delete("/:user_id", rbacUserHandler.RemoveUserFromTenant)
 	rbacUsers.Get("/:user_id/permissions", rbacUserHandler.GetUserPermissions)
-	rbacUsers.Get("/stats", rbacUserHandler.GetTenantUserStats)
 
 	// Role Management Endpoints (admin-only)
 	rbacRoles := protected.Group("/rbac/roles", adminRole)

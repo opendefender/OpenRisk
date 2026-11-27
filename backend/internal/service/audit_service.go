@@ -339,10 +339,14 @@ func (s *AuditService) GetAuditLogsByDateRange(tenantID uuid.UUID, startTime tim
 }
 
 // Helper function to parse IP address string
-func parseIPAddress(ipStr string) *net.IP {
+func parseIPAddress(ipStr string) *domain.INetAddr {
 	if ipStr == "" {
 		return nil
 	}
-	ip := net.ParseIP(ipStr)
+	parsed := net.ParseIP(ipStr)
+	if parsed == nil {
+		return nil
+	}
+	ip := domain.INetAddr(parsed)
 	return &ip
 }
