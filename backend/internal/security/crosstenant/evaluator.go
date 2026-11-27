@@ -7,6 +7,7 @@ package crosstenant
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 )
 
@@ -135,10 +136,19 @@ func Evaluate(o Observation) []string {
 // echoes returns the foreign strings found in body once the request's own
 // values are removed.
 func echoes(body string, foreign, supplied []string) []string {
+	// Longest first, and never a short one: a supplied integer id ("38") is a
+	// substring of a longer supplied id ("xt-…-b-scoreconfig-0b038c"); removing
+	// it first would cut the long id, which then survives as a fragment that
+	// still carries B's canary prefix and reads as an echo (#1521).
+	strip := make([]string, 0, len(supplied))
 	for _, s := range supplied {
-		if s != "" {
-			body = strings.ReplaceAll(body, s, "")
+		if len(s) >= 8 {
+			strip = append(strip, s)
 		}
+	}
+	sort.SliceStable(strip, func(i, j int) bool { return len(strip[i]) > len(strip[j]) })
+	for _, s := range strip {
+		body = strings.ReplaceAll(body, s, "")
 	}
 	var hits []string
 	for _, f := range foreign {
@@ -152,4 +162,87 @@ func echoes(body string, foreign, supplied []string) []string {
 		}
 	}
 	return hits
+}
+
+// OwnBodyObservation is what the harness recorded for a probe of the own-object
+// shape: A's own object in the path, B's id in the body.
+type OwnBodyObservation struct {
+	// ControlStatus is the same request with A's own in-tenant ids: it must work.
+	ControlStatus int
+	// AttackStatus names B's id in the body; RandomStatus names a random one.
+	AttackStatus, RandomStatus int
+	AttackBody                 string
+	// BeforeHash and AfterHash are A's own read of its object around the attempt;
+	// AfterBody is the read after, scanned for anything of B's.
+	BeforeHash, AfterHash, AfterBody string
+	// Foreign are B's ids and canaries; Supplied are the ids the attacker sent.
+	Foreign, Supplied []string
+	// DropsForeign is the route's documented answer to an id it cannot resolve:
+	// 200 with the id ignored. ControlApplied is whether A's own ids, sent by the
+	// control, then show in A's read: without it a 200 would prove nothing.
+	DropsForeign, ControlApplied bool
+	// LinkChecked is whether the store was queried for a link from A's object to
+	// B's id; ForeignLinkStored is what that query found. A tenant-filtered read
+	// cannot prove "not stored", so the mode requires the query.
+	LinkChecked, ForeignLinkStored bool
+}
+
+// EvaluateOwnBody returns the failures of an own-object probe. The refusal may be
+// a 404 or 403 as elsewhere, or a typed validation error (400, 422); what it may
+// not be is a success, a server error, or an answer that differs from the random
+// id, and no link to B's id may be stored on A's object.
+func EvaluateOwnBody(o OwnBodyObservation) []string {
+	var out []string
+	fail := func(code, format string, a ...any) {
+		out = append(out, code+": "+fmt.Sprintf(format, a...))
+	}
+	switch {
+	case o.ControlStatus == 429 || o.AttackStatus == 429 || o.RandomStatus == 429:
+		fail(FailLimit, "a request was rate limited; the run is invalid")
+		return out
+	case o.ControlStatus < 200 || o.ControlStatus > 299:
+		fail(FailVacuous, "control (A's own ids) answered %d, not 2xx", o.ControlStatus)
+	}
+	if o.AttackStatus == 401 || o.RandomStatus == 401 {
+		fail(FailHarness, "401 on a request that carries a valid token is a suite defect")
+		return out
+	}
+	refused := o.AttackStatus == 400 || o.AttackStatus == 403 || o.AttackStatus == 404 || o.AttackStatus == 422
+	if o.DropsForeign && o.AttackStatus == 200 {
+		// The id is ignored, not refused: what matters is below, that nothing of
+		// B's is stored. The update itself rewrites updated_at and the score, so
+		// the before/after hash is not compared on this shape.
+		refused = true
+		if !o.ControlApplied {
+			fail(FailVacuous, "the control's own ids do not show in A's read: the field is not applied, so a 200 proves nothing")
+		}
+		if !o.LinkChecked {
+			fail(FailVacuous, "the store was not queried for a link to B's id; A's tenant-filtered read cannot show one")
+		}
+	}
+	if o.ForeignLinkStored {
+		fail(FailMutation, "a link from A's object to B's id is stored")
+	}
+	switch {
+	case refused:
+	case o.AttackStatus >= 200 && o.AttackStatus <= 299:
+		fail(FailLeak, "A got %d for B's id in the body", o.AttackStatus)
+	case o.AttackStatus >= 500:
+		fail(FailServer, "A got %d for B's id in the body", o.AttackStatus)
+	default:
+		fail(FailStatus, "A got %d for B's id in the body; only 400, 403, 404 or 422 pass", o.AttackStatus)
+	}
+	if o.AttackStatus != o.RandomStatus {
+		fail(FailOracle, "A gets %d for B's id but %d for a random id: the difference confirms B's object exists", o.AttackStatus, o.RandomStatus)
+	}
+	if !o.DropsForeign && o.BeforeHash != o.AfterHash {
+		fail(FailMutation, "A's own object changed after a request that named B's id")
+	}
+	if hits := echoes(o.AfterBody, o.Foreign, nil); len(hits) > 0 {
+		fail(FailMutation, "A's own object now holds B data: %s", strings.Join(hits, ", "))
+	}
+	if hits := echoes(o.AttackBody, o.Foreign, o.Supplied); len(hits) > 0 {
+		fail(FailEcho, "A's response contains B data: %s", strings.Join(hits, ", "))
+	}
+	return out
 }

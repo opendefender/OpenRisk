@@ -182,3 +182,92 @@ func TestEvaluate_RequestsOwnIdsAreNotAnEcho(t *testing.T) {
 		t.Fatalf("an echo of the supplied id must not fail, got %v", f)
 	}
 }
+
+// TestHarness_DetectsStoredForeignLink proves the own-object evaluator is not
+// vacuous: a stored link, a success, a server error and an oracle are each
+// rejected, and a clean 400 still passes.
+func TestHarness_DetectsStoredForeignLink(t *testing.T) {
+	b := "22222222-3333-4444-5555-666666666666"
+	clean := OwnBodyObservation{
+		ControlStatus: 200, AttackStatus: 400, RandomStatus: 400,
+		BeforeHash: "h", AfterHash: "h", AfterBody: `{"category_id":null}`, Foreign: []string{b},
+	}
+	if f := EvaluateOwnBody(clean); len(f) != 0 {
+		t.Fatalf("a clean 400 must pass, got %v", f)
+	}
+	for name, mod := range map[string]func(*OwnBodyObservation) string{
+		"link stored": func(o *OwnBodyObservation) string {
+			o.AfterHash, o.AfterBody = "changed", `{"category_id":"`+b+`"}`
+			return FailMutation
+		},
+		"accepted": func(o *OwnBodyObservation) string { o.AttackStatus, o.RandomStatus = 200, 200; return FailLeak },
+		"server error": func(o *OwnBodyObservation) string {
+			o.AttackStatus, o.RandomStatus = 500, 500
+			return FailServer
+		},
+		"oracle":  func(o *OwnBodyObservation) string { o.AttackStatus, o.RandomStatus = 404, 400; return FailOracle },
+		"vacuous": func(o *OwnBodyObservation) string { o.ControlStatus = 400; return FailVacuous },
+	} {
+		o := clean
+		code := mod(&o)
+		if f := EvaluateOwnBody(o); !hasFailure(f, code) {
+			t.Errorf("%s: want %s, got %v", name, code, f)
+		}
+	}
+}
+
+// TestEvaluate_SuppliedIdsStripLongestFirst: a short supplied id that is a
+// substring of a longer supplied id must not cut it, leaving a fragment of B's
+// canary that reads as an echo (seen on score-engine/configs, #1521).
+func TestEvaluate_SuppliedIdsStripLongestFirst(t *testing.T) {
+	long := "xt-145e0dcd-b-scoreconfig-0b038c"
+	body := `{"ID":"` + long + `","Name":"attacker"}`
+	foreign := []string{"xt-145e0dcd-b-"}
+	for _, supplied := range [][]string{{"38", long}, {long, "38"}} {
+		if hits := echoes(body, foreign, supplied); len(hits) != 0 {
+			t.Fatalf("supplied %v: the supplied id is not an echo, got %v", supplied, hits)
+		}
+	}
+	// A genuine echo next to the supplied id is still caught.
+	if hits := echoes(body+` "xt-145e0dcd-b-risk"`, foreign, []string{"38", long}); len(hits) != 1 {
+		t.Fatalf("a real canary beside the supplied id must be reported, got %v", hits)
+	}
+}
+
+// TestHarness_DropsForeignMode: on a route that drops an unresolvable id, a 200
+// passes only when it matches the random id, the control's own id was applied,
+// and A's object holds nothing of B's.
+func TestHarness_DropsForeignMode(t *testing.T) {
+	b := "22222222-3333-4444-5555-666666666666"
+	clean := OwnBodyObservation{
+		ControlStatus: 200, AttackStatus: 200, RandomStatus: 200,
+		BeforeHash: "h", AfterHash: "changed", AfterBody: `{"assets":[]}`, Foreign: []string{b},
+		DropsForeign: true, ControlApplied: true, LinkChecked: true,
+	}
+	if f := EvaluateOwnBody(clean); len(f) != 0 {
+		t.Fatalf("a dropped foreign id must pass, got %v", f)
+	}
+	for name, mod := range map[string]func(*OwnBodyObservation) string{
+		"link stored": func(o *OwnBodyObservation) string {
+			o.AfterBody = `{"assets":[{"id":"` + b + `"}]}`
+			return FailMutation
+		},
+		"field not applied": func(o *OwnBodyObservation) string { o.ControlApplied = false; return FailVacuous },
+		// A's read filters assets by tenant, so only the store shows this link.
+		"link hidden from the read": func(o *OwnBodyObservation) string { o.ForeignLinkStored = true; return FailMutation },
+		"store not queried":         func(o *OwnBodyObservation) string { o.LinkChecked = false; return FailVacuous },
+		"oracle":                    func(o *OwnBodyObservation) string { o.RandomStatus = 404; return FailOracle },
+	} {
+		o := clean
+		code := mod(&o)
+		if f := EvaluateOwnBody(o); !hasFailure(f, code) {
+			t.Errorf("%s: want %s, got %v", name, code, f)
+		}
+	}
+	// Without the mode, the same 200 is a leak.
+	o := clean
+	o.DropsForeign = false
+	if f := EvaluateOwnBody(o); !hasFailure(f, FailLeak) {
+		t.Errorf("a 200 outside the mode must be a leak, got %v", f)
+	}
+}

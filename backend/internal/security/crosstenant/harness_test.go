@@ -11,6 +11,7 @@ import (
 	"bytes"
 	"crypto/rand"
 	"crypto/sha256"
+	"database/sql"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -38,6 +39,13 @@ type principal struct {
 	mu      sync.Mutex
 	access  string
 	refresh string
+	// csrf is the double-submit token of the session, used only in cookie mode.
+	csrf string
+	// totp is the authenticator secret once p is enrolled (TestCrossTenant_MFABranches);
+	// login then goes through /auth/mfa/challenge.
+	totp string
+	// lastStep is the last TOTP time step spent, so a code is never replayed.
+	lastStep int64
 	// memo holds the shared seed of each kind; every id a seed learns is also
 	// recorded in ids so the echo scan knows all of this tenant's data.
 	memo map[Kind]map[Kind]string
@@ -73,6 +81,14 @@ type harness struct {
 	A, B   *principal
 	// supplied is every id the attacker put in a request so far.
 	supplied []string
+
+	// cookie makes do() carry the session as the HttpOnly or_access cookie plus
+	// the double-submit CSRF header, as the browser SPA does, instead of Bearer.
+	// Provisioning and login always use Bearer or no credential.
+	cookie bool
+
+	// db is the direct connection of database(), opened on first use.
+	db *sql.DB
 
 	roleMu  sync.Mutex
 	roleIDs map[string]string // predefined role name (lower case) -> id
@@ -144,6 +160,11 @@ func randHex(n int) string {
 }
 
 func (h *harness) raw(method, path, token, body string) (int, string) {
+	return h.send(method, path, token, body, nil)
+}
+
+// send is raw with an optional hook on the request, for the cookie session.
+func (h *harness) send(method, path, token, body string, mod func(*http.Request)) (int, string) {
 	var rdr io.Reader
 	if body != "" {
 		rdr = strings.NewReader(body)
@@ -158,6 +179,9 @@ func (h *harness) raw(method, path, token, body string) (int, string) {
 	if token != "" {
 		req.Header.Set("Authorization", "Bearer "+token)
 	}
+	if mod != nil {
+		mod(req)
+	}
 	resp, err := h.client.Do(req)
 	if err != nil {
 		h.t.Fatalf("%s %s: %v", method, path, err)
@@ -170,18 +194,29 @@ func (h *harness) raw(method, path, token, body string) (int, string) {
 // do calls the API as p. On a 401 it logs p in again once; a second 401 is
 // returned as is, and Evaluate reports it as a suite defect, not a pass.
 func (h *harness) do(p *principal, method, path, body string) (int, string) {
-	p.mu.Lock()
-	tok := p.access
-	p.mu.Unlock()
-	status, resp := h.raw(method, path, tok, body)
+	status, resp := h.once(p, method, path, body)
 	if status == http.StatusUnauthorized {
 		h.login(p)
-		p.mu.Lock()
-		tok = p.access
-		p.mu.Unlock()
-		status, resp = h.raw(method, path, tok, body)
+		status, resp = h.once(p, method, path, body)
 	}
 	return status, resp
+}
+
+// once sends one request with p's current session, as Bearer or, in cookie mode,
+// as the or_access cookie with the or_csrf double-submit cookie and header. The
+// cookie mode sends no Authorization header at all.
+func (h *harness) once(p *principal, method, path, body string) (int, string) {
+	p.mu.Lock()
+	tok, csrf := p.access, p.csrf
+	p.mu.Unlock()
+	if !h.cookie {
+		return h.raw(method, path, tok, body)
+	}
+	return h.send(method, path, "", body, func(r *http.Request) {
+		r.AddCookie(&http.Cookie{Name: "or_access", Value: tok})
+		r.AddCookie(&http.Cookie{Name: "or_csrf", Value: csrf})
+		r.Header.Set("X-CSRF-Token", csrf)
+	})
 }
 
 func (h *harness) provision(name string) *principal {
@@ -234,9 +269,13 @@ func (h *harness) login(p *principal) {
 			Refresh string `json:"refresh_token"`
 		} `json:"token_pair"`
 		MFAToken string `json:"mfa_token"`
+		CSRF     string `json:"csrf_token"`
 	}
 	_ = json.Unmarshal([]byte(body), &out)
-	if out.TokenPair.Access == "" && out.MFAToken != "" {
+	switch {
+	case out.TokenPair.Access == "" && out.MFAToken != "" && p.totp != "":
+		out.TokenPair.Access, out.TokenPair.Refresh, out.CSRF = h.challengeMFA(p, out.MFAToken)
+	case out.TokenPair.Access == "" && out.MFAToken != "":
 		out.TokenPair.Access, out.TokenPair.Refresh = h.enrolMFA(p, out.MFAToken)
 	}
 	if out.TokenPair.Access == "" {
@@ -245,6 +284,12 @@ func (h *harness) login(p *principal) {
 	}
 	p.mu.Lock()
 	p.access, p.refresh = out.TokenPair.Access, out.TokenPair.Refresh
+	// The double-submit check compares the cookie with the header only, so a
+	// login that returned no csrf_token still gets a usable random value.
+	p.csrf = out.CSRF
+	if p.csrf == "" {
+		p.csrf = randHex(16)
+	}
 	p.mu.Unlock()
 }
 
@@ -327,3 +372,77 @@ func (h *harness) idOf(p *principal, resp string) string {
 func newUUID() string { return uuid.NewString() }
 
 var _ = bytes.NewBuffer
+
+// totpCode returns a code for the first time step after the last one this
+// principal spent, waiting when that step is more than one ahead of the clock
+// (a server accepts one step of skew, and refuses a code it has already seen).
+// The step is reserved under p.mu and the wait happens outside it, so a
+// concurrent request of p is never held up by the clock.
+func (p *principal) totpCode() (string, error) {
+	p.mu.Lock()
+	step := time.Now().Unix() / 30
+	if step <= p.lastStep {
+		step = p.lastStep + 1
+	}
+	p.lastStep = step
+	secret := p.totp
+	p.mu.Unlock()
+	for step > time.Now().Unix()/30+1 {
+		time.Sleep(time.Second)
+	}
+	return totp.GenerateCode(secret, time.Unix(step*30, 0))
+}
+
+// enrolSession turns MFA on for p through the production endpoints, from the
+// session p already holds (a user in the grace period may do so from Settings).
+func (h *harness) enrolSession(p *principal) {
+	h.t.Helper()
+	p.mu.Lock()
+	tok := p.access
+	p.mu.Unlock()
+	status, body := h.raw("POST", "/api/v1/auth/mfa/setup", tok, "")
+	if status != 200 {
+		h.t.Fatalf("mfa setup %s: %d (body of %d bytes withheld)", p.name, status, len(body))
+	}
+	var setup struct {
+		Secret string `json:"secret"`
+	}
+	_ = json.Unmarshal([]byte(body), &setup)
+	if setup.Secret == "" {
+		h.t.Fatalf("mfa setup %s returned no secret", p.name)
+	}
+	p.mu.Lock()
+	p.totp = setup.Secret
+	p.mu.Unlock()
+	code, err := p.totpCode()
+	if err != nil {
+		h.t.Fatalf("totp: %v", err)
+	}
+	vb, _ := json.Marshal(map[string]string{"code": code})
+	if status, _ = h.raw("POST", "/api/v1/auth/mfa/verify", tok, string(vb)); status != 200 {
+		h.t.Fatalf("mfa verify %s: %d", p.name, status)
+	}
+}
+
+// challengeMFA is the second leg of an MFA login for an enrolled principal.
+func (h *harness) challengeMFA(p *principal, mfaToken string) (string, string, string) {
+	h.t.Helper()
+	code, err := p.totpCode()
+	if err != nil {
+		h.t.Fatalf("totp: %v", err)
+	}
+	vb, _ := json.Marshal(map[string]string{"code": code})
+	status, body := h.raw("POST", "/api/v1/auth/mfa/challenge", mfaToken, string(vb))
+	if status != 200 {
+		h.t.Fatalf("mfa challenge %s: %d (body of %d bytes withheld)", p.name, status, len(body))
+	}
+	var out struct {
+		TokenPair struct {
+			Access  string `json:"access_token"`
+			Refresh string `json:"refresh_token"`
+		} `json:"token_pair"`
+		CSRF string `json:"csrf_token"`
+	}
+	_ = json.Unmarshal([]byte(body), &out)
+	return out.TokenPair.Access, out.TokenPair.Refresh, out.CSRF
+}

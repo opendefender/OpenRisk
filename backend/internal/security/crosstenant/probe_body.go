@@ -41,3 +41,23 @@ var bodyProbes = []Probe{
 	allow(post("/api/v1/score-engine/classify", `{"score":10,"config_id":"{{scoreconfig}}"}`, KindScoreConfig),
 		"an id that is not the caller's classifies with the built-in default; B's configuration is not read", "RR-13", 200),
 }
+
+// ownBodyProbes is the second body-id shape: A's OWN object in the path, B's id
+// in the body (#1521). The route must refuse it as it refuses a random id of the
+// same shape, and nothing of B's may be stored on A's object. The positive
+// control is the same request with A's own in-tenant ids.
+var ownBodyProbes = []Probe{
+	own(patch("/api/v1/risks/:id", `{"category_id":"{{riskcategory}}"}`, KindCategory), KindRisk),
+	own(post("/api/v1/risks/:id/transfer-owner", `{"new_owner_id":"{{user}}"}`, KindUser), KindRisk),
+	own(post("/api/v1/mitigations/:id/transfer-owner", `{"new_owner_id":"{{user}}"}`, KindUser), KindMitigation),
+	own(post("/api/v1/incidents/:id/transfer-owner", `{"new_owner_id":"{{user}}"}`, KindUser), KindIncident),
+	own(patch("/api/v1/risks/:id", `{"owner_id":"{{user}}"}`, KindUser), KindRisk),
+	// The asset store resolves asset_ids inside A's tenant only, so B's id is
+	// dropped and the update answers 200, as it does for a random id. Today the
+	// update answers 500 for every caller, A's own asset included: the audit
+	// plugin's pre-image query breaks the association replace on Postgres (#1517).
+	blockedBy(dropsForeign(own(patch("/api/v1/risks/:id", `{"asset_ids":["{{asset}}"]}`, KindAsset), KindRisk),
+		// risk_assets has no tenant_id: gated through the parent risk's tenant.
+		`SELECT count(*) FROM risk_assets ra JOIN risks r ON r.id = ra.risk_id
+		  WHERE r.tenant_id = $1 AND ra.risk_id = $2 AND ra.asset_id = $3`), "#1517"),
+}

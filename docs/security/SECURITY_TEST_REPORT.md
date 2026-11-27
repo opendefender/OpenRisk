@@ -43,7 +43,13 @@ responses to the checker and requires each one to be rejected.
 table from `cmd/server/main.go` and fails when a route has neither a probe nor a
 written exemption, when a group has no passing probe, when a probe names a route
 that no longer exists, or when an exemption cites a register row that is not in
-this file.
+this file. `TestRatchet_NoOpenRRRows` (#1521) is the closing gate of D-130: the
+exemptions still carried by RR-01, RR-03, RR-04, RR-05, RR-06, RR-08 and RR-09
+may only go down. Each child issue (#1528 to #1532) lowers its count in
+`openRRRemaining` in the PR that adds its probes. The test fails if an exemption
+is re-added under one of these rows, or if a row shrinks without its count being
+lowered. On 2026-11-27, 95 exemptions remain: RR-01 67, RR-04 5, RR-05 18, RR-06 2,
+RR-08 1, RR-09 2. RR-03 is at 0.
 
 **Coverage** (505 routes in 60 groups, counted by the ratchet's own classifier):
 
@@ -86,6 +92,20 @@ ok  	github.com/opendefender/openrisk/internal/security/crosstenant	4.914s
 ```
 The other four runs were identical. None logged a `tenantguard` line.
 
+**Result on #1521** (2026-11-27). Two consecutive runs of `make test-cross-tenant`
+on a fresh database, with the four new tests and the F9 fixes:
+```
+--- PASS: TestCrossTenant_CookieSession (16.61s)
+--- PASS: TestCrossTenant_TwoTenantPrincipal (8.20s)
+--- PASS: TestCrossTenant_OwnObjectForeignBodyID (1.79s)
+--- PASS: TestCrossTenant_MFABranches (17.64s)
+--- PASS: TestCrossTenant_Seeds (1.12s)
+--- PASS: TestCrossTenant (8.16s)
+ok  	github.com/opendefender/openrisk/internal/security/crosstenant	53.519s
+```
+Each run reported 0 FAIL, 2026 PASS and 1 SKIP. The skip is the `asset_ids` probe,
+blocked on #1517: `blocked on #1517: the control with A's own ids answers 500`.
+
 **The suite is not vacuous.** With the production fixes below stashed, the same
 script exits 1. Ten probes fail, and the guard logs two refused queries.
 
@@ -99,8 +119,9 @@ script exits 1. Ten probes fail, and the guard logs two refused queries.
 | F4 | Incident update and delete answered 500 and 204 for a foreign id; no data reached | low | Fixed in #1319: typed `ErrNotFound`, 404 |
 | F5 | Five mitigation routes answered 400 with the typed error text for a foreign id; no data reached | low | Fixed in #1319: one 404 body |
 | F6 | Cross-tenant read and write of scoring configurations | critical (policy) · CVSS medium | Fixed in #1319, GHSA-m6gp-q4m7-27c6 |
-| F7 | One run in eight echoed a B canary in A's response on `POST /score-engine/configs`. Not reproduced in 12 later runs, and no path from the config store to that response was traced. Leading hypothesis: fasthttp aliasing (Fiber returns views of the request buffer, and F6's store kept such a string as a map key) | high (unconfirmed) | Hardened in #1319: `Immutable: true` in `fiber.Config` makes Fiber's accessors (`c.Params`, `c.Query`, `c.Get`, `c.Body`, ...) return copies (D-129). Raw fasthttp calls are not covered; the two in the code copy or hash at once (`asset_handler.go:100`, `pkg/cache/decoration.go:118`). A test pins the setting |
+| F7 | One run in eight echoed a B canary in A's response on `POST /score-engine/configs`. Not reproduced in 12 later runs, and no path from the config store to that response was traced. Leading hypothesis: fasthttp aliasing (Fiber returns views of the request buffer, and F6's store kept such a string as a map key) | high (unconfirmed). Consistent with the harness false positive found in #1521 (F9); the response of the original run was not captured | #1521 reproduced the symptom 1 time in 4 on the same route, with the same message (`ECHO: … xt-<run>-b-`). The response captured each time contained only the id A had supplied in `?id=` and `"Name":"attacker"`, nothing else of B's. The echo scan was cutting that supplied id, which carries B's canary, with a shorter id. The fix makes the failure disappear in 2 full runs, and the regression test reproduces exactly the reported fragment. Hardened in #1319: `Immutable: true` in `fiber.Config` makes Fiber's accessors (`c.Params`, `c.Query`, `c.Get`, `c.Body`, ...) return copies (D-129). Raw fasthttp calls are not covered; the two in the code copy or hash at once (`asset_handler.go:100`, `pkg/cache/decoration.go:118`). A test pins the setting |
 | F8 | Found in security review, not by the suite. A workflow step's `approver_user_ids` are stored unchecked, and the approval notifier loaded those users across tenants: it e-mailed and notified another tenant's user an attacker-titled request | medium | Fixed in #1319: the notifier resolves only active members of the request's tenant, test `approval_notifier_tenant_test.go` |
+| F9 | Found in #1521, in the harness rather than in the product. Each verification read used the same URL as its before-read, so it hit the 5-minute response cache. That cache is cleared only for the tenant that writes, so B's after-read replayed the before-read, and a mutation check could pass while the row had changed. Once the cache was bypassed, two further false positives appeared. A fresh risk's `updated_at` moves by less than 10 ms after its create with no other request (5 of 20 risks). The echo scan cut a long id the attacker had supplied with a short one, leaving a fragment of B's canary | medium (assurance) | Fixed in #1521. Every verification read gets its own query string (`uncached`). The before-read waits for two identical reads (`settled`). The echo scan strips supplied ids of 8 characters or more, longest first. `TestEvaluate_SuppliedIdsStripLongestFirst` fails on the previous code. The suite was re-run with the fix: no mutation and no leak |
 
 `SECURITY.md` treats any flaw that lets one tenant read or change another tenant's
 data as critical, whatever its CVSS score: F1, F2, F3 and F6 are critical by that
@@ -171,14 +192,14 @@ lands, or the stated reason. The owner signed this register on 2026-11-27 (D-130
 
 | Id | Risk | Severity | Owner | Decision |
 |---|---|---|---|---|
-| RR-01 | 64 routes and 4 groups have no seed or no successful control call yet (compliance sub-resources, vulnerabilities, notifications, automation runs, bulk operations, report jobs, control exceptions, integrations, scanner-adjacent kinds). Their isolation rests on the recorded decision in `isolation/registry.go`, not on a test | medium | #1521 | Accept until #1521 |
+| RR-01 | 64 routes and 3 groups (`controls`, `control-exceptions`, `integrations`; the fourth whole-group exemption, `ai`, is RR-05) have no seed or no successful control call yet (compliance sub-resources, vulnerabilities, notifications, automation runs, bulk operations, report jobs, control exceptions, integrations, scanner-adjacent kinds). Their isolation rests on the recorded decision in `isolation/registry.go`, not on a test. 67 exemptions on 2026-11-27, counted by `TestRatchet_NoOpenRRRows` | medium | #1528, #1529, #1530 (children of #1521) | Accept until the children merge |
 | RR-02 | Seven routes answer 200 with an empty body, or touch nothing, for a foreign parent or user id instead of 404. No foreign data is returned, and a random id gets the same answer | low | #1520 | Accept until #1520 |
 | RR-03 | Closed by #1518. 17 `/rbac` routes were unprobed because registration wrote no `tenants` row and no `user_tenants` row, so a new root got 403 there. Registration now writes both in its transaction (the root as Admin, no restart). Of the 17: 15 are live probes (6 of them allowed, under RR-02 or RR-15; `POST /rbac/users` is a plain probe: it now answers 404 for a user outside the caller's organisation), `POST /rbac/roles` is exempt as having no id to name, and `DELETE /rbac/tenants/:tenant_id` is exempt under RR-15 | medium | #1518 | Closed |
-| RR-04 | 5 routes fail for every caller on Postgres, so no control exists (dashboard queries, `/audit-logs`, `/rbac/users/stats`) | medium | #1169, #1519 | Accept until fixed |
-| RR-05 | 17 routes and the `ai` group need an artefact the harness does not create (uploaded file, rendered document, second approver, AI provider) | low | #1521 | Accept |
-| RR-06 | 2 server-sent-event streams are not probed | low | #1521 | Accept |
-| RR-08 | 1 route's own throttle makes repeated control runs answer 429 | low | #1521 | Accept |
-| RR-09 | 2 dead incident-risk routes parse a UUID as an integer and answer 400 to everyone | low | #1519 | Accept until #1519 |
+| RR-04 | 5 routes fail for every caller on Postgres, so no control exists (dashboard queries, `/audit-logs`, `/rbac/users/stats`) | medium | #1532 (blocked on #1169, #1519) | Accept until fixed |
+| RR-05 | 17 routes and the `ai` group need an artefact the harness does not create (uploaded file, rendered document, second approver, AI provider) | low | #1531 (child of #1521) | Accept until #1531 |
+| RR-06 | 2 server-sent-event streams are not probed | low | #1531 (child of #1521) | Accept until #1531 |
+| RR-08 | 1 route's own throttle makes repeated control runs answer 429 | low | #1531 (child of #1521) | Accept until #1531 |
+| RR-09 | 2 dead incident-risk routes parse a UUID as an integer and answer 400 to everyone | low | #1532 (blocked on #1519) | Accept until #1532 |
 | RR-10 | 2 bulk preview routes answer 200 with "missing" for a foreign id. The body is the same as for a random id, and nothing is read or written | low | #1520 | Accept |
 | RR-11 | 2 routes refuse foreign body ids with 400 rather than 404. The answer is the same for a random id, and nothing is written | low | #1520 | Accept |
 | RR-12 | 4 writes store a foreign body-addressed reference as is (201). It is never read back, because reads filter by tenant, and the approval notifier tells only active members of the tenant (F8) | medium | #1520 | Accept until #1520 |
@@ -190,7 +211,7 @@ lands, or the stated reason. The owner signed this register on 2026-11-27 (D-130
 | RR-SAST-1 | Uploaded files are written 0640 and the CTI data directory 0755. Group and other read access on a shared host | low | #1521 | Accept: the image runs as one non-root user, `openrisk` (`Dockerfile:51`) |
 | RR-SAST-2 | 21 low gosec issues not triaged one by one | low | #1521 | Accept |
 | RR-DAST-1 | DAST is passive only, and it covers only the routes documented in `docs/openapi.yaml`. No active scan (injection, fuzzing) was run against a live stack | medium | #1121 (documentation); active scan not planned | Accept for v1.0: the cross-tenant suite and the input-validation audit (#1316) cover the active classes that matter most |
-| RR-SCOPE-1 | Not covered by the suite: cookie sessions (Bearer only), a principal in both tenants, the attacker's own object carrying B's id in the body, and the MFA enrolment branch (a new root is in its 7-day grace period) | medium | #1521 | Accept until #1521 |
+| RR-SCOPE-1 | Closed by #1521. The suite now also runs: with a cookie session (`or_access` and double-submit CSRF, the same answers as Bearer, `TestCrossTenant_CookieSession`); with a user who is a member of both tenants and holds a token scoped to A (`TestCrossTenant_TwoTenantPrincipal`); with A's own object carrying B's id in the body on 5 routes (`TestCrossTenant_OwnObjectForeignBodyID`). A sixth probe, `PATCH /risks/:id` `asset_ids`, is written: the route drops a foreign id without an error, so it passes on 200 only if the control links A's own asset and a query on `risk_assets` (gated through the tenant of the parent risk) finds no link to B's asset. A's own read cannot show such a link, because it filters assets by tenant. That probe is skipped while #1517 stays open, because the route answers 500 for every caller, A's own asset included; and for a root in its MFA grace period and an enrolled one (`TestCrossTenant_MFABranches`) | — | #1521 | Closed |
 
 ## Appendix: how to reproduce
 

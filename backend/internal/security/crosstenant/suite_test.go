@@ -41,7 +41,17 @@ func TestCrossTenant_Seeds(t *testing.T) {
 func TestCrossTenant(t *testing.T) {
 	h := newHarness(t)
 	h.seedBoth(t)
+	h.runProbes(t, nil)
+}
 
+// answers is what one probe observed, kept to compare two runs of the suite.
+type answers struct{ attack, random, control int }
+
+// runProbes runs every probe as A against B and returns the statuses seen, by
+// probe id. skip names probes left out, with the reason a test states itself.
+func (h *harness) runProbes(t *testing.T, skip map[string]string) map[string]answers {
+	t.Helper()
+	seen := map[string]answers{}
 	groups := map[string][]Probe{}
 	for _, p := range allProbes() {
 		g := Group(p.Path)
@@ -56,11 +66,18 @@ func TestCrossTenant(t *testing.T) {
 	for _, g := range names {
 		t.Run(g, func(t *testing.T) {
 			for _, p := range groups[g] {
+				if _, ok := skip[p.ID()]; ok {
+					continue
+				}
 				t.Run(p.ID(), func(t *testing.T) {
 					o, supplied, err := h.observe(p)
 					if err != nil {
 						t.Fatalf("suite defect: %v", err)
 					}
+					if _, dup := seen[p.ID()]; dup {
+						t.Fatalf("suite defect: two probes share the id %s, a comparison of runs would drop one", p.ID())
+					}
+					seen[p.ID()] = answers{o.AttackStatus, o.RandomStatus, o.ControlStatus}
 					o.Allow = p.Allow
 					// Ids A supplied in any probe so far are not a leak when a
 					// later read shows them: that is the dangling reference
@@ -82,6 +99,7 @@ func TestCrossTenant(t *testing.T) {
 	}
 	// Guard silence (the boot log has no tenantguard line) is checked by
 	// scripts/ci/cross-tenant.sh, which owns the log.
+	return seen
 }
 
 // observe runs one probe and records what happened. The order matters: B's read
@@ -125,7 +143,10 @@ func (h *harness) observe(p Probe) (Observation, []string, error) {
 	readPath := h.readPath(p, ids)
 	if readPath != "" {
 		o.Verified = true
-		_, before := h.do(h.B, "GET", readPath, "")
+		before, err := h.settled(h.B, readPath)
+		if err != nil {
+			return o, supplied, err
+		}
 		o.BeforeHash = hashBody(before)
 	}
 
@@ -134,7 +155,7 @@ func (h *harness) observe(p Probe) (Observation, []string, error) {
 
 	if readPath != "" {
 		var after string
-		o.AfterStatus, after = h.do(h.B, "GET", readPath, "")
+		o.AfterStatus, after = h.do(h.B, "GET", uncached(readPath), "")
 		o.AfterHash = hashBody(after)
 	}
 
@@ -238,6 +259,39 @@ func (h *harness) readPath(p Probe, ids map[Kind]string) string {
 		return rp
 	}
 	return ""
+}
+
+// uncached gives each verification read a query parameter of its own, applied
+// per request: a before-read and an after-read never share a cache key. The response
+// cache keys on the query string and is cleared only for the tenant that wrote,
+// so B's after-read would otherwise replay B's before-read from the cache and a
+// change made by A's request would go unseen.
+func uncached(path string) string {
+	sep := "?"
+	if strings.Contains(path, "?") {
+		sep = "&"
+	}
+	return path + sep + "_xt=" + randHex(8)
+}
+
+// settled is p's read of path once two reads in a row agree. A freshly seeded
+// risk gets one more server-side write a few milliseconds after its create (its
+// updated_at moves by under 10ms with no other request: measured 5 times in 20
+// on 2026-11-27), so a single before-read can race it and the after-read then
+// reports a mutation nobody made. The cached before-read used to hide that,
+// along with any real mutation. Waiting for a stable read keeps the before and
+// after comparison exact.
+func (h *harness) settled(p *principal, path string) (string, error) {
+	_, prev := h.do(p, "GET", uncached(path), "")
+	for i := 0; i < 20; i++ {
+		time.Sleep(25 * time.Millisecond)
+		_, cur := h.do(p, "GET", uncached(path), "")
+		if cur == prev {
+			return cur, nil
+		}
+		prev = cur
+	}
+	return "", seedError("the read of " + path + " never settled; a before/after comparison would be meaningless")
 }
 
 // seedBoth gives both tenants one object of every kind that has no setup state
