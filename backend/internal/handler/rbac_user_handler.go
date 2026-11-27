@@ -235,14 +235,25 @@ func (h *RBACUserHandler) ChangeUserRole(c *fiber.Ctx) error {
 
 	// Change user role
 	if err := h.userService.ChangeUserRole(ctx, userID, tenantID, roleID); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": err.Error(),
-		})
+		return userMutationError(c, err)
 	}
 
 	return c.JSON(fiber.Map{
 		"message": "user role changed successfully",
 	})
+}
+
+// userMutationError maps a role change or removal failure. A user with no row in
+// the caller's tenant, foreign or unknown, is one 404 with one body. Messages are
+// typed; a database error never reaches the client (#1520).
+func userMutationError(c *fiber.Ctx, err error) error {
+	if errors.Is(err, domain.ErrNotFound) {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "user not found in tenant"})
+	}
+	if errors.Is(err, domain.ErrValidation) {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid role for tenant"})
+	}
+	return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "request failed"})
 }
 
 // RemoveUserFromTenantRequest is unused but defined for consistency
@@ -287,9 +298,7 @@ func (h *RBACUserHandler) RemoveUserFromTenant(c *fiber.Ctx) error {
 
 	// Remove user from tenant
 	if err := h.userService.RemoveUserFromTenant(ctx, userID, tenantID); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": err.Error(),
-		})
+		return userMutationError(c, err)
 	}
 
 	return c.JSON(fiber.Map{
