@@ -636,15 +636,6 @@ curl https://api.openrisk.io/api/v1/stats/trends \
 }
 ```
 
-### Get Complete Dashboard
-
-#### cURL
-
-```bash
-curl https://api.openrisk.io/api/v1/dashboard/complete \
-  -H "Authorization: Bearer $TOKEN" | jq .
-```
-
 ---
 
 ## Advanced Features

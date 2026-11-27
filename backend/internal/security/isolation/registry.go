@@ -439,7 +439,7 @@ var decisions = []Decision{
 	{"/api/v1/automation/templates", PublicByDesign,
 		"renders domain.AutomationTemplates(), a compiled-in playbook catalogue, into sentences. No table is read, so no tenant owns any of it — the same reasoning as the /templates/{id}/adopt entry above"},
 
-	// --- Dashboard (7) ----------------------------------------------------
+	// --- Dashboard (5) ----------------------------------------------------
 	// DashboardDataService.scoped() is the same `Where(\"tenant_id = ?\")` shape as
 	// AnalyticsService.
 	{"/api/v1/dashboard/metrics", Covered,
@@ -452,10 +452,6 @@ var decisions = []Decision{
 		"TestDashboardCollections_NeverCrossTenants/mitigation_status asserts both directions. Same caveat as severity-distribution: the query matches lowercase status strings ('completed', 'in_progress') while the domain vocabulary is uppercase ('DONE', 'IN_PROGRESS'), so the tiles read zero in production. The test seeds what the query matches, because a counter stuck at zero cannot prove a predicate holds"},
 	{"/api/v1/dashboard/mitigation-progress", Covered,
 		"TestDashboardCollections_NeverCrossTenants/mitigation_progress"},
-	{"/api/v1/dashboard/top-risks", Pending,
-		"NOT a tenant-isolation gap and not claimable as covered either: GetTopRisks calls Preload(\"Team\") on domain.Risk, which declares no Team relation, so GORM refuses the query before it runs and this route answers 500 in every tenant on every request. There is no observable result to make an isolation claim about. TestDashboardCollections_NeverCrossTenants/top_risks_cannot_execute pins that refusal so the two facts stay linked. Settled by fixing the preload and then writing the isolation assertion the route will need — the tenant predicate is applied by scoped() before the preload, but that is unverified because the query cannot execute"},
-	{"/api/v1/dashboard/complete", Pending,
-		"composes the widgets above, GetTopRisks included, so it inherits that refusal wholesale and answers 500. TestDashboardCollections_NeverCrossTenants/complete_cannot_execute. Settled by the same fix"},
 
 	// --- Organization (7) -------------------------------------------------
 	{"/api/v1/organization/members", Covered,

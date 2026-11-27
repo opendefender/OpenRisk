@@ -2912,9 +2912,7 @@ func main() {
 	protected.Get("/dashboard/risk-trends", enhancedDashboardHandler.GetRiskTrends)
 	protected.Get("/dashboard/severity-distribution", enhancedDashboardHandler.GetSeverityDistribution)
 	protected.Get("/dashboard/mitigation-status", enhancedDashboardHandler.GetMitigationStatus)
-	protected.Get("/dashboard/top-risks", enhancedDashboardHandler.GetTopRisks)
 	protected.Get("/dashboard/mitigation-progress", enhancedDashboardHandler.GetMitigationProgress)
-	protected.Get("/dashboard/complete", enhancedDashboardHandler.GetCompleteDashboard)
 
 	// --- Marketplace: not mounted (#707) ---
 	// The marketplace is not built (#392, ROADMAP 14.18). Its models carry no
