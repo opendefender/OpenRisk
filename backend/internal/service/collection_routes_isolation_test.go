@@ -40,9 +40,9 @@ var (
 	crtB = uuid.MustParse("22222222-2222-2222-2222-222222222222")
 )
 
-// newCollectionDB reconciles the full models, because GetTopRisks and
-// GetMitigationProgress load domain.Risk / domain.Mitigation whole (Preload
-// included) rather than selecting the handful of columns they display.
+// newCollectionDB reconciles the full models, because GetMitigationProgress
+// loads domain.Mitigation and its domain.Risk whole (Preload included) rather
+// than selecting the handful of columns it displays.
 func newCollectionDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db, err := testdb.Open(t, sqlite.Open(":memory:"), &gorm.Config{
