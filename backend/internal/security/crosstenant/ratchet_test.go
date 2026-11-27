@@ -6,9 +6,11 @@
 package crosstenant
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"testing"
@@ -357,6 +359,98 @@ func TestRatchet_OwnBodyProbesAreWellFormed(t *testing.T) {
 		}
 		if len(p.Kinds) == 0 || !strings.Contains(p.Body, "{{") {
 			t.Errorf("own-object probe %s names no foreign id in its body", p.ID())
+		}
+	}
+}
+
+// closingRRs are the register rows #1521 closes (D-130): each is worked off by a
+// child issue (#1528 to #1532) and none may stay as an exemption at launch.
+var closingRRs = []string{"RR-01", "RR-03", "RR-04", "RR-05", "RR-06", "RR-08", "RR-09"}
+
+// openRRRemaining is what is still exempt under a closing row, routes and
+// groups together, as of origin/develop 75128506 (2026-11-27). It may only
+// shrink: each child issue lowers its row in the same PR that adds the probes,
+// and deletes the row when it reaches zero. AC5 of #1521 is met when this map
+// is empty, and then TestRatchet_NoOpenRRRows asserts zero for every row.
+var openRRRemaining = map[string]int{
+	"RR-01": 67, // #1528, #1529, #1530: 64 routes + 3 groups
+	"RR-04": 5,  // #1532
+	"RR-05": 18, // #1531: 17 routes + the ai group
+	"RR-06": 2,  // #1531
+	"RR-08": 1,  // #1531
+	"RR-09": 2,  // #1532
+}
+
+// openRRDrift compares the exemptions counted under each closing row with what
+// may remain, and names every row that grew (an exemption re-added) or shrank
+// without lowering openRRRemaining (the ratchet must follow the work down).
+func openRRDrift(counts, remaining map[string]int) []string {
+	var out []string
+	for _, rr := range closingRRs {
+		got, allowed := counts[rr], remaining[rr]
+		switch {
+		case got > allowed:
+			out = append(out, fmt.Sprintf("%s: %d exemptions, at most %d may remain; a closed row cannot be re-opened by an exemption", rr, got, allowed))
+		case got < allowed:
+			out = append(out, fmt.Sprintf("%s: %d exemptions but openRRRemaining allows %d; lower it to %d (delete the row at 0)", rr, got, allowed, got))
+		}
+	}
+	return out
+}
+
+// TestRatchet_NoOpenRRRows is the closing gate of #1521 (AC5): no exemption
+// carries a closing register row beyond what openRRRemaining still allows, and
+// that allowance only moves down.
+func TestRatchet_NoOpenRRRows(t *testing.T) {
+	counts := map[string]int{}
+	for _, e := range Exemptions {
+		counts[e.RegisterID]++
+	}
+	for _, g := range GroupExemptions {
+		counts[g.RegisterID]++
+	}
+	for rr := range openRRRemaining {
+		if !slices.Contains(closingRRs, rr) {
+			t.Errorf("openRRRemaining has %s, which is not a row #1521 closes", rr)
+		}
+	}
+	for _, d := range openRRDrift(counts, openRRRemaining) {
+		t.Error(d)
+	}
+	left := 0
+	for _, n := range openRRRemaining {
+		left += n
+	}
+	if left > 0 {
+		t.Logf("AC5 of #1521 not yet met: %d exemptions still under a closing row (%v)", left, openRRRemaining)
+	}
+}
+
+// TestRatchet_NoOpenRRRowsCatchesDrift proves the gate is not vacuous: a row
+// re-added after it closed, a row that grew, and a row worked off without
+// lowering the allowance each fail.
+func TestRatchet_NoOpenRRRowsCatchesDrift(t *testing.T) {
+	if d := openRRDrift(map[string]int{"RR-03": 1}, map[string]int{}); len(d) != 1 {
+		t.Errorf("a re-added RR-03 exemption must fail, got %v", d)
+	}
+	if d := openRRDrift(map[string]int{"RR-05": 19}, map[string]int{"RR-05": 18}); len(d) != 1 {
+		t.Errorf("a grown RR-05 must fail, got %v", d)
+	}
+	if d := openRRDrift(map[string]int{"RR-06": 1}, map[string]int{"RR-06": 2}); len(d) != 1 {
+		t.Errorf("a shrunk RR-06 with a stale allowance must fail, got %v", d)
+	}
+	if d := openRRDrift(map[string]int{"RR-12": 4}, map[string]int{}); len(d) != 0 {
+		t.Errorf("a row #1521 does not close must be ignored, got %v", d)
+	}
+}
+
+// TestRatchet_BlockedProbesNameAnIssue: a probe may wait on a functional defect
+// only when it names the issue that tracks it.
+func TestRatchet_BlockedProbesNameAnIssue(t *testing.T) {
+	issue := regexp.MustCompile(`^#[0-9]+$`)
+	for _, p := range ownBodyProbes {
+		if p.BlockedBy != "" && !issue.MatchString(p.BlockedBy) {
+			t.Errorf("own-object probe %s is blocked by %q, not an issue reference", p.ID(), p.BlockedBy)
 		}
 	}
 }

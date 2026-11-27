@@ -191,6 +191,10 @@ func TestCrossTenant_OwnObjectForeignBodyID(t *testing.T) {
 			if err != nil {
 				t.Fatalf("suite defect: %v", err)
 			}
+			if p.BlockedBy != "" && o.ControlStatus >= 500 {
+				t.Skipf("blocked on %s: the control with A's own ids answers %d (attack %d, random %d); the probe runs once that is fixed",
+					p.BlockedBy, o.ControlStatus, o.AttackStatus, o.RandomStatus)
+			}
 			for _, f := range EvaluateOwnBody(o) {
 				t.Errorf("%s: %s", p.ID(), f)
 			}
@@ -263,6 +267,18 @@ func (h *harness) observeOwn(p Probe) (OwnBodyObservation, error) {
 	o.AfterHash, o.AfterBody = hashBody(after), after
 
 	o.ControlStatus, _ = h.do(h.A, p.Method, cpath, cbody)
+	if p.DropsForeign {
+		// The control must have applied A's own ids, or a 200 to B's id would
+		// prove only that the field is ignored altogether.
+		o.DropsForeign = true
+		_, applied := h.do(h.A, "GET", uncached(read), "")
+		o.ControlApplied = true
+		for _, k := range p.Kinds {
+			if !strings.Contains(applied, control[k]) {
+				o.ControlApplied = false
+			}
+		}
+	}
 	o.Foreign = h.B.foreign(h.run)
 	o.Supplied = supplied
 	return o, nil

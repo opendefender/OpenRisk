@@ -233,3 +233,38 @@ func TestEvaluate_SuppliedIdsStripLongestFirst(t *testing.T) {
 		t.Fatalf("a real canary beside the supplied id must be reported, got %v", hits)
 	}
 }
+
+// TestHarness_DropsForeignMode: on a route that drops an unresolvable id, a 200
+// passes only when it matches the random id, the control's own id was applied,
+// and A's object holds nothing of B's.
+func TestHarness_DropsForeignMode(t *testing.T) {
+	b := "22222222-3333-4444-5555-666666666666"
+	clean := OwnBodyObservation{
+		ControlStatus: 200, AttackStatus: 200, RandomStatus: 200,
+		BeforeHash: "h", AfterHash: "changed", AfterBody: `{"assets":[]}`, Foreign: []string{b},
+		DropsForeign: true, ControlApplied: true,
+	}
+	if f := EvaluateOwnBody(clean); len(f) != 0 {
+		t.Fatalf("a dropped foreign id must pass, got %v", f)
+	}
+	for name, mod := range map[string]func(*OwnBodyObservation) string{
+		"link stored": func(o *OwnBodyObservation) string {
+			o.AfterBody = `{"assets":[{"id":"` + b + `"}]}`
+			return FailMutation
+		},
+		"field not applied": func(o *OwnBodyObservation) string { o.ControlApplied = false; return FailVacuous },
+		"oracle":            func(o *OwnBodyObservation) string { o.RandomStatus = 404; return FailOracle },
+	} {
+		o := clean
+		code := mod(&o)
+		if f := EvaluateOwnBody(o); !hasFailure(f, code) {
+			t.Errorf("%s: want %s, got %v", name, code, f)
+		}
+	}
+	// Without the mode, the same 200 is a leak.
+	o := clean
+	o.DropsForeign = false
+	if f := EvaluateOwnBody(o); !hasFailure(f, FailLeak) {
+		t.Errorf("a 200 outside the mode must be a leak, got %v", f)
+	}
+}

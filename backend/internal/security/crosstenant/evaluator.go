@@ -177,6 +177,10 @@ type OwnBodyObservation struct {
 	BeforeHash, AfterHash, AfterBody string
 	// Foreign are B's ids and canaries; Supplied are the ids the attacker sent.
 	Foreign, Supplied []string
+	// DropsForeign is the route's documented answer to an id it cannot resolve:
+	// 200 with the id ignored. ControlApplied is whether A's own ids, sent by the
+	// control, then show in A's read: without it a 200 would prove nothing.
+	DropsForeign, ControlApplied bool
 }
 
 // EvaluateOwnBody returns the failures of an own-object probe. The refusal may be
@@ -199,23 +203,29 @@ func EvaluateOwnBody(o OwnBodyObservation) []string {
 		fail(FailHarness, "401 on a request that carries a valid token is a suite defect")
 		return out
 	}
-	switch o.AttackStatus {
-	case 400, 403, 404, 422:
-		// refused
-	default:
-		switch {
-		case o.AttackStatus >= 200 && o.AttackStatus <= 299:
-			fail(FailLeak, "A got %d for B's id in the body", o.AttackStatus)
-		case o.AttackStatus >= 500:
-			fail(FailServer, "A got %d for B's id in the body", o.AttackStatus)
-		default:
-			fail(FailStatus, "A got %d for B's id in the body; only 400, 403, 404 or 422 pass", o.AttackStatus)
+	refused := o.AttackStatus == 400 || o.AttackStatus == 403 || o.AttackStatus == 404 || o.AttackStatus == 422
+	if o.DropsForeign && o.AttackStatus == 200 {
+		// The id is ignored, not refused: what matters is below, that nothing of
+		// B's is stored. The update itself rewrites updated_at and the score, so
+		// the before/after hash is not compared on this shape.
+		refused = true
+		if !o.ControlApplied {
+			fail(FailVacuous, "the control's own ids do not show in A's read: the field is not applied, so a 200 proves nothing")
 		}
+	}
+	switch {
+	case refused:
+	case o.AttackStatus >= 200 && o.AttackStatus <= 299:
+		fail(FailLeak, "A got %d for B's id in the body", o.AttackStatus)
+	case o.AttackStatus >= 500:
+		fail(FailServer, "A got %d for B's id in the body", o.AttackStatus)
+	default:
+		fail(FailStatus, "A got %d for B's id in the body; only 400, 403, 404 or 422 pass", o.AttackStatus)
 	}
 	if o.AttackStatus != o.RandomStatus {
 		fail(FailOracle, "A gets %d for B's id but %d for a random id: the difference confirms B's object exists", o.AttackStatus, o.RandomStatus)
 	}
-	if o.BeforeHash != o.AfterHash {
+	if !o.DropsForeign && o.BeforeHash != o.AfterHash {
 		fail(FailMutation, "A's own object changed after a request that named B's id")
 	}
 	if hits := echoes(o.AfterBody, o.Foreign, nil); len(hits) > 0 {
