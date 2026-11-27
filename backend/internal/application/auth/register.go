@@ -39,8 +39,9 @@ var (
 	ErrUsernameTaken          = errors.New("username is already taken")
 )
 
-// AccountCreator writes the organization, its owner and the owner's membership
-// in ONE transaction (ABSOLUTE RULE #7). Satisfied by
+// AccountCreator writes the organization, its owner, the owner's membership and
+// the RBAC mirror (tenants row, root's user_tenants row as Admin, #1518) in ONE
+// transaction (ABSOLUTE RULE #7). Satisfied by
 // repository.GormRegistrationRepository.
 type AccountCreator interface {
 	CreateAccount(ctx context.Context, org *domain.Organization, user *domain.User, member *domain.OrganizationMember) error

@@ -62,6 +62,15 @@ const (
 	KindMember          Kind = "member" // organisation membership of a second user
 	KindInvitation      Kind = "invitation"
 
+	// Legacy RBAC (#1518). KindRBACRole is a custom role of the tenant,
+	// KindRBACUser a second user that is a member of the tenant through
+	// user_tenants (KindUser alone is not: POST /users writes no such row), and
+	// KindPermission a permission id taken from a predefined role. Permissions
+	// are deployment-wide, so a seed of it is never recorded as tenant data.
+	KindRBACRole   Kind = "rbacrole"
+	KindRBACUser   Kind = "rbacuser"
+	KindPermission Kind = "permission"
+
 	// Setup variants: the same object after the state a route requires.
 	KindMitigationInReview Kind = "mitigationreview" // status REVIEW, for validate
 	KindSubActionDone      Kind = "subactiondone"    // completed, for revert
@@ -109,9 +118,14 @@ var Kinds = map[Kind]KindSpec{
 	KindDelegation:      {},
 	KindMember:          {ReadPath: "/api/v1/organization/members/{member}"},
 	KindInvitation:      {},
-	KindAssetPeer:       {ReadPath: "/api/v1/assets/{assetpeer}"},
-	KindAssetDep:        {},
-	KindControl:         {ReadPath: "/api/v1/compliance/controls/{control}"},
+	KindRBACRole:        {ReadPath: "/api/v1/rbac/roles/{rbacrole}"},
+	KindRBACUser:        {ReadPath: "/api/v1/rbac/users/{rbacuser}"},
+	// B's own read of the role the permission is attached to, so a changed
+	// role_permissions set shows in the unchanged-body check.
+	KindPermission: {ReadPath: "/api/v1/rbac/roles/{rbacrole}/permissions"},
+	KindAssetPeer:  {ReadPath: "/api/v1/assets/{assetpeer}"},
+	KindAssetDep:   {},
+	KindControl:    {ReadPath: "/api/v1/compliance/controls/{control}"},
 
 	KindMitigationInReview: {ReadPath: "/api/v1/mitigations/{mitigationreview}"},
 	KindSubActionDone:      {ReadPath: "/api/v1/mitigations/{mitigation}"},
@@ -201,6 +215,9 @@ func del(path string, kinds ...Kind) Probe { return Probe{Method: "DELETE", Path
 func post(path, body string, kinds ...Kind) Probe {
 	return Probe{Method: "POST", Path: path, Body: body, Kinds: kinds}
 }
+func delWithBody(path, body string, kinds ...Kind) Probe {
+	return Probe{Method: "DELETE", Path: path, Body: body, Kinds: kinds}
+}
 func put(path, body string, kinds ...Kind) Probe {
 	return Probe{Method: "PUT", Path: path, Body: body, Kinds: kinds}
 }
@@ -234,5 +251,6 @@ func allProbes() []Probe {
 	out = append(out, collectionProbes...)
 	out = append(out, orgProbes...)
 	out = append(out, bodyProbes...)
+	out = append(out, rbacProbes...)
 	return out
 }
