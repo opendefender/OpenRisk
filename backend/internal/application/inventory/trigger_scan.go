@@ -166,18 +166,34 @@ func (uc *RematchAllUseCase) Execute(ctx context.Context) int {
 // tenant's assets, for the asset drawer: what was collected, when, and the
 // state of its last match.
 type ListAssetInventoriesUseCase struct {
-	repo domain.HostInventoryRepository
+	repo   domain.HostInventoryRepository
+	assets AssetLookup
+}
+
+// AssetLookup is the narrow, tenant-scoped port that proves an asset belongs to
+// the caller's organisation; GetByID returns (nil, nil) when it is absent or
+// foreign (#1520).
+type AssetLookup interface {
+	GetByID(ctx context.Context, id uuid.UUID, tenantID uuid.UUID) (*domain.Asset, error)
 }
 
 // NewListAssetInventoriesUseCase builds the use case.
-func NewListAssetInventoriesUseCase(r domain.HostInventoryRepository) *ListAssetInventoriesUseCase {
-	return &ListAssetInventoriesUseCase{repo: r}
+func NewListAssetInventoriesUseCase(r domain.HostInventoryRepository, assets AssetLookup) *ListAssetInventoriesUseCase {
+	return &ListAssetInventoriesUseCase{repo: r, assets: assets}
 }
 
-// Execute lists them; another tenant's asset id simply has none.
+// Execute lists them. An asset that is not the tenant's, foreign or unknown,
+// is not found, with the same answer for both (#1520).
 func (uc *ListAssetInventoriesUseCase) Execute(ctx context.Context, tenantID, assetID uuid.UUID) ([]domain.HostInventory, error) {
 	if tenantID == uuid.Nil {
 		return nil, domain.NewUnauthorizedError("no tenant")
+	}
+	asset, err := uc.assets.GetByID(ctx, assetID, tenantID)
+	if err != nil {
+		return nil, domain.NewInternalError("could not read asset: " + err.Error())
+	}
+	if asset == nil {
+		return nil, domain.NewNotFoundError("asset", assetID.String())
 	}
 	out, err := uc.repo.ListByAsset(ctx, tenantID, assetID)
 	if err != nil {

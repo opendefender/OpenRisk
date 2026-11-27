@@ -35,6 +35,18 @@ func NewGetComplianceProgressUseCase(repo domain.ComplianceRepository) *GetCompl
 }
 
 func (uc *GetComplianceProgressUseCase) Execute(ctx context.Context, tenantID, frameworkID uuid.UUID) (*ComplianceProgress, error) {
+	if tenantID == uuid.Nil {
+		return nil, domain.NewUnauthorizedError("no tenant")
+	}
+	// #1520: the framework must be this tenant's. A foreign and an unknown id
+	// answer the same not-found, instead of an empty 200 that echoed the id.
+	fw, err := uc.repo.GetFrameworkByID(ctx, frameworkID, tenantID)
+	if err != nil {
+		return nil, err
+	}
+	if fw == nil {
+		return nil, domain.NewNotFoundError("framework", frameworkID.String())
+	}
 	controls, err := uc.repo.ListControlsByFramework(ctx, tenantID, frameworkID)
 	if err != nil {
 		return nil, err

@@ -3405,7 +3405,7 @@ func main() {
 	if redisClientInstance != nil {
 		inventoryHandler := handlers.NewInventoryHandler(
 			invapp.NewTriggerScanUseCase(scanAgentRepo, redisClientInstance),
-			invapp.NewListAssetInventoriesUseCase(hostInventoryRepo),
+			invapp.NewListAssetInventoriesUseCase(hostInventoryRepo, assetRepo),
 		)
 		protected.Post("/vulnerabilities/scan", middleware.RequirePermission("scanner:scan"), inventoryHandler.Scan)
 		protected.Get("/assets/:id/inventories", middleware.RequirePermission("assets:read"),
@@ -3657,7 +3657,7 @@ func main() {
 
 	automationHandler := handlers.NewAutomationHandler(
 		appauto.NewRuleService(automationRuleRepo).WithQuota(entitlementService),
-		appauto.NewExecutionService(automationExecRepo),
+		appauto.NewExecutionService(automationExecRepo, automationRuleRepo),
 		automationSLAService,
 		automationChannelService,
 		automationEngine,

@@ -6,6 +6,7 @@
 package service
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net"
@@ -239,6 +240,36 @@ func (s *AuditService) GetAuditLogsByUser(tenantID uuid.UUID, userID uuid.UUID, 
 	}
 
 	return logs, nil
+}
+
+// EnsureUserInTenant answers not-found unless userID is somebody this
+// organisation knows (#1520). A user row has no tenant_id of its own, so the
+// gate is the organisation membership row (any status: a deactivated member
+// still has history) OR an audit row already recorded for that user in THIS
+// tenant (a removed member whose history auditors still need). Both predicates
+// carry the tenant. Foreign and unknown users get the same not-found.
+func (s *AuditService) EnsureUserInTenant(ctx context.Context, tenantID, userID uuid.UUID) error {
+	if tenantID == uuid.Nil {
+		return errNoTenant
+	}
+	var rows int64
+	if err := s.handle().WithContext(ctx).Model(&domain.AuditLog{}).
+		Where("tenant_id = ? AND user_id = ?", tenantID, userID).
+		Limit(1).Count(&rows).Error; err != nil {
+		return fmt.Errorf("failed to check audit history: %w", err)
+	}
+	if rows > 0 {
+		return nil
+	}
+	if err := s.handle().WithContext(ctx).Model(&domain.OrganizationMember{}).
+		Where("organization_id = ? AND user_id = ?", tenantID, userID).
+		Limit(1).Count(&rows).Error; err != nil {
+		return fmt.Errorf("failed to check membership: %w", err)
+	}
+	if rows == 0 {
+		return domain.NewNotFoundError("user", userID.String())
+	}
+	return nil
 }
 
 // GetAuditLogsByAction retrieves one organisation's audit logs for an action.

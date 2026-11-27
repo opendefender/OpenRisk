@@ -7,6 +7,7 @@ package handler
 
 import (
 	"context"
+	"errors"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
@@ -238,6 +239,12 @@ func (h *AutomationHandler) ListRuleExecutions(c *fiber.Ctx) error {
 	}
 	items, err := h.executions.ListByRule(c.UserContext(), h.tenant(c), id, c.QueryInt("limit", 50))
 	if err != nil {
+		// A typed error (not found for a foreign or unknown rule, #1520) keeps
+		// its status; anything else stays an opaque 500.
+		var appErr *domain.AppError
+		if errors.As(err, &appErr) {
+			return writeAppError(c, err)
+		}
 		return serverError(c, "could not list executions", err)
 	}
 	return c.JSON(fiber.Map{"items": h.decorate(c, items)})
