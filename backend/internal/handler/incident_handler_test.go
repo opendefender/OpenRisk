@@ -314,3 +314,42 @@ func TestCreateIncident_InvalidSeverity_Answers400NamingTheField(t *testing.T) {
 		require.Equal(t, "severity", out.Errors[0].Field)
 	}
 }
+
+// #1519: PUT /incidents/:id with an unknown severity answers 400 naming the
+// field (it answered 500), and an unknown incident still answers 404.
+func TestUpdateIncident_InvalidSeverity_Answers400_UnknownIncident404(t *testing.T) {
+	db := setupIncidentDB(t)
+	app := buildIncidentApp(t, db, uuid.New())
+
+	req := httptest.NewRequest(http.MethodPost, "/incidents",
+		mustJSON(t, map[string]any{"title": "x", "severity": "low"}))
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := app.Test(req)
+	require.NoError(t, err)
+	require.Equal(t, 201, resp.StatusCode)
+	var created domain.Incident
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&created))
+	resp.Body.Close()
+
+	req = httptest.NewRequest(http.MethodPut, "/incidents/"+itoa(created.ID),
+		mustJSON(t, map[string]string{"severity": "urgent"}))
+	req.Header.Set("Content-Type", "application/json")
+	resp, err = app.Test(req)
+	require.NoError(t, err)
+	require.Equal(t, 400, resp.StatusCode)
+	var out struct {
+		Errors []domain.FieldError `json:"errors"`
+	}
+	require.NoError(t, json.NewDecoder(resp.Body).Decode(&out))
+	resp.Body.Close()
+	require.Len(t, out.Errors, 1)
+	require.Equal(t, "severity", out.Errors[0].Field)
+
+	req = httptest.NewRequest(http.MethodPut, "/incidents/999999",
+		mustJSON(t, map[string]string{"severity": "high"}))
+	req.Header.Set("Content-Type", "application/json")
+	resp, err = app.Test(req)
+	require.NoError(t, err)
+	require.Equal(t, 404, resp.StatusCode)
+	resp.Body.Close()
+}

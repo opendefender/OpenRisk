@@ -146,9 +146,9 @@ func (h *IncidentHandler) UpdateIncident(c *fiber.Ctx) error {
 		if errors.Is(err, domain.ErrNotFound) {
 			return c.Status(http.StatusNotFound).JSON(fiber.Map{"error": "Incident not found"})
 		}
-		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
-			"error": fmt.Sprintf("Failed to update incident: %v", err),
-		})
+		// Typed errors map centrally: an unknown severity is a 400 naming the
+		// field, not a 500 that echoes the error (#1519).
+		return writeAppError(c, err)
 	}
 
 	return c.JSON(incident)
