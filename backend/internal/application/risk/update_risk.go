@@ -60,11 +60,18 @@ type UpdateRiskInput struct {
 
 // UpdateRiskUseCase handles updating an existing risk.
 type UpdateRiskUseCase struct {
-	riskRepo  domain.RiskRepository
-	ownership OwnershipManager
-	assets    RiskAssetStore
-	engine    pkgscoring.Engine
-	notices   NoticeDeliverer
+	riskRepo   domain.RiskRepository
+	ownership  OwnershipManager
+	assets     RiskAssetStore
+	engine     pkgscoring.Engine
+	notices    NoticeDeliverer
+	categories CategoryStore
+}
+
+// WithCategories makes Execute refuse a category that is not the tenant's.
+func (uc *UpdateRiskUseCase) WithCategories(s CategoryStore) *UpdateRiskUseCase {
+	uc.categories = s
+	return uc
 }
 
 func NewUpdateRiskUseCase(riskRepo domain.RiskRepository) *UpdateRiskUseCase {
@@ -147,6 +154,9 @@ func (uc *UpdateRiskUseCase) Execute(ctx context.Context, orgID uuid.UUID, riskI
 		risk.Owner = *input.Owner
 	}
 	if input.Category.Present {
+		if err := ownsCategory(ctx, uc.categories, orgID, input.Category.Value); err != nil {
+			return nil, err
+		}
 		risk.CategoryID = input.Category.Value
 	}
 	if input.SLEXAF != nil {

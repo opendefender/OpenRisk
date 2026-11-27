@@ -189,7 +189,7 @@ func CompleteSubAction(c *fiber.Ctx) error {
 		if err == domain.ErrConflict {
 			return c.Status(409).JSON(fiber.Map{"error": "Dependency not completed"})
 		}
-		return c.Status(400).JSON(fiber.Map{"error": err.Error()})
+		return mitigationError(c, err)
 	}
 
 	// Return updated subaction
@@ -221,7 +221,7 @@ func RevertSubAction(c *fiber.Ctx) error {
 	}
 
 	if err := useCase.Execute(input); err != nil {
-		return c.Status(400).JSON(fiber.Map{"error": err.Error()})
+		return mitigationError(c, err)
 	}
 
 	// Return updated subaction
@@ -311,7 +311,7 @@ func ReorderSubActions(c *fiber.Ctx) error {
 	}
 
 	if err := useCase.Execute(input); err != nil {
-		return c.Status(400).JSON(fiber.Map{"error": err.Error()})
+		return mitigationError(c, err)
 	}
 
 	// Return all subactions for the plan

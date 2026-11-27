@@ -96,6 +96,69 @@ left it.
 
 ## Resolved
 
+### D-130 — Sign-off on the launch security test report and its residual-risk register · decided 2026-11-27
+**Decided (owner, 2026-11-27)** — option **B+**: the register is signed for v1.0 on
+condition that these close before the launch:
+- RR-SCA-1, the reachable Go standard-library advisories (#1207, bump to go1.26.11);
+- RR-03, the 17 `/rbac` routes the suite cannot reach (#1518);
+- RR-12, foreign body-addressed references stored as is (#1520);
+- #1521, every route that takes an id probed by the cross-tenant suite (RR-01, RR-04,
+  RR-05, RR-06, RR-08, RR-09 and RR-SCOPE-1 brought to zero). The owner asked for
+  every route to be tested. RR-04 and RR-09 are routes broken for every caller. Their
+  repair is tracked in #1169 and #1519, and #1521's AC1 requires it (there, or in
+  #1521 itself), so #1521 cannot close while they remain.
+
+Every other row is accepted until its issue lands, or for the reason it states.
+
+**Context** — `docs/security/SECURITY_TEST_REPORT.md`, at base `ae28a16f`, records:
+- the live cross-tenant suite: 505 routes; 272 probed on Postgres; 176 route exemptions
+  (66 with no id to name, 110 untested against a register row) plus 4 groups exempted
+  as a whole; 57 auto-exempt;
+- gosec, govulncheck, npm audit, and a ZAP baseline on a live stack.
+
+Eight findings were fixed in #1319 (F1 to F8). F1, F2, F3 and F6 are cross-tenant leaks
+with private advisories (GHSA-m6gp-q4m7-27c6, GHSA-3x9h-57v5-w5q3, GHSA-39cg-g3rv-985p).
+The register has 19 rows.
+
+**Options** — A: sign as is. B: sign on condition that RR-SCA-1, RR-03 and RR-12 close.
+B+: B plus #1521. C: refuse.
+
+**Reason** — RR-SCA-1 is a reachable crash and a one-line bump. RR-03 and #1521 cover
+the routes the suite cannot see yet, and an unseen route is where the eight findings
+came from. RR-12 has the shape of F2.
+
+**Blocks** — closing #229 waits for the four conditions.
+
+### D-129 — Cross-tenant suite pass criterion, test-only limits, and Immutable request strings · decided 2026-11-26
+**Decided (agent, 2026-11-26)** — #1319, design by tech-lead.
+
+**Questions** — (1) what counts as a pass for a cross-tenant probe; (2) may the suite
+relax production settings to run; (3) how to close the fasthttp aliasing class found
+by the suite.
+
+**Options and choice**
+1. Status only (404/403), **or** status plus a positive control (B's token must
+   succeed on the same request), oracle equality (B's id answers as a random UUID),
+   unchanged-object check, canary echo check and a clean tenant-guard log.
+   **Chose the second**: a status-only probe passes vacuously when the route is
+   broken for everyone. A 400 or 422 passes only when the probe allows it, with a
+   register row.
+2. Run on production limits, **or** raise the per-IP and per-tenant per-minute limits
+   to 100000 and disable the auth limiters for the suite job only. **Chose the
+   second**: about 1.5k requests from one IP would be throttled. The tenant guard
+   stays on `enforce` and the MFA policy is the production one: nothing the suite
+   tests is relaxed.
+3. Copy with `strings.Clone` at each site that keeps a request string, **or** set
+   `Immutable: true` on the Fiber app. **Chose `Immutable`**: the suite caught one
+   such site (the scoring-config store) and once saw a foreign canary echo. Finding
+   every other site by reading is not reliable. The cost is a few allocations per
+   request. **Not measured:** no before/after benchmark of the hot path was taken.
+   If one is ever needed, the per-request cost can be bought back by reverting to
+   `strings.Clone` at sites found by reading, at the risk this decision avoids.
+
+**Reason** — the launch gate needs evidence that cannot pass on its own, and a fix
+for a class of bug, not one instance of it.
+
 ### D-128 — One label family: the wave labels are retired · decided 2026-11-24
 **Decided (owner, 2026-11-24)** — supersedes D-003 ("keep both"). Implemented by #1508.
 

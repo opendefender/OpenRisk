@@ -512,6 +512,15 @@ func main() {
 		DisableStartupMessage: true, // Plus propre dans les logs de prod
 		ReadTimeout:           10 * time.Second,
 		WriteTimeout:          10 * time.Second,
+		// Immutable (#1319, D-129). Without it, every string Fiber hands out
+		// (c.Params, c.Query, c.Get, c.FormValue, ...) aliases fasthttp's request
+		// buffer, which the next request on the same worker overwrites. A handler
+		// that keeps such a string past its request (a map key, a cache entry, a
+		// goroutine) then holds whatever the next caller sent, possibly another
+		// tenant's data. The live cross-tenant suite hit exactly this in the
+		// scoring-config store. Copying every value costs a few allocations per
+		// request and closes the whole class instead of one call site at a time.
+		Immutable: true,
 		// Trusted proxies (audit finding F-04). Fiber only resolves ProxyHeader
 		// into c.IP() when the peer socket address is in TrustedProxies. With an
 		// empty TRUSTED_PROXIES the check trusts nobody, so a client-supplied
@@ -1497,7 +1506,8 @@ func main() {
 	createRiskUseCase := risk.NewCreateRiskUseCase(riskRepo).
 		WithActivation(activationRecorder).
 		WithOwnership(ownershipService).
-		WithAssets(riskAssetStore)
+		WithAssets(riskAssetStore).
+		WithCategories(repository.NewGormRiskCategoryRepository(database.DB))
 	getRiskUseCase := risk.NewGetRiskUseCase(riskRepo).
 		WithMappings(riskControlMappingRepo).
 		WithOwnership(ownershipService)
@@ -1508,7 +1518,8 @@ func main() {
 	updateRiskUseCase := risk.NewUpdateRiskUseCase(riskRepo).
 		WithNotices(requestNoticeDispatcher).
 		WithOwnership(ownershipService).
-		WithAssets(riskAssetStore)
+		WithAssets(riskAssetStore).
+		WithCategories(repository.NewGormRiskCategoryRepository(database.DB))
 	deleteRiskUseCase := risk.NewDeleteRiskUseCase(riskRepo)
 	// Cyber Risk Quantification: XAF→USD rate configurable via XAF_USD_RATE
 	// (default ≈ 600 FCFA/USD). Reference ALE bands match the board ExposureModel.
@@ -3740,8 +3751,8 @@ func main() {
 		SetRetention: governance.NewSetRetentionPolicyUseCase(auditRetentionRepo).WithRecorder(governanceRecorder),
 		PruneAudit:   governance.NewPruneAuditTrailUseCase(auditChainRepo, auditRetentionRepo),
 
-		CreateDelegation: governance.NewCreateDelegationUseCase(delegationRepo).WithRecorder(governanceRecorder).WithUserLookup(userRepo),
-		ListDelegations:  governance.NewListDelegationsUseCase(delegationRepo).WithUserLookup(userRepo),
+		CreateDelegation: governance.NewCreateDelegationUseCase(delegationRepo).WithRecorder(governanceRecorder).WithUserLookup(userRepo).WithMembers(ownershipMembers),
+		ListDelegations:  governance.NewListDelegationsUseCase(delegationRepo).WithUserLookup(userRepo).WithMembers(ownershipMembers),
 		RevokeDelegation: governance.NewRevokeDelegationUseCase(delegationRepo).WithRecorder(governanceRecorder),
 		EffectivePerms:   governance.NewResolveEffectivePermissionsUseCase(delegationRepo),
 

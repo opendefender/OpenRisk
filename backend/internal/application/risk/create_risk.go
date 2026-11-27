@@ -69,7 +69,14 @@ type CreateRiskUseCase struct {
 	activation ActivationRecorder
 	ownership  OwnershipManager
 	assets     RiskAssetStore
+	categories CategoryStore
 	engine     pkgscoring.Engine
+}
+
+// WithCategories makes Execute refuse a category that is not the tenant's.
+func (uc *CreateRiskUseCase) WithCategories(s CategoryStore) *CreateRiskUseCase {
+	uc.categories = s
+	return uc
 }
 
 // NewCreateRiskUseCase creates a new CreateRiskUseCase.
@@ -101,6 +108,10 @@ func (uc *CreateRiskUseCase) WithOwnership(m OwnershipManager) *CreateRiskUseCas
 func (uc *CreateRiskUseCase) Execute(ctx context.Context, orgID uuid.UUID, input CreateRiskInput) (*domain.Risk, error) {
 	// 1. Validate input
 	if err := uc.validate(input); err != nil {
+		return nil, err
+	}
+
+	if err := ownsCategory(ctx, uc.categories, orgID, input.CategoryID); err != nil {
 		return nil, err
 	}
 

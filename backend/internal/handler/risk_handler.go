@@ -7,6 +7,7 @@ package handler
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -492,6 +493,11 @@ func (h *RiskHandler) CreateRisk(c *fiber.Ctx) error {
 
 	domainRisk, err := h.createRiskUseCase.Execute(stdCtx, orgID, ucInput)
 	if err != nil {
+		// #1319: a category that is not the tenant's is a not-found, like an
+		// unknown one, so the status does not say whether it exists elsewhere.
+		if errors.Is(err, domain.ErrNotFound) {
+			return c.Status(404).JSON(fiber.Map{"error": "category not found"})
+		}
 		return c.Status(400).JSON(fiber.Map{"error": err.Error()})
 	}
 
