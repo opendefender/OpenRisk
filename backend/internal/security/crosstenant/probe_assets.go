@@ -13,8 +13,7 @@ var assetProbes = []Probe{
 	del("/api/v1/assets/:id", KindAsset),
 	get("/api/v1/assets/:id/analysis", KindAsset),
 	get("/api/v1/assets/:id/history", KindAsset),
-	allow(get("/api/v1/assets/:id/inventories", KindAsset),
-		"answers 200 with an empty list for any asset id, foreign or random; the query filters tenant_id and asset_id, B's rows are not returned", "RR-02", 200),
+	get("/api/v1/assets/:id/inventories", KindAsset),
 	agg("/api/v1/assets/exposure"),
 	agg("/api/v1/assets/statistics"),
 

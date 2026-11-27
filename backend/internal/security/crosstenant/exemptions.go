@@ -10,7 +10,6 @@ package crosstenant
 // ratchet checks that every id used here appears there once that report exists.
 var Register = map[string]string{
 	"RR-01": "Not yet probed by the live suite: no seed kind or control run exists for the route in this PR. Isolation rests on the recorded decision in the isolation registry, which asserts a decision was made, not that it holds.",
-	"RR-02": "Answers 200 with an empty or zeroed body for another tenant's id, exactly as for a random id: the query is tenant-filtered but the parent object's ownership is not checked, so there is no 404. No foreign data is returned and the oracle rule holds. Allowed per probe.",
 	"RR-03": "Legacy RBAC handlers resolve the caller through user_tenants, which registration does not create: a self-registered root answers 403 or 404 on every call, so no control run can succeed and the routes are unprobed.",
 	"RR-04": "Route fails for every caller on Postgres (schema drift or route shadowing), so no 2xx control exists. The code read filters by tenant; the defect is listed in the findings.",
 	"RR-05": "The control cannot reach 2xx without an artefact the harness does not create (an uploaded file, a rendered document, a logo, a second approver, an asynchronous job).",
@@ -20,7 +19,6 @@ var Register = map[string]string{
 	"RR-11": "Body-addressed ids (users, controls) are validated against the caller's organisation and refused with a typed validation error (400) rather than 404: the same answer for a foreign and a random id, so no existence oracle, and nothing is written.",
 	"RR-13": "Scoring configurations are per tenant and ids are chosen by the caller. A write, compute or classify that names an id another tenant uses creates (or, for compute and classify, falls back from) the caller's own copy or the built-in default; the other tenant's configuration is neither read nor changed (verified by its unchanged read). The response carries the supplied id, so the live suite cannot tell a fallback from a read of B's copy by the body; the unit tests TestScoringConfig_CrossTenant and TestScoringConfig_NotFound pin that.",
 	"RR-14": "Telemetry consent is a deployment-wide singleton (GormTelemetryRepository.GetOrCreate takes no tenant): an admin of any tenant sets it for every tenant. Already recorded for the GET in the isolation registry; the PUT is unchanged here and needs a decision on instance-level versus tenant-level consent.",
-	"RR-12": "A body-addressed reference to another tenant's object is accepted and stored verbatim (201), never joined or read back: reads filter by tenant so the foreign row is not returned. Where a stored id is looked up (workflow approver ids, by the approval notifier), the lookup goes through a filter on the tenant's active members. A dangling reference, not a disclosure; same answer for a random id. To be closed by validating ownership at write time.",
 	"RR-09": "Dead route: the handler parses the risk id as an unsigned integer, so every UUID answers 400 and no data is reachable.",
 }
 
@@ -117,7 +115,6 @@ var Exemptions = []Exemption{
 	{Method: "POST", Path: "/api/v1/governance/approvals/:id/defer", Reason: "the requester cannot decide or defer their own request: the control needs a second approver principal", RegisterID: "RR-05"},
 	{Method: "PUT", Path: "/api/v1/governance/audit-retention", Reason: "id not in body: sets the caller's own retention, tenant taken from the session", NotApplicable: true},
 	{Method: "POST", Path: "/api/v1/governance/audit-retention/apply", Reason: "id not in body: applies the caller's own retention, tenant taken from the session", NotApplicable: true},
-	{Method: "POST", Path: "/api/v1/governance/workflows", Reason: "steps[].approver_user_ids are stored as given, not checked against the tenant; the approval notifier resolves only active members of the tenant (approval_notifier_tenant_test.go), so a foreign id is never e-mailed or notified", RegisterID: "RR-12"},
 	{Method: "PUT", Path: "/api/v1/incidents/:id/actions/:actionId", Reason: "no seed kind or control run exists for this route yet (#1521)", RegisterID: "RR-01"},
 	{Method: "POST", Path: "/api/v1/incidents/:id/risks/:riskId", Reason: "the handler parses the risk id as an unsigned integer, so every UUID risk id answers 400 and no data is reachable", RegisterID: "RR-09"},
 	{Method: "POST", Path: "/api/v1/integrations/:id/test", Reason: "no seed kind or control run exists for this route yet (#1521)", RegisterID: "RR-01"},

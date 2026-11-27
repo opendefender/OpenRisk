@@ -13,6 +13,12 @@ var orgProbes = []Probe{
 	list("/api/v1/governance/delegations", KindDelegation),
 	post("/api/v1/governance/delegations/:id/revoke", `{}`, KindDelegation),
 	list("/api/v1/governance/workflows", KindWorkflow),
+	// approver_user_ids names B's user: refused 404 like a random id, and no
+	// workflow is stored (#1520). request_type policy_change collides with no
+	// seeded workflow. The PUT probe below cannot isolate the approver check:
+	// the workflow lookup, also B's id, answers 404 first; the use-case unit test
+	// TestUpdateWorkflow_NotFound pins the PUT approver check.
+	post("/api/v1/governance/workflows", `{"name":"attacker","request_type":"policy_change","steps":[{"approver_role":"admin","approver_user_ids":["{{user}}"]}]}`, KindUser),
 	put("/api/v1/governance/workflows/:id", `{"name":"changed by attacker","request_type":"security_exception","steps":[{"approver_role":"admin"}]}`, KindWorkflow),
 	del("/api/v1/governance/workflows/:id", KindWorkflow),
 
@@ -28,7 +34,6 @@ var orgProbes = []Probe{
 	get("/api/v1/entities/:type/:id/relations", "=risk", KindRisk),
 	get("/api/v1/entities/:type/:id/timeline", "=risk", KindRisk),
 
-	allow(get("/api/v1/audit-logs/user/:user_id", KindUser),
-		"answers 200 with an empty list for any user id, foreign or random; the query is tenant-filtered and B's entries are not returned", "RR-02", 200),
+	get("/api/v1/audit-logs/user/:user_id", KindUser),
 	get("/api/v1/attack-surface/topology/:id/compromise-chain", KindAsset),
 }

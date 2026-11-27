@@ -63,9 +63,10 @@ func TestCrossTenant(t *testing.T) {
 					}
 					o.Allow = p.Allow
 					// Ids A supplied in any probe so far are not a leak when a
-					// later read shows them: that is the dangling reference
-					// RR-12 records, and it would otherwise fail every later
-					// export or timeline for the same, already-listed reason.
+					// later read shows them: A named them itself, so reading
+					// them back is not B's data surfacing. Writes that named a
+					// foreign id are refused with 404 since #1520, so this only
+					// covers ids a probe was allowed to echo.
 					h.supplied = append(h.supplied, supplied...)
 					o.Supplied = append([]string(nil), h.supplied...)
 					o.Foreign = h.B.foreign(h.run)
