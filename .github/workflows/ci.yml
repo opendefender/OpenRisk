@@ -30,6 +30,7 @@ jobs:
       - uses: actions/setup-go@v4
         with:
           go-version: '1.26'
+          check-latest: true
 
       - name: Build
         run: cd backend && go build ./...
@@ -87,6 +88,7 @@ jobs:
       - uses: actions/setup-go@v4
         with:
           go-version: '1.26'
+          check-latest: true
 
       - name: Download dependencies
         run: cd backend && go mod download
@@ -162,6 +164,7 @@ jobs:
       - uses: actions/setup-go@v4
         with:
           go-version: '1.26'
+          check-latest: true
 
       - name: Download dependencies
         run: cd backend && go mod download
@@ -452,6 +455,7 @@ jobs:
       - uses: actions/setup-go@v4
         with:
           go-version: '1.26'
+          check-latest: true
 
       - name: Build backend binary
         run: |

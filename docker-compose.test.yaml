@@ -119,7 +119,7 @@ services:
 
   # Integration tests
   integration_tests:
-    image: golang:1.21-alpine
+    image: golang:1.26-alpine
     container_name: openrisk_integration_tests
     working_dir: /workspace
     environment:
@@ -145,7 +145,7 @@ services:
 
   # Security tests
   security_tests:
-    image: golang:1.21-alpine
+    image: golang:1.26-alpine
     container_name: openrisk_security_tests
     working_dir: /workspace
     environment:
@@ -163,7 +163,7 @@ services:
 
   # Performance benchmarks
   performance_tests:
-    image: golang:1.21-alpine
+    image: golang:1.26-alpine
     container_name: openrisk_performance_tests
     working_dir: /workspace
     environment:
