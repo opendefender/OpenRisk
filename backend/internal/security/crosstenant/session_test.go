@@ -243,9 +243,12 @@ func (h *harness) observeOwn(p Probe) (OwnBodyObservation, error) {
 	if read == "" {
 		return o, errSeed(p.Own[0], "A (no read route)")
 	}
-	st, before := h.do(h.A, "GET", read, "")
-	if st != http.StatusOK {
+	if st, _ := h.do(h.A, "GET", uncached(read), ""); st != http.StatusOK {
 		return o, seedError("A's read of its own object answered " + http.StatusText(st) + " before the attempt")
+	}
+	before, err := h.settled(h.A, read)
+	if err != nil {
+		return o, err
 	}
 	o.BeforeHash = hashBody(before)
 
@@ -253,7 +256,7 @@ func (h *harness) observeOwn(p Probe) (OwnBodyObservation, error) {
 	o.RandomStatus, _ = h.do(h.A, p.Method, rpath, rbody)
 
 	// A fresh query string: the after-read must not be the cached before-read.
-	st, after := h.do(h.A, "GET", uncached(strings.SplitN(read, "?", 2)[0]), "")
+	st, after := h.do(h.A, "GET", uncached(read), "")
 	if st != http.StatusOK {
 		return o, seedError("A's read of its own object answered " + http.StatusText(st) + " after the attempt")
 	}

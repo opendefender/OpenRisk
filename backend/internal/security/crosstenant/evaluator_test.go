@@ -215,3 +215,21 @@ func TestHarness_DetectsStoredForeignLink(t *testing.T) {
 		}
 	}
 }
+
+// TestEvaluate_SuppliedIdsStripLongestFirst: a short supplied id that is a
+// substring of a longer supplied id must not cut it, leaving a fragment of B's
+// canary that reads as an echo (seen on score-engine/configs, #1521).
+func TestEvaluate_SuppliedIdsStripLongestFirst(t *testing.T) {
+	long := "xt-145e0dcd-b-scoreconfig-0b038c"
+	body := `{"ID":"` + long + `","Name":"attacker"}`
+	foreign := []string{"xt-145e0dcd-b-"}
+	for _, supplied := range [][]string{{"38", long}, {long, "38"}} {
+		if hits := echoes(body, foreign, supplied); len(hits) != 0 {
+			t.Fatalf("supplied %v: the supplied id is not an echo, got %v", supplied, hits)
+		}
+	}
+	// A genuine echo next to the supplied id is still caught.
+	if hits := echoes(body+` "xt-145e0dcd-b-risk"`, foreign, []string{"38", long}); len(hits) != 1 {
+		t.Fatalf("a real canary beside the supplied id must be reported, got %v", hits)
+	}
+}

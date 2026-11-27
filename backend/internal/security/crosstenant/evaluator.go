@@ -7,6 +7,7 @@ package crosstenant
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 )
 
@@ -135,10 +136,19 @@ func Evaluate(o Observation) []string {
 // echoes returns the foreign strings found in body once the request's own
 // values are removed.
 func echoes(body string, foreign, supplied []string) []string {
+	// Longest first, and never a short one: a supplied integer id ("38") is a
+	// substring of a longer supplied id ("xt-…-b-scoreconfig-0b038c"); removing
+	// it first would cut the long id, which then survives as a fragment that
+	// still carries B's canary prefix and reads as an echo (#1521).
+	strip := make([]string, 0, len(supplied))
 	for _, s := range supplied {
-		if s != "" {
-			body = strings.ReplaceAll(body, s, "")
+		if len(s) >= 8 {
+			strip = append(strip, s)
 		}
+	}
+	sort.SliceStable(strip, func(i, j int) bool { return len(strip[i]) > len(strip[j]) })
+	for _, s := range strip {
+		body = strings.ReplaceAll(body, s, "")
 	}
 	var hits []string
 	for _, f := range foreign {
