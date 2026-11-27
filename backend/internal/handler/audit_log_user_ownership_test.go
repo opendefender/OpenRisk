@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/require"
 
@@ -18,6 +19,7 @@ import (
 	"github.com/opendefender/openrisk/internal/infrastructure/database"
 	"github.com/opendefender/openrisk/internal/service"
 	"github.com/opendefender/openrisk/internal/testsupport/sqliteschema"
+	authpkg "github.com/opendefender/openrisk/pkg/auth"
 )
 
 // #1520: GET /audit-logs/user/:user_id answers 404, with one body, for a user
@@ -68,4 +70,28 @@ func TestAuditLogUserRoute_UnknownToTheOrganisationIsNotFound(t *testing.T) {
 	// A value that is not a UUID keeps today's empty answer.
 	status, _ := get("not-a-uuid")
 	require.Equal(t, 200, status)
+}
+
+// A caller who is not an administrator of their organisation gets 403 for any
+// user id, foreign or not: the role gate runs before the ownership lookup, so the
+// 404 answer is never reached and the 403 does not depend on the id.
+func TestAuditLogUserRoute_NonAdminIsForbiddenNotNotFound(t *testing.T) {
+	orgA := uuid.New()
+	app := fiber.New()
+	app.Use(func(c *fiber.Ctx) error {
+		c.Locals("user", &authpkg.Claims{
+			Sub:      uuid.New(),
+			TenantID: orgA,
+			OrgRoles: map[uuid.UUID]string{orgA: "user"},
+		})
+		return c.Next()
+	})
+	app.Get("/audit-logs/user/:user_id", NewAuditLogHandler().GetUserAuditLogs)
+
+	for name, id := range map[string]string{"foreign or unknown user": uuid.NewString(), "not a uuid": "not-a-uuid"} {
+		resp, err := app.Test(httptest.NewRequest("GET", "/audit-logs/user/"+id, nil), 5000)
+		require.NoError(t, err)
+		_ = resp.Body.Close()
+		require.Equal(t, 403, resp.StatusCode, name)
+	}
 }
