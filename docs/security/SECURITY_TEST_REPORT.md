@@ -51,13 +51,13 @@ this file.
 |---|---|---|---|---|---|---|
 | Parameterised | 236 | 139 | 5 | 82 | 1 | 14 |
 | Collection GET | 154 | 113 | 0 | 7 | 0 | 34 |
-| Write without an id in the path | 115 | 20 | 10 | 20 | 66 | 9 |
-| **Total** | **505** | **272** | **15** | **109** | **67** | **57** |
+| Write without an id in the path | 115 | 20 | 10 | 21 | 65 | 9 |
+| **Total** | **505** | **272** | **15** | **110** | **66** | **57** |
 
 ¹ The isolation registry records the route as public by design, machine-authenticated
 or self-scoped.
 
-The suite probes every parameterised and collection route except the 109
+The suite probes every parameterised and collection route except the 110
 exemptions listed against a register row in
 `backend/internal/security/crosstenant/exemptions.go` and the four groups
 exempted as a whole (`ai`, `controls`, `control-exceptions`, `integrations`).

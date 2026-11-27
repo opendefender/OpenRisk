@@ -109,8 +109,9 @@ condition that these close before the launch:
 Every other row is accepted until its issue lands, or for the reason it states.
 
 **Context** — `docs/security/SECURITY_TEST_REPORT.md`, at base `ae28a16f`, records:
-- the live cross-tenant suite: 505 routes; 272 probed on Postgres; 180 exempted
-  (66 with no id to name, 114 untested against a register row); 57 auto-exempt;
+- the live cross-tenant suite: 505 routes; 272 probed on Postgres; 176 route exemptions
+  (66 with no id to name, 110 untested against a register row) plus 4 groups exempted
+  as a whole; 57 auto-exempt;
 - gosec, govulncheck, npm audit, and a ZAP baseline on a live stack.
 
 Eight findings were fixed in #1319 (F1 to F8). F1, F2, F3 and F6 are cross-tenant leaks
