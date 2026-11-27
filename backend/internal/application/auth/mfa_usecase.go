@@ -173,6 +173,13 @@ func (uc *VerifyMFAUseCase) Execute(ctx context.Context, input VerifyMFAInput) (
 	if mfaSecret == nil {
 		return nil, domain.NewNotFoundError("MFA secret", input.UserID)
 	}
+	// Enrolment only (#1318). A verified secret is the account's live factor:
+	// checking codes against it here would be a second, unthrottled way to
+	// guess it, beside the challenge and its lockout. The only secret this
+	// route judges is one /auth/mfa/setup just showed the caller.
+	if mfaSecret.IsVerified {
+		return nil, domain.NewConflictError("MFA", "already_enabled")
+	}
 
 	// Decrypt secret
 	decryptedSecret, err := crypto.DecryptAES256GCM(mfaSecret.SecretEncrypted, uc.encKey)

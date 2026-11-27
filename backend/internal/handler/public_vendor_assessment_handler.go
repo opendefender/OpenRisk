@@ -64,10 +64,12 @@ func (h *PublicVendorAssessmentHandler) presentedToken(c *fiber.Ctx, submitting 
 	if h.limiter != nil {
 		key := domain.HashVendorAssessmentToken(token)
 		if !h.limiter.IsAllowed("requests:"+key, publicTokenRequestsPerHour, time.Hour) {
-			return "", domain.NewRateLimitError("too many requests for this questionnaire link — try again later")
+			return "", domain.NewRateLimitError("too many requests for this questionnaire link — try again later",
+				middleware.RetryAfter(time.Now(), time.Hour))
 		}
 		if submitting && !h.limiter.IsAllowed("submits:"+key, publicSubmitsPerHour, time.Hour) {
-			return "", domain.NewRateLimitError("too many submissions for this questionnaire link — try again later")
+			return "", domain.NewRateLimitError("too many submissions for this questionnaire link — try again later",
+				middleware.RetryAfter(time.Now(), time.Hour))
 		}
 	}
 	return token, nil

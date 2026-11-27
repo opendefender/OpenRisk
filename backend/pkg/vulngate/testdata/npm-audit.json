@@ -1,0 +1,63 @@
+{
+  "auditReportVersion": 2,
+  "vulnerabilities": {
+    "@humanfs/node": {
+      "name": "@humanfs/node",
+      "severity": "moderate",
+      "isDirect": false,
+      "via": [
+        {
+          "source": 1158499,
+          "name": "@humanfs/node",
+          "dependency": "@humanfs/node",
+          "title": "humanfs: Recursive copy follows symlinked files and copies data from outside the source tree",
+          "url": "https://github.com/advisories/GHSA-p498-v437-472g",
+          "severity": "moderate",
+          "cwe": ["CWE-22"],
+          "cvss": {"score": 0, "vectorString": null},
+          "range": "<0.16.8"
+        }
+      ],
+      "effects": [],
+      "range": "<0.16.8",
+      "nodes": ["node_modules/@humanfs/node"],
+      "fixAvailable": true
+    },
+    "nanoid": {
+      "name": "nanoid",
+      "severity": "high",
+      "isDirect": false,
+      "via": [
+        {
+          "source": 1139427,
+          "name": "nanoid",
+          "dependency": "nanoid",
+          "title": "nanoid: custom generators can loop indefinitely when size is zero",
+          "url": "https://github.com/advisories/GHSA-2v37-7h3g-55p8",
+          "severity": "high",
+          "cwe": ["CWE-835"],
+          "cvss": {"score": 5.9, "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:N/I:N/A:H"},
+          "range": "<3.3.18"
+        }
+      ],
+      "effects": ["postcss"],
+      "range": "<3.3.18",
+      "nodes": ["node_modules/nanoid"],
+      "fixAvailable": true
+    },
+    "postcss": {
+      "name": "postcss",
+      "severity": "high",
+      "isDirect": true,
+      "via": ["nanoid"],
+      "effects": [],
+      "range": "<8.4.31",
+      "nodes": ["node_modules/postcss"],
+      "fixAvailable": {"name": "postcss", "version": "8.4.31", "isSemVerMajor": false}
+    }
+  },
+  "metadata": {
+    "vulnerabilities": {"info": 0, "low": 0, "moderate": 1, "high": 2, "critical": 0, "total": 3},
+    "dependencies": {"prod": 3, "dev": 0, "optional": 0, "peer": 0, "peerOptional": 0, "total": 3}
+  }
+}

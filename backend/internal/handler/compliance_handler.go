@@ -8,7 +8,9 @@ package handler
 import (
 	"errors"
 	"github.com/opendefender/openrisk/pkg/monitoring"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
@@ -117,7 +119,25 @@ func writeAppError(c *fiber.Ctx, err error) error {
 	if reason := domain.ReasonFromError(err); reason != "" {
 		body["code"] = reason
 	}
-	return c.Status(domain.HTTPStatusFromError(err)).JSON(body)
+	status := domain.HTTPStatusFromError(err)
+	if status == fiber.StatusTooManyRequests {
+		setRetryAfter(c, domain.RetryAfterFromError(err))
+	}
+	return c.Status(status).JSON(body)
+}
+
+// setRetryAfter writes the Retry-After header of a 429 (#1318): whole seconds,
+// rounded up, never under one. A rate-limit error that names no delay still
+// gets one second, so no 429 leaves the client guessing.
+func setRetryAfter(c *fiber.Ctx, wait time.Duration) {
+	if len(c.Response().Header.Peek(fiber.HeaderRetryAfter)) > 0 {
+		return // the handler already said how long; keep its answer
+	}
+	seconds := int((wait + time.Second - 1) / time.Second)
+	if seconds < 1 {
+		seconds = 1
+	}
+	c.Set(fiber.HeaderRetryAfter, strconv.Itoa(seconds))
 }
 
 func tenantID(c *fiber.Ctx) uuid.UUID {

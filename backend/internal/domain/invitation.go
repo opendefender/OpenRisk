@@ -131,8 +131,8 @@ func (i *Invitation) CanResend(t time.Time) error {
 	if i.SendCount >= InvitationMaxResends {
 		return NewValidationError("this invitation has been sent too many times — revoke it and invite again")
 	}
-	if t.Sub(i.LastSentAt) < InvitationResendCooldown {
-		return NewRateLimitError("please wait before sending this invitation again")
+	if since := t.Sub(i.LastSentAt); since < InvitationResendCooldown {
+		return NewRateLimitError("please wait before sending this invitation again", InvitationResendCooldown-since)
 	}
 	return nil
 }

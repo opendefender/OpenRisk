@@ -219,9 +219,10 @@ func TestMFADisableE2E_AttemptsAreLimitedPerAccount(t *testing.T) {
 	}
 	// The sixth try is refused even with the right password: the budget is the
 	// account's, and a guesser who finally hits it must still wait.
-	status, resp := f.do(t, http.MethodPost, disablePath, token, jsonBody{"password": deferredPassword})
+	status, resp, header := f.doWithHeader(t, http.MethodPost, disablePath, token, jsonBody{"password": deferredPassword})
 	assert.Equal(t, http.StatusTooManyRequests, status)
 	assert.Equal(t, "too_many_attempts", resp["code"])
+	assertRetryAfterWithin(t, header, 15*60)
 
 	secrets, codes := f.factorRows(t, f.memberA)
 	assert.EqualValues(t, 1, secrets)

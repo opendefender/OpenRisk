@@ -11,9 +11,11 @@
 #                                 Trivy skips devDependencies by default)
 #   - every image given           trivy image <image-ref>      (OS packages + Go binary)
 # plus govulncheck on the backend, whose reachable findings block regardless of
-# severity. security/vulnerability-exceptions.yaml is applied by `vulngate`.
+# severity, and `npm audit --omit=dev` on the frontend lockfile (#1318), a second
+# advisory database (GitHub's) on the same production dependencies Trivy reads.
+# security/vulnerability-exceptions.yaml is applied by `vulngate`.
 #
-# Needs trivy, govulncheck and go on PATH; the images must be in the local
+# Needs trivy, govulncheck, go and npm on PATH; the images must be in the local
 # Docker daemon. Reports go to $GATE_REPORTS (default: gate-reports/).
 # Exits non-zero when the gate fails.
 set -euo pipefail
@@ -45,6 +47,13 @@ done
 echo "== govulncheck: backend call graph"
 (cd backend && govulncheck -format json ./... > "${OUT}/govulncheck.json")
 reports+=(-govulncheck "${OUT}/govulncheck.json")
+
+# npm audit exits non-zero whenever it finds anything, at any severity: the
+# verdict is vulngate's, which also fails when the report carries an error
+# (no lockfile, registry unreachable) instead of findings.
+echo "== npm audit: frontend production dependencies"
+(cd frontend && npm audit --omit=dev --json > "${OUT}/npm-audit.json") || true
+reports+=(-npmaudit "${OUT}/npm-audit.json")
 
 echo "== vulngate"
 (cd backend && go build -o "${OUT}/vulngate" ./cmd/vulngate)

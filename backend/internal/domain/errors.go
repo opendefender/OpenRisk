@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"time"
 )
 
 // Sentinel errors — Règle Claude.md #3 : erreurs typées uniquement
@@ -37,6 +38,9 @@ type AppError struct {
 	// Fields lists the per-row problems of a validation error that covers a
 	// whole document (a bulk import). Empty for every other error.
 	Fields []FieldError
+	// RetryAfter is how long a 429 caller should wait (#1318). Zero for every
+	// other error. The handler turns it into the Retry-After header.
+	RetryAfter time.Duration
 }
 
 // FieldError is one problem found in one place of a submitted document.
@@ -184,13 +188,26 @@ func NewGoneError(message string) *AppError {
 	}
 }
 
-// NewRateLimitError reports an action refused for being too frequent.
-func NewRateLimitError(message string) *AppError {
+// NewRateLimitError reports an action refused for being too frequent, and how
+// long the caller should wait before trying again. Every 429 says how long to
+// wait (#1318): a client that is not told retries at once, and is refused again.
+func NewRateLimitError(message string, retryAfter time.Duration) *AppError {
 	return &AppError{
-		Err:     ErrValidation,
-		Message: message,
-		Code:    http.StatusTooManyRequests,
+		Err:        ErrValidation,
+		Message:    message,
+		Code:       http.StatusTooManyRequests,
+		RetryAfter: retryAfter,
 	}
+}
+
+// RetryAfterFromError returns how long the caller of a rate-limited request
+// should wait, or 0 when err carries no such delay.
+func RetryAfterFromError(err error) time.Duration {
+	var appErr *AppError
+	if errors.As(err, &appErr) {
+		return appErr.RetryAfter
+	}
+	return 0
 }
 
 func NewInternalError(detail string) *AppError {

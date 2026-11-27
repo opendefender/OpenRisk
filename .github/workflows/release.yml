@@ -20,6 +20,7 @@ permissions:
   contents: read
 
 env:
+  NPM_VERSION: 11.21.3
   TRIVY_VERSION: v0.74.0
   GOVULNCHECK_VERSION: v1.7.0
 
@@ -197,6 +198,16 @@ jobs:
           go-version: '1.26'
           check-latest: true
           cache-dependency-path: backend/go.sum
+
+      # The gate runs npm audit on frontend/package-lock.json (#1318).
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+
+      # npm 10 (Node 22's) calls the quick-audit endpoint the registry is
+      # retiring and can get a 400; npm 11 uses the bulk advisory endpoint.
+      - name: Pin npm for npm audit
+        run: npm install -g npm@${NPM_VERSION}
 
       - uses: aquasecurity/setup-trivy@81e514348e19b6112ce2a7e3ecbafe19c1e1f567 # v0.3.1
         with:

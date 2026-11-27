@@ -257,6 +257,14 @@ type jsonBody map[string]any
 
 func (f *deferredFixture) do(t *testing.T, method, path, token string, body any) (int, jsonBody) {
 	t.Helper()
+	status, out, _ := f.doWithHeader(t, method, path, token, body)
+	return status, out
+}
+
+// doWithHeader is do, plus the response headers (#1318: a 429 must say how long
+// to wait).
+func (f *deferredFixture) doWithHeader(t *testing.T, method, path, token string, body any) (int, jsonBody, http.Header) {
+	t.Helper()
 	var reader io.Reader
 	if body != nil {
 		raw, err := json.Marshal(body)
@@ -278,7 +286,7 @@ func (f *deferredFixture) do(t *testing.T, method, path, token string, body any)
 	require.NoError(t, err)
 	out := jsonBody{}
 	_ = json.Unmarshal(raw, &out)
-	return resp.StatusCode, out
+	return resp.StatusCode, out, resp.Header
 }
 
 // login returns the raw login response — the exact payload the reported bug was
