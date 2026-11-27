@@ -88,17 +88,30 @@ func (uc *CreateDelegationUseCase) Execute(ctx context.Context, tenantID, actorI
 	if in.DelegateID == delegator {
 		return nil, domain.NewValidationError("cannot delegate to yourself")
 	}
-	// #1319: the delegate must belong to THIS tenant. A foreign or unknown id
-	// answers not-found, the same for both, so the answer says nothing about
-	// whether the user exists elsewhere.
-	if uc.members != nil {
-		member, err := uc.members.GetMember(ctx, tenantID, in.DelegateID)
-		if err != nil {
+	// #1319: both parties must belong to THIS tenant. The delegator check matters
+	// as much as the delegate's: an admin may name another delegator, and the
+	// listing resolves both e-mails. A foreign or unknown id answers not-found,
+	// the same for both, so the answer says nothing about whether the user
+	// exists elsewhere. Fail closed when no membership lookup is wired.
+	if uc.members == nil {
+		return nil, domain.NewForbiddenError("delegations are unavailable: no membership lookup is configured")
+	}
+	if delegator != actorID {
+		if m, err := uc.members.GetMember(ctx, tenantID, delegator); err != nil {
 			return nil, err
+		} else if m == nil {
+			return nil, domain.NewNotFoundError("user", delegator.String())
 		}
-		if member == nil {
-			return nil, domain.NewNotFoundError("user", in.DelegateID.String())
-		}
+	}
+	member, err := uc.members.GetMember(ctx, tenantID, in.DelegateID)
+	if err != nil {
+		return nil, err
+	}
+	if member == nil {
+		return nil, domain.NewNotFoundError("user", in.DelegateID.String())
+	}
+	if !member.IsActive {
+		return nil, domain.NewValidationError("the delegate is deactivated and cannot receive a delegation")
 	}
 	perms := normalisePermissions(in.Permissions)
 	if len(perms) == 0 {
@@ -131,7 +144,7 @@ func (uc *CreateDelegationUseCase) Execute(ctx context.Context, tenantID, actorI
 	if err := uc.repo.Create(ctx, d); err != nil {
 		return nil, err
 	}
-	uc.enrich(ctx, []domain.Delegation{*d})
+	uc.enrich(ctx, tenantID, []domain.Delegation{*d})
 	if uc.recorder != nil {
 		actor := actorID
 		uc.recorder.Record(ctx, domain.AuditEvent{
@@ -158,8 +171,16 @@ func (uc *CreateDelegationUseCase) Execute(ctx context.Context, tenantID, actorI
 // -------------------- List --------------------
 
 type ListDelegationsUseCase struct {
-	repo   domain.DelegationRepository
-	lookup UserLookup
+	repo    domain.DelegationRepository
+	lookup  UserLookup
+	members MemberLookup
+}
+
+// WithMembers limits the e-mails shown to members of the tenant, so delegations
+// stored before the create-time check stop resolving foreign users (#1319).
+func (uc *ListDelegationsUseCase) WithMembers(m MemberLookup) *ListDelegationsUseCase {
+	uc.members = m
+	return uc
 }
 
 func NewListDelegationsUseCase(repo domain.DelegationRepository) *ListDelegationsUseCase {
@@ -183,7 +204,7 @@ func (uc *ListDelegationsUseCase) Execute(ctx context.Context, tenantID uuid.UUI
 			list[i].Status = "expired"
 		}
 	}
-	uc.enrich(ctx, list)
+	uc.enrich(ctx, tenantID, list)
 	return list, nil
 }
 
@@ -306,15 +327,19 @@ func normalisePermissions(in []string) []string {
 }
 
 // enrich fills delegator/delegate emails on a slice of delegations (best-effort).
-func (uc *CreateDelegationUseCase) enrich(ctx context.Context, list []domain.Delegation) {
-	enrichDelegationEmails(ctx, uc.lookup, list)
+func (uc *CreateDelegationUseCase) enrich(ctx context.Context, tenantID uuid.UUID, list []domain.Delegation) {
+	enrichDelegationEmails(ctx, uc.lookup, uc.members, tenantID, list)
 }
-func (uc *ListDelegationsUseCase) enrich(ctx context.Context, list []domain.Delegation) {
-	enrichDelegationEmails(ctx, uc.lookup, list)
+func (uc *ListDelegationsUseCase) enrich(ctx context.Context, tenantID uuid.UUID, list []domain.Delegation) {
+	enrichDelegationEmails(ctx, uc.lookup, uc.members, tenantID, list)
 }
 
-func enrichDelegationEmails(ctx context.Context, lookup UserLookup, list []domain.Delegation) {
-	if lookup == nil || len(list) == 0 {
+// enrichDelegationEmails resolves e-mails only for users who are members of the
+// tenant. EmailsByIDs is global, so without this filter a delegation naming a
+// foreign user id showed that user's address (#1319). No membership lookup means
+// no e-mail at all.
+func enrichDelegationEmails(ctx context.Context, lookup UserLookup, members MemberLookup, tenantID uuid.UUID, list []domain.Delegation) {
+	if lookup == nil || members == nil || len(list) == 0 {
 		return
 	}
 	idset := map[uuid.UUID]struct{}{}
@@ -324,9 +349,15 @@ func enrichDelegationEmails(ctx context.Context, lookup UserLookup, list []domai
 	}
 	ids := make([]uuid.UUID, 0, len(idset))
 	for id := range idset {
-		if id != uuid.Nil {
+		if id == uuid.Nil {
+			continue
+		}
+		if m, err := members.GetMember(ctx, tenantID, id); err == nil && m != nil {
 			ids = append(ids, id)
 		}
+	}
+	if len(ids) == 0 {
+		return
 	}
 	emails, err := lookup.EmailsByIDs(ctx, ids)
 	if err != nil {

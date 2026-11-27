@@ -3748,7 +3748,7 @@ func main() {
 		PruneAudit:   governance.NewPruneAuditTrailUseCase(auditChainRepo, auditRetentionRepo),
 
 		CreateDelegation: governance.NewCreateDelegationUseCase(delegationRepo).WithRecorder(governanceRecorder).WithUserLookup(userRepo).WithMembers(ownershipMembers),
-		ListDelegations:  governance.NewListDelegationsUseCase(delegationRepo).WithUserLookup(userRepo),
+		ListDelegations:  governance.NewListDelegationsUseCase(delegationRepo).WithUserLookup(userRepo).WithMembers(ownershipMembers),
 		RevokeDelegation: governance.NewRevokeDelegationUseCase(delegationRepo).WithRecorder(governanceRecorder),
 		EffectivePerms:   governance.NewResolveEffectivePermissionsUseCase(delegationRepo),
 

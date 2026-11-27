@@ -198,7 +198,7 @@ func (f *fakeAuditRepo) List(_ context.Context, tenantID uuid.UUID, flt domain.A
 func TestCreateDelegation_Success(t *testing.T) {
 	repo := newFakeDelegationRepo()
 	audit := &fakeAuditRepo{}
-	uc := NewCreateDelegationUseCase(repo).WithRecorder(NewAuditRecorder(audit))
+	uc := NewCreateDelegationUseCase(repo).WithRecorder(NewAuditRecorder(audit)).WithMembers(everyoneIsMember{})
 	tenant, actor, delegate := uuid.New(), uuid.New(), uuid.New()
 	end := time.Now().Add(48 * time.Hour)
 
@@ -227,7 +227,7 @@ func TestCreateDelegation_Success(t *testing.T) {
 
 func TestCreateDelegation_Validation(t *testing.T) {
 	repo := newFakeDelegationRepo()
-	uc := NewCreateDelegationUseCase(repo)
+	uc := NewCreateDelegationUseCase(repo).WithMembers(everyoneIsMember{})
 	tenant, actor := uuid.New(), uuid.New()
 	end := time.Now().Add(24 * time.Hour)
 
@@ -551,7 +551,7 @@ func TestAuditRecorder_NilSafe(t *testing.T) {
 
 func TestCreateDelegation_Unauthorized_ForeignDelegator(t *testing.T) {
 	repo := newFakeDelegationRepo()
-	uc := NewCreateDelegationUseCase(repo)
+	uc := NewCreateDelegationUseCase(repo).WithMembers(everyoneIsMember{})
 	tenant, attacker, victim := uuid.New(), uuid.New(), uuid.New()
 	end := time.Now().Add(24 * time.Hour)
 
@@ -571,7 +571,7 @@ func TestCreateDelegation_Unauthorized_ForeignDelegator(t *testing.T) {
 
 func TestCreateDelegation_AdminMayActForAnother(t *testing.T) {
 	repo := newFakeDelegationRepo()
-	uc := NewCreateDelegationUseCase(repo)
+	uc := NewCreateDelegationUseCase(repo).WithMembers(everyoneIsMember{})
 	tenant, admin, absent, cover := uuid.New(), uuid.New(), uuid.New(), uuid.New()
 	end := time.Now().Add(24 * time.Hour)
 
@@ -592,7 +592,7 @@ func TestCreateDelegation_AdminMayActForAnother(t *testing.T) {
 
 func TestCreateDelegation_OwnRightsNeedNoAdmin(t *testing.T) {
 	repo := newFakeDelegationRepo()
-	uc := NewCreateDelegationUseCase(repo)
+	uc := NewCreateDelegationUseCase(repo).WithMembers(everyoneIsMember{})
 	tenant, actor := uuid.New(), uuid.New()
 	end := time.Now().Add(24 * time.Hour)
 
@@ -661,9 +661,17 @@ type fakeMembers struct{ in map[[2]uuid.UUID]bool }
 
 func (f fakeMembers) GetMember(_ context.Context, tenantID, userID uuid.UUID) (*domain.OrganizationMember, error) {
 	if f.in[[2]uuid.UUID{tenantID, userID}] {
-		return &domain.OrganizationMember{}, nil
+		return &domain.OrganizationMember{IsActive: true}, nil
 	}
 	return nil, nil
+}
+
+// everyoneIsMember answers every user as an active member, for the tests that
+// are not about membership.
+type everyoneIsMember struct{}
+
+func (everyoneIsMember) GetMember(_ context.Context, _, _ uuid.UUID) (*domain.OrganizationMember, error) {
+	return &domain.OrganizationMember{IsActive: true}, nil
 }
 
 // TestCreateDelegation_RejectsDelegateOutsideTenant: a delegate from another
@@ -695,5 +703,114 @@ func TestCreateDelegation_RejectsDelegateOutsideTenant(t *testing.T) {
 		DelegateID: member, Permissions: []string{"risks:read"}, EndsAt: &end,
 	}); !errors.Is(err, domain.ErrValidation) {
 		t.Fatalf("a missing actor must be refused, got %v", err)
+	}
+}
+
+// TestCreateDelegation_RejectsDelegatorOutsideTenant: an admin naming a
+// delegator from another organisation gets not found, the same as for an
+// unknown id, and nothing is stored (#1319, GHSA-39cg-g3rv-985p).
+func TestCreateDelegation_RejectsDelegatorOutsideTenant(t *testing.T) {
+	repo := newFakeDelegationRepo()
+	tenant, otherTenant, admin, colleague, cover, foreign := uuid.New(), uuid.New(), uuid.New(), uuid.New(), uuid.New(), uuid.New()
+	members := fakeMembers{in: map[[2]uuid.UUID]bool{
+		{tenant, admin}: true, {tenant, colleague}: true, {tenant, cover}: true, {otherTenant, foreign}: true,
+	}}
+	uc := NewCreateDelegationUseCase(repo).WithMembers(members)
+	end := time.Now().Add(24 * time.Hour)
+
+	// Success: a colleague of the same tenant.
+	if _, err := uc.Execute(context.Background(), tenant, admin, CreateDelegationInput{
+		DelegatorID: colleague, DelegateID: cover, Permissions: []string{"risks:read"}, EndsAt: &end, ActorIsAdmin: true,
+	}); err != nil {
+		t.Fatalf("a colleague delegator must be accepted: %v", err)
+	}
+	// NotFound: a foreign and a random delegator answer the same.
+	for name, id := range map[string]uuid.UUID{"foreign": foreign, "random": uuid.New()} {
+		_, err := uc.Execute(context.Background(), tenant, admin, CreateDelegationInput{
+			DelegatorID: id, DelegateID: cover, Permissions: []string{"risks:read"}, EndsAt: &end, ActorIsAdmin: true,
+		})
+		if !errors.Is(err, domain.ErrNotFound) {
+			t.Fatalf("%s delegator: want ErrNotFound, got %v", name, err)
+		}
+	}
+	if len(repo.items) != 1 {
+		t.Fatalf("refused delegations must not be stored, found %d", len(repo.items))
+	}
+	// Unauthorized: no membership lookup wired means no delegation at all.
+	if _, err := NewCreateDelegationUseCase(repo).Execute(context.Background(), tenant, admin, CreateDelegationInput{
+		DelegateID: cover, Permissions: []string{"risks:read"}, EndsAt: &end,
+	}); !errors.Is(err, domain.ErrForbidden) {
+		t.Fatalf("an unwired membership lookup must fail closed, got %v", err)
+	}
+}
+
+// inactiveMember answers every user as a deactivated member.
+type inactiveMember struct{}
+
+func (inactiveMember) GetMember(_ context.Context, _, _ uuid.UUID) (*domain.OrganizationMember, error) {
+	return &domain.OrganizationMember{IsActive: false}, nil
+}
+
+func TestCreateDelegation_RejectsDeactivatedDelegate(t *testing.T) {
+	repo := newFakeDelegationRepo()
+	uc := NewCreateDelegationUseCase(repo).WithMembers(inactiveMember{})
+	end := time.Now().Add(24 * time.Hour)
+	_, err := uc.Execute(context.Background(), uuid.New(), uuid.New(), CreateDelegationInput{
+		DelegateID: uuid.New(), Permissions: []string{"risks:read"}, EndsAt: &end,
+	})
+	if !errors.Is(err, domain.ErrValidation) {
+		t.Fatalf("a deactivated delegate must be refused, got %v", err)
+	}
+}
+
+// fakeEmails resolves every id to an address and records what it was asked.
+type fakeEmails struct{ asked []uuid.UUID }
+
+func (f *fakeEmails) EmailsByIDs(_ context.Context, ids []uuid.UUID) (map[uuid.UUID]string, error) {
+	f.asked = append(f.asked, ids...)
+	out := map[uuid.UUID]string{}
+	for _, id := range ids {
+		out[id] = id.String() + "@example.test"
+	}
+	return out, nil
+}
+
+// TestListDelegations_HidesForeignEmails: a delegation stored before the
+// create-time check, naming a foreign user, lists without that user's e-mail;
+// a member's e-mail still resolves (#1319).
+func TestListDelegations_HidesForeignEmails(t *testing.T) {
+	repo := newFakeDelegationRepo()
+	tenant, otherTenant, member, foreign := uuid.New(), uuid.New(), uuid.New(), uuid.New()
+	end := time.Now().Add(24 * time.Hour)
+	_ = repo.Create(context.Background(), &domain.Delegation{
+		ID: uuid.New(), TenantID: tenant, DelegatorID: member, DelegateID: foreign,
+		Permissions: []string{"risks:read"}, StartsAt: time.Now().Add(-time.Hour), EndsAt: end, Status: domain.DelegationActive,
+	})
+	emails := &fakeEmails{}
+	members := fakeMembers{in: map[[2]uuid.UUID]bool{{tenant, member}: true, {otherTenant, foreign}: true}}
+
+	list, err := NewListDelegationsUseCase(repo).WithUserLookup(emails).WithMembers(members).Execute(context.Background(), tenant, domain.DelegationFilter{})
+	if err != nil {
+		t.Fatalf("list: %v", err)
+	}
+	if len(list) != 1 {
+		t.Fatalf("want 1 delegation, got %d", len(list))
+	}
+	if list[0].DelegatorEmail == "" {
+		t.Fatal("the member's e-mail must still resolve")
+	}
+	if list[0].DelegateEmail != "" {
+		t.Fatalf("a foreign user's e-mail leaked: %q", list[0].DelegateEmail)
+	}
+	for _, id := range emails.asked {
+		if id == foreign {
+			t.Fatal("the foreign id was sent to the global e-mail lookup")
+		}
+	}
+	// Unauthorized: no membership lookup means no e-mail resolution at all.
+	emails2 := &fakeEmails{}
+	list, _ = NewListDelegationsUseCase(repo).WithUserLookup(emails2).Execute(context.Background(), tenant, domain.DelegationFilter{})
+	if len(emails2.asked) != 0 || list[0].DelegatorEmail != "" {
+		t.Fatal("without a membership lookup no e-mail may be resolved")
 	}
 }
