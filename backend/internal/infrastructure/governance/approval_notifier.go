@@ -156,11 +156,18 @@ func (n *ApprovalNotifier) resolveRecipients(ctx context.Context, tenantID uuid.
 		return out
 	}
 
+	// Only active members of THIS tenant are told (#1319). Named approvers and
+	// delegates are stored ids, never checked against the tenant at write time,
+	// so without this filter a workflow naming another tenant's user id e-mailed
+	// that user an attacker-titled request. Fail closed: on a query error nobody
+	// is notified rather than an unfiltered list.
 	var users []domain.User
-	if err := n.db.WithContext(ctx).Where("id IN ?", ids).Find(&users).Error; err != nil {
-		for _, id := range ids {
-			out[id] = ""
-		}
+	if err := n.db.WithContext(ctx).
+		Where("id IN ? AND id IN (?)", ids,
+			n.db.Model(&domain.OrganizationMember{}).Select("user_id").
+				Where("organization_id = ? AND is_active = ?", tenantID, true)).
+		Find(&users).Error; err != nil {
+		n.logger.Debug().Err(err).Msg("governance: approver lookup failed")
 		return out
 	}
 	for _, u := range users {

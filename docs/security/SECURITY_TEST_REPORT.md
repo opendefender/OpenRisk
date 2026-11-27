@@ -19,7 +19,9 @@ requires, until their fix is released.
 
 **What it is.** `backend/internal/security/crosstenant/`. Two organisations
 register through the real API (`POST /api/v1/auth/register`) on the real server
-binary, booted on Postgres 16 and Redis 7 with `TENANT_GUARD=enforce`. Tenant B
+binary, booted on Postgres 16 and Redis 7 with `TENANT_GUARD=enforce` and
+`APP_ENV=test` (the non-production error handler; the rate limits are raised for
+this job only, D-129; the MFA policy is the production one). Tenant B
 gets one object of each seeded kind through the API, and every text field carries
 a per-run canary. Tenant A's token is then pointed at B's ids.
 
@@ -61,6 +63,14 @@ exemptions listed against a register row in
 exempted as a whole (`ai`, `controls`, `control-exceptions`, `integrations`).
 It does not prove "all routes".
 
+**What a collection probe proves.** Of the 113 collection probes, 26 are lists of
+a seeded kind and 87 are aggregates (dashboards, stats, counts). An aggregate probe
+proves that B gets a 2xx and that A's body holds no B id and no B canary. It cannot
+see a numeric leak: a count or an average that includes B's rows. F1 was such a
+leak; the evaluator did not see it, and the tenant guard log did. For aggregates,
+the guard of numeric leaks is that log (`scripts/ci/cross-tenant.sh` fails on any
+`tenantguard` line) plus the unit tests of each aggregate, not the probe.
+
 **Run it**
 ```
 make test-cross-tenant          # throwaway Postgres and Redis in Docker, then scripts/ci/cross-tenant.sh
@@ -83,17 +93,18 @@ script exits 1. Ten probes fail, and the guard logs two refused queries.
 
 | Id | Finding | Severity | Status |
 |---|---|---|---|
-| F1 | Cross-tenant read of score aggregates | medium (advisory) | Fixed in #1319, GHSA-m6gp-q4m7-27c6 |
-| F2 | Cross-tenant read through a stored foreign reference | medium (advisory) | Fixed in #1319, GHSA-3x9h-57v5-w5q3 |
-| F3 | Cross-tenant e-mail disclosure by user id | medium (advisory) | Fixed in #1319, GHSA-39cg-g3rv-985p |
+| F1 | Cross-tenant read of score aggregates | critical (policy) · CVSS medium | Fixed in #1319, GHSA-m6gp-q4m7-27c6 |
+| F2 | Cross-tenant read through a stored foreign reference, on write and on read | critical (policy) · CVSS medium | Fixed in #1319, GHSA-3x9h-57v5-w5q3 |
+| F3 | Cross-tenant e-mail disclosure by user id, through two fields | critical (policy) · CVSS medium | Fixed in #1319, GHSA-39cg-g3rv-985p |
 | F4 | Incident update and delete answered 500 and 204 for a foreign id; no data reached | low | Fixed in #1319: typed `ErrNotFound`, 404 |
 | F5 | Five mitigation routes answered 400 with the typed error text for a foreign id; no data reached | low | Fixed in #1319: one 404 body |
-| F6 | Cross-tenant read and write of scoring configurations | medium (advisory) | Fixed in #1319, GHSA-m6gp-q4m7-27c6 |
-| F7 | Request strings outlived their request: Fiber returned views of the fasthttp buffer, so a value a handler kept could be overwritten by the next caller's request. Seen once as a canary echo; F6's store kept such a key | high (class) | Fixed in #1319: `Immutable: true` in `fiber.Config` (D-129) |
+| F6 | Cross-tenant read and write of scoring configurations | critical (policy) · CVSS medium | Fixed in #1319, GHSA-m6gp-q4m7-27c6 |
+| F7 | One run in eight echoed a B canary in A's response on `POST /score-engine/configs`. Not reproduced in 12 later runs, and no path from the config store to that response was traced. Leading hypothesis: fasthttp aliasing (Fiber returns views of the request buffer, and F6's store kept such a string as a map key) | high (unconfirmed) | Hardened in #1319: `Immutable: true` in `fiber.Config` makes Fiber's accessors (`c.Params`, `c.Query`, `c.Get`, `c.Body`, ...) return copies (D-129). Raw fasthttp calls are not covered; the two in the code copy or hash at once (`asset_handler.go:100`, `pkg/cache/decoration.go:118`). A test pins the setting |
+| F8 | Found in security review, not by the suite. A workflow step's `approver_user_ids` are stored unchecked, and the approval notifier loaded those users across tenants: it e-mailed and notified another tenant's user an attacker-titled request | medium | Fixed in #1319: the notifier resolves only active members of the request's tenant, test `approval_notifier_tenant_test.go` |
 
 `SECURITY.md` treats any flaw that lets one tenant read or change another tenant's
-data as critical, whatever its CVSS score. The severities above are the CVSS
-ratings recorded in the advisories.
+data as critical, whatever its CVSS score: F1, F2, F3 and F6 are critical by that
+policy. The CVSS rating is the one recorded in the advisory.
 
 Functional defects found on the way, none of them a cross-tenant leak: #1169,
 #1516, #1517, #1518 and #1519.
@@ -170,10 +181,10 @@ lands, or the stated reason. The owner's acceptance of this register is D-130.
 | RR-09 | 2 dead incident-risk routes parse a UUID as an integer and answer 400 to everyone | low | #1519 | Accept until #1519 |
 | RR-10 | 2 bulk preview routes answer 200 with "missing" for a foreign id. The body is the same as for a random id, and nothing is read or written | low | #1520 | Accept |
 | RR-11 | 2 routes refuse foreign body ids with 400 rather than 404. The answer is the same for a random id, and nothing is written | low | #1520 | Accept |
-| RR-12 | 3 writes store a foreign body-addressed reference as is (201). It is never read back, because reads filter by tenant | medium | #1520 | Accept until #1520 |
-| RR-13 | Scoring config ids are chosen by the caller. A write, compute or classify naming another tenant's id acts on the caller's own copy or on the default. B's config was verified unchanged; the unit tests pin the rest | low | — | Accept: by design after F6 |
+| RR-12 | 4 writes store a foreign body-addressed reference as is (201). It is never read back, because reads filter by tenant, and the approval notifier tells only active members of the tenant (F8) | medium | #1520 | Accept until #1520 |
+| RR-13 | Scoring config ids are chosen by the caller. A write, compute or classify naming another tenant's id acts on the caller's own copy or on the default. B's config was verified unchanged; the unit tests pin the rest | low | devsecops (GHSA-m6gp-q4m7-27c6) | Accept: by design after F6. Revisit if configs move to the database |
 | RR-14 | Telemetry consent is one row for the whole deployment, and any tenant's admin can change it | medium | #1522 | Accept until #1522 |
-| RR-SCA-1 | GO-2026-6859 and GO-2026-6809, reachable, in the Go standard library | high | #1207 | Fix: bump to go1.26.11 |
+| RR-SCA-1 | GO-2026-6859 and GO-2026-6809, reachable, in the Go standard library | high | #1207 (widened to both on 2026-11-26) | Fix: bump to go1.26.11 |
 | RR-SCA-2 | 5 frontend development-only advisories (`nanoid`, vitest) | low | Dependabot | Accept: not shipped |
 | RR-SAST-1 | Uploaded files are written 0640 and the CTI data directory 0755. Group and other read access on a shared host | low | #1521 | Accept: the image runs as one non-root user, `openrisk` (`Dockerfile:51`) |
 | RR-SAST-2 | 21 low gosec issues not triaged one by one | low | #1521 | Accept |
