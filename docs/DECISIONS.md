@@ -164,6 +164,14 @@ came from. RR-12 has the shape of F2.
 
 **Blocks** — closing #229 waits for the four conditions.
 
+**Status (agent, 2026-11-27)** — RR-03 closed by #1518: registration now writes the
+`tenants` row and the root's `user_tenants` row (Admin) in its transaction, and the 17
+`/rbac` routes are in the live suite (15 probes, `POST /rbac/roles` exempt as having
+no id to name, `DELETE /rbac/tenants/:tenant_id` exempt under the new RR-15: the
+handlers ignore the path id). Three conditions remain: RR-SCA-1 (#1207), RR-12
+(#1520) and #1521. The decision text above is unchanged. The counts in Context are the
+report's at base `ae28a16f`; the report holds the current ones.
+
 ### D-129 — Cross-tenant suite pass criterion, test-only limits, and Immutable request strings · decided 2026-11-26
 **Decided (agent, 2026-11-26)** — #1319, design by tech-lead.
 

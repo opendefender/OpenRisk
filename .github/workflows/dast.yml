@@ -95,6 +95,7 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: '1.26'
+          check-latest: true
 
       - name: Build backend
         run: cd backend && go build -o openrisk ./cmd/server

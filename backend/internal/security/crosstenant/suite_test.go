@@ -196,6 +196,13 @@ func (h *harness) render(p Probe, ids map[Kind]string, random bool) (string, str
 		}
 	}
 	body := strings.ReplaceAll(strings.ReplaceAll(p.Body, "{{run}}", h.run), "{{in30d}}", time.Now().UTC().AddDate(0, 0, 30).Format(time.RFC3339))
+	// Predefined roles are deployment-wide ids, the same for the attack, the
+	// random twin and the control (a random one would fail on validation).
+	for _, name := range []string{"viewer", "analyst"} {
+		if strings.Contains(body, "{{"+name+"}}") {
+			body = strings.ReplaceAll(body, "{{"+name+"}}", h.predefinedRole(name))
+		}
+	}
 	for k := range ids {
 		if strings.Contains(body, "{{"+string(k)+"}}") {
 			body = strings.ReplaceAll(body, "{{"+string(k)+"}}", val(k))

@@ -171,12 +171,28 @@ func (us *UserService) ChangeUserRole(ctx context.Context, userID uuid.UUID, ten
 		Update("role_id", newRoleID).Error
 }
 
-// AddUserToTenant adds a user to a tenant with a specific role
+// AddUserToTenant adds a user to a tenant with a specific role.
+//
+// The user must already be an active member of the tenant's organisation. Any
+// other id, another tenant's user or one that does not exist, is ErrNotFound
+// with the same answer, so the route is neither an existence oracle nor a way to
+// make a stranger see this tenant in their own tenant list (#1518).
 func (us *UserService) AddUserToTenant(ctx context.Context, userID uuid.UUID, tenantID uuid.UUID, roleID uuid.UUID) error {
+	var members int64
+	if err := us.db.WithContext(ctx).
+		Model(&domain.OrganizationMember{}).
+		Where("organization_id = ? AND user_id = ? AND is_active = ?", tenantID, userID, true).
+		Count(&members).Error; err != nil {
+		return err
+	}
+	if members == 0 {
+		return fmt.Errorf("%w: user is not a member of this organisation", domain.ErrNotFound)
+	}
+
 	// Check if user is already in tenant
 	existing, _ := us.GetUserInTenant(ctx, userID, tenantID)
 	if existing != nil {
-		return fmt.Errorf("user already in tenant")
+		return fmt.Errorf("%w: user already in tenant", domain.ErrConflict)
 	}
 
 	// Validate role exists in tenant
@@ -184,7 +200,7 @@ func (us *UserService) AddUserToTenant(ctx context.Context, userID uuid.UUID, te
 	if err := us.db.WithContext(ctx).
 		Where("id = ? AND (tenant_id = ? OR is_predefined = true)", roleID, tenantID).
 		First(&role).Error; err != nil {
-		return fmt.Errorf("invalid role for tenant")
+		return fmt.Errorf("%w: invalid role for tenant", domain.ErrValidation)
 	}
 
 	userTenant := &domain.UserTenant{

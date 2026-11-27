@@ -6,10 +6,12 @@
 package handler
 
 import (
+	"errors"
 	"strconv"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
+	"github.com/opendefender/openrisk/internal/domain"
 	"github.com/opendefender/openrisk/internal/service"
 )
 
@@ -167,8 +169,14 @@ func (h *RBACUserHandler) AddUserToTenant(c *fiber.Ctx) error {
 
 	// Add user to tenant
 	if err := h.userService.AddUserToTenant(ctx, userID, tenantID, roleID); err != nil {
+		if errors.Is(err, domain.ErrNotFound) {
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
+				"error": "user not found in organisation",
+			})
+		}
+		// Typed messages only; a database error never reaches the client.
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"error": err.Error(),
+			"error": roleErrorMessage(err),
 		})
 	}
 

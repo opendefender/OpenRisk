@@ -52,6 +52,7 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: '1.26'
+          check-latest: true
 
       - name: Gosec - Go Security
         # Pinned by SHA (#818): @master ran whatever was pushed upstream last.

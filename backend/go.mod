@@ -1,6 +1,6 @@
 module github.com/opendefender/openrisk
 
-go 1.26.9
+go 1.26.11
 
 require (
 	cloud.google.com/go/auth v0.20.0

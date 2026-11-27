@@ -279,6 +279,59 @@ func seederTable() map[Kind]seeder {
 				"full_name": h.canary(p, KindUser), "password": testPassword,
 			})))
 		},
+		KindRBACRole: func(h *harness, p *principal) map[Kind]string {
+			c := h.canary(p, KindRBACRole)
+			return one(KindRBACRole, h.create(p, "/api/v1/rbac/roles", jb(map[string]any{
+				"name": c + "-" + randHex(3), "description": c, "level": 0,
+			})))
+		},
+		KindRBACUser: func(h *harness, p *principal) map[Kind]string {
+			// POST /users writes no user_tenants row, so the second user is bound
+			// to the tenant through the route under test's own sibling.
+			u := h.seedFresh(p, KindUser)
+			if u == nil {
+				return nil
+			}
+			status, resp := h.do(p, "POST", "/api/v1/rbac/users", jb(map[string]any{
+				"user_id": u[KindUser], "role_id": h.predefinedRole("viewer"),
+			}))
+			if status != 201 {
+				h.t.Logf("seed: POST rbac/users as %s answered %d %.200s", p.name, status, resp)
+				return nil
+			}
+			return one(KindRBACUser, u[KindUser])
+		},
+		KindPermission: func(h *harness, p *principal) map[Kind]string {
+			// Permissions are deployment-wide: take one a predefined role holds.
+			// It is deliberately not learned as this tenant's data.
+			status, body := h.do(p, "GET", "/api/v1/rbac/roles", "")
+			if status != 200 {
+				return nil
+			}
+			var roles struct {
+				Roles []struct {
+					ID           string `json:"id"`
+					IsPredefined bool   `json:"is_predefined"`
+				} `json:"roles"`
+			}
+			_ = json.Unmarshal([]byte(body), &roles)
+			for _, r := range roles.Roles {
+				if !r.IsPredefined {
+					continue
+				}
+				_, pb := h.do(p, "GET", "/api/v1/rbac/roles/"+r.ID+"/permissions", "")
+				var perms struct {
+					Permissions []struct {
+						ID string `json:"id"`
+					} `json:"permissions"`
+				}
+				_ = json.Unmarshal([]byte(pb), &perms)
+				if len(perms.Permissions) > 0 {
+					return one(KindPermission, perms.Permissions[0].ID)
+				}
+			}
+			return nil
+		},
 		KindMitigationInReview: func(h *harness, p *principal) map[Kind]string {
 			m := h.seedFresh(p, KindMitigation)
 			if m == nil {

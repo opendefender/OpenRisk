@@ -66,8 +66,6 @@ var collectionProbes = []Probe{
 	agg("/api/v1/organization/members/audit"),
 	agg("/api/v1/ownership/assignable"),
 	agg("/api/v1/posture"),
-	agg("/api/v1/rbac/roles"),
-	agg("/api/v1/rbac/users"),
 	agg("/api/v1/realtime/stats"),
 	agg("/api/v1/reports/jobs"),
 	agg("/api/v1/risk-acceptance/policy"),
