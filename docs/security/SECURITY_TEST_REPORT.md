@@ -7,7 +7,7 @@
 | Issue | #1319 (part of #229) |
 | Threat model | [`THREAT_MODEL.md`](THREAT_MODEL.md) |
 | Gap register | [`ASVS_GAP_REGISTER.md`](ASVS_GAP_REGISTER.md) |
-| Sign-off | Requested from the owner: D-130 in [`docs/DECISIONS.md`](../DECISIONS.md) |
+| Sign-off | Owner, 2026-11-27, with conditions: D-130 in [`docs/DECISIONS.md`](../DECISIONS.md). Before launch: #1207, #1518, #1520, #1521 |
 
 This report records what was run, how, and what it found. It is evidence for the
 launch gate, not a penetration test: no one attacked the system by hand beyond
@@ -167,7 +167,7 @@ the paths documented in `docs/openapi.yaml` (150 of them). See RR-DAST-1.
 
 Every finding not fixed above, and every exemption or allowance in the suite.
 "Owner" is the issue that closes the row. "Decision" is accept until that issue
-lands, or the stated reason. The owner's acceptance of this register is D-130.
+lands, or the stated reason. The owner signed this register on 2026-11-27 (D-130), on condition that RR-SCA-1 (#1207), RR-03 (#1518), RR-12 (#1520) and #1521 close before the launch.
 
 | Id | Risk | Severity | Owner | Decision |
 |---|---|---|---|---|

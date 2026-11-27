@@ -5,34 +5,6 @@ recommends, and surfaces these in the daily brief. Run `/decide` to clear them.
 
 ## Open
 
-### D-130 — Sign-off on the launch security test report and its residual-risk register · raised 2026-11-26
-**Raised by** — #1319 (W8-01g). Accepting residual risk for the launch is a public
-commitment: the owner's name goes on it.
-
-**Context** — `docs/security/SECURITY_TEST_REPORT.md` records the live cross-tenant
-suite (272 of 505 routes probed on Postgres; 109 exempted against a register row, 67
-with nothing to name, 57 auto-exempt), gosec, govulncheck, npm audit and the ZAP
-baseline on a live stack. Seven findings were fixed in #1319, four of them cross-tenant
-leaks with private advisories (GHSA-m6gp-q4m7-27c6, GHSA-3x9h-57v5-w5q3,
-GHSA-39cg-g3rv-985p). The register has 19 rows; each one names an owning issue or
-a reason. The high-severity row is RR-SCA-1 (Go standard-library advisories,
-#1207).
-
-**Options**
-- **A — sign the register as is** for v1.0: every row accepted until its issue lands.
-- **B — sign with conditions**: name the rows that must close before the launch
-  (recommended set: RR-SCA-1 via #1207, RR-03 via #1518, RR-12 via #1520).
-- **C — refuse** and name what must change first.
-
-**Recommendation** — **B.** RR-SCA-1 is a reachable crash in `net/http` and a one-line
-toolchain bump. RR-03 hides 17 admin routes from the suite. RR-12 has the same shape
-as a leak this run had to fix (F2).
-
-**Cost of delay** — Medium. The launch gate in #229 has no named risk owner until this is
-signed.
-
-**Blocks** — closing #229.
-
 ### D-124 — Launch scope: reverse D-054 to option A · raised 2026-11-24
 **Raised by** — `/plan-milestone` for `v1.0 — Launch` (milestone #21), po-openrisk with
 tech-lead on sequencing. Reversing an owner decision is the owner's call.
@@ -123,6 +95,36 @@ left it.
 **Blocks** — the label change on #340, #351, #346, #232 (not applied).
 
 ## Resolved
+
+### D-130 — Sign-off on the launch security test report and its residual-risk register · decided 2026-11-27
+**Decided (owner, 2026-11-27)** — option **B+**: the register is signed for v1.0 on
+condition that these close before the launch:
+- RR-SCA-1, the reachable Go standard-library advisories (#1207, bump to go1.26.11);
+- RR-03, the 17 `/rbac` routes the suite cannot reach (#1518);
+- RR-12, foreign body-addressed references stored as is (#1520);
+- #1521, every route that takes an id probed by the cross-tenant suite (RR-01, RR-04,
+  RR-05, RR-06, RR-08, RR-09 and RR-SCOPE-1 brought to zero). The owner asked for
+  every route to be tested.
+
+Every other row is accepted until its issue lands, or for the reason it states.
+
+**Context** — `docs/security/SECURITY_TEST_REPORT.md`, at base `ae28a16f`, records:
+- the live cross-tenant suite: 505 routes; 272 probed on Postgres; 180 exempted
+  (66 with no id to name, 114 untested against a register row); 57 auto-exempt;
+- gosec, govulncheck, npm audit, and a ZAP baseline on a live stack.
+
+Eight findings were fixed in #1319 (F1 to F8). F1, F2, F3 and F6 are cross-tenant leaks
+with private advisories (GHSA-m6gp-q4m7-27c6, GHSA-3x9h-57v5-w5q3, GHSA-39cg-g3rv-985p).
+The register has 19 rows.
+
+**Options** — A: sign as is. B: sign on condition that RR-SCA-1, RR-03 and RR-12 close.
+B+: B plus #1521. C: refuse.
+
+**Reason** — RR-SCA-1 is a reachable crash and a one-line bump. RR-03 and #1521 cover
+the routes the suite cannot see yet, and an unseen route is where the eight findings
+came from. RR-12 has the shape of F2.
+
+**Blocks** — closing #229 waits for the four conditions.
 
 ### D-129 — Cross-tenant suite pass criterion, test-only limits, and Immutable request strings · decided 2026-11-26
 **Decided (agent, 2026-11-26)** — #1319, design by tech-lead.
