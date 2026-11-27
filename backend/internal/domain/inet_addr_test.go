@@ -6,6 +6,7 @@
 package domain
 
 import (
+	"encoding/json"
 	"net"
 	"testing"
 
@@ -50,4 +51,19 @@ func TestINetAddr_Value_WritesTextAndNullForEmpty(t *testing.T) {
 	v, err = INetAddr(nil).Value()
 	require.NoError(t, err)
 	require.Nil(t, v)
+}
+
+// A raw AuditLog encodes its address as text, not base64 bytes, and reads it back.
+func TestINetAddr_JSON_IsText(t *testing.T) {
+	a := INetAddr(net.ParseIP("203.0.113.7"))
+	b, err := json.Marshal(AuditLog{IPAddress: &a})
+	require.NoError(t, err)
+	require.Contains(t, string(b), `"ip_address":"203.0.113.7"`)
+
+	var back AuditLog
+	require.NoError(t, json.Unmarshal(b, &back))
+	require.NotNil(t, back.IPAddress)
+	require.Equal(t, "203.0.113.7", back.IPAddress.String())
+
+	require.Error(t, json.Unmarshal([]byte(`{"ip_address":"not-an-ip"}`), &back))
 }

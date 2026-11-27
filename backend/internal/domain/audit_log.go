@@ -118,6 +118,27 @@ func (a INetAddr) String() string {
 	return net.IP(a).String()
 }
 
+// MarshalText keeps the JSON form readable ("203.0.113.7"). A defined type does
+// not inherit net.IP's methods, so without it a raw AuditLog would encode the
+// address as base64 bytes (#1519).
+func (a INetAddr) MarshalText() ([]byte, error) {
+	return []byte(a.String()), nil
+}
+
+// UnmarshalText parses the textual form; "" is an empty address.
+func (a *INetAddr) UnmarshalText(text []byte) error {
+	if len(text) == 0 {
+		*a = nil
+		return nil
+	}
+	ip := net.ParseIP(string(text))
+	if ip == nil {
+		return fmt.Errorf("domain.INetAddr: %q is not an IP address", text)
+	}
+	*a = INetAddr(ip)
+	return nil
+}
+
 // Scan reads an inet value, which arrives as a string or as bytes.
 func (a *INetAddr) Scan(value interface{}) error {
 	var text string
