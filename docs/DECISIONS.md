@@ -96,6 +96,41 @@ left it.
 
 ## Resolved
 
+### D-131 — Ownership of body-addressed references and parent-addressed reads (#1520) · decided 2026-11-27
+**Decided (agent, 2026-11-27)** — #1520, closes RR-02 and RR-12 of the D-130 register.
+
+**Questions** — (1) does the workflow approver check also cover `PUT`; (2) what a
+deactivated approver and a foreign or unknown approver answer; (3) which answer a
+malformed id gets next to a foreign or unknown one; (4) which approval `entity_id`
+types are validated.
+
+**Options and choice**
+1. `POST /governance/workflows` only, **or** `POST` and `PUT /governance/workflows/:id`.
+   **Chose both**: a caller could otherwise create a clean workflow and then `PUT` a
+   foreign approver, and RR-12 would not be closed. `PUT` checks only when the call
+   supplies `steps`, so renaming a workflow does not fail on a member who left.
+2. Approver with no member row in the caller's tenant: **404** (`user not found`, the
+   same for a foreign and an unknown id). A deactivated member: **validation error**,
+   as in delegations (`delegation_usecases.go`). The audit-log read route differs on
+   purpose: a deactivated or removed member keeps 200 there, because auditors need the
+   history that member left.
+3. A value that is not a UUID (`risk_ids`, `approver_user_ids`, `framework_id`, a typed
+   `entity_id`) is a **validation error**. A well-formed id that is foreign or unknown is
+   **404**, with an identical status and body, so neither is an existence oracle.
+4. Validate `risk_acceptance` (risks) and `compliance_control` (controls), both through
+   the tenant-scoped finder. `security_exception`, `policy`, `access_request` and `vendor`
+   stay **opaque labels**: no owning table or domain entity exists for them and no code
+   reads `ApprovalRequest.EntityID` to join anything. An empty `entity_id` stays
+   accepted. Adding an owning table later means adding the type to `checkEntity`.
+
+**Reason** — a dangling foreign reference is one unscoped join from a leak (the
+`category_id` leak fixed in #1319 worked that way). The check goes where the id enters,
+before any write, so a refused request stores nothing. The use cases fail closed when a
+lookup is not wired, instead of skipping the check.
+
+**Not done here** — risk ids stored on incidents before this change, the postmortem
+`firstRiskID` path that reads one, and `asset_ids` on `POST /incidents`.
+
 ### D-130 — Sign-off on the launch security test report and its residual-risk register · decided 2026-11-27
 **Decided (owner, 2026-11-27)** — option **B+**: the register is signed for v1.0 on
 condition that these close before the launch:
