@@ -6,6 +6,7 @@
 package service
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/google/uuid"
@@ -102,4 +103,22 @@ func TestCreateIncident_RiskIDs_Unauthorized(t *testing.T) {
 		require.ErrorIs(t, err, domain.ErrUnauthorized, "tenant %q", tenantID)
 	}
 	require.EqualValues(t, 0, incidentCount(t, db))
+}
+
+// A padded or braced form of an owned id is accepted and stored canonical.
+func TestCreateIncident_RiskIDs_StoredCanonical(t *testing.T) {
+	db := newIncidentRiskDB(t)
+	tenant := uuid.New()
+	a, b := seedOwnedRisk(t, db, tenant), seedOwnedRisk(t, db, tenant)
+	svc := NewIncidentService(db)
+
+	inc, err := svc.CreateIncident(tenant.String(), domain.IncidentCreateRequest{
+		Title: "i", Severity: "high",
+		RiskIDs: []string{"  " + a.String() + " ", "{" + b.String() + "}", strings.ToUpper(a.String())},
+	})
+	require.NoError(t, err)
+
+	var stored domain.Incident
+	require.NoError(t, db.First(&stored, inc.ID).Error)
+	require.Equal(t, domain.StringList{a.String(), b.String()}, stored.RiskIDs)
 }
