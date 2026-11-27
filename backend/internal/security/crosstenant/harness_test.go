@@ -73,6 +73,42 @@ type harness struct {
 	A, B   *principal
 	// supplied is every id the attacker put in a request so far.
 	supplied []string
+
+	roleMu  sync.Mutex
+	roleIDs map[string]string // predefined role name (lower case) -> id
+}
+
+// predefinedRole is the id of a predefined RBAC role ("viewer", "analyst"). The
+// built-in roles are shared by every tenant, so any principal can list them.
+func (h *harness) predefinedRole(name string) string {
+	h.roleMu.Lock()
+	defer h.roleMu.Unlock()
+	if id, ok := h.roleIDs[name]; ok {
+		return id
+	}
+	status, body := h.do(h.B, "GET", "/api/v1/rbac/roles", "")
+	if status != 200 {
+		h.t.Fatalf("list roles as B answered %d %.200s: no predefined role id for %s", status, body, name)
+	}
+	var roles struct {
+		Roles []struct {
+			ID           string `json:"id"`
+			Name         string `json:"name"`
+			IsPredefined bool   `json:"is_predefined"`
+		} `json:"roles"`
+	}
+	_ = json.Unmarshal([]byte(body), &roles)
+	h.roleIDs = map[string]string{}
+	for _, r := range roles.Roles {
+		if r.IsPredefined {
+			h.roleIDs[strings.ToLower(r.Name)] = r.ID
+		}
+	}
+	id, ok := h.roleIDs[name]
+	if !ok {
+		h.t.Fatalf("no predefined role %q among %d roles", name, len(roles.Roles))
+	}
+	return id
 }
 
 func newHarness(t *testing.T) *harness {
