@@ -74,6 +74,9 @@ func (h *harness) runProbes(t *testing.T, skip map[string]string) map[string]ans
 					if err != nil {
 						t.Fatalf("suite defect: %v", err)
 					}
+					if _, dup := seen[p.ID()]; dup {
+						t.Fatalf("suite defect: two probes share the id %s, a comparison of runs would drop one", p.ID())
+					}
 					seen[p.ID()] = answers{o.AttackStatus, o.RandomStatus, o.ControlStatus}
 					o.Allow = p.Allow
 					// Ids A supplied in any probe so far are not a leak when a
@@ -250,9 +253,21 @@ func (h *harness) readPath(p Probe, ids map[Kind]string) string {
 		if strings.Contains(rp, "{") {
 			return ""
 		}
-		return rp
+		return uncached(rp)
 	}
 	return ""
+}
+
+// uncached gives a verification read a query parameter of its own. The response
+// cache keys on the query string and is cleared only for the tenant that wrote,
+// so B's after-read would otherwise replay B's before-read from the cache and a
+// change made by A's request would go unseen.
+func uncached(path string) string {
+	sep := "?"
+	if strings.Contains(path, "?") {
+		sep = "&"
+	}
+	return path + sep + "_xt=" + randHex(8)
 }
 
 // seedBoth gives both tenants one object of every kind that has no setup state

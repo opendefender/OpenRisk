@@ -372,18 +372,21 @@ var _ = bytes.NewBuffer
 // totpCode returns a code for the first time step after the last one this
 // principal spent, waiting when that step is more than one ahead of the clock
 // (a server accepts one step of skew, and refuses a code it has already seen).
+// The step is reserved under p.mu and the wait happens outside it, so a
+// concurrent request of p is never held up by the clock.
 func (p *principal) totpCode() (string, error) {
 	p.mu.Lock()
-	defer p.mu.Unlock()
 	step := time.Now().Unix() / 30
 	if step <= p.lastStep {
 		step = p.lastStep + 1
 	}
+	p.lastStep = step
+	secret := p.totp
+	p.mu.Unlock()
 	for step > time.Now().Unix()/30+1 {
 		time.Sleep(time.Second)
 	}
-	p.lastStep = step
-	return totp.GenerateCode(p.totp, time.Unix(step*30, 0))
+	return totp.GenerateCode(secret, time.Unix(step*30, 0))
 }
 
 // enrolSession turns MFA on for p through the production endpoints, from the

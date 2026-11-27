@@ -27,8 +27,11 @@ import (
 // with the or_access cookie plus the double-submit CSRF header, each on its own
 // pair of fresh tenants (a second pass over the same tenants meets state the
 // first one left: a saved view already renamed, a workflow already replaced), and
-// requires every answer (A's attack, A's random-id twin, B's control) to match. It also observes that the cookie session is refused a write without
-// the CSRF header, so the cookie run is not a Bearer run in disguise.
+// requires every answer (A's attack, A's random-id twin, B's control) to match.
+// The cookie run's 2xx controls are what prove the cookie authenticates: it
+// carries no Authorization header. The csrf subtest adds that a cookie write
+// needs the double-submit header, and that a cookie the server cannot verify is
+// refused even with a matching header.
 func TestCrossTenant_CookieSession(t *testing.T) {
 	var bearer, cookie map[string]answers
 	t.Run("bearer", func(t *testing.T) {
@@ -56,19 +59,37 @@ func TestCrossTenant_CookieSession(t *testing.T) {
 		h.A.mu.Lock()
 		tok, csrf := h.A.access, h.A.csrf
 		h.A.mu.Unlock()
-		write := func(mod func(*http.Request)) int {
-			st, _ := h.send("POST", "/api/v1/risks", "", `{"title":"csrf","description":"x","impact":1,"probability":0.1}`, mod)
-			return st
+		write := func(mod func(*http.Request)) (int, string) {
+			return h.send("POST", "/api/v1/risks", "", `{"title":"csrf","description":"x","impact":1,"probability":0.1}`, mod)
 		}
-		cookies := func(r *http.Request) {
-			r.AddCookie(&http.Cookie{Name: "or_access", Value: tok})
-			r.AddCookie(&http.Cookie{Name: "or_csrf", Value: csrf})
+		cookies := func(access string) func(*http.Request) {
+			return func(r *http.Request) {
+				r.AddCookie(&http.Cookie{Name: "or_access", Value: access})
+				r.AddCookie(&http.Cookie{Name: "or_csrf", Value: csrf})
+			}
 		}
-		if st := write(cookies); st != http.StatusForbidden {
-			t.Errorf("cookie write without the CSRF header answered %d, want 403", st)
+		csrfRefused := func(name string, st int, body string) {
+			var e struct {
+				Code string `json:"code"`
+			}
+			_ = json.Unmarshal([]byte(body), &e)
+			if st != http.StatusForbidden || e.Code != "CSRF_FAILED" {
+				t.Errorf("%s answered %d code %q, want 403 CSRF_FAILED", name, st, e.Code)
+			}
 		}
-		if st := write(func(r *http.Request) { cookies(r); r.Header.Set("X-CSRF-Token", "not-the-cookie-value") }); st != http.StatusForbidden {
-			t.Errorf("cookie write with a mismatched CSRF header answered %d, want 403", st)
+		st, body := write(cookies(tok))
+		csrfRefused("cookie write without the CSRF header", st, body)
+		st, body = write(func(r *http.Request) { cookies(tok)(r); r.Header.Set("X-CSRF-Token", "not-the-cookie-value") })
+		csrfRefused("cookie write with a mismatched CSRF header", st, body)
+		// Positive control: the same write with a matching header succeeds, so the
+		// two refusals above are the CSRF check and not a broken request.
+		if st, _ = write(func(r *http.Request) { cookies(tok)(r); r.Header.Set("X-CSRF-Token", csrf) }); st < 200 || st > 299 {
+			t.Errorf("cookie write with a matching CSRF header answered %d, want 2xx", st)
+		}
+		// A cookie that is not a valid token passes the CSRF check and is then
+		// refused by token validation: the cookie is what authenticates.
+		if st, _ = write(func(r *http.Request) { cookies("not-a-token")(r); r.Header.Set("X-CSRF-Token", csrf) }); st != http.StatusUnauthorized {
+			t.Errorf("an unverifiable or_access cookie with a matching CSRF header answered %d, want 401", st)
 		}
 	})
 	t.Run("no_credential", func(t *testing.T) {
@@ -222,13 +243,20 @@ func (h *harness) observeOwn(p Probe) (OwnBodyObservation, error) {
 	if read == "" {
 		return o, errSeed(p.Own[0], "A (no read route)")
 	}
-	_, before := h.do(h.A, "GET", read, "")
+	st, before := h.do(h.A, "GET", read, "")
+	if st != http.StatusOK {
+		return o, seedError("A's read of its own object answered " + http.StatusText(st) + " before the attempt")
+	}
 	o.BeforeHash = hashBody(before)
 
 	o.AttackStatus, o.AttackBody = h.do(h.A, p.Method, path, body)
 	o.RandomStatus, _ = h.do(h.A, p.Method, rpath, rbody)
 
-	_, after := h.do(h.A, "GET", read, "")
+	// A fresh query string: the after-read must not be the cached before-read.
+	st, after := h.do(h.A, "GET", uncached(strings.SplitN(read, "?", 2)[0]), "")
+	if st != http.StatusOK {
+		return o, seedError("A's read of its own object answered " + http.StatusText(st) + " after the attempt")
+	}
 	o.AfterHash, o.AfterBody = hashBody(after), after
 
 	o.ControlStatus, _ = h.do(h.A, p.Method, cpath, cbody)

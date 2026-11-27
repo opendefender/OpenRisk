@@ -50,4 +50,6 @@ var ownBodyProbes = []Probe{
 	own(patch("/api/v1/risks/:id", `{"category_id":"{{riskcategory}}"}`, KindCategory), KindRisk),
 	own(post("/api/v1/risks/:id/transfer-owner", `{"new_owner_id":"{{user}}"}`, KindUser), KindRisk),
 	own(post("/api/v1/mitigations/:id/transfer-owner", `{"new_owner_id":"{{user}}"}`, KindUser), KindMitigation),
+	own(post("/api/v1/incidents/:id/transfer-owner", `{"new_owner_id":"{{user}}"}`, KindUser), KindIncident),
+	own(patch("/api/v1/risks/:id", `{"owner_id":"{{user}}"}`, KindUser), KindRisk),
 }
