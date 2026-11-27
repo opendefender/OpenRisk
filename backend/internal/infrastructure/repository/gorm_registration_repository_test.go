@@ -98,3 +98,29 @@ func assertNothingPersisted(t *testing.T, db *gorm.DB) {
 		assert.EqualValues(t, 0, countRows(t, db, m), "%T", m)
 	}
 }
+
+// A concurrent registration takes the slug between the check and the insert:
+// the insert is retried with the id inside the same transaction.
+func TestCreateAccount_SlugTakenBetweenCheckAndInsertFallsBackToTheID(t *testing.T) {
+	db, _ := registrationdb.Open(t, true)
+	org, user, member := newAccount("race")
+	fired := false
+	require.NoError(t, db.Callback().Create().Before("gorm:create").Register("test:steal-slug", func(tx *gorm.DB) {
+		if _, ok := tx.Statement.Dest.(*domain.Tenant); ok && !fired {
+			fired = true
+			// The clashing row, inserted on the transaction's own connection (an
+			// in-memory sqlite database is per connection).
+			require.NoError(t, tx.Session(&gorm.Session{NewDB: true}).Exec(
+				"INSERT INTO tenants (id, name, slug, owner_id, status, is_active) VALUES (?, 'x', 'race', ?, 'active', 1)",
+				uuid.NewString(), uuid.NewString()).Error)
+		}
+	}))
+	require.NoError(t, db.Exec("CREATE UNIQUE INDEX idx_tenants_slug_test ON tenants(slug)").Error)
+
+	require.NoError(t, repository.NewGormRegistrationRepository(db).CreateAccount(context.Background(), org, user, member))
+
+	var tenant domain.Tenant
+	require.NoError(t, db.First(&tenant, "id = ?", org.ID).Error)
+	assert.Equal(t, org.ID.String(), tenant.Slug)
+	assert.EqualValues(t, 1, countRows(t, db, &domain.UserTenant{}))
+}

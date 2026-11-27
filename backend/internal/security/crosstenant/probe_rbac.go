@@ -35,8 +35,8 @@ var rbacProbes = []Probe{
 	get("/api/v1/rbac/users/:user_id/permissions", KindRBACUser),
 	allow(del("/api/v1/rbac/users/:user_id", KindRBACUser), rbacNoOwnerCheckReason, "RR-02", 200),
 	allow(patch("/api/v1/rbac/users/:user_id/role", `{"role_id":"{{analyst}}"}`, KindRBACUser), rbacNoOwnerCheckReason, "RR-02", 200),
-	allow(post("/api/v1/rbac/users", `{"user_id":"{{user}}","role_id":"{{viewer}}"}`, KindUser),
-		"the user id in the body is not checked against the caller's organisation: any id, B's or a random one, is bound to the CALLER's tenant with the chosen role (201). The row sits in the caller's tenant only and discloses nothing of B beyond the id the caller supplied", "RR-12", 201),
+	// The target must be an active member of the caller's organisation: B's user and a random id both answer 404.
+	post("/api/v1/rbac/users", `{"user_id":"{{user}}","role_id":"{{viewer}}"}`, KindUser),
 
 	allow(get("/api/v1/rbac/tenants/:tenant_id", KindTenant), rbacTenantIgnoredReason, "RR-15", 200),
 	allow(patch("/api/v1/rbac/tenants/:tenant_id", `{"name":"xt-{{run}}-renamed","is_active":true}`, KindTenant), rbacTenantIgnoredReason, "RR-15", 200),

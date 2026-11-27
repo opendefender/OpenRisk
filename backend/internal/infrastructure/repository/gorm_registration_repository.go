@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 
 	"github.com/opendefender/openrisk/internal/domain"
@@ -71,7 +72,7 @@ func (r *GormRegistrationRepository) CreateAccount(
 		// own (same lookup as RoleService.GetPredefinedRoleByName), so the read is
 		// cross-tenant by nature.
 		err := tenantguard.CrossTenant(tx, "predefined Admin role is shared by every tenant and holds no tenant of its own").
-			Where("is_predefined = ? AND name = ? AND deleted_at IS NULL", true, "Admin").
+			Where("is_predefined = ? AND name = ? AND (tenant_id = ? OR tenant_id IS NULL) AND deleted_at IS NULL", true, "Admin", uuid.Nil).
 			First(&admin).Error
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return fmt.Errorf("resolve predefined Admin role: %w", domain.ErrNotFound)
@@ -84,15 +85,32 @@ func (r *GormRegistrationRepository) CreateAccount(
 		if err != nil {
 			return err
 		}
-		if err := tx.Create(&domain.Tenant{
+		tenant := &domain.Tenant{
 			ID:       org.ID,
 			Name:     org.Name,
 			Slug:     slug,
 			OwnerID:  user.ID,
 			Status:   "active",
 			IsActive: true,
-		}).Error; err != nil {
+		}
+		// A savepoint keeps the transaction usable if a concurrent registration
+		// took the slug between the check above and this insert (Postgres aborts
+		// the whole transaction on a unique violation otherwise): retry once
+		// with the id, which no other tenant can hold.
+		if err := tx.SavePoint("tenant_mirror").Error; err != nil {
 			return fmt.Errorf("create tenant mirror: %w", err)
+		}
+		if err := tx.Create(tenant).Error; err != nil {
+			if slug == org.ID.String() {
+				return fmt.Errorf("create tenant mirror: %w", err)
+			}
+			if rbErr := tx.RollbackTo("tenant_mirror").Error; rbErr != nil {
+				return fmt.Errorf("create tenant mirror: %w", err)
+			}
+			tenant.Slug = org.ID.String()
+			if err := tx.Create(tenant).Error; err != nil {
+				return fmt.Errorf("create tenant mirror: %w", err)
+			}
 		}
 		if err := tx.Create(&domain.UserTenant{
 			UserID:   user.ID,

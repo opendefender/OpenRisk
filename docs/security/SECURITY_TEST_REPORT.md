@@ -51,8 +51,8 @@ this file.
 |---|---|---|---|---|---|---|
 | Parameterised | 236 | 153 | 11 | 68 | 1 | 14 |
 | Collection GET | 154 | 113 | 0 | 7 | 0 | 34 |
-| Write without an id in the path | 115 | 21 | 11 | 19 | 66 | 9 |
-| **Total** | **505** | **287** | **22** | **94** | **67** | **57** |
+| Write without an id in the path | 115 | 21 | 10 | 19 | 66 | 9 |
+| **Total** | **505** | **287** | **21** | **94** | **67** | **57** |
 
 ¹ The isolation registry records the route as public by design, machine-authenticated
 or self-scoped.
@@ -63,7 +63,7 @@ exemptions listed against a register row in
 exempted as a whole (`ai`, `controls`, `control-exceptions`, `integrations`).
 It does not prove "all routes".
 
-**What a collection probe proves.** Of the 114 collection probes, 29 are lists of
+**What a collection probe proves.** Of the 113 collection probes, 28 are lists of
 a seeded kind and 85 are aggregates (dashboards, stats, counts). An aggregate probe
 proves that B gets a 2xx and that A's body holds no B id and no B canary. It cannot
 see a numeric leak: a count or an average that includes B's rows. F1 was such a
@@ -173,7 +173,7 @@ lands, or the stated reason. The owner signed this register on 2026-11-27 (D-130
 |---|---|---|---|---|
 | RR-01 | 64 routes and 4 groups have no seed or no successful control call yet (compliance sub-resources, vulnerabilities, notifications, automation runs, bulk operations, report jobs, control exceptions, integrations, scanner-adjacent kinds). Their isolation rests on the recorded decision in `isolation/registry.go`, not on a test | medium | #1521 | Accept until #1521 |
 | RR-02 | Seven routes answer 200 with an empty body, or touch nothing, for a foreign parent or user id instead of 404. No foreign data is returned, and a random id gets the same answer | low | #1520 | Accept until #1520 |
-| RR-03 | Closed by #1518. 17 `/rbac` routes were unprobed because registration wrote no `tenants` row and no `user_tenants` row, so a new root got 403 there. Registration now writes both in its transaction (the root as Admin, no restart). Of the 17: 15 are live probes (7 of them allowed, RR-02, RR-12 or RR-15), `POST /rbac/roles` is exempt as having no id to name, and `DELETE /rbac/tenants/:tenant_id` is exempt under RR-15 | medium | #1518 | Closed |
+| RR-03 | Closed by #1518. 17 `/rbac` routes were unprobed because registration wrote no `tenants` row and no `user_tenants` row, so a new root got 403 there. Registration now writes both in its transaction (the root as Admin, no restart). Of the 17: 15 are live probes (6 of them allowed, under RR-02 or RR-15; `POST /rbac/users` is a plain probe: it now answers 404 for a user outside the caller's organisation), `POST /rbac/roles` is exempt as having no id to name, and `DELETE /rbac/tenants/:tenant_id` is exempt under RR-15 | medium | #1518 | Closed |
 | RR-04 | 5 routes fail for every caller on Postgres, so no control exists (dashboard queries, `/audit-logs`, `/rbac/users/stats`) | medium | #1169, #1519 | Accept until fixed |
 | RR-05 | 17 routes and the `ai` group need an artefact the harness does not create (uploaded file, rendered document, second approver, AI provider) | low | #1521 | Accept |
 | RR-06 | 2 server-sent-event streams are not probed | low | #1521 | Accept |
@@ -181,10 +181,10 @@ lands, or the stated reason. The owner signed this register on 2026-11-27 (D-130
 | RR-09 | 2 dead incident-risk routes parse a UUID as an integer and answer 400 to everyone | low | #1519 | Accept until #1519 |
 | RR-10 | 2 bulk preview routes answer 200 with "missing" for a foreign id. The body is the same as for a random id, and nothing is read or written | low | #1520 | Accept |
 | RR-11 | 2 routes refuse foreign body ids with 400 rather than 404. The answer is the same for a random id, and nothing is written | low | #1520 | Accept |
-| RR-12 | 5 writes store a foreign body-addressed reference as is (201). It is never read back, because reads filter by tenant, and the approval notifier tells only active members of the tenant (F8) | medium | #1520 | Accept until #1520 |
+| RR-12 | 4 writes store a foreign body-addressed reference as is (201). It is never read back, because reads filter by tenant, and the approval notifier tells only active members of the tenant (F8) | medium | #1520 | Accept until #1520 |
 | RR-13 | Scoring config ids are chosen by the caller. A write, compute or classify naming another tenant's id acts on the caller's own copy or on the default. B's config was verified unchanged; the unit tests pin the rest | low | devsecops (GHSA-m6gp-q4m7-27c6) | Accept: by design after F6. Revisit if configs move to the database |
 | RR-14 | Telemetry consent is one row for the whole deployment, and any tenant's admin can change it | medium | #1522 | Accept until #1522 |
-| RR-15 | `/rbac/tenants/:tenant_id` routes ignore the path id and act on the caller's own tenant: 4 probed routes answer 200 for a foreign id exactly as for a random one, and `DELETE` would delete the caller's own tenant, so it is exempt. Nothing of another tenant is read or changed. The path parameter is decorative | low | follow-up issue (validate it against the session tenant) | Accept until fixed |
+| RR-15 | `/rbac/tenants/:tenant_id` routes ignore the path id and act on the caller's own tenant: 4 probed routes answer 200 for a foreign id exactly as for a random one, and `DELETE` would delete the caller's own tenant, so it is exempt. Nothing of another tenant is read or changed. The path parameter is decorative | low | #1526 | Accept until fixed |
 | RR-SCA-1 | GO-2026-6859 and GO-2026-6809, reachable, in the Go standard library | high | #1207 (widened to both on 2026-11-26) | Fix: bump to go1.26.11 |
 | RR-SCA-2 | 5 frontend development-only advisories (`nanoid`, vitest) | low | Dependabot | Accept: not shipped |
 | RR-SAST-1 | Uploaded files are written 0640 and the CTI data directory 0755. Group and other read access on a shared host | low | #1521 | Accept: the image runs as one non-root user, `openrisk` (`Dockerfile:51`) |

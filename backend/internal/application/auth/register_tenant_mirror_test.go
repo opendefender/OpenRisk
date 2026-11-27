@@ -83,4 +83,7 @@ func TestRegister_Unauthorized_BindingCoversOnlyTheOwnTenant(t *testing.T) {
 		Email: "second@beta.test", Password: "Ancre-Vitrail7-Cobalt", FullName: "B", CompanyName: "Beta",
 	})
 	require.Error(t, err)
+	var appErr *domain.AppError
+	require.ErrorAs(t, err, &appErr)
+	assert.ErrorIs(t, appErr, domain.ErrInternal)
 }
