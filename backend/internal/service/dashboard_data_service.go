@@ -235,83 +235,6 @@ func (s *DashboardDataService) GetMitigationStatus(ctx context.Context, tenantID
 	return status, nil
 }
 
-// TopRisk represents a risk with key details
-type TopRisk struct {
-	ID              string    `json:"id"`
-	Name            string    `json:"name"`
-	Score           float64   `json:"score"`
-	Severity        string    `json:"severity"`
-	Status          string    `json:"status"`
-	TrendPercent    float64   `json:"trend_percent"`
-	LastUpdated     time.Time `json:"last_updated"`
-	AssignedTeam    string    `json:"assigned_team,omitempty"`
-	MitigationCount int64     `json:"mitigation_count"`
-}
-
-// GetTopRisks returns the top N risks by score (tenant-scoped)
-func (s *DashboardDataService) GetTopRisks(ctx context.Context, tenantID uuid.UUID, limit int) ([]TopRisk, error) {
-	if limit <= 0 {
-		limit = 5
-	}
-	if limit > 50 {
-		limit = 50
-	}
-
-	var topRisks []TopRisk
-	var risks []domain.Risk
-
-	err := s.scoped(ctx, tenantID).
-		Preload("Team").
-		Order("score DESC").
-		Limit(limit).
-		Find(&risks).Error
-
-	if err != nil {
-		return nil, fmt.Errorf("failed to fetch top risks: %w", err)
-	}
-
-	for _, risk := range risks {
-		// Calculate severity from impact and probability
-		severity := "LOW"
-		if risk.Impact*risk.Probability >= 12 {
-			severity = "CRITICAL"
-		} else if risk.Impact*risk.Probability >= 9 {
-			severity = "HIGH"
-		} else if risk.Impact*risk.Probability >= 6 {
-			severity = "MEDIUM"
-		}
-
-		topRisk := TopRisk{
-			ID:          risk.ID.String(),
-			Name:        risk.Title,
-			Score:       risk.Score,
-			Severity:    severity,
-			Status:      string(risk.Status),
-			LastUpdated: risk.UpdatedAt,
-		}
-
-		// Count mitigations for this risk (risk already tenant-scoped above)
-		s.scoped(ctx, tenantID).Model(&domain.Mitigation{}).
-			Where("risk_id = ?", risk.ID).
-			Count(&topRisk.MitigationCount)
-
-		// Calculate trend percentage (change from 7 days ago)
-		sevenDaysAgo := time.Now().AddDate(0, 0, -7)
-		var historyScore float64
-		s.db.WithContext(ctx).Model(&domain.RiskHistory{}).
-			Where("risk_id = ? AND created_at >= ?", risk.ID, sevenDaysAgo).
-			Select("COALESCE(AVG(score), ?)", risk.Score).
-			Scan(&historyScore)
-		if historyScore > 0 {
-			topRisk.TrendPercent = ((risk.Score - historyScore) / historyScore) * 100
-		}
-
-		topRisks = append(topRisks, topRisk)
-	}
-
-	return topRisks, nil
-}
-
 // MitigationProgress represents a mitigation with progress details
 type MitigationProgress struct {
 	ID            string    `json:"id"`
@@ -390,54 +313,6 @@ func (s *DashboardDataService) GetMitigationProgress(ctx context.Context, tenant
 	}
 
 	return progressList, nil
-}
-
-// DashboardAnalytics combines all dashboard data
-type DashboardAnalytics struct {
-	Metrics              *DashboardMetrics         `json:"metrics"`
-	RiskTrends           []RiskTrendDataPoint      `json:"risk_trends"`
-	SeverityDistribution *RiskSeverityDistribution `json:"severity_distribution"`
-	MitigationStatus     *MitigationStatus         `json:"mitigation_status"`
-	TopRisks             []TopRisk                 `json:"top_risks"`
-	MitigationProgress   []MitigationProgress      `json:"mitigation_progress"`
-	GeneratedAt          time.Time                 `json:"generated_at"`
-}
-
-// GetCompleteDashboardData aggregates all dashboard data in one call (tenant-scoped)
-func (s *DashboardDataService) GetCompleteDashboardData(ctx context.Context, tenantID uuid.UUID) (*DashboardAnalytics, error) {
-	analytics := &DashboardAnalytics{
-		GeneratedAt: time.Now(),
-	}
-
-	var err error
-
-	// Get all data in parallel where possible
-	// For now, sequential for simplicity
-	if analytics.Metrics, err = s.GetDashboardMetrics(ctx, tenantID); err != nil {
-		return nil, fmt.Errorf("failed to get metrics: %w", err)
-	}
-
-	if analytics.RiskTrends, err = s.GetRiskTrends(ctx, tenantID); err != nil {
-		return nil, fmt.Errorf("failed to get risk trends: %w", err)
-	}
-
-	if analytics.SeverityDistribution, err = s.GetSeverityDistribution(ctx, tenantID); err != nil {
-		return nil, fmt.Errorf("failed to get severity distribution: %w", err)
-	}
-
-	if analytics.MitigationStatus, err = s.GetMitigationStatus(ctx, tenantID); err != nil {
-		return nil, fmt.Errorf("failed to get mitigation status: %w", err)
-	}
-
-	if analytics.TopRisks, err = s.GetTopRisks(ctx, tenantID, 5); err != nil {
-		return nil, fmt.Errorf("failed to get top risks: %w", err)
-	}
-
-	if analytics.MitigationProgress, err = s.GetMitigationProgress(ctx, tenantID, 10); err != nil {
-		return nil, fmt.Errorf("failed to get mitigation progress: %w", err)
-	}
-
-	return analytics, nil
 }
 
 // GetMetrics returns metrics for export (stub for compatibility)

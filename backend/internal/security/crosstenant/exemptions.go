@@ -107,8 +107,6 @@ var Exemptions = []Exemption{
 	{Method: "PUT", Path: "/api/v1/cti/threats/:cve/dismissal", Reason: "no seed kind or control run exists for this route yet (#1521)", RegisterID: "RR-01"},
 	{Method: "POST", Path: "/api/v1/custom-fields", Reason: "id not in body: creates a field in the caller's tenant, tenant taken from the session", NotApplicable: true},
 	{Method: "POST", Path: "/api/v1/custom-fields/templates/:id/apply", Reason: "the id names a catalogue template, not a tenant object; the route creates fields in the caller's tenant", NotApplicable: true},
-	{Method: "GET", Path: "/api/v1/dashboard/complete", Reason: "answers 500 for every caller: dashboard_data_service reads columns (severity, completed_at) that do not exist on Postgres; the queries use the tenant-scoped builder", RegisterID: "RR-04"},
-	{Method: "GET", Path: "/api/v1/dashboard/top-risks", Reason: "answers 500 for every caller: dashboard_data_service reads columns (severity, completed_at) that do not exist on Postgres; the queries use the tenant-scoped builder", RegisterID: "RR-04"},
 	{Method: "GET", Path: "/api/v1/evidence/:evidenceId/download", Reason: "the control needs an uploaded file, a logo, an avatar or a rendered document that the harness does not create", RegisterID: "RR-05"},
 	{Method: "DELETE", Path: "/api/v1/evidence/:evidenceId/links/:controlId", Reason: "no seed kind or control run exists for this route yet (#1521)", RegisterID: "RR-01"},
 	{Method: "POST", Path: "/api/v1/governance/approvals/:id/decide", Reason: "the requester cannot decide or defer their own request: the control needs a second approver principal", RegisterID: "RR-05"},

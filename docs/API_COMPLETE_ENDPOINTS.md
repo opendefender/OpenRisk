@@ -266,47 +266,37 @@
 - **Auth**: ✅ Yes
 - **Response**: Status breakdown with percentages
 
-### 11. Top Risks
-- **Endpoint**: `GET /dashboard/top-risks`
-- **Auth**: ✅ Yes
-- **Response**: `[ { "id": "uuid", "title": "...", "score": 85 } ]`
-
-### 12. Mitigation Progress
+### 11. Mitigation Progress
 - **Endpoint**: `GET /dashboard/mitigation-progress`
 - **Auth**: ✅ Yes
 - **Response**: Timeline and progress data
 
-### 13. Complete Dashboard
-- **Endpoint**: `GET /dashboard/complete`
-- **Auth**: ✅ Yes
-- **Response**: All dashboard data combined
-
-### 14. Analytics - Risk Metrics
+### 12. Analytics - Risk Metrics
 - **Endpoint**: `GET /analytics/risks/metrics`
 - **Auth**: ✅ Yes
 - **Response**: Detailed risk metrics
 
-### 15. Analytics - Risk Trends
+### 13. Analytics - Risk Trends
 - **Endpoint**: `GET /analytics/risks/trends`
 - **Auth**: ✅ Yes
 - **Response**: Trend analysis
 
-### 16. Analytics - Mitigation Metrics
+### 14. Analytics - Mitigation Metrics
 - **Endpoint**: `GET /analytics/mitigations/metrics`
 - **Auth**: ✅ Yes
 - **Response**: Mitigation metrics
 
-### 17. Analytics - Frameworks
+### 15. Analytics - Frameworks
 - **Endpoint**: `GET /analytics/frameworks`
 - **Auth**: ✅ Yes
 - **Response**: Framework compliance metrics
 
-### 18. Analytics - Dashboard Snapshot
+### 16. Analytics - Dashboard Snapshot
 - **Endpoint**: `GET /analytics/dashboard`
 - **Auth**: ✅ Yes
 - **Response**: Dashboard snapshot
 
-### 19. Analytics - Export Data
+### 17. Analytics - Export Data
 - **Endpoint**: `GET /analytics/export`
 - **Auth**: ✅ Yes
 - **Response**: Exportable analytics data

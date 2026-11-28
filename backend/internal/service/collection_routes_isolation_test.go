@@ -40,9 +40,9 @@ var (
 	crtB = uuid.MustParse("22222222-2222-2222-2222-222222222222")
 )
 
-// newCollectionDB reconciles the full models, because GetTopRisks and
-// GetMitigationProgress load domain.Risk / domain.Mitigation whole (Preload
-// included) rather than selecting the handful of columns they display.
+// newCollectionDB reconciles the full models, because GetMitigationProgress
+// loads domain.Mitigation and its domain.Risk whole (Preload included) rather
+// than selecting the handful of columns it displays.
 func newCollectionDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	db, err := testdb.Open(t, sqlite.Open(":memory:"), &gorm.Config{
@@ -53,9 +53,8 @@ func newCollectionDB(t *testing.T) *gorm.DB {
 	for _, ddl := range []string{
 		`CREATE TABLE risks (id TEXT PRIMARY KEY)`,
 		`CREATE TABLE mitigations (id TEXT PRIMARY KEY)`,
-		// domain.Risk has an AfterSave hook that appends to risk_histories, and
-		// GetTopRisks reads that table for its trend, so the fixture carries it
-		// rather than disabling the hook.
+		// domain.Risk has an AfterSave hook that appends to risk_histories, so
+		// the fixture carries it rather than disabling the hook.
 		`CREATE TABLE risk_histories (id TEXT PRIMARY KEY)`,
 		`CREATE TABLE teams (id TEXT PRIMARY KEY)`,
 	} {
@@ -207,8 +206,7 @@ func TestAnalyticsCollections_NeverCrossTenants(t *testing.T) {
 
 // ---------------------------------------------------------------------------
 // DashboardDataService — /dashboard/metrics, /dashboard/risk-trends,
-// /dashboard/mitigation-status, /dashboard/top-risks,
-// /dashboard/mitigation-progress, /dashboard/complete
+// /dashboard/mitigation-status, /dashboard/mitigation-progress
 // ---------------------------------------------------------------------------
 
 func TestDashboardCollections_NeverCrossTenants(t *testing.T) {
@@ -246,34 +244,11 @@ func TestDashboardCollections_NeverCrossTenants(t *testing.T) {
 			"tenant A's in-progress mitigation must not surface as tenant B's")
 	})
 
-	// GET /dashboard/top-risks and GET /dashboard/complete are NOT asserted here,
-	// and deliberately so. GetTopRisks calls Preload("Team") on domain.Risk,
-	// which declares no Team relation, so GORM refuses the query before it runs
-	// and both endpoints answer 500 on every request in every tenant. There is
-	// no observable result to make an isolation claim about. They stay Pending in
-	// the isolation registry with exactly that reason; the defect is filed
-	// separately. This test asserts the refusal so the two facts stay linked: if
-	// the relation is ever added, this fails and whoever fixes it is told to
-	// write the isolation assertion the route then needs.
-	t.Run("top_risks_cannot_execute", func(t *testing.T) {
-		_, err := svc.GetTopRisks(ctx, crtA, 10)
-		require.Error(t, err, "GetTopRisks preloads a relation domain.Risk does not declare")
-		require.Contains(t, err.Error(), "Team")
-	})
-
 	t.Run("mitigation_progress", func(t *testing.T) {
 		prog, err := svc.GetMitigationProgress(ctx, crtA, 20)
 		require.NoError(t, err)
 		require.Len(t, prog, 1)
 		require.Equal(t, "A-only mitigation", prog[0].Name)
-	})
-
-	t.Run("complete_cannot_execute", func(t *testing.T) {
-		// GET /dashboard/complete composes the widgets above, GetTopRisks
-		// included, so it inherits that refusal wholesale.
-		_, err := svc.GetCompleteDashboardData(ctx, crtA)
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "Team")
 	})
 
 	t.Run("no_tenant_returns_nothing", func(t *testing.T) {

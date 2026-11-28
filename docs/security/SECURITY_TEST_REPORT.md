@@ -45,19 +45,19 @@ written exemption, when a group has no passing probe, when a probe names a route
 that no longer exists, or when an exemption cites a register row that is not in
 this file.
 
-**Coverage** (505 routes in 60 groups, counted by the ratchet's own classifier):
+**Coverage** (503 routes in 60 groups, counted by the ratchet's own classifier):
 
 | Route class | Total | Probed live | of which allowed (row) | Exempt (row) | Exempt, nothing to name | Auto-exempt¹ |
 |---|---|---|---|---|---|---|
 | Parameterised | 236 | 153 | 11 | 68 | 1 | 14 |
-| Collection GET | 154 | 113 | 0 | 7 | 0 | 34 |
+| Collection GET | 152 | 113 | 0 | 5 | 0 | 34 |
 | Write without an id in the path | 115 | 21 | 10 | 19 | 66 | 9 |
-| **Total** | **505** | **287** | **21** | **94** | **67** | **57** |
+| **Total** | **503** | **287** | **21** | **92** | **67** | **57** |
 
 ¹ The isolation registry records the route as public by design, machine-authenticated
 or self-scoped.
 
-The suite probes every parameterised and collection route except the 94
+The suite probes every parameterised and collection route except the 92
 exemptions listed against a register row in
 `backend/internal/security/crosstenant/exemptions.go` and the four groups
 exempted as a whole (`ai`, `controls`, `control-exceptions`, `integrations`).
@@ -174,7 +174,7 @@ lands, or the stated reason. The owner signed this register on 2026-11-27 (D-130
 | RR-01 | 64 routes and 4 groups have no seed or no successful control call yet (compliance sub-resources, vulnerabilities, notifications, automation runs, bulk operations, report jobs, control exceptions, integrations, scanner-adjacent kinds). Their isolation rests on the recorded decision in `isolation/registry.go`, not on a test | medium | #1521 | Accept until #1521 |
 | RR-02 | Closed. Seven routes used to answer 200 with an empty body, or touched nothing, for a foreign parent or user id instead of 404: five list routes, and `DELETE /rbac/users/:user_id` and `PATCH /rbac/users/:user_id/role` (added to this row by #1518). Each now answers 404, with one body for a foreign and an unknown id (proof below) | low | #1520 | Closed by #1520 |
 | RR-03 | Closed by #1518. 17 `/rbac` routes were unprobed because registration wrote no `tenants` row and no `user_tenants` row, so a new root got 403 there. Registration now writes both in its transaction (the root as Admin, no restart). Of the 17: 15 are live probes (4 of them allowed, under RR-15; the 2 that were allowed under RR-02 now answer 404, #1520; `POST /rbac/users` is a plain probe: it now answers 404 for a user outside the caller's organisation), `POST /rbac/roles` is exempt as having no id to name, and `DELETE /rbac/tenants/:tenant_id` is exempt under RR-15 | medium | #1518 | Closed |
-| RR-04 | 5 routes fail for every caller on Postgres, so no control exists (dashboard queries, `/audit-logs`, `/rbac/users/stats`) | medium | #1169, #1519 | Accept until fixed |
+| RR-04 | 3 routes fail for every caller on Postgres, so no control exists (`/audit-logs`, `/rbac/users/stats`). The two dashboard routes it also listed, `GET /dashboard/complete` and `GET /dashboard/top-risks`, were removed by #1169 | medium | #1519 | Accept until fixed |
 | RR-05 | 17 routes and the `ai` group need an artefact the harness does not create (uploaded file, rendered document, second approver, AI provider) | low | #1521 | Accept |
 | RR-06 | 2 server-sent-event streams are not probed | low | #1521 | Accept |
 | RR-08 | 1 route's own throttle makes repeated control runs answer 429 | low | #1521 | Accept |

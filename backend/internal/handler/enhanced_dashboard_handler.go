@@ -115,36 +115,6 @@ func (h *EnhancedDashboardHandler) GetMitigationStatus(c *fiber.Ctx) error {
 	return c.Status(http.StatusOK).JSON(status)
 }
 
-// GetTopRisks retrieves the top N risks by score
-// GET /api/v1/dashboard/top-risks?limit=5
-func (h *EnhancedDashboardHandler) GetTopRisks(c *fiber.Ctx) error {
-	userID := c.Locals("userID")
-	if userID == nil {
-		return c.Status(http.StatusUnauthorized).JSON(fiber.Map{
-			"error": "unauthorized",
-		})
-	}
-
-	limit := 5
-	if limitStr := c.Query("limit"); limitStr != "" {
-		if parsedLimit, err := strconv.Atoi(limitStr); err == nil && parsedLimit > 0 && parsedLimit <= 50 {
-			limit = parsedLimit
-		}
-	}
-
-	risks, err := h.dashboardDataService.GetTopRisks(c.Context(), analyticsTenant(c), limit)
-	if err != nil {
-		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
-			"error": "failed to retrieve top risks",
-		})
-	}
-
-	return c.Status(http.StatusOK).JSON(fiber.Map{
-		"top_risks": risks,
-		"count":     len(risks),
-	})
-}
-
 // GetMitigationProgress retrieves mitigation progress tracking data
 // GET /api/v1/dashboard/mitigation-progress?limit=10
 func (h *EnhancedDashboardHandler) GetMitigationProgress(c *fiber.Ctx) error {
@@ -173,24 +143,4 @@ func (h *EnhancedDashboardHandler) GetMitigationProgress(c *fiber.Ctx) error {
 		"mitigations": progress,
 		"count":       len(progress),
 	})
-}
-
-// GetCompleteDashboard retrieves all dashboard data in a single request
-// GET /api/v1/dashboard/complete
-func (h *EnhancedDashboardHandler) GetCompleteDashboard(c *fiber.Ctx) error {
-	userID := c.Locals("userID")
-	if userID == nil {
-		return c.Status(http.StatusUnauthorized).JSON(fiber.Map{
-			"error": "unauthorized",
-		})
-	}
-
-	analytics, err := h.dashboardDataService.GetCompleteDashboardData(c.Context(), analyticsTenant(c))
-	if err != nil {
-		return c.Status(http.StatusInternalServerError).JSON(fiber.Map{
-			"error": "failed to retrieve complete dashboard data",
-		})
-	}
-
-	return c.Status(http.StatusOK).JSON(analytics)
 }
